@@ -2,9 +2,11 @@ using System.Text;
 using SandBoxSim.ConsoleApp.Render;
 using SandBoxSim.ConsoleApp.Tui;
 using SandBoxSim.Core;
+using SandBoxSim.Core.Agents;
 using SandBoxSim.Core.Foundation;
 using SandBoxSim.Core.History;
 using SandBoxSim.Core.Environment;
+using SandBoxSim.Core.Systems;
 
 namespace SandBoxSim.ConsoleApp.Ui;
 
@@ -196,11 +198,25 @@ public static class Panels
     private static int CountToolsInCategory(ToolCategory category)
         => ToolPalette.IndicesOf(category).Length;
 
+    /// <summary>兼容重载：不指定选中个体（等价于"没有选中任何人"）。</summary>
+    public static void DrawSidePanel(RenderBuffer buffer, Simulation sim, int originX, int width, int originY, int height, int selectedX, int selectedY)
+        => DrawSidePanel(buffer, sim, originX, width, originY, height, selectedX, selectedY,
+            SandBoxSim.Core.Agents.AgentRef.None);
+
     /// <summary>
-    /// 右侧信息面板：世界概况 / 天气与光照 / 选中格详情 / 最近事件。
+    /// 右侧信息面板：选中个体（若有）/ 世界概况 / 天气与光照 / 选中格详情 / 最近事件。
     /// 这是"观察性"的主要载体（第 91 节），因此信息密度刻意做得高，但用颜色分组。
     /// </summary>
-    public static void DrawSidePanel(RenderBuffer buffer, Simulation sim, int originX, int width, int originY, int height, int selectedX, int selectedY)
+    public static void DrawSidePanel(
+        RenderBuffer buffer,
+        Simulation sim,
+        int originX,
+        int width,
+        int originY,
+        int height,
+        int selectedX,
+        int selectedY,
+        SandBoxSim.Core.Agents.AgentRef selectedAgent)
     {
         if (width < 20 || height < 8) { return; }
 
@@ -214,6 +230,9 @@ public static class Panels
         int x = originX + 2;
         int innerWidth = width - 4;
         int y2 = originY + 1;
+
+        // ---- 选中个体（放在最前面：玩家点了人的时候，他最想看的就是这个人） ----
+        y2 = DrawAgentInspector(buffer, sim, selectedAgent, x, y2, innerWidth, height - (y2 - originY) - 2, back);
 
         y2 += WriteSection(buffer, x, y2, innerWidth, "世界", back);
         y2 = WriteLine(buffer, x, y2, innerWidth, " 种子 " + sim.World.Seed + "   尺寸 " + sim.World.Width + "×" + sim.World.Height, Palette.UiText, back);
@@ -300,6 +319,183 @@ public static class Panels
 
     private static string Percent(float fraction01)
         => (SimMath.Clamp01(fraction01) * 100f).ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%";
+
+    /// <summary>
+    /// 个体检查器（第 57 / 78 / 92 节）。
+    ///
+    /// 这是整个项目里**投入产出比最高的一块 UI**：它把一个"模拟单位"变成"玩家认识的人"，
+    /// 而它需要的数据在 M1 就已经全部存在了（`LastDecisionOf` 保存了每次决策的
+    /// Top-N 动作与逐条考虑项分解）—— 只是从来没有出口。
+    ///
+    /// 面板刻意分成三段，对应玩家会依次问的三个问题：
+    ///   1. **他是谁**（名字 / 年龄 / 阶段 / 当前动作与进度）；
+    ///   2. **他过得怎么样**（四条需求条 + 健康 + 随身物资 + 性格）；
+    ///   3. **他为什么这么做**（效用分解表 —— 这一段才是关键）。
+    ///
+    /// 第 3 段的每一行都是 `Consideration.ToString()` 的直接输出：
+    /// 输入值、曲线、曲线输出、权重、加权贡献全都在数据结构里算好了。
+    /// 换句话说：**可解释性不是这份 UI 做出来的，是 M1 的数据结构留下的。**
+    /// </summary>
+    private static int DrawAgentInspector(
+        RenderBuffer buffer,
+        Simulation sim,
+        SandBoxSim.Core.Agents.AgentRef reference,
+        int x,
+        int y,
+        int width,
+        int availableRows,
+        Rgb back)
+    {
+        if (reference.IsNone) { return y; }
+        if (!sim.Agents.IsValid(reference)) { return y; }
+        if (availableRows < 8) { return y; }
+        if (width < 12) { return y; }
+
+        int slot = reference.Slot;
+        SandBoxSim.Core.Agents.AgentStore agents = sim.Agents;
+
+        y += WriteSection(buffer, x, y, width, "选中居民", back);
+
+        string name = agents.NameOrOverride(slot);
+        string stage = StageNameOf(agents.LifeStageOf(slot));
+        y = WriteLine(buffer, x, y, width, " " + name + "（" + agents.AgeDaysOf(slot) + " 岁 · " + stage + "）",
+            Palette.UiAccent, back, bold: true);
+
+        // 当前动作：显示"做了什么 + 走到哪一步"，否则玩家只看到一个人站着不动
+        ActionKind action = agents.ActionOf(slot);
+        ActionPhase phase = agents.PhaseOf(slot);
+        string actionText = action == ActionKind.None
+            ? "（无）"
+            : ActionRegistry.DescribeCached(action).DisplayName + " · " + PhaseNameOf(phase);
+
+        y = WriteLine(buffer, x, y, width, " 动作 " + actionText, Palette.UiText, back);
+
+        if (agents.HasTarget(slot))
+        {
+            Int2 target = agents.TargetOf(slot);
+            y = WriteLine(buffer, x, y, width, " 目标 " + target
+                + "   位置 " + agents.PositionOf(slot), Palette.UiTextDim, back);
+        }
+        else
+        {
+            y = WriteLine(buffer, x, y, width, " 位置 " + agents.PositionOf(slot), Palette.UiTextDim, back);
+        }
+
+        // ---- 需求 ----
+        y = WriteLine(buffer, x, y, width, " 健康 " + Bar(agents.HealthOf(slot), 10), HealthColorOf(agents.HealthOf(slot)), back);
+        y = WriteLine(buffer, x, y, width, " 饥饿 " + Bar(agents.HungerOf(slot), 10), NeedColorOf(agents.HungerOf(slot)), back);
+        y = WriteLine(buffer, x, y, width, " 疲劳 " + Bar(agents.FatigueOf(slot), 10), NeedColorOf(agents.FatigueOf(slot)), back);
+        y = WriteLine(buffer, x, y, width, " 干渴 " + Bar(agents.ThirstOf(slot), 10), NeedColorOf(agents.ThirstOf(slot)), back);
+        y = WriteLine(buffer, x, y, width, " 社交 " + Bar(agents.SocialOf(slot), 10), NeedColorOf(agents.SocialOf(slot)), back);
+
+        // ---- 随身物资 ----
+        float food = agents.InventoryOf(slot, ResourceKind.Food);
+        float wood = agents.InventoryOf(slot, ResourceKind.Wood);
+        float stone = agents.InventoryOf(slot, ResourceKind.Stone);
+        y = WriteLine(buffer, x, y, width, " 随身 粮" + F0(food) + " 木" + F0(wood) + " 石" + F0(stone),
+            Palette.UiTextDim, back);
+
+        if (agents.IsMigrating(slot, sim.Clock))
+        {
+            y = WriteLine(buffer, x, y, width, " 正在迁往新住地", Palette.UiWarn, back, bold: true);
+        }
+
+        // ---- 性格（六维）----
+        SandBoxSim.Core.Agents.Personality personality = agents.PersonalityOf(slot);
+        y = WriteLine(buffer, x, y, width,
+            " 性格 侵" + F2(personality.Aggression) + " 贪" + F2(personality.Greed)
+            + " 善" + F2(personality.Kindness), Palette.UiTextDim, back);
+        y = WriteLine(buffer, x, y, width,
+            "      勇" + F2(personality.Bravery) + " 勤" + F2(personality.Industriousness)
+            + " 交" + F2(personality.Sociability), Palette.UiTextDim, back);
+
+        // ---- 效用分解：本面板的核心 ----
+        y += WriteSection(buffer, x, y, width, "为什么这么做（效用分解）", back);
+
+        ref readonly SandBoxSim.Core.Ai.UtilityBreakdown breakdown = ref agents.LastDecisionOf(slot);
+        if (breakdown.Scores == null || breakdown.Scores.Length == 0)
+        {
+            y = WriteLine(buffer, x, y, width, " （还没有决策记录）", Palette.UiTextDim, back);
+            return y;
+        }
+
+        // 只列 Top-N（AiSystem 已经按效用降序保存在身上），面板高度有限，
+        // 而完整分解可能很长。Top-N 恰好就是"他在权衡哪几件事"的答案。
+        for (int i = 0; i < breakdown.Scores.Length; i++)
+        {
+            SandBoxSim.Core.Ai.ActionScore score = breakdown.Scores[i];
+            bool chosen = score.Action == breakdown.Chosen;
+
+            string line = " " + ActionRegistry.DisplayNameOf(score.Action) + " "
+                + score.Utility.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture)
+                + (score.Blocked ? " [门]" : string.Empty)
+                + (chosen ? "  ← 选中" : string.Empty);
+
+            y = WriteLine(buffer, x, y, width, line,
+                chosen ? Palette.UiAccent : Palette.UiTextDim, back, bold: chosen);
+
+            // 被选中的动作展开全部考虑项：这是"为什么"的答案
+            if (!chosen) { continue; }
+
+            for (int k = 0; k < score.Considerations.Length; k++)
+            {
+                SandBoxSim.Core.Ai.Consideration consideration = score.Considerations[k];
+                string detail = "   " + consideration.Name
+                    + " " + consideration.Score.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)
+                    + "×" + consideration.Weight.ToString("0.0#", System.Globalization.CultureInfo.InvariantCulture)
+                    + "=" + consideration.Contribution.ToString("+0.00;-0.00", System.Globalization.CultureInfo.InvariantCulture);
+
+                y = WriteLine(buffer, x, y, width, detail, Palette.UiTextDim, back);
+            }
+        }
+
+        return y;
+    }
+
+    private static Rgb NeedColorOf(float value)
+    {
+        if (value >= 0.85f) { return Palette.UiDanger; }
+        if (value >= 0.6f) { return Palette.UiWarn; }
+        return Palette.UiText;
+    }
+
+    private static Rgb HealthColorOf(float value)
+    {
+        if (value <= 0.35f) { return Palette.UiDanger; }
+        if (value <= 0.65f) { return Palette.UiWarn; }
+        return Palette.UiText;
+    }
+
+    private static string F0(float value)
+        => value.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string F2(float value)
+        => value.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string StageNameOf(SandBoxSim.Core.Agents.LifeStage stage)
+    {
+        switch (stage)
+        {
+            case SandBoxSim.Core.Agents.LifeStage.Child: return "儿童";
+            case SandBoxSim.Core.Agents.LifeStage.Adult: return "成年";
+            case SandBoxSim.Core.Agents.LifeStage.Elder: return "老年";
+            case SandBoxSim.Core.Agents.LifeStage.Dead: return "已故";
+            default: return stage.ToString();
+        }
+    }
+
+    private static string PhaseNameOf(SandBoxSim.Core.Agents.ActionPhase phase)
+    {
+        switch (phase)
+        {
+            case SandBoxSim.Core.Agents.ActionPhase.Idle: return "空闲";
+            case SandBoxSim.Core.Agents.ActionPhase.Moving: return "在途";
+            case SandBoxSim.Core.Agents.ActionPhase.Executing: return "执行中";
+            case SandBoxSim.Core.Agents.ActionPhase.Done: return "已完成";
+            case SandBoxSim.Core.Agents.ActionPhase.Failed: return "失败";
+            default: return phase.ToString();
+        }
+    }
 
     /// <summary>用 Unicode 方块画一个 0..1 的进度条（比数字更快被眼睛捕捉）。</summary>
     public static string Bar(float value01, int width)

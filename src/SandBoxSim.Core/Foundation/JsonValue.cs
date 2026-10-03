@@ -107,6 +107,41 @@ public sealed class JsonValue
         _ => 0,
     };
 
+    /// <summary>
+    /// 把一个**数组元素**当作整数读。
+    ///
+    /// 为什么需要这套"无键"取值器：存档用扁平数组存 10 万格的逐格数据
+    /// （`terrain`、`moisture`…），读取时是 `array.Items[i]` 而不是 `array.Get("key")`。
+    /// 让调用方直接碰 `NumberValue` 会暴露内部表示，而且到处都要写类型判断。
+    /// </summary>
+    public int AsInt()
+        => IsNumber ? (int)System.Math.Round(NumberValue, System.MidpointRounding.AwayFromZero) : 0;
+
+    /// <summary>把一个数组元素当作浮点读。</summary>
+    public float AsFloat() => IsNumber ? (float)NumberValue : 0f;
+
+    /// <summary>把一个数组元素当作 double 读。</summary>
+    public double AsDouble() => IsNumber ? NumberValue : 0d;
+
+    /// <summary>把一个数组元素当作字符串读。</summary>
+    public string AsString() => ValueKind == Kind.String ? StringValue : string.Empty;
+
+    /// <summary>
+    /// 把一个数组元素当作 <c>ulong</c> 读。
+    ///
+    /// 优先按字符串解析：随机流状态是 64 位，而 JSON 的数字是 double（53 位有效），
+    /// 直接写数字会丢精度 —— 那会表现为"偶尔分叉"，是最难查的一类问题。
+    /// 仍然接受数字形式，是为了容忍手工编辑过的存档。
+    /// </summary>
+    public ulong AsULong()
+    {
+        if (IsNumber) { return (ulong)NumberValue; }
+        if (ValueKind != Kind.String) { return 0UL; }
+
+        return ulong.TryParse(StringValue, System.Globalization.NumberStyles.Integer,
+            System.Globalization.CultureInfo.InvariantCulture, out ulong parsed) ? parsed : 0UL;
+    }
+
     // ---- 便捷取值（带默认值，避免调用方到处写类型判断） ----
 
     public int GetInt(string key, int fallback = 0)

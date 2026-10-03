@@ -72,6 +72,21 @@ public sealed class SimulationStats
     public void RecordMigration() => TotalMigrations++;
 
     /// <summary>
+    /// 读档时恢复累计计数。
+    ///
+    /// 为什么这是**必须的**而不是"报告才用得上"：这三个计数直接参与状态摘要
+    /// （见 <see cref="StateHash.Compute"/>）。不恢复它们会让"读档后摘要不一致"，
+    /// 从而把整条确定性验收变成假失败 —— 而且失败点看起来像"读档坏了"，
+    /// 实际上是统计没跟上。凡进摘要的状态都必须能被恢复，这条没有例外。
+    /// </summary>
+    public void RestoreCounters(int totalBirths, int totalDeaths, int totalMigrations)
+    {
+        TotalBirths = totalBirths;
+        TotalDeaths = totalDeaths;
+        TotalMigrations = totalMigrations;
+    }
+
+    /// <summary>
     /// 记录一天的样本。famine 判定也在这里做：这样"饥荒"是统计口径的结果，
     /// 而不是某处硬编码的剧情开关（第 2 条涌现性）。
     /// </summary>
@@ -187,4 +202,82 @@ public static class StateHash
     }
 
     public static string ComputeDigest(Simulation sim) => Hash64.ToDigestString(Compute(sim));
+
+    /// <summary>
+    /// 逐段摘要（调试与存档自校验用）。
+    ///
+    /// 存在的理由很直接：只报"总摘要不一致"对定位毫无帮助 ——
+    /// 世界里有 10 万格地形、几十个个体、还有动物/建筑/库存/统计，
+    /// 从一个大数字反推是哪一段漏了状态是不可能的。
+    /// 分段之后，失败信息能直接说"是动物那一段不一致"。
+    ///
+    /// 这也正是实现存档时被真实用到的工具：四个"隐形状态"字段
+    /// 都是靠分段对比 + 逐字段对比才定位出来的。
+    /// </summary>
+    public static string DescribeSegments(Simulation sim)
+    {
+        Environment.World world = sim.World;
+
+        ulong worldHash = Hash64.Begin();
+        worldHash = Hash64.Combine(worldHash, world.Seed);
+        worldHash = Hash64.Combine(worldHash, (int)world.Tick);
+        worldHash = Hash64.Combine(worldHash, world.Width);
+        worldHash = Hash64.Combine(worldHash, world.Height);
+        worldHash = Hash64.Combine(worldHash, (int)world.Weather.Kind);
+        worldHash = Hash64.Combine(worldHash, world.Weather.DurationHours);
+
+        ulong tileHash = Hash64.Begin();
+        Tile[] tiles = world.Tiles;
+        for (int i = 0; i < tiles.Length; i++)
+        {
+            tileHash = Hash64.Combine(tileHash, (int)tiles[i].Terrain);
+            tileHash = Hash64.Combine(tileHash, (int)tiles[i].Fire);
+            tileHash = Hash64.Combine(tileHash, (int)tiles[i].Resource.Kind);
+            tileHash = Hash64.Combine(tileHash, (int)(tiles[i].Resource.Amount * 100f));
+            tileHash = Hash64.Combine(tileHash, (int)(tiles[i].Moisture * 1000f));
+            tileHash = Hash64.Combine(tileHash, (int)(tiles[i].Fertility * 1000f));
+            tileHash = Hash64.Combine(tileHash, tiles[i].BuildingId);
+        }
+
+        ulong statsHash = Hash64.Begin();
+        statsHash = Hash64.Combine(statsHash, sim.ResourceSystem.DepletionEvents);
+        statsHash = Hash64.Combine(statsHash, sim.Stats.TotalBirths);
+        statsHash = Hash64.Combine(statsHash, sim.Stats.TotalDeaths);
+        statsHash = Hash64.Combine(statsHash, sim.Stats.TotalMigrations);
+
+        // 顺序固定（不依赖字典），因此两边的字符串可以直接比对
+        return string.Join(";", new[]
+        {
+            "world=" + Hash64.ToDigestString(worldHash),
+            "tiles=" + Hash64.ToDigestString(tileHash),
+            "agents=" + Hash64.ToDigestString(sim.Agents.HashInto(Hash64.Begin())),
+            "wildlife=" + Hash64.ToDigestString(sim.Wildlife.HashInto(Hash64.Begin())),
+            "buildings=" + Hash64.ToDigestString(sim.Buildings.HashInto(Hash64.Begin())),
+            "stocks=" + Hash64.ToDigestString(sim.GroundStocks.HashInto(Hash64.Begin())),
+            "storage=" + Hash64.ToDigestString(sim.Storage.HashInto(Hash64.Begin())),
+            "stats=" + Hash64.ToDigestString(statsHash),
+        });
+    }
+
+    /// <summary>
+    /// 比较两段分段摘要，返回第一处不同的段落名（全同则返回空串）。
+    /// 用于把"总摘要不一致"翻译成"哪一段不一致"。
+    /// </summary>
+    public static string FirstSegmentDifference(string expected, string actual)
+    {
+        if (string.IsNullOrEmpty(expected) || string.IsNullOrEmpty(actual)) { return string.Empty; }
+
+        string[] a = expected.Split(';');
+        string[] b = actual.Split(';');
+
+        for (int i = 0; i < a.Length && i < b.Length; i++)
+        {
+            if (!string.Equals(a[i], b[i], System.StringComparison.Ordinal))
+            {
+                return a[i] + "（读档后为 " + b[i] + "）";
+            }
+        }
+
+        return a.Length == b.Length ? string.Empty : "段落数不同";
+    }
 }

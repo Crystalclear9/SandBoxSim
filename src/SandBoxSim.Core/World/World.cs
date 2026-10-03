@@ -329,4 +329,23 @@ public sealed class World
 
     /// <summary>存档恢复：直接把日历推进到某个 tick（不触发任何周期事件）。</summary>
     public void RestoreTick(long tick) => Calendar.RestoreFromSave(tick);
+
+    /// <summary>
+    /// 存档恢复：把世界的 seed 改回存档里记录的那个。
+    ///
+    /// **为什么必须有这个方法**（这是一个真实踩到的坑）：读档时一般是
+    /// "先用命令行给的 seed 造一个空世界，再用存档覆盖逐格数据"。
+    /// 但如果只覆盖地形而忘了改 <see cref="Seed"/>，世界里就会留下
+    /// "地形属于 seed 555、而 Seed 字段写着 839102"这种自相矛盾的状态。
+    ///
+    /// 而 seed **参与状态摘要**，所以表现是"读档瞬间摘要就不一致"。
+    /// 更坏的是：只要调用方恰好传了与存档相同的 seed（很常见，
+    /// 比如自己存自己读的测试），这个 bug 就会**完全隐藏**。
+    /// 因此 <c>SaveLoadTests.LoadedWorldAdoptsSavedSeed</c> 专门用**不同**的 seed 去读档。
+    /// </summary>
+    public void RestoreSeed(int seed)
+    {
+        Seed = seed;
+        Revision++;
+    }
 }

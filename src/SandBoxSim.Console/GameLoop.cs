@@ -506,7 +506,7 @@ public sealed class GameLoop
         if (sidePanel > 0)
         {
             Panels.DrawSidePanel(_buffer, _sim, mapCellsWide, sidePanel, Panels.TopBarHeight,
-                mapCellsHigh, _renderer.SelectedX, _renderer.SelectedY);
+                mapCellsHigh, _renderer.SelectedX, _renderer.SelectedY, _selectedAgent);
         }
 
         if (_tools.IsOpen)

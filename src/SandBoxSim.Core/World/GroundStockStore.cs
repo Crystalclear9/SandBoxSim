@@ -116,6 +116,74 @@ public sealed class GroundStockStore : ISimEntitySet
         _liveCount++;
     }
 
+    /// <summary>
+    /// 把一条存档里的物资堆精确恢复到指定槽位（读档专用）。
+    ///
+    /// **槽位必须原样恢复，不能重新紧凑排列** —— 这是一个踩过的坑：
+    /// <see cref="HashInto"/> 会把槽位下标混进摘要，所以"把 5 个堆恢复成槽位 0..4"
+    /// 与"它们原本在槽位 3/7/8/12/19"会算出**不同的摘要**，
+    /// 于是读档后立刻摘要不一致，看起来像"读档把世界改坏了"，
+    /// 实际上世界完全正确、只是槽位身份丢了。
+    /// 凡是进摘要的字段都必须在存档里显式保存，槽位也是其中之一。
+    /// </summary>
+    public void RestorePile(int slot, int x, int y, ResourceStock stock)
+    {
+        EnsureCapacity(slot + 1);
+
+        _piles[slot] = new Pile
+        {
+            Alive = true,
+            X = x,
+            Y = y,
+            Stock = stock,
+        };
+
+        // 总量是**派生缓存**（它由各堆求和得出），在存档里不进摘要，
+        // 但读档后必须立刻正确，否则 UI 与需求判定会依据 0 做决定。
+        _totals[(int)ResourceKind.Food] += stock.Food;
+        _totals[(int)ResourceKind.Wood] += stock.Wood;
+        _totals[(int)ResourceKind.Stone] += stock.Stone;
+        _totals[(int)ResourceKind.Iron] += stock.Iron;
+
+        AddLive(slot);
+    }
+
+    /// <summary>确保至少能容纳 <paramref name="size"/> 个堆（读档时存档可能比默认容量大）。</summary>
+    public void EnsureCapacity(int size)
+    {
+        if (size <= _piles.Length) { return; }
+
+        int old = _piles.Length;
+        int next = old;
+        while (next < size) { next *= 2; }
+
+        System.Array.Resize(ref _piles, next);
+        System.Array.Resize(ref _liveIndices, next);
+        System.Array.Resize(ref _liveIndexOfSlot, next);
+        for (int i = old; i < next; i++) { _liveIndexOfSlot[i] = -1; }
+    }
+
+    /// <summary>清空全部物资堆但保留容量（读档前调用）。</summary>
+    public void ClearAllKeepCapacity()
+    {
+        for (int i = 0; i < _piles.Length; i++)
+        {
+            _piles[i].Alive = false;
+            _liveIndexOfSlot[i] = -1;
+        }
+        _liveCount = 0;
+        for (int i = 0; i < _totals.Length; i++) { _totals[i] = 0f; }
+        TotalDeposited = 0f;
+        TotalWithdrawn = 0f;
+    }
+
+    /// <summary>读档时恢复累计存入/取回（不影响演化，只有报告读它们）。</summary>
+    public void RestoreCounters(float totalDeposited, float totalWithdrawn)
+    {
+        TotalDeposited = totalDeposited;
+        TotalWithdrawn = totalWithdrawn;
+    }
+
     private void RemoveLive(int index)
     {
         int slot = _liveIndexOfSlot[index];

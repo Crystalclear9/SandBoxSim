@@ -114,6 +114,15 @@ public sealed class Simulation
     public DailySample LastDailySample { get; private set; }
 
     public Simulation(SimConfig config, int width, int height, int seed)
+        : this(config, width, height, seed, restoreMode: false)
+    {
+    }
+
+    /// <summary>只生成地形、不初始化任何实体与统计（读档专用，见 <see cref="Save.SaveLoader"/>）。</summary>
+    public static Simulation CreateForRestore(SimConfig config, int width, int height, int seed)
+        => new Simulation(config, width, height, seed, restoreMode: true);
+
+    private Simulation(SimConfig config, int width, int height, int seed, bool restoreMode)
     {
         Config = config ?? throw new System.ArgumentNullException(nameof(config));
         World = new Environment.World(config, width, height, seed);
@@ -143,7 +152,30 @@ public sealed class Simulation
         RegisterEntitySet(Wildlife);
         RegisterEntitySet(Buildings);
 
-        RegenerateWorld(seed);
+        // 读档模式下**只生成地形**，不做"新世界"那一套（清空实体、撒初始动物、记事件）。
+        //
+        // 为什么必须区分（这是读档最容易踩的坑）：`RegenerateWorld` 会
+        // 重置随机源、清空全部实体集合、并**撒下一批初始野生动物**。
+        // 如果读档走这条路，随后恢复的实体是在"已经被重新播种的世界"上叠加的 ——
+        // 表现为读档后动物数量翻倍、或多出一批不存在的事件，
+        // 而存档里那些"看起来对"的字段反而掩盖了问题。
+        if (restoreMode) { GenerateTerrainOnly(seed); }
+        else { RegenerateWorld(seed); }
+    }
+
+    /// <summary>
+    /// 只生成地形与资源，不触碰任何实体、统计与随机源之外的东西。
+    /// 用于读档：地形随后会被存档里的逐格数据覆盖，这里生成只是为了
+    /// 让 <see cref="World"/> 有一个尺寸正确、字段合法的 Tile 数组。
+    /// </summary>
+    private void GenerateTerrainOnly(int seed)
+    {
+        Tile[] tiles = WorldGenerator.Generate(Config, World.Width, World.Height, seed, out WorldGenerator.Result info);
+        World.ReplaceAllTiles(tiles, seed);
+        World.RestoreTick(0);
+        World.ResetWeather();
+        GenerationInfo = info;
+        World.RefreshSpatialIndex();
     }
 
     /// <summary>
@@ -638,6 +670,86 @@ public sealed class Simulation
         World.Weather.ForceKind(kind, durationHours);
         Events.Record(Clock, History.WorldEventType.WeatherForced,
             "玩家强制天气为 " + WeatherInfo.NameOf(kind) + "，持续 " + durationHours + " 小时");
+    }
+
+    // ---------------------------------------------------------------------
+    // 存档 / 读档（第 76 节）
+    //
+    // 具体格式与字段清单在 Save/SaveFile.cs（写）与 Save/SaveLoader.cs（读）。
+    // Simulation 只提供"从哪进、从哪出"这两个入口，不参与字段细节 ——
+    // 这样新增一个存档字段时只需要改 Save 目录下的文件，不需要动模拟内核。
+    // ---------------------------------------------------------------------
+
+    /// <summary>把当前全部状态编码成存档文本（不写磁盘）。</summary>
+    public string SaveToText() => Save.SaveFile.Encode(this);
+
+    /// <summary>
+    /// 把当前状态写入存档文件。
+    ///
+    /// **这是 Core 里除 ConfigLoader 之外的第二处文件 I/O**，而且是刻意的例外：
+    /// 存档必须能在 headless / 批处理 / 测试里用，如果做成"只有 UI 才能存"，
+    /// 那么"Save → Load → 摘要一致"这条最关键的验收就只能在 TUI 里手测。
+    /// 它不参与 tick 管线，也不读时间/环境，因此不破坏确定性契约。
+    /// </summary>
+    public void SaveToFile(string path)
+    {
+        if (string.IsNullOrEmpty(path)) { throw new System.ArgumentException("存档路径为空", nameof(path)); }
+
+        string directory = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path)) ?? ".";
+        if (!System.IO.Directory.Exists(directory)) { System.IO.Directory.CreateDirectory(directory); }
+
+        System.IO.File.WriteAllText(path, SaveToText(), new System.Text.UTF8Encoding(false));
+    }
+
+    /// <summary>
+    /// 从一个存档文件**恢复到一个已存在的、尺寸相同的 Simulation**。
+    ///
+    /// 为什么是"恢复到已存在实例"而不是"新建实例"：表现层（TUI）持有一大堆
+    /// 指向 <see cref="World"/> 与各系统的引用（相机、渲染器、面板缓存），
+    /// 换一个新实例会让它们全部悬空。原地恢复只需要重建一格状态，场景里的引用都还有效。
+    /// </summary>
+    public Save.SaveFile.LoadResult LoadFromFile(string path)
+    {
+        if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path))
+        {
+            return new Save.SaveFile.LoadResult { Error = "存档文件不存在：" + path };
+        }
+
+        string json = System.IO.File.ReadAllText(path, System.Text.Encoding.UTF8);
+        return Save.SaveLoader.Load(this, json);
+    }
+
+    /// <summary>从存档文本恢复（测试与内存内往返用）。</summary>
+    public Save.SaveFile.LoadResult LoadFromText(string json) => Save.SaveLoader.Load(this, json);
+
+    /// <summary>
+    /// 读档收尾（由 <see cref="Save.SaveLoader"/> 在全部状态恢复之后调用）。
+    ///
+    /// 存在的理由：读档之后必须把**所有派生缓存**重新算一遍，否则会留下
+    /// "状态是新的、缓存是旧的"这种最难查的不一致。目前需要重算的有三项：
+    /// 人口/建筑计数、AI 分批数、以及决策相位与分批数的匹配关系。
+    ///
+    /// 为什么把它做成 Simulation 的方法而不是让 SaveLoader 直接改这些字段：
+    /// 这些字段是 private set 的，让外部改会绕过"谁负责维护它"的边界。
+    /// </summary>
+    public void NotifyAfterLoad()
+    {
+        PopulationCount = Agents.LiveCount;
+        BuildingCount = Buildings.TotalCompleted;
+
+        // 只重算"由人口推导出来"的派生量。
+        Ai.RefreshBatchCount();
+
+        // **刻意不调用 Agents.AssignDecisionPhases()** —— 这是一个踩过的坑：
+        // 决策相位是**被保存并恢复**的状态（它决定谁在哪一分钟决策），
+        // 在这里重新均分等于把恢复出来的相位又一次打乱，
+        // 于是"读档后续跑"与"直接跑"会在几百 tick 后分叉 ——
+        // 而因为相位不进摘要，读档瞬间的摘要比对完全看不出问题。
+        // 换句话说：**凡是被显式恢复的字段，读档收尾时都不能"顺手重算"一遍。**
+
+        // 空间索引必须在**地形恢复之后**刷新：早于地形恢复会让 AI 依据过期的
+        // 资源分布做决定（见 SaveLoader 顶部的顺序清单）。
+        World.RefreshSpatialIndex();
     }
 
     /// <summary>

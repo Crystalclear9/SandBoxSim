@@ -263,6 +263,107 @@ public sealed class WildlifeStore : ISimEntitySet
     }
 
     /// <summary>
+    /// 把一条存档里的动物精确恢复到指定槽位（读档专用）。
+    ///
+    /// 与个体同样的理由：**漏掉任何参与摘要的字段都会让读档后的演化分叉**。
+    /// 动物的字段少（位置 / 能量 / 年龄），因此把清单写全的代价很低。
+    /// </summary>
+    public void RestoreAnimal(int slot, int x, int y, float energy, int ageDays)
+    {
+        EnsureCapacity(slot + 1);
+
+        _alive[slot] = true;
+        _x[slot] = x;
+        _y[slot] = y;
+        _energy[slot] = SimMath.Clamp01(energy);
+        _ageDays[slot] = (short)SimMath.Clamp(ageDays, 0, 32000);
+
+        _live[_liveCount] = slot;
+        _liveIndexOfSlot[slot] = _liveCount;
+        _liveCount++;
+    }
+
+    /// <summary>
+    /// 恢复存活列表的**顺序**（读档专用，必须在全部 <see cref="RestoreAnimal"/> 之后调用）。
+    ///
+    /// # 为什么连"顺序"都得存
+    ///
+    /// 这是个反直觉但非常关键的坑：存活列表的顺序会随删除变化（末尾交换填补空位），
+    /// 因此它**不是**槽位升序，而是"历史操作的副产品"。而
+    /// <see cref="Systems.WildlifeSystem"/> 是**按这个顺序**遍历并消耗随机数的。
+    ///
+    /// 只恢复"哪些槽位活着"而不恢复顺序，会造成：
+    ///   * 状态摘要**完全一致**（摘要按槽位升序计算，与顺序无关）；
+    ///   * 但下一 tick 起，随机数被分配给**不同的动物** → 立刻分叉。
+    ///
+    /// 这正是 `SaveLoadRoundTripPreservesDigest` 必须"读档后再续跑一段"才能发现的问题：
+    /// 只比读档瞬间的摘要，这个 bug 永远查不出来。
+    /// </summary>
+    public void RestoreLiveOrder(int[] liveSlotsInOrder)
+    {
+        if (liveSlotsInOrder == null) { return; }
+
+        for (int i = 0; i < _alive.Length; i++) { _liveIndexOfSlot[i] = -1; }
+
+        _liveCount = 0;
+        for (int i = 0; i < liveSlotsInOrder.Length; i++)
+        {
+            int slot = liveSlotsInOrder[i];
+            if (slot < 0 || slot >= _alive.Length || !_alive[slot]) { continue; }
+
+            _live[_liveCount] = slot;
+            _liveIndexOfSlot[slot] = _liveCount;
+            _liveCount++;
+        }
+    }
+
+    /// <summary>按当前存活列表顺序导出槽位（存档用；顺序本身是状态的一部分）。</summary>
+    public int[] ExportLiveOrder()
+    {
+        var result = new int[_liveCount];
+        for (int i = 0; i < _liveCount; i++) { result[i] = _live[i]; }
+        return result;
+    }
+
+    /// <summary>清空全部动物但保留容量（读档前调用）。</summary>
+    public void ClearAllKeepCapacity()
+    {
+        for (int i = 0; i < _alive.Length; i++)
+        {
+            _alive[i] = false;
+            _liveIndexOfSlot[i] = -1;
+        }
+        _liveCount = 0;
+        _nextFreeHint = 0;
+        TotalBorn = 0;
+        TotalDied = 0;
+        TotalHunted = 0;
+    }
+
+    /// <summary>
+    /// 槽位分配提示（读档时必须恢复）。
+    ///
+    /// 这是个**看起来只是优化、其实会影响结果**的字段，属于最容易漏掉的一类：
+    /// 它决定下一只新生的动物落在哪个槽位，而槽位下标会进入状态摘要。
+    /// 不恢复它 → 出生后的动物落在不同槽位 → 摘要分叉，且要到"第一只动物出生"
+    /// 之后才显现（可能是读档后几千 tick），排查起来毫无线索。
+    ///
+    /// 判据仍然是那一句：**它会不会影响未来的行为**，而不是"它看起来是不是状态"。
+    /// </summary>
+    public int NextFreeHint
+    {
+        get => _nextFreeHint;
+        set => _nextFreeHint = value < 0 ? 0 : value;
+    }
+
+    public void RestoreCounters(int totalBorn, int totalDied, int totalHunted)
+    {
+        TotalBorn = totalBorn;
+        TotalDied = totalDied;
+        TotalHunted = totalHunted;
+    }
+
+    /// <summary>
     /// 混入状态摘要。
     ///
     /// **必须按槽位顺序遍历**，不能用存活列表：存活列表的顺序会随删除（末尾交换）变化，

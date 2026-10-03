@@ -23,6 +23,8 @@ public sealed class Args
     {
         "--headless", "--digest", "--batch", "--snapshot", "--no-color", "--help", "--verbose",
         "--no-alternate-screen", "--invariants", "--no-invariants", "--repeat",
+        // M4：读档启动（存档路径由 --load-file 给出）
+        "--load",
     };
 
     /// <summary>已知的取值参数。</summary>
@@ -33,6 +35,8 @@ public sealed class Args
         "--report", "--quiet-after",
         // M1：初始放置的居民数量与散布半径（"玩家创造条件"的最小入口）
         "--agents", "--agent-radius",
+        // M4：存档 / 读档 / 自动存档
+        "--save-file", "--load-file", "--auto-save-days",
     };
 
     public Args(string[] raw)
@@ -206,9 +210,15 @@ public sealed class Args
             "  --width <int>         世界宽（默认取配置 100）",
             "  --height <int>        世界高（默认取配置 100）",
             "  --config <path>       配置文件路径（默认 config/sim.default.json）",
-            "  --overlay <name>      起始叠加层：none/fertility/moisture/temperature/wood/food/vegetation/firerisk/walkable",
+            "  --overlay <name>      起始叠加层：none/fertility/moisture/temperature/wood/food/vegetation/firerisk/walkable/population/aistate/buildings",
             "  --agents <int>        初始放置的居民数量（默认 0；玩家创造的是条件，不是结果）",
             "  --agent-radius <int>  居民初始散布半径（格，默认 8）",
+            "",
+            "存档与读档：",
+            "  --save-file <path>    跑完之后把世界存到指定文件（默认写到产出目录）",
+            "  --load-file <path>    从存档启动；世界状态完全来自存档，自动存档",
+            "  --load                等价于 --load-file 的语义提示（配合 --load-file 使用）",
+            "  --auto-save-days <n>  每 n 天自动存档一次（0 = 关闭；仅 TUI 与长跑模式）",
             "",
             "时间与产出：",
             "  --days <int>          headless/batch 跑多少游戏天（默认 100）",

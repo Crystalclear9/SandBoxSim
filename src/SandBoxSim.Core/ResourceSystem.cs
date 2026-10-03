@@ -188,6 +188,13 @@ public sealed class ResourceSystem
         return SimMath.Clamp01(_world.TotalResource(kind) / capacity);
     }
 
+    /// <summary>读档时恢复累计统计（它们不影响演化，但报告与"资源紧张度"曲线要用）。</summary>
+    public void RestoreCounters(double totalHarvested, long depletionEvents)
+    {
+        TotalHarvested = totalHarvested;
+        DepletionEvents = depletionEvents;
+    }
+
     public void ResetStatistics()
     {
         LastHourRegenerated = 0f;

@@ -272,6 +272,127 @@ public sealed class AgentStore : ISimEntitySet
     /// <param name="rng">性格抽样用（必须由调用方指定流，保证确定性）。</param>
     /// <param name="ageDays">初始年龄（天）。</param>
     /// <param name="birthTick">出生时刻（tick）；用于事件日志与个人时间线。</param>
+    /// <summary>
+    /// 把一条存档里的个体**精确恢复到指定槽位**（读档专用）。
+    ///
+    /// 为什么不复用 <see cref="Add"/>：Add 会自己找位置、抽样性格、随机化初始需求 ——
+    /// 那些都是"新个体"的语义。读档要的是"这个槽位就是我上次存下来的那个个体"，
+    /// 包括他的代次、决策相位、下次决策时刻、迁移意愿。
+    ///
+    /// **漏掉任何一个字段都会让读档后的演化与直接跑分叉**，而且分叉点可能在几万 tick 之后，
+    /// 所以这里刻意把字段一条条写出来（而不是反射一把梭）：
+    /// 漏字段会表现为"这行代码没有"，而不是"某个字段静默变成默认值"。
+    /// 字段清单的判据是：**凡参与状态摘要的状态都必须在这里恢复。**
+    /// </summary>
+    public void RestoreAgent(
+        int slot,
+        int generation,
+        int x, int y, int homeX, int homeY, byte facing,
+        float hunger, float fatigue, float thirst, float social, float health,
+        int ageDays, LifeStage lifeStage, JobType job,
+        float invFood, float invWood, float invStone, float invIron,
+        SandBoxSim.Core.Agents.Personality personality,
+        AgentState state, ActionKind action, ActionPhase phase,
+        int targetX, int targetY, int actionTicks,
+        bool hasPathStep, int pathStepX, int pathStepY,
+        int decisionPhase, long nextDecisionTick, long migrateUntil,
+        long birthTick)
+    {
+        EnsureCapacity(slot + 1);
+
+        _alive[slot] = true;
+        _generation[slot] = generation;
+
+        _x[slot] = x;
+        _y[slot] = y;
+        _prevX[slot] = x;
+        _prevY[slot] = y;
+        _homeX[slot] = homeX;
+        _homeY[slot] = homeY;
+        _facing[slot] = facing;
+
+        _hunger[slot] = SimMath.Clamp01(hunger);
+        _fatigue[slot] = SimMath.Clamp01(fatigue);
+        _thirst[slot] = SimMath.Clamp01(thirst);
+        _social[slot] = SimMath.Clamp01(social);
+        _health[slot] = SimMath.Clamp01(health);
+
+        _ageDays[slot] = (short)SimMath.Clamp(ageDays, 0, 32000);
+        _lifeStage[slot] = (byte)lifeStage;
+        _job[slot] = (byte)job;
+        _deathCause[slot] = (byte)DeathCause.None;
+        _birthTick[slot] = birthTick;
+        _deathTick[slot] = -1;
+
+        _invFood[slot] = invFood < 0f ? 0f : invFood;
+        _invWood[slot] = invWood < 0f ? 0f : invWood;
+        _invStone[slot] = invStone < 0f ? 0f : invStone;
+        _invIron[slot] = invIron < 0f ? 0f : invIron;
+
+        _aggression[slot] = SimMath.Clamp01(personality.Aggression);
+        _greed[slot] = SimMath.Clamp01(personality.Greed);
+        _kindness[slot] = SimMath.Clamp01(personality.Kindness);
+        _bravery[slot] = SimMath.Clamp01(personality.Bravery);
+        _industriousness[slot] = SimMath.Clamp01(personality.Industriousness);
+        _sociability[slot] = SimMath.Clamp01(personality.Sociability);
+
+        _state[slot] = (byte)state;
+        _action[slot] = (byte)action;
+        _actionPhase[slot] = (byte)phase;
+        _failReason[slot] = (byte)ActionFailReason.None;
+        _targetX[slot] = targetX;
+        _targetY[slot] = targetY;
+        _actionTicks[slot] = actionTicks;
+
+        // 寻路的"下一步"缓存必须一起恢复。
+        //
+        // 这是存档里最隐蔽的一处**必要状态**（实测踩到）：它不进状态摘要，
+        // 但移动系统会沿用它。不恢复的话，读档后个体会**重新算一次路径**，
+        // 于是位置比直接跑的人慢/快一格 —— 摘要要到**下一 tick** 才分叉，
+        // 而读档瞬间完全一致。表现形式是"同一个人在不同时间线里差一步"。
+        _pathNextX[slot] = pathStepX;
+        _pathNextY[slot] = pathStepY;
+        _hasPathStep[slot] = hasPathStep;
+
+        _decisionPhase[slot] = (byte)SimMath.Clamp(decisionPhase, 0, 255);
+        _nextDecisionTick[slot] = nextDecisionTick;
+        _migrateUntil[slot] = migrateUntil;
+
+        // 决策分解**不存也不恢复**：它是"解释"而不是"状态"，下一次决策就会重算。
+        // 恢复成分解反而危险 —— 那会显示一个过期 tick 的解释，看起来像世界卡住了。
+        _lastDecision[slot] = default;
+
+        RebuildLiveSlots();
+        TotalBorn++;
+        if (_liveCount > _peakPopulation) { _peakPopulation = _liveCount; }
+    }
+
+    /// <summary>
+    /// 清空全部个体但**保留容量**（读档前调用）。
+    /// 与 <see cref="Reset"/> 的区别：这里不重置统计计数（它们由存档单独恢复）。
+    /// </summary>
+    public void ClearAllKeepCapacity()
+    {
+        for (int i = 0; i < _capacity; i++)
+        {
+            _alive[i] = false;
+            _nameOverrides[i] = string.Empty;
+        }
+        _liveCount = 0;
+        _nextFreeHint = 0;
+        _peakPopulation = 0;
+        TotalBorn = 0;
+        TotalDied = 0;
+        RebuildLiveSlots();
+    }
+
+    /// <summary>读档时直接设定累计出生/死亡（它们不在摘要里，但报告要用）。</summary>
+    public void RestoreCounters(int totalBorn, int totalDied)
+    {
+        TotalBorn = totalBorn;
+        TotalDied = totalDied;
+    }
+
     public AgentRef Add(Environment.World world, int spawnX, int spawnY, DeterministicRandom rng, int ageDays = 0, long birthTick = 0)
     {
         int slot = AllocateSlot();
@@ -659,7 +780,10 @@ public sealed class AgentStore : ISimEntitySet
         return _liveSlots;
     }
 
-    /// <summary>设置迁移意愿的到期时刻（由 MigrationSystem 调用）。</summary>
+    /// <summary>迁移意愿的到期时刻（存档需要它：漏掉会让"正在搬家的人"在半路停下）。</summary>
+    public long MigrateUntilOf(int slot) => slot >= 0 && slot < _migrateUntil.Length ? _migrateUntil[slot] : 0L;
+
+    /// <summary>读档时直接设定迁移意愿。</summary>
     public void SetMigrateUntil(int slot, long tick)
     {
         if (slot >= 0 && slot < _migrateUntil.Length) { _migrateUntil[slot] = tick; }

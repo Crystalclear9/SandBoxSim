@@ -117,6 +117,22 @@ public sealed class StorageStore
         return taken;
     }
 
+    /// <summary>
+    /// 读档时直接写入某个槽位的资源量（**不走 Deposit**）。
+    ///
+    /// 为什么与地面物资堆不同（那边走正常 Deposit 路径）：
+    /// 仓库的容量是先恢复的，而存档里的量必然在容量之内；
+    /// 更重要的是仓库的量参与**状态摘要**，走 Deposit 会被容量夹取 ——
+    /// 如果存档因为任何原因超了容量，夹取会让摘要与直接跑不一致，
+    /// 从而把一个"存档损坏"问题伪装成"模拟不确定"。这里宁可原样恢复，
+    /// 让不变量校验去报错。
+    /// </summary>
+    public void RestoreResource(int index, ResourceKind kind, float amount)
+    {
+        if (index < 0 || index >= _food.Length) { return; }
+        Add(index, kind, amount < 0f ? 0f : amount);
+    }
+
     private void Add(int index, ResourceKind kind, float delta)
     {
         switch (kind)

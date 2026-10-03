@@ -119,6 +119,45 @@ public static class Program
     {
         config = LoadConfig(args, out configPath, out configWarnings);
         int seed = args.Int("--seed", config.WorldGen.Seed);
+
+        // 读档启动（M4）：此时世界的**全部状态**都来自存档，
+        // 因此必须用"只生成地形"的构造路径，绝不能走 RegenerateWorld ——
+        // 后者会重新播种动物、重置随机源，在存档状态之上叠加一个"新世界"。
+        string loadFile = args.String("--load-file", string.Empty);
+        if (!string.IsNullOrEmpty(loadFile))
+        {
+            Simulation loaded = Simulation.CreateForRestore(config, config.World.Width, config.World.Height, seed);
+            Core.Save.SaveFile.LoadResult result = loaded.LoadFromFile(loadFile);
+
+            if (!result.Success)
+            {
+                // 读档失败**必须中止**而不是"退回新世界"：
+                // 静默退回会让玩家以为自己在继续玩原来的存档，
+                // 而实际上换了一个世界 —— 这是最坏的一种失败方式。
+                throw new System.InvalidOperationException("读档失败：" + result.Error);
+            }
+
+            System.Console.WriteLine("已读档：" + loadFile
+                + "（seed " + result.Seed + "，第 " + result.Day + " 天，tick " + result.Tick + "）");
+
+            // 读档自校验：把结果如实报出来。
+            //
+            // 为什么不在这里直接抛错：`--load-file` 之后本来就可能要继续干预世界
+            // （那会改变摘要），而且"载入成功但摘要不同"属于**漏状态**这一类缺陷，
+            // 更适合由测试与 CI 去卡住。但**绝不能沉默** —— 沉默会让这种
+            // "世界悄悄变成另一个"的问题一路滑到发布。
+            if (!result.DigestMatches)
+            {
+                System.Console.Error.WriteLine("警告：读档后的状态摘要与写档时不一致！");
+                System.Console.Error.WriteLine("  写档时：" + result.ExpectedDigest);
+                System.Console.Error.WriteLine("  读档后：" + result.ActualDigest);
+                System.Console.Error.WriteLine("  首个不同的段落：" + result.SegmentDifference);
+                System.Console.Error.WriteLine("  （这说明存档漏了某个影响状态的状态；请报告此信息）");
+            }
+
+            return loaded;
+        }
+
         Simulation sim = new Simulation(config, config.World.Width, config.World.Height, seed);
 
         // 初始居民：这是 M1 之后"观察世界是否活着"的入口。
@@ -132,6 +171,29 @@ public static class Program
         }
 
         return sim;
+    }
+
+    /// <summary>
+    /// 存一次档（M4）。
+    ///
+    /// 与 <c>--report</c> 一样，存档失败**不能让整次运行失败**：
+    /// 一个跑了几十分钟的 headless 批次不应该因为磁盘满而丢掉全部结论。
+    /// 因此这里只报告，不抛异常。
+    /// </summary>
+    private static void SaveTo(string path, Simulation sim, long tick)
+    {
+        if (string.IsNullOrEmpty(path)) { return; }
+
+        try
+        {
+            sim.SaveToFile(path);
+            System.Console.WriteLine("  已存档    : " + path
+                + "（第 " + sim.World.Calendar.Day + " 天，tick " + tick + "）");
+        }
+        catch (System.Exception ex)
+        {
+            System.Console.Error.WriteLine("存档失败（不影响本次运行的结果）：" + ex.Message);
+        }
     }
 
     private static MapOverlay ParseOverlay(Args args)
@@ -339,6 +401,14 @@ public static class Program
         // 生效参数快照：报告里必须能查到"这次跑的是什么参数"。
         string configSnapshotPath = System.IO.Path.Combine(runDir, "config.effective.json");
         RunReport.WriteTextFile(configSnapshotPath, ConfigLoader.ToJson(config));
+
+        // 存档（M4）：默认写到产出目录里，这样"跑一次 → 留个存档"不需要额外参数。
+        // 显式给了 --save-file 就写到指定位置（用于之后从 TUI 继续那个世界）。
+        string explicitSave = args.String("--save-file", string.Empty);
+        string savePath = string.IsNullOrEmpty(explicitSave)
+            ? System.IO.Path.Combine(runDir, "world-" + sim.World.Seed + "-t" + ticks + ".simsave")
+            : explicitSave;
+        SaveTo(savePath, sim, ticks);
 
         System.Console.WriteLine();
         System.Console.WriteLine("=== 运行完成 ===");

@@ -503,6 +503,81 @@ public sealed class BuildingStore : ISimEntitySet
         return false;
     }
 
+    /// <summary>
+    /// 把一条存档里的建筑精确恢复到指定槽位（读档专用）。
+    ///
+    /// 建筑通过 <c>Tile.BuildingId</c> 锚定在格子上，因此读档顺序必须是
+    /// **先恢复地形（含 BuildingId）再恢复建筑** —— 否则锚点会指向还不存在的槽位，
+    /// 表现为"读档后建筑消失但 Tile 上还写着有建筑"。
+    /// 这个顺序由 <c>SaveFile.Load</c> 保证，并在那里写了注释。
+    /// </summary>
+    public void RestoreBuilding(
+        int slot,
+        BuildingKind kind,
+        BuildingState state,
+        int x,
+        int y,
+        int workDone,
+        int workRequired,
+        long builtTick)
+    {
+        EnsureCapacity(slot + 1);
+
+        _alive[slot] = true;
+        _kind[slot] = (byte)kind;
+        _state[slot] = (byte)state;
+        _x[slot] = x;
+        _y[slot] = y;
+        _workDone[slot] = workDone;
+        _workRequired[slot] = workRequired > 0 ? workRequired : 1;
+        _builtTick[slot] = builtTick;
+
+        _tiles[slot].Clear();
+        _tiles[slot].Add((y * _lastKnownWidth) + x);
+
+        AddLive(slot);
+
+        // 汇总统计必须跟着一起恢复，否则"床位 / 仓库数"会在读档后归零，
+        // 而它们驱动着建造决策 —— 表现为"读档后突然开始疯狂盖房子"。
+        if (state == BuildingState.Complete)
+        {
+            TotalBuilt++;
+            int kindIndex = (int)kind;
+            if (kindIndex >= 0 && kindIndex < _completedByKind.Length) { _completedByKind[kindIndex]++; }
+
+            BuildingRecipe recipe = BuildingRegistry.Of(kind);
+            TotalBeds += recipe.Beds;
+            if (kind == BuildingKind.Storage) { CompletedStorages++; }
+        }
+    }
+
+    /// <summary>
+    /// 读档时需要知道地图宽度才能算出占据格的扁平索引。
+    /// 由一个显式的设置方法传入，而不是让 BuildingStore 持有 World 引用 ——
+    /// 后者会让"建筑存储"与"世界"互相依赖，破坏分层（见 docs/02 的依赖方向）。
+    /// </summary>
+    private int _lastKnownWidth = 1;
+
+    public void SetWorldWidth(int width) => _lastKnownWidth = width > 0 ? width : 1;
+
+    /// <summary>清空全部建筑但保留容量（读档前调用）。</summary>
+    public void ClearAllKeepCapacity()
+    {
+        for (int i = 0; i < _alive.Length; i++)
+        {
+            _alive[i] = false;
+            _liveIndexOfSlot[i] = -1;
+            _tiles[i]?.Clear();
+        }
+        _liveCount = 0;
+        _nextFreeHint = 0;
+        TotalBeds = 0;
+        CompletedStorages = 0;
+        TotalBuilt = 0;
+        TotalDemolished = 0;
+        for (int i = 0; i < _completedByKind.Length; i++) { _completedByKind[i] = 0; }
+    }
+
     public ulong HashInto(ulong hash)
     {
         hash = Hash64.Combine(hash, _liveCount);

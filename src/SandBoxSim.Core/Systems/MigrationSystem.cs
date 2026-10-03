@@ -37,6 +37,16 @@ public sealed class MigrationSystem
     /// <summary>累计迁移次数。</summary>
     public int TotalMigrations { get; private set; }
 
+    /// <summary>
+    /// 读档时恢复累计迁移次数。
+    ///
+    /// 注意它与 <c>SimulationStats.TotalMigrations</c> 是**两个不同的计数器**：
+    /// 摘要读的是 Stats 那个，这个只用于报告。两者都要存、都要恢复 ——
+    /// 存错一个的表现是"读档后摘要对不上"，而且规模小的时候两个值恰好相等，
+    /// 会把问题一直藏到端到端验证才暴露。
+    /// </summary>
+    public void RestoreCounters(int totalMigrations) => TotalMigrations = totalMigrations;
+
     /// <summary>本 tick 发起的迁移次数。</summary>
     public int MigrationsThisTick { get; private set; }
 
@@ -58,6 +68,34 @@ public sealed class MigrationSystem
     {
         if (_cooldownUntil.Length >= capacity) { return; }
         System.Array.Resize(ref _cooldownUntil, capacity);
+    }
+
+    /// <summary>
+    /// 某个个体的迁移冷却到期时刻（读档专用；不在冷却中返回 0）。
+    ///
+    /// **为什么冷却必须进存档**：它决定"这个人现在能不能搬家"。
+    /// 不保存它 → 读档后所有人的冷却都归零 → 一大群人立刻重新评估迁移，
+    /// 于是读档续跑与直接跑分叉。而且因为冷却不参与状态摘要，
+    /// 读档瞬间的摘要比对**完全看不出问题**，要到几百 tick 后才显现。
+    ///
+    /// 这类"不进摘要但影响未来行为"的字段是存档最容易漏掉的一类，
+    /// 也是 `SaveLoadRoundTripPreservesDigest`（读档后**续跑**再比摘要）存在的全部理由。
+    /// </summary>
+    public long CooldownUntilOf(int slot)
+        => slot >= 0 && slot < _cooldownUntil.Length ? _cooldownUntil[slot] : 0L;
+
+    /// <summary>读档时恢复某个个体的迁移冷却。</summary>
+    public void RestoreCooldown(int slot, long tick)
+    {
+        EnsureCapacity(slot + 1);
+        if (slot >= 0 && slot < _cooldownUntil.Length) { _cooldownUntil[slot] = tick; }
+    }
+
+    /// <summary>读档时清空全部冷却，再逐条恢复（避免残留旧值）。</summary>
+    public void ClearAllCooldowns()
+    {
+        for (int i = 0; i < _cooldownUntil.Length; i++) { _cooldownUntil[i] = 0L; }
+        MigrationsThisTick = 0;
     }
 
     /// <summary>

@@ -26,6 +26,32 @@ public sealed class ActionSystem
     /// <summary>小数步进度（槽位 → 剩余步数）。用数组而不是字典，避免迭代顺序问题。</summary>
     private float[] _moveProgress = System.Array.Empty<float>();
 
+    /// <summary>
+    /// 读取某个个体的小数步进度（存档专用）。
+    ///
+    /// **这是"小数进度也必须进存档"的一个实例，而且是最不容易想到的一类**：
+    /// 它不进状态摘要（摘要只看整数格位置），但它决定"这个人下一 tick 会不会跨到下一格"。
+    /// 不保存它 → 读档后进度归零 → 移动节奏整体错开一格，
+    /// 于是"读档续跑"与"直接跑"在**第 2 tick** 就分叉，而读档瞬间的摘要完全一致。
+    ///
+    /// 判据仍然是那一句：会不会影响未来的行为。小数进度会。
+    /// </summary>
+    public float MoveProgressOf(int slot)
+        => slot >= 0 && slot < _moveProgress.Length ? _moveProgress[slot] : 0f;
+
+    /// <summary>读档时恢复某个个体的小数步进度。</summary>
+    public void RestoreMoveProgress(int slot, float progress)
+    {
+        EnsureCapacity(slot + 1);
+        if (slot >= 0 && slot < _moveProgress.Length) { _moveProgress[slot] = progress < 0f ? 0f : progress; }
+    }
+
+    /// <summary>读档时先把全部小数进度清零，再逐条恢复。</summary>
+    public void ClearAllMoveProgress()
+    {
+        for (int i = 0; i < _moveProgress.Length; i++) { _moveProgress[i] = 0f; }
+    }
+
     /// <summary>本 tick 的移动次数与完成次数（性能与观测量）。</summary>
     public int MovesThisTick { get; private set; }
     public int CompletedThisTick { get; private set; }
@@ -737,6 +763,14 @@ public sealed class ActionSystem
     }
 
     /// <summary>重置统计（世界重建时）。</summary>
+    /// <summary>读档时恢复累计统计（不影响演化，只有报告与诊断读它们）。</summary>
+    public void RestoreCounters(float totalFoodEaten, float totalDeposited, float totalTaken)
+    {
+        TotalFoodEaten = totalFoodEaten;
+        TotalDeposited = totalDeposited;
+        TotalTaken = totalTaken;
+    }
+
     public void ResetStatistics()
     {
         TotalCompleted = 0;
