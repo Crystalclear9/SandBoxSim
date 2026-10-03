@@ -375,9 +375,33 @@ public sealed class BirthSystem
 
     /// <summary>
     /// 真正生一个孩子：性格从双亲遗传（带突变）、消耗母体健康、占用床位、记事件。
+    ///
+    /// # 为什么床位必须在**创建孩子之前**就定下来（一次真实踩到的坑）
+    ///
+    /// 早先的写法是：先 `AddChild`，再找床；找不到就 `MarkDead` 把孩子收回。
+    /// 那个"收回"看起来无害，实际上会**烧掉一个槽位代次**（`MarkDead` 让
+    /// `_generation[slot]++`），而代次进状态摘要 ——
+    /// 于是"读档续跑"与"直接跑"只要在某一刻的床位记账上有一点点差异，
+    /// 就会在槽位复用上分叉：实测表现为某个槽位的代次 1 vs 0、
+    /// 以及该个体后续所有字段都对不上。
+    ///
+    /// 更要紧的是它**在语义上也是错的**：一个"从出生到死亡"的过程不应该被
+    /// 一个记账分支触发。所以现在是事务性的 —— 先确认有床，再创建。
+    /// 这与 `BuildingSystem.TryStartBuilding` 的"要么都成功、要么什么都不变"
+    /// 是同一条原则。
     /// </summary>
     private bool TryBirth(int mother, int father, long tick)
     {
+        // ---- 1) 先把床位定下来（事务的第一半）----
+        int motherDwelling = _store.DwellingOf(mother);
+        int dwelling = -1;
+
+        if (motherDwelling >= 0 && _sim.Buildings.HasFreeBed(motherDwelling)) { dwelling = motherDwelling; }
+        else { dwelling = _sim.BuildingSystem.FindHouseWithFreeBed(_store.XOf(mother), _store.YOf(mother)); }
+
+        if (dwelling < 0) { return false; }
+
+        // ---- 2) 再创建孩子 ----
         // 孩子出生在母亲所在格（而不是"配对中点"）——
         // 后者会在两人相隔很远时把孩子生到无人处，看起来像凭空出现。
         int x = _store.XOf(mother);
@@ -387,6 +411,22 @@ public sealed class BirthSystem
         AgentRef child = _store.AddChild(x, y, mother, father, personality, tick);
         if (child.IsNone) { return false; }
 
+        // ---- 3) 占床（此时一定还有位置：上面刚确认过，且这一步之间没有别人能插手）----
+        if (!_sim.Buildings.TryOccupyBedOf(dwelling))
+        {
+            // 走到这里说明"有空床"的判定与"占用成功"不一致 —— 那是记账 bug，
+            // 不应该被静默吞掉。把它记成事件，让它在报告与检查器里可见，
+            // 而不是"安静地少生一个孩子"。
+            _sim.Events.Record(tick, History.WorldEventType.Birth,
+                "出生失败：床位记账不一致（建筑槽 " + dwelling + "）",
+                History.EventImportance.Critical, new Int2(x, y), mother, dwelling, "床位记账不一致");
+            return false;
+        }
+
+        _store.SetDwelling(child.Slot, dwelling);
+        if (_store.DwellingOf(mother) < 0) { _store.SetDwelling(mother, dwelling); }
+        if (_store.DwellingOf(father) < 0) { _store.SetDwelling(father, dwelling); }
+
         // 双亲各自记一次生育（间隔门是**按个体**记的，因此两边都会进入冷却）
         _store.RecordBirth(mother, tick);
         _store.RecordBirth(father, tick);
@@ -395,36 +435,6 @@ public sealed class BirthSystem
         if (_config.HealthCostPerBirth > 0f)
         {
             _store.SetHealth(mother, _store.HealthOf(mother) - _config.HealthCostPerBirth);
-        }
-
-        // 床位：给孩子安排一张空床（优先父母住的那间，其次附近任何有空床的房子）。
-        // 父母若还没有住所，也一起搬进去 —— 否则下一个孩子的床位判定会走另一条分支，
-        // 而"一家人住在一起"这件事在观感上也不该被拆散。
-        int dwelling = _store.DwellingOf(mother);
-        int assigned = -1;
-
-        if (dwelling >= 0 && _sim.Buildings.TryOccupyBedOf(dwelling))
-        {
-            assigned = dwelling;
-        }
-        else
-        {
-            int found = _sim.BuildingSystem.FindHouseWithFreeBed(x, y);
-            if (found >= 0 && _sim.Buildings.TryOccupyBedOf(found)) { assigned = found; }
-        }
-
-        if (assigned >= 0)
-        {
-            _store.SetDwelling(child.Slot, assigned);
-            if (_store.DwellingOf(mother) < 0) { _store.SetDwelling(mother, assigned); }
-            if (_store.DwellingOf(father) < 0) { _store.SetDwelling(father, assigned); }
-        }
-        else
-        {
-            // 门已经保证了"至少有一张空床"，走到这里说明并发安排把它抢走了 ——
-            // 把孩子放回去比放一个"没有床但已存在"的个体更安全。
-            _store.MarkDead(child.Slot, DeathCause.None, tick);
-            return false;
         }
 
         TotalBirths++;

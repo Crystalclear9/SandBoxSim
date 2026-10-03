@@ -344,6 +344,15 @@ public static class SaveFile
                 .Set("birthTick", JsonValue.From(agents.BirthTickOf(slot))));
         }
 
+        // 全部槽位的代次（含已死槽位）。
+        //
+        // 必须存：代次会被下一个占用该槽位的人继承，而"死槽位的代次"
+        // 在编码与摘要里都看不见 —— 于是它成为一个只能靠"某天有人复用该槽位"
+        // 才暴露的漏状态。详见 AgentStore.ExportGenerations 的注释。
+        int[] generations = agents.ExportGenerations();
+        var generationList = JsonValue.Array();
+        for (int i = 0; i < generations.Length; i++) { generationList.Add(JsonValue.From(generations[i])); }
+
         return JsonValue.Object()
             .Set("totalBorn", JsonValue.From(agents.TotalBorn))
             .Set("totalDied", JsonValue.From(agents.TotalDied))
@@ -351,6 +360,7 @@ public static class SaveFile
             // M4 起必须存：出生会新增个体，而"下一个空槽在哪"决定新生儿落在哪个槽位，
             // 槽位又进摘要 ⇒ 不存就会在第一次出生之后分叉。
             .Set("nextFreeHint", JsonValue.From(agents.NextFreeHint))
+            .Set("generations", generationList)
             .Set("list", list);
     }
 
@@ -537,6 +547,12 @@ public static class SaveFile
             .Set("totalHarvested", JsonValue.From(sim.ResourceSystem.TotalHarvested))
             .Set("depletionEvents", JsonValue.From(sim.ResourceSystem.DepletionEvents))
             .Set("totalFoodEaten", JsonValue.From(sim.Actions.TotalFoodEaten))
-            .Set("totalHunted", JsonValue.From(sim.Wildlife.TotalHunted));
+            .Set("totalHunted", JsonValue.From(sim.Wildlife.TotalHunted))
+
+            // M4c：分批数是**行为状态**（它决定每个相位在哪一 tick 决策）。
+            // 不存它、而是在读档时"重新算一遍"，会在分批数发生变化时
+            // 顺手重排所有人的决策相位 —— 见 AiSystem.AdoptBatchCountAfterLoad。
+            .Set("aiBatchCount", JsonValue.From(sim.Ai.BatchCount))
+            .Set("aiLastPhaseChangeTick", JsonValue.From(sim.Ai.LastPhaseChangeTick));
     }
 }

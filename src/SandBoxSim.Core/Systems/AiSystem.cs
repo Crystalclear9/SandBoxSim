@@ -109,6 +109,32 @@ public sealed class AiSystem
     }
 
     /// <summary>
+    /// 读档专用：采用存档里的分批数与相位变化时刻，**绝不重新分配相位**。
+    ///
+    /// # 这是一个真实踩到的坑，而且非常隐蔽
+    ///
+    /// `NotifyAfterLoad` 原先调用的是 <see cref="RefreshBatchCount"/>，
+    /// 而它在分批数**发生变化时**会调用 `AssignDecisionPhases` ——
+    /// 于是"加载存档"这个动作悄悄地把所有人的决策相位重排了一遍。
+    ///
+    /// 为什么读档瞬间看不出来：`decisionPhase` 与 `nextDecisionTick`
+    /// **当时都不在状态摘要里**，所以"读档后摘要一致"这条自校验完全通过。
+    /// 症状要到大约一个决策间隔（600 tick）之后才出现：
+    /// 某个个体在 direct 里轮到决策并去吃东了，在 restored 里还没轮到 ——
+    /// 表现为 `state=Eating` vs `Idle`、`target=(57,5)` vs `(-1,-1)`。
+    ///
+    /// 修法有两半，缺一不可：
+    ///   1. 读档走这个"只采用、不重排"的入口；
+    ///   2. 把 `decisionPhase` 与 `nextDecisionTick` **加进状态摘要**，
+    ///      这样同类问题会在读档瞬间就被抓住，而不是 600 tick 之后。
+    /// </summary>
+    public void AdoptBatchCountAfterLoad(int batchCount, int lastPhaseChangeTick)
+    {
+        BatchCount = batchCount > 0 ? batchCount : ResolveBatchCount();
+        LastPhaseChangeTick = lastPhaseChangeTick;
+    }
+
+    /// <summary>
     /// 推进一轮决策。返回本 tick 做出决策的个体数。
     /// </summary>
     public int Tick(long tick, bool isNight)

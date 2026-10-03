@@ -780,14 +780,18 @@ public sealed class Simulation
         PopulationCount = Agents.LiveCount;
         BuildingCount = Buildings.TotalCompleted;
 
-        // 只重算"由人口推导出来"的派生量。
-        Ai.RefreshBatchCount();
+        // 分批数与决策相位都由存档恢复，因此这里**什么都不用做**。
+        //
+        // 曾经这里调用的是 `Ai.RefreshBatchCount()`，而它在分批数变化时
+        // 会调用 `AssignDecisionPhases` —— 于是读档顺手重排了所有人的决策相位。
+        // 因为 `decisionPhase` 当时不在摘要里，读档自校验完全通过，
+        // 症状要到约一个决策间隔（600 tick）之后才显现。
+        // 现在改由 `SaveLoader` 调 `Ai.AdoptBatchCountAfterLoad`（只采用、不重排）。
 
         // **刻意不调用 Agents.AssignDecisionPhases()** —— 这是一个踩过的坑：
         // 决策相位是**被保存并恢复**的状态（它决定谁在哪一分钟决策），
-        // 在这里重新均分等于把恢复出来的相位又一次打乱，
-        // 于是"读档后续跑"与"直接跑"会在几百 tick 后分叉 ——
-        // 而因为相位不进摘要，读档瞬间的摘要比对完全看不出问题。
+        // 在这里重新均分等于把恢复出来的相位又一次打乱。
+        //
         // 换句话说：**凡是被显式恢复的字段，读档收尾时都不能"顺手重算"一遍。**
 
         // 空间索引必须在**地形恢复之后**刷新：早于地形恢复会让 AI 依据过期的

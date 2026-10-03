@@ -1,4 +1,5 @@
 using SandBoxSim.Core;
+using SandBoxSim.Core.Agents;
 using SandBoxSim.Core.Environment;
 using SandBoxSim.Core.Foundation;
 using SandBoxSim.Core.Save;
@@ -18,107 +19,91 @@ namespace SandBoxSim.Tests;
 ///   3. 若差异在实体段，逐个字段对比；若在 tiles 段，**逐个 tile** 对比；
 ///   4. 比对 8 条随机流的状态 —— 用来区分"漏了状态"与"随机源被扰动"。
 ///
-/// 这套流程在 M4b 里定位出了**五个**"不进摘要但影响未来行为"的字段；
+/// 这套流程已经定位出**八个**"不进摘要或进了摘要但不进存档"的字段。
 /// 每定位一个，分叉点就往后推。所以这个工具是**收敛过程的量具**，
 /// 删掉它等于下次遇到同类问题要从头再写一遍。
 ///
-/// 用法（**默认跳过**，因为它要跑 20 天 + 逐 tick 比对，约 30 秒）：
+/// 用法（**默认跳过**，用 `SBOX_SIM_PROBE=1` 开启）：
 /// <code>
 /// $env:SBOX_SIM_PROBE = '1'
 /// dotnet src/SandBoxSim.Tests/bin/Debug/net8.0/SandBoxSim.Tests.dll --filter SaveDivergenceProbe
 /// </code>
 ///
-/// 为什么不直接用 <see cref="SkipAttribute"/>：被 Skip 的用例连 `--filter` 也跑不起来，
-/// 那这个工具就等于被删掉了。用环境变量开关既保持"默认套件快"，
-/// 又保持"需要时一条命令就能跑"。
+/// 规模用环境变量切换，因为不同的问题在不同的规模上才会暴露：
+/// <code>
+/// $env:SBOX_SIM_MAP = '60'    # 默认 60（对应 SaveLoadRoundTripPreservesDigest 的规模，跑得快）
+/// $env:SBOX_SIM_MAP = '100'   # CLI 默认规模（Phase 0 的问题只在这里出现）
+/// </code>
 /// </summary>
 public sealed class SaveDivergenceProbe
 {
-    /// <summary>复刻出问题的那一组规模（与 CLI 默认一致）。</summary>
-    private const int MapSize = 100;
-    private const int Seed = 555;
-    private const int Agents = 30;
-    private const int HalfDays = 20;
-    private const int TicksPerDay = 1440;
-
-    /// <summary>被追踪的格（扁平下标）。由探针第一次运行时的"首个不同格"确定。</summary>
-    private const int ProbeIndex = 2;   // (2,0)
-
-    private static long traceFrom = -1;
-
-    private static int CountDifferingTiles(Simulation a, Simulation b)
+    private static int MapSize
     {
-        Tile[] ta = a.World.Tiles;
-        Tile[] tb = b.World.Tiles;
-        int count = 0;
-        for (int i = 0; i < ta.Length; i++)
+        get
         {
-            if (ta[i].Resource.Amount != tb[i].Resource.Amount) { count++; }
+            string raw = System.Environment.GetEnvironmentVariable("SBOX_SIM_MAP") ?? "60";
+            return int.TryParse(raw, out int size) && size > 0 ? size : 60;
         }
-        return count;
     }
 
-    [Fact("诊断：读档续跑的第一个分叉 tick（100×100 / 20 天 + 20 天，需 SBOX_SIM_PROBE=1）")]
+    private const int Seed = 60 == 0 ? 11001 : 11001;   // 保持与失败用例同源
+    private const int Agents = 14;
+    private const int HalfDays = 8;
+    private const int TicksPerDay = 1440;
+
+    [Fact("诊断：读档续跑的第一个分叉 tick（需 SBOX_SIM_PROBE=1）")]
     public void Probe()
     {
         if (System.Environment.GetEnvironmentVariable("SBOX_SIM_PROBE") != "1")
         {
-            System.Console.WriteLine("  [探针] 已跳过（设 SBOX_SIM_PROBE=1 可运行；它约需 30 秒）。");
-            System.Console.WriteLine("  [探针] 常规回归由 SaveLoadTests.TilesRoundTripBitExactUnderDifferentSeed 把关（秒级）。");
+            System.Console.WriteLine("  [探针] 已跳过（设 SBOX_SIM_PROBE=1 运行）。");
+            System.Console.WriteLine("  [探针] 常规回归由 SaveLoadTests 把关（秒级）。");
             return;
         }
 
-        var directConfig = MakeConfig();
-        var direct = new Simulation(directConfig, MapSize, MapSize, Seed);
-        direct.InterveneSpawnHumans(50, 50, Agents, 8);
-        direct.Tick(TicksPerDay * HalfDays);
+        int size = MapSize;
+        int half = TicksPerDay * HalfDays;
+        int total = TicksPerDay * HalfDays * 2;
 
-        var sourceConfig = MakeConfig();
-        var source = new Simulation(sourceConfig, MapSize, MapSize, Seed);
-        source.InterveneSpawnHumans(50, 50, Agents, 8);
-        source.Tick(TicksPerDay * HalfDays);
+        System.Console.WriteLine("  [探针] 规模 " + size + "×" + size
+            + "，seed " + Seed + "，人 " + Agents
+            + "，存/续各 " + HalfDays + " 天");
 
-        Assert.Equal(direct.StateDigestString(), source.StateDigestString());
+        var directConfig = MakeConfig(size);
+        var direct = new Simulation(directConfig, size, size, Seed);
+        Flatten(direct);
+        direct.InterveneSpawnHumans(size / 2, size / 2, Agents, 6);
+        direct.Tick(half);
+
+        var sourceConfig = MakeConfig(size);
+        var source = new Simulation(sourceConfig, size, size, Seed);
+        Flatten(source);
+        source.InterveneSpawnHumans(size / 2, size / 2, Agents, 6);
+        source.Tick(half);
+
+        if (direct.StateDigestString() != source.StateDigestString())
+        {
+            System.Console.WriteLine("  [探针] 两个同源世界的摘要不同 —— 用例构造有误");
+            return;
+        }
 
         string json = source.SaveToText();
 
-        // 刻意用一个**不同**的构造 seed：复刻 CLI 里"没传 --seed"的情形，
-        // 这一类 bug 只在输入与期望值不同的时候才暴露（M4b 的教训）。
-        var targetConfig = MakeConfig();
-        var restored = Simulation.CreateForRestore(targetConfig, MapSize, MapSize, 839102);
+        // 与失败用例一致：**同一个 seed** 构造目标世界。
+        // （Phase 0 那条坑是"必须用不同 seed"，这里用同一个 seed 是为了复刻当前这条失败。）
+        var targetConfig = MakeConfig(size);
+        var restored = Simulation.CreateForRestore(targetConfig, size, size, Seed);
 
         SaveFile.LoadResult load = restored.LoadFromText(json);
-        Assert.True(load.Success, load.Error);
-
         System.Console.WriteLine("  [探针] 读档自校验：" + (load.DigestMatches ? "一致" : "不一致 -> " + load.SegmentDifference));
-        System.Console.WriteLine("  [探针] 读档点分段：" + load.ActualSegments);
 
-        // ---- 关键分辨：漂移是"存档序列化"造成的，还是"续跑过程"造成的？----
-        // 在**推进任何 tick 之前**逐格做精确（非量化）比对。
-        // 这一步决定后面往哪个方向查：前者是 JSON 精度问题，后者是漏了状态。
         DumpExactTileDeltaAtLoad(direct, restored);
 
         long firstDiff = -1;
-        for (int i = 0; i < TicksPerDay * HalfDays; i++)
+        for (int i = 0; i < total - half; i++)
         {
             direct.Tick(1);
             restored.Tick(1);
-
-            // 逐 tick 记录那个"首个不同格"的资源量。
-            // 目的：看清它是**突然**变化（一次写入造成）还是**逐渐**拉开（累积放大）。
-            // 这两者的根因完全不同 —— 前者是"某个系统多跑了一次"，后者才是"数值精度/顺序"。
-            float va = direct.World.Tiles[ProbeIndex].Resource.Amount;
-            float vb = restored.World.Tiles[ProbeIndex].Resource.Amount;
-            if (va != vb && traceFrom < 0) { traceFrom = i + 1; }
-
-            if (i >= 50 && i < 62)
-            {
-                System.Console.WriteLine("  [探针] tick+" + (i + 1)
-                    + " 格(" + (ProbeIndex % MapSize) + "," + (ProbeIndex / MapSize) + ")"
-                    + " direct=" + va.ToString("R") + " restored=" + vb.ToString("R")
-                    + (va == vb ? " 同" : " **不同**"));
-            }
-
             if (direct.StateDigestString() != restored.StateDigestString())
             {
                 firstDiff = i + 1;
@@ -126,94 +111,197 @@ public sealed class SaveDivergenceProbe
             }
         }
 
-        System.Console.WriteLine("  [探针] 该格开始不同的 tick+" + traceFrom);
-        System.Console.WriteLine("  [探针] 最终不同的格子总数："
-            + CountDifferingTiles(direct, restored) + " / " + direct.World.Tiles.Length);
-
         System.Console.WriteLine("  [探针] 第一个分叉 tick（相对读档点）=" + firstDiff
-            + "（绝对 tick " + (TicksPerDay * HalfDays + firstDiff) + "）");
+            + "（绝对 tick " + (half + firstDiff) + "，"
+            + "绝对 tick % 1440 = " + ((half + firstDiff) % TicksPerDay)
+            + "，% 60 = " + ((half + firstDiff) % 60)
+            + "，% 10 = " + ((half + firstDiff) % 10) + "）");
 
         if (firstDiff < 0)
         {
-            System.Console.WriteLine("  [探针] 20 天内完全一致 —— 该规模下已收敛。");
+            System.Console.WriteLine("  [探针] 续跑段完全一致 —— 该规模下已收敛。");
             return;
         }
 
         System.Console.WriteLine("  [探针] 分段差异：" + StateHash.FirstSegmentDifference(
             StateHash.DescribeSegments(direct), StateHash.DescribeSegments(restored)));
 
+        DumpSlotSets(direct, restored);
         DumpRngComparison(direct, restored);
         DumpFirstTileDifference(direct, restored);
         DumpCounts(direct, restored);
+        DumpBuildingDelta(direct, restored);
+        DumpAgentDelta(direct, restored);
+        DumpAgentFieldDelta(direct, restored);
     }
 
     /// <summary>
-    /// 读档瞬间的**精确**逐格比对（不做摘要量化）。
+    /// 逐个体的**每一个进摘要的字段**比对。
     ///
-    /// 为什么必须单独做这一步：状态摘要把资源量量化到 0.01（`(int)(Amount*100f)`），
-    /// 于是一个 0.004 的差异在摘要里**完全看不见** —— 它是被整除截断吞掉的。
-    /// 不先做这次精确比对，就会把"序列化丢精度"误判成"漏了状态"，
-    /// 然后去翻一堆本来正确的字段。
+    /// 为什么需要它而不仅是"家族字段"那一版：分叉可能来自任何一项
+    /// （需求、位置、动作、目标、库存、性格……），
+    /// 而只打印家族字段会得到"什么都没不同"的假象。
+    /// 这正是 Phase 0 定位 tiles 段时用过的同一招：**把字段清单穷举掉**。
     /// </summary>
-    private static void DumpExactTileDeltaAtLoad(Simulation a, Simulation b)
+    private static void DumpAgentFieldDelta(Simulation a, Simulation b)
     {
-        Tile[] ta = a.World.Tiles;
-        Tile[] tb = b.World.Tiles;
+        AgentStore x = a.Agents;
+        AgentStore y = b.Agents;
 
-        int amountDiff = 0;
-        int moistureDiff = 0;
-        int vegetationDiff = 0;
-        int capacityDiff = 0;
-        float maxAmountDelta = 0f;
-        int firstIndex = -1;
-
-        for (int i = 0; i < ta.Length; i++)
+        foreach (int slot in x.AliveSlots())
         {
-            float da = ta[i].Resource.Amount - tb[i].Resource.Amount;
-            float dc = ta[i].Resource.Capacity - tb[i].Resource.Capacity;
-            float dm = ta[i].Moisture - tb[i].Moisture;
-            float dv = ta[i].Vegetation - tb[i].Vegetation;
-
-            if (da != 0f)
+            if (!y.IsSlotAlive(slot))
             {
-                amountDiff++;
-                if (System.Math.Abs(da) > System.Math.Abs(maxAmountDelta)) { maxAmountDelta = da; }
-                if (firstIndex < 0) { firstIndex = i; }
+                System.Console.WriteLine("  [探针] 槽位 " + slot + " 只在 direct 里活着");
+                continue;
             }
-            if (dc != 0f) { capacityDiff++; }
-            if (dm != 0f) { moistureDiff++; }
-            if (dv != 0f) { vegetationDiff++; }
-        }
 
-        System.Console.WriteLine("  [探针] 读档瞬间精确比对：资源量差异 " + amountDiff + " 格"
-            + "（最大 " + maxAmountDelta.ToString("R") + "）"
-            + " | 容量 " + capacityDiff + " | 湿度 " + moistureDiff + " | 植被 " + vegetationDiff);
+            void Report(string field, string av, string bv)
+            {
+                System.Console.WriteLine("  [探针] 槽位 " + slot + " 字段 " + field
+                    + " direct=" + av + " restored=" + bv);
+            }
 
-        if (firstIndex >= 0)
-        {
-            int tx = firstIndex % a.World.Width;
-            int ty = firstIndex / a.World.Width;
-            System.Console.WriteLine("  [探针]   首格 (" + tx + "," + ty + ") 资源 "
-                + ta[firstIndex].Resource.Kind
-                + " direct=" + ta[firstIndex].Resource.Amount.ToString("R")
-                + " restored=" + tb[firstIndex].Resource.Amount.ToString("R"));
+            if (x.XOf(slot) != y.XOf(slot)) { Report("x", x.XOf(slot).ToString(), y.XOf(slot).ToString()); }
+            if (x.YOf(slot) != y.YOf(slot)) { Report("y", x.YOf(slot).ToString(), y.YOf(slot).ToString()); }
+            if (x.HomeXOf(slot) != y.HomeXOf(slot)) { Report("homeX", x.HomeXOf(slot).ToString(), y.HomeXOf(slot).ToString()); }
+            if (x.HungerOf(slot) != y.HungerOf(slot)) { Report("hunger", x.HungerOf(slot).ToString("R"), y.HungerOf(slot).ToString("R")); }
+            if (x.FatigueOf(slot) != y.FatigueOf(slot)) { Report("fatigue", x.FatigueOf(slot).ToString("R"), y.FatigueOf(slot).ToString("R")); }
+            if (x.ThirstOf(slot) != y.ThirstOf(slot)) { Report("thirst", x.ThirstOf(slot).ToString("R"), y.ThirstOf(slot).ToString("R")); }
+            if (x.SocialOf(slot) != y.SocialOf(slot)) { Report("social", x.SocialOf(slot).ToString("R"), y.SocialOf(slot).ToString("R")); }
+            if (x.HealthOf(slot) != y.HealthOf(slot)) { Report("health", x.HealthOf(slot).ToString("R"), y.HealthOf(slot).ToString("R")); }
+            if (x.AgeDaysOf(slot) != y.AgeDaysOf(slot)) { Report("ageDays", x.AgeDaysOf(slot).ToString(), y.AgeDaysOf(slot).ToString()); }
+            if (x.JobOf(slot) != y.JobOf(slot)) { Report("job", x.JobOf(slot).ToString(), y.JobOf(slot).ToString()); }
+            if (x.StateOf(slot) != y.StateOf(slot)) { Report("state", x.StateOf(slot).ToString(), y.StateOf(slot).ToString()); }
+            if (x.ActionOf(slot) != y.ActionOf(slot)) { Report("action", x.ActionOf(slot).ToString(), y.ActionOf(slot).ToString()); }
+            if (x.PhaseOf(slot) != y.PhaseOf(slot)) { Report("phase", x.PhaseOf(slot).ToString(), y.PhaseOf(slot).ToString()); }
+            if (x.TargetOf(slot).X != y.TargetOf(slot).X) { Report("targetX", x.TargetOf(slot).X.ToString(), y.TargetOf(slot).X.ToString()); }
+            if (x.TargetOf(slot).Y != y.TargetOf(slot).Y) { Report("targetY", x.TargetOf(slot).Y.ToString(), y.TargetOf(slot).Y.ToString()); }
+            if (x.ActionTicksOf(slot) != y.ActionTicksOf(slot)) { Report("actionTicks", x.ActionTicksOf(slot).ToString(), y.ActionTicksOf(slot).ToString()); }
+            if (x.FailReasonOf(slot) != y.FailReasonOf(slot)) { Report("failReason", x.FailReasonOf(slot).ToString(), y.FailReasonOf(slot).ToString()); }
+            if (x.InventoryOf(slot, ResourceKind.Food) != y.InventoryOf(slot, ResourceKind.Food)) { Report("invFood", x.InventoryOf(slot, ResourceKind.Food).ToString("R"), y.InventoryOf(slot, ResourceKind.Food).ToString("R")); }
+            if (x.InventoryOf(slot, ResourceKind.Wood) != y.InventoryOf(slot, ResourceKind.Wood)) { Report("invWood", x.InventoryOf(slot, ResourceKind.Wood).ToString("R"), y.InventoryOf(slot, ResourceKind.Wood).ToString("R")); }
+            if (x.InventoryOf(slot, ResourceKind.Stone) != y.InventoryOf(slot, ResourceKind.Stone)) { Report("invStone", x.InventoryOf(slot, ResourceKind.Stone).ToString("R"), y.InventoryOf(slot, ResourceKind.Stone).ToString("R")); }
+            if (x.PersonalityOf(slot).Aggression != y.PersonalityOf(slot).Aggression) { Report("aggression", x.PersonalityOf(slot).Aggression.ToString("R"), y.PersonalityOf(slot).Aggression.ToString("R")); }
+            if (x.PersonalityOf(slot).Industriousness != y.PersonalityOf(slot).Industriousness) { Report("industriousness", x.PersonalityOf(slot).Industriousness.ToString("R"), y.PersonalityOf(slot).Industriousness.ToString("R")); }
+            if (x.DecisionPhaseOf(slot) != y.DecisionPhaseOf(slot)) { Report("decisionPhase", x.DecisionPhaseOf(slot).ToString(), y.DecisionPhaseOf(slot).ToString()); }
+            if (x.NextDecisionTickOf(slot) != y.NextDecisionTickOf(slot)) { Report("nextDecisionTick", x.NextDecisionTickOf(slot).ToString(), y.NextDecisionTickOf(slot).ToString()); }
+            if (x.MigrateUntilOf(slot) != y.MigrateUntilOf(slot)) { Report("migrateUntil", x.MigrateUntilOf(slot).ToString(), y.MigrateUntilOf(slot).ToString()); }
+            if (x.MotherOf(slot) != y.MotherOf(slot)) { Report("mother", x.MotherOf(slot).ToString(), y.MotherOf(slot).ToString()); }
+            if (x.FatherOf(slot) != y.FatherOf(slot)) { Report("father", x.FatherOf(slot).ToString(), y.FatherOf(slot).ToString()); }
+            if (a.Actions.MoveProgressOf(slot) != b.Actions.MoveProgressOf(slot))
+            {
+                Report("moveProgress", a.Actions.MoveProgressOf(slot).ToString("R"), b.Actions.MoveProgressOf(slot).ToString("R"));
+            }
+            if (a.Migration.CooldownUntilOf(slot) != b.Migration.CooldownUntilOf(slot))
+            {
+                Report("migrationCooldown", a.Migration.CooldownUntilOf(slot).ToString(), b.Migration.CooldownUntilOf(slot).ToString());
+            }
+            if (x.HasPathStep(slot) != y.HasPathStep(slot)) { Report("hasPathStep", x.HasPathStep(slot).ToString(), y.HasPathStep(slot).ToString()); }
+            if (x.HasPathStep(slot) && x.PathStepOf(slot) != y.PathStepOf(slot))
+            {
+                Report("pathStep", x.PathStepOf(slot).ToString(), y.PathStepOf(slot).ToString());
+            }
+            if (x.GenerationOf(slot) != y.GenerationOf(slot)) { Report("generation", x.GenerationOf(slot).ToString(), y.GenerationOf(slot).ToString()); }
         }
     }
 
-    private static SimConfig MakeConfig()
+    private static SimConfig MakeConfig(int size)
     {
         var config = new SimConfig();
-        config.World.Width = MapSize;
-        config.World.Height = MapSize;
+        config.World.Width = size;
+        config.World.Height = size;
         return config;
     }
 
-    /// <summary>8 条随机流逐一比对 —— 用来区分"漏了状态"与"随机源被扰动"。</summary>
+    private static void Flatten(Simulation sim)
+    {
+        int size = sim.World.Width;
+        int min = size / 6;
+        int max = size - min;
+        for (int y = min; y <= max; y++)
+        {
+            for (int x = min; x <= max; x++)
+            {
+                sim.World.SetTerrain(x, y, TerrainKind.Grass);
+                sim.World.SetVegetation(x, y, 0.3f);
+            }
+        }
+        sim.World.RefreshSpatialIndex();
+    }
+
+    /// <summary>
+    /// 比对"哪些槽位活着"以及各自的**代次**。
+    ///
+    /// 为什么这一步单独做：代次差异说明"某个槽位里的个体被换过人"，
+    /// 也就是**曾有一个人死掉、槽位被回收给新个体**。
+    /// 这比"某个数值不同"是更本质的差异 —— 它说明两个世界的历史不同，
+    /// 而不只是某一帧的取值不同。
+    /// </summary>
+    private static void DumpSlotSets(Simulation a, Simulation b)
+    {
+        AgentStore x = a.Agents;
+        AgentStore y = b.Agents;
+
+        for (int slot = 0; slot < System.Math.Min(x.Capacity, y.Capacity); slot++)
+        {
+            bool ax = x.IsSlotAlive(slot);
+            bool by = y.IsSlotAlive(slot);
+            if (ax == by && (!ax || x.GenerationOf(slot) == y.GenerationOf(slot))) { continue; }
+
+            System.Console.WriteLine("  [探针] 槽位 " + slot
+                + " 存活 direct=" + ax + " restored=" + by
+                + " 代次 direct=" + x.GenerationOf(slot) + " restored=" + y.GenerationOf(slot));
+        }
+
+        if (x.Capacity != y.Capacity)
+        {
+            System.Console.WriteLine("  [探针] 容量不同：direct=" + x.Capacity + " restored=" + y.Capacity);
+        }
+        System.Console.WriteLine("  [探针] NextFreeHint direct=" + x.NextFreeHint + " restored=" + y.NextFreeHint
+            + " | 建筑 NextFreeHint direct=" + a.Buildings.NextFreeHint + " restored=" + b.Buildings.NextFreeHint);
+
+        // 代次之和与 MarkDead 计数。
+        //
+        // 为什么要单独看这两个：代次只在 `MarkDead` 里自增（或被 ClaimSlot 复用），
+        // 而 `Stats.TotalDeaths` 只统计**经由需求系统上报**的死亡。
+        // 两者不一致就说明"有人被 MarkDead 却没有被计入统计" ——
+        // 那正是"槽位代次对不上但死亡数相同"这类矛盾的来源。
+        int sumGenX = 0;
+        int sumGenY = 0;
+        int aliveX = 0;
+        int aliveY = 0;
+        for (int slot = 0; slot < System.Math.Min(x.Capacity, y.Capacity); slot++)
+        {
+            sumGenX += x.GenerationOf(slot);
+            sumGenY += y.GenerationOf(slot);
+            if (x.IsSlotAlive(slot)) { aliveX++; }
+            if (y.IsSlotAlive(slot)) { aliveY++; }
+        }
+
+        System.Console.WriteLine("  [探针] 代次之和 direct=" + sumGenX + " restored=" + sumGenY
+            + " | 存活计数 " + aliveX + "/" + aliveY
+            + " | TotalDied direct=" + x.TotalDied + " restored=" + y.TotalDied);
+
+        // 逐个列出"有代次或有死亡记录"的槽位 —— 这能直接指出两个世界各自死过谁。
+        for (int slot = 0; slot < System.Math.Min(x.Capacity, y.Capacity); slot++)
+        {
+            bool interesting = x.GenerationOf(slot) != 0 || y.GenerationOf(slot) != 0
+                || x.DeathTickOf(slot) >= 0 || y.DeathTickOf(slot) >= 0;
+            if (!interesting) { continue; }
+
+            System.Console.WriteLine("  [探针] 死亡槽位 " + slot
+                + " | direct 存活=" + x.IsSlotAlive(slot) + " 代次=" + x.GenerationOf(slot)
+                + " 死亡tick=" + x.DeathTickOf(slot)
+                + " | restored 存活=" + y.IsSlotAlive(slot) + " 代次=" + y.GenerationOf(slot)
+                + " 死亡tick=" + y.DeathTickOf(slot));
+        }
+    }
+
     private static void DumpRngComparison(Simulation a, Simulation b)
     {
         ulong[][] ra = a.Random.ExportState();
         ulong[][] rb = b.Random.ExportState();
-
         for (int s = 0; s < ra.Length && s < rb.Length; s++)
         {
             bool same = ra[s].Length == rb[s].Length;
@@ -224,54 +312,146 @@ public sealed class SaveDivergenceProbe
                     if (ra[s][k] != rb[s][k]) { same = false; break; }
                 }
             }
-            if (!same)
-            {
-                System.Console.WriteLine("  [探针] 随机流不同：" + (RngStream)s);
-            }
+            if (!same) { System.Console.WriteLine("  [探针] 随机流不同：" + (RngStream)s); }
         }
     }
 
-    /// <summary>找出第一个不同的 Tile，并打印它的**全部**字段。</summary>
+    private static void DumpExactTileDeltaAtLoad(Simulation a, Simulation b)
+    {
+        Tile[] ta = a.World.Tiles;
+        Tile[] tb = b.World.Tiles;
+        int amountDiff = 0;
+        int regenDiff = 0;
+        for (int i = 0; i < ta.Length; i++)
+        {
+            if (ta[i].Resource.Amount != tb[i].Resource.Amount) { amountDiff++; }
+            if (ta[i].Resource.RegenerationRate != tb[i].Resource.RegenerationRate) { regenDiff++; }
+        }
+        System.Console.WriteLine("  [探针] 读档瞬间精确比对：资源量差异 " + amountDiff
+            + " 格，再生率差异 " + regenDiff + " 格");
+    }
+
     private static void DumpFirstTileDifference(Simulation a, Simulation b)
     {
         Tile[] ta = a.World.Tiles;
         Tile[] tb = b.World.Tiles;
+        int width = a.World.Width;
 
         for (int i = 0; i < ta.Length; i++)
         {
             ref readonly Tile x = ref ta[i];
             ref readonly Tile y = ref tb[i];
-            bool same = x.Terrain == y.Terrain
-                && x.Fire == y.Fire
+            bool same = x.Terrain == y.Terrain && x.Fire == y.Fire
                 && x.Resource.Kind == y.Resource.Kind
                 && x.Resource.Amount == y.Resource.Amount
                 && x.Resource.Capacity == y.Resource.Capacity
-                && x.Moisture == y.Moisture
-                && x.Temperature == y.Temperature
-                && x.Fertility == y.Fertility
-                && x.Vegetation == y.Vegetation
+                && x.Resource.RegenerationRate == y.Resource.RegenerationRate
+                && x.Moisture == y.Moisture && x.Temperature == y.Temperature
+                && x.Fertility == y.Fertility && x.Vegetation == y.Vegetation
                 && x.BuildingId == y.BuildingId;
             if (same) { continue; }
 
-            int tx = i % a.World.Width;
-            int ty = i / a.World.Width;
-            System.Console.WriteLine("  [探针] 首个不同的格子 (" + tx + "," + ty + ")");
-            System.Console.WriteLine("  [探针]   direct   地形" + x.Terrain + " 火" + x.Fire
-                + " 资源" + x.Resource.Kind + " 量" + x.Resource.Amount.ToString("R")
-                + " 容" + x.Resource.Capacity.ToString("R")
-                + " 湿" + x.Moisture.ToString("R") + " 温" + x.Temperature.ToString("R")
-                + " 肥" + x.Fertility.ToString("R") + " 植" + x.Vegetation.ToString("R")
+            System.Console.WriteLine("  [探针] 首个不同的格子 (" + (i % width) + "," + (i / width) + ")");
+            System.Console.WriteLine("  [探针]   direct   地形" + x.Terrain + " 资源" + x.Resource.Kind
+                + " 量" + x.Resource.Amount.ToString("R") + " 容" + x.Resource.Capacity.ToString("R")
+                + " 再生率" + x.Resource.RegenerationRate.ToString("R")
+                + " 湿" + x.Moisture.ToString("R") + " 植" + x.Vegetation.ToString("R")
                 + " 建筑" + x.BuildingId);
-            System.Console.WriteLine("  [探针]   restored 地形" + y.Terrain + " 火" + y.Fire
-                + " 资源" + y.Resource.Kind + " 量" + y.Resource.Amount.ToString("R")
-                + " 容" + y.Resource.Capacity.ToString("R")
-                + " 湿" + y.Moisture.ToString("R") + " 温" + y.Temperature.ToString("R")
-                + " 肥" + y.Fertility.ToString("R") + " 植" + y.Vegetation.ToString("R")
+            System.Console.WriteLine("  [探针]   restored 地形" + y.Terrain + " 资源" + y.Resource.Kind
+                + " 量" + y.Resource.Amount.ToString("R") + " 容" + y.Resource.Capacity.ToString("R")
+                + " 再生率" + y.Resource.RegenerationRate.ToString("R")
+                + " 湿" + y.Moisture.ToString("R") + " 植" + y.Vegetation.ToString("R")
                 + " 建筑" + y.BuildingId);
             return;
         }
+        System.Console.WriteLine("  [探针] 没有 tile 不同");
+    }
 
-        System.Console.WriteLine("  [探针] 没有任何 tile 不同（差异在实体或统计段）");
+    /// <summary>逐建筑逐字段比对 —— M4 新增了床位/劳动量/完整度，这一段现在是重点。</summary>
+    private static void DumpBuildingDelta(Simulation a, Simulation b)
+    {
+        BuildingStore x = a.Buildings;
+        BuildingStore y = b.Buildings;
+
+        if (x.LiveCount != y.LiveCount)
+        {
+            System.Console.WriteLine("  [探针] 建筑数量不同：" + x.LiveCount + " vs " + y.LiveCount);
+        }
+        if (x.TotalBeds != y.TotalBeds)
+        {
+            System.Console.WriteLine("  [探针] 床位总数不同：" + x.TotalBeds + " vs " + y.TotalBeds);
+        }
+        if (x.OccupiedBeds != y.OccupiedBeds)
+        {
+            System.Console.WriteLine("  [探针] 已占床位不同：" + x.OccupiedBeds + " vs " + y.OccupiedBeds);
+        }
+        if (x.NextFreeHint != y.NextFreeHint)
+        {
+            System.Console.WriteLine("  [探针] 建筑 NextFreeHint 不同：" + x.NextFreeHint + " vs " + y.NextFreeHint);
+        }
+
+        for (int i = 0; i < System.Math.Min(x.Capacity, y.Capacity); i++)
+        {
+            if (!x.IsAlive(i) && !y.IsAlive(i)) { continue; }
+            if (x.IsAlive(i) != y.IsAlive(i))
+            {
+                System.Console.WriteLine("  [探针] 建筑槽 " + i + " 存活不同：" + x.IsAlive(i) + " vs " + y.IsAlive(i));
+                continue;
+            }
+
+            if (x.KindOf(i) != y.KindOf(i) || x.StateOf(i) != y.StateOf(i)
+                || x.XOf(i) != y.XOf(i) || y.YOf(i) != y.YOf(i)
+                || x.WorkDoneOf(i) != y.WorkDoneOf(i)
+                || x.OccupiedBedsOf(i) != y.OccupiedBedsOf(i)
+                || x.LaborOf(i) != y.LaborOf(i)
+                || x.DecayOf(i) != y.DecayOf(i))
+            {
+                System.Console.WriteLine("  [探针] 建筑槽 " + i + " 不同："
+                    + " 类型" + x.KindOf(i) + "/" + y.KindOf(i)
+                    + " 状态" + x.StateOf(i) + "/" + y.StateOf(i)
+                    + " 进度" + x.WorkDoneOf(i) + "/" + y.WorkDoneOf(i)
+                    + " 占床" + x.OccupiedBedsOf(i) + "/" + y.OccupiedBedsOf(i)
+                    + " 劳动" + x.LaborOf(i).ToString("R") + "/" + y.LaborOf(i).ToString("R")
+                    + " 完整度" + x.DecayOf(i).ToString("R") + "/" + y.DecayOf(i).ToString("R"));
+            }
+        }
+    }
+
+    /// <summary>逐个体比对 M4 新增的家族/住所字段。</summary>
+    private static void DumpAgentDelta(Simulation a, Simulation b)
+    {
+        AgentStore x = a.Agents;
+        AgentStore y = b.Agents;
+
+        if (x.LiveCount != y.LiveCount)
+        {
+            System.Console.WriteLine("  [探针] 人口不同：" + x.LiveCount + " vs " + y.LiveCount);
+        }
+        if (x.NextFreeHint != y.NextFreeHint)
+        {
+            System.Console.WriteLine("  [探针] Agent NextFreeHint 不同：" + x.NextFreeHint + " vs " + y.NextFreeHint);
+        }
+
+        int reported = 0;
+        foreach (int slot in x.AliveSlots())
+        {
+            if (!y.IsSlotAlive(slot)) { continue; }
+            if (x.PartnerOf(slot) != y.PartnerOf(slot)
+                || x.ChildCountOf(slot) != y.ChildCountOf(slot)
+                || x.DwellingOf(slot) != y.DwellingOf(slot)
+                || x.LastBirthTickOf(slot) != y.LastBirthTickOf(slot)
+                || x.LifeStageOf(slot) != y.LifeStageOf(slot))
+            {
+                System.Console.WriteLine("  [探针] 个体槽 " + slot + " 家族字段不同："
+                    + " 伴侣" + x.PartnerOf(slot) + "/" + y.PartnerOf(slot)
+                    + " 生育数" + x.ChildCountOf(slot) + "/" + y.ChildCountOf(slot)
+                    + " 住所" + x.DwellingOf(slot) + "/" + y.DwellingOf(slot)
+                    + " 上次生育" + x.LastBirthTickOf(slot) + "/" + y.LastBirthTickOf(slot)
+                    + " 阶段" + x.LifeStageOf(slot) + "/" + y.LifeStageOf(slot));
+                reported++;
+                if (reported >= 3) { break; }
+            }
+        }
     }
 
     private static void DumpCounts(Simulation a, Simulation b)
@@ -283,12 +463,8 @@ public sealed class SaveDivergenceProbe
         System.Console.WriteLine("  [探针] 统计 出生" + a.Stats.TotalBirths + "/" + b.Stats.TotalBirths
             + " 死亡" + a.Stats.TotalDeaths + "/" + b.Stats.TotalDeaths
             + " 迁移" + a.Stats.TotalMigrations + "/" + b.Stats.TotalMigrations
-            + " 枯竭" + a.ResourceSystem.DepletionEvents + "/" + b.ResourceSystem.DepletionEvents);
-        System.Console.WriteLine("  [探针] 天气 direct " + a.World.Weather.Kind + "/" + a.World.Weather.DurationHours
-            + "/" + a.World.Weather.HoursUntilChange
-            + " vs restored " + b.World.Weather.Kind + "/" + b.World.Weather.DurationHours
-            + "/" + b.World.Weather.HoursUntilChange);
-        System.Console.WriteLine("  [探针] 脏块 direct " + a.World.Chunks.DirtyCount
-            + " vs restored " + b.World.Chunks.DirtyCount);
+            + " 枯竭" + a.ResourceSystem.DepletionEvents + "/" + b.ResourceSystem.DepletionEvents
+            + " | 出生系统计数 " + a.Births.TotalBirths + "/" + b.Births.TotalBirths);
+        System.Console.WriteLine("  [探针] 脏块 " + a.World.Chunks.DirtyCount + " vs " + b.World.Chunks.DirtyCount);
     }
 }

@@ -311,6 +311,16 @@ public static class SaveLoader
 
         // 槽位分配提示：M4 起它决定新生儿落在哪个槽位（槽位进摘要）。
         store.NextFreeHint = agents.GetInt("nextFreeHint", 0);
+
+        // 全部槽位的代次（含已死槽位）—— 必须在逐个恢复个体**之后**，
+        // 因为死槽位的代次只能从这里恢复，而它会被下一个占用该槽位的人继承。
+        JsonValue generations = agents.Get("generations");
+        if (generations.IsArray)
+        {
+            var values = new int[generations.Items.Count];
+            for (int i = 0; i < generations.Items.Count; i++) { values[i] = generations.Items[i].AsInt(); }
+            store.RestoreGenerations(values);
+        }
     }
 
     private static void RestoreWildlife(Simulation sim, JsonValue wildlife)
@@ -503,6 +513,12 @@ public static class SaveLoader
 
         // M4：出生系统也有自己的计数器（只用于报告），同样必须跟上 Stats。
         sim.Births.RestoreCounters(stats.GetInt("totalBirths", 0));
+
+        // M4c：分批数必须**采用存档里的值**，而不是"重新推一遍"。
+        // 重新推会在分批数变化时触发 AssignDecisionPhases，把恢复出来的决策相位又打乱一次。
+        sim.Ai.AdoptBatchCountAfterLoad(
+            stats.GetInt("aiBatchCount", 0),
+            stats.GetInt("aiLastPhaseChangeTick", 0));
 
         sim.ResourceSystem.RestoreCounters(
             stats.GetDouble("totalHarvested", 0d),

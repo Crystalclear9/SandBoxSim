@@ -140,6 +140,45 @@ public sealed class AgentStore : ISimEntitySet
     private int[] _dwelling = System.Array.Empty<int>();
 
     /// <summary>
+    /// 导出**全部槽位**的代次（含已死槽位）—— 存档专用。
+    ///
+    /// # 为什么连"死槽位的代次"都必须存（一个很隐蔽的漏状态）
+    ///
+    /// `EncodeAgents` 只编码存活个体，而状态摘要 `HashInto` **也只哈希存活槽位**。
+    /// 于是"死槽位的代次"在两个地方都看不见 —— 看起来完全不需要保存。
+    ///
+    /// 但它会被**下一个占用该槽位的人继承**：代次是只增的，
+    /// 而槽位复用只是 `ClaimSlot`（不改代次）。所以：
+    ///
+    ///   1. 存档时槽位 7 已死、代次为 1（例如一次"生了但没找到落脚点"的回滚把它烧掉了）；
+    ///   2. 存档不记录死槽位 ⇒ 读档后槽位 7 的代次是 0；
+    ///   3. 之后有人出生并复用槽位 7 ⇒ direct 的代次是 1、restored 是 0；
+    ///   4. 而代次**一进摘要**，两个世界立刻分叉。
+    ///
+    /// 实测表现：读档瞬间摘要一致、前面 11519 tick 全一致，
+    /// 只在第 11520 tick（日边界，正好有出生复用该槽位）分叉，
+    /// 差异是"存活计数相同、死亡计数相同、但某个槽位的代次 1 vs 0"。
+    ///
+    /// 判据仍然是那一句：**它会不会影响未来的行为**。代次会 —— 它决定 `AgentRef` 是否有效。
+    /// </summary>
+    public int[] ExportGenerations()
+    {
+        var result = new int[_capacity];
+        for (int i = 0; i < _capacity; i++) { result[i] = _generation[i]; }
+        return result;
+    }
+
+    /// <summary>读档时恢复全部槽位的代次（在 <see cref="RestoreAgent"/> 之后调用，以数组为准）。</summary>
+    public void RestoreGenerations(int[] generations)
+    {
+        if (generations == null) { return; }
+        EnsureCapacity(generations.Length);
+
+        int count = generations.Length < _capacity ? generations.Length : _capacity;
+        for (int i = 0; i < count; i++) { _generation[i] = generations[i]; }
+    }
+
+    /// <summary>
     /// 槽位分配提示（**M4 起必须进存档**）。
     ///
     /// 这是第七个"隐形状态"，而且它是被 M4 **激活**的：
@@ -1212,6 +1251,23 @@ public sealed class AgentStore : ISimEntitySet
             hash = Hash64.Combine(hash, _childCount[i]);
             hash = Hash64.Combine(hash, _dwelling[i]);
             hash = Hash64.Combine(hash, _lifeStage[i]);
+
+            // M4c 补上的漏网字段（**它们的缺席让一个真实 bug 隐藏了一个决策间隔**）：
+            //
+            //   * `_decisionPhase` 与 `_nextDecisionTick` 决定"这个人哪一 tick 决策"。
+            //     读档路径曾经在采用分批数时顺手重排相位，而因为这两个字段不在摘要里，
+            //     "读档后摘要一致"的自校验通过了 —— 症状要到 600 tick 之后才出现。
+            //   * `_migrateUntil` / `_lastBirthTick` / 父母 同样是行为状态
+            //     （迁移意愿、生育间隔门、血缘）。
+            //
+            // 判据从来不是"它看起来是不是状态"，而是**它会不会影响未来的行为**。
+            // 这条判据在 Phase 0 用六个字段换来，在 M4c 又用两个字段换来一次。
+            hash = Hash64.Combine(hash, _decisionPhase[i]);
+            hash = Hash64.Combine(hash, _nextDecisionTick[i]);
+            hash = Hash64.Combine(hash, _migrateUntil[i]);
+            hash = Hash64.Combine(hash, _lastBirthTick[i]);
+            hash = Hash64.Combine(hash, _motherSlot[i]);
+            hash = Hash64.Combine(hash, _fatherSlot[i]);
         }
         return hash;
     }
