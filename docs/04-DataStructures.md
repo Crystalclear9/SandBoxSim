@@ -22,6 +22,14 @@
 | `DailySample` / `SimulationStats` / `StateHash` | `SimulationStats.cs` |
 | `ResourceSystem` | `ResourceSystem.cs` |
 | `Simulation` / `ISimEntitySet` | `Simulation.cs` |
+| `AgentRef` / `AgentState` / `ActionKind` / `ActionPhase` / `JobType` / `LifeStage` / `Personality` / `NeedIndex` / `DeathCause` / `ActionFailReason` | `Agents/AgentTypes.cs` |
+| `AgentStore` | `Agents/AgentStore.cs` |
+| `Consideration` / `ActionScore` / `UtilityBreakdown` / `UtilityCombiner` | `Ai/UtilityBreakdown.cs` |
+| `ActionDef` / `ActionRegistry` / `ActionEvaluator` / `TargetSelector` | `Systems/ActionDef.cs` |
+| `ScoreBuilder` | `Systems/ScoreBuilder.cs` |
+| `ActorContext` / `AiSystem` / `ActionSystem` / `NeedsSystem` / `DeathRecord` | `Systems/*.cs` |
+| `AStarPathfinder` / `PathResult` / `BinaryHeap` / `GridPool` | `Pathing/AStarPathfinder.cs` |
+| `UtilityCurve`（含 `Survival` 曲线） | `Foundation/UtilityCurve.cs` |
 
 ---
 
@@ -667,3 +675,94 @@ fBm 的取值聚集在 0.5 附近，范围又随地图尺寸与频率变化。
 
 测试：`GenerationProducesAllCoreTerrains`（多 seed 都必须五种地形齐全）、
 `TilePropertiesAreSane`（属性范围与规则一致性）、`WaterTilesAreWet`（水域湿度饱和）。
+
+---
+
+## 8. 个体（M1）
+
+### 8.1 `AgentRef`（稳定引用）
+
+```csharp
+readonly struct AgentRef { int Slot; int Generation; bool IsNone; }
+```
+
+**为什么不用索引当 ID**：Agent 会死，索引会被回收给新个体。
+外部（检查器、事件日志、关系系统）拿着裸索引，个体死亡 + 槽位复用之后就会"看错人" ——
+这类 bug 不报错，只是数据串了。
+
+因此引用 = (槽位, 代次)：槽位复用时代次 +1，旧引用**立刻失效**（`AgentStore.IsValid` 返回 false）。
+
+### 8.2 `AgentStore`（SoA）
+
+所有个体字段都是**下标对齐的数组**（约 40 个），而不是 `List<Agent>`：
+
+| 分组 | 字段 |
+|---|---|
+| 生命周期 | `_generation[]`、`_alive[]`、`_deathCause[]`、`_birthTick[]`、`_deathTick[]` |
+| 位置 | `_x[]`、`_y[]`、`_prevX[]`、`_prevY[]`、`_homeX[]`、`_homeY[]`、`_facing[]` |
+| 需求 | `_hunger[]`、`_fatigue[]`、`_thirst[]`、`_social[]` |
+| 生理 | `_health[]`、`_ageDays[]`、`_lifeStage[]`、`_job[]` |
+| 库存 | `_invFood[]`、`_invWood[]`、`_invStone[]`、`_invIron[]` |
+| 性格 | `_aggression[]`、`_greed[]`、`_kindness[]`、`_bravery[]`、`_industriousness[]`、`_sociability[]` |
+| 动作 | `_state[]`、`_action[]`、`_actionPhase[]`、`_failReason[]`、`_targetX/Y[]`、`_pathNextX/Y[]`、`_hasPathStep[]`、`_actionTicks[]` |
+| 决策 | `_decisionPhase[]`、`_nextDecisionTick[]`、`_lastDecision[]`（`UtilityBreakdown`） |
+
+**为什么用 SoA**：
+1. 决策与需求更新会遍历**全部个体的同一类字段**，SoA 的访问是连续的，缓存命中率远高于对象数组；
+2. 没有对象引用 ⇒ GC 压力接近零，长期运行（几十万 tick）不会出现停顿；
+3. 状态摘要可以按数组顺序遍历，天然确定。
+
+**关键方法**：`FindSpawnPosition`（螺旋找可走格）、`Add`（返回 `AgentRef`）、
+`MarkDead(slot, cause, tick)`（**保留数组内容**，只改存活标志与代次，
+这样死亡时刻的位置/年龄/死因还能被日志读到）、`AssignDecisionPhases(batchCount)`、
+`AliveSlots()`（按槽位顺序，确定性）、`NameOrOverride`、`HashInto`。
+
+### 8.3 `Personality`（六维 [0,1]）
+
+`Aggression` / `Greed` / `Kindness` / `Bravery` / `Industriousness` / `Sociability`。
+
+抽样用"两个均匀数取平均"（中间偏高、两端稀有），因此**极端性格是稀有的** ——
+这样个体差异才有观察价值。M1 只有勤劳真正进入效用；其余在 M6 接入。
+
+### 8.4 `UtilityBreakdown`（可解释性）
+
+```csharp
+readonly struct Consideration {
+    string Name; float Input; UtilityCurve Curve; float Weight;
+    float Score; float Contribution;    // Score = Curve(Input)，Contribution = Weight × Score
+}
+readonly struct ActionScore {
+    ActionKind Action; float Utility; Consideration[] Considerations;
+    float WeightedAverage; float GeometricMean; bool Blocked;
+}
+readonly struct UtilityBreakdown {
+    ActionKind Chosen; ActionScore[] Scores; float ChosenUtility; long Tick;
+}
+```
+
+每个个体保存最近一次决策的 `UtilityBreakdown`（Top-N 个动作，含全部分解）。
+它的存在让"为什么他没去吃饭"变成可以直接读出来的事实，而不是需要推断的猜测。
+
+### 8.5 `AStarPathfinder`
+
+```csharp
+struct PathResult { bool Success; int Length; float Cost; int ExpandedNodes; }
+
+sealed class AStarPathfinder {
+    PathResult FindPath(int sx, int sy, int gx, int gy, Int2[] outPath);
+    PathResult FindNextStep(int sx, int sy, int gx, int gy, out Int2 nextStep);
+    int MaxExpandedNodes;                  // 默认 4000
+    long TotalSearches, FailedSearches;    // 诊断
+}
+```
+
+**确定性保证**：`BinaryHeap` 在 f 值相同时按格子索引升序，因此同输入必得同路径。
+
+**corner cutting 的处理**：对角移动要求**两侧不同时不可走**
+（而不是"两侧都必须可走"）。后者会把"从拐角外侧正常绕过"也判为非法 ——
+这个区别在测试里踩过坑（见 [12-Milestones](12-Milestones.md) M1 联调记录）。
+
+### 8.6 `ActionContext`
+
+一次决策需要的全部上下文（世界、个体、配置、chunk 聚合、是否夜晚、家、随机源）。
+动作函数因此是**纯函数风格**的：输入全在参数里，不会偷偷读 UI 状态或消耗随机数。

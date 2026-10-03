@@ -13,6 +13,7 @@ param(
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Debug',
     [int]$Seed = 839102,
+    [int]$Agents = 0,
     [switch]$SkipTests,
     [switch]$SkipRun
 )
@@ -54,5 +55,5 @@ if (-not $SkipTests) {
 if (-not $SkipRun) {
     Write-Host ''
     Write-Host '=== Starting SandBoxSim ===' -ForegroundColor Cyan
-    & $hostExe $build.Paths.Console --seed $Seed
+    & $hostExe $build.Paths.Console --seed $Seed --agents $Agents
 }

@@ -41,6 +41,9 @@ public sealed class UtilityCurve
 
         /// <summary>常数：与输入无关（用于"纯权重"考虑项）。</summary>
         Constant = 7,
+
+        /// <summary>生存曲线：U(x)=1−(1−x)²。低需求区就快速抬升，用于生存类动作。</summary>
+        Survival = 8,
     }
 
     public Shape Kind { get; }
@@ -70,6 +73,19 @@ public sealed class UtilityCurve
     public static UtilityCurve Quadratic => new UtilityCurve(Shape.Quadratic);
     public static UtilityCurve Sqrt => new UtilityCurve(Shape.Sqrt);
     public static UtilityCurve Constant(float value) => new UtilityCurve(Shape.Constant, constantValue: value);
+
+    /// <summary>
+    /// 生存曲线：U(x) = 1 − (1−x)²。
+    ///
+    /// 为什么生存类动作必须要它（而不是 Linear / Quadratic）：
+    ///   效用合成器里带了补偿因子（否则行为会僵硬），这带来一个副作用 ——
+    ///   **"被门挡住"的动作其效用会停留在一个下界**（等于折中后的补偿项）。
+    ///   如果食物采集在"有点饿"时打分低于"顺手砍柴"，个体就会一直砍柴直到饿死
+    ///   （实测确实出现过：40 人全饿死，采集统计里食物为 0）。
+    ///   1−(1−x)² 在低输入区就快速抬升（x=0.3 ⇒ 0.51），于是"开始饿"就能压过非生存行为；
+    ///   同时它仍然是单调递增且有界的，符合效用系统的硬性要求。
+    /// </summary>
+    public static UtilityCurve Survival => new UtilityCurve(Shape.Survival);
 
     public static UtilityCurve Logistic(float steepness = 10f, float midpoint = 0.5f)
         => new UtilityCurve(Shape.Logistic, steepness, midpoint);
@@ -130,6 +146,13 @@ public sealed class UtilityCurve
                 result = ConstantValue;
                 break;
 
+            case Shape.Survival:
+            {
+                float complement = 1f - input;
+                result = 1f - (complement * complement);
+                break;
+            }
+
             default:
                 result = input;
                 break;
@@ -173,6 +196,7 @@ public sealed class UtilityCurve
             case "threshold": return Shape.Step;
             case "smoothstep": return Shape.SmoothStep;
             case "constant": return Shape.Constant;
+            case "survival": return Shape.Survival;
             default: return Shape.Linear;
         }
     }

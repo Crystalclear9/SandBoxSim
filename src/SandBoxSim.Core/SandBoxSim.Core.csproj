@@ -14,4 +14,13 @@
     <AssemblyTitle>SandBoxSim Core Simulation</AssemblyTitle>
   </PropertyGroup>
 
+  <!--
+    注意：InternalsVisibleTo 用**源码里的 assembly 特性**声明（见 CoreProperties.cs），
+    而不是 MSBuild 的 <InternalsVisibleTo> 项。
+    原因：MSBuild 那个项需要 SDK 生成 AssemblyInfo 才能生效，
+    而本仓库的降级通道（Roslyn csc 直编）不走 SDK，于是测试程序集拿不到 internal 访问权 ——
+    表现为"通道 A 测试全绿、通道 B 编译失败"，是双通道架构里最典型的坑。
+    写成源码特性之后，两条通道行为完全一致。
+  -->
+
 </Project>

@@ -16,45 +16,55 @@
 | 里程碑 | 内容 | 状态 |
 |---|---|---|
 | **M0** | 世界生成 / Tile 模型 / Tick 架构 / 空间索引 / TUI 观察器 / PNG 快照 / 测试地基 | ✅ **已完成** |
-| M1 | Agent 实体 / 需求系统 / Utility AI / A\* 寻路 / 第一批动作 | 🚧 进行中 |
-| M2 | 资源采集链 / 生存（吃、喝、睡）/ 死亡与死因 / 事件日志 | ⏳ 计划中 |
+| **M1** | Agent 实体 / 需求系统 / Utility AI / A\* 寻路 / 8 个动作 / 自给自足的生存 | ✅ **已完成** |
+| M2 | 生存经济：共享物资 / 资源枯竭连锁 / 第一次被迫迁徙 / 饥荒 | 🚧 下一步 |
 | M3 | 木材石材 / 建造系统（House）/ 库存与共享存储 | ⏳ 计划中 |
-| M4 | 农业（Farm）/ 出生与人口 / 迁移雏形 | ⏳ 计划中 |
+| M4 | 农业（Farm）/ 出生与人口 / 迁移 | ⏳ 计划中 |
 | M5 | 玩家上帝工具 / 灾害 / 存档 / 完整 Debug 体系 | ⏳ 计划中 |
 | M6 | 性格 / 关系 / 家庭 / 个人时间线 | ⏳ 计划中 |
 | M7 | 聚落实体 / 领土 / 多聚落 / 完整迁移 | ⏳ 计划中 |
 | M8 | 贸易 / 价格 / 外交 / 冲突（WarPressure） | ⏳ 计划中 |
 | M9 | 性能优化 / 文档收尾 / CI / v1.0.0 | ⏳ 计划中 |
 
-完整的里程碑拆解与每阶段验收标准见 [docs/12-Milestones.md](docs/12-Milestones.md)。
+完整的里程碑拆解、每阶段验收标准与联调踩坑记录见 [docs/12-Milestones.md](docs/12-Milestones.md)。
 
 ---
 
-## M0 能做什么（现在就能验证的事）
+## 现在能做什么
 
 ```powershell
-# 1) 交互观察世界（可平移、缩放、换世界、切换热力图）
-.\tools\run.ps1
+# 1) 交互观察世界：放 30 个居民，看他们自己找吃的、喝水、睡觉
+.\tools\run.ps1 -Agents 30
 
-# 2) 无人干预长跑 100 天，产出报告 / 统计 / 事件清单
-.\tools\run.ps1 -Mode headless -Days 100
+# 2) 无人干预长跑 100 天（40 人），产出报告 / 统计 / 事件清单 / 世界快照
+.\tools\run.ps1 -Mode snapshot -Days 100 -Agents 40 -SnapshotDays 25
 
-# 3) 确定性校验：同 seed 连跑两遍，状态摘要必须完全一致
-.\tools\run.ps1 -Mode digest -Days 30
+# 3) 确定性校验：同 seed 连跑两遍（带个体），状态摘要必须完全一致
+.\tools\run.ps1 -Mode digest -Days 30 -Agents 30
 
-# 4) 多 seed 批量体检（鲁棒性 + 涌现性）
+# 4) 多 seed 批量体检（鲁棒性）
 #    注意用 -SeedRange（字符串）而不是 -Seeds：`run.ps1 -Seeds 1,2,3` 里的逗号
-#    会被 PowerShell 当成参数分隔符，实际只会跑 seed 1（这是个很容易误判结果的坑）。
-.\tools\run.ps1 -Mode batch -SeedRange 1..20 -Days 100
+#    会被 PowerShell 当成参数分隔符，实际只会跑 seed 1（很容易误判结果的坑）。
+.\tools\run.ps1 -Mode batch -SeedRange 1..20 -Days 60 -Agents 20
 
-# 5) 导出世界 PNG 快照（可归档、可贴进评审的视觉证据）
-.\tools\run.ps1 -Mode snapshot -Days 20 -SnapshotDays 5
-
-# 6) 跑全部测试
+# 5) 跑全部测试
 .\tools\test.ps1
 ```
 
-### M0 交互键位
+### 现在的世界会发生什么
+
+放 40 个人进一张 100×100 的地图，然后什么都不做：
+
+- 他们会**自己找吃的**：饿到一定程度就去采野果（`GatherFood`），采到就吃（`Eat`）；
+- **自己找水**：走到河边喝水（`Drink`）；
+- **自己睡觉**：夜里困倦度上升，就地睡下（`Sleep`）；
+- 顺带**砍柴采石**：为将来的建造攒物资（M3 才会真正用上）；
+- **老去并死亡**：55 天后进入老年，有死亡概率；90 天是硬性寿命上限；
+- 少数人可能**脱水而死**（走得太远又没找到水），死因会写进事件日志。
+
+也就是说：**M1 已经能自己跑出"一群人的一生"** —— 虽然他们还没有家庭、没有村庄。
+
+### M1 交互键位
 
 | 按键 | 作用 |
 |---|---|
@@ -174,11 +184,13 @@ SandBoxSim/
 | [docs/02-SystemArchitecture.md](docs/02-SystemArchitecture.md) | 系统依赖图，"谁读谁 / 谁改谁"矩阵 |
 | [docs/03-SimulationArchitecture.md](docs/03-SimulationArchitecture.md) | Tick 架构与各系统更新频率 |
 | [docs/04-DataStructures.md](docs/04-DataStructures.md) | 全部数据结构与字段语义（与源码 1:1 对照） |
-| [docs/12-Milestones.md](docs/12-Milestones.md) | 里程碑拆解、每阶段可玩验收、构建通道说明 |
+| [docs/05-UtilityAI.md](docs/05-UtilityAI.md) | Utility AI：考虑项、曲线、合成公式、选靶、执行、可解释输出 |
+| [docs/12-Milestones.md](docs/12-Milestones.md) | 里程碑拆解、每阶段可玩验收、构建通道说明、联调踩坑记录 |
 | [docs/13-DeterminismAndSave.md](docs/13-DeterminismAndSave.md) | 确定性契约与存档格式 |
+| [docs/14-Performance.md](docs/14-Performance.md) | 分批决策、空间索引、实测性能数据 |
 
-其余文档（05 Utility AI、06 资源、07 建筑、08 人口、09 涌现故事、10 Debug、11 MVP 范围、
-14 性能、15 参数总表）随对应里程碑落地时补齐 —— 见 [docs/00-Index.md](docs/00-Index.md) 的进度表。
+其余文档（06 资源、07 建筑、08 人口、09 涌现故事、10 Debug、11 MVP 范围、15 参数总表）
+随对应里程碑落地时补齐 —— 见 [docs/00-Index.md](docs/00-Index.md) 的进度表。
 
 ---
 

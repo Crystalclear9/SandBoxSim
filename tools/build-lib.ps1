@@ -438,7 +438,7 @@ function Get-DotnetHost {
 function Get-ConsoleArgs {
     param([string]$Mode, [int]$Seed, [int]$Days, [int]$Ticks, [int]$Width, [int]$Height,
           [string]$ConfigPath, [string]$OutDir, [int]$SnapshotDays, [int[]]$Seeds, [bool]$NoColor,
-          [string]$SeedRange = '')
+          [string]$SeedRange = '', [int]$Agents = 0, [int]$AgentRadius = 0)
 
     $a = New-Object System.Collections.Generic.List[string]
     switch ($Mode) {
@@ -467,6 +467,8 @@ function Get-ConsoleArgs {
     elseif ($Seeds.Count -gt 0) {
         $a.Add("--seeds"); $a.Add(($Seeds -join ','))
     }
+    if ($Agents -gt 0) { $a.Add("--agents"); $a.Add("$Agents") }
+    if ($AgentRadius -gt 0) { $a.Add("--agent-radius"); $a.Add("$AgentRadius") }
     if ($NoColor) { $a.Add('--no-color') }
     return $a.ToArray()
 }
@@ -477,6 +479,7 @@ function Invoke-Run {
         [int]$Seed, [int]$Days, [int]$Ticks, [int]$Width, [int]$Height,
         [string]$ConfigPath, [string]$OutDir, [int]$SnapshotDays, [int[]]$Seeds, [bool]$NoColor,
         [string]$SeedRange = '',
+        [int]$Agents = 0, [int]$AgentRadius = 0,
         [bool]$ParallelBuild = $false
     )
 
@@ -490,7 +493,8 @@ function Invoke-Run {
 
     $argv = @($build.Paths.Console) + (Get-ConsoleArgs -Mode $Mode -Seed $Seed -Days $Days -Ticks $Ticks `
         -Width $Width -Height $Height -ConfigPath $ConfigPath -OutDir $OutDir `
-        -SnapshotDays $SnapshotDays -Seeds $Seeds -NoColor $NoColor -SeedRange $SeedRange)
+        -SnapshotDays $SnapshotDays -Seeds $Seeds -NoColor $NoColor -SeedRange $SeedRange `
+        -Agents $Agents -AgentRadius $AgentRadius)
 
     Write-Host "Run: dotnet $($argv -join ' ')" -ForegroundColor DarkGray
     $old = $env:DOTNET_ROOT

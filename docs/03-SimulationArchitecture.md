@@ -34,21 +34,39 @@ GameLoop（表现层）
 Simulation.Tick(steps)   // steps 通常 0~40
   for (i = 0; i < steps; i++) {
       1. Calendar.Advance(1)                     // 时间 +1 分钟
-      2. if (Tick % 10   == 0) TickFast()        // 施工/生产/火势（M3+）
-      3. if (Tick % 60   == 0) TickHourInternal()
+      2. Actions.Tick(tick)                      // 移动 / 执行 / 结算（必须最先）
+      3. Needs.TickNeeds(...)                    // 需求累积 + 掉血 + 死亡判定
+      4. RecordDeathsFromNeeds(tick)             // 死亡写进事件日志与统计
+      5. Ai.Tick(tick, isNight)                  // 分批决策（基于最新的需求）
+      6. if (Tick % 10   == 0) TickFast()        // 施工/生产/火势（M3+）
+      7. if (Tick % 60   == 0) TickHourInternal()
            ├─ WeatherTick()                      // 天气 → 写 Tile 湿度/温度
            ├─ ResourceSystem.Regenerate(1/24天)   // Logistic 再生
            └─ TickHour()                         // 各系统小时级逻辑（M4+）
-      4. if (Tick % 1440 == 0) TickDayInternal()
+      8. if (Tick % 1440 == 0) TickDayInternal()
            ├─ ResourceSystem.Regenerate(1天)      // 若配置为按天再生
-           ├─ TickDay()                          // 年龄/出生/死亡/迁移（M2+）
+           ├─ TickDay()                          // 年龄/老年死亡/分批数重算
            └─ Stats.RecordDay(BuildDailySample())
-      5. World.RefreshSpatialIndex()             // 所有写盘者都已写完，这里统一刷新
-      6. if (Tick % 64 == 0 && AssertInvariants) ValidateInvariants()
+      9. World.RefreshSpatialIndex()             // 所有写盘者都已写完，这里统一刷新
+     10. PopulationCount = Agents.LiveCount
+     11. if (Tick % 64 == 0 && AssertInvariants) ValidateInvariants()
   }
 ```
 
-### 2.1 为什么顺序不能配置
+### 2.1 个体层三步的顺序是 M1 最关键的契约
+
+**动作 → 需求 → 决策**，任何交换都会让行为整体错位：
+
+| 交换 | 后果 |
+|---|---|
+| 决策 → 动作 | 个体在"需求还没更新"时就决定，反应慢一拍 |
+| 需求 → 决策 → 动作 | 动作在这一 tick 不推进，移动速度实际减半 |
+| 动作 → 决策 → 需求 | 决策依据的是上一 tick 的需求，饥饿临界点判定漂移 |
+
+这类错误不会崩、不会报 NaN，只表现为"行为看起来有点迟钝"，
+因此必须写进文档并由测试锁定（`HourEventsFireOnce`、`DailySampleIsRecorded`）。
+
+### 2.2 为什么顺序不能配置
 
 任何一个相邻步骤交换，世界演化都会变：
 
@@ -79,25 +97,30 @@ Simulation.Tick(steps)   // steps 通常 0~40
 | 资源再生 | 每小时 | O(所有带资源节点的格子) | 同上量级；不可再生资源直接跳过 |
 | 统计采样 | 每天 | O(地图格子数) | 只在日边界发生 |
 | 状态摘要 | 手动 / 每 1440 tick（可配） | O(全状态) | 用于确定性验收，不进热路径 |
-| **Agent 决策（M1）** | **每 tick，分批** | O(agentCount / batchSize) | 分批是"大量 NPC"的关键手段（见 §5） |
-| Agent 需求累积（M1） | 每 tick | O(agentCount) | 纯算术，很快 |
-| 动作执行（M1） | 每 tick | O(活跃动作数) | 空闲 agent 跳过 |
-| 建造与生产（M3） | 每 10 tick | O(在建/生产中建筑数) | — |
+| **Agent 需求累积** | 每 tick | O(agentCount) | 纯算术，很快 |
+| **Agent 动作推进** | 每 tick | O(活跃动作数) | 空闲个体跳过 |
+| **Agent 决策** | 每 tick，**分批** | O(TargetDecisionsPerTick) | 有硬上界（默认 12/12 人），见 [14-Performance](14-Performance.md) |
+| **寻路** | 决策时发生 | O(格子数 log 格子数)，带 4000 节点上限 | 唯一可能昂贵的操作 |
+| 年龄与老年死亡 | 每天 | O(agentCount) | — |
+| 建造与生产（M3） | 每 10 tick | O(在建/生产中建筑数） | — |
 | 火灾蔓延（M5） | 每 10 tick | O(燃烧格子数) | 燃烧总数有天然上限 |
-| 聚落评估（M4/M7） | 每小时 / 每天 | O(聚落数 × 成员数) | — |
+| 聚落评估（M4/M7） | 每小时 / 每天 | O(聚落数 × 成员数） | — |
 
-**实测数据（M0，Windows / .NET 8 / Release 等价 Debug 配置）**：
+**实测数据（M1，Windows / .NET 8 / Debug 构建 / 100×100 地图 / 40 个体）**：
 
-| 场景 | 规模 | 实测 | 备注 |
-|---|---|---|---|
-| headless 长跑 | 100×100，4320 tick（3 天） | **64,600 tick/秒** | 含每小时天气与再生 |
-| headless 长跑 | 100×100，7200 tick（5 天）+ 4 张 PNG | **27,500 tick/秒** | PNG 编码占大头 |
-| 确定性校验 | 100×100，43,200 tick（30 天）× 2 遍 | 每遍 0.48 秒 | ≈ 90,000 tick/秒 |
-| 单元/集成测试 | 97 个用例 | 0.11 秒 | 纯内存 |
+| 场景 | 规模 | 实测 |
+|---|---|---|
+| 无个体长跑 | 100 天 | ≈ 73,000 tick/秒 |
+| 40 个体 + AI | 100 天（144,000 tick） | **≈ 59,000 tick/秒**（2.44 秒） |
+| 40 个体 + AI + PNG 快照 | 100 天 + 5 张快照 | ≈ 42,000 tick/秒 |
+| 确定性校验（带个体） | 30 天 × 2 遍 | 每遍 **0.78 秒** |
+| 6 seed × 60 天批量（带个体） | 6 × 86,400 tick | 平均 **1.65 秒/局** |
+| 全部测试 | 115 个用例 | **1.5 秒** |
 
-> 数据会随里程碑持续更新（见 [14-Performance](14-Performance.md)）。
-> 现在就把"预算"和"实测"放在一起，是为了避免"凭感觉优化"：
-> 没有基线的优化通常只是把复杂度搬了个家。
+换算：1× 速度 = 10 tick/秒 ⇒ 100 天在 1× 下需要 4 小时游戏时间，
+而模拟只花 2.44 秒（约 **5,900 倍实时**）。**当前性能余量约三个数量级。**
+
+完整数据与优化取舍见 [14-Performance.md](14-Performance.md)。
 
 ### 3.1 M0 的"空世界基线"（重要参考值）
 

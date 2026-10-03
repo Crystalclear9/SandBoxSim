@@ -7,14 +7,90 @@
 
 ## [Unreleased]
 
-### 计划中（M1）
+### 计划中（M2）
 
-- Agent 实体（SoA 存储）、需求系统（Hunger / Energy / Health）
-- Utility AI：考虑项 → 曲线 → 加权组合 → 决策，并输出**可解释的效用分解**
-- A\* 寻路（二叉堆、八方向、确定性平局）+ 路径缓存 + 移动
-- 第一批动作：Eat / Sleep / GatherFood / GatherWood / GatherStone / Wander
-- Console：点选个体、Agent 检查器、路径可视化
-- 文档：`docs/05-UtilityAI.md`、`docs/14-Performance.md`
+- 生存经济：共享物资（堆料点）、资源枯竭的连锁反应、第一次被迫迁徙
+- 动物雏形（植被 → 猎物 → 猎人产出）
+- `docs/06-ResourceModel.md`、`docs/08-PopulationModel.md`、`docs/09-EmergentStories.md`
+
+---
+
+## [0.2.0] — M1：Agent、需求、Utility AI 与寻路
+
+这一版让地图上出现**会自己决定做什么、并且能自己活下来**的个体。
+
+它没有停在"会走路的小人"上：M1 让居民自己找吃的、喝水、睡觉、砍柴采石，
+并且会老去、会饿死、会脱水而死 —— 死因会写进事件日志。
+换句话说，M1 已经能跑出"一群人的一生"，虽然他们还没有家庭、没有村庄。
+
+### Added — 个体与需求
+
+- `Agents/AgentTypes.cs`：`AgentRef`（槽位 + 代次，防止"看错人"）、`AgentState`、
+  `ActionKind`（26 种，M1 实装 8 种）、`ActionPhase`、`JobType`、`LifeStage`、
+  `Personality`（六维 + 抽样 + 遗传接口）、`NeedIndex`、`DeathCause`、`ActionFailReason`
+- `Agents/AgentStore.cs`：SoA 存储、槽位复用 + 代次校验、确定性名字生成、
+  完整访问器、统计聚合（饥饿人数/移动人数/职业分布）、`HashInto`、按需扩容
+- `Systems/NeedsSystem.cs`：饥饿/疲劳/干渴/社交累积、睡眠反解疲劳、
+  饥饿与脱水掉血、每日年龄与老年死亡（含硬性寿命上限）、`DeathRecord` 明细
+
+### Added — Utility AI
+
+- `Ai/UtilityBreakdown.cs`：`Consideration`（名字/输入/曲线/权重/分数/贡献）、
+  `ActionScore`、`UtilityBreakdown`；`UtilityCombiner` 用"加权算术 × 加权几何"折中
+  （避免纯算术的"硬做"与纯几何的僵硬），惩罚项规范化后仍可参与几何均值
+- `Systems/ScoreBuilder.cs`：效用打分的流式构造器
+- `Systems/ActionDef.cs`：`ActionEvaluator` / `TargetSelector` 自定义委托
+  （`Func<in T,R>` 不支持变体修饰符，会编译失败）、`ActionDef`、`ActionRegistry`（带缓存）
+- `Systems/AiSystem.cs`：自适应分批决策、候选回退（最优动作无目标则试次优）、
+  Top-N 打分保存、**生存需求可打断决策冷却**、按动作统计选择/评估次数
+- 8 个动作（数据驱动，新增动作不需改决策循环）：
+  `Eat` / `Drink` / `Sleep` / `GatherFood` / `GatherWood` / `GatherStone` / `Explore` / `Wander`
+- `Foundation/UtilityCurve` 新增 **`Survival` 曲线**（`1−(1−x)²`）：让生存类动作在低需求区
+  就拿到高分，从而压过带补偿因子的下界
+
+### Added — 寻路与执行
+
+- `Pathing/AStarPathfinder.cs`：八方向 A\*、二叉堆、octile 启发、
+  **禁止斜穿两块不可走地形**、扩展节点上限（4000）、确定性平局、复用缓冲、诊断计数
+- `Systems/ActionSystem.cs`：逐格重算下一跳的移动（不抱过期路径）、
+  进食/饮水/睡眠/采集结算、耐心上限、完成与失败统计
+- `Systems/Actions/ActionSearch.cs`：**两级资源搜索**（chunk 聚合 → 精确扫描），
+  搜索范围更大（约 48×48 格）而扫描量下降一个数量级
+
+### Added — 表现层与工具
+
+- `--agents` / `--agent-radius` 参数；按 chunk 评分选择宜居落脚点（而不是地图中心）
+- 复现命令与报告自动带上放置人数（否则别人跑出来是空世界）
+- CI 升级：确定性校验、100 天长跑、多 seed 批量全部带上个体
+
+### Added — 文档
+
+- `docs/05-UtilityAI.md`：考虑项、曲线语义、合成公式推导、8 个动作的完整公式、
+  选靶与全知限制、执行管线、分批决策、可解释输出、测试契约
+- `docs/14-Performance.md`：性能预算与实测、分批决策上界表、空间索引三级对比、
+  内存与 GC 取舍、**未做的优化及理由**、比 tick/秒更重要的可观测指标
+- README / 02 系统架构 / 03 Tick 架构 / 12 里程碑同步更新
+
+### Fixed（M1 联调过程中发现并修掉的问题）
+
+- **40 人两天内全部饿死，且食物采集量为 0**：木材/石料的可得性权重压过了食物采集的饥饿项。
+  提高 `GatherFoodHungerWeight` 到 2.5，并明确"生存类动作必须在效用尺度上说过非生存类动作"
+  属于**正确性**而非平衡
+- **采集与进食统计都在涨、人还是在死**：饥饿只能在 600 tick 一次的决策窗口里被处理，
+  一天最多吃两顿，物理上不可行。新增"生存需求打断决策冷却"（阈值 0.7）
+- **"有点饿时不想采食物"**：效用合成器带补偿因子 ⇒ 被门挡住的动效停留在下界上。
+  新增 `Survival` 曲线解决
+- **口粮账不平衡**（每人每天需约 11 食物，实际只采约 9）：食物容量 24→60/格、每次采集 5→24
+- **`GatherWood/GatherStone` 的"需求"符号反了**（`1 − 储量/参考量` 会让"没有木材"被判为"完全不缺"）：
+  改为"储量充足度"作为负权重项
+- **`func<in T,R>` 编译失败**（CS1960）：变体修饰符只允许出现在接口与委托声明上，改用自定义委托
+- **`TileAtClamped` 无法返回引用**（CS8156）：越界安全读取天然是按值返回
+- **测试自己制造失败**：① 断言"对角移动两侧都必须可走"比实际规则更严；
+  ② 用 `DeathsThisTick` 事后检查（已被清空，应看累计计数）；
+  ③ 未固定起终点（随机地图上可能是水）；
+  ④ 断言"饿会致死"却让个体自己采到食物活了下来（应把因果链缩到只有饥饿一个环节）
+- **`Assert.Fail` 不可访问 / 命名冲突**：统一为公开的 `Fail` + 内部 `FailInternal`
+- **PowerShell 多行字符串替换失效**：CRLF 与 LF 混用导致模式匹配不上（改用逐行编辑）
 
 ---
 

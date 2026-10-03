@@ -48,13 +48,17 @@ jobs:
         shell: pwsh
         run: ./tools/build.ps1 -Mode test -Configuration $env:CONFIGURATION -Channel sdk -ParallelBuild
 
-      - name: Determinism check (same seed twice)
+      - name: Determinism check (same seed twice, with agents)
         shell: pwsh
-        run: ./tools/build.ps1 -Mode digest -Seed 4242 -Ticks 43200 -Configuration $env:CONFIGURATION -Channel sdk -ParallelBuild
+        run: ./tools/build.ps1 -Mode digest -Seed 4242 -Ticks 43200 -Agents 30 -Configuration $env:CONFIGURATION -Channel sdk -ParallelBuild
 
-      - name: Headless smoke run (100 days, no intervention)
+      - name: Headless smoke run (100 days, 40 agents, no intervention)
         shell: pwsh
-        run: ./tools/build.ps1 -Mode snapshot -Seed 839102 -Days 100 -SnapshotDays 25 -OutDir runs/ci -Configuration $env:CONFIGURATION -Channel sdk -ParallelBuild
+        run: ./tools/build.ps1 -Mode snapshot -Seed 839102 -Days 100 -Agents 40 -SnapshotDays 25 -OutDir runs/ci -Configuration $env:CONFIGURATION -Channel sdk -ParallelBuild
+
+      - name: Multi-seed robustness (agents)
+        shell: pwsh
+        run: ./tools/build.ps1 -Mode batch -SeedRange 1..6 -Days 60 -Agents 20 -OutDir runs/ci -Configuration $env:CONFIGURATION -Channel sdk -ParallelBuild
 
       - name: Upload run artifacts
         if: always()

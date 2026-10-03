@@ -222,6 +222,7 @@ public sealed class FoundationTests
         Theory.Case("反向 Logistic", UtilityCurve.Shape.InverseLogistic),
         Theory.Case("阈值阶跃", UtilityCurve.Shape.Step),
         Theory.Case("SmoothStep", UtilityCurve.Shape.SmoothStep),
+        Theory.Case("生存曲线", UtilityCurve.Shape.Survival),
         Theory.Case("常数", UtilityCurve.Shape.Constant));
 
     [Fact("曲线数据表必须覆盖全部曲线形状")]

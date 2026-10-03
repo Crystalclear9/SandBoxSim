@@ -44,6 +44,8 @@ param(
     [string]$ConfigPath = '',
     [string]$OutDir = '',
     [int]$SnapshotDays = 0,
+    [int]$Agents = 0,
+    [int]$AgentRadius = 0,
     [int[]]$Seeds = @(),
     [switch]$NoColor,
 
@@ -72,6 +74,7 @@ switch ($Mode) {
         Invoke-Run -Mode $Mode -Channel $Channel -Configuration $Configuration -SdkRoot $SdkRoot `
             -Seed $Seed -Days $Days -Ticks $Ticks -Width $Width -Height $Height `
             -ConfigPath $ConfigPath -OutDir $OutDir -SnapshotDays $SnapshotDays `
-            -Seeds $Seeds -NoColor $NoColor.IsPresent -ParallelBuild $ParallelBuild.IsPresent
+            -Seeds $Seeds -NoColor $NoColor.IsPresent 
+            -Agents $Agents -AgentRadius $AgentRadius -ParallelBuild $ParallelBuild.IsPresent
     }
 }

@@ -26,6 +26,8 @@ param(
     [string]$ConfigPath = '',
     [string]$OutDir = '',
     [int]$SnapshotDays = 0,
+    [int]$Agents = 0,
+    [int]$AgentRadius = 0,
     [int[]]$Seeds = @(),
 
     <#
@@ -51,5 +53,6 @@ $SandBoxSimDotSource = $true
 Invoke-Run -Mode $Mode -Channel $Channel -Configuration $Configuration -SdkRoot '' `
     -Seed $Seed -Days $Days -Ticks $Ticks -Width $Width -Height $Height `
     -ConfigPath $ConfigPath -OutDir $OutDir -SnapshotDays $SnapshotDays `
-    -Seeds $Seeds -SeedRange $SeedRange -NoColor $NoColor.IsPresent `
+    -Seeds $Seeds -SeedRange $SeedRange -NoColor $NoColor.IsPresent `r
+    -Agents $Agents -AgentRadius $AgentRadius `
     -ParallelBuild $ParallelBuild.IsPresent

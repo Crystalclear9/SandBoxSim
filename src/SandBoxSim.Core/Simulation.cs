@@ -1,5 +1,8 @@
 using SandBoxSim.Core.Foundation;
 using SandBoxSim.Core.Environment;
+using SandBoxSim.Core.Agents;
+using SandBoxSim.Core.Pathing;
+using SandBoxSim.Core.Systems;
 
 namespace SandBoxSim.Core;
 
@@ -48,6 +51,22 @@ public sealed class Simulation
     public SimRandom Random { get; private set; }
 
     public ResourceSystem ResourceSystem { get; }
+
+    /// <summary>个体存储（M1 引入）。所有个体数据都在这里，Simulation 只做转发与调度。</summary>
+    public AgentStore Agents { get; }
+
+    /// <summary>寻路服务（Simulation 持有，因为它是无状态的共享资源，且需要世界尺寸）。</summary>
+    public AStarPathfinder Pathfinder { get; }
+
+    /// <summary>Utility AI 决策系统（M1）。</summary>
+    public AiSystem Ai { get; }
+
+    /// <summary>动作执行系统（M1）。</summary>
+    public ActionSystem Actions { get; }
+
+    /// <summary>需求系统（M1）。</summary>
+    public NeedsSystem Needs { get; }
+
     public SimulationStats Stats { get; } = new SimulationStats();
 
     /// <summary>世界事件日志（第 55 / 56 节）。M0 只记录地形/世界级事件。</summary>
@@ -79,6 +98,18 @@ public sealed class Simulation
         World = new Environment.World(config, width, height, seed);
         Random = new SimRandom(unchecked((ulong)seed));
         ResourceSystem = new ResourceSystem(World, config);
+
+        // 实体与系统（顺序有讲究）：
+        //   Agents 先建 ⇒ Pathfinder 依赖世界尺寸 ⇒ Ai/Actions 依赖前两者 ⇒ Needs 只依赖配置。
+        Agents = new AgentStore();
+        Pathfinder = new AStarPathfinder(World);
+        Ai = new AiSystem(this, Agents, Pathfinder);
+        Actions = new ActionSystem(this, Agents, Pathfinder);
+        Needs = new NeedsSystem(config);
+
+        // 注册进实体集合：世界重建时会自动 Reset，摘要会自动覆盖
+        RegisterEntitySet(Agents);
+
         RegenerateWorld(seed);
     }
 
@@ -98,6 +129,15 @@ public sealed class Simulation
         Events.Clear();
         GenerationInfo = info;
 
+        // 实体集合清空 + 各系统统计归零。
+        // 注意顺序：先清实体，再重置依赖实体的系统统计（否则统计会读到上一局的残留）。
+        for (int i = 0; i < _entitySets.Count; i++) { _entitySets[i].Reset(); }
+        Ai.ResetStatistics();
+        Actions.ResetStatistics();
+        Needs.ResetStatistics();
+        PopulationCount = 0;
+        BuildingCount = 0;
+
         World.RefreshSpatialIndex();
 
         Events.Record(0, History.WorldEventType.WorldGenerated, "世界生成：seed=" + seed
@@ -110,10 +150,17 @@ public sealed class Simulation
     ///
     /// 管线顺序（不可随意调整）：
     ///   1. 时钟 +1
-    ///   2. FastTick：施工/生产/火势（每 10 tick）
-    ///   3. HourTick：天气 → 资源再生 → 汇总湿度/温度（每 60 tick）
-    ///   4. DailyTick：采样 → 年龄/出生/死亡/迁移（每 1440 tick）
-    ///   5. 刷新空间索引（所有改变格子的系统都在此之前完成写入）
+    ///   2. 动作推进（移动/执行/结算）—— 必须先在"上一轮决定"上往前走
+    ///   3. 需求累积（含睡眠反解疲劳、饥饿掉血、死亡判定）
+    ///   4. AI 分批决策 —— 必须在需求之后，否则会基于过期的需求做决定
+    ///   5. FastTick：施工/生产/火势（每 10 tick）
+    ///   6. HourTick：天气 → 资源再生 → 汇总湿度/温度（每 60 tick）
+    ///   7. DailyTick：年龄 → 采样（每 1440 tick）
+    ///   8. 刷新空间索引（所有改变格子的系统都在此之前完成写入）
+    ///
+    /// 第 2–4 步的顺序是本版最关键的确定性契约：
+    /// **动作 → 需求 → 决策**。任何交换都会让"这一 tick 的饥饿"与"这一 tick 的决定"错位，
+    /// 表现为个体行为整体迟滞一拍（很难查，但会明显影响人口曲线）。
     /// </summary>
     public void Tick(int steps = 1)
     {
@@ -121,16 +168,60 @@ public sealed class Simulation
         {
             World.Calendar.Advance(1);
 
+            long tick = World.Tick;
+            bool isNight = World.Calendar.IsNight;
+
+            // ---- 个体层（M1）----
+            Actions.Tick(tick);
+            Needs.TickNeeds(Agents, tick, World.Calendar.TicksPerDay, isNight);
+            RecordDeathsFromNeeds(tick);
+            Ai.Tick(tick, isNight);
+
+            // ---- 环境层 ----
             if (IsFastTick) { TickFast(); }
             if (World.Calendar.IsHourBoundary) { TickHourInternal(); }
             if (World.Calendar.IsDayBoundary) { TickDayInternal(); }
 
             World.RefreshSpatialIndex();
 
-            if (Config.Debug.AssertInvariants && (World.Tick % 64 == 0))
+            PopulationCount = Agents.LiveCount;
+
+            if (Config.Debug.AssertInvariants && (tick % 64 == 0))
             {
                 ValidateInvariants();
             }
+        }
+    }
+
+    /// <summary>
+    /// 把需求系统判定出的死亡写进事件日志与统计。
+    ///
+    /// 为什么要单独一步：<see cref="NeedsSystem"/> 只负责"谁该死"，事件与统计属于 History 层。
+    /// 让它直接写事件日志会把两个关注点混在一起，也会让需求系统无法单独测试。
+    ///
+    /// 只遍历需求系统给出的死亡明细（而不是扫全部槽位）——
+    /// 后者是"看起来无害的 O(容量)"，在长期运行时会被死过的槽位反复扫到。
+    /// </summary>
+    private void RecordDeathsFromNeeds(long tick)
+    {
+        System.Collections.Generic.IReadOnlyList<DeathRecord> deaths = Needs.Deaths;
+        for (int i = 0; i < deaths.Count; i++)
+        {
+            DeathRecord death = deaths[i];
+            string name = Agents.NameOrOverride(death.Slot);
+            string causeLabel = NeedsSystem.DescribeCause(death.Cause);
+
+            Events.Record(
+                tick,
+                History.WorldEventType.AgentDied,
+                name + " 死亡（" + causeLabel + "，" + death.AgeDays + " 天）",
+                History.EventImportance.Important,
+                new Int2(death.X, death.Y),
+                death.Slot,
+                -1,
+                "死因：" + causeLabel);
+
+            Stats.RecordDeath();
         }
     }
 
@@ -173,16 +264,24 @@ public sealed class Simulation
         DayAdvanced?.Invoke(this);
     }
 
-    /// <summary>每小时逻辑（后续各系统在此挂接：AI 分工需求刷新、聚落评估……）。</summary>
+    /// <summary>每小时逻辑（后续各系统在此挂接：分工需求刷新、聚落评估……）。</summary>
     public void TickHour()
     {
         // 预留扩展点。
     }
 
-    /// <summary>每天逻辑（后续各系统在此挂接：年龄、出生、死亡、迁移、聚落升档）。</summary>
+    /// <summary>
+    /// 每天逻辑。
+    /// 目前包含：年龄推进 + 老年死亡 + 分批数重算（人口变化后需要重新分配决策相位）。
+    /// 出生/迁移/聚落升档会在 M4/M7 挂到这里。
+    /// </summary>
     public void TickDay()
     {
-        // 预留扩展点。
+        Needs.TickAging(Agents, Random.Get(RngStream.Agents), World.Tick);
+        RecordDeathsFromNeeds(World.Tick);
+
+        PopulationCount = Agents.LiveCount;
+        Ai.RefreshBatchCount();
     }
 
     /// <summary>
@@ -248,7 +347,11 @@ public sealed class Simulation
             Births = Stats.TotalBirths,
             Deaths = Stats.TotalDeaths,
             Migrations = Stats.TotalMigrations,
-            SettlementCount = EntityCount,
+
+            // SettlementCount 在 M1–M6 期间还没有聚落实体，用 0 而不是"实体总数"：
+            // 实体总数里包含个体，把它当聚落数会让报告里的"聚落数"等于人口数（很误导）。
+            // M7 引入 SettlementStore 后这里会接上真实计数。
+            SettlementCount = _settlementCountProvider?.Invoke() ?? 0,
             BuildingCount = BuildingCount,
             ForestTiles = terrainCounts[(int)TerrainKind.Forest],
             FarmlandTiles = terrainCounts[(int)TerrainKind.Farmland],
@@ -282,7 +385,16 @@ public sealed class Simulation
 
     public System.Collections.Generic.IReadOnlyList<ISimEntitySet> EntitySets => _entitySets;
 
-    /// <summary>当前实体总数（人口/建筑等，取决于已注册的集合）。</summary>
+    /// <summary>
+    /// 聚落数量提供者（M7 会注册真实实现）。
+    /// 用委托而不是硬依赖 SettlementStore：在聚落系统还不存在时，统计代码不必写 if 分支，
+    /// 也不会因为"为了统计而先建一个空系统"而引入假结构。
+    /// </summary>
+    private System.Func<int>? _settlementCountProvider;
+
+    public void SetSettlementCountProvider(System.Func<int> provider) => _settlementCountProvider = provider;
+
+    /// <summary>当前实体总数（人口 + 建筑 + 聚落，取决于已注册的集合）。</summary>
     public int EntityCount
     {
         get
@@ -293,13 +405,13 @@ public sealed class Simulation
         }
     }
 
-    /// <summary>人口计数（M1 之后由 AgentStore 提供；M0 恒为 0）。</summary>
+    /// <summary>当前人口（存活个体数）。由 <see cref="AgentStore"/> 提供，每 tick 同步。</summary>
     public int PopulationCount { get; private set; }
 
-    /// <summary>建筑计数（M3 之后由 BuildingStore 提供；M0 恒为 0）。</summary>
+    /// <summary>建筑计数（M3 之后由 BuildingStore 提供；当前恒为 0）。</summary>
     public int BuildingCount { get; private set; }
 
-    /// <summary>由实体系统在每 tick 结束时同步的只读计数（供统计与 UI 使用）。</summary>
+    /// <summary>由实体系统同步的只读计数（供统计与 UI 使用）。</summary>
     public void SetPopulationAndBuildings(int population, int buildings)
     {
         PopulationCount = population;
@@ -329,8 +441,7 @@ public sealed class Simulation
     // ---------------------------------------------------------------------
 
     /// <summary>改变地形（第 45 节 Terrain 工具）。</summary>
-    public void InterveneSetTerrain(int x, int y, TerrainKind terrain, bool reapplyResource = true)
-    {
+    public void InterveneSetTerrain(int x, int y, TerrainKind terrain, bool reapplyResource = true)    {
         if (!World.IsInBounds(x, y)) { return; }
         World.SetTerrain(x, y, terrain);
         if (reapplyResource)
@@ -343,6 +454,70 @@ public sealed class Simulation
         }
         Events.Record(Clock, History.WorldEventType.TerrainChanged,
             "玩家改变地形为 " + TerrainInfo.NameOf(terrain) + " @ " + new Int2(x, y));
+    }
+
+    /// <summary>
+    /// 放置一批居民（第 45 节的 Spawn Human 工具；也是 M1 验证的主要入口）。
+    ///
+    /// 设计要点：
+    ///   * 出生点呈**高斯散布**而不是全部堆在同一格 —— 堆在一起会让寻路"互相挤"，
+    ///     而且第一批行为会完全同步，看起来像克隆人；
+    ///   * 同时给每个个体一个**散布的初始决策相位**，让决策天然错开（第 73 条的分批）；
+    ///   * 用 <see cref="RngStream.Agents"/> 流，保证"同 seed + 同放置指令"结果一致。
+    /// </summary>
+    /// <param name="centerX">期望中心 X。</param>
+    /// <param name="centerY">期望中心 Y。</param>
+    /// <param name="count">人数。</param>
+    /// <param name="radius">散布半径（格）。</param>
+    /// <returns>实际成功放置的人数（可能少于请求，例如中心在深水里）。</returns>
+    public int InterveneSpawnHumans(int centerX, int centerY, int count, int radius = 6)
+    {
+        if (count <= 0) { return 0; }
+
+        // 容量不够先扩：否则 Add 会返回 None，表现为"玩家放了人但什么都没发生"
+        Agents.EnsureCapacity(Agents.LiveCount + count);
+
+        DeterministicRandom rng = Random.Get(RngStream.Agents);
+        int spawned = 0;
+
+        for (int i = 0; i < count; i++)
+        {
+            // 散布：在半径内取一个随机偏移（用 sqrt 保证在圆盘上均匀）
+            float radiusFraction = (float)System.Math.Sqrt(rng.NextDouble());
+            double angle = rng.NextDouble() * 6.283185307179586;
+            int offsetX = (int)System.Math.Round(System.Math.Cos(angle) * radius * radiusFraction);
+            int offsetY = (int)System.Math.Round(System.Math.Sin(angle) * radius * radiusFraction);
+
+            int spawnX = SimMath.Clamp(centerX + offsetX, 0, World.Width - 1);
+            int spawnY = SimMath.Clamp(centerY + offsetY, 0, World.Height - 1);
+
+            AgentRef reference = Agents.Add(World, spawnX, spawnY, rng, ageDays: 0, birthTick: Clock);
+            if (reference.IsNone) { continue; }
+
+            spawned++;
+
+            Events.Record(Clock, History.WorldEventType.AgentSpawned,
+                Agents.NameOrOverride(reference.Slot) + " 出现在 " + Agents.PositionOf(reference.Slot),
+                History.EventImportance.Normal,
+                Agents.PositionOf(reference.Slot),
+                reference.Slot,
+                -1,
+                "玩家放置");
+        }
+
+        if (spawned > 0)
+        {
+            // 相位重新分配：新个体的槽位可能落在任意相位上，重新均分能避免"某一批特别重"
+            Agents.AssignDecisionPhases(Ai.BatchCount);
+            PopulationCount = Agents.LiveCount;
+        }
+
+        Events.Record(Clock, History.WorldEventType.AgentSpawned,
+            "玩家在 " + new Int2(centerX, centerY) + " 附近放置了 " + spawned + " 名居民",
+            History.EventImportance.Important,
+            new Int2(centerX, centerY));
+
+        return spawned;
     }
 
     /// <summary>增加一批森林（"Grow Forest"）：把草地变为森林并补满木材。</summary>

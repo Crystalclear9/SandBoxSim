@@ -10,19 +10,19 @@ public static class Assert
 {
     public static void True(bool condition, string? message = null)
     {
-        if (!condition) { Fail("期望为 true，实际为 false" + Suffix(message)); }
+        if (!condition) { FailInternal("期望为 true，实际为 false" + Suffix(message)); }
     }
 
     public static void False(bool condition, string? message = null)
     {
-        if (condition) { Fail("期望为 false，实际为 true" + Suffix(message)); }
+        if (condition) { FailInternal("期望为 false，实际为 true" + Suffix(message)); }
     }
 
     public static void Equal<T>(T expected, T actual, string? message = null)
     {
         if (!EqualityComparer<T>.Default.Equals(expected, actual))
         {
-            Fail("期望 " + Format(expected) + "，实际 " + Format(actual) + Suffix(message));
+            FailInternal("期望 " + Format(expected) + "，实际 " + Format(actual) + Suffix(message));
         }
     }
 
@@ -30,25 +30,25 @@ public static class Assert
     {
         if (EqualityComparer<T>.Default.Equals(unexpected, actual))
         {
-            Fail("期望不等于 " + Format(unexpected) + "，但实际相等" + Suffix(message));
+            FailInternal("期望不等于 " + Format(unexpected) + "，但实际相等" + Suffix(message));
         }
     }
 
     public static void Null(object? value, string? message = null)
     {
-        if (value != null) { Fail("期望为 null，实际 " + Format(value) + Suffix(message)); }
+        if (value != null) { FailInternal("期望为 null，实际 " + Format(value) + Suffix(message)); }
     }
 
     public static void NotNull(object? value, string? message = null)
     {
-        if (value == null) { Fail("期望非 null" + Suffix(message)); }
+        if (value == null) { FailInternal("期望非 null" + Suffix(message)); }
     }
 
     public static void Greater<T>(T actual, T threshold, string? message = null) where T : System.IComparable<T>
     {
         if (actual.CompareTo(threshold) <= 0)
         {
-            Fail("期望 " + Format(actual) + " > " + Format(threshold) + Suffix(message));
+            FailInternal("期望 " + Format(actual) + " > " + Format(threshold) + Suffix(message));
         }
     }
 
@@ -56,7 +56,7 @@ public static class Assert
     {
         if (actual.CompareTo(threshold) < 0)
         {
-            Fail("期望 " + Format(actual) + " >= " + Format(threshold) + Suffix(message));
+            FailInternal("期望 " + Format(actual) + " >= " + Format(threshold) + Suffix(message));
         }
     }
 
@@ -64,7 +64,7 @@ public static class Assert
     {
         if (actual.CompareTo(threshold) >= 0)
         {
-            Fail("期望 " + Format(actual) + " < " + Format(threshold) + Suffix(message));
+            FailInternal("期望 " + Format(actual) + " < " + Format(threshold) + Suffix(message));
         }
     }
 
@@ -72,7 +72,7 @@ public static class Assert
     {
         if (actual.CompareTo(threshold) > 0)
         {
-            Fail("期望 " + Format(actual) + " <= " + Format(threshold) + Suffix(message));
+            FailInternal("期望 " + Format(actual) + " <= " + Format(threshold) + Suffix(message));
         }
     }
 
@@ -80,7 +80,7 @@ public static class Assert
     {
         if (actual < min || actual > max)
         {
-            Fail("期望 " + Format(actual) + " 落在 [" + Format(min) + ", " + Format(max) + "]" + Suffix(message));
+            FailInternal("期望 " + Format(actual) + " 落在 [" + Format(min) + ", " + Format(max) + "]" + Suffix(message));
         }
     }
 
@@ -91,7 +91,7 @@ public static class Assert
     {
         if (System.Math.Abs(expected - actual) > tolerance)
         {
-            Fail("期望 " + Format(actual) + " 接近 " + Format(expected)
+            FailInternal("期望 " + Format(actual) + " 接近 " + Format(expected)
                 + "（容差 " + Format(tolerance) + "，实际偏差 " + Format(System.Math.Abs(expected - actual)) + "）" + Suffix(message));
         }
     }
@@ -101,13 +101,13 @@ public static class Assert
     {
         if (expected.Count != actual.Count)
         {
-            Fail("序列长度不同：期望 " + expected.Count + "，实际 " + actual.Count + Suffix(message));
+            FailInternal("序列长度不同：期望 " + expected.Count + "，实际 " + actual.Count + Suffix(message));
         }
         for (int i = 0; i < expected.Count; i++)
         {
             if (!EqualityComparer<T>.Default.Equals(expected[i], actual[i]))
             {
-                Fail("序列第 " + i + " 项不同：期望 " + Format(expected[i]) + "，实际 " + Format(actual[i]) + Suffix(message));
+                FailInternal("序列第 " + i + " 项不同：期望 " + Format(expected[i]) + "，实际 " + Format(actual[i]) + Suffix(message));
             }
         }
     }
@@ -125,12 +125,12 @@ public static class Assert
         }
         catch (System.Exception other)
         {
-            Fail("期望抛出 " + typeof(TException).Name + "，实际抛出 " + other.GetType().Name
+            FailInternal("期望抛出 " + typeof(TException).Name + "，实际抛出 " + other.GetType().Name
                 + "：" + other.Message + Suffix(message));
             throw;   // 不可达
         }
 
-        Fail("期望抛出 " + typeof(TException).Name + "，但没有抛出任何异常" + Suffix(message));
+        FailInternal("期望抛出 " + typeof(TException).Name + "，但没有抛出任何异常" + Suffix(message));
         throw new System.InvalidOperationException("不可达");
     }
 
@@ -142,9 +142,16 @@ public static class Assert
         }
         catch (System.Exception ex)
         {
-            Fail("期望不抛异常，实际抛出 " + ex.GetType().Name + "：" + ex.Message + Suffix(message));
+            FailInternal("期望不抛异常，实际抛出 " + ex.GetType().Name + "：" + ex.Message + Suffix(message));
         }
     }
+
+    /// <summary>
+    /// 无条件失败。用于"这里不该发生这种事"的兜底断言
+    /// （比 <c>Assert.True(false, ...)</c> 更直白，也避免被误读成条件判断）。
+    /// </summary>
+    /// <summary>无条件失败（用于"这里不该发生这种事"的兜底断言）。</summary>
+    public static void Fail(string message) => FailInternal(message);
 
     private static string Suffix(string? message)
         => string.IsNullOrEmpty(message) ? string.Empty : "；" + message;
@@ -164,5 +171,5 @@ public static class Assert
         public AssertionException(string message) : base(message) { }
     }
 
-    private static void Fail(string message) => throw new AssertionException(message);
+    private static void FailInternal(string message) => throw new AssertionException(message);
 }

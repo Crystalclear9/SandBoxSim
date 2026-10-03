@@ -31,6 +31,8 @@ public sealed class Args
         "--seed", "--days", "--ticks", "--width", "--height", "--config", "--out",
         "--seeds", "--snapshot-days", "--width-px", "--cell-scale", "--overlay", "--speed",
         "--report", "--quiet-after",
+        // M1：初始放置的居民数量与散布半径（"玩家创造条件"的最小入口）
+        "--agents", "--agent-radius",
     };
 
     public Args(string[] raw)
@@ -205,6 +207,8 @@ public sealed class Args
             "  --height <int>        世界高（默认取配置 100）",
             "  --config <path>       配置文件路径（默认 config/sim.default.json）",
             "  --overlay <name>      起始叠加层：none/fertility/moisture/temperature/wood/food/vegetation/firerisk/walkable",
+            "  --agents <int>        初始放置的居民数量（默认 0；玩家创造的是条件，不是结果）",
+            "  --agent-radius <int>  居民初始散布半径（格，默认 8）",
             "",
             "时间与产出：",
             "  --days <int>          headless/batch 跑多少游戏天（默认 100）",

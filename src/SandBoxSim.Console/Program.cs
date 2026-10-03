@@ -106,11 +106,32 @@ public static class Program
         return config;
     }
 
+    /// <summary>可复现命令里要带上"放了几个居民"，否则别人跑出来的世界是空的。</summary>
+    private static string AgentArgsSuffix(Args args)
+    {
+        int agents = args.Int("--agents", 0);
+        if (agents <= 0) { return string.Empty; }
+        int radius = args.Int("--agent-radius", 8);
+        return " -Agents " + agents + " -AgentRadius " + radius;
+    }
+
     private static Simulation CreateSimulation(Args args, out SimConfig config, out string configPath, out string[] configWarnings)
     {
         config = LoadConfig(args, out configPath, out configWarnings);
         int seed = args.Int("--seed", config.WorldGen.Seed);
-        return new Simulation(config, config.World.Width, config.World.Height, seed);
+        Simulation sim = new Simulation(config, config.World.Width, config.World.Height, seed);
+
+        // 初始居民：这是 M1 之后"观察世界是否活着"的入口。
+        // 注意 default 为 0 —— 玩家创造的是条件（放人、给资源），而不是结果；
+        // 不放人的世界应该只有环境在演化（这也是 M0 的基线）。
+        int agents = args.Int("--agents", 0);
+        if (agents > 0)
+        {
+            int radius = args.Int("--agent-radius", 8);
+            SpawnInitialAgents(sim, agents, radius);
+        }
+
+        return sim;
     }
 
     private static MapOverlay ParseOverlay(Args args)
@@ -133,6 +154,49 @@ public static class Program
             }
         }
         return MapOverlay.None;
+    }
+
+    /// <summary>
+    /// 按 <c>--agents</c> 放置初始居民，并返回实际放置人数。
+    ///
+    /// 放置位置不是"地图中心"而是**选一处适合生活的落脚点**：
+    /// 中心很可能是深水，而"玩家把人放进水里"不是一个好的默认行为。
+    /// 选择依据用 chunk 聚合统计（可走格 + 草地 + 森林 + 食物），
+    /// 因为世界生成已经把这些算好了，不需要再扫全图。
+    /// </summary>
+    private static int SpawnInitialAgents(Simulation sim, int count, int radius)
+    {
+        if (count <= 0) { return 0; }
+
+        int bestScore = int.MinValue;
+        int bestX = sim.World.Width / 2;
+        int bestY = sim.World.Height / 2;
+
+        for (int cy = 0; cy < sim.World.Chunks.ChunkRows; cy++)
+        {
+            for (int cx = 0; cx < sim.World.Chunks.ChunkCols; cx++)
+            {
+                ChunkStatsReadOnly stats = sim.World.Chunks.Read(cx, cy);
+                if (!stats.IsValid || stats.CellCount == 0) { continue; }
+
+                // 权重说明：可走格是基础（否则根本住不下），草地+森林=有吃有柴，食物存量是加分项。
+                int score = (stats.WalkableTiles * 2)
+                            + ((int)stats.GrassTiles * 3)
+                            + ((int)stats.ForestTiles * 2)
+                            + ((int)stats.FoodAmount / 8)
+                            - (stats.WaterTiles * 4);
+
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    sim.World.Chunks.GetBounds(cx, cy, out int minX, out int minY, out int maxX, out int maxY);
+                    bestX = (minX + maxX) / 2;
+                    bestY = (minY + maxY) / 2;
+                }
+            }
+        }
+
+        return sim.InterveneSpawnHumans(bestX, bestY, count, radius);
     }
 
     // ---------------------------------------------------------------------
@@ -170,7 +234,7 @@ public static class Program
         System.Console.WriteLine("  推进 tick : " + sim.TickCount);
         System.Console.WriteLine("  状态摘要  : " + sim.StateDigestString());
         System.Console.WriteLine("  复现命令  : .\\tools\\run.ps1 -Seed " + sim.World.Seed
-            + " -Width " + sim.World.Width + " -Height " + sim.World.Height);
+            + " -Width " + sim.World.Width + " -Height " + sim.World.Height + AgentArgsSuffix(args));
         System.Console.WriteLine();
         return code;
     }
@@ -266,7 +330,8 @@ public static class Program
         string repro = ".\\tools\\run.ps1 -Mode " + (wantSnapshots ? "snapshot" : "headless")
             + " -Seed " + sim.World.Seed + " -Ticks " + ticks
             + (sim.World.Width != 100 ? " -Width " + sim.World.Width : string.Empty)
-            + (sim.World.Height != 100 ? " -Height " + sim.World.Height : string.Empty);
+            + (sim.World.Height != 100 ? " -Height " + sim.World.Height : string.Empty)
+            + AgentArgsSuffix(args);
 
         string reportPath = System.IO.Path.Combine(runDir, "report.md");
         RunReport.WriteTextFile(reportPath, RunReport.BuildMarkdownReport(sim, runId, ticks, repro));
