@@ -244,6 +244,16 @@ public sealed class BuildingSystem
     /// <summary>本日农田产出的食物总量。</summary>
     public float FoodProducedThisDay { get; private set; }
 
+    /// <summary>
+    /// 累计农田产出（M4）。
+    ///
+    /// 为什么要有累计值而不只是"本日产出"：验收判据是"**有农田的世界食物增速更高**"，
+    /// 而那是一个**对照实验**。只暴露瞬时值的话，测试与报告都只能拿"当前库存"猜 ——
+    /// 库存同时受采集、消耗、搬运影响，根本分不清哪一部分是农业贡献的。
+    /// 累计产出把"农业到底产了多少"变成一个可以直接读出来的数字。
+    /// </summary>
+    public float TotalFoodProduced { get; private set; }
+
     /// <summary>本日因衰减归零而被拆除的建筑数。</summary>
     public int DemolishedThisDay { get; private set; }
 
@@ -317,6 +327,7 @@ public sealed class BuildingSystem
 
             DepositYield(position, yield);
             FoodProducedThisDay += yield;
+            TotalFoodProduced += yield;
 
             _store.ClearLabor(index);
         }

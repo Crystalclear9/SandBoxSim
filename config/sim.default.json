@@ -161,7 +161,7 @@
   "groundStocks": {
     "$comment": "地面物资堆（M2）：让'攒物资'在空间上可见，是 M3 共享仓库的前身。",
     "capacityPerKind": 400.0,
-    "surplusThreshold": 28.0,
+    "surplusThreshold": 70.0,
     "dropAmount": 10.0,
     "takeNeedThreshold": 6.0,
     "takeAmount": 15.0,

@@ -98,5 +98,69 @@ public sealed class BirthDiagnostics
                 + " " + sim.Actions.FarmVisits.ToString("0000")
                 + " | " + causes);
         }
+
+        // ---- 结束时的诊断汇总 ----
+        //
+        // 这一段回答的是"人到底是怎么死的、他们有没有在喝水"。
+        // 只盯着最终人口数字会失去全部信息：脱水死亡可能是
+        // "没去喝"（效用问题）也可能是"找不到水"（选靶问题），
+        // 两者的修法完全不同。
+        DumpAverages(sim);
+        DumpActionHistogram(sim);
+    }
+
+    private static void DumpAverages(Simulation sim)
+    {
+        int live = sim.Agents.LiveCount;
+        if (live == 0)
+        {
+            System.Console.WriteLine("  [汇总] 人口已归零");
+            return;
+        }
+
+        float thirst = 0f;
+        float hunger = 0f;
+        float health = 0f;
+        float fatigue = 0f;
+        foreach (int slot in sim.Agents.AliveSlots())
+        {
+            thirst += sim.Agents.ThirstOf(slot);
+            hunger += sim.Agents.HungerOf(slot);
+            health += sim.Agents.HealthOf(slot);
+            fatigue += sim.Agents.FatigueOf(slot);
+        }
+
+        System.Console.WriteLine("  [汇总] 人口 " + live
+            + " 平均干渴 " + (thirst / live).ToString("0.000")
+            + " 平均饥饿 " + (hunger / live).ToString("0.000")
+            + " 平均健康 " + (health / live).ToString("0.000")
+            + " 平均疲劳 " + (fatigue / live).ToString("0.000"));
+
+        System.Console.WriteLine("  [汇总] 死因累计：");
+        Core.Agents.DeathCause[] causes = System.Enum.GetValues<Core.Agents.DeathCause>();
+        for (int i = 0; i < causes.Length; i++)
+        {
+            int count = sim.Needs.DeathsByCause[i];
+            if (count > 0) { System.Console.WriteLine("    " + causes[i] + " = " + count); }
+        }
+
+        System.Console.WriteLine("  [汇总] 寻路：搜索 " + sim.Pathfinder.TotalSearches
+            + " 失败 " + sim.Pathfinder.FailedSearches
+            + " 扩展节点 " + sim.Pathfinder.TotalExpandedNodes);
+        System.Console.WriteLine("  [汇总] 选靶失败 " + sim.Ai.TargetSelectionFailures
+            + " / 决策 " + sim.Ai.TotalDecisions);
+    }
+
+    private static void DumpActionHistogram(Simulation sim)
+    {
+        System.Console.WriteLine("  [动作分布] 动作 / 被选中 / 被评估：");
+        foreach (Core.Agents.ActionKind kind in Core.Systems.ActionRegistry.All)
+        {
+            int chosen = sim.Ai.ChosenByAction[(int)kind];
+            int evaluated = sim.Ai.EvaluatedByAction[(int)kind];
+            System.Console.WriteLine("    " + kind.ToString().PadRight(18)
+                + " 选中 " + chosen.ToString("00000")
+                + " 评估 " + evaluated.ToString("000000"));
+        }
     }
 }
