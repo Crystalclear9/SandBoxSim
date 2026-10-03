@@ -1,0 +1,66 @@
+# SandBoxSim 持续集成
+#
+# 目标（对齐 docs/12-Milestones.md 的验收标准）：
+#   1. 三平台都能构建 —— 证明模拟内核没有平台相关依赖；
+#   2. 全部测试通过；
+#   3. **确定性校验**（同 seed 两跑摘要一致）—— 这是本项目最核心的承诺；
+#   4. 100 天 headless 冒烟 —— 长跑不崩、不产生 NaN、不进入"静止均衡"；
+#   5. 产出报告与快照作为 artifact，方便人工复核涌现行为。
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1'
+  CONFIGURATION: Release
+
+jobs:
+  build-and-test:
+    name: build & test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # CI 上允许并行构建（GitHub 的 runner 不会拦截 MSBuild 用的命名管道）。
+      # -ParallelBuild 在受限环境里必须关掉，见 tools/build-lib.ps1 的注释。
+      - name: Build
+        shell: pwsh
+        run: ./tools/build.ps1 -Mode build -Configuration $env:CONFIGURATION -Channel sdk -ParallelBuild
+
+      - name: Test (all)
+        shell: pwsh
+        run: ./tools/build.ps1 -Mode test -Configuration $env:CONFIGURATION -Channel sdk -ParallelBuild
+
+      - name: Determinism check (same seed twice)
+        shell: pwsh
+        run: ./tools/build.ps1 -Mode digest -Seed 4242 -Ticks 43200 -Configuration $env:CONFIGURATION -Channel sdk -ParallelBuild
+
+      - name: Headless smoke run (100 days, no intervention)
+        shell: pwsh
+        run: ./tools/build.ps1 -Mode snapshot -Seed 839102 -Days 100 -SnapshotDays 25 -OutDir runs/ci -Configuration $env:CONFIGURATION -Channel sdk -ParallelBuild
+
+      - name: Upload run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runs-${{ matrix.os }}
+          path: runs/ci
+          if-no-files-found: warn
+          retention-days: 14

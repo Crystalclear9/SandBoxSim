@@ -1,0 +1,41 @@
+# SandBoxSim 代码风格约定
+# 目标：确定性模拟内核必须读起来"无聊且一致"，模拟逻辑不允许风格自由发挥。
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+[*.{cs,csx}]
+indent_size = 4
+max_line_length = 120
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_object_initializers = true
+csharp_indent_case_contents = true
+csharp_space_after_cast = false
+dotnet_sort_system_directives_first = true
+csharp_style_var_for_built_in_types = false:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_expression_bodied_methods = when_on_single_line:suggestion
+csharp_prefer_braces = true:warning
+
+# 模拟内核：禁止用浮点做离散计数、禁止隐式文化敏感转换
+dotnet_diagnostic.CA1305.severity = none
+
+[*.{json,yml,yaml}]
+indent_size = 2
+
+[*.{props,targets,csproj,sln}]
+indent_size = 2
+
+[*.ps1]
+indent_size = 4
+
+[*.md]
+trim_trailing_whitespace = false

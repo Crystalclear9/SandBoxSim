@@ -1,0 +1,74 @@
+{
+  "$comment": "SandBoxSim 默认模拟参数。所有改动都会改变涌现行为，改前请读 docs/15-ConfigReference.md。",
+  "version": 1,
+
+  "clock": {
+    "$comment": "1 Tick = 1 游戏分钟。1440 tick = 1 游戏天。",
+    "minutesPerTick": 1,
+    "ticksPerHour": 60,
+    "hoursPerDay": 24,
+    "ticksPerSecondAt1x": 10,
+    "$comment_speeds": "倍速只改变每秒步数，绝不改变 tick 语义（第 82 条）。",
+    "speedMultipliers": [0, 1, 2, 4, 8],
+    "targetFramesPerSecond": 60,
+    "maxCatchUpTicksPerFrame": 40
+  },
+
+  "world": {
+    "$comment": "M0 世界尺寸。后续可通过 worldgen 配置放大，但 100x100 是 MVP 基线。",
+    "width": 100,
+    "height": 100,
+    "chunkSize": 16,
+    "ambientTemperature": 0.55,
+    "ambientMoisture": 0.5
+  },
+
+  "worldgen": {
+    "$comment": "Perlin + fBm。同 seed + 同参数 => 逐像素一致（验收标准 2）。",
+    "seed": 839102,
+    "continentFrequency": 0.018,
+    "continentOctaves": 4,
+    "continentPersistence": 0.5,
+    "moistureFrequency": 0.035,
+    "moistureOctaves": 3,
+    "moisturePersistence": 0.55,
+    "detailFrequency": 0.12,
+    "$comment_levels": "waterLevel / mountainLevel 是'水面与山地的目标占比'（格子比例）。世界生成按分位数取阈值，因此小地图也一定有水有山；jitter 让不同 seed 的海陆比例有差异。",
+    "waterLevel": 0.28,
+    "mountainLevel": 0.16,
+    "waterShareJitter": 0.10,
+    "mountainShareJitter": 0.07,
+    "sandBand": 0.035,
+    "forestMoistureThreshold": 0.52,
+    "forestDensityBonus": 0.18,
+    "fertilityFromHeight": true,
+    "fertilityBase": 0.55,
+    "fertilityNoiseFrequency": 0.06
+  },
+
+  "resources": {
+    "$comment": "第 62/63 条：R_{t+1} = clamp(R_t + Regen - Harvest, 0, K)；再生用离散 Logistic。",
+    "woodCapacityPerForestTile": 100.0,
+    "woodInitialFraction": 0.85,
+    "woodGrowthRate": 0.02,
+    "woodHarvestPerAction": 6.0,
+    "stoneCapacityPerMountainTile": 80.0,
+    "stoneInitialFraction": 0.9,
+    "stoneHarvestPerAction": 4.0,
+    "ironCapacityPerMountainTile": 30.0,
+    "ironInitialFraction": 0.6,
+    "ironHarvestPerAction": 2.0,
+    "foodCapacityPerGrassTile": 24.0,
+    "foodInitialFraction": 0.6,
+    "foodGrowthRate": 0.03,
+    "foodHarvestPerAction": 5.0,
+    "regenerateHourly": true,
+    "depletionWarnFraction": 0.2
+  },
+
+  "debug": {
+    "logDecisions": false,
+    "stateHashEveryTicks": 1440,
+    "assertInvariants": true
+  }
+}

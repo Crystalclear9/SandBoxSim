@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    SandBoxSim.Console —— 全部表现层：TUI 渲染、输入、玩家上帝工具、PNG 快照、报告。
+    依赖方向单向：Console → Core。Core 永远不知道 Console 存在。
+  -->
+  <PropertyGroup>
+    <AssemblyTitle>SandBoxSim Console Frontend</AssemblyTitle>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SandBoxSim.Core\SandBoxSim.Core.csproj" />
+  </ItemGroup>
+
+</Project>

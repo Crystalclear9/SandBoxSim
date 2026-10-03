@@ -1,0 +1,61 @@
+# ---------------------------------------------------------------------------
+# SandBoxSim — 忽略规则
+# 原则：仓库只保留源码/文档/配置/脚本；一切构建产物与运行产物不入库。
+# ---------------------------------------------------------------------------
+
+# 构建产物（双通道都会产出到这里）
+bin/
+obj/
+artifacts/
+
+# 本地工具链（.NET SDK 等，绝不入库）
+.tools/
+*.nupkg
+
+# 运行产物：保留目录结构与说明，丢弃大文件
+runs/**
+!runs/.gitkeep
+!runs/README.md
+
+# 编辑器 / IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userprefs
+*.DotSettings.user
+*.sln.docstates
+*.VC.db
+
+# 编译中间件与调试产物
+*.dll
+*.exe
+*.pdb
+*.cache
+*.ilk
+*.exp
+*.lib
+*.tlog
+*.binlog
+
+# 临时/探针目录（开发期使用，不入库）
+.probe/
+.tmp/
+.scratch/
+
+# 操作系统
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# 日志与转储
+*.log
+*.dmp
+*.csv
+hs_err_pid*
+
+# 注意：
+# 1) PNG 快照与报告是"验证证据"，默认不提交；需要时显式 git add -f。
+# 2) 存档 (*.simsave) 属于运行产物，不入库。
+*.simsave

@@ -1,0 +1,45 @@
+<Project>
+
+  <!--
+    全解决方案统一的编译约定。
+    注意：tools/build.ps1 的 csc 降级通道不使用 MSBuild，
+    但刻意采用与本文件一致的编译选项（见脚本中的 $cscCommonArgs）。
+    改动本文件时必须同步修改脚本，否则两条通道行为会分叉。
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningLevel>4</WarningLevel>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <Deterministic>true</Deterministic>
+    <DebugType>portable</DebugType>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+    <!-- 模拟内核不使用文化敏感的比较/格式化 -->
+    <UseAppHost>false</UseAppHost>
+  </PropertyGroup>
+
+  <!-- 模拟内核：绝对不允许依赖时钟、环境或平台 API（见 docs/13-DeterminismAndSave.md） -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'SandBoxSim.Core'">
+    <RootNamespace>SandBoxSim.Core</RootNamespace>
+    <AssemblyName>SandBoxSim.Core</AssemblyName>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'SandBoxSim.Console'">
+    <RootNamespace>SandBoxSim.ConsoleApp</RootNamespace>
+    <AssemblyName>SandBoxSim.Console</AssemblyName>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'SandBoxSim.Tests'">
+    <RootNamespace>SandBoxSim.Tests</RootNamespace>
+    <AssemblyName>SandBoxSim.Tests</AssemblyName>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+</Project>
