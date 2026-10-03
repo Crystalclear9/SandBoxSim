@@ -47,8 +47,14 @@ public static class SaveFile
     /// 版本不匹配时**明确拒绝载入**，不做静默降级 ——
     /// 静默降级会让"确定性验收"变成假通过：载入了一个缺字段的档案，
     /// 之后发现演化分叉，却不知道该怀疑格式还是模拟。
+    ///
+    /// 版本历史：
+    ///   * v1 —— 初版（M4b）
+    ///   * v2 —— 补上 `Tile.Resource.RegenerationRate`。
+    ///     它是"按格写死、读档时不会重算"的字段，漏掉会导致读档后
+    ///     第一个小时边界上大面积再生量跑偏（详见 EncodeTiles 的说明）。
     /// </summary>
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
 
     /// <summary>载入结果。</summary>
     public sealed class LoadResult
@@ -76,6 +82,22 @@ public static class SaveFile
 
         /// <summary>读档之后的分段摘要。</summary>
         public string ActualSegments = string.Empty;
+
+        /// <summary>存档里的配置指纹。</summary>
+        public string ExpectedConfigDigest = string.Empty;
+
+        /// <summary>当前生效配置的指纹。</summary>
+        public string ActualConfigDigest = string.Empty;
+
+        /// <summary>
+        /// 当前配置是否与存档里的配置一致。
+        ///
+        /// <c>false</c> **不是错误** —— "同一世界换一套规则再跑"是一个正当的实验。
+        /// 但它是**必须被告知**的一件事，因为状态摘要不覆盖配置：
+        /// 换了规则之后摘要依然可能一致，玩家会以为自己在复现原来的实验。
+        /// </summary>
+        public bool ConfigMatches
+            => ExpectedConfigDigest.Length == 0 || ExpectedConfigDigest == ActualConfigDigest;
 
         /// <summary>
         /// 第一处不一致的段落描述（全同则空）。这是读档失败时最有用的信息。
@@ -133,7 +155,27 @@ public static class SaveFile
         // 而不是只报一个对不上的大数字（见 StateHash.DescribeSegments 的注释）。
         root.Set("segments", JsonValue.From(StateHash.DescribeSegments(sim)));
 
+        // 配置指纹。**为什么需要它**：状态摘要（StateHash）**不包含配置** ——
+        // 它只覆盖世界状态。于是"用一套不同的规则去读同一份存档"会**通过自校验**
+        // （摘要一致），然后跑出一个不同的世界。这本身可以是**有意**的实验
+        // （同一世界、换规则），但绝不能是静默的：玩家必须知道这次读档换了规则。
+        root.Set("configDigest", JsonValue.From(ConfigFingerprint(sim.Config)));
+
         return root.ToJson(indented: true);
+    }
+
+    /// <summary>
+    /// 配置指纹（FNV-1a64 over 紧凑 JSON）。
+    ///
+    /// 依赖"同一份配置产出同一串紧凑 JSON"这一点：`JsonBinder` 的字段顺序
+    /// 由插入顺序决定，因此同一版本的代码对同一份配置是稳定的。
+    /// 跨版本可能变化 —— 那时指纹不同会**多报一次警告**，
+    /// 而这个方向的误报是安全的一侧（宁可提醒，不可静默）。
+    /// </summary>
+    public static string ConfigFingerprint(SimConfig config)
+    {
+        string compact = JsonBinder.ToJson(config).ToJson(indented: false);
+        return Hash64.ToDigestString(Hash64.Combine(Hash64.Begin(), compact));
     }
 
     private static JsonValue EncodeWeather(World world)
@@ -151,9 +193,22 @@ public static class SaveFile
     /// 逐格编码。10 万格时这会是一个很大的数组，因此**逐字段用扁平数组**而不是
     /// "每格一个对象"：后者会产生 10 万个 JSON 对象与同样多的键名，文件体积大约十倍。
     ///
-    /// 只存"会变"的字段：地形、火灾、资源（种类/量/容量）、湿度、温度、肥沃度、植被、建筑锚点。
+    /// 只存"会变"的字段：地形、火灾、资源（种类/量/容量/再生率）、湿度、温度、肥沃度、植被、建筑锚点。
     /// 不存 `Walkable` / `Buildable` —— 它们是地形的派生值，读档时由 `ApplyTerrainRules` 重算。
     /// **派生值不入档**是一条通用规则：两个真相来源迟早会不一致。
+    ///
+    /// # 字段清单的判据（这里踩过一个很贵的坑）
+    ///
+    /// 判据是"**它会不会影响未来的行为**"，而不是"它看起来像不像地形的一部分"。
+    /// `Resource.RegenerationRate` 看起来像"配置的派生值"（毕竟 `resources` 段里
+    /// 有 `foodGrowthRate` / `woodGrowthRate`），但它是**按格存在 Tile 里**的，
+    /// 而且**读档时不会被重算** —— 它是世界生成时按格写死的。
+    ///
+    /// 漏掉它的后果非常隐蔽：读档时用命令行 seed 生成的地形会**留下自己的再生率**，
+    /// 于是同一格上出现"种类是食物（r=0.03）、再生率却是木材的 0.02"这种自相矛盾的状态。
+    /// 表现是读档瞬间**逐位完全一致**（再生率不进摘要），
+    /// 到第一个小时边界（读档后第 60 tick）再生一次，3637/10000 格同时跑偏。
+    /// 详见 <see cref="SaveLoader"/> 与 `SaveLoadTests` 的对应用例。
     /// </summary>
     private static JsonValue EncodeTiles(World world)
     {
@@ -165,6 +220,7 @@ public static class SaveFile
         var resourceKind = JsonValue.Array();
         var resourceAmount = JsonValue.Array();
         var resourceCapacity = JsonValue.Array();
+        var resourceRegenRate = JsonValue.Array();
         var moisture = JsonValue.Array();
         var temperature = JsonValue.Array();
         var fertility = JsonValue.Array();
@@ -179,6 +235,7 @@ public static class SaveFile
             resourceKind.Add(JsonValue.From((int)tile.Resource.Kind));
             resourceAmount.Add(JsonValue.From(tile.Resource.Amount));
             resourceCapacity.Add(JsonValue.From(tile.Resource.Capacity));
+            resourceRegenRate.Add(JsonValue.From(tile.Resource.RegenerationRate));
             moisture.Add(JsonValue.From(tile.Moisture));
             temperature.Add(JsonValue.From(tile.Temperature));
             fertility.Add(JsonValue.From(tile.Fertility));
@@ -192,6 +249,7 @@ public static class SaveFile
             .Set("resourceKind", resourceKind)
             .Set("resourceAmount", resourceAmount)
             .Set("resourceCapacity", resourceCapacity)
+            .Set("resourceRegenerationRate", resourceRegenRate)
             .Set("moisture", moisture)
             .Set("temperature", temperature)
             .Set("fertility", fertility)

@@ -142,6 +142,8 @@ public static class SaveLoader
         result.ActualDigest = StateHash.ComputeDigest(sim);
         result.ExpectedSegments = root.GetString("segments", string.Empty);
         result.ActualSegments = StateHash.DescribeSegments(sim);
+        result.ExpectedConfigDigest = root.GetString("configDigest", string.Empty);
+        result.ActualConfigDigest = SaveFile.ConfigFingerprint(sim.Config);
         return result;
     }
 
@@ -155,6 +157,7 @@ public static class SaveLoader
         JsonValue kind = tiles.Get("resourceKind");
         JsonValue amount = tiles.Get("resourceAmount");
         JsonValue capacity = tiles.Get("resourceCapacity");
+        JsonValue regenRate = tiles.Get("resourceRegenerationRate");
         JsonValue moisture = tiles.Get("moisture");
         JsonValue temperature = tiles.Get("temperature");
         JsonValue fertility = tiles.Get("fertility");
@@ -170,6 +173,12 @@ public static class SaveLoader
             tile.Resource.Kind = (ResourceKind)NumberAt(kind, i);
             tile.Resource.Amount = (float)NumberAtFloat(amount, i);
             tile.Resource.Capacity = (float)NumberAtFloat(capacity, i);
+
+            // 再生率必须恢复：它是**按格写死**的，不会由地形重算。
+            // 漏掉它会让"种类是食物、再生率却是木材的"这种自相矛盾状态留在世界里，
+            // 而摘要看不出来（再生率不进摘要）—— 见 SaveFile.EncodeTiles 的说明。
+            tile.Resource.RegenerationRate = (float)NumberAtFloat(regenRate, i);
+
             tile.Moisture = SimMath.Clamp01((float)NumberAtFloat(moisture, i));
             tile.Temperature = SimMath.Clamp01((float)NumberAtFloat(temperature, i));
             tile.Fertility = SimMath.Clamp01((float)NumberAtFloat(fertility, i));

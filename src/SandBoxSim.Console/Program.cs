@@ -155,6 +155,17 @@ public static class Program
                 System.Console.Error.WriteLine("  （这说明存档漏了某个影响状态的状态；请报告此信息）");
             }
 
+            // 配置不一致**不是错误**（"同一世界换一套规则再跑"是正当的实验），
+            // 但必须说出来：状态摘要不覆盖配置，所以换了规则之后摘要依然可能一致，
+            // 玩家会以为自己在复现原来的实验，实际上换了规则。
+            if (!result.ConfigMatches)
+            {
+                System.Console.WriteLine("提示：本次读档使用的配置与存档时**不同**"
+                    + "（存档 " + result.ExpectedConfigDigest + "，当前 " + result.ActualConfigDigest + "）。");
+                System.Console.WriteLine("      世界状态来自存档，但**演化规则来自当前配置** —— "
+                    + "因此结果不会与存档时的实验一致。这是正当的对照实验，但请确认你是有意的。");
+            }
+
             return loaded;
         }
 

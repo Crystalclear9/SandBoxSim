@@ -135,25 +135,69 @@ string StateHash.ComputeDigest(Simulation sim);   // 16 位小写十六进制
 第一版刻意选择**文本格式**（而非二进制）：体积大一点，但调试价值高得多。
 模拟游戏的状态爆炸类 bug 几乎无法在二进制存档上排查。
 
-### 3.2 内容清单
+### 3.2 内容清单（与实现 1:1）
 
 ```text
-SaveFile {
-  formatVersion: 1
-  world: { seed, width, height, revision }
-  time: { tick }
-  weather: { kind, durationHours, hoursUntilChange, accumulatedRain, droughtHours }
-  rng: { 每条流的 5 个 ulong }             // s0,s1,s2,s3,drawCount
-  config: { ... 完整 SimConfig ... }        // 读档必须复用当时的参数
-  chunks: { fields[][], cellCounts[], dirty[] }
-  tiles: [ 每格一行：terrain fire buildingId fertility moisture temperature
-                     vegetation resKind resAmount resCapacity resRate walkable buildable ]
-  entities: { ... 由各实体系统实现读写 ... }   // M1 起：agents；M3 起：buildings
-  events: [ 最近 N 条 ]                     // 用于读档后仍能看到最近历史
-  counters: { depletionEvents, births, deaths, migrations }
-  digest: "<读档时校验用的摘要>"
+{
+  version: 2                  // 不匹配 → 明确拒绝，不做静默降级
+  seed, width, height          // seed 必须恢复：它参与状态摘要
+  tick, day
+  weather:   { kind, durationHours, hoursUntilChange, accumulatedRain, droughtHours }
+  tiles:     { terrain[], fire[], resourceKind[], resourceAmount[], resourceCapacity[],
+               resourceRegenerationRate[],      // ← 见 3.2.1 第 6 条
+               moisture[], temperature[], fertility[], vegetation[], buildingId[] }
+  chunks:    { fields[][16], cellCounts[], dirty[] }   // ← 见 3.2.1 第 5 条
+  rng:       [ 8 条流 × { s0,s1,s2,s3,drawCount } ]     // 以字符串写 ulong，避免 double 丢精度
+  agents:    { totalBorn, totalDied, peakPopulation, list[] }
+  wildlife:  { liveOrder[], nextFreeHint, totalBorn, totalDied, totalHunted, list[] }
+  buildings: { totalBuilt, totalDemolished, list[] }
+  storage:   [ { slot, capacity, food, wood, stone, iron } ]
+  groundStocks: { totalDeposited, totalWithdrawn, list[] }
+  stats:     { totalBirths, totalDeaths, totalMigrations, migrationSystemMigrations,
+               totalHarvested, depletionEvents, totalFoodEaten, totalHunted }
+  config:       { ... 完整生效配置 ... }
+  digest:       "<写档瞬间的状态摘要>"
+  segments:     "world=..;tiles=..;agents=..;wildlife=..;buildings=..;stocks=..;storage=..;stats=.."
+  configDigest: "<配置指纹>"
 }
 ```
+
+与早期文档的差异（**文档以实现为准**）：
+不保存 `walkable/buildable`（地形派生值，读档时 `ApplyTerrainRules` 重算）、
+不保存事件日志（只影响可读性，不影响演化）、
+不保存 `UtilityBreakdown`（它是"解释"不是"状态"，下一次决策会重算 —— 恢复它反而会显示一个过期 tick 的解释）。
+
+### 3.2.1 判据：什么必须进存档
+
+判据只有一条：**"它会不会影响未来的行为？"** —— 而不是"它看起来像不像状态"。
+
+这条判据是在 Phase 0 用**六次分叉**换来的。六次里有五次是"读档瞬间摘要完全一致，
+续跑几步后分叉"，因为**状态摘要是量化的**（资源量量化到 0.01），
+微小差异会被整除截断吞掉。逐条记录如下：
+
+| # | 漏掉的字段 | 它是什么 | 不存的表现 |
+|---|---|---|---|
+| 1 | `ActionSystem.MoveProgress` | 小数步进度 | 第 2 tick 分叉，位置差一格 |
+| 2 | `AgentStore.HasPathStep / PathStep` | 寻路下一步缓存 | 重新算路径，节奏错开 |
+| 3 | `MigrationSystem.CooldownUntil` | 迁移冷却 | 全体立刻重新评估搬家 |
+| 4 | `WildlifeStore` 存活列表的**顺序** | 系统按它遍历并消耗随机数 | **第 1 tick** 分叉（摘要按槽位升序算，顺序问题在摘要里看不见） |
+| 5 | `ChunkGrid` 聚合统计 | **派生数据**，但 AI 读它（`WaterTiles`） | 第 31 tick 分叉 |
+| 6 | `Tile.Resource.RegenerationRate` | **按格写死**的基础再生率 | 第 60 tick（第一个小时边界）分叉，3637/10000 格同时跑偏 |
+
+第 6 条是最贵的一条，因为它同时具备两个"看起来不该存"的特征：
+它像是配置的派生值（`resources` 段里确实有 `foodGrowthRate`），
+而且读档路径**确实会重新生成地形**。但它**按格存在 Tile 里、读档时不会被重算**，
+所以用不同 seed 构造目标世界时，新地形会把自己的再生率留在格子上，
+制造出"种类是食物（r=0.03）、再生率却是木材的 0.02"这种自相矛盾的状态。
+
+**两条防漏机制**（都已在测试里）：
+
+1. `SaveCoversEveryTileField` —— 用**反射枚举** `Tile` 与 `ResourceNode` 的公开字段，
+   要求每一个都有存档键、或被显式列为"派生值"。
+   于是"新增字段却忘了存"直接测试失败，而不是在某个遥远的 tick 上表现为世界跑偏。
+2. `TilesRoundTripBitExactUnderDifferentSeed` —— 读档测试**必须用一个不同的 seed** 构造目标世界。
+   用相同 seed 时，地形生成会替存档兜住漏掉的按格字段，测试会假通过。
+   *教训：验证"恢复了什么"的测试，必须让**输入**与**期望值**不同。*
 
 ### 3.3 为什么必须保存 RNG 状态
 
@@ -173,6 +217,23 @@ SaveFile {
 因此存档里保存**完整生效配置**，并且报告目录里也会写一份 `config.effective.json`
 （M0 已实现：每次 headless 运行都会写出）。
 
+**但"存了"不等于"校验了"** —— 这是一个必须写清楚的边界：
+`StateHash` **不包含配置**，所以"用一套不同的规则去读同一份存档"会
+**通过摘要自校验**，然后跑出一个不同的世界。
+
+这不是错误（"同一世界、换一套规则再跑"是正当的对照实验），
+但**绝不能是静默的**。因此存档额外写入一个 `configDigest`（配置的 FNV 指纹），
+读档时比对并在不一致时明确提示，例如：
+
+```text
+提示：本次读档使用的配置与存档时**不同**（存档 a1b2..，当前 c3d4..）。
+      世界状态来自存档，但**演化规则来自当前配置** ——
+      因此结果不会与存档时的实验一致。这是正当的对照实验，但请确认你是有意的。
+```
+
+测试：`SaveLoadTests.ConfigMismatchIsDetected`
+（同时断言"配置变化**不影响**读档瞬间的摘要一致"，这正是需要单独指纹的原因）。
+
 ### 3.5 读档校验
 
 ```text
@@ -189,17 +250,53 @@ Load(saveFile):
 **摘要比对是存档系统的核心保险**：它把"某个系统忘了保存字段"这种隐蔽 bug
 变成"读档立刻报错"。
 
+### 3.5.1 恢复顺序是硬约束
+
+顺序敏感的地方写成清单，而不是散在代码里。实现里的顺序：
+
+```text
+Load(saveFile):
+  1. 校验 version（不认识 → 明确报错，不猜测、不降级）
+  2. 校验 width/height 与当前世界一致
+  3. 恢复 tiles → weather → seed → tick        // 地形必须先于建筑与空间索引
+  4. 导入全部 8 条 RNG 流                       // 必须早于任何实体恢复
+  5. 恢复实体：agents（含迁移冷却、小数步进度、寻路缓存）
+                → wildlife（含存活顺序）→ buildings → storage → groundStocks
+  6. 恢复统计计数（含 SimulationStats，它进摘要）
+  7. RefreshSpatialIndex + NotifyAfterLoad
+       ⚠ NotifyAfterLoad **不得**重算被显式恢复过的字段
+         （早期版本在这里重新均分决策相位，把恢复出来的相位又打乱了一次）
+  8. **最后**恢复 chunk 聚合统计与脏标记      // 必须晚于所有 RefreshSpatialIndex
+  9. 计算 digest / segments / configDigest 并与存档比对
+```
+
+**三重校验各管一件事**：
+
+* `digest` 把"漏了字段"从"几万 tick 后的神秘分叉"变成"读档立刻报错"；
+* `segments` 把"一个大数字对不上"缩小到"是动物那一段"；
+* `configDigest` 覆盖摘要的盲区（配置）。
+
+**同时要记住 `digest` 的局限**：资源量量化到 0.01，
+所以**小于 0.01 的差异在摘要里看不见**。这就是为什么
+`TilesRoundTripBitExactUnderDifferentSeed` 必须做**逐位**比对 ——
+六次分叉里有五次都是被量化藏起来、到后面才放大的。
+
 ### 3.6 版本演进策略
 
 | 情形 | 处理 |
 |---|---|
-| 新增字段 | 读旧档时字段缺失 → 用默认值；写新档时带上 `formatVersion+1` |
-| 字段语义变化 | 提升 `formatVersion`，并在读档路径里写**显式迁移**（不允许静默猜测） |
-| 删除字段 | 读档时忽略并记 warning |
-| 新增 `RngStream` | 旧档只有 7 条流 → 缺失的流用 `Reseed(Mix(seed, index))` 派生，保证可续跑 |
+| 新增字段 | 提升 `version`。**当前策略是严格拒绝旧版本**（见下） |
+| 字段语义变化 | 提升 `version`，并在读档路径里写**显式迁移** |
+| 新增 `RngStream` | 只能在枚举**末尾追加**（`SimRandom.StreamCount` 由枚举长度算出） |
 
-**向后兼容的底线**：只要 `formatVersion` 能被识别，读档就必须成功或给出明确原因。
-不允许出现"读档后世界能跑但结果不对"的静默错误。
+**当前策略是"严格拒绝"而不是"静默补默认值"**，理由是：
+静默补默认值会让"确定性验收"变成假通过 —— 载入一个缺字段的档案，
+之后发现演化分叉，却不知道该怀疑格式还是模拟。
+宁可让玩家看到"版本不匹配，请用旧版本或重新生成"，也不要让他拿到一个悄悄不同的世界。
+
+> **M9 的待办**：docs/12 的 M9 要求"存档版本化与向后兼容策略"。
+> 计划是把 `vN → vN+1` 的升级写成**显式的 `SaveMigration` 步骤**（每步一条迁移 + 一条测试），
+> 未知或更高的版本仍然明确拒绝。这样"向后兼容"是可验证的，而不是靠祈祷。
 
 ---
 
@@ -218,6 +315,13 @@ Load(saveFile):
 | `WorldTests.InvariantsHold` | 不变量（NaN / 越界 / 负值） |
 | `ConfigTests.CloneIsDeepCopy` | 配置克隆不会串改原对象 |
 | `--digest` 端到端 | 上述约束在真实运行路径上成立 |
+| `SaveLoadTests.SaveLoadRoundTripPreservesDigest` | 存档→读档→续跑 与 直接跑 逐 tick 一致 |
+| `SaveLoadTests.TilesRoundTripBitExactUnderDifferentSeed` | **逐位**往返，且**用不同 seed** 构造目标世界（防"地形生成替存档兜底"） |
+| `SaveLoadTests.SaveCoversEveryTileField` | 反射枚举 `Tile`/`ResourceNode` 字段，防将来再漏 |
+| `SaveLoadTests.InvisibleButBehaviouralStateIsPersisted` | 前五个"隐形状态"逐个锁定 |
+| `SaveLoadTests.ConfigMismatchIsDetected` | 配置指纹覆盖摘要的盲区 |
+| `SaveLoadTests.WrongVersionIsRejected` | 版本不匹配明确拒绝（且测试自身不会因版本提升而失效） |
+| `SaveDivergenceProbe`（`SBOX_SIM_PROBE=1`） | 诊断工具：分段 + 逐格 + 随机流三重对比，定位分叉点 |
 | `--batch` 端到端 | 多 seed 无异常、无状态爆炸 |
 
 ---

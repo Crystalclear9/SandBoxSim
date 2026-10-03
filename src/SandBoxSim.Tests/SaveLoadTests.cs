@@ -242,8 +242,7 @@ public sealed class SaveLoadTests
     }
 
     [Fact("读档必须采用存档里的 seed（而不是构造时传的那个）")]
-    public void LoadedWorldAdoptsSavedSeed()
-    {
+    public void LoadedWorldAdoptsSavedSeed()    {
         // 这条测试的写法是刻意的：**故意用一个不同的 seed 去构造目标世界**。
         //
         // 起因是一个真实踩到的 bug：读档时先用命令行给的 seed 造空世界、
@@ -273,6 +272,202 @@ public sealed class SaveLoadTests
         Assert.Equal(424242, restored.World.Seed,
             "读档之后 World.Seed 必须变成存档里的值 —— 否则摘要不一致（且只有在 seed 不同时才暴露）");
         Assert.Equal(before, restored.StateDigestString());
+    }
+
+    [Fact("逐格字段必须**逐位**往返 —— 且必须在一个不同 seed 的世界里读档")]
+    public void TilesRoundTripBitExactUnderDifferentSeed()
+    {
+        // # 这条测试为什么长成这样（它是 Phase 0 的结论，值得写清楚）
+        //
+        // 之前已经有一条 `TilesRoundTrip`，它跑得通 —— 但它在
+        // `Simulation.CreateForRestore(..., seed)` 里传了**与存档相同的 seed**。
+        // 于是"读档时新生成的地形"恰好与存档里的地形同源，
+        // 任何**会被地形生成写入、却不会被存档恢复**的按格字段
+        // （典型：`Resource.RegenerationRate`）都被无意中填对了值。
+        //
+        // 真实后果：读档瞬间逐位一致（那个字段不进摘要），
+        // 到读档后第 60 tick（第一个小时边界）再生一次，
+        // 3637/10000 格的再生量同时跑偏 —— 而摘要比对要到那一刻才报错。
+        //
+        // 所以这条测试做两件事：
+        //   1. **故意用一个不同的 seed** 构造目标世界（让"地形生成"无法替存档兜底）；
+        //   2. 断言 `Tile` 的**每一个**字段逐位相等（不做任何量化）。
+        var config = Config(40, 40);
+        var sim = new Simulation(config, 40, 40, 246810);
+        Flatten(sim, 5, 5, 35, 35);
+        sim.InterveneSpawnHumans(20, 20, 5, 3);
+        sim.Tick(1440);
+
+        string json = sim.SaveToText();
+
+        // 关键：完全不同的 seed
+        var restored = Simulation.CreateForRestore(Config(40, 40), 40, 40, 135791);
+        Assert.True(restored.LoadFromText(json).Success);
+
+        Tile[] a = sim.World.Tiles;
+        Tile[] b = restored.World.Tiles;
+        Assert.Equal(a.Length, b.Length);
+
+        int firstBad = -1;
+        string reason = string.Empty;
+
+        for (int i = 0; i < a.Length; i++)
+        {
+            if (a[i].Terrain != b[i].Terrain) { firstBad = i; reason = "Terrain"; break; }
+            if (a[i].Fire != b[i].Fire) { firstBad = i; reason = "Fire"; break; }
+            if (a[i].BuildingId != b[i].BuildingId) { firstBad = i; reason = "BuildingId"; break; }
+            if (a[i].Fertility != b[i].Fertility) { firstBad = i; reason = "Fertility"; break; }
+            if (a[i].Moisture != b[i].Moisture) { firstBad = i; reason = "Moisture"; break; }
+            if (a[i].Temperature != b[i].Temperature) { firstBad = i; reason = "Temperature"; break; }
+            if (a[i].Vegetation != b[i].Vegetation) { firstBad = i; reason = "Vegetation"; break; }
+            if (a[i].Resource.Kind != b[i].Resource.Kind) { firstBad = i; reason = "Resource.Kind"; break; }
+            if (a[i].Resource.Amount != b[i].Resource.Amount) { firstBad = i; reason = "Resource.Amount"; break; }
+            if (a[i].Resource.Capacity != b[i].Resource.Capacity) { firstBad = i; reason = "Resource.Capacity"; break; }
+            if (a[i].Resource.RegenerationRate != b[i].Resource.RegenerationRate)
+            {
+                firstBad = i;
+                reason = "Resource.RegenerationRate";
+                break;
+            }
+        }
+
+        Assert.True(firstBad < 0,
+            "格 (" + (firstBad % 40) + "," + (firstBad / 40) + ") 的 " + reason
+            + " 没有逐位往返 —— 只有在一个**不同 seed** 的世界里读档才会暴露这类字段");
+
+        // 派生值不入档，但读档后必须正确
+        for (int i = 0; i < a.Length; i++)
+        {
+            if (a[i].Walkable != b[i].Walkable) { Assert.True(false, "Walkable 派生值重算错误 @" + i); }
+            if (a[i].Buildable != b[i].Buildable) { Assert.True(false, "Buildable 派生值重算错误 @" + i); }
+        }
+
+        // 最后走一段最长的路：跨过一个小时边界，确认再生没有跑偏
+        sim.Tick(120);
+        restored.Tick(120);
+        Assert.Equal(sim.StateDigestString(), restored.StateDigestString(),
+            "跨过小时边界之后仍必须一致 —— 再生量跑偏正是 RegenerationRate 漏存的表现");
+    }
+
+    [Fact("存档必须覆盖 Tile / ResourceNode 的每一个字段（防止将来又漏）")]
+    public void SaveCoversEveryTileField()
+    {
+        // # 这是一条**防漏测试**，不是功能测试
+        //
+        // Phase 0 的教训：`Resource.RegenerationRate` 被漏掉，
+        // 而且整套测试都发现不了（因为读档测试恰好传了相同 seed）。
+        // 靠"下次记得写全"是不可靠的 —— 所以这里用反射**枚举** `Tile` 与
+        // `ResourceNode` 的公开实例字段，并要求存档的 `tiles` 段里
+        // 每一个都有对应的键（或用注释显式声明它是派生值）。
+        //
+        // 于是"新增一个字段却忘了存"会直接让这条测试失败，
+        // 而不是在某个遥远的 tick 上表现为世界跑偏。
+
+        // 显式声明：这些字段是**派生值**，刻意不入档，读档时由 ApplyTerrainRules 重算。
+        var derivedFields = new System.Collections.Generic.HashSet<string>
+        {
+            "Walkable", "Buildable",
+        };
+
+        // Tile 的公开实例字段 → 存档键名（同一字段可能拆成多个键，例如 Resource 的四个子字段）
+        var tileFieldKeys = new System.Collections.Generic.Dictionary<string, string>
+        {
+            ["Terrain"] = "terrain",
+            ["Fire"] = "fire",
+            ["BuildingId"] = "buildingId",
+            ["Fertility"] = "fertility",
+            ["Moisture"] = "moisture",
+            ["Temperature"] = "temperature",
+            ["Vegetation"] = "vegetation",
+            ["Resource"] = "resourceKind",   // 展开成四个键，见下面的 resourceFieldKeys
+        };
+
+        var resourceFieldKeys = new System.Collections.Generic.Dictionary<string, string>
+        {
+            ["Kind"] = "resourceKind",
+            ["Amount"] = "resourceAmount",
+            ["Capacity"] = "resourceCapacity",
+            ["RegenerationRate"] = "resourceRegenerationRate",
+        };
+
+        // 1) Tile 本身的字段
+        System.Reflection.FieldInfo[] tileFields = typeof(Tile).GetFields(
+            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+
+        foreach (System.Reflection.FieldInfo field in tileFields)
+        {
+            if (derivedFields.Contains(field.Name)) { continue; }
+
+            Assert.True(tileFieldKeys.ContainsKey(field.Name),
+                "Tile." + field.Name + " 既没有对应的存档键、也没有被显式列为派生值。"
+                + "新增格上字段时必须在 SaveFile.EncodeTiles/SaveLoader.RestoreTiles 里补上，"
+                + "或在 SaveCoversEveryTileField 的 derivedFields 里说明它为什么是派生值。");
+        }
+
+        // 2) ResourceNode 的字段
+        System.Reflection.FieldInfo[] resourceFields = typeof(SandBoxSim.Core.Environment.ResourceNode).GetFields(
+            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+
+        foreach (System.Reflection.FieldInfo field in resourceFields)
+        {
+            Assert.True(resourceFieldKeys.ContainsKey(field.Name),
+                "ResourceNode." + field.Name + " 没有对应的存档键。"
+                + "资源节点的每个字段都是按格写死、读档时不会重算的 —— 漏一个就会让再生跑偏。");
+        }
+
+        // 3) 反向检查：声明的键必须真的出现在存档 JSON 里
+        //    （防止"映射表写对了但编码器忘了写"）
+        var probe = new Simulation(Config(20, 20), 20, 20, 112233);
+        SandBoxSim.Core.Foundation.JsonValue root =
+            SandBoxSim.Core.Foundation.JsonParser.Parse(probe.SaveToText());
+        SandBoxSim.Core.Foundation.JsonValue tiles = root.Get("tiles");
+
+        foreach (System.Collections.Generic.KeyValuePair<string, string> pair in resourceFieldKeys)
+        {
+            Assert.True(tiles.Get(pair.Value).IsArray,
+                "存档的 tiles 段里缺少 '" + pair.Value + "' 数组 —— 编码器没有写出这个字段");
+        }
+
+        foreach (System.Reflection.FieldInfo field in tileFields)
+        {
+            if (derivedFields.Contains(field.Name) || field.Name == "Resource") { continue; }
+            Assert.True(tiles.Get(tileFieldKeys[field.Name]).IsArray,
+                "存档的 tiles 段里缺少 '" + tileFieldKeys[field.Name] + "' 数组");
+        }
+    }
+
+    [Fact("换配置读档必须被检出（状态摘要不覆盖配置，否则会静默换规则）")]
+    public void ConfigMismatchIsDetected()
+    {
+        // 这条测试锁定一个**摘要的盲区**：`StateHash` 只覆盖世界状态，不含配置。
+        // 于是"用一套不同的规则去读同一份存档"会通过自校验（摘要一致），
+        // 然后跑出另一个世界。这不是错误（换规则是正当实验），但绝不能是静默的。
+        var config = Config(40, 40);
+        var sim = new Simulation(config, 40, 40, 112233);
+        Flatten(sim, 5, 5, 35, 35);
+        sim.InterveneSpawnHumans(20, 20, 5, 3);
+        sim.Tick(720);
+
+        string json = sim.SaveToText();
+
+        // 1) 同一份配置 ⇒ 指纹一致
+        var same = Simulation.CreateForRestore(Config(40, 40), 40, 40, 112233);
+        SaveFile.LoadResult sameResult = same.LoadFromText(json);
+        Assert.True(sameResult.Success, sameResult.Error);
+        Assert.True(sameResult.ConfigMatches, "同一份配置必须被认为一致");
+
+        // 2) 改一个会影响演化的参数 ⇒ 指纹必须不同
+        SimConfig altered = Config(40, 40);
+        altered.Needs.HungerPerDay *= 3f;
+
+        var changed = Simulation.CreateForRestore(altered, 40, 40, 112233);
+        SaveFile.LoadResult changedResult = changed.LoadFromText(json);
+
+        Assert.True(changedResult.Success, changedResult.Error);
+        Assert.False(changedResult.ConfigMatches,
+            "改了饥饿速率之后必须被检出配置不一致 —— 否则玩家会以为在复现原来的实验");
+        Assert.True(changedResult.DigestMatches,
+            "配置变化**不影响**读档瞬间的摘要一致（这正是为什么需要单独的配置指纹）");
     }
 
     [Fact("连续两次「存档 → 读档」不产生任何漂移")]
@@ -534,7 +729,15 @@ public sealed class SaveLoadTests
         var sim = new Simulation(config, 40, 40, 11091);
 
         string json = sim.SaveToText();
-        string tampered = json.Replace("\"version\": 1", "\"version\": 999");
+
+        // 刻意用"当前版本"拼出要替换的字符串，而不是硬编码 "version": 1 ——
+        // 硬编码会在每次提升存档格式版本时让这条测试**静默失去意义**
+        // （替换不到任何东西 ⇒ 文件其实是合法存档 ⇒ 载入成功 ⇒ 测试失败，
+        //  而失败原因看起来像"版本校验坏了"，实际是测试自己过期了）。
+        string from = "\"version\": " + SaveFile.CurrentVersion;
+        System.Console.WriteLine("  [测试] 版本替换：" + from + " -> \"version\": 999");
+        string tampered = json.Replace(from, "\"version\": 999");
+        Assert.False(tampered == json, "测试自身失效：没有找到可替换的版本字段");
 
         var target = Simulation.CreateForRestore(Config(40, 40), 40, 40, 11091);
         SaveFile.LoadResult result = target.LoadFromText(tampered);
