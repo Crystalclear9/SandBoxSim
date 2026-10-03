@@ -22,6 +22,7 @@ public sealed class SimConfig
     public WildlifeConfig Wildlife = new WildlifeConfig();
     public MigrationConfig Migration = new MigrationConfig();
     public GroundStockConfig GroundStocks = new GroundStockConfig();
+    public BuildingConfig Buildings = new BuildingConfig();
     public DebugConfig Debug = new DebugConfig();
 
     /// <summary>深拷贝：世界重置（换 seed）时保持参数不变。</summary>
@@ -292,6 +293,15 @@ public sealed class AiConfig
     /// <summary>采集类动作：随身物资接近舒适上限时的压制权重。</summary>
     public float GatherOverstockWeight = 2.2f;
 
+    /// <summary>
+    /// 采集类动作：**附近有建造需求**时的驱动权重（M3）。
+    ///
+    /// 它必须足够大（默认 2.6，高于"随身已够多"的压制 2.2），
+    /// 否则"个人库存已经够了"会永远压过"公共物资不够" —— 结果就是世界永远建不起东西。
+    /// 实测：没有这一项时，40 天累计采伐木材只有 241，一间 20 木材的房子都很难盖成。
+    /// </summary>
+    public float GatherForBuildWeight = 2.6f;
+
     /// <summary>采集木材的可得性权重。</summary>
     public float GatherWoodAvailabilityWeight = 1.2f;
 
@@ -450,6 +460,35 @@ public sealed class MigrationConfig
     public int ProbeDistance = 45;
 }
 
+/// <summary>
+/// 建造参数（M3；第 35 节）。
+///
+/// 造价与产能写在 <c>Environment.BuildingRegistry</c> 里（那是"配方数据"），
+/// 这里放的是**行为参数**：施工速度、选址半径、仓库可见半径、效用权重。
+/// 两者分开是因为调整频率与影响面完全不同：
+/// 配方改一次影响经济平衡，行为参数改一次影响"AI 会不会去建"。
+/// </summary>
+public sealed class BuildingConfig
+{
+    /// <summary>每次 FastTick（10 tick）推进的施工点数。</summary>
+    public int WorkPerFastTick = 8;
+
+    /// <summary>选址搜索半径（格）：个体只在这么大范围内找空地。</summary>
+    public int SiteSearchRadius = 14;
+
+    /// <summary>仓库的可见半径（格）：存放/取回/扣料只在附近找仓库。</summary>
+    public int StorageSearchRadius = 24;
+
+    /// <summary>建造效用：材料齐备的权重（bonus —— 材料不够只是暂时不做）。</summary>
+    public float BuildMaterialWeight = 1.1f;
+
+    /// <summary>建造效用：缺口的权重（真正的驱动）。</summary>
+    public float BuildGapWeight = 1.6f;
+
+    /// <summary>建造效用：附近有合适空地的权重（bonus）。</summary>
+    public float BuildSiteWeight = 0.7f;
+}
+
 /// <summary>地面物资堆（M2）：让"攒东西"这件事在空间上可见。</summary>
 public sealed class GroundStockConfig
 {
@@ -466,7 +505,7 @@ public sealed class GroundStockConfig
     /// 反方向的错误同样发生过：第一版门槛 25（看着很合理）时机制是完全的**死代码**
     /// （存/取统计全为 0）。**两个方向都不报错，只能靠看统计发现。**
     /// </summary>
-    public float SurplusThreshold = 60f;
+    public float SurplusThreshold = 28f;
 
     /// <summary>一次放下多少。</summary>
     public float DropAmount = 10f;
@@ -475,7 +514,7 @@ public sealed class GroundStockConfig
     /// 手上物资低于多少才值得去物资堆取回。必须**远低于** <see cref="SurplusThreshold"/>，
     /// 否则两个动作会互相喂养（放下 ⇒ 变少 ⇒ 去取 ⇒ 变多 ⇒ 再放下）。
     /// </summary>
-    public float TakeNeedThreshold = 8f;
+    public float TakeNeedThreshold = 6f;
 
     /// <summary>一次取回多少。</summary>
     public float TakeAmount = 15f;

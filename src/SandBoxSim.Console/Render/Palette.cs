@@ -26,6 +26,9 @@ public static class Palette
     public static readonly Rgb SandBase = new Rgb(198, 182, 126);
     public static readonly Rgb FarmlandBase = new Rgb(176, 152, 72);
     public static readonly Rgb RoadBase = new Rgb(126, 110, 92);
+
+    /// <summary>建筑基色：偏暖的砖色，与任何地形色都不会混淆。</summary>
+    public static readonly Rgb BuildingBase = new Rgb(196, 138, 106);
     public static readonly Rgb BurntBase = new Rgb(58, 44, 38);
 
     // ---- 资源与状态 ----
@@ -136,6 +139,13 @@ public static class Palette
     {
         Rgb color = TerrainColor(in tile);
 
+        // 建筑覆盖一层可辨识的色调：玩家要能一眼看出"这里有人造物"。
+        // 这里只改色调不改明度，因此夜间光照逻辑（下面那一步）仍然统一生效。
+        if (tile.BuildingId > 0)
+        {
+            color = Rgb.Lerp(color, BuildingBase, 0.55f);
+        }
+
         float noise = 1f + NoiseHash.VisualJitter(x, y, seed, 0.045f);
         color = color.Scale(noise);
 
@@ -158,6 +168,13 @@ public static class Palette
     /// <summary>把 RGB 转成 16 色近似字符（无颜色模式下的地形字符表）。</summary>
     public static char GlyphFor(ref readonly Tile tile)
     {
+        // 建筑优先于地形：玩家最需要一眼看到的是"这里有东西"，
+        // 而不是"这里本来是草地还是森林"。未完工的工地用小写字母区分。
+        if (tile.BuildingId > 0)
+        {
+            return tile.Terrain == SandBoxSim.Core.Environment.TerrainKind.Farmland ? '≡' : 'A';
+        }
+
         switch (tile.Terrain)
         {
             case TerrainKind.Grass: return '.';

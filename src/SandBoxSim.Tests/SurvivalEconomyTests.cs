@@ -365,6 +365,35 @@ public sealed class SurvivalEconomyTests
                 + "，迁移 " + sim.Migration.TotalMigrations
                 + "，森林 " + sim.World.CountTerrain()[(int)TerrainKind.Forest]);
 
+            System.Console.WriteLine("  [诊断]   建筑：完工 " + sim.Buildings.TotalCompleted
+                + "（住房 " + sim.Buildings.CountOf(BuildingKind.House)
+                + "，仓库 " + sim.Buildings.CountOf(BuildingKind.Storage)
+                + "，农田 " + sim.Buildings.CountOf(BuildingKind.Farm) + "）"
+                + "，床位 " + sim.Buildings.TotalBeds
+                + "，施工中 " + (sim.Buildings.LiveCount - sim.Buildings.TotalCompleted)
+                + "，累计开工 " + sim.Actions.BuildsStarted
+                + "，存入仓库 " + sim.Actions.StoresIntoBuilding + " 次"
+                + "（仓库存 " + sim.Storage.TotalDeposited.ToString("0", System.Globalization.CultureInfo.InvariantCulture)
+                + " / 取 " + sim.Storage.TotalWithdrawn.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "）");
+
+            // 木材账：建造的瓶颈通常是"木材进不来"，而不是"AI 不想建"。
+            // 把三个来源分别打出来，才能分清是"没人采"还是"采了但不够"。
+            float carriedWoodTotal = 0f;
+            float maxCarriedWood = 0f;
+            foreach (int s in sim.Agents.AliveSlots())
+            {
+                float wood = sim.Agents.InventoryOf(s, ResourceKind.Wood);
+                carriedWoodTotal += wood;
+                if (wood > maxCarriedWood) { maxCarriedWood = wood; }
+            }
+            System.Console.WriteLine("  [诊断]   木材：累计采集 "
+                + sim.Actions.HarvestedByKind[(int)ResourceKind.Wood].ToString("0", System.Globalization.CultureInfo.InvariantCulture)
+                + "，随身合计 " + carriedWoodTotal.ToString("0", System.Globalization.CultureInfo.InvariantCulture)
+                + "（最多 " + maxCarriedWood.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + "）"
+                + "，地面堆 " + (sim.GroundStocks.TotalOf(ResourceKind.Wood)).ToString("0", System.Globalization.CultureInfo.InvariantCulture)
+                + "，仓库 " + 0f.ToString("0", System.Globalization.CultureInfo.InvariantCulture)
+                + "，全图存量 " + sim.World.TotalResource(ResourceKind.Wood).ToString("0", System.Globalization.CultureInfo.InvariantCulture));
+
             // 随身物资分布：用来判断"存放"动作为什么没被选中（门槛是否高于现实）
             float maxCarried = 0f;
             float totalCarried = 0f;

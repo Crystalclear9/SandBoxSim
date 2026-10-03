@@ -248,6 +248,80 @@ internal static class ActionSearch
         return SimMath.Clamp01(carried / comfort);
     }
 
+    /// <summary>
+    /// "附近有建造需求"的程度 [0,1]（M3）。
+    ///
+    /// 它是把"个人采集"变成"公共生产"的那个信号：
+    ///   * 有住房缺口（人口 > 床位） ⇒ 需要木材；
+    ///   * 有仓库缺口（地上堆了很多东西） ⇒ 需要木材 + 石料；
+    ///   * 已经建成足够多 ⇒ 需求归零，采伐自然停下（不会无限砍树）。
+    ///
+    /// 为什么这个信号必须存在（实测）：只按"自己缺不缺木材"驱动时，
+    /// 个体会在随身攒到 30 左右就停手，40 天累计采伐只有 241 木材 ——
+    /// 而一间房子要 20，也就是几乎永远盖不起房子。
+    /// **"谁来负责攒公共物资"是任何经济系统都必须回答的问题**，
+    /// 这里用"建造缺口"作为答案：缺口越大，越多人去采。
+    /// </summary>
+    public static float BuildDemand01(in ActionContext ctx, ResourceKind kind)
+    {
+        BuildingStore? buildings = ctx.Buildings;
+        if (buildings == null) { return 0f; }
+
+        float demand = 0f;
+
+        if (kind == ResourceKind.Wood)
+        {
+            // 住房缺口：人口多于床位
+            int population = ctx.Store.LiveCount;
+            int missing = population - buildings.TotalBeds;
+            demand = population <= 0 ? 0f : SimMath.Clamp01((float)missing / population);
+
+            // 地上堆得越多，说明越没地方放 ⇒ 也需要仓库（而仓库要木 + 石）
+            int piles = ctx.GroundStocks?.LiveCount ?? 0;
+            float storageGap = SimMath.Clamp01(piles / 6f);
+            if (storageGap > demand) { demand = storageGap; }
+        }
+        else if (kind == ResourceKind.Stone)
+        {
+            // 石料只被仓库需要。
+            //
+            // 判据不能是"地上已经有堆"：那会形成一个死锁 ——
+            // 没有仓库 ⇒ 没有地方堆 ⇒ 地上没有堆 ⇒ 判断"不缺石料" ⇒ 永远不采石 ⇒ 永远建不成仓库。
+            // 正确的判据是"**聚落攒下的木材已经值得建仓库了，而我手上还没有石料**"。
+            // 这类"需求 A 依赖于 A 的结果"的死锁，在资源系统里非常常见，
+            // 排查方式就是问一句："这个判据本身需要什么才能成立？"
+            if (buildings.CompletedStorages == 0)
+            {
+                float pooledWood = (ctx.GroundStocks?.TotalOf(ResourceKind.Wood) ?? 0f) + CarriedOf(in ctx, ResourceKind.Wood);
+                float pooledStone = (ctx.GroundStocks?.TotalOf(ResourceKind.Stone) ?? 0f) + CarriedOf(in ctx, ResourceKind.Stone);
+
+                float woodReady = SimMath.Clamp01(pooledWood / 120f);
+                float stoneMissing = 1f - SimMath.Clamp01(pooledStone / 60f);
+
+                // 木材备得越足、石料越缺，采石的驱动越强
+                demand = woodReady * stoneMissing;
+            }
+        }
+
+        // 已经建太多了就不再驱动：**任何"只增不减"的需求都必须有饱和点**，
+        // 否则会出现"永远在砍树"（M2 的无限囤积正是这个错误的另一个版本）。
+        int completed = buildings.TotalCompleted;
+        float saturation = SimMath.Clamp01(1f - (completed / 24f));
+        return demand * saturation;
+    }
+
+    /// <summary>全体存活个体随身携带的某种资源总量。</summary>
+    public static float CarriedOf(in ActionContext ctx, ResourceKind kind)
+    {
+        float total = 0f;
+        int[] slots = ctx.Store.LiveSlotsRaw(out int liveCount);
+        for (int k = 0; k < liveCount; k++)
+        {
+            total += ctx.Store.InventoryOf(slots[k], kind);
+        }
+        return total;
+    }
+
     /// <summary>把个体的"离家距离"归一化成 [0,1]（0 = 在出生点，1 = 极远）。</summary>
     public static float HomeDistance01(in ActionContext ctx)
     {

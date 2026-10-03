@@ -132,7 +132,14 @@ public static class RunReport
         sb.Append("| 状态摘要 | `").Append(sim.StateDigestString()).Append("` |\n");
         sb.Append("| 记录事件 | ").Append(sim.Events.TotalRecorded).Append(" |\n");
         sb.Append("| 人口 | ").Append(sim.PopulationCount).Append(" |\n");
-        sb.Append("| 建筑 | ").Append(sim.BuildingCount).Append(" |\n\n");
+        sb.Append("| 建筑 | ").Append(sim.BuildingCount).Append(" |\n");
+        sb.Append("| 住房 / 仓库 | ").Append(sim.Buildings.CountOf(SandBoxSim.Core.Environment.BuildingKind.House))
+          .Append(" / ").Append(sim.Buildings.CountOf(SandBoxSim.Core.Environment.BuildingKind.Storage)).Append(" |\n");
+        sb.Append("| 床位 / 人口 | ").Append(sim.Buildings.TotalBeds)
+          .Append(" / ").Append(sim.PopulationCount).Append(" |\n");
+        sb.Append("| 野生猎物 | ").Append(sim.Wildlife.LiveCount)
+          .Append("（环境容量 ").Append(sim.WildlifeSystem.EnvironmentCapacity).Append("） |\n");
+        sb.Append("| 累计迁徙 | ").Append(sim.Migration.TotalMigrations).Append(" |\n\n");
 
         sb.Append("## 复现命令\n\n```powershell\n").Append(reproCommand).Append("\n```\n\n");
 

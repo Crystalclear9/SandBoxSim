@@ -31,6 +31,12 @@ public struct ActionContext
     /// <summary>野生动物（M2）：狩猎动作读它。</summary>
     public Agents.WildlifeStore? Wildlife;
 
+    /// <summary>建筑（M3）：建造动作与"住房缺口"读它。</summary>
+    public BuildingStore? Buildings;
+
+    /// <summary>共享库存（M3）：建造扣料与存放/取回读它。</summary>
+    public StorageStore? Storage;
+
     /// <summary>当前 tick。</summary>
     public long Tick;
 
@@ -128,7 +134,8 @@ public static class ActionRegistry
             {
                 // 顺序即"平局优先级"：越靠前越优先。
                 // 把生存类动作放在漫游/探索前面，避免"又累又饿却还在闲逛"；
-                // 把"存/取物资"与"狩猎"放在采集之后 —— 它们是补充手段，不是第一选择。
+                // 把"存/取物资"与"狩猎"放在采集之后 —— 它们是补充手段，不是第一选择；
+                // 建造排在搬运之后：先把料备齐，再动工（顺序本身就编码了一条行为规范）。
                 _all = new[]
                 {
                     ActionKind.Eat,
@@ -139,7 +146,10 @@ public static class ActionRegistry
                     ActionKind.Take,
                     ActionKind.GatherWood,
                     ActionKind.GatherStone,
+                    ActionKind.StoreInBuilding,
                     ActionKind.Deposit,
+                    ActionKind.BuildHouse,
+                    ActionKind.BuildStorage,
                     ActionKind.Migrate,
                     ActionKind.Explore,
                     ActionKind.Wander,
@@ -264,6 +274,38 @@ public static class ActionRegistry
                 {
                     Evaluate = Actions.MigrateAction.Evaluate,
                     SelectTarget = Actions.MigrateAction.SelectTarget,
+                    NeedsTarget = true,
+                };
+
+            case ActionKind.BuildHouse:
+                return new ActionDef(kind, "建造住房", isWork: true)
+                {
+                    Evaluate = Actions.BuildHouseAction.Evaluate,
+                    SelectTarget = Actions.BuildHouseAction.SelectTarget,
+                    NeedsTarget = true,
+                };
+
+            case ActionKind.BuildStorage:
+                return new ActionDef(kind, "建造仓库", isWork: true)
+                {
+                    Evaluate = Actions.BuildStorageAction.Evaluate,
+                    SelectTarget = Actions.BuildStorageAction.SelectTarget,
+                    NeedsTarget = true,
+                };
+
+            case ActionKind.BuildFarm:
+                return new ActionDef(kind, "开垦农田", isWork: true)
+                {
+                    Evaluate = Actions.BuildFarmAction.Evaluate,
+                    SelectTarget = Actions.BuildFarmAction.SelectTarget,
+                    NeedsTarget = true,
+                };
+
+            case ActionKind.StoreInBuilding:
+                return new ActionDef(kind, "存入仓库", isWork: true)
+                {
+                    Evaluate = Actions.StoreInBuildingAction.Evaluate,
+                    SelectTarget = Actions.StoreInBuildingAction.SelectTarget,
                     NeedsTarget = true,
                 };
 

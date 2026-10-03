@@ -724,6 +724,24 @@ public sealed class AgentStore : ISimEntitySet
         return slot >= 0;
     }
 
+    /// <summary>
+    /// 是否**除 <paramref name="exceptSlot"/> 之外**还有人站在这一格上。
+    ///
+    /// 建造选址用它来避免"把房子盖在别人脚下"。
+    /// 为什么要有 except 参数：选址的人自己就站在附近，如果把他算进去，
+    /// 那么"脚下这一格"永远算被占用 —— 而那一格恰恰可能是最好的位置。
+    /// </summary>
+    public bool IsSlotOccupied(int exceptSlot, int x, int y)
+    {
+        for (int k = 0; k < _liveCount; k++)
+        {
+            int slot = _liveSlots[k];
+            if (slot == exceptSlot) { continue; }
+            if (_x[slot] == x && _y[slot] == y) { return true; }
+        }
+        return false;
+    }
+
     /// <summary>统计某个矩形范围内的存活人数（热力图与聚落评估用）。</summary>
     public int CountInRect(int minX, int minY, int maxX, int maxY)
     {

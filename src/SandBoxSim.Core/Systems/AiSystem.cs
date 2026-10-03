@@ -360,6 +360,8 @@ public sealed class AiSystem
             Chunk = world.Chunks.ReadAt(x, y),
             GroundStocks = _sim.GroundStocks,
             Wildlife = _sim.Wildlife,
+            Buildings = _sim.Buildings,
+            Storage = _sim.Storage,
             Tick = tick,
             IsNight = isNight,
             HomeX = _store.HomeXOf(slot),

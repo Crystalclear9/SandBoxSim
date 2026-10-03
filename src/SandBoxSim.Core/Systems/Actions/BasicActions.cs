@@ -134,6 +134,12 @@ internal static class GatherFoodAction
 /// "缺少木材"的输入用**"储量充足度"**（库存 / 参考量）而不是"需求"（1 − 参考量）：
 /// 后者的反向项在库存为 0 时会给出"完全不缺"的分（1 − 0 = 1），语义正好搞反了。
 /// 这类符号错误在效用系统里很难发现 —— 它不报错，只是行为悄悄反了。
+///
+/// **"建造需求"是一个独立且更强的驱动**（M3 加入）：
+/// 只按"自己缺木材"驱动时，个体会在攒到 30 左右就停止采伐，
+/// 于是永远攒不出 20 木材的建房成本（实测 40 天累计采伐仅 241，
+/// 而 36 个人一天就能采 36×8）。第 30 条要求的正是"生产由需求驱动"，
+/// 而不是"由个人库存驱动" —— 这两者在"要盖房子"时差别巨大。
 /// </summary>
 internal static class GatherWoodAction
 {
@@ -153,8 +159,12 @@ internal static class GatherWoodAction
         builder.Consider("附近有森林", hasTarget ? 1f : 0f, UtilityCurve.Linear, w.GatherWoodAvailabilityWeight, isBonus: true);
         builder.Consider("随身物资已够多", ActionSearch.Overstock01(in ctx), UtilityCurve.Survival, -w.GatherOverstockWeight);
 
+        // 建造需求：附近有住房/仓库缺口时，"砍柴"从"个人事务"变成"公共事务"
+        builder.Consider("附近有建造需求", ActionSearch.BuildDemand01(in ctx, ResourceKind.Wood),
+            UtilityCurve.Survival, w.GatherForBuildWeight);
+
         float industriousness = ctx.Store.PersonalityOf(ctx.Slot).Industriousness;
-        builder.ConsiderScore("勤劳性格", industriousness, industriousness, w.IndustriousnessWorkBonus);
+        builder.ConsiderScore("勤劳性格", industriousness, industriousness, w.IndustriousnessWorkBonus, isBonus: true);
 
         return builder.Build();
     }
@@ -185,8 +195,12 @@ internal static class GatherStoneAction
         builder.Consider("附近有石矿", hasTarget ? 1f : 0f, UtilityCurve.Linear, w.GatherStoneAvailabilityWeight, isBonus: true);
         builder.Consider("随身物资已够多", ActionSearch.Overstock01(in ctx), UtilityCurve.Survival, -w.GatherOverstockWeight);
 
+        // 建造需求（仓库需要石料）
+        builder.Consider("附近有建造需求", ActionSearch.BuildDemand01(in ctx, ResourceKind.Stone),
+            UtilityCurve.Survival, w.GatherForBuildWeight);
+
         float industriousness = ctx.Store.PersonalityOf(ctx.Slot).Industriousness;
-        builder.ConsiderScore("勤劳性格", industriousness, industriousness, w.IndustriousnessWorkBonus);
+        builder.ConsiderScore("勤劳性格", industriousness, industriousness, w.IndustriousnessWorkBonus, isBonus: true);
 
         return builder.Build();
     }

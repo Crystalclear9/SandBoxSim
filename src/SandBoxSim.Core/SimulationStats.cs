@@ -172,6 +172,12 @@ public static class StateHash
 
         hash = sim.HashEntities(hash);
 
+        // 共享库存（M3）：它不在实体集合里（它是"建筑的附属数据"而不是独立实体），
+        // 因此必须在这里显式混入 —— 否则"仓库里多了 1000 木材"不会改变摘要，
+        // 而那是实实在在的世界状态变化。**任何持久的模拟状态都必须进摘要，
+        // 判断标准是"它会不会影响未来的行为"，而不是"它有没有自己的类"。**
+        hash = sim.Storage.HashInto(hash);
+
         hash = Hash64.Combine(hash, sim.ResourceSystem.DepletionEvents);
         hash = Hash64.Combine(hash, sim.Stats.TotalBirths);
         hash = Hash64.Combine(hash, sim.Stats.TotalDeaths);

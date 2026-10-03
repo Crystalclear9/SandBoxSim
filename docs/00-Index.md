@@ -15,14 +15,14 @@
 | 04 | [DataStructures](04-DataStructures.md) | 全部数据结构与字段语义（与源码 1:1） | ✅ 已写 |
 | 05 | [UtilityAI](05-UtilityAI.md) | 效用公式、考虑项、曲线、选靶、执行、可解释输出 | ✅ M1 已写 |
 | 06 | [ResourceModel](06-ResourceModel.md) | 采集 / 消耗 / 再生 / 存储 / 枯竭、口粮账、生态链 | ✅ M2 已写 |
-| 07 | Buildings | House / Farm / Storage / Mine 的造价与作用 | ⏳ M3 |
+| 07 | [Buildings](07-Buildings.md) | House / Storage / Farm / Mine 的造价、选址规则、施工、三层存储 | ✅ M3 已写 |
 | 08 | [PopulationModel](08-PopulationModel.md) | 死亡与死因、需求、生命历程、出生模型（M4 落地） | ✅ M2 已写 |
 | 09 | [EmergentStories](09-EmergentStories.md) | 12 个"不靠脚本就会发生"的故事及其规则组合 | ✅ M2 起持续补 |
 | 10 | DebugAndObservation | 观察体系：检查器、效用分解、热力图、报告 | 🚧 M1 已有骨架 |
 | 11 | MVP-Scope | 必须做 / 可以做 / 暂时不做；新机制准入检查表 | ⏳ M5 |
 | 12 | [Milestones](12-Milestones.md) | 阶段拆解、每阶段可玩验收、构建通道 | ✅ 已写 |
 | 13 | [DeterminismAndSave](13-DeterminismAndSave.md) | 确定性契约、状态摘要、存档格式 | ✅ 已写 |
-| 14 | [Performance](14-Performance.md) | 分批更新、空间索引、实测数据表 | ✅ M2 已更新 |
+| 14 | [Performance](14-Performance.md) | 分批更新、空间索引、实测数据表 | ✅ M3 已更新 |
 | 15 | ConfigReference | 每个可调参数的含义、默认值、影响链 | ⏳ M5 |
 
 > 未写的文档不代表不重要，而是**不允许在机制落地前先写空文档** ——

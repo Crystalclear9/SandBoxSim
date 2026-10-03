@@ -52,6 +52,12 @@ public sealed class ActionSystem
     public float TotalDeposited { get; private set; }
     public float TotalTaken { get; private set; }
 
+    /// <summary>累计开工的建造次数（M3）。</summary>
+    public int BuildsStarted { get; private set; }
+
+    /// <summary>累计存入仓库的次数（M3）。</summary>
+    public int StoresIntoBuilding { get; private set; }
+
     /// <summary>清空某个体的移动进度（迁移等操作会打断移动，必须同步清掉）。</summary>
     public void ClearMoveProgress(int slot)
     {
@@ -296,6 +302,16 @@ public sealed class ActionSystem
                 Complete(slot, tick);
                 break;
 
+            case ActionKind.BuildHouse:
+            case ActionKind.BuildStorage:
+            case ActionKind.BuildFarm:
+                TickBuild(slot, tick);
+                break;
+
+            case ActionKind.StoreInBuilding:
+                TickStoreInBuilding(slot, tick);
+                break;
+
             default:
                 // 未知动作：立刻完成，避免卡住
                 Complete(slot, tick);
@@ -401,6 +417,116 @@ public sealed class ActionSystem
             -1,
             "存放物资");
 
+        Complete(slot, tick);
+    }
+
+    /// <summary>
+    /// 建造（M3）：到达工地后**开工**，然后离开 —— 施工由 <see cref="BuildingSystem"/> 推进。
+    ///
+    /// 为什么不让个体一直站在工地上：
+    ///   1. 那会让"建造"占用一个人的全部时间，从而把经济压垮（一个人至少要不吃不喝好几天）；
+    ///   2. 现实里工地也是"开工之后工人就走了"；
+    ///   3. 它让"劳动力"与"工期"解耦 —— 工期由系统推进，而不是由某个人守着。
+    ///
+    /// 因此这个动作只做一件事：**扣料、放下工地**。剩下的交给系统。
+    /// </summary>
+    private void TickBuild(int slot, long tick)
+    {
+        ActionKind action = _store.ActionOf(slot);
+        BuildingKind kind = KindForBuildAction(action);
+        if (kind == BuildingKind.None)
+        {
+            Fail(slot, ActionFailReason.PrerequisiteLost);
+            return;
+        }
+
+        // 目标格优先用记录的目标（选靶时确定的空地）
+        Int2 site = _store.HasTarget(slot) ? _store.TargetOf(slot) : new Int2(_store.XOf(slot), _store.YOf(slot));
+
+        if (!_sim.BuildingSystem.TryStartBuilding(_store, slot, kind, site.X, site.Y, out int buildingIndex, out string failure))
+        {
+            // 失败不是异常：可能是"位置刚被别人占了"或"材料路上被取走了"。
+            // 事件日志里记下来，检查器能看到原因 —— 这比静默失败好得多。
+            _sim.Events.Record(tick, History.WorldEventType.BuildingStarted,
+                _store.NameOrOverride(slot) + " 建造失败：" + failure,
+                History.EventImportance.Minor,
+                site, slot, -1, failure);
+            Fail(slot, ActionFailReason.PrerequisiteLost);
+            return;
+        }
+
+        BuildsStarted++;
+        _ = buildingIndex;
+        Complete(slot, tick);
+    }
+
+    private static BuildingKind KindForBuildAction(ActionKind action)
+    {
+        switch (action)
+        {
+            case ActionKind.BuildHouse: return BuildingKind.House;
+            case ActionKind.BuildStorage: return BuildingKind.Storage;
+            case ActionKind.BuildFarm: return BuildingKind.Farm;
+            default: return BuildingKind.None;
+        }
+    }
+
+    /// <summary>把随身物资存进最近的仓库（M3）。</summary>
+    private void TickStoreInBuilding(int slot, long tick)
+    {
+        if (_sim.Buildings == null || _sim.Storage == null)
+        {
+            Fail(slot, ActionFailReason.PrerequisiteLost);
+            return;
+        }
+
+        Int2 position = _store.HasTarget(slot) ? _store.TargetOf(slot) : new Int2(_store.XOf(slot), _store.YOf(slot));
+
+        // 用"目标格"上的建筑：这比重新搜一遍更可靠（选靶与执行用的是同一个坐标）
+        if (!_sim.World.IsInBounds(position.X, position.Y))
+        {
+            Fail(slot, ActionFailReason.TargetGone);
+            return;
+        }
+
+        int buildingId = _sim.World.TileAt(position.X, position.Y).BuildingId;
+        if (buildingId <= 0)
+        {
+            Fail(slot, ActionFailReason.TargetGone);
+            return;
+        }
+
+        int buildingIndex = buildingId - 1;
+        if (!_sim.Buildings.IsAlive(buildingIndex)
+            || _sim.Buildings.KindOf(buildingIndex) != BuildingKind.Storage
+            || _sim.Buildings.StateOf(buildingIndex) != BuildingState.Complete)
+        {
+            Fail(slot, ActionFailReason.TargetGone);
+            return;
+        }
+
+        float moved = 0f;
+        for (int kind = (int)ResourceKind.Food; kind <= (int)ResourceKind.Iron; kind++)
+        {
+            ResourceKind resource = (ResourceKind)kind;
+            float carried = _store.InventoryOf(slot, resource);
+            if (carried <= 0f) { continue; }
+
+            float wanted = carried < _config.GroundStocks.DropAmount ? carried : _config.GroundStocks.DropAmount;
+            float accepted = _sim.Storage.Deposit(buildingIndex, resource, wanted);
+            if (accepted <= 0f) { continue; }
+
+            _store.AddInventory(slot, resource, -accepted);
+            moved += accepted;
+        }
+
+        if (moved <= 0f)
+        {
+            Fail(slot, ActionFailReason.PrerequisiteLost);
+            return;
+        }
+
+        StoresIntoBuilding++;
         Complete(slot, tick);
     }
 
@@ -621,6 +747,8 @@ public sealed class ActionSystem
         TotalHuntedFood = 0f;
         TotalDeposited = 0f;
         TotalTaken = 0f;
+        BuildsStarted = 0;
+        StoresIntoBuilding = 0;
         MovesThisTick = 0;
         for (int i = 0; i < HarvestedByKind.Length; i++) { HarvestedByKind[i] = 0f; }
         if (_moveProgress.Length > 0) { System.Array.Clear(_moveProgress, 0, _moveProgress.Length); }

@@ -48,10 +48,10 @@ public static class Panels
         buffer.WriteText(43, 0, "Ticks/s=" + (speedMultiplier * sim.Config.Clock.TicksPerSecondAt1x)
             + "  " + fpsText, Palette.UiTextDim, back);
 
-        // 第二行：人口 + 资源
+        // 第二行：人口 + 建筑
         string weather = WeatherInfo.DisplayNameOf(sim.World.Weather.Kind);
         string popText = "人口 " + sim.PopulationCount
-            + "  聚落 " + sim.EntityCount
+            + "  床位 " + sim.Buildings.TotalBeds
             + "  建筑 " + sim.BuildingCount
             + "  天气 " + weather;
 

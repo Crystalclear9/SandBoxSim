@@ -107,6 +107,7 @@
     "gatherFoodAvailabilityWeight": 1.0,
     "gatherWoodNeedWeight": 1.4,
     "gatherOverstockWeight": 2.2,
+    "gatherForBuildWeight": 2.6,
     "inventoryComfort": 45.0,
     "gatherWoodAvailabilityWeight": 1.2,
     "gatherStoneAvailabilityWeight": 1.0,
@@ -160,11 +161,21 @@
   "groundStocks": {
     "$comment": "地面物资堆（M2）：让'攒物资'在空间上可见，是 M3 共享仓库的前身。",
     "capacityPerKind": 400.0,
-    "surplusThreshold": 60.0,
+    "surplusThreshold": 28.0,
     "dropAmount": 10.0,
-    "takeNeedThreshold": 8.0,
+    "takeNeedThreshold": 6.0,
     "takeAmount": 15.0,
     "searchRadius": 18
+  },
+
+  "buildings": {
+    "$comment": "建造（M3）。造价与产能写在 BuildingRegistry.cs 里（配方数据），这里只放行为参数：施工速度、选址半径、效用权重。",
+    "workPerFastTick": 8,
+    "siteSearchRadius": 14,
+    "storageSearchRadius": 24,
+    "buildMaterialWeight": 1.1,
+    "buildGapWeight": 1.6,
+    "buildSiteWeight": 0.7
   },
 
   "debug": {

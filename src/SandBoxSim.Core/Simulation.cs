@@ -79,6 +79,15 @@ public sealed class Simulation
     /// <summary>迁移系统（M2）：每天评估一次"该不该搬走"。</summary>
     public MigrationSystem Migration { get; }
 
+    /// <summary>建筑存储（M3）：住房/仓库/农田/矿场。</summary>
+    public BuildingStore Buildings { get; }
+
+    /// <summary>共享库存（M3）：每个仓库一份，按建筑槽位对齐。</summary>
+    public StorageStore Storage { get; }
+
+    /// <summary>建造系统（M3）：每 10 tick 推进施工。</summary>
+    public BuildingSystem BuildingSystem { get; }
+
     public SimulationStats Stats { get; } = new SimulationStats();
 
     /// <summary>世界事件日志（第 55 / 56 节）。M0 只记录地形/世界级事件。</summary>
@@ -124,10 +133,15 @@ public sealed class Simulation
         WildlifeSystem = new WildlifeSystem(this, Wildlife);
         Migration = new MigrationSystem(this, Agents);
 
+        Buildings = new BuildingStore();
+        Storage = new StorageStore();
+        BuildingSystem = new BuildingSystem(this, Buildings);
+
         // 注册进实体集合：世界重建时会自动 Reset，摘要会自动覆盖
         RegisterEntitySet(Agents);
         RegisterEntitySet(GroundStocks);
         RegisterEntitySet(Wildlife);
+        RegisterEntitySet(Buildings);
 
         RegenerateWorld(seed);
     }
@@ -156,6 +170,8 @@ public sealed class Simulation
         Needs.ResetStatistics();
         WildlifeSystem.ResetStatistics();
         Migration.ResetStatistics();
+        BuildingSystem.ResetStatistics();
+        Storage.Reset();
         PopulationCount = 0;
         BuildingCount = 0;
 
@@ -215,6 +231,7 @@ public sealed class Simulation
             World.RefreshSpatialIndex();
 
             PopulationCount = Agents.LiveCount;
+            BuildingCount = Buildings.TotalCompleted;
 
             if (Config.Debug.AssertInvariants && (tick % 64 == 0))
             {
@@ -255,15 +272,15 @@ public sealed class Simulation
         }
     }
 
-    /// <summary>每 10 个 tick 一次的高频系统（火灾蔓延、施工推进、农场生长）。</summary>
+    /// <summary>每 10 个 tick 一次的高频系统（建造施工、火灾蔓延、农场生长）。</summary>
     public const int FastTickInterval = 10;
 
     public bool IsFastTick => World.Tick % FastTickInterval == 0;
 
-    /// <summary>高频 tick：M0 无内容，M5 接入火灾与施工。</summary>
+    /// <summary>高频 tick：M3 接入建造施工；M5 接入火灾。</summary>
     public void TickFast()
     {
-        // 预留：FireSystem.TickFast(this); ConstructionSystem.TickFast(this);
+        BuildingSystem.TickFast(World.Tick);
     }
 
     private void TickHourInternal()
@@ -316,6 +333,7 @@ public sealed class Simulation
         Migration.TickDay(World.Tick);
 
         PopulationCount = Agents.LiveCount;
+        BuildingCount = Buildings.TotalCompleted;
         Ai.RefreshBatchCount();
     }
 
@@ -657,9 +675,15 @@ public sealed class Simulation
                 Fail("Tile[" + (i % World.Width) + "," + (i / World.Width) + "] 资源超过容量");
                 return;
             }
-            if (tile.BuildingId < -1)
+            // BuildingId 约定：0 = 无建筑，>0 = 建筑槽位 + 1（见 Tile.BuildingId 的注释）
+            if (tile.BuildingId < 0)
             {
                 Fail("Tile[" + (i % World.Width) + "," + (i / World.Width) + "] 建筑索引非法：" + tile.BuildingId);
+                return;
+            }
+            if (tile.BuildingId > Buildings.Capacity)
+            {
+                Fail("Tile[" + (i % World.Width) + "," + (i / World.Width) + "] 建筑索引越界：" + tile.BuildingId);
                 return;
             }
         }

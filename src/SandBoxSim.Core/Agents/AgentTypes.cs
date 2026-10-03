@@ -68,9 +68,17 @@ public enum ActionKind : byte
     GatherStone = 15,
     GatherIron = 16,
     Deposit = 17,
+
+    /// <summary>建造住房（M3）。</summary>
     BuildHouse = 18,
+
+    /// <summary>建造农田（M3 可建，产出在 M4）。</summary>
     BuildFarm = 19,
+
+    /// <summary>建造仓库（M3）：共享库存的载体。</summary>
     BuildStorage = 20,
+
+    /// <summary>耕种（M4）。</summary>
     Farm = 21,
     Socialize = 22,
     Flee = 23,
@@ -85,6 +93,9 @@ public enum ActionKind : byte
 
     /// <summary>从地面物资堆取回物资（M2）。</summary>
     Take = 28,
+
+    /// <summary>把物资存进仓库（M3）：共享库存的入口。</summary>
+    StoreInBuilding = 29,
 }
 
 /// <summary>动作的执行阶段（第 18 节：Condition → 选靶 → 移动 → 执行 → 结算）。</summary>

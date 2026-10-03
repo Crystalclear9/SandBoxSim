@@ -27,7 +27,14 @@ public struct Tile
     /// <summary>火灾状态。</summary>
     public FireState Fire;
 
-    /// <summary>土地上现有的建筑物索引（-1 表示没有）。存索引而非引用，方便数组化与存档。</summary>
+    /// <summary>
+    /// 土地上现有的建筑物索引 + 1（**0 表示没有建筑**）。存索引而非引用，方便数组化与存档。
+    ///
+    /// 为什么用"索引 + 1"而不是直接用索引、以 -1 表示空：
+    /// Tile 是 10 万格级别的热数据，而它经常被**批量初始化**（世界生成、地形工具）。
+    /// 用 0 表示空可以让"默认值就是合法值" —— 新建的 Tile 数组不需要逐格写 -1，
+    /// 而 -1 需要显式初始化，一旦漏掉就会得到"指向第 -1 号建筑"这种静默错误。
+    /// </summary>
     public int BuildingId;
 
     /// <summary>肥沃度 [0,1]：农场产量、采集食物产出、植被恢复速度都读它。</summary>
@@ -57,7 +64,7 @@ public struct Tile
         {
             Terrain = terrain,
             Fire = FireState.None,
-            BuildingId = -1,
+            BuildingId = 0,
             Fertility = fertility,
             Moisture = moisture,
             Temperature = temperature,
