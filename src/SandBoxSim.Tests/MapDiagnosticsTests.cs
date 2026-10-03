@@ -106,6 +106,51 @@ public sealed class MapDiagnosticsTests
         System.Console.WriteLine("  [诊断] 找到目标失败次数 " + sim.Ai.TargetSelectionFailures
             + "，动作完成 " + sim.Actions.TotalCompleted + "，动作失败 " + sim.Actions.TotalFailed);
 
+        // 分系统计时：定位"到底是哪一层慢"。
+        // 只看总耗时会让人误以为是 AI 的问题 —— 实测曾出现"动物找附近的人"这种
+        // 看起来无关紧要的一行代码占了大部分时间。
+        var timer = System.Diagnostics.Stopwatch.StartNew();
+        long tActions = 0;
+        long tNeeds = 0;
+        long tAi = 0;
+        long tWildlife = 0;
+        long tEnvironment = 0;
+
+        for (int i = 0; i < 5; i++)
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            sim.Actions.Tick(sim.Clock);
+            tActions += watch.ElapsedTicks;
+
+            watch.Restart();
+            sim.Needs.TickNeeds(sim.Agents, sim.Clock, 1440, false);
+            tNeeds += watch.ElapsedTicks;
+
+            watch.Restart();
+            sim.Ai.Tick(sim.Clock, false);
+            tAi += watch.ElapsedTicks;
+
+            watch.Restart();
+            sim.WildlifeSystem.Tick(sim.Clock);
+            tWildlife += watch.ElapsedTicks;
+
+            watch.Restart();
+            sim.World.RefreshSpatialIndex();
+            tEnvironment += watch.ElapsedTicks;
+        }
+
+        double toMs = 1000.0 / System.Diagnostics.Stopwatch.Frequency / 5.0;
+        System.Console.WriteLine("  [诊断] 每 tick 耗时：动作 " + (tActions * toMs).ToString("0.000", System.Globalization.CultureInfo.InvariantCulture)
+            + "ms，需求 " + (tNeeds * toMs).ToString("0.000", System.Globalization.CultureInfo.InvariantCulture)
+            + "ms，AI " + (tAi * toMs).ToString("0.000", System.Globalization.CultureInfo.InvariantCulture)
+            + "ms，动物 " + (tWildlife * toMs).ToString("0.000", System.Globalization.CultureInfo.InvariantCulture)
+            + "ms，空间索引 " + (tEnvironment * toMs).ToString("0.000", System.Globalization.CultureInfo.InvariantCulture)
+            + "ms（动物 " + sim.Wildlife.LiveCount + " 只，人 " + sim.Agents.LiveCount + " 个）");
+        System.Console.WriteLine("  [诊断] 寻路累计 " + sim.Pathfinder.TotalSearches + " 次（失败 "
+            + sim.Pathfinder.FailedSearches + " 次），累计扩展节点 " + sim.Pathfinder.TotalExpandedNodes
+            + "，移动决策 " + sim.Actions.MovesThisTick);
+        timer.Stop();
+
         // 每个动作被"评估"与"选中"的次数。
         // 这两个数放在一起看才能定位问题：
         //   * 评估很多但从不被选 ⇒ 效用公式有问题（权重/曲线/门槛）；

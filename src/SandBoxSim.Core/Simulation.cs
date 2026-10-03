@@ -67,6 +67,18 @@ public sealed class Simulation
     /// <summary>需求系统（M1）。</summary>
     public NeedsSystem Needs { get; }
 
+    /// <summary>地面物资堆（M2）：让"攒东西"在空间上可见。</summary>
+    public GroundStockStore GroundStocks { get; }
+
+    /// <summary>野生动物存储（M2）：生态链的前半段。</summary>
+    public WildlifeStore Wildlife { get; }
+
+    /// <summary>野生动物系统（M2）：吃、逃、繁殖、死。</summary>
+    public WildlifeSystem WildlifeSystem { get; }
+
+    /// <summary>迁移系统（M2）：每天评估一次"该不该搬走"。</summary>
+    public MigrationSystem Migration { get; }
+
     public SimulationStats Stats { get; } = new SimulationStats();
 
     /// <summary>世界事件日志（第 55 / 56 节）。M0 只记录地形/世界级事件。</summary>
@@ -107,8 +119,15 @@ public sealed class Simulation
         Actions = new ActionSystem(this, Agents, Pathfinder);
         Needs = new NeedsSystem(config);
 
+        GroundStocks = new GroundStockStore();
+        Wildlife = new WildlifeStore();
+        WildlifeSystem = new WildlifeSystem(this, Wildlife);
+        Migration = new MigrationSystem(this, Agents);
+
         // 注册进实体集合：世界重建时会自动 Reset，摘要会自动覆盖
         RegisterEntitySet(Agents);
+        RegisterEntitySet(GroundStocks);
+        RegisterEntitySet(Wildlife);
 
         RegenerateWorld(seed);
     }
@@ -135,14 +154,20 @@ public sealed class Simulation
         Ai.ResetStatistics();
         Actions.ResetStatistics();
         Needs.ResetStatistics();
+        WildlifeSystem.ResetStatistics();
+        Migration.ResetStatistics();
         PopulationCount = 0;
         BuildingCount = 0;
 
         World.RefreshSpatialIndex();
 
+        // 初始野生动物种群：按植被分布撒一遍（生态链的起点）
+        WildlifeSystem.SeedInitialPopulation();
+
         Events.Record(0, History.WorldEventType.WorldGenerated, "世界生成：seed=" + seed
             + " 森林=" + info.ForestTiles + " 草地=" + info.GrassTiles
-            + " 水域=" + info.WaterTiles + " 山地=" + info.MountainTiles);
+            + " 水域=" + info.WaterTiles + " 山地=" + info.MountainTiles
+            + " 初始动物=" + Wildlife.LiveCount);
     }
 
     /// <summary>
@@ -176,6 +201,11 @@ public sealed class Simulation
             Needs.TickNeeds(Agents, tick, World.Calendar.TicksPerDay, isNight);
             RecordDeathsFromNeeds(tick);
             Ai.Tick(tick, isNight);
+
+            // ---- 生态层（M2）----
+            // 动物每 tick 更新（它们数量多、动作简单），
+            // 但种群级事件（繁殖/自然死亡/容量重算）只在日边界发生。
+            WildlifeSystem.Tick(tick);
 
             // ---- 环境层 ----
             if (IsFastTick) { TickFast(); }
@@ -280,6 +310,11 @@ public sealed class Simulation
         Needs.TickAging(Agents, Random.Get(RngStream.Agents), World.Tick);
         RecordDeathsFromNeeds(World.Tick);
 
+        WildlifeSystem.TickDay(World.Tick);
+
+        // 迁移评估放在年龄/死亡之后：刚死掉的人不该再被考虑迁移。
+        Migration.TickDay(World.Tick);
+
         PopulationCount = Agents.LiveCount;
         Ai.RefreshBatchCount();
     }
@@ -346,7 +381,7 @@ public sealed class Simulation
             AverageTemperature = world.AverageTemperature(),
             Births = Stats.TotalBirths,
             Deaths = Stats.TotalDeaths,
-            Migrations = Stats.TotalMigrations,
+            Migrations = Migration.TotalMigrations,
 
             // SettlementCount 在 M1–M6 期间还没有聚落实体，用 0 而不是"实体总数"：
             // 实体总数里包含个体，把它当聚落数会让报告里的"聚落数"等于人口数（很误导）。

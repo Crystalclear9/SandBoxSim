@@ -38,19 +38,29 @@ public struct ScoreBuilder
         BlockedMultiplier = blockedMultiplier;
     }
 
-    /// <summary>加入一条考虑项。</summary>
-    public void Consider(string name, float input, UtilityCurve curve, float weight)
+    /// <summary>
+    /// 加入一条考虑项。
+    /// </summary>
+    /// <param name="isBonus">
+    /// true = "锦上添花"（缺席只是没那么想做，**不**触发"被门挡住"的惩罚）；
+    /// false = 前置条件（缺席就意味着这件事的前提不成立）。
+    ///
+    /// 用法约定：**"附近有没有 X"这类可得性/机会项绝大多数应该是 bonus**，
+    /// 因为"不可得"不等于"不该做" —— 后者会让动作在找不到目标时被额外打一次折，
+    /// 从而静默地再也不被选中（实测踩过一次，详见 Consideration.IsBonus）。
+    /// </param>
+    public void Consider(string name, float input, UtilityCurve curve, float weight, bool isBonus = false)
     {
         if (_count >= MaxConsiderations) { return; }
-        _items[_count] = new Consideration(name, input, curve, weight);
+        _items[_count] = new Consideration(name, input, curve, weight, isBonus);
         _count++;
     }
 
     /// <summary>加入一条"已经是分数"的考虑项（用 Linear 曲线传递）。</summary>
-    public void ConsiderScore(string name, float input, float score, float weight)
+    public void ConsiderScore(string name, float input, float score, float weight, bool isBonus = false)
     {
         if (_count >= MaxConsiderations) { return; }
-        _items[_count] = Consideration.FromScore(name, input, score, weight);
+        _items[_count] = Consideration.FromScore(name, input, score, weight, isBonus);
         _count++;
     }
 

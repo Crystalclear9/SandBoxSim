@@ -19,6 +19,9 @@ public sealed class SimConfig
     public ResourceConfig Resources = new ResourceConfig();
     public NeedsConfig Needs = new NeedsConfig();
     public AiConfig Ai = new AiConfig();
+    public WildlifeConfig Wildlife = new WildlifeConfig();
+    public MigrationConfig Migration = new MigrationConfig();
+    public GroundStockConfig GroundStocks = new GroundStockConfig();
     public DebugConfig Debug = new DebugConfig();
 
     /// <summary>深拷贝：世界重置（换 seed）时保持参数不变。</summary>
@@ -286,6 +289,9 @@ public sealed class AiConfig
     /// <summary>采集木材：木材储备的抑制权重（越足越不想砍）。</summary>
     public float GatherWoodNeedWeight = 1.4f;
 
+    /// <summary>采集类动作：随身物资接近舒适上限时的压制权重。</summary>
+    public float GatherOverstockWeight = 2.2f;
+
     /// <summary>采集木材的可得性权重。</summary>
     public float GatherWoodAvailabilityWeight = 1.2f;
 
@@ -309,6 +315,173 @@ public sealed class AiConfig
 
     /// <summary>动作的耐心上限（tick）：超过这个时间没完成就放弃，避免永远卡在一个目标上。</summary>
     public int ActionPatienceTicks = 900;
+
+    /// <summary>狩猎：饥饿驱动权重（略低于采集食物，因为狩猎有扑空风险）。</summary>
+    public float HuntHungerWeight = 1.9f;
+
+    /// <summary>
+    /// 狩猎：附近有猎物的权重。
+    ///
+    /// 这一项是 bonus（可得性，不是门槛），并且它同时也是**种群密度的负反馈入口**：
+    /// 猎物被打少之后，"附近有猎物"这一项自然变小，狩猎的吸引力随之下降，
+    /// 于是猎杀压力自动减弱 —— 不需要任何"禁止过度狩猎"的规则。
+    /// </summary>
+    public float HuntAvailabilityWeight = 1.1f;
+
+    /// <summary>存放物资：随身过剩的驱动权重（高于它就想去放下）。</summary>
+    public float DepositSurplusWeight = 1.2f;
+
+    /// <summary>存放物资：附近已有物资堆的额外加成（形成"物资集中"的萌芽）。</summary>
+    public float DepositPileBonusWeight = 0.8f;
+
+    /// <summary>取回物资：手上缺物资的驱动权重。</summary>
+    public float TakeNeedWeight = 0.7f;
+
+    /// <summary>取回物资：附近有物资堆的权重。</summary>
+    public float TakeAvailabilityWeight = 0.9f;
+
+    /// <summary>
+    /// 随身物资的"舒适上限"：接近它时，所有采集类动作都会被压制。
+    ///
+    /// 为什么必须有这个上限：采集动作原本只受"需求"驱动，而需求在得到满足后就停止增长 ——
+    /// 于是个体会**无限囤积**（实测人均随身 80+，而食物需求早就满足了）。
+    /// 囤积又立刻触发"存放"，于是 68% 的决策都花在"搬运物资"上：
+    /// 统计上非常热闹（搬了 90 万单位），但没有一处是真正的经济行为。
+    ///
+    /// **任何"只进不出"的累积机制最终都会淹没整个行为空间**，
+    /// 所以采集类动作必须有一个"够了"的信号。
+    /// </summary>
+    public float InventoryComfort = 45f;
+}
+
+/// <summary>
+/// 野生动物参数（M2 引入；第 41 节生态链的前半段）。
+///
+/// 为什么 M2 就要有动物：只有野生食物的话，"砍伐森林 → 生态变化"这条链是断的。
+/// 加上"植被 → 草食动物 → 猎人产出"之后，伐木才有**生态代价**，
+/// 而不只是"少了一块可以砍的地方"。
+/// </summary>
+public sealed class WildlifeConfig
+{
+    /// <summary>动物每 tick 移动多少格（比人快一点，逃跑才有意义）。</summary>
+    public float MoveSpeedPerTick = 0.5f;
+
+    /// <summary>每只动物被猎杀后提供的食物量。</summary>
+    public float FoodPerKill = 30f;
+
+    /// <summary>
+    /// 动物每天繁殖的基准概率（种群达到上限时乘以拥挤惩罚）。
+    ///
+    /// 这个值决定"狩猎能不能持续"。实测 0.12 时，40 个人的猎杀速度
+    /// （平均每天 3 只）远高于种群恢复速度，动物在 32 天内被打到 **0 只**。
+    /// 0.30 让种群在"适度猎杀"下能维持在一个动态平衡点上。
+    /// </summary>
+    public float ReproductionChancePerDay = 0.30f;
+
+    /// <summary>动物每天自然死亡的概率。</summary>
+    public float NaturalDeathChancePerDay = 0.02f;
+
+    /// <summary>
+    /// 每格植被能支撑的动物数量上限（全局种群的容量）。
+    ///
+    /// 这个值决定"猎物够不够养活一群人"。实测 0.02 时容量只有 60 只左右，
+    /// 40 个人在 40 天内把猎物打到 **0 只**（累计猎杀 45）——
+    /// 也就是说"狩猎"这条路会因为灭绝而彻底关闭，只剩下采集。
+    /// 提到 0.05 之后容量约 150 只，狩猎才成为一种**可持续**的食物来源。
+    /// </summary>
+    public float CapacityPerVegetationTile = 0.05f;
+
+    /// <summary>初始动物数量（按植被格数比例生成，上限受此限制）。</summary>
+    public int InitialPopulationCap = 120;
+
+    /// <summary>动物感知猎人的半径（格）；进入该半径就会逃跑。</summary>
+    public int FleeRadius = 6;
+
+    /// <summary>人猎杀动物的判定距离（格）。必须相邻（切比雪夫 ≤ 此值）。</summary>
+    public int HuntRange = 1;
+
+    /// <summary>猎杀一次需要的 tick 数（拉长一点，让"打猎"是有成本的行为）。</summary>
+    public int HuntTicks = 12;
+
+    /// <summary>动物的视野半径（格）：用于躲开猎人。</summary>
+    public int AnimalSenseRadius = 8;
+}
+
+/// <summary>
+/// 迁移参数（M2 引入；第 54 节的简化版）。
+///
+/// M2 只做"个体离开原住地"，不做"建立新聚落"（那是 M7）。
+/// 但即使只是"离开"，它也已经构成一个可观察的涌现现象：
+/// 一片地方被吃光 → 有人开始往外走 → 人口在空间上重新分布。
+/// </summary>
+public sealed class MigrationConfig
+{
+    /// <summary>迁移效用阈值：超过它才真的走。</summary>
+    public float Threshold = 0.62f;
+
+    /// <summary>触发迁移前，本地资源要紧张到什么程度（0=充足，1=完全枯竭）。</summary>
+    public float ScarcityGate = 0.55f;
+
+    /// <summary>迁移效用的各项权重。</summary>
+    public float ScarcityWeight = 1.0f;
+    public float HungerWeight = 0.8f;
+    public float HousingWeight = 0.4f;      // M3 之后才有意义
+    public float DangerWeight = 0.6f;
+    public float PopulationPressureWeight = 0.5f;
+    public float NearbyOpportunityWeight = 0.9f;
+    public float HomeAttachmentWeight = 1.1f;
+
+    /// <summary>迁移时向外走的最小距离（格）。</summary>
+    public int MinDistance = 25;
+
+    /// <summary>迁移时向外走的最大距离（格）。</summary>
+    public int MaxDistance = 60;
+
+    /// <summary>判定"同一地区"的半径（格）：离开这个半径才算迁移。</summary>
+    public int HomeRegionRadius = 18;
+
+    /// <summary>同一个体两次迁移之间至少间隔多少天（防止反复横跳）。</summary>
+    public float CooldownDays = 8f;
+
+    /// <summary>向四周找机会时探查多少个方向（越多越接近"考察过四周"）。</summary>
+    public int ProbeDirections = 8;
+
+    /// <summary>探查机会时向外看多远（格）。</summary>
+    public int ProbeDistance = 45;
+}
+
+/// <summary>地面物资堆（M2）：让"攒东西"这件事在空间上可见。</summary>
+public sealed class GroundStockConfig
+{
+    /// <summary>堆料点上每种资源的容量上限。</summary>
+    public float CapacityPerKind = 400f;
+
+    /// <summary>
+    /// 个体随身带多少"多余"物资时会去放下来。
+    ///
+    /// 这个值必须**显著高于**个体平时携带的量，否则会出现"存放—取回"空转：
+    /// 实测门槛 14（而人均随身约 80）时，40 天里 229,855 次决策有 201,484 次选中"存放"，
+    /// 把 26 万单位物资搬进 4 个堆又搬回来 —— 统计上"经济极其活跃"，实际上什么也没发生。
+    ///
+    /// 反方向的错误同样发生过：第一版门槛 25（看着很合理）时机制是完全的**死代码**
+    /// （存/取统计全为 0）。**两个方向都不报错，只能靠看统计发现。**
+    /// </summary>
+    public float SurplusThreshold = 60f;
+
+    /// <summary>一次放下多少。</summary>
+    public float DropAmount = 10f;
+
+    /// <summary>
+    /// 手上物资低于多少才值得去物资堆取回。必须**远低于** <see cref="SurplusThreshold"/>，
+    /// 否则两个动作会互相喂养（放下 ⇒ 变少 ⇒ 去取 ⇒ 变多 ⇒ 再放下）。
+    /// </summary>
+    public float TakeNeedThreshold = 8f;
+
+    /// <summary>一次取回多少。</summary>
+    public float TakeAmount = 15f;
+
+    /// <summary>堆料点的可见半径（格）：个体只在附近找/用堆料点。</summary>
+    public int SearchRadius = 18;
 }
 
 /// <summary>调试开关。</summary>

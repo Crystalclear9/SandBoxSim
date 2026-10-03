@@ -358,6 +358,8 @@ public sealed class AiSystem
             Config = _config,
             Ai = _ai,
             Chunk = world.Chunks.ReadAt(x, y),
+            GroundStocks = _sim.GroundStocks,
+            Wildlife = _sim.Wildlife,
             Tick = tick,
             IsNight = isNight,
             HomeX = _store.HomeXOf(slot),

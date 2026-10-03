@@ -106,6 +106,8 @@
     "gatherFoodHungerWeight": 2.5,
     "gatherFoodAvailabilityWeight": 1.0,
     "gatherWoodNeedWeight": 1.4,
+    "gatherOverstockWeight": 2.2,
+    "inventoryComfort": 45.0,
     "gatherWoodAvailabilityWeight": 1.2,
     "gatherStoneAvailabilityWeight": 1.0,
     "industriousnessWorkBonus": 0.55,
@@ -113,7 +115,56 @@
     "homeAttachmentWeight": 0.35,
     "homeAttachmentRadius": 25.0,
     "blockedUtilityMultiplier": 0.15,
-    "actionPatienceTicks": 900
+    "actionPatienceTicks": 900,
+    "huntHungerWeight": 1.9,
+    "huntAvailabilityWeight": 1.1,
+    "depositSurplusWeight": 1.2,
+    "depositPileBonusWeight": 0.8,
+    "takeNeedWeight": 0.7,
+    "takeAvailabilityWeight": 0.9
+  },
+
+  "wildlife": {
+    "$comment": "野生动物（M2）。生态链：植被 -> 动物 -> 猎人产出。砍伐森林会减少栖息地，从而减少猎物 —— 这是'砍树的长期代价'的来源。",
+    "moveSpeedPerTick": 0.5,
+    "foodPerKill": 30.0,
+    "reproductionChancePerDay": 0.30,
+    "naturalDeathChancePerDay": 0.02,
+    "capacityPerVegetationTile": 0.05,
+    "initialPopulationCap": 120,
+    "fleeRadius": 6,
+    "huntRange": 1,
+    "huntTicks": 12,
+    "animalSenseRadius": 8
+  },
+
+  "migration": {
+    "$comment": "迁移（M2 简化版）：只做'个体离开原住地'，不做'建立新聚落'（M7）。机会不是随机的，而是沿八个方向探出去比较资源密度。",
+    "threshold": 0.62,
+    "scarcityGate": 0.55,
+    "scarcityWeight": 1.0,
+    "hungerWeight": 0.8,
+    "housingWeight": 0.4,
+    "dangerWeight": 0.6,
+    "populationPressureWeight": 0.5,
+    "nearbyOpportunityWeight": 0.9,
+    "homeAttachmentWeight": 1.1,
+    "minDistance": 25,
+    "maxDistance": 60,
+    "homeRegionRadius": 18,
+    "cooldownDays": 8.0,
+    "probeDirections": 8,
+    "probeDistance": 45
+  },
+
+  "groundStocks": {
+    "$comment": "地面物资堆（M2）：让'攒物资'在空间上可见，是 M3 共享仓库的前身。",
+    "capacityPerKind": 400.0,
+    "surplusThreshold": 60.0,
+    "dropAmount": 10.0,
+    "takeNeedThreshold": 8.0,
+    "takeAmount": 15.0,
+    "searchRadius": 18
   },
 
   "debug": {

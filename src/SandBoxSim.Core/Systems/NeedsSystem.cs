@@ -82,9 +82,13 @@ public sealed class NeedsSystem
         float dehydrationDamage = needs.DehydrationDamagePerDay * perTick;
         float healthRecovery = needs.HealthRecoveryPerDay * perTick;
 
-        for (int slot = 0; slot < store.Capacity; slot++)
+        // 只遍历存活槽位（前缀数组）。原因同 ActionSystem：
+        // 容量按峰值人口预留，人口回落后遍历空槽位是纯粹浪费。
+        // 存活前缀数组的顺序始终是槽位升序，因此遍历顺序仍然确定。
+        int[] slots = store.LiveSlotsRaw(out int liveCount);
+        for (int k = 0; k < liveCount; k++)
         {
-            if (!store.IsSlotAlive(slot)) { continue; }
+            int slot = slots[k];
 
             bool sleeping = store.ActionOf(slot) == ActionKind.Sleep
                             && store.PhaseOf(slot) == ActionPhase.Executing;
@@ -169,9 +173,10 @@ public sealed class NeedsSystem
     {
         NeedsConfig needs = _config.Needs;
 
-        for (int slot = 0; slot < store.Capacity; slot++)
+        int[] slots = store.LiveSlotsRaw(out int liveCount);
+        for (int k = 0; k < liveCount; k++)
         {
-            if (!store.IsSlotAlive(slot)) { continue; }
+            int slot = slots[k];
 
             int age = store.AgeDaysOf(slot) + 1;
             store.SetAgeDays(slot, age);

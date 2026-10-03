@@ -46,7 +46,7 @@ internal static class DrinkAction
 
         // 干渴用 Quadratic：缺水比缺粮致命，因此基础权重更高。
         builder.Consider("干渴", thirst, UtilityCurve.Survival, w.DrinkThirstWeight);
-        builder.Consider("附近有水", water, UtilityCurve.Linear, 0.8f);
+        builder.Consider("附近有水", water, UtilityCurve.Linear, 0.8f, isBonus: true);
 
         return builder.Build();
     }
@@ -108,8 +108,9 @@ internal static class GatherFoodAction
 
         bool hasTarget = ActionSearch.TryFindResource(in ctx, ResourceKind.Food, out Int2 _);
         builder.Consider("饥饿", hunger, UtilityCurve.Survival, w.GatherFoodHungerWeight);
-        builder.Consider("附近有食物", hasTarget ? 1f : 0f, UtilityCurve.Linear, w.GatherFoodAvailabilityWeight);
+        builder.Consider("附近有食物", hasTarget ? 1f : 0f, UtilityCurve.Linear, w.GatherFoodAvailabilityWeight, isBonus: true);
         builder.Consider("背包里已有食物", stockPenalty, UtilityCurve.Quadratic, -0.9f);
+        builder.Consider("随身物资已够多", ActionSearch.Overstock01(in ctx), UtilityCurve.Survival, -w.GatherOverstockWeight);
 
         if (ctx.Ai.IndustriousnessWorkBonus > 0f)
         {
@@ -149,7 +150,8 @@ internal static class GatherWoodAction
         bool hasTarget = ActionSearch.TryFindResource(in ctx, ResourceKind.Wood, out Int2 _);
         builder.Consider("木材储备充足（越足越不想砍）", stocked, UtilityCurve.Quadratic, -w.GatherWoodNeedWeight);
         builder.Consider("手上有木材基础需求", 1f, UtilityCurve.Constant(w.GatherWoodNeedWeight * 0.4f), 1f);
-        builder.Consider("附近有森林", hasTarget ? 1f : 0f, UtilityCurve.Linear, w.GatherWoodAvailabilityWeight);
+        builder.Consider("附近有森林", hasTarget ? 1f : 0f, UtilityCurve.Linear, w.GatherWoodAvailabilityWeight, isBonus: true);
+        builder.Consider("随身物资已够多", ActionSearch.Overstock01(in ctx), UtilityCurve.Survival, -w.GatherOverstockWeight);
 
         float industriousness = ctx.Store.PersonalityOf(ctx.Slot).Industriousness;
         builder.ConsiderScore("勤劳性格", industriousness, industriousness, w.IndustriousnessWorkBonus);
@@ -180,7 +182,8 @@ internal static class GatherStoneAction
         bool hasTarget = ActionSearch.TryFindResource(in ctx, ResourceKind.Stone, out Int2 _);
         builder.Consider("石料储备充足（越足越不想采）", stocked, UtilityCurve.Quadratic, -w.GatherStoneAvailabilityWeight);
         builder.Consider("手上有石料基础需求", 1f, UtilityCurve.Constant(w.GatherStoneAvailabilityWeight * 0.35f), 1f);
-        builder.Consider("附近有石矿", hasTarget ? 1f : 0f, UtilityCurve.Linear, w.GatherStoneAvailabilityWeight);
+        builder.Consider("附近有石矿", hasTarget ? 1f : 0f, UtilityCurve.Linear, w.GatherStoneAvailabilityWeight, isBonus: true);
+        builder.Consider("随身物资已够多", ActionSearch.Overstock01(in ctx), UtilityCurve.Survival, -w.GatherOverstockWeight);
 
         float industriousness = ctx.Store.PersonalityOf(ctx.Slot).Industriousness;
         builder.ConsiderScore("勤劳性格", industriousness, industriousness, w.IndustriousnessWorkBonus);

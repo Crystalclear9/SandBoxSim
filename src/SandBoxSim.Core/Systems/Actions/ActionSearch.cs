@@ -233,6 +233,21 @@ internal static class ActionSearch
         return false;
     }
 
+    /// <summary>
+    /// 随身物资"已经够多"的程度 [0,1]（0 = 空手，1 = 达到或超过舒适上限）。
+    ///
+    /// 采集类动作共用它作为**压制项**（负权重）。理由见 <c>AiConfig.InventoryComfort</c>：
+    /// 没有"够了"这个信号，采集会无限囤积，并把整个行为空间淹掉。
+    /// </summary>
+    public static float Overstock01(in ActionContext ctx)
+    {
+        float comfort = ctx.Ai.InventoryComfort;
+        if (comfort <= 0.01f) { return 0f; }
+
+        float carried = ctx.Store.InventoryTotalOf(ctx.Slot);
+        return SimMath.Clamp01(carried / comfort);
+    }
+
     /// <summary>把个体的"离家距离"归一化成 [0,1]（0 = 在出生点，1 = 极远）。</summary>
     public static float HomeDistance01(in ActionContext ctx)
     {

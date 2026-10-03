@@ -203,11 +203,63 @@ public sealed class AStarPathfinder
     private readonly float[] _gScore;
     private readonly int[] _came;
     private readonly byte[] _state;    // 0 = 未访问, 1 = 在开放集里, 2 = 已关闭
+
+    /// <summary>
+    /// "本次搜索"标记（惰性清空用）。
+    ///
+    /// 为什么需要它（这是一个被实测数据抓出来的性能问题）：
+    /// 每 tick 有几十个个体在移动，而移动是**逐格重算**的 ——
+    /// 于是每次寻路都要 <c>Array.Clear</c> 三个长度 = 地图格数的数组。
+    /// 100×100 的地图就是每次 3 × 10000 个元素的清零，一秒上万次，
+    /// 绝大多数格子其实根本没被访问过。这就是"清零比搜索本身还贵"。
+    ///
+    /// 做法：给每个格子记一个"最后被哪次搜索写过"的编号，
+    /// 读取时先看编号是不是本次搜索；不是就当作未访问（不需要清零）。
+    /// 这样每次搜索的实际代价只与**访问到的格子数**成正比。
+    /// </summary>
+    private readonly int[] _gVersion;
+    private readonly int[] _cameVersion;
+    private readonly int[] _stateVersion;
+    private int _searchId;
+
+    /// <summary>
+    /// 本次搜索压入过开放集的节点（用于在搜索结束时清空堆）。
+    /// 遍历时可能有重复压入，但清空是幂等的（第二次 Pop 出来的节点我们不再处理）。
+    /// </summary>
+    private readonly int[] _pushed;
+    private int _pushedCount;
     private readonly BinaryHeap _open = new BinaryHeap();
 
     /// <summary>诊断计数：累计寻路次数与失败次数（报告里反映"世界是否可达"）。</summary>
     public long TotalSearches { get; private set; }
     public long FailedSearches { get; private set; }
+
+    /// <summary>累计扩展的节点数（A\* 的真实工作量指标；比"搜索次数"更能说明问题）。</summary>
+    public long TotalExpandedNodes { get; private set; }
+
+    /// <summary>
+    /// 按调用方分类的寻路次数（诊断用）。
+    ///
+    /// 为什么要分类统计："总共 14 万次寻路"这个数字本身没有行动价值 ——
+    /// 必须知道是**移动**在算、还是**选靶**在算、还是**迁移探路**在算，
+    /// 才能决定优化哪里。这类"按调用来源分解"的计数在性能排障里几乎总是第一步。
+    /// </summary>
+    public long SearchesFromMovement { get; private set; }
+    public long SearchesFromTargeting { get; private set; }
+    public long SearchesFromOther { get; private set; }
+
+    /// <summary>标记下一次寻路的来源类别（由调用方设置，仅用于统计）。</summary>
+    public enum SearchOrigin
+    {
+        Other = 0,
+        Movement = 1,
+        Targeting = 2,
+    }
+
+    private SearchOrigin _nextOrigin = SearchOrigin.Other;
+
+    /// <summary>由调用方声明"接下来这次寻路是谁发起的"（只影响统计）。</summary>
+    public void MarkOrigin(SearchOrigin origin) => _nextOrigin = origin;
     public int LastExpandedNodes { get; private set; }
     public int LastPathLength { get; private set; }
 
@@ -223,6 +275,10 @@ public sealed class AStarPathfinder
         _gScore = new float[_size];
         _came = new int[_size];
         _state = new byte[_size];
+        _gVersion = new int[_size];
+        _cameVersion = new int[_size];
+        _stateVersion = new int[_size];
+        _pushed = new int[_size];
         _open.EnsureCapacity(1024);
     }
 
@@ -248,7 +304,7 @@ public sealed class AStarPathfinder
         for (int i = count - 1; i >= 0; i--)
         {
             outPath[i] = new Int2(node % _width, node / _width);
-            node = _came[node];
+            node = CameOf(node);
             if (node < 0 && i > 0) { break; }
         }
 
@@ -275,11 +331,11 @@ public sealed class AStarPathfinder
 
         // 终点沿着 came 指针回溯到"起点的下一跳"
         int node = (goalY * _width) + goalX;
-        int previous = _came[node];
+        int previous = CameOf(node);
         while (previous >= 0 && previous != (startY * _width) + startX)
         {
             node = previous;
-            previous = _came[node];
+            previous = CameOf(node);
         }
 
         nextStep = new Int2(node % _width, node / _width);
@@ -289,6 +345,14 @@ public sealed class AStarPathfinder
     private PathResult FindPathCore(int startX, int startY, int goalX, int goalY)
     {
         TotalSearches++;
+
+        switch (_nextOrigin)
+        {
+            case SearchOrigin.Movement: SearchesFromMovement++; break;
+            case SearchOrigin.Targeting: SearchesFromTargeting++; break;
+            default: SearchesFromOther++; break;
+        }
+        _nextOrigin = SearchOrigin.Other;
 
         if (!_world.IsInBounds(startX, startY) || !_world.IsInBounds(goalX, goalY))
         {
@@ -309,23 +373,23 @@ public sealed class AStarPathfinder
 
         if (start == goal)
         {
-            _came[start] = -1;
+            SetCame(start, -1);
             LastExpandedNodes = 0;
             LastPathLength = 1;
             return new PathResult { Success = true, Length = 1, Cost = 0f, ExpandedNodes = 0 };
         }
 
-        // 重置状态：用 Array.Clear 而不是逐格赋最值，前者是连续的 memset，快得多。
-        System.Array.Clear(_gScore, 0, _size);
-        System.Array.Clear(_state, 0, _size);
-        _open.Clear();
+        // 开始一次新搜索：只递增编号，**不清空数组**（见 _gVersion 的说明）。
+        BeginSearch();
 
         Tile[] tiles = _world.Tiles;
 
-        _came[start] = -1;
-        _gScore[start] = 0f;
-        _state[start] = 1;
+        SetCame(start, -1);
+        SetG(start, 0f);
+        SetState(start, 1);
+
         _open.Push(start, Heuristic(startX, startY, goalX, goalY));
+        PushTrack(start);
 
         int expanded = 0;
         int guard = 0;
@@ -334,8 +398,8 @@ public sealed class AStarPathfinder
         while (!_open.IsEmpty)
         {
             int current = _open.Pop();
-            if (_state[current] == 2) { continue; }
-            _state[current] = 2;
+            if (StateOf(current) == 2) { continue; }
+            SetState(current, 2);
             expanded++;
 
             if (current == goal)
@@ -343,11 +407,13 @@ public sealed class AStarPathfinder
                 int length = ReconstructLength(goal);
                 LastExpandedNodes = expanded;
                 LastPathLength = length;
+                TotalExpandedNodes += expanded;
+                DrainOpen();
                 return new PathResult
                 {
                     Success = true,
                     Length = length,
-                    Cost = _gScore[goal],
+                    Cost = GOf(goal),
                     ExpandedNodes = expanded,
                 };
             }
@@ -370,7 +436,7 @@ public sealed class AStarPathfinder
                 if (nx < 0 || ny < 0 || nx >= _width || ny >= _height) { continue; }
 
                 int neighbour = (ny * _width) + nx;
-                if (_state[neighbour] == 2) { continue; }
+                if (StateOf(neighbour) == 2) { continue; }
 
                 ref readonly Tile tile = ref tiles[neighbour];
                 if (!tile.Walkable) { continue; }
@@ -395,16 +461,20 @@ public sealed class AStarPathfinder
 
                 if (stepCost <= 0f) { stepCost = 0.01f; }
 
-                float tentative = _gScore[current] + stepCost;
+                float tentative = GOf(current) + stepCost;
 
-                if (_state[neighbour] == 0 || tentative < _gScore[neighbour])
+                // 注意判据：先看"本次搜索是否访问过"（版本号），再看 g 值。
+                // 直接用 `_state[neighbour] == 0 ||` 是错的 ——
+                // 惰性清空之后，那个 0 可能来自**很久以前的某次搜索**。
+                if (StateOf(neighbour) == 0 || tentative < GOf(neighbour))
                 {
-                    _gScore[neighbour] = tentative;
-                    _came[neighbour] = current;
-                    _state[neighbour] = 1;
+                    SetG(neighbour, tentative);
+                    SetCame(neighbour, current);
+                    SetState(neighbour, 1);
 
                     float f = tentative + Heuristic(nx, ny, goalX, goalY);
                     _open.Push(neighbour, f);
+                    PushTrack(neighbour);
                 }
             }
         }
@@ -412,7 +482,57 @@ public sealed class AStarPathfinder
         FailedSearches++;
         LastExpandedNodes = expanded;
         LastPathLength = 0;
+        TotalExpandedNodes += expanded;
+        DrainOpen();
         return PathResult.Failed(expanded);
+    }
+
+    // ---------------------------------------------------------------------
+    // 惰性清空的访问器（见 _gVersion 的说明）
+    // ---------------------------------------------------------------------
+
+    private void BeginSearch()
+    {
+        _searchId++;
+        _pushedCount = 0;
+        _open.Clear();
+    }
+
+    private int StateOf(int node) => _stateVersion[node] == _searchId ? _state[node] : 0;
+
+    private void SetState(int node, byte value)
+    {
+        _state[node] = value;
+        _stateVersion[node] = _searchId;
+    }
+
+    private float GOf(int node) => _gVersion[node] == _searchId ? _gScore[node] : float.MaxValue;
+
+    private void SetG(int node, float value)
+    {
+        _gScore[node] = value;
+        _gVersion[node] = _searchId;
+    }
+
+    private int CameOf(int node) => _cameVersion[node] == _searchId ? _came[node] : -1;
+
+    private void SetCame(int node, int value)
+    {
+        _came[node] = value;
+        _cameVersion[node] = _searchId;
+    }
+
+    private void PushTrack(int node)
+    {
+        if (_pushedCount >= _pushed.Length) { return; }
+        _pushed[_pushedCount++] = node;
+    }
+
+    /// <summary>把本次搜索残留的堆元素吐出来（节点本身的状态已经是最终值，不会再被处理）。</summary>
+    private void DrainOpen()
+    {
+        while (!_open.IsEmpty) { _open.Pop(); }
+        _pushedCount = 0;
     }
 
     /// <summary>
@@ -453,10 +573,10 @@ public sealed class AStarPathfinder
         while (node >= 0 && length <= _size)
         {
             length++;
-            node = _came[node];
+            node = CameOf(node);
             if (node == -1) { break; }
         }
-        // _came[start] = -1，因此循环里多算了一次
+        // CameOf(起点) = -1，因此循环里多算了一次
         return length;
     }
 }

@@ -71,10 +71,13 @@ switch ($Mode) {
         exit 0
     }
     default {
+        # 续行反引号必须紧跟在行尾（后面不能有空格）—— 否则 PowerShell 会把下一行
+        # 当成独立语句解析，报出与真正原因无关的类型转换错误。
         Invoke-Run -Mode $Mode -Channel $Channel -Configuration $Configuration -SdkRoot $SdkRoot `
             -Seed $Seed -Days $Days -Ticks $Ticks -Width $Width -Height $Height `
             -ConfigPath $ConfigPath -OutDir $OutDir -SnapshotDays $SnapshotDays `
-            -Seeds $Seeds -NoColor $NoColor.IsPresent 
-            -Agents $Agents -AgentRadius $AgentRadius -ParallelBuild $ParallelBuild.IsPresent
+            -Seeds $Seeds -NoColor $NoColor.IsPresent `
+            -Agents $Agents -AgentRadius $AgentRadius `
+            -ParallelBuild $ParallelBuild.IsPresent
     }
 }

@@ -26,6 +26,24 @@ public sealed class AgentStore : ISimEntitySet
     private int _liveCount;
     private int _peakPopulation;
 
+    /// <summary>存活槽位前缀数组（按槽位升序；前 _liveCount 项有效）。见 LiveSlotsRaw。</summary>
+    private int[] _liveSlots = System.Array.Empty<int>();
+
+    /// <summary>
+    /// 迁移意愿的到期时刻（tick）。0 或已过期 = 不想搬家。
+    ///
+    /// 为什么需要一个独立的标志位，而不是只靠"家离得很远"来判断：
+    /// "离家距离"是**结果**，不是**意愿**。用它当判据会得到一个荒谬的自反馈 ——
+    /// 一旦个体因为任何原因离家远了，"迁移"动作的效用就变高，
+    /// 于是它一直被选中、一直在"往新家走"，其它一切行为（采集/存放/狩猎）都被饿死。
+    /// 实测：40 天里 106,354 次决策中有 92,656 次选中了"迁移"（87%）。
+    ///
+    /// 正确做法：迁移意愿只由 <c>MigrationSystem</c> 在每日评估时授予，
+    /// 并带一个到期时刻；动作层只负责"意愿还存在时朝新家走"。
+    /// 这就是"**意图与执行分离**"在个体内部的具体应用。
+    /// </summary>
+    private long[] _migrateUntil = System.Array.Empty<long>();
+
     /// <summary>下一个可用的槽位提示（避免每次分配都从头扫）。</summary>
     private int _nextFreeHint;
 
@@ -190,6 +208,8 @@ public sealed class AgentStore : ISimEntitySet
         System.Array.Resize(ref _decisionPhase, capacity);
         System.Array.Resize(ref _nextDecisionTick, capacity);
         System.Array.Resize(ref _lastDecision, capacity);
+        System.Array.Resize(ref _migrateUntil, capacity);
+        System.Array.Resize(ref _liveSlots, capacity);
 
         _capacity = capacity;
     }
@@ -318,10 +338,12 @@ public sealed class AgentStore : ISimEntitySet
         _decisionPhase[slot] = 0;
         _nextDecisionTick[slot] = 0;
         _lastDecision[slot] = default;
+        _migrateUntil[slot] = 0;
 
         _liveCount++;
         TotalBorn++;
         if (_liveCount > _peakPopulation) { _peakPopulation = _liveCount; }
+        RebuildLiveSlots();
 
         return new AgentRef(slot, _generation[slot]);
     }
@@ -343,11 +365,13 @@ public sealed class AgentStore : ISimEntitySet
         _hasPathStep[slot] = false;
         _deathCause[slot] = (byte)cause;
         _deathTick[slot] = tick;
+        _migrateUntil[slot] = 0;
 
         // 代次 +1：所有旧引用立刻失效
         _generation[slot]++;
         _liveCount--;
         TotalDied++;
+        RebuildLiveSlots();
 
         if (slot < _nextFreeHint) { _nextFreeHint = slot; }
     }
@@ -620,17 +644,75 @@ public sealed class AgentStore : ISimEntitySet
     }
 
     /// <summary>
+    /// 存活槽位的**原始数组与前缀长度**（前 <paramref name="count"/> 项有效，且**按槽位升序**）。
+    ///
+    /// 为什么要有这个"不够优雅"的接口：高频批量查询（例如"动物每 tick 找附近的人"）
+    /// 不能走 <see cref="AliveSlots"/> 那样的迭代器 —— 迭代器每次调用都会分配状态机对象，
+    /// 在每 tick 调用数十次、跑几十万 tick 的规模下会变成明显的 GC 压力。
+    ///
+    /// 与 <c>WildlifeStore</c> 的存活列表不同，这里的顺序**始终是槽位升序**
+    /// （用"压缩写入 + 整体重建"维护，而不是末尾交换），因为人的顺序参与确定性判定，不能乱。
+    /// </summary>
+    public int[] LiveSlotsRaw(out int count)
+    {
+        count = _liveCount;
+        return _liveSlots;
+    }
+
+    /// <summary>设置迁移意愿的到期时刻（由 MigrationSystem 调用）。</summary>
+    public void SetMigrateUntil(int slot, long tick)
+    {
+        if (slot >= 0 && slot < _migrateUntil.Length) { _migrateUntil[slot] = tick; }
+    }
+
+    /// <summary>当前是否还有迁移意愿（意愿过期即自动清除，不需要额外的清理逻辑）。</summary>
+    public bool IsMigrating(int slot, long now)
+    {
+        if (slot < 0 || slot >= _migrateUntil.Length) { return false; }
+        if (_migrateUntil[slot] == 0) { return false; }
+        if (now >= _migrateUntil[slot]) { _migrateUntil[slot] = 0; return false; }
+        return true;
+    }
+
+    /// <summary>清除迁移意愿（到达新家、或放弃迁移时调用）。</summary>
+    public void ClearMigrateIntent(int slot)
+    {
+        if (slot >= 0 && slot < _migrateUntil.Length) { _migrateUntil[slot] = 0; }
+    }
+
+    /// <summary>
+    /// 重建存活槽位前缀数组。必须在"存活集合发生变化"之后调用（Add / MarkDead / Reset）。
+    /// 位置：<see cref="Add"/>、<see cref="MarkDead"/>、<see cref="Reset"/>。
+    /// </summary>
+    private void RebuildLiveSlots()
+    {
+        if (_liveSlots.Length < _capacity) { _liveSlots = new int[_capacity]; }
+
+        int count = 0;
+        for (int slot = 0; slot < _capacity; slot++)
+        {
+            if (_alive[slot]) { _liveSlots[count++] = slot; }
+        }
+        _liveCount = count;
+    }
+
+    /// <summary>
     /// 找出离 (x,y) 最近的存活个体（切比雪夫距离）。
     /// 用带最大半径的搜索避免全表扫描：UI 点选与"附近有人吗"都走这里。
+    ///
+    /// 实现细节：遍历存活槽位前缀数组而不是整个容量数组。
+    /// 这一步很关键 —— 动物的"逃跑"逻辑每 tick 都会调用它，
+    /// 而容量数组在人口少的时候绝大部分是空的（实测这曾经让整体测试耗时翻了两倍多）。
     /// </summary>
     public bool TryFindNearest(int x, int y, int maxRadius, out int slot, out int distance)
     {
         slot = -1;
         distance = int.MaxValue;
 
-        for (int i = 0; i < _capacity; i++)
+        int count = _liveCount;
+        for (int k = 0; k < count; k++)
         {
-            if (!_alive[i]) { continue; }
+            int i = _liveSlots[k];
             int d = System.Math.Max(System.Math.Abs(_x[i] - x), System.Math.Abs(_y[i] - y));
             if (d < distance && d <= maxRadius)
             {
@@ -824,5 +906,7 @@ public sealed class AgentStore : ISimEntitySet
         TotalBorn = 0;
         TotalDied = 0;
         _nameOverrides.Clear();
+        if (_migrateUntil.Length > 0) { System.Array.Clear(_migrateUntil, 0, _migrateUntil.Length); }
+        RebuildLiveSlots();
     }
 }

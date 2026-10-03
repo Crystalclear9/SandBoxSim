@@ -59,7 +59,7 @@ public enum ActionKind : byte
     /// <summary>朝远处探索：为后续的"发现新资源/新定居点"做准备。</summary>
     Explore = 2,
 
-    // ---- M2 起陆续开放（枚举先占位，避免之后改动影响存档顺序）----
+    // ---- M2 起陆续开放 ----
     Eat = 10,
     Drink = 11,
     Sleep = 12,
@@ -76,7 +76,15 @@ public enum ActionKind : byte
     Flee = 23,
     Attack = 24,
     ShareFood = 25,
+
+    /// <summary>迁往新的住地（M2）：把"家"搬到远处并由个体自己走过去。</summary>
     Migrate = 26,
+
+    /// <summary>狩猎（M2）：猎杀附近的野生动物换取食物。</summary>
+    Hunt = 27,
+
+    /// <summary>从地面物资堆取回物资（M2）。</summary>
+    Take = 28,
 }
 
 /// <summary>动作的执行阶段（第 18 节：Condition → 选靶 → 移动 → 执行 → 结算）。</summary>

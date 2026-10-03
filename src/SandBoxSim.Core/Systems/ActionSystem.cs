@@ -44,6 +44,20 @@ public sealed class ActionSystem
     /// <summary>累计睡眠时长（tick）。</summary>
     public long TotalSleepTicks { get; private set; }
 
+    /// <summary>累计猎杀数与由此获得的食物（"人类活动影响生态"的直接证据）。</summary>
+    public int TotalHunted { get; private set; }
+    public float TotalHuntedFood { get; private set; }
+
+    /// <summary>累计存入/取出地面物资堆的数量（M2）。</summary>
+    public float TotalDeposited { get; private set; }
+    public float TotalTaken { get; private set; }
+
+    /// <summary>清空某个体的移动进度（迁移等操作会打断移动，必须同步清掉）。</summary>
+    public void ClearMoveProgress(int slot)
+    {
+        if (slot >= 0 && slot < _moveProgress.Length) { _moveProgress[slot] = 0f; }
+    }
+
     public ActionSystem(Simulation sim, AgentStore store, AStarPathfinder pathfinder)
     {
         _sim = sim ?? throw new System.ArgumentNullException(nameof(sim));
@@ -72,9 +86,13 @@ public sealed class ActionSystem
         CompletedThisTick = 0;
         FailedThisTick = 0;
 
-        for (int slot = 0; slot < _store.Capacity; slot++)
+        // 只遍历**存活**槽位（前缀数组），不遍历整个容量数组。
+        // 容量是按峰值人口预留的，人口回落之后大部分槽位是空的；
+        // 每 tick 扫一遍空槽位在长期运行里是纯粹的浪费（这类"看不见的常数"最容易被忽略）。
+        int[] slots = _store.LiveSlotsRaw(out int liveCount);
+        for (int k = 0; k < liveCount; k++)
         {
-            if (!_store.IsSlotAlive(slot)) { continue; }
+            int slot = slots[k];
 
             ActionPhase phase = _store.PhaseOf(slot);
             if (phase == ActionPhase.Idle || phase == ActionPhase.Done || phase == ActionPhase.Failed)
@@ -139,6 +157,7 @@ public sealed class ActionSystem
         {
             progress -= 1f;
 
+            _pathfinder.MarkOrigin(AStarPathfinder.SearchOrigin.Movement);
             PathResult result = _pathfinder.FindNextStep(x, y, target.X, target.Y, out Int2 next);
 
             if (!result.Success)
@@ -220,6 +239,13 @@ public sealed class ActionSystem
                 // 走到就算完成：漫游/探索没有"执行"阶段
                 Complete(slot, tick: _sim.World.Tick);
                 break;
+
+            case ActionKind.Migrate:
+                // 到达新家 ⇒ 清除迁移意愿，恢复正常生活。
+                // 如果目的地被中断（比如中途被打断），意愿会在到期时刻自动失效。
+                _store.ClearMigrateIntent(slot);
+                Complete(slot, tick: _sim.World.Tick);
+                break;
             default:
                 _store.SetState(slot, AgentState.Working);
                 break;
@@ -253,11 +279,160 @@ public sealed class ActionSystem
                 TickGather(slot, tick);
                 break;
 
+            case ActionKind.Hunt:
+                TickHunt(slot, tick);
+                break;
+
+            case ActionKind.Deposit:
+                TickDeposit(slot, tick);
+                break;
+
+            case ActionKind.Take:
+                TickTake(slot, tick);
+                break;
+
+            case ActionKind.Migrate:
+                // 迁移的"执行"就是走到新家；到达即完成（见 Arrive）。
+                Complete(slot, tick);
+                break;
+
             default:
                 // 未知动作：立刻完成，避免卡住
                 Complete(slot, tick);
                 break;
         }
+    }
+
+    /// <summary>
+    /// 狩猎（M2）：到达猎物附近后需要若干 tick 才能成功猎杀。
+    ///
+    /// 为什么要"若干 tick"而不是"到了就拿到肉"：
+    /// 拉长这个过程之后，猎物有时间逃跑（动物系统每 tick 都会躲人），
+    /// 于是"打猎"变成一个可能失败的行为 —— 而这个失败率会随**动物密度**变化。
+    /// 这正是"砍光森林 → 猎物变少 → 打猎更难"这条链能被玩家观察到的机制基础。
+    /// </summary>
+    private void TickHunt(int slot, long tick)
+    {
+        WildlifeStore wildlife = _sim.Wildlife;
+        int x = _store.XOf(slot);
+        int y = _store.YOf(slot);
+
+        if (!wildlife.TryFindNearest(x, y, _config.Wildlife.HuntRange, out int prey, out int _))
+        {
+            // 猎物跑了（或被别人抢了）：如果还在附近就再追，否则放弃
+            if (wildlife.TryFindNearest(x, y, _config.Wildlife.FleeRadius, out int nearby, out int _))
+            {
+                _store.SetTarget(slot, wildlife.XOf(nearby), wildlife.YOf(nearby));
+                _store.SetPhase(slot, ActionPhase.Moving);
+                _store.SetState(slot, AgentState.Moving);
+                return;
+            }
+
+            Fail(slot, ActionFailReason.TargetGone);
+            return;
+        }
+
+        // 需要持续瞄准若干 tick
+        if (_store.ActionTicksOf(slot) < _config.Wildlife.HuntTicks)
+        {
+            _ = prey;
+            return;
+        }
+
+        float food = _sim.WildlifeSystem.Hunt(x, y);
+        if (food <= 0f)
+        {
+            Fail(slot, ActionFailReason.TargetGone);
+            return;
+        }
+
+        _store.AddInventory(slot, ResourceKind.Food, food);
+        TotalHunted++;
+        TotalHuntedFood += food;
+        int index = (int)ResourceKind.Food;
+        HarvestedByKind[index] += food;
+
+        _sim.Events.Record(tick, History.WorldEventType.AgentAte,
+            _store.NameOrOverride(slot) + " 猎获一只动物（+" + food.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + " 食物）",
+            History.EventImportance.Minor,
+            new Int2(x, y),
+            slot,
+            -1,
+            "狩猎");
+
+        Complete(slot, tick);
+    }
+
+    /// <summary>存放物资：把随身物资放到地面堆上（在堆附近则叠加，否则就地新建）。</summary>
+    private void TickDeposit(int slot, long tick)
+    {
+        GroundStockConfig config = _config.GroundStocks;
+        GroundStockStore stocks = _sim.GroundStocks;
+        Int2 position = _store.HasTarget(slot) ? _store.TargetOf(slot) : new Int2(_store.XOf(slot), _store.YOf(slot));
+
+        float moved = 0f;
+        for (int kind = (int)ResourceKind.Food; kind <= (int)ResourceKind.Iron; kind++)
+        {
+            ResourceKind resource = (ResourceKind)kind;
+            float carried = _store.InventoryOf(slot, resource);
+            if (carried <= 0f) { continue; }
+
+            float wanted = carried < config.DropAmount ? carried : config.DropAmount;
+            float accepted = stocks.Deposit(position.X, position.Y, resource, wanted, config);
+            if (accepted <= 0f) { continue; }
+
+            _store.AddInventory(slot, resource, -accepted);
+            moved += accepted;
+        }
+
+        if (moved <= 0f)
+        {
+            // 放不下（堆满了或没有可放的资源）：不是错误，只是这次没事可做
+            Fail(slot, ActionFailReason.PrerequisiteLost);
+            return;
+        }
+
+        TotalDeposited += moved;
+        _sim.Events.Record(tick, History.WorldEventType.ResourceInjected,
+            _store.NameOrOverride(slot) + " 在 " + position + " 存放了 " + moved.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " 物资",
+            History.EventImportance.Minor,
+            position,
+            slot,
+            -1,
+            "存放物资");
+
+        Complete(slot, tick);
+    }
+
+    /// <summary>取回物资：从地面堆里取自己最缺的东西（食物优先）。</summary>
+    private void TickTake(int slot, long tick)
+    {
+        GroundStockConfig config = _config.GroundStocks;
+        GroundStockStore stocks = _sim.GroundStocks;
+        Int2 position = _store.HasTarget(slot) ? _store.TargetOf(slot) : new Int2(_store.XOf(slot), _store.YOf(slot));
+
+        float moved = 0f;
+        for (int kind = (int)ResourceKind.Food; kind <= (int)ResourceKind.Iron; kind++)
+        {
+            ResourceKind resource = (ResourceKind)kind;
+            if (_store.InventoryOf(slot, resource) >= config.TakeAmount) { continue; }
+
+            float taken = stocks.Withdraw(position.X, position.Y, resource, config.TakeAmount);
+            if (taken <= 0f) { continue; }
+
+            _store.AddInventory(slot, resource, taken);
+            moved += taken;
+            break;   // 一次只取一种，避免"一次把所有东西都搬空"
+        }
+
+        if (moved <= 0f)
+        {
+            Fail(slot, ActionFailReason.TargetGone);
+            return;
+        }
+
+        TotalTaken += moved;
+        Complete(slot, tick);
     }
 
     /// <summary>
@@ -442,6 +617,10 @@ public sealed class ActionSystem
         TotalFailed = 0;
         TotalFoodEaten = 0f;
         TotalSleepTicks = 0;
+        TotalHunted = 0;
+        TotalHuntedFood = 0f;
+        TotalDeposited = 0f;
+        TotalTaken = 0f;
         MovesThisTick = 0;
         for (int i = 0; i < HarvestedByKind.Length; i++) { HarvestedByKind[i] = 0f; }
         if (_moveProgress.Length > 0) { System.Array.Clear(_moveProgress, 0, _moveProgress.Length); }

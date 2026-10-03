@@ -30,7 +30,23 @@ public readonly struct Consideration
     /// <summary>本项的加权贡献（Weight × Score），可以是负数。</summary>
     public readonly float Contribution;
 
-    public Consideration(string name, float input, UtilityCurve curve, float weight)
+    /// <summary>
+    /// 这一项是不是"锦上添花"（bonus）而不是"前置条件"（gate）。
+    ///
+    /// 这个标志位解决了一个很隐蔽、但影响很大的问题：
+    /// "被门挡住"的判定是**任何正权重项得分 ≤ 0.05 就触发**，而触发之后整个动作的效用
+    /// 会乘以 <c>BlockedUtilityMultiplier</c>（默认 0.15）。
+    ///
+    /// 于是"附近已有物资堆 ⇒ 更想往那里放"这种**奖励性**的考虑项，
+    /// 会在"附近暂时没有堆"时把整个"存放"动作打到接近 0 —— 机制直接变成死代码。
+    /// 实测：40 天里 106,354 次决策，"存放"被选中 0 次。
+    ///
+    /// 区分"门槛"与"加分"是语义上的必要区分，不是数值调参：
+    /// **门槛缺席 ⇒ 这件事不能做；加分缺席 ⇒ 这件事只是没那么想做。**
+    /// </summary>
+    public readonly bool IsBonus;
+
+    public Consideration(string name, float input, UtilityCurve curve, float weight, bool isBonus = false)
     {
         Name = name;
         Input = SimMath.Clamp01(input);
@@ -38,13 +54,14 @@ public readonly struct Consideration
         Weight = weight;
         Score = curve.Evaluate(Input);
         Contribution = weight * Score;
+        IsBonus = isBonus;
     }
 
     /// <summary>直接指定曲线输出（用于"输入本身就是分数"的场合）。</summary>
-    public static Consideration FromScore(string name, float input, float score, float weight)
-        => new Consideration(name, input, UtilityCurve.Linear, weight, score);
+    public static Consideration FromScore(string name, float input, float score, float weight, bool isBonus = false)
+        => new Consideration(name, input, UtilityCurve.Linear, weight, score, isBonus);
 
-    private Consideration(string name, float input, UtilityCurve curve, float weight, float score)
+    private Consideration(string name, float input, UtilityCurve curve, float weight, float score, bool isBonus)
     {
         Name = name;
         Input = SimMath.Clamp01(input);
@@ -52,6 +69,7 @@ public readonly struct Consideration
         Weight = weight;
         Score = SimMath.Clamp01(score);
         Contribution = weight * Score;
+        IsBonus = isBonus;
     }
 
     public override string ToString()
@@ -205,9 +223,15 @@ public static class UtilityCombiner
         linear = linearSum / positiveWeightSum;
         geometric = (float)System.Math.Exp(logSum / positiveWeightSum);
 
-        // "被门挡住"的判定：某个正权重项得分极低（≤ 0.05），说明前置条件基本不成立。
+        // "被门挡住"的判定：某个**前置条件**项（不是 bonus）得分极低（≤ 0.05），
+        // 说明这件事的前提基本不成立。
+        //
+        // 必须排除 IsBonus 的项：bonus 的语义是"有更好，没有也能做"。
+        // 早期版本没区分两者，结果"附近有物资堆"这个加分项在附近没堆时
+        // 把整个"存放"动作的效用电到了 0.15 倍 —— 机制静默失效（见 IsBonus 的说明）。
         for (int i = 0; i < count; i++)
         {
+            if (considerations[i].IsBonus) { continue; }
             if (considerations[i].Weight > 0f && considerations[i].Score <= 0.05f)
             {
                 blocked = true;

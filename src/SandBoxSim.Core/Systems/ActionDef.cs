@@ -25,6 +25,12 @@ public struct ActionContext
     /// <summary>个体所在 chunk 的聚合信息（附近资源/地形），避免动作自己扫图。</summary>
     public ChunkStatsReadOnly Chunk;
 
+    /// <summary>地面物资堆（M2）：存/取动作读它。</summary>
+    public GroundStockStore? GroundStocks;
+
+    /// <summary>野生动物（M2）：狩猎动作读它。</summary>
+    public Agents.WildlifeStore? Wildlife;
+
     /// <summary>当前 tick。</summary>
     public long Tick;
 
@@ -121,15 +127,20 @@ public static class ActionRegistry
             if (_all == null)
             {
                 // 顺序即"平局优先级"：越靠前越优先。
-                // 把生存类动作放在漫游/探索前面，避免"又累又饿却还在闲逛"。
+                // 把生存类动作放在漫游/探索前面，避免"又累又饿却还在闲逛"；
+                // 把"存/取物资"与"狩猎"放在采集之后 —— 它们是补充手段，不是第一选择。
                 _all = new[]
                 {
                     ActionKind.Eat,
                     ActionKind.Drink,
                     ActionKind.Sleep,
                     ActionKind.GatherFood,
+                    ActionKind.Hunt,
+                    ActionKind.Take,
                     ActionKind.GatherWood,
                     ActionKind.GatherStone,
+                    ActionKind.Deposit,
+                    ActionKind.Migrate,
                     ActionKind.Explore,
                     ActionKind.Wander,
                 };
@@ -221,6 +232,38 @@ public static class ActionRegistry
                 {
                     Evaluate = Actions.GatherStoneAction.Evaluate,
                     SelectTarget = Actions.GatherStoneAction.SelectTarget,
+                    NeedsTarget = true,
+                };
+
+            case ActionKind.Hunt:
+                return new ActionDef(kind, "狩猎", isWork: true)
+                {
+                    Evaluate = Actions.HuntAction.Evaluate,
+                    SelectTarget = Actions.HuntAction.SelectTarget,
+                    NeedsTarget = true,
+                };
+
+            case ActionKind.Deposit:
+                return new ActionDef(kind, "存放物资", isWork: true)
+                {
+                    Evaluate = Actions.DepositAction.Evaluate,
+                    SelectTarget = Actions.DepositAction.SelectTarget,
+                    NeedsTarget = true,
+                };
+
+            case ActionKind.Take:
+                return new ActionDef(kind, "取回物资", isWork: true)
+                {
+                    Evaluate = Actions.TakeAction.Evaluate,
+                    SelectTarget = Actions.TakeAction.SelectTarget,
+                    NeedsTarget = true,
+                };
+
+            case ActionKind.Migrate:
+                return new ActionDef(kind, "迁往新住地")
+                {
+                    Evaluate = Actions.MigrateAction.Evaluate,
+                    SelectTarget = Actions.MigrateAction.SelectTarget,
                     NeedsTarget = true,
                 };
 
