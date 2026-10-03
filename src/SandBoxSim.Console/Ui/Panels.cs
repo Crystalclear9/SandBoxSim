@@ -94,7 +94,12 @@ public static class Panels
     }
 
     /// <summary>底栏：快捷键提示 + 当前 Overlay。</summary>
-    public static void DrawBottomBar(RenderBuffer buffer, Simulation sim, MapOverlay overlay, string statusMessage)
+    public static void DrawBottomBar(
+        RenderBuffer buffer,
+        Simulation sim,
+        MapOverlay overlay,
+        string statusMessage,
+        bool toolsOpen = false)
     {
         int top = buffer.Height - BottomBarHeight;
         Rgb back = Palette.UiPanel;
@@ -102,8 +107,12 @@ public static class Panels
 
         buffer.DrawHorizontalLine(0, top, buffer.Width, '\u2500', Palette.UiBorder, back);
 
-        string line1 = " 方向键/WASD 移动    +/- 缩放    SPACE 暂停    1/2/4/8 速度    "
-            + "O 切换叠加层    H 帮助    N 新世界    Q 退出";
+        // 提示行随模式变化：与其把两套键位都塞进一行，不如只显示当前模式用得上的那套。
+        // "记不住键位"是模拟游戏最常见的挫败来源，而屏幕底部是玩家一定会看的地方。
+        string line1 = toolsOpen
+            ? " TAB 收起工具    ←→ 换类别    ↑↓ 换工具    [ ] 调范围    ENTER 在此处执行    方向键被面板占用"
+            : " 方向键/WASD 移动    +/- 缩放    SPACE 暂停    1/2/4/8 速度    O 叠加层    "
+              + "TAB 工具    ENTER 选人    F 跟随    ESC 取消    H 帮助    Q 退出";
         buffer.WriteText(0, top + 1, RenderBuffer.Truncate(line1, buffer.Width), Palette.UiText, back);
 
         string overlayName = overlay == MapOverlay.None ? "地形" : overlay.ToString();
@@ -119,6 +128,73 @@ public static class Panels
             buffer.WriteText(0, top, RenderBuffer.Truncate(" " + statusMessage, buffer.Width - 2), Palette.UiWarn, back);
         }
     }
+
+    /// <summary>
+    /// 工具面板（第 45 / 46 节）：竖排显示当前类别的全部工具，高亮当前项。
+    ///
+    /// 画在地图左上角、**不占地图宽度**：工具面板是"随手可及"的东西，
+    /// 让它挤掉地图可视面积会直接伤害到"观察"这件核心活动。
+    /// 面板只覆盖地图的一个角，且用的是半透明感的深色底（终端没有真透明，用暗色近似）。
+    /// </summary>
+    public static void DrawToolPanel(RenderBuffer buffer, ToolPalette.State state, int originX, int originY)
+    {
+        // 宽度按最长的一行算，避免固定宽度在不同语言/工具名下被截断
+        int width = 24;
+        int rows = 2 + CountToolsInCategory(state.Category) + 2;
+
+        if (originX + width > buffer.Width) { return; }
+        if (originY + rows > buffer.Height - BottomBarHeight) { return; }
+
+        Rgb back = Palette.UiPanel;
+        Rgb border = Palette.UiAccent;
+        buffer.FillRect(originX, originY, width, rows, back);
+
+        buffer.DrawHorizontalLine(originX, originY, width, '\u2500', border, back);
+        buffer.WriteText(originX + 1, originY, " 上帝工具 ", border, back, bold: true);
+
+        // 类别行：四个类别横向排开，当前类别高亮
+        var categories = new StringBuilder();
+        var categoryColors = new System.Collections.Generic.List<Rgb>();
+        for (int i = 0; i < 4; i++)
+        {
+            ToolCategory category = (ToolCategory)i;
+            string label = ToolPalette.DisplayNameOf(category);
+            if (i > 0)
+            {
+                categories.Append(' ');
+                categoryColors.Add(Palette.UiTextDim);
+            }
+            categories.Append('[').Append(label).Append(']');
+            Rgb color = category == state.Category ? Palette.UiAccent : Palette.UiTextDim;
+            for (int k = 0; k < label.Length + 2; k++) { categoryColors.Add(color); }
+        }
+
+        buffer.WriteText(originX + 1, originY + 1, RenderBuffer.Truncate(categories.ToString(), width - 2),
+            Palette.UiText, back, bold: false);
+
+        // 工具列表
+        int[] indices = ToolPalette.IndicesOf(state.Category);
+        for (int i = 0; i < indices.Length; i++)
+        {
+            WorldTool tool = ToolPalette.Tools[indices[i]];
+            bool selected = indices[i] == state.ToolIndex;
+
+            string prefix = selected ? " > " : "   ";
+            string suffix = tool.UsesRadius && selected ? "  r=" + state.RadiusText : string.Empty;
+            string line = prefix + tool.Name + suffix;
+
+            buffer.WriteText(originX + 1, originY + 2 + i, RenderBuffer.Truncate(line, width - 2),
+                selected ? Palette.UiAccent : Palette.UiText, back, bold: selected);
+        }
+
+        int hintRow = originY + 2 + indices.Length + 1;
+        buffer.WriteText(originX + 1, hintRow, "ENTER 执行  [ ] 范围", Palette.UiTextDim, back);
+
+        _ = categoryColors;
+    }
+
+    private static int CountToolsInCategory(ToolCategory category)
+        => ToolPalette.IndicesOf(category).Length;
 
     /// <summary>
     /// 右侧信息面板：世界概况 / 天气与光照 / 选中格详情 / 最近事件。
@@ -276,15 +352,23 @@ public static class Panels
 
         string[] lines =
         {
-            "相机      方向键 / WASD 平移    +/- 缩放    Home 复位到地图中心",
+            "相机      方向键 / WASD 平移    +/- 缩放    Home 复位到地图中心    F 跟随选中的人",
             "时间      SPACE 暂停    1 / 2 / 4 / 8 切换速度",
             "世界      N 用新种子重生成世界    R 回到当前种子的初始状态",
-            "观察      O 循环切换叠加层：地形 / 肥沃 / 湿度 / 温度 / 木材 / 食物 / 植被 / 火险 / 可通行",
-            "选格      鼠标左键点击（若终端支持）或 Enter 选中视野中心格",
-            "退出      Q 或 ESC",
+            "观察      O 循环切换叠加层：地形 / 肥沃 / 湿度 / 温度 / 木材 / 食物 / 植被 / 火险 / 可通行 /",
+            "                    人口 / AI 状态 / 建筑",
+            "选格      Enter 选中视野中心格；若附近有人，则选中最近的人",
+            "工具      TAB 开关上帝工具面板（面板打开时方向键改为在面板内导航）",
+            "          ←→ 换类别（创造 / 地形 / 资源 / 恩惠）    ↑↓ 换工具",
+            "          [ ] 调作用半径    Enter 在光标处执行",
+            "退出      Q 退出    ESC 依次收起面板 / 取消选中 / 退出",
             "",
-            "本版本（M0）验证的是：世界可生成、可复现、可观察、Tick 架构与空间索引工作正常。",
-            "居民/资源采集/建造/人口/历史会在后续 Milestone 逐步接入（见 docs/12-Milestones.md）。",
+            "玩家创造的是**条件**，不是结果：",
+            "  工具里没有\"造一座城\"，只有地形、资源、地力、居民与动物。",
+            "  至于他们会不会留下、会不会成村、会不会闹饥荒 —— 交给模拟。",
+            "",
+            "延迟生效的工具（地力 / 再生倍率 / 天气）点下去只看到颜色变化，",
+            "  真正的后果要等模拟把它放大出来 —— 那才是这个游戏的玩法。",
             "",
             "当前叠加层：" + (currentOverlay == MapOverlay.None ? "地形" : currentOverlay.ToString()),
         };

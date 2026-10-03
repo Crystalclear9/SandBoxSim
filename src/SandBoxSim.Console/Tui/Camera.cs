@@ -155,6 +155,34 @@ public sealed class Camera
     }
 
     /// <summary>
+    /// 本帧可见的世界像素范围（**左闭右开**，已裁剪到世界边界内）。
+    ///
+    /// 为什么需要它：渲染实体（人/动物/建筑）时不能逐像素去查"这一格有没有人"
+    /// （那是 O(像素数 × 实体数)）。正确做法是**先算出可见范围，再遍历实体一次**
+    /// 把可见的那些盖进一张小索引表 —— 于是每帧的实体开销只与存活实体数成正比，
+    /// 与缩放级别无关。
+    ///
+    /// 边界必须按 Zoom 对齐并留出余量：`ViewLeft` 在"世界比视图小"时是负数，
+    /// 而整数除法对负数是向零截断，直接用 t = (x - ViewLeft) / Zoom 反推可见边界
+    /// 会漏掉最左/最上一列实体。
+    /// </summary>
+    public void GetVisibleWorldBounds(out int minX, out int minY, out int maxX, out int maxY)
+    {
+        int spanX = Zoom * PixelWidth;
+        int spanY = Zoom * PixelHeight;
+
+        minX = ViewLeft;
+        minY = ViewTop;
+        maxX = ViewLeft + spanX;
+        maxY = ViewTop + spanY;
+
+        if (minX < 0) { minX = 0; }
+        if (minY < 0) { minY = 0; }
+        if (maxX > WorldWidth) { maxX = WorldWidth; }
+        if (maxY > WorldHeight) { maxY = WorldHeight; }
+    }
+
+    /// <summary>
     /// 屏幕像素 → 世界像素。越界返回 false（画成黑边）。
     /// </summary>
     public bool ScreenToWorld(int screenPixelX, int screenPixelY, out int worldX, out int worldY)

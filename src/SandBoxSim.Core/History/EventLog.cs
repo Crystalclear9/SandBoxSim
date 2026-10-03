@@ -21,6 +21,12 @@ public enum WorldEventType : byte
     WeatherForced = 5,
     WeatherChanged = 6,
 
+    /// <summary>玩家调整了地力（M4 的 Blessing 工具）。</summary>
+    FertilityChanged = 7,
+
+    /// <summary>玩家放置了野生动物（M4 的 Create 工具）。</summary>
+    WildlifeSpawned = 8,
+
     // 火灾与灾害（M5）
     FireStarted = 10,
     FireSpread = 11,

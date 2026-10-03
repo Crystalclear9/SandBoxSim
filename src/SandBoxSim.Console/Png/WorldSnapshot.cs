@@ -1,6 +1,7 @@
 using SandBoxSim.ConsoleApp.Render;
 using SandBoxSim.ConsoleApp.Tui;
 using SandBoxSim.Core;
+using SandBoxSim.Core.Agents;
 using SandBoxSim.Core.Foundation;
 using SandBoxSim.Core.Environment;
 
@@ -39,6 +40,14 @@ public static class WorldSnapshot
 
         /// <summary>标题栏高度（像素），0 = 不画。</summary>
         public int HeaderHeight = 0;
+
+        /// <summary>
+        /// 是否把实体（人/动物/建筑）画进快照。
+        ///
+        /// 默认开启：归档快照的价值主要在于"能看出这个世界有人、有房子、在干什么"，
+        /// 只有方块地形的话它和 M0 的空世界截图没有区别。
+        /// </summary>
+        public bool DrawEntities = true;
     }
 
     /// <summary>渲染世界快照。</summary>
@@ -57,6 +66,25 @@ public static class WorldSnapshot
         image.Fill(Rgb.Black);
 
         uint noiseSeed = unchecked((uint)world.Seed * 2654435761u);
+
+        // 实体索引表：快照是**每格**查询"这一格上有没有人/动物/建筑"，
+        // 如果每格都线性扫一遍存活实体，整张图的成本是 O(格子数 × 实体数)。
+        // 这里先把两者各建一张稀疏索引（key = y * width + x），
+        // 于是每个格子退化成几次 O(1) 查表。
+        //
+        // 为什么不复用 TUI 的实体索引表：那一张是**按可见范围**建的（并随相机变化），
+        // 快照要覆盖整张地图，尺寸与生命周期都不同。这里用最朴素的稀疏索引即可，
+        // 因为它只跑一次、不进帧循环。
+        System.Collections.Generic.Dictionary<int, Rgb>? agentLookup = null;
+        System.Collections.Generic.Dictionary<int, Rgb>? wildlifeLookup = null;
+        System.Collections.Generic.Dictionary<int, Rgb>? buildingLookup = null;
+
+        if (opt.DrawEntities)
+        {
+            agentLookup = BuildAgentLookup(sim);
+            wildlifeLookup = BuildWildlifeLookup(sim);
+            buildingLookup = BuildBuildingLookup(sim, world);
+        }
 
         // 标题栏先画：地图从 HeaderHeight 开始，因此不会互相覆盖。
         if (opt.HeaderHeight > 0)
@@ -77,21 +105,50 @@ public static class WorldSnapshot
         {
             for (int x = 0; x < world.Width; x++)
             {
-                ref readonly Tile tile = ref world.TileAt(x, y);
-                Rgb color = opt.Overlay == MapOverlay.None
-                    ? Palette.Shade(in tile, x, y, noiseSeed, opt.LightLevel)
-                    : OverlayColor(in tile, opt.Overlay);
+                // 底图与叠加层都走 OverlayPalette —— 与 TUI 是**同一份实现**，
+                // 因此"报告里的图"和"屏幕上的图"不会讲两个故事。
+                Rgb baseColor = OverlayPalette.Resolve(sim, opt.Overlay, x, y, noiseSeed, opt.LightLevel);
+                Rgb color = baseColor;
+                bool isEntity = false;
+
+                // 实体盖在底图之上（与 TUI 相同的优先级：建筑 < 动物 < 人）。
+                // 顺序反过来写，于是"最后写入的优先级最高"这件事只在一处表达。
+                if (opt.DrawEntities)
+                {
+                    int key = (y * world.Width) + x;
+                    if (buildingLookup!.TryGetValue(key, out Rgb buildingColor)) { color = buildingColor; isEntity = true; }
+                    if (wildlifeLookup!.TryGetValue(key, out Rgb wildlifeColor)) { color = wildlifeColor; isEntity = true; }
+                    if (agentLookup!.TryGetValue(key, out Rgb agentColor)) { color = agentColor; isEntity = true; }
+                }
 
                 int baseX = x * scale;
                 int baseY = (y * scale) + opt.HeaderHeight;
+
+                // 实体用**居中的方块**而不是铺满整格。
+                //
+                // 尺寸取值踩过两次：铺满整格让人和地形一样大（看起来像"地形变了"），
+                // 缩到 1/3 格又小到几乎看不见（实测 8px 格子上 2px 的点在缩略图里消失）。
+                // 取半格宽是"能一眼看到"与"不遮住地形"之间实际可用的折中点。
+                int dotSize = System.Math.Max(2, scale / 2);
+                if (dotSize > scale) { dotSize = scale; }
+                int dotStart = (scale - dotSize) / 2;
 
                 for (int dy = 0; dy < scale; dy++)
                 {
                     for (int dx = 0; dx < scale; dx++)
                     {
+                        // 实体只在中心区域内画成实体色，边缘仍是底图色 —— 于是方块是"贴"在地形上的
+                        Rgb pixelColor = color;
+                        if (isEntity && scale >= 3)
+                        {
+                            bool inDot = dx >= dotStart && dx < dotStart + dotSize
+                                      && dy >= dotStart && dy < dotStart + dotSize;
+                            if (!inDot) { pixelColor = baseColor; }
+                        }
+
                         // 网格线：只在格子边界画，帮助人眼数格子（调试空间索引时很有用）
                         bool gridLine = opt.DrawGrid && scale >= 4 && (dx == 0 || dy == 0);
-                        image.SetPixel(baseX + dx, baseY + dy, gridLine ? Rgb.DarkGray : color);
+                        image.SetPixel(baseX + dx, baseY + dy, gridLine ? Rgb.DarkGray : pixelColor);
                     }
                 }
             }
@@ -100,38 +157,57 @@ public static class WorldSnapshot
         return image;
     }
 
-    /// <summary>与 TUI 完全一致的叠加层配色（两边共用同一映射规则，避免观察结论不一致）。</summary>
-    private static Rgb OverlayColor(ref readonly Tile tile, MapOverlay overlay)
+    /// <summary>这一格上有没有建筑（含工地）。</summary>
+    private static System.Collections.Generic.Dictionary<int, Rgb> BuildBuildingLookup(
+        Simulation sim,
+        SandBoxSim.Core.Environment.World world)
     {
-        switch (overlay)
+        var lookup = new System.Collections.Generic.Dictionary<int, Rgb>();
+        BuildingStore buildings = sim.Buildings;
+
+        // 走 Slot 顺序而不是存活列表顺序：**结果确定**（同一状态必得同一张图），
+        // 而字典的写入顺序会影响"同格冲突时谁赢"。虽然建筑不会同格重叠，
+        // 但把"确定性"写成不依赖巧合更安全。
+        for (int index = 0; index < buildings.Capacity; index++)
         {
-            case MapOverlay.Fertility: return Gradient(tile.Fertility);
-            case MapOverlay.Moisture: return Gradient(tile.Moisture);
-            case MapOverlay.Temperature: return Gradient(tile.Temperature);
-            case MapOverlay.Wood: return tile.Resource.Kind == ResourceKind.Wood ? Gradient(tile.Resource.Fraction) : new Rgb(20, 20, 24);
-            case MapOverlay.Food: return tile.Resource.Kind == ResourceKind.Food ? Gradient(tile.Resource.Fraction) : new Rgb(20, 20, 24);
-            case MapOverlay.Vegetation: return Gradient(tile.Vegetation);
-            case MapOverlay.FireRisk:
-            {
-                float dryness = 1f - tile.Moisture;
-                float fuel = TerrainInfo.IsVegetation(tile.Terrain) ? tile.Vegetation : 0f;
-                return Gradient(dryness * fuel);
-            }
-            case MapOverlay.Walkable:
-                if (tile.Terrain == TerrainKind.Water) { return new Rgb(20, 30, 60); }
-                return tile.Walkable ? new Rgb(40, 120, 70) : new Rgb(120, 40, 40);
-            default:
-                return new Rgb(120, 120, 120);
+            if (!buildings.IsAlive(index)) { continue; }
+            int key = (buildings.YOf(index) * world.Width) + buildings.XOf(index);
+            lookup[key] = OverlayPalette.BuildingColor(buildings, index);
         }
+        return lookup;
     }
 
-    private static Rgb Gradient(float value01)
+    /// <summary>人在哪、什么状态色（与 TUI 共用 <see cref="OverlayPalette.AgentColor"/>）。</summary>
+    private static System.Collections.Generic.Dictionary<int, Rgb> BuildAgentLookup(Simulation sim)
     {
-        float v = SimMath.Clamp01(value01);
-        Rgb low = new Rgb(24, 40, 96);
-        Rgb mid = new Rgb(40, 130, 96);
-        Rgb high = new Rgb(228, 88, 64);
-        if (v < 0.5f) { return Rgb.Lerp(low, mid, v * 2f); }
-        return Rgb.Lerp(mid, high, (v - 0.5f) * 2f);
+        var lookup = new System.Collections.Generic.Dictionary<int, Rgb>();
+        AgentStore agents = sim.Agents;
+        int[] slots = agents.LiveSlotsRaw(out int liveCount);
+        int width = sim.World.Width;
+
+        for (int k = 0; k < liveCount; k++)
+        {
+            int slot = slots[k];
+            int key = (agents.YOf(slot) * width) + agents.XOf(slot);
+            lookup[key] = OverlayPalette.AgentColor(agents, slot);
+        }
+        return lookup;
+    }
+
+    /// <summary>动物在哪（统一颜色：动物没有状态可看，玩家关心的是"猎场在哪"）。</summary>
+    private static System.Collections.Generic.Dictionary<int, Rgb> BuildWildlifeLookup(Simulation sim)
+    {
+        var lookup = new System.Collections.Generic.Dictionary<int, Rgb>();
+        WildlifeStore wildlife = sim.Wildlife;
+        int width = sim.World.Width;
+
+        for (int k = 0; k < wildlife.LiveCount; k++)
+        {
+            int index = wildlife.LiveAt(k);
+            if (!wildlife.IsAlive(index)) { continue; }
+            int key = (wildlife.YOf(index) * width) + wildlife.XOf(index);
+            lookup[key] = Palette.WildlifeColor;
+        }
+        return lookup;
     }
 }

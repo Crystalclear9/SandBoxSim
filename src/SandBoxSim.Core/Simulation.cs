@@ -516,7 +516,9 @@ public sealed class Simulation
     ///   * 出生点呈**高斯散布**而不是全部堆在同一格 —— 堆在一起会让寻路"互相挤"，
     ///     而且第一批行为会完全同步，看起来像克隆人；
     ///   * 同时给每个个体一个**散布的初始决策相位**，让决策天然错开（第 73 条的分批）；
-    ///   * 用 <see cref="RngStream.Agents"/> 流，保证"同 seed + 同放置指令"结果一致。
+    ///   * 用 <see cref="RngStream.Intervention"/> 流，而不是 <see cref="RngStream.Agents"/>：
+    ///     干预是外部输入，绝不能扰动模拟内核自己的随机序列
+    ///     （否则"玩家撒了几只动物"会改变接下来几天的天气 —— 见 RngStream.Intervention 的注释）。
     /// </summary>
     /// <param name="centerX">期望中心 X。</param>
     /// <param name="centerY">期望中心 Y。</param>
@@ -530,7 +532,7 @@ public sealed class Simulation
         // 容量不够先扩：否则 Add 会返回 None，表现为"玩家放了人但什么都没发生"
         Agents.EnsureCapacity(Agents.LiveCount + count);
 
-        DeterministicRandom rng = Random.Get(RngStream.Agents);
+        DeterministicRandom rng = Random.Get(RngStream.Intervention);
         int spawned = 0;
 
         for (int i = 0; i < count; i++)
@@ -589,7 +591,9 @@ public sealed class Simulation
                 if (tile.Terrain != TerrainKind.Grass && tile.Terrain != TerrainKind.Sand) { continue; }
 
                 float chance = (float)density * (1f - (dist / (radius + 1f)));
-                if (Random.Get(RngStream.Events).NextDouble() > chance) { continue; }
+                // 用 Intervention 流而不是 Events：后者属于天气/火灾/灾害。
+                // 借用它会让"玩家催生了一片森林"改变接下来几天的天气（见 RngStream.Intervention）。
+                if (Random.Get(RngStream.Intervention).NextDouble() > chance) { continue; }
 
                 World.SetTerrain(x, y, TerrainKind.Forest);
                 World.SetVegetation(x, y, 1f);
@@ -634,6 +638,94 @@ public sealed class Simulation
         World.Weather.ForceKind(kind, durationHours);
         Events.Record(Clock, History.WorldEventType.WeatherForced,
             "玩家强制天气为 " + WeatherInfo.NameOf(kind) + "，持续 " + durationHours + " 小时");
+    }
+
+    /// <summary>
+    /// 改变一片区域的肥沃度（第 45 节的 Blessing 工具：Increase Fertility）。
+    ///
+    /// 这是"玩家创造条件"里最典型的一类：它**不直接给食物**，
+    /// 只改变"这片土地将来能长多少东西"。玩家能立刻看到的结果只有颜色变化，
+    /// 真正的后果要等农业（M4）与采集把它放大出来。
+    ///
+    /// 用 <see cref="RngStream.Intervention"/> 流的随机数（**不是** Events 流）：
+    /// 干预必须与天气/火灾/灾害的随机序列完全隔离，
+    /// 否则玩家改一个条件就会连带改变天气，因果就再也无法归因（见 docs/13 与 RngStream.Intervention）。
+    /// </summary>
+    /// <returns>实际被修改的格子数。</returns>
+    public int InterveneSetFertility(int centerX, int centerY, int radius, float delta)
+    {
+        int changed = 0;
+
+        for (int y = centerY - radius; y <= centerY + radius; y++)
+        {
+            for (int x = centerX - radius; x <= centerX + radius; x++)
+            {
+                if (!World.IsInBounds(x, y)) { continue; }
+
+                float dist = (float)System.Math.Max(System.Math.Abs(x - centerX), System.Math.Abs(y - centerY));
+                if (dist > radius) { continue; }
+
+                // 越靠中心效果越强：让工具的作用范围看起来像"以光标为中心的一圈"，
+                // 而不是一个硬边方框（后者在视觉上很难判断自己改到了哪里）。
+                float falloff = radius <= 0 ? 1f : 1f - (dist / (radius + 1f));
+
+                float before = World.TileAt(x, y).Fertility;
+                float after = SimMath.Clamp01(before + (delta * falloff));
+                if (System.Math.Abs(after - before) < 1e-4f) { continue; }
+
+                World.SetFertility(x, y, after);
+                changed++;
+            }
+        }
+
+        if (changed > 0)
+        {
+            Events.Record(Clock, History.WorldEventType.FertilityChanged,
+                "玩家在 " + new Int2(centerX, centerY) + " 附近调整肥沃度 " + delta.ToString("+0.##;-0.##", System.Globalization.CultureInfo.InvariantCulture)
+                + "，影响 " + changed + " 格");
+        }
+
+        return changed;
+    }
+
+    /// <summary>
+    /// 放置野生动物（第 45 节的 Create 工具：Spawn Animal）。
+    ///
+    /// 为什么这是一个**重要的**工具而不是补全清单：动物种群是"砍树 → 猎物减少"
+    /// 这条延迟因果链的中间环节。玩家能直接往某处撒猎物，就能做一件事：
+    /// **在森林旁边放一群鹿，然后观察这群鹿会不会因为自己的人口增长而消失。**
+    /// 这是任务书第 67 节要求的最小可玩实验之一。
+    /// </summary>
+    /// <returns>实际放入的动物数量。</returns>
+    public int InterveneSpawnAnimals(int centerX, int centerY, int count, int radius = 5)
+    {
+        if (count <= 0) { return 0; }
+
+        Wildlife.EnsureCapacity(Wildlife.LiveCount + count);
+        DeterministicRandom rng = Random.Get(RngStream.Intervention);
+        int spawned = 0;
+
+        for (int i = 0; i < count; i++)
+        {
+            float radiusFraction = (float)System.Math.Sqrt(rng.NextDouble());
+            double angle = rng.NextDouble() * 6.283185307179586;
+            int offsetX = (int)System.Math.Round(System.Math.Cos(angle) * radius * radiusFraction);
+            int offsetY = (int)System.Math.Round(System.Math.Sin(angle) * radius * radiusFraction);
+
+            int x = SimMath.Clamp(centerX + offsetX, 0, World.Width - 1);
+            int y = SimMath.Clamp(centerY + offsetY, 0, World.Height - 1);
+
+            if (Wildlife.Add(World, x, y, 4, rng) < 0) { continue; }
+            spawned++;
+        }
+
+        if (spawned > 0)
+        {
+            Events.Record(Clock, History.WorldEventType.WildlifeSpawned,
+                "玩家在 " + new Int2(centerX, centerY) + " 附近放入 " + spawned + " 只动物");
+        }
+
+        return spawned;
     }
 
     // ---------------------------------------------------------------------

@@ -31,6 +31,22 @@ public enum RngStream
 
     /// <summary>预留：供后续系统扩展，避免改动已有流的语义而破坏旧存档。</summary>
     Reserve = 6,
+
+    /// <summary>
+    /// 玩家干预（第 45 节）。
+    ///
+    /// **为什么干预必须有自己的流**（这是一个很容易忽略、但会破坏整个可复现承诺的坑）：
+    /// 干预是"外部输入"，而模拟内核的每一条流都必须在"同样的世界 + 同样的干预"下
+    /// 产生同样的结果。如果干预去借 <see cref="Events"/> 流（天气、火灾、灾害都用它），
+    /// 那么"玩家多撒了几只动物"就会**改变接下来几天的天气序列** ——
+    /// 于是"改一个条件"这件事再也无法被干净地归因（第 94 条要求的正是干净归因）。
+    ///
+    /// 单独一条流之后，契约变成：
+    ///   * 不干预 ⇒ 与之前版本逐 tick 完全一致；
+    ///   * 干预 ⇒ 只有被直接改动的状态发生变化，其它随机序列不受影响。
+    /// 这条契约由 <c>InterventionTests.InterventionsDoNotPerturbSimulationStreams</c> 锁定。
+    /// </summary>
+    Intervention = 7,
 }
 
 /// <summary>
@@ -231,7 +247,17 @@ public sealed class DeterministicRandom
 /// </summary>
 public sealed class SimRandom
 {
-    private const int StreamCount = 7;
+    /// <summary>
+    /// 流的条数，**必须与 <see cref="RngStream"/> 的枚举值个数一致**。
+    ///
+    /// 这里刻意写成"由枚举算出来"而不是手写常数：
+    /// 手写常数时新增一条流（例如 M4 的 <see cref="RngStream.Intervention"/>）
+    /// 会静默地少分配一个槽位，报错发生在很远的地方（数组越界或拿到错误的流）。
+    /// 用枚举长度算，新增流只需要改枚举一处。
+    /// </summary>
+    private static readonly int StreamCount =
+        System.Enum.GetValues<RngStream>().Length;
+
     private readonly DeterministicRandom[] _streams;
 
     public ulong Seed { get; private set; }

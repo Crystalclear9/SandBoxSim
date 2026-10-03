@@ -29,7 +29,35 @@ public static class Palette
 
     /// <summary>建筑基色：偏暖的砖色，与任何地形色都不会混淆。</summary>
     public static readonly Rgb BuildingBase = new Rgb(196, 138, 106);
+
+    /// <summary>未完工工地：比建成建筑暗一档，让"工地 / 房子"一眼可辨。</summary>
+    public static readonly Rgb BuildingSite = new Rgb(126, 100, 80);
+
+    /// <summary>农田建筑：偏金绿，与裸土地形区分。</summary>
+    public static readonly Rgb FarmPlot = new Rgb(206, 186, 86);
+
     public static readonly Rgb BurntBase = new Rgb(58, 44, 38);
+
+    // ---- 实体（人 / 动物）：状态色 ----
+    //
+    // 人的颜色编码**当前状态**而不是身份 —— 玩家要能一眼看出"谁在干活、谁在睡、谁快饿死"。
+    // 身份信息（名字/性格/需求）交给检查器面板，那里有空间写清楚。
+    public static readonly Rgb AgentWorking = new Rgb(250, 236, 132);   // 工作/采集/建造
+    public static readonly Rgb AgentMoving = new Rgb(140, 210, 255);    // 在途
+    public static readonly Rgb AgentEating = new Rgb(150, 240, 150);    // 进食/饮水
+    public static readonly Rgb AgentSleeping = new Rgb(150, 150, 210);  // 睡眠
+    public static readonly Rgb AgentIdle = new Rgb(210, 210, 210);      // 空闲/漫游
+    public static readonly Rgb AgentStarving = new Rgb(255, 96, 72);    // 饥饿/脱水告急
+    public static readonly Rgb AgentElite = new Rgb(255, 196, 92);      // 被选中的个体
+
+    /// <summary>
+    /// 野生动物：**偏紫的褐色**。
+    ///
+    /// 为什么不用自然的棕色：沙地底色是 (198,182,126)，棕色动物落在沙滩上会完全看不见。
+    /// 往紫色偏一点能同时避开草地绿、水蓝、山灰、沙黄 —— 这是"配色必须可读"的直接后果，
+    /// 而不是审美选择（第 98 条）。
+    /// </summary>
+    public static readonly Rgb WildlifeColor = new Rgb(186, 116, 168);
 
     // ---- 资源与状态 ----
     public static readonly Rgb WoodTint = new Rgb(96, 60, 30);

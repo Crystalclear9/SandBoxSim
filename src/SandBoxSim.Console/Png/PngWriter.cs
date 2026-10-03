@@ -49,6 +49,19 @@ public sealed class PngImage
         b = Pixels[index + 2];
     }
 
+    /// <summary>
+    /// 读一个像素的颜色。越界返回黑色。
+    ///
+    /// 这个"看起来只是方便"的访问器是**测试所必需的**：
+    /// 没有它，就无法断言"某一格被画成了实体色 / 叠加层色"，
+    /// 而渲染层恰恰是唯一"程序不崩但画错了"的层（见 Tests/RendererTests.cs）。
+    /// </summary>
+    public Tui.Rgb GetPixel(int x, int y)
+    {
+        GetPixel(x, y, out byte r, out byte g, out byte b);
+        return new Tui.Rgb(r, g, b);
+    }
+
     /// <summary>用一个常量颜色填充整幅图。</summary>
     public void Fill(Tui.Rgb color)
     {
