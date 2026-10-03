@@ -150,6 +150,15 @@ public static class ActionRegistry
                     ActionKind.Deposit,
                     ActionKind.BuildHouse,
                     ActionKind.BuildStorage,
+
+                    // M4：农田。这两个都不能漏 —— `BuildFarm` 曾经只在 Describe 里注册、
+                    // 却不在 All 里，于是 AI **从不评估**建农田，世界永远没有农业，
+                    // 而"食物不足"就成了一个无法被玩家干预的死结。
+                    // 一个动作"已定义但不可达"是非常难发现的失效方式：没有任何报错，
+                    // 只有一个静默的 0。这与 M2 里"存放/取回被选中 0 次"是同一类问题。
+                    ActionKind.BuildFarm,
+                    ActionKind.Farm,
+
                     ActionKind.Migrate,
                     ActionKind.Explore,
                     ActionKind.Wander,
@@ -298,6 +307,14 @@ public static class ActionRegistry
                 {
                     Evaluate = Actions.BuildFarmAction.Evaluate,
                     SelectTarget = Actions.BuildFarmAction.SelectTarget,
+                    NeedsTarget = true,
+                };
+
+            case ActionKind.Farm:
+                return new ActionDef(kind, "耕种", isWork: true)
+                {
+                    Evaluate = Actions.FarmAction.Evaluate,
+                    SelectTarget = Actions.FarmAction.SelectTarget,
                     NeedsTarget = true,
                 };
 

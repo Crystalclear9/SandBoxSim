@@ -85,8 +85,14 @@ public sealed class Simulation
     /// <summary>共享库存（M3）：每个仓库一份，按建筑槽位对齐。</summary>
     public StorageStore Storage { get; }
 
-    /// <summary>建造系统（M3）：每 10 tick 推进施工。</summary>
+    /// <summary>建造系统（M3）：每 10 tick 推进施工。M4 起还负责农田产出与建筑衰减。</summary>
     public BuildingSystem BuildingSystem { get; }
+
+    /// <summary>
+    /// 出生系统（M4）—— 这个世界唯一缺失的机制。
+    /// 没有它，人口单调下降，前几个里程碑做出来的经济与建造最终都走向同一个结局。
+    /// </summary>
+    public BirthSystem Births { get; }
 
     public SimulationStats Stats { get; } = new SimulationStats();
 
@@ -145,6 +151,10 @@ public sealed class Simulation
         Buildings = new BuildingStore();
         Storage = new StorageStore();
         BuildingSystem = new BuildingSystem(this, Buildings);
+
+        // M4：出生系统。它需要 AgentStore + BuildingStore（床位是出生的硬门），
+        // 因此必须在这两者之后构造。
+        Births = new BirthSystem(this, Agents);
 
         // 注册进实体集合：世界重建时会自动 Reset，摘要会自动覆盖
         RegisterEntitySet(Agents);
@@ -300,6 +310,11 @@ public sealed class Simulation
                 -1,
                 "死因：" + causeLabel);
 
+            // M4：死亡必须**释放床位**并解开伴侣关系。
+            // 床位占用是计数的，漏释放会让"床位够不够"永远偏向"不够"，
+            // 出生率缓慢掉到 0 —— 不报错，只表现为"这个世界的孩子越来越少"。
+            Births.OnAgentRemoved(death.Slot);
+
             Stats.RecordDeath();
         }
     }
@@ -351,18 +366,31 @@ public sealed class Simulation
 
     /// <summary>
     /// 每天逻辑。
-    /// 目前包含：年龄推进 + 老年死亡 + 分批数重算（人口变化后需要重新分配决策相位）。
-    /// 出生/迁移/聚落升档会在 M4/M7 挂到这里。
+    ///
+    /// 顺序有讲究，而且每一条都有理由：
+    ///   1. **年龄推进 + 老年死亡**：先让"谁能生育"这件事定下来；
+    ///   2. **记录死亡**：床位在这之后才释放，因此同一天的出生看不到刚死的人的床；
+    ///   3. **配对**：伴侣关系按"同住/同地"近似（M4），在生育之前建立；
+    ///   4. **出生**：必须在年龄之后（否则今天刚成年的人要等到明天）；
+    ///   5. **农田结算与建筑衰减**：产出与损耗都在人口变化之后，反映"这一天结束时的账"；
+    ///   6. **野生动物 / 迁移**：与人口无直接耦合，放最后。
     /// </summary>
     public void TickDay()
     {
         Needs.TickAging(Agents, Random.Get(RngStream.Agents), World.Tick);
         RecordDeathsFromNeeds(World.Tick);
 
+        // M4：伴侣配对要在出生之前 —— 否则"今天刚搬来的人"永远配不上对
+        Births.TickPairing(World.Tick);
+        Births.TickDay(World.Tick);
+
         WildlifeSystem.TickDay(World.Tick);
 
-        // 迁移评估放在年龄/死亡之后：刚死掉的人不该再被考虑迁移。
+        // 迁移评估放在年龄/死亡/出生之后：世界已经稳定到"今天的样子"再考虑搬家。
         Migration.TickDay(World.Tick);
+
+        // 农田产出与建筑衰减放最后：它们是"这一天的收支结算"。
+        BuildingSystem.TickDay(World.Tick);
 
         PopulationCount = Agents.LiveCount;
         BuildingCount = Buildings.TotalCompleted;
@@ -567,6 +595,19 @@ public sealed class Simulation
         DeterministicRandom rng = Random.Get(RngStream.Intervention);
         int spawned = 0;
 
+        // 初始居民的年龄**必须散布**，否则会造出一个现实中不存在的"人口波"。
+        //
+        // 这是一个真实踩到的坑：原先所有人都是 `ageDays: 0`，也就是"同一天出生"。
+        // 于是他们会在同一天进入老年、又在同一天撞上寿命上限 ——
+        // 实测 100 天时人口曲线看着不错（40 → 47），但 90–100 天之间**整批人同时老死**，
+        // 200 天必然归零。而这不是"平衡没调好"，是初始条件本身不成立：
+        // 没有任何真实聚落的成员年龄完全一致。
+        //
+        // 散布范围取 [成年, 老年)，也就是都处于生育年龄 —— 与"放一批定居者"的语义一致。
+        int adulthood = Config.Needs.AdulthoodDays;
+        int elder = Config.Needs.ElderDays > adulthood ? Config.Needs.ElderDays : adulthood + 1;
+        int ageSpan = elder - adulthood;
+
         for (int i = 0; i < count; i++)
         {
             // 散布：在半径内取一个随机偏移（用 sqrt 保证在圆盘上均匀）
@@ -578,7 +619,9 @@ public sealed class Simulation
             int spawnX = SimMath.Clamp(centerX + offsetX, 0, World.Width - 1);
             int spawnY = SimMath.Clamp(centerY + offsetY, 0, World.Height - 1);
 
-            AgentRef reference = Agents.Add(World, spawnX, spawnY, rng, ageDays: 0, birthTick: Clock);
+            int ageDays = adulthood + (int)(rng.NextDouble() * ageSpan);
+
+            AgentRef reference = Agents.Add(World, spawnX, spawnY, rng, ageDays: ageDays, birthTick: Clock);
             if (reference.IsNone) { continue; }
 
             spawned++;

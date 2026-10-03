@@ -334,6 +334,13 @@ public static class SaveFile
                 .Set("nextDecisionTick", JsonValue.From(agents.NextDecisionTickOf(slot)))
                 .Set("migrateUntil", JsonValue.From(agents.MigrateUntilOf(slot)))
                 .Set("migrationCooldownUntil", JsonValue.From(sim.Migration.CooldownUntilOf(slot)))
+                // M4 家庭与住所：都影响未来行为，因此既进摘要也进存档
+                .Set("partnerSlot", JsonValue.From(agents.PartnerOf(slot)))
+                .Set("motherSlot", JsonValue.From(agents.MotherOf(slot)))
+                .Set("fatherSlot", JsonValue.From(agents.FatherOf(slot)))
+                .Set("childCount", JsonValue.From(agents.ChildCountOf(slot)))
+                .Set("lastBirthTick", JsonValue.From(agents.LastBirthTickOf(slot)))
+                .Set("dwelling", JsonValue.From(agents.DwellingOf(slot)))
                 .Set("birthTick", JsonValue.From(agents.BirthTickOf(slot))));
         }
 
@@ -341,6 +348,9 @@ public static class SaveFile
             .Set("totalBorn", JsonValue.From(agents.TotalBorn))
             .Set("totalDied", JsonValue.From(agents.TotalDied))
             .Set("peakPopulation", JsonValue.From(agents.PeakPopulation))
+            // M4 起必须存：出生会新增个体，而"下一个空槽在哪"决定新生儿落在哪个槽位，
+            // 槽位又进摘要 ⇒ 不存就会在第一次出生之后分叉。
+            .Set("nextFreeHint", JsonValue.From(agents.NextFreeHint))
             .Set("list", list);
     }
 
@@ -400,12 +410,18 @@ public static class SaveFile
                 .Set("y", JsonValue.From(buildings.YOf(index)))
                 .Set("workDone", JsonValue.From(buildings.WorkDoneOf(index)))
                 .Set("workRequired", JsonValue.From(buildings.WorkRequiredOf(index)))
-                .Set("builtTick", JsonValue.From(buildings.BuiltTickOf(index))));
+                .Set("builtTick", JsonValue.From(buildings.BuiltTickOf(index)))
+                // M4：床位占用、农田劳动量、完整度（都进摘要，都影响未来行为）
+                .Set("occupiedBeds", JsonValue.From(buildings.OccupiedBedsOf(index)))
+                .Set("labor", JsonValue.From(buildings.LaborOf(index)))
+                .Set("decay", JsonValue.From(buildings.DecayOf(index))));
         }
 
         return JsonValue.Object()
             .Set("totalBuilt", JsonValue.From(buildings.TotalBuilt))
             .Set("totalDemolished", JsonValue.From(buildings.TotalDemolished))
+            .Set("occupiedBeds", JsonValue.From(buildings.OccupiedBeds))
+            .Set("nextFreeHint", JsonValue.From(buildings.NextFreeHint))
             .Set("list", list);
     }
 

@@ -95,9 +95,34 @@ internal static class BuildAction
 
             case BuildingKind.Farm:
             {
-                // 农田缺口（M4 会真正驱动）：M3 只作为一个低优先级的"有粮就开垦"
+                // 农田缺口（M4）：**由食物短缺驱动**，而不是"手上有粮就开垦"。
+                //
+                // M3 的版本是 `clamp01(food / 40) * 0.5`，方向恰好是反的：
+                // 它让"有粮食的人"更想开田，而"快饿死的人"完全不想。
+                // 结果是世界永远不建农田（实测 100 天 0 块田），
+                // 于是 M4 的农业根本无法接入 —— 而出生系统又正是被食物卡住的。
+                //
+                // 正确的方向是缺口：**人均食物越低，越需要开垦**。
+                // 这与住房/仓库的缺口驱动是同一个道理（第 29 / 30 条）。
                 float food = ctx.Store.InventoryOf(ctx.Slot, ResourceKind.Food);
-                gap = SimMath.Clamp01(food / 40f) * 0.5f;
+                float personalShortfall = 1f - SimMath.Clamp01(food / System.Math.Max(1f, ctx.Config.Buildings.FarmBaseYieldPerDay * 2f));
+
+                // 已有农田越多，缺口越小（避免把整张地图开成田）
+                int farms = 0;
+                if (ctx.Buildings != null)
+                {
+                    for (int k = 0; k < ctx.Buildings.LiveCount; k++)
+                    {
+                        int candidate = ctx.Buildings.LiveAt(k);
+                        if (!ctx.Buildings.IsAlive(candidate)) { continue; }
+                        if (ctx.Buildings.KindOf(candidate) == BuildingKind.Farm) { farms++; }
+                    }
+                }
+
+                int population = System.Math.Max(1, ctx.Store.LiveCount);
+                // 目标：每 4 个人一块田。达到目标后缺口归零。
+                float farmGap = 1f - SimMath.Clamp01(farms / System.Math.Max(1f, population / 4f));
+                gap = System.Math.Max(personalShortfall, farmGap) * farmGap;
                 break;
             }
 

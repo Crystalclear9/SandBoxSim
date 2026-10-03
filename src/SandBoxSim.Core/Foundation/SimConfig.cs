@@ -23,6 +23,7 @@ public sealed class SimConfig
     public MigrationConfig Migration = new MigrationConfig();
     public GroundStockConfig GroundStocks = new GroundStockConfig();
     public BuildingConfig Buildings = new BuildingConfig();
+    public BirthConfig Birth = new BirthConfig();
     public DebugConfig Debug = new DebugConfig();
 
     /// <summary>深拷贝：世界重置（换 seed）时保持参数不变。</summary>
@@ -487,6 +488,91 @@ public sealed class BuildingConfig
 
     /// <summary>建造效用：附近有合适空地的权重（bonus）。</summary>
     public float BuildSiteWeight = 0.7f;
+
+    // ---- M4：建筑衰减 ----
+    //
+    // 为什么必须有衰减：M3 的建筑只会**单调增加**，饱和点只是掩盖了这个问题。
+    // 没有负反馈，"建造"就是一个只赚不赔的动作，世界会慢慢被房子填满，
+    // 而"住处无人维护"这件事在模拟里毫无代价。
+
+    /// <summary>无人使用的建筑每日衰减量（占完整度的比例）。</summary>
+    public float DecayPerDay = 0.012f;
+
+    /// <summary>新建（或刚被使用）之后的免衰减天数 —— 否则刚盖好就开始掉耐久，观感很怪。</summary>
+    public float DecayGraceDays = 3f;
+
+    /// <summary>衰减到 0 时是否拆除。</summary>
+    public bool DemolishWhenDecayed = true;
+
+    // ---- M4：农业产出 ----
+
+    /// <summary>农田基础日产量（食物单位）。实际产量还要乘地力/湿度/天气/劳动力。</summary>
+    public float FarmBaseYieldPerDay = 16f;
+
+    /// <summary>劳动力加成上限：有人耕种的农田最多产出 (1 + 这个值) 倍。</summary>
+    public float FarmLaborBonusMax = 0.6f;
+
+    /// <summary>没有劳动力时的产量系数（"野田"也会长一点，但远少于有人照料）。</summary>
+    public float FarmUnattendedFactor = 0.25f;
+
+    /// <summary>一次耕种动作贡献的"劳动日"单位。</summary>
+    public float FarmWorkPerAction = 1f;
+
+    /// <summary>每块农田每天最多累积多少劳动单位（防止一堆人挤在一块田上刷产量）。</summary>
+    public float FarmLaborPerDayCap = 3f;
+
+    /// <summary>干旱/洪涝时农田产量的惩罚系数（乘在天气因子上）。</summary>
+    public float FarmBadWeatherFactor = 0.45f;
+}
+
+/// <summary>
+/// 出生与人口（M4）—— 这个世界唯一缺失的机制。
+///
+/// M2 / M3 的长跑结论非常明确：**没有出生 ⇒ 人口单调下降 ⇒ 100 天后归零**
+/// （实测 150 天：38 例衰老、2 例脱水、**0 例饥饿**）。
+/// 所以 M4 要做的不是"调平衡"，而是把这条链补上：
+///
+/// ```text
+/// 食物 → 出生 → 人口 → 更多采集/建造 → 更多食物
+///         ↑                    ↓
+///       床位不足              资源被摊薄 → 食物下降 → 出生下降
+/// ```
+///
+/// 三条阻尼**缺一不可**，而且它们各自管一件不同的事：
+///   * `FoodFactor` —— 饿着的时候不该生孩子（最直觉的一条）；
+///   * `HousingFactor` —— 没床位就生不了（**硬门**，验收项 2 要求它是 0）；
+///   * `HealthFactor` —— 虚弱/生病的人不该生孩子。
+/// 再加上 `(1 − 人口压力)` 提供"增长会自己慢下来"这条负反馈，
+/// 否则出生会变成指数爆炸 —— 那是"看起来有增长"和"世界能长期跑"的分界。
+/// </summary>
+public sealed class BirthConfig
+{
+    /// <summary>基础每日出生概率（每对合格伴侣）。</summary>
+    public float BaseChancePerDay = 0.20f;
+
+    /// <summary>概率硬上限 —— 无论因子怎么乘，一天也不会超过它（防爆的最后一道闸）。</summary>
+    public float MaxChancePerDay = 0.30f;
+
+    /// <summary>"同住"近似半径（格）。M4 没有关系系统（那是 M6），用"离得近"近似伴侣。</summary>
+    public float PairRadius = 8f;
+
+    /// <summary>每对伴侣两次生育之间的最小间隔（天）—— 否则会一天生一个。</summary>
+    public float MinDaysBetweenBirths = 6f;
+
+    /// <summary>生育对母体健康的消耗（让"连续生育"有代价）。</summary>
+    public float HealthCostPerBirth = 0.08f;
+
+    /// <summary>食物因子的目标人均存量：低于它会拉低出生率，高于它不再加分。</summary>
+    public float FoodPerCapitaTarget = 30f;
+
+    /// <summary>食物因子的下限（避免"存量略低就完全不生"的悬崖）。</summary>
+    public float FoodFactorFloor = 0.15f;
+
+    /// <summary>人口压力强度：`(1 − clamp01(pop / capacity) × 本值)`。</summary>
+    public float PopPressureScale = 0.50f;
+
+    /// <summary>性格遗传的突变幅度（六维各自在此幅度内扰动）。</summary>
+    public float MutationScale = 0.08f;
 }
 
 /// <summary>地面物资堆（M2）：让"攒东西"这件事在空间上可见。</summary>

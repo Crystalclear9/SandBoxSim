@@ -161,7 +161,15 @@ public sealed class SaveLoadTests
             if (liveOrderBefore[i - 1] > liveOrderBefore[i]) { isAscending = false; break; }
         }
 
-        Assert.True(sawMoveProgress, "这一局里应当有人的小数步进度处于中间值（否则测不到这个字段）");
+        // 注意：这里**不再**断言"这一局恰好有人的小数步进度处于中间值"。
+        //
+        // 原先的写法 `Assert.True(sawMoveProgress, ...)` 在 M4 之后开始失败 ——
+        // 不是因为它发现了 bug，而是因为**世界参数一变，采样那一刻是否恰好有人走了一半就变了**。
+        // 这是一类会在每次调参后变成噪声的断言。
+        //
+        // 正确做法是：要测某个字段是否往返，就把它**设成一个确定的值**（见下面 probeSlot 那几行），
+        // 而不是依赖模拟恰好产生它。
+        _ = sawMoveProgress;
         Assert.False(isAscending,
             "动物的存活列表顺序应当**不是**升序（否则区分不出'顺序是否被保存'）—— "
             + "若不是升序说明测试场景需要调整（例如让人为制造一次动物死亡）");
@@ -174,6 +182,14 @@ public sealed class SaveLoadTests
         sim.Migration.RestoreCooldown(probeSlot, sim.Clock + 3000);
         sim.Agents.SetPathStep(probeSlot, 17, 23);
         sim.Actions.RestoreMoveProgress(probeSlot, 0.625f);
+
+        // 小数步进度也**手工设定**，而不是断言"这一局里恰好有人处于中间值"。
+        //
+        // 原先的写法是 `Assert.True(sawMoveProgress, ...)`，它在 M4 之后开始偶发失败 ——
+        // 因为世界的参数一变，"采样那一刻是否恰好有人走了一半"就变了。
+        // 这是测试设计的教训：**要测某个字段是否往返，就把它设成一个确定的值**，
+        // 而不是依赖模拟恰好产生它。依赖场景的断言会在每次调参后变成噪声。
+        sawMoveProgress = true;
 
         string json = sim.SaveToText();
 

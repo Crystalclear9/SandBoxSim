@@ -175,7 +175,33 @@
     "storageSearchRadius": 24,
     "buildMaterialWeight": 1.1,
     "buildGapWeight": 1.6,
-    "buildSiteWeight": 0.7
+    "buildSiteWeight": 0.7,
+
+    "$comment_decay": "M4：无人维护的建筑会衰减。没有它，建筑只会单调增加，饱和点只是掩盖了问题。",
+    "decayPerDay": 0.012,
+    "decayGraceDays": 3.0,
+    "demolishWhenDecayed": true,
+
+    "$comment_farm": "M4：农业产出。产量 = 基础 x 地力 x 湿度 x 天气 x 劳动力。FarmUnattendedFactor 让'有田但没人种'与'有人种'可区分。",
+    "farmBaseYieldPerDay": 16.0,
+    "farmLaborBonusMax": 0.6,
+    "farmUnattendedFactor": 0.25,
+    "farmWorkPerAction": 1.0,
+    "farmLaborPerDayCap": 3.0,
+    "farmBadWeatherFactor": 0.45
+  },
+
+  "birth": {
+    "$comment": "出生（M4）。这是这个世界唯一缺失的机制：没有出生，人口单调降到 0。三条阻尼缺一不可 —— 食物、床位（硬门）、健康，再加人口压力提供负反馈。",
+    "baseChancePerDay": 0.20,
+    "maxChancePerDay": 0.30,
+    "pairRadius": 8.0,
+    "minDaysBetweenBirths": 6.0,
+    "healthCostPerBirth": 0.08,
+    "foodPerCapitaTarget": 30.0,
+    "foodFactorFloor": 0.15,
+    "popPressureScale": 0.50,
+    "mutationScale": 0.08
   },
 
   "debug": {

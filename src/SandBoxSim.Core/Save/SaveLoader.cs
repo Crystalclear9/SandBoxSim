@@ -291,6 +291,13 @@ public static class SaveLoader
                 a.GetInt("decisionPhase", 0),
                 a.GetLong("nextDecisionTick", 0),
                 a.GetLong("migrateUntil", 0),
+                // M4 家庭与住所
+                a.GetInt("partnerSlot", -1),
+                a.GetInt("motherSlot", -1),
+                a.GetInt("fatherSlot", -1),
+                a.GetInt("childCount", 0),
+                a.GetLong("lastBirthTick", -1),
+                a.GetInt("dwelling", -1),
                 a.GetLong("birthTick", 0));
 
             string name = a.GetString("name", string.Empty);
@@ -301,6 +308,9 @@ public static class SaveLoader
         }
 
         store.RestoreCounters(agents.GetInt("totalBorn", 0), agents.GetInt("totalDied", 0));
+
+        // 槽位分配提示：M4 起它决定新生儿落在哪个槽位（槽位进摘要）。
+        store.NextFreeHint = agents.GetInt("nextFreeHint", 0);
     }
 
     private static void RestoreWildlife(Simulation sim, JsonValue wildlife)
@@ -370,8 +380,22 @@ public static class SaveLoader
                 b.GetInt("x", 0), b.GetInt("y", 0),
                 b.GetInt("workDone", 0),
                 b.GetInt("workRequired", 1),
-                b.GetLong("builtTick", 0));
+                b.GetLong("builtTick", 0),
+                b.GetInt("occupiedBeds", 0),
+                b.GetFloat("labor", 0f),
+                b.GetFloat("decay", 1f));
         }
+
+        // 床位占用总计是汇总值：逐建筑恢复之后再用存档里的总数校准一次，
+        // 因为摘要读的是这个汇总值（而它是可以在恢复过程中被重复累加的）。
+        if (buildings.TryGet("occupiedBeds", out SandBoxSim.Core.Foundation.JsonValue total))
+        {
+            store.RestoreOccupiedBeds(total.AsInt());
+        }
+
+        // 槽位分配提示：M4 的衰减拆除会让空槽重新出现，
+        // 因此它决定下一栋建筑落在哪个槽位（槽位进摘要）。
+        store.NextFreeHint = buildings.GetInt("nextFreeHint", 0);
     }
 
     private static void RestoreStorage(Simulation sim, JsonValue storage)
@@ -476,6 +500,9 @@ public static class SaveLoader
         // 迁移系统还有自己的一个计数器（只用于报告），与 Stats 的**不是同一个**。
         // 两者都要恢复：漏掉任意一个，报告或摘要就会对不上。
         sim.Migration.RestoreCounters(stats.GetInt("migrationSystemMigrations", 0));
+
+        // M4：出生系统也有自己的计数器（只用于报告），同样必须跟上 Stats。
+        sim.Births.RestoreCounters(stats.GetInt("totalBirths", 0));
 
         sim.ResourceSystem.RestoreCounters(
             stats.GetDouble("totalHarvested", 0d),

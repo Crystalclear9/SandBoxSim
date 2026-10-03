@@ -83,6 +83,24 @@ public sealed class StorageStore
         => AmountOf(index, ResourceKind.Food) + AmountOf(index, ResourceKind.Wood)
          + AmountOf(index, ResourceKind.Stone) + AmountOf(index, ResourceKind.Iron);
 
+    /// <summary>
+    /// 全图某个仓库槽位的**该种资源**总量之下的"全聚落该种资源总量"。
+    ///
+    /// M4 的出生系统需要"当下真的能吃到多少食物"，而食物同时存在于
+    /// 共享库存、地面物资堆与各人随身三处。这是其中一处。
+    /// 每次调用都遍历仓库槽位 —— 它每天只被调用一次（日结算），
+    /// 因此不值得为它维护一个缓存与随之而来的"缓存何时失效"问题。
+    /// </summary>
+    public float GrandTotalOf(ResourceKind kind, int buildingCapacity)
+    {
+        float sum = 0f;
+        for (int i = 0; i < buildingCapacity && i < _food.Length; i++)
+        {
+            sum += AmountOf(i, kind);
+        }
+        return sum;
+    }
+
     /// <summary>存入，返回实际接受量（容量满了会少于请求量，绝不覆盖已有内容）。</summary>
     public float Deposit(int index, ResourceKind kind, float amount)
     {

@@ -233,5 +233,235 @@ public sealed class BuildingSystem
     {
         CompletedThisTick = 0;
         WorkThisTick = 0;
+        FoodProducedThisDay = 0f;
+        DemolishedThisDay = 0;
     }
+
+    // ---------------------------------------------------------------------
+    // M4：农业产出、建筑衰减、住所
+    // ---------------------------------------------------------------------
+
+    /// <summary>本日农田产出的食物总量。</summary>
+    public float FoodProducedThisDay { get; private set; }
+
+    /// <summary>本日因衰减归零而被拆除的建筑数。</summary>
+    public int DemolishedThisDay { get; private set; }
+
+    /// <summary>累计拆除数。</summary>
+    public int TotalDemolished { get; private set; }
+
+    /// <summary>每日一次的农田结算与衰减评估（由 <c>Simulation.TickDay</c> 调用）。</summary>
+    public void TickDay(long tick)
+    {
+        FoodProducedThisDay = 0f;
+        DemolishedThisDay = 0;
+
+        ProduceFarmYield(tick);
+        TickDecay(tick);
+    }
+
+    /// <summary>
+    /// 农田产出（M4）。
+    ///
+    /// `Yield = Base × 地力 × 湿度 × 天气 × 劳动力`
+    ///
+    /// 其中**劳动力是关键的一项**：它让"有田"和"有人种田"成为两件不同的事。
+    /// 没有它，农田就会变成一台不需要人的自动售货机，
+    /// 而任务书要的因果链是"人 → 耕种 → 食物 → 人口"。
+    ///
+    /// 劳动力由 `Farm` 动作累积（每人每次动作加 `FarmWorkPerAction`），
+    /// 每日结算后清零 —— 因此"今天没人下地"这件事是有后果的。
+    /// </summary>
+    private void ProduceFarmYield(long tick)
+    {
+        float baseYield = _sim.Config.Buildings.FarmBaseYieldPerDay;
+        if (baseYield <= 0f) { return; }
+
+        float unattended = _sim.Config.Buildings.FarmUnattendedFactor;
+        float laborBonusMax = _sim.Config.Buildings.FarmLaborBonusMax;
+        float laborCap = _sim.Config.Buildings.FarmLaborPerDayCap;
+
+        for (int k = 0; k < _store.LiveCount; k++)
+        {
+            int index = _store.LiveAt(k);
+            if (!_store.IsAlive(index)) { continue; }
+            if (_store.KindOf(index) != BuildingKind.Farm) { continue; }
+            if (_store.StateOf(index) != BuildingState.Complete) { continue; }
+
+            Int2 position = _store.PositionOf(index);
+            Tile tile = _sim.World.TileAt(position.X, position.Y);
+
+            float labor = _store.LaborOf(index);
+            float laborFactor;
+            if (labor <= 0f)
+            {
+                laborFactor = unattended;
+            }
+            else
+            {
+                float capped = labor > laborCap ? laborCap : labor;
+                laborFactor = 1f + (laborBonusMax * (capped / laborCap));
+            }
+
+            float fertility = SimMath.Clamp01(tile.Fertility);
+            float moisture = SimMath.Clamp01(tile.Moisture);
+            float weather = WeatherFactor();
+
+            // 地力与湿度都取 [0.25, 1] 区间：农田不该因为"这格地力 0.05"而颗粒无收 ——
+            // 那会让玩家看到一块田却永远没有产出，无法从界面上理解原因。
+            float soil = 0.25f + (0.75f * fertility);
+            float water = 0.25f + (0.75f * moisture);
+
+            float yield = baseYield * soil * water * weather * laborFactor;
+            if (yield <= 0f) { _store.ClearLabor(index); continue; }
+
+            DepositYield(position, yield);
+            FoodProducedThisDay += yield;
+
+            _store.ClearLabor(index);
+        }
+    }
+
+    /// <summary>
+    /// 天气对农田的影响。
+    ///
+    /// 干旱与洪涝都压低产量（一个是缺水、一个是淹了），
+    /// 而"下雨"略微增产。这样 M5 的灾害工具一接入，
+    /// "玩家制造干旱 → 食物下降 → 人口下降"这条链就自动成立了。
+    /// </summary>
+    private float WeatherFactor()
+    {
+        WeatherKind kind = _sim.World.Weather.Kind;
+        switch (kind)
+        {
+            case WeatherKind.Drought: return _sim.Config.Buildings.FarmBadWeatherFactor;
+            case WeatherKind.Storm: return _sim.Config.Buildings.FarmBadWeatherFactor;
+            case WeatherKind.Rain: return 1.1f;
+            default: return 1f;
+        }
+    }
+
+    /// <summary>
+    /// 把农田产出放进最近的仓库；没有仓库就放地面物资堆。
+    ///
+    /// 这个降级顺序是刻意的：它让"还没盖仓库"的早期聚落也能靠农业活下去，
+    /// 同时让"盖了仓库"立刻带来好处（不再有堆料损耗与距离成本）。
+    /// </summary>
+    private void DepositYield(Int2 position, float amount)
+    {
+        int storage = FindStorageNear(position.X, position.Y);
+        if (storage >= 0 && _sim.Storage.CapacityOf(storage) > 0f)
+        {
+            _sim.Storage.Deposit(storage, ResourceKind.Food, amount);
+            return;
+        }
+
+        _sim.GroundStocks.Deposit(position.X, position.Y, ResourceKind.Food, amount, _sim.Config.GroundStocks);
+    }
+
+    private int FindStorageNear(int x, int y)
+    {
+        int radius = _sim.Config.Buildings.StorageSearchRadius;
+        int best = -1;
+        int bestDistance = int.MaxValue;
+
+        for (int k = 0; k < _store.LiveCount; k++)
+        {
+            int index = _store.LiveAt(k);
+            if (!_store.IsAlive(index)) { continue; }
+            if (_store.KindOf(index) != BuildingKind.Storage) { continue; }
+            if (_store.StateOf(index) != BuildingState.Complete) { continue; }
+
+            int distance = System.Math.Max(
+                System.Math.Abs(_store.XOf(index) - x),
+                System.Math.Abs(_store.YOf(index) - y));
+            if (distance > radius) { continue; }
+            if (distance < bestDistance) { bestDistance = distance; best = index; }
+        }
+
+        return best;
+    }
+
+    /// <summary>
+    /// 找一处有空床的住房（出生时给孩子与父母安排住所）。找不到返回 -1。
+    ///
+    /// 按"离 (x,y) 最近"排序，因此孩子会住进**父母附近**的房子 ——
+    /// 而不是地图另一头，那会立刻把一家人生生分开。
+    /// </summary>
+    public int FindHouseWithFreeBed(int x, int y)
+    {
+        int best = -1;
+        int bestDistance = int.MaxValue;
+
+        for (int k = 0; k < _store.LiveCount; k++)
+        {
+            int index = _store.LiveAt(k);
+            if (!_store.IsAlive(index)) { continue; }
+            if (_store.KindOf(index) != BuildingKind.House) { continue; }
+            if (_store.StateOf(index) != BuildingState.Complete) { continue; }
+            if (!_store.HasFreeBed(index)) { continue; }
+
+            int distance = System.Math.Max(
+                System.Math.Abs(_store.XOf(index) - x),
+                System.Math.Abs(_store.YOf(index) - y));
+            if (distance < bestDistance) { bestDistance = distance; best = index; }
+        }
+
+        return best;
+    }
+
+    /// <summary>
+    /// 衰减与拆除（M4）。
+    ///
+    /// 这是给"建造"补上的**负反馈**：M3 的建筑只会单调增加，
+    /// 饱和点只是掩盖了"没有维护成本"这件事。
+    /// 现在"空房子会烂掉"让"人走了"这件事第一次产生真实代价。
+    /// </summary>
+    private void TickDecay(long tick)
+    {
+        BuildingConfig config = _sim.Config.Buildings;
+        if (config.DecayPerDay <= 0f) { return; }
+
+        DemolishedThisDay = _store.TickDecay(
+            tick,
+            config.DecayPerDay,
+            config.DecayGraceDays,
+            _decayBuffer,
+            _sim.World.Calendar.TicksPerDay);
+
+        if (!config.DemolishWhenDecayed) { return; }
+
+        for (int i = 0; i < _decayBuffer.Count; i++)
+        {
+            int index = _decayBuffer[i];
+            if (!_store.IsAlive(index)) { continue; }
+
+            BuildingKind kind = _store.KindOf(index);
+            Int2 position = _store.PositionOf(index);
+
+            _store.Demolish(_sim.World, index);
+            TotalDemolished++;
+
+            // 农田被拆掉时地表要恢复成草地 —— 否则会留下一块不能建、也不产出的"死田"
+            if (kind == BuildingKind.Farm)
+            {
+                _sim.World.SetTerrain(position.X, position.Y, TerrainKind.Grass);
+            }
+
+            _sim.Events.Record(
+                tick,
+                History.WorldEventType.BuildingDestroyed,
+                BuildingRegistry.NameOf(kind) + "因长期无人维护而倒塌 @ " + position,
+                History.EventImportance.Normal,
+                position,
+                -1,
+                index,
+                "衰减归零");
+        }
+
+        _decayBuffer.Clear();
+    }
+
+    private readonly System.Collections.Generic.List<int> _decayBuffer =
+        new System.Collections.Generic.List<int>();
 }

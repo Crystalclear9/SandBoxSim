@@ -196,6 +196,20 @@ public sealed class BuildingStore : ISimEntitySet
     private int[] _generation = System.Array.Empty<int>();
     private long[] _builtTick = System.Array.Empty<long>();
 
+    // ---- M4：床位占用、农田劳动量、完整度 ----
+    //
+    // 三者都进状态摘要：床位是出生的硬门、劳动量决定农田产量、完整度决定拆除时机。
+    // 判据与 Phase 0 那六个"隐形状态"相同：**它会不会影响未来的行为**。
+
+    /// <summary>该建筑当前占用了几张床（只有住房用）。</summary>
+    private int[] _occupiedBeds = System.Array.Empty<int>();
+
+    /// <summary>该建筑累积的劳动量（只有农田用，每日清零）。</summary>
+    private float[] _labor = System.Array.Empty<float>();
+
+    /// <summary>完整度 [0,1]：无人使用时每日下降，归零即拆除。</summary>
+    private float[] _decay = System.Array.Empty<float>();
+
     /// <summary>存活索引列表（无空洞；建筑只增不减，但拆除会用到删除）。</summary>
     private int[] _live = System.Array.Empty<int>();
     private int _liveCount;
@@ -246,6 +260,15 @@ public sealed class BuildingStore : ISimEntitySet
         System.Array.Resize(ref _builtTick, capacity);
         System.Array.Resize(ref _live, capacity);
         System.Array.Resize(ref _liveIndexOfSlot, capacity);
+
+        // M4 新数组：扩容出来的部分是 0，而 `_decay` 的"满耐久"是 1 ——
+        // 必须显式填 1，否则新建的建筑会一上来就处于"已腐烂"状态。
+        int previous = _occupiedBeds.Length;
+        System.Array.Resize(ref _occupiedBeds, capacity);
+        System.Array.Resize(ref _labor, capacity);
+        System.Array.Resize(ref _decay, capacity);
+        for (int i = previous; i < capacity; i++) { _decay[i] = 1f; }
+
         for (int i = 0; i < capacity; i++) { _liveIndexOfSlot[i] = -1; }
     }
 
@@ -504,7 +527,7 @@ public sealed class BuildingStore : ISimEntitySet
     }
 
     /// <summary>
-    /// 把一条存档里的建筑精确恢复到指定槽位（读档专用）。
+    /// M4：把一条存档里的建筑精确恢复到指定槽位（读档专用）。
     ///
     /// 建筑通过 <c>Tile.BuildingId</c> 锚定在格子上，因此读档顺序必须是
     /// **先恢复地形（含 BuildingId）再恢复建筑** —— 否则锚点会指向还不存在的槽位，
@@ -520,6 +543,27 @@ public sealed class BuildingStore : ISimEntitySet
         int workDone,
         int workRequired,
         long builtTick)
+        => RestoreBuilding(slot, kind, state, x, y, workDone, workRequired, builtTick,
+            0, 0f, 0f);
+
+    /// <summary>
+    /// M4 版：额外恢复床位占用、劳动量与衰减。
+    ///
+    /// 这三项都**影响未来行为**（床位是出生的硬门、劳动量决定农田产量、衰减决定拆除），
+    /// 因此既进摘要也进存档 —— 与 Phase 0 那六个"隐形状态"同一个判据。
+    /// </summary>
+    public void RestoreBuilding(
+        int slot,
+        BuildingKind kind,
+        BuildingState state,
+        int x,
+        int y,
+        int workDone,
+        int workRequired,
+        long builtTick,
+        int occupiedBeds,
+        float labor,
+        float decay)
     {
         EnsureCapacity(slot + 1);
 
@@ -531,6 +575,10 @@ public sealed class BuildingStore : ISimEntitySet
         _workDone[slot] = workDone;
         _workRequired[slot] = workRequired > 0 ? workRequired : 1;
         _builtTick[slot] = builtTick;
+
+        _occupiedBeds[slot] = occupiedBeds < 0 ? 0 : occupiedBeds;
+        _labor[slot] = labor < 0f ? 0f : labor;
+        _decay[slot] = SimMath.Clamp01(decay);
 
         _tiles[slot].Clear();
         _tiles[slot].Add((y * _lastKnownWidth) + x);
@@ -551,6 +599,167 @@ public sealed class BuildingStore : ISimEntitySet
         }
     }
 
+    // ---------------------------------------------------------------------
+    // M4：床位占用、农田劳动量、建筑衰减
+    //
+    // 三者都是**新的持久状态**，因此都有对应的存档字段与摘要字段。
+    // ---------------------------------------------------------------------
+
+    /// <summary>已占用的床位数。</summary>
+    public int OccupiedBeds { get; private set; }
+
+    /// <summary>空闲床位数 —— 它是出生的**硬门**（没床位就生不了孩子）。</summary>
+    public int FreeBeds => TotalBeds - OccupiedBeds;
+
+    /// <summary>占用一个床位。返回 false 表示已满。</summary>
+    public bool TryOccupyBed()
+    {
+        if (OccupiedBeds >= TotalBeds) { return false; }
+        OccupiedBeds++;
+        return true;
+    }
+
+    /// <summary>释放一个床位（个体死亡或迁出时调用）。</summary>
+    public void ReleaseBed()
+    {
+        if (OccupiedBeds > 0) { OccupiedBeds--; }
+    }
+
+    /// <summary>某块农田累积的劳动量（M4）。</summary>
+    public float LaborOf(int index) => index >= 0 && index < _labor.Length ? _labor[index] : 0f;
+
+    /// <summary>
+    /// 槽位分配提示（**M4 起必须进存档**）。
+    ///
+    /// 与 `AgentStore.NextFreeHint` / `WildlifeStore.NextFreeHint` 是同一类东西：
+    /// 在 M4 之前建筑只增不减，因此"下一个空槽在哪"不影响模拟；
+    /// M4 引入**衰减拆除**之后，空槽会重新出现，
+    /// 于是它决定"下一栋建筑落在哪个槽位"，而槽位进状态摘要 ⇒ 读档后会分叉。
+    ///
+    /// 这已经是第三个同类字段了（野生动物、个体、建筑各一个）。
+    /// 它们的共同特征是：**看起来只是分配优化，实际决定了持久标识**。
+    /// </summary>
+    public int NextFreeHint
+    {
+        get => _nextFreeHint;
+        set => _nextFreeHint = value < 0 ? 0 : value;
+    }
+
+    /// <summary>该建筑当前占用了几张床（只有住房用）。</summary>
+    public int OccupiedBedsOf(int index) => index >= 0 && index < _occupiedBeds.Length ? _occupiedBeds[index] : 0;
+
+    /// <summary>占用该建筑的一个床位（个体搬入时调用）。返回 false 表示没有空床。</summary>
+    public bool TryOccupyBedOf(int index)
+    {
+        if (index < 0 || index >= _occupiedBeds.Length) { return false; }
+        BuildingRecipe recipe = BuildingRegistry.Of((BuildingKind)_kind[index]);
+        if (recipe.Beds <= 0) { return false; }
+        if (_occupiedBeds[index] >= recipe.Beds) { return false; }
+        _occupiedBeds[index]++;
+        OccupiedBeds++;
+        return true;
+    }
+
+    /// <summary>释放该建筑的一个床位（个体死亡或迁出时调用）。</summary>
+    public void ReleaseBedOf(int index)
+    {
+        if (index < 0 || index >= _occupiedBeds.Length) { return; }
+        if (_occupiedBeds[index] <= 0) { return; }
+        _occupiedBeds[index]--;
+        if (OccupiedBeds > 0) { OccupiedBeds--; }
+    }
+
+    /// <summary>该建筑还有没有空床。</summary>
+    public bool HasFreeBed(int index)
+    {
+        if (index < 0 || index >= _occupiedBeds.Length) { return false; }
+        return _occupiedBeds[index] < BuildingRegistry.Of((BuildingKind)_kind[index]).Beds;
+    }
+
+    /// <summary>把劳动量记到某块农田上（Farm 动作完成时调用）。</summary>
+    public void AddLabor(int index, float amount)
+    {
+        if (index < 0 || index >= _labor.Length) { return; }
+        _labor[index] += amount < 0f ? 0f : amount;
+    }
+
+    /// <summary>清空劳动量（每日结算后调用）。</summary>
+    public void ClearLabor(int index)
+    {
+        if (index < 0 || index >= _labor.Length) { return; }
+        _labor[index] = 0f;
+    }
+
+    /// <summary>
+    /// 推进一次衰减评估（每日调用），把"衰减到 0、该拆了"的建筑索引填进 <paramref name="outDemolish"/>。
+    ///
+    /// 为什么**不**在这里直接拆：拆除需要清掉 `Tile.BuildingId` 锚点，也就是需要 `World`。
+    /// 让 <see cref="BuildingStore"/> 持有 World 引用会破坏分层
+    /// （见 docs/02 的依赖方向），所以这里只产出"待拆清单"，
+    /// 由持有 World 的 <c>BuildingSystem</c> 调用既有的 <see cref="Demolish"/> 完成。
+    ///
+    /// 规则：**只有"被使用"的建筑才不掉耐久**。M4 里"被使用"的判据是
+    /// "有住户"（住房）或"有劳动量"（农田）。这条规则刻意选得朴素：
+    /// 它让"房子空着就会坏"变成玩家能一眼理解、也能干预（往里放人）的机制。
+    /// </summary>
+    /// <returns>本次进入"待拆"状态的建筑数。</returns>
+    public int TickDecay(
+        long tick,
+        float decayPerDay,
+        float graceDays,
+        System.Collections.Generic.List<int> outDemolish,
+        int ticksPerDay)
+    {
+        if (outDemolish == null) { return 0; }
+
+        int decayed = 0;
+        long graceTicks = (long)(graceDays * ticksPerDay);
+
+        for (int k = 0; k < _liveCount; k++)
+        {
+            int index = _live[k];
+            if (index < 0 || !_alive[index]) { continue; }
+            if (_state[index] != (byte)BuildingState.Complete) { continue; }
+
+            bool used = _occupiedBeds[index] > 0 || _labor[index] > 0f;
+            if (used)
+            {
+                // 被使用的建筑会**缓慢自我修复**（有人住就会顺手修）
+                if (_decay[index] < 1f)
+                {
+                    _decay[index] += decayPerDay * 2f;
+                    if (_decay[index] > 1f) { _decay[index] = 1f; }
+                }
+                continue;
+            }
+
+            // 宽限期：刚建成（或刚被腾空）的建筑不会立刻开始掉耐久，
+            // 否则"刚盖好就开始烂"会让建造显得毫无意义。
+            if (tick - _builtTick[index] < graceTicks) { continue; }
+
+            _decay[index] -= decayPerDay;
+            if (_decay[index] > 0f) { continue; }
+
+            _decay[index] = 0f;
+            outDemolish.Add(index);
+            decayed++;
+        }
+
+        return decayed;
+    }
+
+    /// <summary>建筑完整度 [0,1]（M4：无人维护会衰减）。</summary>
+    public float DecayOf(int index) => index >= 0 && index < _decay.Length ? _decay[index] : 1f;
+
+    /// <summary>读档时直接设定完整度。</summary>
+    public void SetDecay(int index, float value)
+    {
+        if (index >= 0 && index < _decay.Length) { _decay[index] = SimMath.Clamp01(value); }
+    }
+
+    /// <summary>读档时直接设定床位占用。</summary>
+    public void RestoreOccupiedBeds(int value) => OccupiedBeds = value < 0 ? 0 : value;
+
     /// <summary>
     /// 读档时需要知道地图宽度才能算出占据格的扁平索引。
     /// 由一个显式的设置方法传入，而不是让 BuildingStore 持有 World 引用 ——
@@ -568,9 +777,13 @@ public sealed class BuildingStore : ISimEntitySet
             _alive[i] = false;
             _liveIndexOfSlot[i] = -1;
             _tiles[i]?.Clear();
+            _occupiedBeds[i] = 0;
+            _labor[i] = 0f;
+            _decay[i] = 1f;
         }
         _liveCount = 0;
         _nextFreeHint = 0;
+        OccupiedBeds = 0;
         TotalBeds = 0;
         CompletedStorages = 0;
         TotalBuilt = 0;
@@ -581,6 +794,8 @@ public sealed class BuildingStore : ISimEntitySet
     public ulong HashInto(ulong hash)
     {
         hash = Hash64.Combine(hash, _liveCount);
+        // 床位占用是汇总值，但它决定"还有没有空床"，而空床是出生的硬门 ⇒ 必须进摘要。
+        hash = Hash64.Combine(hash, OccupiedBeds);
         // 按槽位升序（不是存活列表顺序）：存活列表的末尾交换会让顺序变化，
         // 从而破坏"同状态同摘要"（与野生动物/物资堆同一个教训）。
         for (int i = 0; i < _alive.Length; i++)
@@ -592,6 +807,11 @@ public sealed class BuildingStore : ISimEntitySet
             hash = Hash64.Combine(hash, _x[i]);
             hash = Hash64.Combine(hash, _y[i]);
             hash = Hash64.Combine(hash, _workDone[i]);
+
+            // M4：床位占用、农田劳动量、完整度 —— 三者都影响未来行为
+            hash = Hash64.Combine(hash, _occupiedBeds[i]);
+            hash = Hash64.Combine(hash, (int)(_labor[i] * 100f));
+            hash = Hash64.Combine(hash, (int)(_decay[i] * 1000f));
         }
         return hash;
     }

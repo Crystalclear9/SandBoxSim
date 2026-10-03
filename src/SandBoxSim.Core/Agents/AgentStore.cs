@@ -113,6 +113,156 @@ public sealed class AgentStore : ISimEntitySet
 
     private UtilityBreakdown[] _lastDecision = System.Array.Empty<UtilityBreakdown>();
 
+    // ---- M4：家庭与住所 ----
+    //
+    // 这几项**都进状态摘要**，因为它们都影响未来的行为：
+    //   * `_partnerSlot` 决定"这个人能不能生孩子"；
+    //   * `_childCount` 参与出生概率的分母（生太多的伴侣要歇一歇）；
+    //   * `_lastBirthTick` 是每对伴侣的生育间隔门；
+    //   * `_dwelling` 决定床位占用 —— 而床位是出生的**硬门**。
+    //
+    // 判据与 Phase 0 那六个"隐形状态"完全一样：**它会不会影响未来的行为**。
+
+    /// <summary>伴侣槽位（-1 = 无）。M4 用"同住/同地"近似，M6 会换成真实关系。</summary>
+    private int[] _partnerSlot = System.Array.Empty<int>();
+
+    /// <summary>母亲/父亲槽位（-1 = 未知）。用于血缘与 M6 的家庭结构。</summary>
+    private int[] _motherSlot = System.Array.Empty<int>();
+    private int[] _fatherSlot = System.Array.Empty<int>();
+
+    /// <summary>累计生育次数（该个体作为母体/父体）。</summary>
+    private byte[] _childCount = System.Array.Empty<byte>();
+
+    /// <summary>该对伴侣上一次生育的 tick（-1 = 从未）。</summary>
+    private long[] _lastBirthTick = System.Array.Empty<long>();
+
+    /// <summary>居住的建筑槽位 + 1（0 = 无住所）。床位占用由它推导。</summary>
+    private int[] _dwelling = System.Array.Empty<int>();
+
+    /// <summary>
+    /// 槽位分配提示（**M4 起必须进存档**）。
+    ///
+    /// 这是第七个"隐形状态"，而且它是被 M4 **激活**的：
+    /// 在 M4 之前没有任何东西会新增个体（`Add` 只在玩家干预时被调用），
+    /// 因此"下一个空槽在哪"不影响模拟。M4 有了出生之后，
+    /// 它直接决定**新生儿落在哪个槽位**，而槽位进状态摘要 ⇒ 读档后会分叉。
+    ///
+    /// 与 `WildlifeStore.NextFreeHint` 完全同类（Phase 0 修过的那一个），
+    /// 判据仍然是"它会不会影响未来的行为"。
+    /// </summary>
+    public int NextFreeHint
+    {
+        get => _nextFreeHint;
+        set => _nextFreeHint = value < 0 ? 0 : value;
+    }
+
+    public int PartnerOf(int slot) => _partnerSlot[slot];    public int MotherOf(int slot) => _motherSlot[slot];
+    public int FatherOf(int slot) => _fatherSlot[slot];
+    public int ChildCountOf(int slot) => _childCount[slot];
+    public long LastBirthTickOf(int slot) => _lastBirthTick[slot];
+
+    /// <summary>居住建筑的槽位（-1 = 无住所）。</summary>
+    public int DwellingOf(int slot) => _dwelling[slot] - 1;
+
+    public void SetPartner(int slot, int partnerSlot) => _partnerSlot[slot] = partnerSlot;
+    public void SetDwelling(int slot, int buildingIndex) => _dwelling[slot] = buildingIndex + 1;
+
+    /// <summary>记录一次生育：累加生育数并记下时刻（用于生育间隔门）。</summary>
+    public void RecordBirth(int slot, long tick)
+    {
+        if (_childCount[slot] < 255) { _childCount[slot]++; }
+        _lastBirthTick[slot] = tick;
+    }
+
+    /// <summary>
+    /// 把新生儿放进指定槽位（M4）。
+    ///
+    /// 与 <see cref="RestoreAgent"/> 一样走"显式字段"路径，而不是复用 `Add` ——
+    /// `Add` 会自己找位置、随机化初始需求，那是"凭空出现的人"的语义；
+    /// 出生要的是"母亲在哪他就在哪、性格从双亲遗传"。
+    /// </summary>
+    public AgentRef AddChild(
+        int x, int y, int motherSlot, int fatherSlot,
+        SandBoxSim.Core.Agents.Personality personality, long tick)
+    {
+        // 先确保有容量。
+        //
+        // 这是一个**真实踩到的、完全静默的失效**：`AgentStore` 的容量是按峰值人口
+        // 按需增长的（`InterveneSpawnHumans` 放 40 人 ⇒ 容量正好 40），
+        // 而 `AllocateSlot` 在满了之后只是返回 -1。
+        // 于是**每一次出生都在 AddChild 里悄悄失败**：没有异常、没有事件、
+        // 人口曲线看起来只是"出生率偏低" —— 实测 100 天只有个位数新生儿，
+        // 而按概率公式本该有上百个。
+        //
+        // 教训与 M2 的"存放/取回被选中 0 次"、以及 `BuildFarm` 不在注册表里
+        // 是同一类：**机制存在但不可达**，唯一的症状是一个安静的 0。
+        EnsureCapacity(_liveCount + 1);
+
+        int slot = AllocateSlot();
+        if (slot < 0) { return AgentRef.None; }
+
+        _x[slot] = x;
+        _y[slot] = y;
+        _prevX[slot] = x;
+        _prevY[slot] = y;
+        _homeX[slot] = _homeX[motherSlot >= 0 ? motherSlot : slot];
+        _homeY[slot] = _homeY[motherSlot >= 0 ? motherSlot : slot];
+        _facing[slot] = 0;
+
+        // 新生儿的需求从"接近满足"开始（但不全满：婴儿也要吃东西）
+        _hunger[slot] = 0.1f;
+        _fatigue[slot] = 0.3f;
+        _thirst[slot] = 0.1f;
+        _social[slot] = 0f;
+
+        _health[slot] = 1f;
+        _ageDays[slot] = 0;
+        _lifeStage[slot] = (byte)LifeStage.Child;
+        _job[slot] = (byte)JobType.None;
+        _deathCause[slot] = (byte)DeathCause.None;
+        _birthTick[slot] = tick;
+        _deathTick[slot] = -1;
+
+        _invFood[slot] = 0f;
+        _invWood[slot] = 0f;
+        _invStone[slot] = 0f;
+        _invIron[slot] = 0f;
+
+        _aggression[slot] = SimMath.Clamp01(personality.Aggression);
+        _greed[slot] = SimMath.Clamp01(personality.Greed);
+        _kindness[slot] = SimMath.Clamp01(personality.Kindness);
+        _bravery[slot] = SimMath.Clamp01(personality.Bravery);
+        _industriousness[slot] = SimMath.Clamp01(personality.Industriousness);
+        _sociability[slot] = SimMath.Clamp01(personality.Sociability);
+
+        _state[slot] = (byte)AgentState.Idle;
+        _action[slot] = (byte)ActionKind.None;
+        _actionPhase[slot] = (byte)ActionPhase.Idle;
+        _failReason[slot] = (byte)ActionFailReason.None;
+        _targetX[slot] = -1;
+        _targetY[slot] = -1;
+        _hasPathStep[slot] = false;
+        _actionTicks[slot] = 0;
+
+        _decisionPhase[slot] = 0;
+        _nextDecisionTick[slot] = tick;
+        _migrateUntil[slot] = 0;
+        _lastDecision[slot] = default;
+
+        _partnerSlot[slot] = -1;
+        _motherSlot[slot] = motherSlot;
+        _fatherSlot[slot] = fatherSlot;
+        _childCount[slot] = 0;
+        _lastBirthTick[slot] = -1;
+        _dwelling[slot] = motherSlot >= 0 ? _dwelling[motherSlot] : 0;
+
+        TotalBorn++;
+        RebuildLiveSlots();
+        if (_liveCount > _peakPopulation) { _peakPopulation = _liveCount; }
+
+        return new AgentRef(slot, _generation[slot]);
+    }
+
     // ---- 命名 ----
 
     private static readonly string[] SyllablesA =
@@ -209,6 +359,12 @@ public sealed class AgentStore : ISimEntitySet
         System.Array.Resize(ref _nextDecisionTick, capacity);
         System.Array.Resize(ref _lastDecision, capacity);
         System.Array.Resize(ref _migrateUntil, capacity);
+        System.Array.Resize(ref _partnerSlot, capacity);
+        System.Array.Resize(ref _motherSlot, capacity);
+        System.Array.Resize(ref _fatherSlot, capacity);
+        System.Array.Resize(ref _childCount, capacity);
+        System.Array.Resize(ref _lastBirthTick, capacity);
+        System.Array.Resize(ref _dwelling, capacity);
         System.Array.Resize(ref _liveSlots, capacity);
 
         _capacity = capacity;
@@ -296,6 +452,8 @@ public sealed class AgentStore : ISimEntitySet
         int targetX, int targetY, int actionTicks,
         bool hasPathStep, int pathStepX, int pathStepY,
         int decisionPhase, long nextDecisionTick, long migrateUntil,
+        int partnerSlot, int motherSlot, int fatherSlot, int childCount,
+        long lastBirthTick, int dwellingIndex,
         long birthTick)
     {
         EnsureCapacity(slot + 1);
@@ -357,6 +515,14 @@ public sealed class AgentStore : ISimEntitySet
         _decisionPhase[slot] = (byte)SimMath.Clamp(decisionPhase, 0, 255);
         _nextDecisionTick[slot] = nextDecisionTick;
         _migrateUntil[slot] = migrateUntil;
+
+        // M4 家庭与住所（读档路径）
+        _partnerSlot[slot] = partnerSlot;
+        _motherSlot[slot] = motherSlot;
+        _fatherSlot[slot] = fatherSlot;
+        _childCount[slot] = (byte)System.Math.Min(255, childCount < 0 ? 0 : childCount);
+        _lastBirthTick[slot] = lastBirthTick;
+        _dwelling[slot] = dwellingIndex + 1;
 
         // 决策分解**不存也不恢复**：它是"解释"而不是"状态"，下一次决策就会重算。
         // 恢复成分解反而危险 —— 那会显示一个过期 tick 的解释，看起来像世界卡住了。
@@ -460,6 +626,15 @@ public sealed class AgentStore : ISimEntitySet
         _nextDecisionTick[slot] = 0;
         _lastDecision[slot] = default;
         _migrateUntil[slot] = 0;
+
+        // M4 家庭与住所：槽位是**复用**的，所以必须显式清空，
+        // 否则新生个体会继承上一个死者的伴侣/父母/住所 —— 而且不报错，只是关系错乱。
+        _partnerSlot[slot] = -1;
+        _motherSlot[slot] = -1;
+        _fatherSlot[slot] = -1;
+        _childCount[slot] = 0;
+        _lastBirthTick[slot] = -1;
+        _dwelling[slot] = 0;
 
         _liveCount++;
         TotalBorn++;
@@ -1030,6 +1205,13 @@ public sealed class AgentStore : ISimEntitySet
             hash = Hash64.Combine(hash, (int)(_invIron[i] * 100f));
             hash = Hash64.Combine(hash, (int)(_aggression[i] * 1000f));
             hash = Hash64.Combine(hash, (int)(_industriousness[i] * 1000f));
+
+            // M4 家庭与住所：都影响未来行为（伴侣决定能不能生、住所决定床位占用、
+            // 而床位是出生的硬门），因此必须进摘要 —— 判据与 Phase 0 那六个隐形状态相同。
+            hash = Hash64.Combine(hash, _partnerSlot[i]);
+            hash = Hash64.Combine(hash, _childCount[i]);
+            hash = Hash64.Combine(hash, _dwelling[i]);
+            hash = Hash64.Combine(hash, _lifeStage[i]);
         }
         return hash;
     }

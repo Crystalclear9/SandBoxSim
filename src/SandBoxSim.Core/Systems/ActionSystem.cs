@@ -338,6 +338,10 @@ public sealed class ActionSystem
                 TickStoreInBuilding(slot, tick);
                 break;
 
+            case ActionKind.Farm:
+                TickFarm(slot, tick);
+                break;
+
             default:
                 // 未知动作：立刻完成，避免卡住
                 Complete(slot, tick);
@@ -486,11 +490,68 @@ public sealed class ActionSystem
         Complete(slot, tick);
     }
 
+    /// <summary>
+    /// 耕种（M4）：到达农田后把一份劳动量记到那块田上，然后离开。
+    ///
+    /// 与 <see cref="TickBuild"/> 同样是**一次性的**：到了、干了、走了。
+    /// 为什么不让个体一直站在田里：那会把一个人的全部时间吃掉，
+    /// 于是"饥荒时大家都去种地"会变成"没人去找吃的"，经济直接崩掉。
+    /// 一次访问 = 一份劳动量，反而让"要不要派这个人下地"成为一个真实的选择。
+    ///
+    /// 目标用**目标格**反查建筑（`Tile.BuildingId`），因此不需要给 AgentStore
+    /// 再加一个"目标建筑"字段 —— 少一个字段就少一处存档与摘要的维护点。
+    /// </summary>
+    private void TickFarm(int slot, long tick)
+    {
+        if (!_store.HasTarget(slot))
+        {
+            Fail(slot, ActionFailReason.TargetGone);
+            return;
+        }
+
+        Int2 target = _store.TargetOf(slot);
+        if (!_sim.World.IsInBounds(target.X, target.Y))
+        {
+            Fail(slot, ActionFailReason.TargetGone);
+            return;
+        }
+
+        int buildingId = _sim.World.TileAt(target.X, target.Y).BuildingId;
+        if (buildingId <= 0)
+        {
+            Fail(slot, ActionFailReason.TargetGone);
+            return;
+        }
+
+        int index = buildingId - 1;
+        if (!_sim.Buildings.IsAlive(index)
+            || _sim.Buildings.KindOf(index) != BuildingKind.Farm
+            || _sim.Buildings.StateOf(index) != BuildingState.Complete)
+        {
+            Fail(slot, ActionFailReason.TargetGone);
+            return;
+        }
+
+        BuildingConfig cfg = _sim.Config.Buildings;
+        float cap = System.Math.Max(0.01f, cfg.FarmLaborPerDayCap);
+        if (_sim.Buildings.LaborOf(index) < cap)
+        {
+            _sim.Buildings.AddLabor(index, System.Math.Max(0.01f, cfg.FarmWorkPerAction));
+            FarmVisits++;
+        }
+
+        // 田里今天的活已经满了也走"完成"而不是"失败"：
+        // 失败会留下失败原因并触发重决策，看起来像出了问题，其实一切正常。
+        Complete(slot, tick);
+    }
+
+    /// <summary>累计耕种次数（观测"农业是否真的在运转"）。</summary>
+    public long FarmVisits { get; private set; }
+
     private static BuildingKind KindForBuildAction(ActionKind action)
     {
         switch (action)
-        {
-            case ActionKind.BuildHouse: return BuildingKind.House;
+        {            case ActionKind.BuildHouse: return BuildingKind.House;
             case ActionKind.BuildStorage: return BuildingKind.Storage;
             case ActionKind.BuildFarm: return BuildingKind.Farm;
             default: return BuildingKind.None;
