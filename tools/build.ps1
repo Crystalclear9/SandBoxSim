@@ -47,6 +47,18 @@ param(
     [int]$Agents = 0,
     [int]$AgentRadius = 0,
     [int[]]$Seeds = @(),
+
+    <#
+      -SeedRange 用字符串传种子列表，支持 "1..6" 与 "1,2,7"。
+      **必须有参数**：CI 的批量体检步骤用的是 `-Mode batch -SeedRange 1..6`，
+      而它曾经在本脚本里缺失 —— 结果是 CI 报
+      "A parameter cannot be found that matches parameter name 'SeedRange'"，
+      而本地因为一直用 run.ps1 跑批量，完全没发现。
+      （同时也不能用 -Seeds：`-Seeds 1,2,3` 里的逗号是参数分隔符，
+        实际只会收到 "1"，静默变成"只跑一个种子"。）
+    #>
+    [string]$SeedRange = '',
+
     [switch]$NoColor,
 
     # 构建期参数
@@ -60,7 +72,6 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$SandBoxSimDotSource = $true
 . (Join-Path $PSScriptRoot 'build-lib.ps1')
 
 switch ($Mode) {
@@ -76,7 +87,7 @@ switch ($Mode) {
         Invoke-Run -Mode $Mode -Channel $Channel -Configuration $Configuration -SdkRoot $SdkRoot `
             -Seed $Seed -Days $Days -Ticks $Ticks -Width $Width -Height $Height `
             -ConfigPath $ConfigPath -OutDir $OutDir -SnapshotDays $SnapshotDays `
-            -Seeds $Seeds -NoColor $NoColor.IsPresent `
+            -Seeds $Seeds -SeedRange $SeedRange -NoColor $NoColor.IsPresent `
             -Agents $Agents -AgentRadius $AgentRadius `
             -ParallelBuild $ParallelBuild.IsPresent
     }

@@ -6,6 +6,15 @@
 #   3. **确定性校验**（同 seed 两跑摘要一致）—— 这是本项目最核心的承诺；
 #   4. 100 天 headless 冒烟 —— 长跑不崩、不产生 NaN、不进入"静止均衡"；
 #   5. 产出报告与快照作为 artifact，方便人工复核涌现行为。
+#
+# 平台差异说明（这一条曾经把 CI 打挂过）：
+#   构建脚本早期把可执行名写死成 'dotnet.exe'、兜底 SDK 路径写死成 'C:\Users\...'，
+#   于是 Linux/macOS runner 直接报 "Cannot find drive. A drive with the name 'C' does not exist."
+#   现在所有平台差异都收敛在 tools/build-lib.ps1 的 Get-DotnetExeName / Get-DefaultSdkRoot /
+#   Get-SystemDotnetRoots 三个函数里，脚本其余部分与平台无关。
+#
+#   为了控制 CI 时长，只在 ubuntu 上跑"确定性校验 + 长跑 + 多 seed 批量"这类耗时步骤，
+#   三平台都跑"构建 + 全部测试"（这一对才真正验证跨平台一致性）。
 
 name: ci
 
@@ -38,25 +47,42 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      # 先用通道 A 构建 + 跑全部测试（三平台都做）。
       # CI 上允许并行构建（GitHub 的 runner 不会拦截 MSBuild 用的命名管道）。
       # -ParallelBuild 在受限环境里必须关掉，见 tools/build-lib.ps1 的注释。
-      - name: Build
+      - name: Build script regression tests
+        shell: pwsh
+        run: ./tools/test-build.ps1
+
+      - name: Build (channel A)
         shell: pwsh
         run: ./tools/build.ps1 -Mode build -Configuration $env:CONFIGURATION -Channel sdk -ParallelBuild
 
-      - name: Test (all)
+      - name: Test (all, channel A)
         shell: pwsh
         run: ./tools/build.ps1 -Mode test -Configuration $env:CONFIGURATION -Channel sdk -ParallelBuild
 
+      # 通道 B（Roslyn csc 直编）也必须在 CI 上验证：
+      # 它是"机器上只有运行时、没有 SDK"时的降级路径，而且它最容易因为
+      # 少了某个 MSBuild 提供的隐式行为而悄悄失效（例如 InternalsVisibleTo
+      # 曾经写成 MSBuild 项，导致通道 A 绿、通道 B 红）。只在 ubuntu 上跑一次即可。
+      - name: Test (all, channel B / csc fallback)
+        if: matrix.os == 'ubuntu-latest'
+        shell: pwsh
+        run: ./tools/build.ps1 -Mode test -Configuration $env:CONFIGURATION -Channel csc
+
       - name: Determinism check (same seed twice, with agents)
+        if: matrix.os == 'ubuntu-latest'
         shell: pwsh
         run: ./tools/build.ps1 -Mode digest -Seed 4242 -Ticks 43200 -Agents 30 -Configuration $env:CONFIGURATION -Channel sdk -ParallelBuild
 
       - name: Headless smoke run (100 days, 40 agents, no intervention)
+        if: matrix.os == 'ubuntu-latest'
         shell: pwsh
         run: ./tools/build.ps1 -Mode snapshot -Seed 839102 -Days 100 -Agents 40 -SnapshotDays 25 -OutDir runs/ci -Configuration $env:CONFIGURATION -Channel sdk -ParallelBuild
 
       - name: Multi-seed robustness (agents)
+        if: matrix.os == 'ubuntu-latest'
         shell: pwsh
         run: ./tools/build.ps1 -Mode batch -SeedRange 1..6 -Days 60 -Agents 20 -OutDir runs/ci -Configuration $env:CONFIGURATION -Channel sdk -ParallelBuild
 

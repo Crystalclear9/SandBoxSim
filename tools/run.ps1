@@ -48,10 +48,9 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# 先设置点源开关，再加载函数库。
+# 加载纯函数库，不执行构建或运行入口。
 # 库文件（build-lib.ps1）刻意不带 param 块，否则它的参数默认值会覆盖本脚本的变量
 # （实测过的坑：被点源文件里的 $Mode 默认值会把本脚本的 -Mode digest 覆盖成 build）。
-$SandBoxSimDotSource = $true
 . (Join-Path $PSScriptRoot 'build-lib.ps1')
 
 # 注意：续行反引号必须紧跟在**行尾**，后面不能有任何字符（包括空格）。

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — 跨平台构建修复
+
+- 移除用户专属 SDK 路径默认值；按平台选择 dotnet 文件名，跳过失效路径并支持 `DOTNET_ROOT`。
+- 修复 PowerShell 7 的只读 `IsWindows` 变量冲突；保留 PowerShell 5.1 的 UTF-8 BOM 兼容。
+- 通过 `dotnet --list-sdks` 探测 SDK，支持符号链接入口、空列表与稳定版版本排序。
+- csc 使用 .NET 8 对应的编译器/引用包，Release 参数改为 `-debug-`。
+- 构建函数库移除残留 CLI 入口；补齐 `SeedRange` 转发及 12 项脚本回归检查，接入三平台 CI。
+- 补充当前观察工具、MVP 范围及构建交付文档。游戏机制仍为 M3，未开发后续里程碑。
+
 本项目的版本历史。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 

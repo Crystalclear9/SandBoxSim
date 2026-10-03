@@ -36,8 +36,68 @@ $ErrorActionPreference = 'Stop'
 
 $script:RepoRoot = Split-Path -Parent $PSScriptRoot
 $script:BuildRoot = Join-Path $script:RepoRoot 'artifacts'
-$script:DefaultSdkRoot = 'C:\Users\70454\.sandboxsim-tool\net8'
 $script:FrameworkMajorMinor = '8.0'
+
+# ---------------------------------------------------------------------------
+# 平台适配（CI 在 windows / ubuntu / macos 三个 runner 上都跑同一套脚本）
+# ---------------------------------------------------------------------------
+#
+# 这一节存在的理由：CI 曾经在 Linux/macOS 上直接崩在
+#   Cannot find drive. A drive with the name 'C' does not exist.
+# 根因有两个，都是"把 Windows 的写法当成了通用写法"：
+#   1. 可执行文件名写死成 'dotnet.exe'（非 Windows 上叫 'dotnet'）；
+#   2. 兜底的 SDK 路径写死成 'C:\Users\...\net8'，在 Linux 上连
+#      Join-Path 都无法求值（Join-Path 'C:\...' 'dotnet' 会去访问 C: 盘）。
+#
+# 修法不是"再加一个 if"，而是**把平台差异收敛到两个函数里**：
+# 所有路径与可执行名都从这里取，其它地方一行都不用改。
+
+$script:SandBoxSimIsWindows = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
+    [System.Runtime.InteropServices.OSPlatform]::Windows)
+
+# 当前平台上的 dotnet 可执行文件名。
+function Get-DotnetExeName {
+    if ($script:SandBoxSimIsWindows) { return 'dotnet.exe' }
+    return 'dotnet'
+}
+
+# 本项目私有 SDK 的默认安装位置（由 tools/install-sdk.ps1 使用）。
+#
+# 三平台统一放在**用户主目录**下的 .sandboxsim-tool/net8。
+# 为什么用主目录而不是 LOCALAPPDATA / Application Support：三个平台都有 HOME，
+# 一条规则就够；而且它必须与 install-sdk.ps1 的实际安装位置一致 ——
+# 实测踩过：本机 SDK 装在 ~/.sandboxsim-tool/net8，而探测逻辑找的是
+# %LOCALAPPDATA%\sandboxsim-tool\net8，于是"明明装了 SDK 却退回通道 B"，
+# 而且**没有任何报错**（只是悄悄降级），非常难发现。
+#
+# **绝不硬编码盘符**：一旦出现 'C:\...' 这种字面量，非 Windows 平台上
+# 连 Join-Path 都会抛异常（Join-Path 会去访问那个盘符）。
+function Get-DefaultSdkRoot {
+    $homeDir = $null
+    if ($env:HOME) { $homeDir = $env:HOME }
+    elseif ($env:USERPROFILE) { $homeDir = $env:USERPROFILE }
+    else { $homeDir = [System.Environment]::GetFolderPath('UserProfile') }
+    if (-not $homeDir) { $homeDir = [System.IO.Path]::GetTempPath() }
+
+    return (Join-Path $homeDir '.sandboxsim-tool/net8')
+}
+
+# 系统级 dotnet 安装根目录（只用于"兜底探测"）。
+function Get-SystemDotnetRoots {
+    $roots = New-Object System.Collections.Generic.List[string]
+
+    if ($script:SandBoxSimIsWindows) {
+        $programFiles = if ($env:ProgramFiles) { $env:ProgramFiles } else { $null }
+        if ($programFiles) { $roots.Add((Join-Path $programFiles 'dotnet')) }
+    }
+    else {
+        $roots.Add('/usr/share/dotnet')
+        $roots.Add('/usr/local/share/dotnet')
+        if ($env:HOME) { $roots.Add((Join-Path $env:HOME '.dotnet')) }
+    }
+
+    return $roots
+}
 
 function Get-BuildPaths {
     param([string]$Configuration)
@@ -48,7 +108,7 @@ function Get-BuildPaths {
         Core      = Join-Path $bin 'SandBoxSim.Core.dll'
         Console   = Join-Path $bin 'SandBoxSim.Console.dll'
         Tests     = Join-Path $bin 'SandBoxSim.Tests.dll'
-        ObjRoot   = Join-Path $script:BuildRoot "obj\$Configuration"
+        ObjRoot   = Join-Path $script:BuildRoot "obj/$Configuration"
     }
 }
 
@@ -75,26 +135,65 @@ function Get-CSharpSourceList {
 # 工具链探测
 # ---------------------------------------------------------------------------
 
+function Select-CompatibleSdk {
+    param([string[]]$Installed)
+
+    $matching = @($Installed | ForEach-Object {
+        if ($_ -match '^([0-9]+\.[0-9]+\.[0-9]+)\s+\[(.+)\]$') {
+            $version = [version]$Matches[1]
+            if ("$($version.Major).$($version.Minor)" -eq $script:FrameworkMajorMinor) {
+                [pscustomobject]@{ Version = $version; Root = Split-Path -Parent $Matches[2] }
+            }
+        }
+    } | Sort-Object Version -Descending)
+    if ($matching.Count -gt 0) { return $matching[0] }
+    return $null
+}
+
 function Resolve-DotnetSdk {
     param([string]$Explicit)
 
+    $exeName = Get-DotnetExeName
     $candidates = New-Object System.Collections.Generic.List[string]
-    if ($Explicit) { $candidates.Add((Join-Path $Explicit 'dotnet.exe')) }
-    if ($env:SANDBOXSIM_DOTNET_ROOT) { $candidates.Add((Join-Path $env:SANDBOXSIM_DOTNET_ROOT 'dotnet.exe')) }
-    $candidates.Add((Join-Path $script:DefaultSdkRoot 'dotnet.exe'))
-    $onPath = Get-Command dotnet -ErrorAction SilentlyContinue
+
+    # 显式路径**必须先检查它是不是一个真实存在的目录**再 Join-Path：
+    # 否则在 Linux 上把 'C:\...' 交给 Join-Path 会直接抛
+    # "Cannot find drive. A drive with the name 'C' does not exist."
+    # —— 一个"路径不存在"的问题被报成了"盘符不存在"，非常难懂。
+    if ($Explicit -and (Test-Path -LiteralPath $Explicit -PathType Container)) {
+        $candidates.Add((Join-Path $Explicit $exeName))
+    }
+    if ($env:SANDBOXSIM_DOTNET_ROOT -and (Test-Path -LiteralPath $env:SANDBOXSIM_DOTNET_ROOT -PathType Container)) {
+        $candidates.Add((Join-Path $env:SANDBOXSIM_DOTNET_ROOT $exeName))
+    }
+    if ($env:DOTNET_ROOT -and (Test-Path -LiteralPath $env:DOTNET_ROOT -PathType Container)) {
+        $candidates.Add((Join-Path $env:DOTNET_ROOT $exeName))
+    }
+
+    $default = Get-DefaultSdkRoot
+    if (Test-Path -LiteralPath $default -PathType Container) {
+        $candidates.Add((Join-Path $default $exeName))
+    }
+
+    $onPath = Get-Command dotnet -CommandType Application -ErrorAction SilentlyContinue
     if ($onPath) { $candidates.Add($onPath.Source) }
 
-    foreach ($exe in $candidates) {
-        if (-not (Test-Path $exe)) { continue }
-        $sdkDir = Join-Path (Split-Path -Parent $exe) 'sdk'
-        if (-not (Test-Path $sdkDir)) { continue }
-        $version = (Get-ChildItem $sdkDir -Directory |
-                    Where-Object { $_.Name -match '^8\.' } |
-                    Sort-Object Name -Descending |
-                    Select-Object -First 1).Name
-        if (-not $version) { continue }
-        return [pscustomobject]@{ Exe = $exe; Root = (Split-Path -Parent $exe); Version = $version }
+    foreach ($root in Get-SystemDotnetRoots) {
+        if (Test-Path -LiteralPath $root -PathType Container) {
+            $candidates.Add((Join-Path $root $exeName))
+        }
+    }
+
+    foreach ($exe in ($candidates | Select-Object -Unique)) {
+        if (-not (Test-Path -LiteralPath $exe)) { continue }
+        # Ask the host: PATH entries on Unix often point to a symlink outside the SDK root.
+        $installed = @(& $exe --list-sdks 2>$null)
+        if ($LASTEXITCODE -ne 0) { continue }
+        $selected = Select-CompatibleSdk -Installed $installed
+        if (-not $selected) { continue }
+        $hostPath = Join-Path $selected.Root $exeName
+        if (-not (Test-Path -LiteralPath $hostPath -PathType Leaf)) { continue }
+        return [pscustomobject]@{ Exe = $hostPath; Root = $selected.Root; Version = $selected.Version.ToString() }
     }
     return $null
 }
@@ -107,10 +206,10 @@ function Resolve-DotnetRuntime {
     if ($DotnetExe) { $roots.Add((Split-Path -Parent $DotnetExe)) }
     $dotnet = Get-Command dotnet -ErrorAction SilentlyContinue
     if ($dotnet) { $roots.Add((Split-Path -Parent $dotnet.Source)) }
-    $roots.Add('C:\Program Files\dotnet')
+    foreach ($r in Get-SystemDotnetRoots) { $roots.Add($r) }
 
     foreach ($r in $roots) {
-        $shared = Join-Path $r "shared\Microsoft.NETCore.App"
+        $shared = Join-Path $r 'shared/Microsoft.NETCore.App'
         if (-not (Test-Path $shared)) { continue }
         $dir = Get-ChildItem $shared -Directory |
                Where-Object { $_.Name -match "^$([regex]::Escape($script:FrameworkMajorMinor))\.\d+$" } |
@@ -126,21 +225,23 @@ function Resolve-DotnetRuntime {
 function Resolve-RoslynCsc {
     param([string]$DotnetRoot)
 
-    # 优先 dotnet SDK 自带的 Roslyn（版本与 SDK 一致），其次 VS2022
-    if ($DotnetRoot) {
+    # 首选 dotnet SDK 自带的 Roslyn（版本与 SDK 一致，且三平台都有）
+    if ($DotnetRoot -and (Test-Path $DotnetRoot)) {
         $sdkDir = Get-ChildItem (Join-Path $DotnetRoot 'sdk') -Directory -ErrorAction SilentlyContinue |
-                  Sort-Object Name -Descending | Select-Object -First 1
+                  Where-Object { $_.Name -match '^8\.0\.\d+$' } |
+                  Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
         if ($sdkDir) {
-            $csc = Join-Path $sdkDir.FullName 'Roslyn\bincore\csc.dll'
+            $csc = Join-Path $sdkDir.FullName 'Roslyn/bincore/csc.dll'
             if (Test-Path $csc) { return [pscustomobject]@{ Kind = 'dll'; Path = $csc } }
         }
     }
-    $vsRoots = @(
-        'C:\Program Files\Microsoft Visual Studio\2022\Community',
-        'C:\Program Files\Microsoft Visual Studio\2022\Professional',
-        'C:\Program Files\Microsoft Visual Studio\2022\Enterprise',
-        'C:\Program Files\Microsoft Visual Studio\2022\BuildTools'
-    )
+
+    # 其次 VS2022 自带的 csc.exe（只有 Windows 才有；非 Windows 上这段直接跳过）
+    if (-not $script:SandBoxSimIsWindows) { return $null }
+
+    if (-not $env:ProgramFiles) { return $null }
+    $vsRoots = @('Community', 'Professional', 'Enterprise', 'BuildTools') |
+        ForEach-Object { Join-Path $env:ProgramFiles "Microsoft Visual Studio/2022/$_" }
     foreach ($vs in $vsRoots) {
         $exe = Join-Path $vs 'MSBuild\Current\Bin\Roslyn\csc.exe'
         if (Test-Path $exe) { return [pscustomobject]@{ Kind = 'exe'; Path = $exe } }
@@ -155,9 +256,11 @@ function Resolve-ReferenceAssemblies {
     if ($DotnetRoot) {
         $pack = Join-Path $DotnetRoot "packs\Microsoft.NETCore.App.Ref"
         if (Test-Path $pack) {
-            $ver = Get-ChildItem $pack -Directory | Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
+            $ver = Get-ChildItem $pack -Directory |
+                Where-Object { $_.Name -match '^8\.0\.\d+$' } |
+                Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
             if ($ver) {
-                $refDir = Join-Path $ver.FullName "ref\net$($script:FrameworkMajorMinor)"
+                $refDir = Join-Path $ver.FullName "ref/net$($script:FrameworkMajorMinor)"
                 if (Test-Path $refDir) { return [pscustomobject]@{ Dir = $refDir; Kind = 'refpack' } }
             }
         }
@@ -317,7 +420,7 @@ function Invoke-CscBuild {
     $commonLangArgs = if ($Configuration -eq 'Release') {
         @('-nologo', '-noconfig', '-nostdlib+', '-langversion:latest', '-nullable:enable',
           '-preferreduilang:en-US', '-nowarn:CS1701,CS1702,CS8019,CS8632',
-          '-optimize+', '-debug:none') + $defineArgs
+          '-optimize+', '-debug-') + $defineArgs
     }
     else {
         @('-nologo', '-noconfig', '-nostdlib+', '-langversion:latest', '-nullable:enable',
@@ -339,7 +442,7 @@ function Invoke-CscBuild {
         foreach ($s in $Sources) { $argv.Add($s) }
 
         if ($CscKind -eq 'dll') {
-            & (Join-Path $DotnetRoot 'dotnet.exe') $CscPath @($argv) | Out-Host
+            & (Join-Path $DotnetRoot (Get-DotnetExeName)) $CscPath @($argv) | Out-Host
         } else {
             & $CscPath @($argv) | Out-Host
         }
@@ -388,10 +491,8 @@ function Invoke-Build {
 
     $paths = Get-BuildPaths -Configuration $Configuration
 
-    # 注意：不要用三元运算符（? :）—— Windows PowerShell 5.1 不支持，
-    # 而本机默认 shell 就是 5.1。显式写 if/else 保证两种 PowerShell 都能跑。
-    $explicitSdkRoot = if ($SdkRoot) { $SdkRoot } else { $script:DefaultSdkRoot }
-    $sdk = Resolve-DotnetSdk -Explicit $explicitSdkRoot
+    # Only a user-supplied root takes precedence over environment overrides.
+    $sdk = Resolve-DotnetSdk -Explicit $SdkRoot
     $sdkExe = if ($sdk) { $sdk.Exe } else { $null }
     $runtime = Resolve-DotnetRuntime -DotnetExe $sdkExe
 
@@ -431,7 +532,7 @@ function Get-DotnetHost {
     if ($Sdk) { return $Sdk.Exe }
     $dotnet = Get-Command dotnet -ErrorAction SilentlyContinue
     if ($dotnet) { return $dotnet.Source }
-    if ($Runtime) { return (Join-Path $Runtime.Root 'dotnet.exe') }
+    if ($Runtime) { return (Join-Path $Runtime.Root (Get-DotnetExeName)) }
     return 'dotnet'
 }
 
@@ -515,39 +616,4 @@ function Invoke-Clean {
         }
     }
     Write-Host 'Build artifacts cleaned' -ForegroundColor Green
-}
-
-# ---------------------------------------------------------------------------
-# 入口
-#   直接执行：按 -Mode 干活。
-#   dot-source（由 run.ps1/test.ps1/dev.ps1 使用）：只暴露上面的函数，不执行任何动作。
-#
-# 判断方式：调用方在点源之前先设置 $SandBoxSimDotSource = $true。
-#
-# 为什么不靠"点源时传参数"或 $MyInvocation：这两种方式在本项目里都被实测证伪过 ——
-#   * `. build.ps1 -Mode dotSource` 的参数绑定在点源场景下不可靠，
-#     结果是主流程照常执行，run.ps1 变成了"直接启动 TUI"（表现为命令挂住不动）；
-#   * `$MyInvocation.InvocationName -eq '.'` 在点源时并不等于 '.'。
-# 用一个显式变量做开关，行为确定、易读、跨 PowerShell 版本一致。
-# ---------------------------------------------------------------------------
-
-$isDotSourced = $false
-$dotSourceFlag = Get-Variable -Name 'SandBoxSimDotSource' -Scope 0 -ErrorAction SilentlyContinue
-if ($dotSourceFlag) { $isDotSourced = [bool]$dotSourceFlag.Value }
-
-if ($isDotSourced -or $Mode -eq 'dotSource') { return }
-
-switch ($Mode) {
-    'clean' { Invoke-Clean; exit 0 }
-    'build' {
-        $null = Invoke-Build -Channel $Channel -Configuration $Configuration -SdkRoot $SdkRoot `
-            -ParallelBuild $ParallelBuild.IsPresent
-        exit 0
-    }
-    default {
-        Invoke-Run -Mode $Mode -Channel $Channel -Configuration $Configuration -SdkRoot $SdkRoot `
-            -Seed $Seed -Days $Days -Ticks $Ticks -Width $Width -Height $Height `
-            -ConfigPath $ConfigPath -OutDir $OutDir -SnapshotDays $SnapshotDays `
-            -Seeds $Seeds -NoColor $NoColor.IsPresent -ParallelBuild $ParallelBuild.IsPresent
-    }
 }

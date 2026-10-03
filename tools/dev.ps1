@@ -23,12 +23,13 @@ $ErrorActionPreference = 'Stop'
 
 Write-Host '=== SandBoxSim dev pipeline ===' -ForegroundColor Cyan
 
-$SandBoxSimDotSource = $true
 . (Join-Path $PSScriptRoot 'build-lib.ps1')
 
 # 1) 确保有 SDK（没有就走通道 B，并提示如何补齐）
 if ($Channel -ne 'csc') {
-    $sdk = Resolve-DotnetSdk -Explicit 'C:\Users\70454\.sandboxsim-tool\net8'
+    # 传空字符串让 Resolve-DotnetSdk 自己按平台探测默认目录（见 build-lib.ps1 的
+    # Get-DefaultSdkRoot）。**不要在这里写死路径** —— 那会让脚本在非 Windows 平台上直接崩。
+    $sdk = Resolve-DotnetSdk -Explicit ''
     if (-not $sdk) {
         Write-Host 'No .NET 8 SDK found; trying automatic install ...' -ForegroundColor Yellow
         try { & (Join-Path $PSScriptRoot 'install-sdk.ps1') }

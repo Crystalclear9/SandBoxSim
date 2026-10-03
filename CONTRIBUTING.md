@@ -11,6 +11,11 @@
 
 ## 一、环境准备
 
+跨平台入口使用 PowerShell 7：`pwsh -NoProfile -File ./tools/build.ps1 -Mode test -Channel sdk`。
+修改 `tools/` 后运行 `pwsh -NoProfile -File ./tools/test-build.ps1`，并验证 SDK 和 csc 两条通道。
+`.ps1` 保持 UTF-8 BOM，以兼容 Windows PowerShell 5.1 的中文注释解析。
+目录职责、产物管理及 CI 验收见 [构建与交付说明](docs/16-BuildAndDelivery.md)。
+
 ```powershell
 # 一键：确保 SDK（没有就装到仓库外）→ 构建 → 测试 → 启动
 .\tools\dev.ps1

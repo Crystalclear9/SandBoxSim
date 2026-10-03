@@ -20,7 +20,6 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$SandBoxSimDotSource = $true
 . (Join-Path $PSScriptRoot 'build-lib.ps1')
 
 $build = Invoke-Build -Channel $Channel -Configuration $Configuration -SdkRoot $SdkRoot

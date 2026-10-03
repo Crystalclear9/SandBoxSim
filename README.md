@@ -135,8 +135,22 @@ SDK 默认探测位置（按顺序）：
 
 1. `-SdkRoot` 参数指定的目录
 2. 环境变量 `SANDBOXSIM_DOTNET_ROOT`
-3. `C:\Users\70454\.sandboxsim-tool\net8`（`install-sdk.ps1` 的默认位置）
-4. `PATH` 上的 `dotnet`
+3. 环境变量 `DOTNET_ROOT`（CI 的 setup-dotnet 安装目录）
+4. 用户主目录下的 `.sandboxsim-tool/net8`（`install-sdk.ps1` 的默认位置）
+5. `PATH` 上的 `dotnet`
+6. 当前平台的系统安装目录
+
+失效路径会跳过；Windows 使用 `dotnet.exe`，Linux/macOS 使用 `dotnet`。
+脚本通过 `dotnet --list-sdks` 确认稳定版 .NET 8 SDK，支持 PATH 中的符号链接。
+三平台建议使用 PowerShell 7（`pwsh`），Windows PowerShell 5.1 也保留兼容。
+
+```powershell
+pwsh -NoProfile -File ./tools/test-build.ps1
+pwsh -NoProfile -File ./tools/build.ps1 -Mode build -Configuration Release -Channel sdk -ParallelBuild
+pwsh -NoProfile -File ./tools/build.ps1 -Mode test -Configuration Release -Channel sdk -ParallelBuild
+```
+
+本次修复、验收记录和文件管理约定见 [构建与交付说明](docs/16-BuildAndDelivery.md)。
 
 > 为什么 SDK 装在仓库外：本仓库可能被放在只读沙箱里（例如 AI 协作环境），
 > 仓库外的工具目录更稳；同时避免几百 MB 的二进制进入 git 历史。
