@@ -31,7 +31,22 @@ internal static class BuildAction
         var builder = new ScoreBuilder(action, w.BlockedUtilityMultiplier);
 
         // ---- 材料可得性 ----
-        // 三个来源：随身、附近仓库（共享）、附近地面堆。顺序与实际扣料顺序一致。
+        //
+        // # 这里用**个体当前位置**，而不是工地（一次实测之后的结论）
+        //
+        // 曾经把它改成"在工地坐标上算材料"，想让 `Evaluate` 与
+        // `BuildingSystem.TryStartBuilding`（它按工地算）口径一致。
+        // **实测证明这条路走不通**：动作管线是"决策 → 移动 → 执行"，
+        // `Evaluate` 时刻选的工地与真正走到之后用的工地**不是同一个**
+        // （`SelectTarget` 会重新选一次）。改成工地口径只是把不一致换了个地方，
+        // 而且行为整体偏移（实测 seed 70138 的住房从 18 变成 0）。
+        //
+        // 真正的结论：**这道门无法靠"统一坐标"修好，因为问题的本质是物流** ——
+        // 个体需要先把材料搬到工地。那属于 M8 的物资搬运链。
+        //
+        // 现在保留"个体当前位置"口径，并把它记为一个**已知的设计缺口**：
+        // 一个身上没材料、但附近有堆料的个体会选中"建造"，走到工地后失败。
+        // 实测 seed 70138 就这样空转了 1297 次。详见 docs/12 的 M7 未达标项。
         float carriedWood = ctx.Store.InventoryOf(ctx.Slot, ResourceKind.Wood);
         float carriedStone = ctx.Store.InventoryOf(ctx.Slot, ResourceKind.Stone);
         float wood = carriedWood + PooledAmount(in ctx, ResourceKind.Wood);
@@ -182,12 +197,20 @@ internal static class BuildAction
     }
 
     /// <summary>共享库存 + 地面堆里可用的数量（建造可以用公共物资）。</summary>
-    private static float PooledAmount(in ActionContext ctx, ResourceKind kind)
+    /// <summary>
+    /// 在**指定坐标附近**统计可用物资（M7 修复：口径必须与 `TryStartBuilding` 一致）。
+    ///
+    /// 仓库那一项仍然走 `TryFindStorageNear`（它按个体位置找最近的仓库）——
+    /// 这是一个**已知的残留近似**：严格来说应当在工地附近找仓库。
+    /// 之所以先留着：地面堆这一项（本次实测里的真凶）已经统一到工地口径，
+    /// 而仓库的那处差异要等"物资搬运"这条链真正建立起来（M8 的物流）再一起处理。
+    /// </summary>
+    private static float PooledAmountAt(in ActionContext ctx, ResourceKind kind, int x, int y)
     {
         float total = 0f;
 
         if (ctx.GroundStocks != null
-            && ctx.GroundStocks.TryFindNearby(ctx.X, ctx.Y, kind, ctx.Config.GroundStocks.SearchRadius, out int pile, out int _))
+            && ctx.GroundStocks.TryFindNearby(x, y, kind, ctx.Config.GroundStocks.SearchRadius, out int pile, out int _))
         {
             total += ctx.GroundStocks.AmountOf(pile, kind);
         }
@@ -201,6 +224,10 @@ internal static class BuildAction
 
         return total;
     }
+
+    private static float PooledAmount(in ActionContext ctx, ResourceKind kind)
+        => PooledAmountAt(in ctx, kind, ctx.X, ctx.Y);
+
 
     /// <summary>在视野半径内找最近的仓库（与 BuildingSystem 里的规则保持一致）。</summary>
     public static bool TryFindStorageNear(in ActionContext ctx, out int index, out int distance)
