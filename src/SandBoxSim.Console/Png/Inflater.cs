@@ -23,7 +23,7 @@ public sealed class Inflater
     public Inflater(byte[] input)
     {
         _input = input ?? System.Array.Empty<byte>();
-        _output = new byte[System.Math.Max(1024, input.Length * 8)];
+        _output = new byte[System.Math.Max(1024, _input.Length * 8)];
     }
 
     /// <summary>

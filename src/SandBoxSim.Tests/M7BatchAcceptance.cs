@@ -104,7 +104,7 @@ public sealed class M7BatchAcceptance
 
         System.Console.WriteLine("  [批量验收] 汇总：" + formed + "/" + Seeds + " 形成过聚落；"
             + formedBy150 + "/" + Seeds + " 在 150 天内形成；"
-            + multiSettlements + "/" + Seeds + " 有 ≥2 个聚落；"
+            + multiSettlements + "/" + Seeds + " 曾同时有 ≥2 个活跃聚落；"
             + "累计 " + totalSettlements + " 个");
 
         // 验收判据（任务书）：
@@ -119,8 +119,7 @@ public sealed class M7BatchAcceptance
             + formedBy150 + "/" + Seeds + "）");
 
         Assert.True(multiSettlements >= requiredMulti,
-            "至少 " + requiredMulti + "/" + Seeds + " 个种子在 200 天内必须有 ≥2 个聚落（实测 " + multiSettlements + "/" + Seeds + "）—— "
-            + "注意这条**当前多半达不到**：全体质心的聚类方式天然只会产出一个聚落，"
-            + "多聚落需要真正的空间聚类（见 docs/12 的 M7 说明）");
+            "至少 " + requiredMulti + "/" + Seeds + " 个种子在 200 天内必须曾同时有 ≥2 个活跃聚落（实测 "
+            + multiSettlements + "/" + Seeds + "）；此处按每日活跃峰值统计，不按累计成立数量统计");
     }
 }

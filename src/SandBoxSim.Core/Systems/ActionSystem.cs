@@ -668,10 +668,15 @@ public sealed class ActionSystem
             // 这类半成品失效在本项目里出现过不止一次（M4 的 BuildFarm 只注册了 Describe、
             // M7 的仓库造出来容量却是 0）——**共同特征是"两半之中只做了一半"，
             // 而两半都可以单独看起来是对的。**
-            if (taken <= 0f
-                && _sim.BuildingSystem.TryFindNearestStorage(position.X, position.Y, out int storageIndex, out int _))
+            if (taken <= 0f && _sim.World.IsInBounds(position.X, position.Y))
             {
-                taken = _sim.Storage.Withdraw(storageIndex, resource, config.TakeAmount);
+                int storageIndex = _sim.World.TileAt(position.X, position.Y).BuildingId - 1;
+                if (_sim.Buildings.IsAlive(storageIndex)
+                    && _sim.Buildings.KindOf(storageIndex) == BuildingKind.Storage
+                    && _sim.Buildings.StateOf(storageIndex) == BuildingState.Complete)
+                {
+                    taken = _sim.Storage.Withdraw(storageIndex, resource, config.TakeAmount);
+                }
             }
 
             if (taken <= 0f) { continue; }

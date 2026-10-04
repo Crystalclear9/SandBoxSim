@@ -124,4 +124,22 @@ public sealed class AuditRegressionTests
         Assert.Near(40, sim.Agents.InventoryOf(slot, ResourceKind.Food)
             + sim.Storage.AmountOf(warehouse, ResourceKind.Food));
     }
+
+    [Fact("取粮目标消失后不能隔空从附近另一仓库拿粮")]
+    public void MissingTargetCannotWithdrawFromAnotherWarehouse()
+    {
+        var sim = World();
+        int warehouse = Complete(sim, BuildingKind.Storage, 12, 10);
+        sim.Storage.Deposit(warehouse, ResourceKind.Food, 40);
+        sim.InterveneSpawnHumans(10, 10, 1, 1);
+        int slot = sim.Agents.LiveSlotsRaw(out int _)[0];
+        sim.Agents.SetInventory(slot, ResourceKind.Food, 0);
+        sim.Agents.SetPosition(slot, 10, 10);
+        sim.Agents.SetAction(slot, ActionKind.Take, ActionPhase.Executing);
+        sim.Agents.SetTarget(slot, 10, 10);
+        sim.Actions.Tick(1);
+        Assert.Near(0, sim.Agents.InventoryOf(slot, ResourceKind.Food));
+        Assert.Near(40, sim.Storage.AmountOf(warehouse, ResourceKind.Food));
+        Assert.Equal(ActionPhase.Failed, sim.Agents.PhaseOf(slot));
+    }
 }
