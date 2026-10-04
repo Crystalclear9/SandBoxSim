@@ -66,6 +66,12 @@ public sealed class BuildingSystem
 
             BuildingKind kind = _store.KindOf(index);
             Int2 position = _store.PositionOf(index);
+            if (kind == BuildingKind.Storage)
+            {
+                _sim.Storage.EnsureCapacity(_store.Capacity);
+                _sim.Storage.ClearSlot(index);
+                _sim.Storage.SetCapacity(index, BuildingRegistry.Of(kind).StorageCapacity);
+            }
 
             _sim.Events.Record(
                 tick,
@@ -235,6 +241,9 @@ public sealed class BuildingSystem
         WorkThisTick = 0;
         FoodProducedThisDay = 0f;
         DemolishedThisDay = 0;
+        TotalFoodProduced = 0f;
+        TotalDemolished = 0;
+        _decayBuffer.Clear();
     }
 
     // ---------------------------------------------------------------------
@@ -266,8 +275,8 @@ public sealed class BuildingSystem
         FoodProducedThisDay = 0f;
         DemolishedThisDay = 0;
 
-        ProduceFarmYield(tick);
         TickDecay(tick);
+        ProduceFarmYield(tick);
     }
 
     /// <summary>
@@ -285,11 +294,15 @@ public sealed class BuildingSystem
     private void ProduceFarmYield(long tick)
     {
         float baseYield = _sim.Config.Buildings.FarmBaseYieldPerDay;
-        if (baseYield <= 0f) { return; }
+        if (baseYield <= 0f)
+        {
+            for (int k = 0; k < _store.LiveCount; k++) { _store.ClearLabor(_store.LiveAt(k)); }
+            return;
+        }
 
         float unattended = _sim.Config.Buildings.FarmUnattendedFactor;
         float laborBonusMax = _sim.Config.Buildings.FarmLaborBonusMax;
-        float laborCap = _sim.Config.Buildings.FarmLaborPerDayCap;
+        float laborCap = System.Math.Max(0.01f, _sim.Config.Buildings.FarmLaborPerDayCap);
 
         for (int k = 0; k < _store.LiveCount; k++)
         {
@@ -363,8 +376,7 @@ public sealed class BuildingSystem
         int storage = FindStorageNear(position.X, position.Y);
         if (storage >= 0 && _sim.Storage.CapacityOf(storage) > 0f)
         {
-            _sim.Storage.Deposit(storage, ResourceKind.Food, amount);
-            return;
+            amount -= _sim.Storage.Deposit(storage, ResourceKind.Food, amount);
         }
 
         _sim.GroundStocks.Deposit(position.X, position.Y, ResourceKind.Food, amount, _sim.Config.GroundStocks);
@@ -451,6 +463,7 @@ public sealed class BuildingSystem
             Int2 position = _store.PositionOf(index);
 
             _store.Demolish(_sim.World, index);
+            _sim.Storage.ClearSlot(index);
             TotalDemolished++;
 
             // 农田被拆掉时地表要恢复成草地 —— 否则会留下一块不能建、也不产出的"死田"

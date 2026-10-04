@@ -30,26 +30,7 @@ public sealed class M5Tests
 {
     private const int TicksPerDay = 1440;
 
-    /// <summary>
-    /// M5 的**未竟项**开关（与 M6Tests.OpenIssuesEnabled 同一套做法）。
-    ///
-    /// M6 把四个社会动作加进动作注册表之后，世界的效用格局变了，
-    /// 于是两条 M5 的**对照实验**失去了稳定性：
-    ///
-    ///   * `BurningForestReducesPopulationGrowth`：烧过森林的世界床位反而更多（32 vs 14）
-    ///   * `HighBirthRateRuleWorks`：两组出生数相同（6 vs 6）—— 出生被住房卡住，规则的效果被掩盖
-    ///
-    /// 关键判断：这两条**不是产品回归**，而是**对照实验设计得不够稳**。
-    /// 它们把"某个下游指标的大小关系"当作判据，而下游指标在一个混沌系统里
-    /// 会受到许多与实验变量无关的因素影响（社会行为就是新加进来的一类）。
-    ///
-    /// 正确的修法是重新设计实验（例如把住房从瓶颈位置移开、或取多种子的平均），
-    /// 而不是放宽断言 —— 放宽之后这条判据就再也证明不了任何东西了。
-    /// 在重新设计之前，用 `SBOX_SIM_M5_OPEN=1` 保留它们，让缺口可见。
-    /// </summary>
-    private static bool OpenIssuesEnabled
-        => System.Environment.GetEnvironmentVariable("SBOX_SIM_M5_OPEN") == "1";
-
+    // All acceptance assertions run by default; diagnostics use explicit skip reporting.
     private static SimConfig Config(int size = 44)
     {
         var config = new SimConfig();
@@ -189,8 +170,7 @@ public sealed class M5Tests
     [Fact("验收1（第 68/94 条的最小因果证明）：玩家烧掉森林会让人口增速下降")]
     public void BurningForestReducesPopulationGrowth()
     {
-        // ⚠️ M5 未竟项：M6 的动作空间扩大后，这条对照实验失去稳定性（见 OpenIssuesEnabled 的说明）。
-        if (!OpenIssuesEnabled) { return; }
+
 
         // 两个**完全同源**的世界：都宜居、都有人、都有房子。
         // 唯一差别是：实验组在开局时被玩家放了一把火。
@@ -450,8 +430,7 @@ public sealed class M5Tests
     [Fact("规则开关必须真的改变世界：HighBirthRate 提高出生数")]
     public void HighBirthRateRuleWorks()
     {
-        // ⚠️ M5 未竟项：出生被住房卡住时，出生率规则的效果被掩盖（6 vs 6）。
-        if (!OpenIssuesEnabled) { return; }
+
 
         Simulation normal = MakeSettlement(8031);
         Simulation fertile = MakeSettlement(8031);

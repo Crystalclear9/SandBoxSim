@@ -34,7 +34,7 @@ public sealed class M6WaterDiagnostics
     [Fact("诊断：定居点取水失败的定位（需 SBOX_SIM_M6_OPEN=1）")]
     public void DiagnoseWaterAccess()
     {
-        if (!Enabled) { return; }
+        if (!Enabled) { Assert.Skip("需要显式开启此用例的环境变量，未执行验收"); }
 
         int seed = 9003;   // 实测会全员脱水的那个种子
         var sim = new Simulation(new SimConfig { World = { Width = 44, Height = 44 } }, 44, 44, seed);

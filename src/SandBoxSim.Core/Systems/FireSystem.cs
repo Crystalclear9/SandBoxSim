@@ -85,6 +85,13 @@ public sealed class FireSystem
         _config = sim.Config.Fire;
     }
 
+    public void ResetStatistics()
+    {
+        BurningTiles = BurntTiles = TotalIgnitions = TotalBurnedOut = SpreadThisTick = 0;
+        NaturalIgnitionRolls = NaturalIgnitionHits = NaturalIgnitionRejected = 0;
+        LastHeatRelease = 0f;
+    }
+
     /// <summary>
     /// 风向（0..7，对应 <see cref="DirectionX"/> 的下标）。
     ///

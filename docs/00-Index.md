@@ -25,6 +25,7 @@
 | 14 | [Performance](14-Performance.md) | 分批更新、空间索引、实测数据表 | ✅ M3 已更新 |
 | 15 | [ConfigReference](15-ConfigReference.md) | 每个可调参数的含义、默认值、影响链、调参流程 | ✅ 已写（含调参踩坑记录） |
 | 16 | [BuildAndDelivery](16-BuildAndDelivery.md) | 跨平台构建修复、验收和目录约定 | ✅ 已写 |
+| 17 | [ImplementationAudit](17-ImplementationAudit.md) | 原计划核验、问题复现与修复、验收边界 | 2026-10-04 |
 
 > 未写的文档不代表不重要，而是**不允许在机制落地前先写空文档** ——
 > 那只会生产"读起来很美、实现时全不对"的纸面设计。

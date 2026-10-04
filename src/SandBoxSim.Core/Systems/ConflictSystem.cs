@@ -52,6 +52,12 @@ public sealed class ConflictSystem
         _config = sim.Config.Conflict;
     }
 
+    public void ResetStatistics()
+    {
+        AveragePressure = PeakPressure = 0f;
+        TotalEvaluations = 0;
+    }
+
     /// <summary>
     /// 逐日汇总一次全图压力（只用于观测与报告）。
     ///

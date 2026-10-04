@@ -79,6 +79,13 @@ public sealed class TradeSystem
         _price[(int)ResourceKind.Iron] = _config.BaseIronPrice;
     }
 
+    public void ResetStatistics()
+    {
+        ResetToBase();
+        TotalQuotes = 0;
+        LastFoodRatio = LastWoodRatio = 0f;
+    }
+
     /// <summary>
     /// 逐日算价（由 `Simulation.TickDay` 调用）。
     ///

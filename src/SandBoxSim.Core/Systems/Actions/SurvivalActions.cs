@@ -149,8 +149,7 @@ internal static class TakeAction
         GroundStockConfig stock = ctx.Config.GroundStocks;
         var builder = new ScoreBuilder(ActionKind.Take, w.BlockedUtilityMultiplier);
 
-        bool hasPile = ctx.GroundStocks != null
-            && ctx.GroundStocks.TryFindNearby(ctx.X, ctx.Y, ResourceKind.Food, stock.SearchRadius, out int _, out int _);
+        bool hasPile = TryFindSource(in ctx, ResourceKind.Food, out Int2 _);
 
         // 只在"手上真的空了"时才去取。
         //
@@ -163,7 +162,7 @@ internal static class TakeAction
 
         builder.Consider("手上食物不足", foodNeed, UtilityCurve.Survival, w.TakeNeedWeight);
         builder.Consider("饥饿驱动", hunger, UtilityCurve.Survival, 0.8f);
-        builder.Consider("附近有物资堆", hasPile ? 1f : 0f, UtilityCurve.Linear, w.TakeAvailabilityWeight, isBonus: true);
+        builder.Consider("附近有共享食物", hasPile ? 1f : 0f, UtilityCurve.Linear, w.TakeAvailabilityWeight, isBonus: true);
 
         return builder.Build();
     }
@@ -180,17 +179,46 @@ internal static class TakeAction
             ResourceKind resource = (ResourceKind)kind;
             if (ctx.Store.InventoryOf(ctx.Slot, resource) >= stock.TakeAmount) { continue; }
 
-            if (!ctx.GroundStocks.TryFindNearby(ctx.X, ctx.Y, resource, stock.SearchRadius, out int pile, out int _))
+            if (!TryFindSource(in ctx, resource, out Int2 position))
             {
                 continue;
             }
 
-            Int2 position = ctx.GroundStocks.PositionOf(pile);
             PathResult result = pathfinder.FindNextStep(ctx.X, ctx.Y, position.X, position.Y, out Int2 _);
             if (result.Success) { return position; }
         }
 
         return null;
+    }
+
+    private static bool TryFindSource(in ActionContext ctx, ResourceKind kind, out Int2 position)
+    {
+        position = default;
+        int distance = int.MaxValue;
+        if (ctx.GroundStocks != null && ctx.GroundStocks.TryFindNearby(ctx.X, ctx.Y, kind,
+            ctx.Config.GroundStocks.SearchRadius, out int pile, out int pileDistance))
+        {
+            position = ctx.GroundStocks.PositionOf(pile);
+            distance = pileDistance;
+        }
+        if (ctx.Buildings != null && ctx.Storage != null)
+        {
+            for (int k = 0; k < ctx.Buildings.LiveCount; k++)
+            {
+                int index = ctx.Buildings.LiveAt(k);
+                if (ctx.Buildings.KindOf(index) != BuildingKind.Storage
+                    || ctx.Buildings.StateOf(index) != BuildingState.Complete
+                    || ctx.Storage.AmountOf(index, kind) <= 0f) { continue; }
+                Int2 site = ctx.Buildings.PositionOf(index);
+                int d = System.Math.Max(System.Math.Abs(site.X - ctx.X), System.Math.Abs(site.Y - ctx.Y));
+                if (d <= ctx.Config.Buildings.StorageSearchRadius && d < distance)
+                {
+                    distance = d;
+                    position = site;
+                }
+            }
+        }
+        return distance != int.MaxValue;
     }
 }
 

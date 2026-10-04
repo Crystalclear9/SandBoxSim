@@ -60,6 +60,7 @@ public static class TestRunner
 
         int passed = 0;
         int failed = 0;
+        int skipped = 0;
         var failures = new List<string>();
         var slowest = new List<(string Name, double Seconds)>();
 
@@ -79,6 +80,12 @@ public static class TestRunner
                 }
                 System.Console.WriteLine("  [通过] " + test.DisplayName
                     + " (" + timer.Elapsed.TotalMilliseconds.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + " ms)");
+            }
+            catch (Assert.SkippedException ex)
+            {
+                timer.Stop();
+                skipped++;
+                System.Console.WriteLine("  [跳过] " + test.DisplayName + " — " + ex.Message);
             }
             catch (Assert.AssertionException ex)
             {
@@ -106,6 +113,7 @@ public static class TestRunner
         System.Console.WriteLine("  用例总数：" + cases.Count);
         System.Console.WriteLine("  通过：" + passed);
         System.Console.WriteLine("  失败：" + failed);
+        System.Console.WriteLine("  跳过：" + skipped);
         System.Console.WriteLine("  总用时：" + totalTimer.Elapsed.TotalSeconds.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) + " 秒");
 
         if (slowest.Count > 0)

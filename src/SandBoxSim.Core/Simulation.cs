@@ -265,6 +265,14 @@ public sealed class Simulation
         WildlifeSystem.ResetStatistics();
         Migration.ResetStatistics();
         BuildingSystem.ResetStatistics();
+        Births.ResetStatistics();
+        Fire.ResetStatistics();
+        Trade.ResetStatistics();
+        Conflict.ResetStatistics();
+        HourEventsFired = DayEventsFired = 0;
+        LastDailySample = default;
+        LastInvariantCheckPassed = true;
+        LastInvariantFailure = string.Empty;
         Storage.Reset();
         PopulationCount = 0;
         BuildingCount = 0;

@@ -24,29 +24,7 @@ public sealed class M6Tests
 {
     private const int TicksPerDay = 1440;
 
-    /// <summary>
-    /// M6 的**未竟项**开关。
-    ///
-    /// # 为什么要有它，而不是把这四条测试删掉或改松
-    ///
-    /// 这四条测试现在**失败**，而且它们失败得很有价值 —— 每一条都指出了一个真实缺口：
-    ///
-    ///   1. `AllSixTraitsAreHashed`：改了性格摘要却不变（性格可能没真正进入摘要路径）
-    ///   2. `AttackBecomesReachableUnderScarcity`：怨恨没有产生关系记录 ⇒ 攻击仍不可达
-    ///   3. `PeaceModeDisablesAttack`：依赖上一条，所以也测不到
-    ///   4. `RelationshipsSurviveSaveLoad`：关系没能逐位往返存档
-    ///
-    /// 把它们删掉或放宽断言，等于把"机制存在但不可达"这个本项目最常踩的坑
-    /// **伪装成已完成**。而让它们默认失败，会让整套测试长期是红的，
-    /// 于是真正的回归再也看不出来。
-    ///
-    /// 折中办法：默认跳过，但在**每一次运行的输出里**都留下记录，
-    /// 并且用 `SBOX_SIM_M6_OPEN=1` 一条命令就能把全部缺口跑出来。
-    /// 这与本项目对"安静的 0"的一贯处理方式一致：**不让它安静。**
-    /// </summary>
-    private static bool OpenIssuesEnabled
-        => System.Environment.GetEnvironmentVariable("SBOX_SIM_M6_OPEN") == "1";
-
+    // Relationship, peace-mode and save-continuation assertions run in normal CI.
     private static SimConfig Config(int size = 44)
     {
         var config = new SimConfig();
@@ -226,183 +204,19 @@ public sealed class M6Tests
     [Fact("可达性：稀缺世界里必须真的出现攻击（怨恨是敌意的来源）")]
     public void AttackBecomesReachableUnderScarcity()
     {
-        // ⚠️ M6 未竟项（#2/#3）—— 结论已经**换了方向**：问题不在怨恨与攻击，而在场景本身活不下来
-        //
-        // # 决定性发现
-        //
-        // 二分到最后做了一个"完全不改造"的对照：直接用基础定居点 MakeSettlement(_, 14)。
-        // 结果**同样第 2 天 Dehydration x14**。
-        // 也就是说：前面四轮排掉的（饥饿频率、森林挡路、取水太远、饥饿钉死）
-        // 以及全图覆写、部分覆写、只改植被，**全都不是原因** ——
-        // 真正的原因是**基础场景本身就活不下来**。
-        //
-        // # 已核实的底层事实（不是猜的）
-        //   * TerrainInfo.WalkableTable：Forest = true、Mountain = true、Water = false。
-        //     "森林挡住去路"这个假设从一开始就不成立；
-        //   * World.SetTerrain 会调用 Tile.ApplyTerrainRules()，
-        //     因此 Walkable / Buildable 一定与地形同步。"改了地形但没改可通行"也不成立；
-        //   * 水在第 16 列、出生点在第 30 列，两者**同属一个 16×16 chunk**，
-        //     所以"取水搜索只在自己所在的 chunk 里找"这个解释也不成立。
-        //
-        // # 由此暴露的更重要的问题
-        //   如果基础场景第 2 天就全员脱水，那么**同文件里几条"通过"的测试可能是假通过**：
-        //   例如 SocializeIsActuallyChosen 既断言"社交被选中过"，也断言"关系表非空" ——
-        //   而人死光时 Forgett 会清空关系。它能通过，说明那几条用例的种子上人活下来了，
-        //   但这属于**运气**，不是设计。下一步应当先把基础场景的可存活性做成显式断言，
-        //   再谈社会行为。
-        //
-        // # 下一步（方向已明确）
-        //   在基础场景里打印第 1 天内的：干渴度曲线、Drink 被选中次数、
-        //   TryFindWaterAccess 的成功率。三者一比就能定位是
-        //   "不去喝"（效用问题）还是"找不到水"（选靶问题）——
-        //   这正是 M4 诊断脱水时用过的办法，那次一次就定位到了。
-        if (!OpenIssuesEnabled) { return; }if (!OpenIssuesEnabled) { return; }
-
-        // 说明：第一版这条测试测的是"谁的时钟更快"（见 MakeScarceWorld 的注释），
-        // 现在改成"食物充足但分配长期不均"，让怨恨有时间累积而没有人饿死。
-        // 原诊断留档：
-        // 怨恨**确实产生了互动**（累计互动数断言通过），但亲和度还没来得及压到敌对阈值
-        // （-0.2）以下，人就先饿死了 —— 而死亡会 `Forget` 掉他的全部关系，怨恨从头再来。
-        //
-        // 也就是说：这不是"机制没接上"，而是**两条时间尺度的竞速**：
-        //   怨恨把关系压到敌对需要 N 天  vs  饿死需要 M 天，实测 M < N。
-        // 已做的改善：怨恨强度现在随饥饿程度加速（越饿越恨）、ResentmentPerDay 0.04 → 0.12。
-        //
-        // 下一步的两个方向（都需要一轮完整验证，本轮未做）：
-        //   (a) 把"怨恨 → 敌对"这条链的时间尺度再压短一档（但要注意别让和平世界也到处结仇）；
-        //   (b) 换一个**不靠饿死人**的稀缺场景：例如食物充足但分配不均，
-        //       让怨恨有机会在几天内累积而没人死亡。
-
-
-        // 刻意造一个**贫瘠且不平等**的世界：没有食物来源，一半人有粮、一半人挨饿。
-        // 这正是「怨恨」机制的输入条件，也是攻击唯一可能的起点。
-        Simulation sim = MakeSettlement(9003, 14);
-
-        // 把地图上的食物来源全部拿掉，只留下「有人有余粮」这个不平等
-        for (int y = 0; y < 44; y++)
-        {
-            for (int x = 0; x < 44; x++)
-            {
-                sim.World.SetTerrain(x, y, TerrainKind.Grass);
-                sim.World.SetVegetation(x, y, 0.05f);
-            }
-        }
-        sim.World.RefreshSpatialIndex();
-
-        int index = 0;
-        foreach (int slot in sim.Agents.AliveSlots())
-        {
-            sim.Agents.SetHunger(slot, index++ % 2 == 0 ? 0.05f : 0.9f);
-            sim.Agents.AddInventory(slot, ResourceKind.Food, index % 2 == 0 ? 60f : 0f);
-        }
-
-        int populationAtStart = sim.Agents.LiveCount;
-        for (int day = 0; day < 40; day++)
-        {
-            // # 条件的维持频率必须**快于它自己失效的速度**
-            //
-            // 这一行改过两次，两次都是被实测打回来的：
-            //   * 每 3 天维护一次 ⇒ 饥饿度在两次之间冲过致死线，人死光（累计互动 351、当前关系 0）
-            //   * 每天维护一次   ⇒ 仍然第 2 天人口归零
-            // 因为需求系统是**每天推进一次**的，而 `HungerPerDay` 大到
-            // "0.55 起步 + 一天"就能越过 1.0。
-            //
-            // 所以改成每 240 tick（1/6 天）钉一次：**维持间隔必须显著小于失效时间**。
-            // 这条经验对整个项目的测试设计都适用 —— 凡是"我先把世界摆成某个样子、
-            // 然后跑很久看它怎么演化"的测试，前提都会被时间吃掉。
-            // 不再每 240 tick 维护条件 —— 实测那个"维护"函数本身就是致死原因
-            // （基础场景能活，一旦加上它就在第 2 天全员脱水）。
-            // 改成只在开局建立一次不平等，然后让它自然演化。
-            sim.Tick(TicksPerDay);
-
-            // **前置条件必须一直成立**，而不只是在建立场景的那一刻成立。
-            // 这一条断言如果早些写出来，上面那个"条件悄悄失效"的问题当场就会暴露。
-            if (sim.Agents.LiveCount == 0)
-            {
-                // 死因是此刻唯一重要的信息：它把"往哪个方向查"这件事定下来。
-                var causes = new System.Text.StringBuilder();
-                for (int c = 0; c < sim.Needs.DeathsByCause.Length; c++)
-                {
-                    if (sim.Needs.DeathsByCause[c] > 0)
-                    {
-                        causes.Append((Core.Agents.DeathCause)c)
-                              .Append(" x")
-                              .Append(sim.Needs.DeathsByCause[c])
-                              .Append("; ");
-                    }
-                }
-
-                float avgThirst = 0f;
-                float avgHunger = 0f;
-                foreach (int s in sim.Agents.AliveSlots())
-                {
-                    avgThirst += sim.Agents.ThirstOf(s);
-                    avgHunger += sim.Agents.HungerOf(s);
-                }
-
-                Assert.True(false,
-                    "【诊断】第 " + day + " 天人口归零。死因：" + causes
-                    + " | 累计互动 " + sim.Relationships.TotalInteractions
-                    + " | 平均干渴 " + (avgThirst / 14f).ToString("0.00")
-                    + " 平均饥饿 " + (avgHunger / 14f).ToString("0.00"));
-            }
-        }
-        Assert.True(sim.Agents.LiveCount >= populationAtStart - 2,
-            "这个场景要求**不靠饿死人**：人口必须基本稳定（" + populationAtStart
-            + " -> " + sim.Agents.LiveCount + "）");
-
-        // 断言累计互动数而不是"当前关系条数"：
-        // 这是个贫瘠世界，30 天里人会**死光**，而死亡会 Forget 掉他的全部关系 ——
-        // 于是"当前条数"在结束时必然接近 0，看起来像"怨恨从未发生"。
-        // 累计计数不会被清理，才是"机制跑过"的正确证据。
-        Assert.True(sim.Relationships.TotalInteractions > 0,
-            "怨恨必须产生互动记录（累计 " + sim.Relationships.TotalInteractions + " 次）");
-        // 诊断：把"关系到底坏到什么程度"直接打出来。
-        // 这是区分两种失败的唯一办法：
-        //   最低亲和度**没到** -0.2 ⇒ 怨恨太弱或回落抵消了它；
-        //   最低亲和度**到了** -0.2 而攻击仍为 0 ⇒ 问题在攻击的门或选靶上。
-        float minAffinity = 0f;
-        var pairs = sim.Relationships.PairsAscending();
-        for (int i = 0; i < pairs.Count; i++)
-        {
-            if (pairs[i].Value.Affinity < minAffinity) { minAffinity = pairs[i].Value.Affinity; }
-        }
-
-        Assert.True(sim.Ai.ChosenByAction[(int)ActionKind.Attack] > 0,
-            "在稀缺且不平等的社会里必须出现攻击（实测 "
-            + sim.Ai.ChosenByAction[(int)ActionKind.Attack] + " 次）—— "
-            + "如果恒为 0，通常说明「敌意根本没有来源」："
-            + "攻击以负亲和度为门，而唯一让它变负的机制又是攻击本身，于是形成死循环。"
-            + "【诊断】关系条数 " + sim.Relationships.Count
-            + "，累计互动 " + sim.Relationships.TotalInteractions
-            + "，最低亲和度 " + minAffinity.ToString("0.###")
-            + "（敌对阈值 -0.2）");
+        // Use the same water-preserving fixture as the peace-mode control.
+        // The previous fixture converted EVERY tile to grass, deleting its drinking water.
+        Simulation sim = MakeScarceWorld(9003);
+        Assert.True(sim.World.TileAt(24, 30).Terrain == TerrainKind.Water);
+        sim.Tick(TicksPerDay * 40);
+        Assert.Greater(sim.Agents.LiveCount, 0, "实验不能退化为空世界");
+        Assert.Greater(sim.Relationships.TotalInteractions, 0L);
+        Assert.Greater(sim.Ai.ChosenByAction[(int)ActionKind.Attack], 0,
+            "不预设敌意的不平等世界应自行出现攻击");
     }
-
     [Fact("和平模式必须真的关掉攻击这条通路")]
     public void PeaceModeDisablesAttack()
     {
-        // ⚠️ 又变回"依赖攻击可达"的一条了（M8 接入冲突压力之后）。
-        //
-        // `AttackAction.Evaluate` 里的 PeaceMode 门本身仍然是直白的（返回效用 0），
-        // 但"关掉了攻击"只有在"本来会发生攻击"的世界里才可观测 ——
-        // 而 M8 给 Attack 加了一项"冲突压力"权重之后，那个手工场景里
-        // 对照组已经不再出现攻击了。
-        //
-        // 这暴露了一个更本质的测试设计问题：**"对照组必须发生某事"是一个
-        // 依赖世界演化的前提**，而每次改动效用格局都可能让它失效。
-        // 真正的修法是直接构造一对"必然敌对且相邻"的个体并断言 PeaceMode
-        // 让 Attack 的效用归零 —— 那才是这条判据的准确形式。
-        if (!OpenIssuesEnabled) { return; }
-
-        // 注意：`AttackAction.Evaluate` 里的 PeaceMode 门本身是直白的（返回效用 0），
-        // 但"关掉了攻击"只有在"本来会发生攻击"的世界里才可观测 ——
-        // 所以这条测试必须先有一个真的会打起来的对照组。
-        // 注意：`AttackAction.Evaluate` 里的 PeaceMode 门本身是直白的（返回效用 0），
-        // 但"关掉了攻击"只有在"本来会发生攻击"的世界里才可观测 ——
-        // 所以这条测试必须先有一个真的会打起来的对照组。
-
-
         Simulation warlike = MakeScarceWorld(9004);
         Simulation peaceful = MakeScarceWorld(9004);
         peaceful.Config.Rules.PeaceMode = true;
@@ -413,8 +227,19 @@ public sealed class M6Tests
             peaceful.Tick(TicksPerDay);
         }
 
-        Assert.True(warlike.Agents.LiveCount > 0 && peaceful.Agents.LiveCount > 0,
-            "对照组与实验组都必须有人活着，否则这条测试没有意义");
+        if (warlike.Agents.LiveCount == 0 || peaceful.Agents.LiveCount == 0)
+        {
+            var causes = new System.Text.StringBuilder();
+            for (int c = 0; c < warlike.Needs.DeathsByCause.Length; c++)
+            {
+                if (warlike.Needs.DeathsByCause[c] > 0)
+                {
+                    causes.Append((DeathCause)c).Append(" x").Append(warlike.Needs.DeathsByCause[c]).Append("; ");
+                }
+            }
+            Assert.True(false, "【诊断】对照组存活 " + warlike.Agents.LiveCount
+                + "，实验组存活 " + peaceful.Agents.LiveCount + "。对照组死因：" + causes);
+        }
 
         Assert.Equal(0, peaceful.Ai.ChosenByAction[(int)ActionKind.Attack]);
         Assert.True(warlike.Ai.ChosenByAction[(int)ActionKind.Attack] > 0,
@@ -601,37 +426,6 @@ public sealed class M6Tests
     [Fact("关系必须完整往返存档（否则读档后所有人一夜之间变成陌生人）")]
     public void RelationshipsSurviveSaveLoad()
     {
-        // ⚠️ M6 未竟项 #4：已缩小到**一个字段、一个个体**
-        //
-        // # 逐字段比对的结果（M6SaveDiagnostics 打印）
-        //   存活 17/17、容量 512/512、关系 106/106 且逐条相同 —— **全部字段里只有一处不同**：
-        //       槽位 13 的 targetY：direct=22  restored=24
-        //   分叉发生在读档后第 248 tick，分段是 agents。
-        //
-        // # 一个非常关键的判别实验：load vs load
-        //   从**同一份 JSON** 读两次、让两个读档世界一起跑：
-        //       **600 tick 完全一致**。
-        //   所以**恢复本身是确定性的、没有残留状态** ——
-        //   分叉来自 direct 那边的"热状态"，而不是"读档没恢复好"。
-        //   这两者的修法完全不同，所以这个判别把范围砍掉了一半。
-        //
-        // # 已排除（都实测过）
-        //   六项性格、需求（含 social）、动作/阶段/目标（除这一处）、迁移冷却、
-        //   决策相位、moveProgress、关系、NeedsSystem 内隐藏状态、
-        //   **A* 开放集残留**（`BeginSearch` 每次都 `_open.Clear()`，
-        //   失败路径也有 `DrainOpen()`，所以堆里不会留下上一次搜索的节点）。
-        //
-        // # 下一步（非常具体）
-        //   在第 248 tick 打印槽位 13 的：action / phase / 目标选的候选列表。
-        //   `targetY` 差 2 格说明两次选中的**是不同的人或不同的格**，
-        //   而所有位置都相同 ⇒ 选择过程里有 tie-break 依赖了未入档的状态。
-        //   最可能的落点是"按 chunk 搜索并取第一个命中"的那类辅助函数
-        //   （`AgentStore` 里"找最近的存活个体"就是这种带半径的搜索）——
-        //   它的结果依赖 chunk 的遍历，而 chunk 的**内部游标/缓存**不在摘要里。
-        if (!OpenIssuesEnabled) { return; }if (!OpenIssuesEnabled) { return; }
-
-
-
         Simulation sim = MakeSettlement(9007, 14);
         sim.Tick(TicksPerDay * 15);
 

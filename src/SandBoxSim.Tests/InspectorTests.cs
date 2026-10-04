@@ -109,7 +109,7 @@ public sealed class InspectorTests
             Assert.True(score.Considerations != null && score.Considerations.Length > 0,
                 "动作 " + score.Action + " 没有任何考虑项 —— 那样检查器就无法解释它");
 
-            for (int k = 0; k < score.Considerations.Length; k++)
+            for (int k = 0; k < score.Considerations!.Length; k++)
             {
                 Consideration consideration = score.Considerations[k];
                 Assert.True(!string.IsNullOrEmpty(consideration.Name),

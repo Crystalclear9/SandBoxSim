@@ -24,7 +24,7 @@ public sealed class BirthDiagnostics
         if (System.Environment.GetEnvironmentVariable("SBOX_SIM_PROBE") != "1")
         {
             System.Console.WriteLine("  [出生诊断] 已跳过（设 SBOX_SIM_PROBE=1 运行）。");
-            return;
+            Assert.Skip("需 SBOX_SIM_PROBE=1");
         }
 
         int days = 120;

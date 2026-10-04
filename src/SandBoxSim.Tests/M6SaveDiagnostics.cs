@@ -78,7 +78,7 @@ public sealed class M6SaveDiagnostics
     [Fact("诊断：读档续跑在 agents 段分叉时，指出是哪一个字段（需 SBOX_SIM_M6_OPEN=1）")]
     public void DiagnoseAgentFieldDivergence()
     {
-        if (!Enabled) { return; }
+        if (!Enabled) { Assert.Skip("需要显式开启此用例的环境变量，未执行验收"); }
 
         Simulation direct = MakeWorld(9007);
         direct.Tick(TicksPerDay * 15);

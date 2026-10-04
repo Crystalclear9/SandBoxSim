@@ -49,7 +49,7 @@ public sealed class M7BatchAcceptance
     [Fact("M7 批量验收：20 个种子里有多少能自己长出聚落（需 SBOX_SIM_BATCH=1）")]
     public void TwentySeedsFormSettlements()
     {
-        if (!Enabled) { return; }
+        if (!Enabled) { Assert.Skip("需要显式开启此用例的环境变量，未执行验收"); }
 
         // 允许用环境变量缩小规模做快速迭代（默认仍是验收要求的 20 种子 x 200 天）
         int Seeds = int.TryParse(System.Environment.GetEnvironmentVariable("SBOX_SIM_BATCH_SEEDS"), out int sc) && sc > 0 ? sc : 20;
@@ -71,9 +71,11 @@ public sealed class M7BatchAcceptance
             sim.InterveneAddResource(52, 52, ResourceKind.Wood, 60f);
 
             int foundedDay = -1;
+            int peakActive = 0;
             for (int day = 0; day < Days; day++)
             {
                 sim.Tick(TicksPerDay);
+                if (sim.Settlements.ActiveCount > peakActive) { peakActive = sim.Settlements.ActiveCount; }
                 if (foundedDay < 0 && sim.Settlements.TotalFounded > 0) { foundedDay = day + 1; }
             }
 
@@ -82,7 +84,7 @@ public sealed class M7BatchAcceptance
 
             if (sim.Settlements.TotalFounded > 0) { formed++; }
             if (foundedDay >= 0 && foundedDay <= 150) { formedBy150++; }
-            if (sim.Settlements.TotalFounded >= 2) { multiSettlements++; }
+            if (peakActive >= 2) { multiSettlements++; }
 
             SettlementTier tier = SettlementTier.Camp;
             for (int k = 0; k < sim.Settlements.EntityCount; k++)
@@ -95,6 +97,7 @@ public sealed class M7BatchAcceptance
                 + " 人口 " + sim.Agents.LiveCount.ToString("00")
                 + " 聚落 " + sim.Settlements.TotalFounded
                 + " (活跃 " + active + ")"
+                + " 同时活跃峰值 " + peakActive
                 + " 首成 " + (foundedDay < 0 ? "—" : foundedDay + "天")
                 + " 最高等级 " + tier);
         }

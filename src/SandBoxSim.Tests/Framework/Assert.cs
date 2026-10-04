@@ -8,6 +8,13 @@ namespace SandBoxSim.Tests.Framework;
 /// </summary>
 public static class Assert
 {
+    public sealed class SkippedException : System.Exception
+    {
+        public SkippedException(string reason) : base(reason) { }
+    }
+
+    public static void Skip(string reason) => throw new SkippedException(reason);
+
     public static void True(bool condition, string? message = null)
     {
         if (!condition) { FailInternal("期望为 true，实际为 false" + Suffix(message)); }
@@ -78,7 +85,7 @@ public static class Assert
 
     public static void InRange(double actual, double min, double max, string? message = null)
     {
-        if (actual < min || actual > max)
+        if (double.IsNaN(actual) || double.IsNaN(min) || double.IsNaN(max) || min > max || actual < min || actual > max)
         {
             FailInternal("期望 " + Format(actual) + " 落在 [" + Format(min) + ", " + Format(max) + "]" + Suffix(message));
         }
@@ -89,7 +96,8 @@ public static class Assert
 
     public static void Near(double expected, double actual, double tolerance = 1e-6, string? message = null)
     {
-        if (System.Math.Abs(expected - actual) > tolerance)
+        if (!double.IsFinite(expected) || !double.IsFinite(actual) || !double.IsFinite(tolerance)
+            || tolerance < 0 || System.Math.Abs(expected - actual) > tolerance)
         {
             FailInternal("期望 " + Format(actual) + " 接近 " + Format(expected)
                 + "（容差 " + Format(tolerance) + "，实际偏差 " + Format(System.Math.Abs(expected - actual)) + "）" + Suffix(message));

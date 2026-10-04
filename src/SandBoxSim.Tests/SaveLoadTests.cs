@@ -520,9 +520,6 @@ public sealed class SaveLoadTests
         ulong[][] before = sim.Random.ExportState();
         int streams = before.Length;
 
-        JsonValue? _ = null;
-        _ = _;
-
         string json = sim.SaveToText();
 
         var restoredConfig = Config(60, 60);

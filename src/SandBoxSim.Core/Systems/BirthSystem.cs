@@ -212,6 +212,13 @@ public sealed class BirthSystem
     /// <summary>读档时恢复累计出生数。</summary>
     public void RestoreCounters(int totalBirths) => TotalBirths = totalBirths;
 
+    public void ResetStatistics()
+    {
+        TotalBirths = BirthsThisDay = EligiblePairsThisDay = BlockedByHousingThisDay = 0;
+        AverageFoodFactorThisDay = 0f;
+        LastBirthDetail = string.Empty;
+    }
+
     /// <summary>
     /// 每天评估一次出生（由 `Simulation.TickDay` 调用，**在年龄推进之后**）。
     ///

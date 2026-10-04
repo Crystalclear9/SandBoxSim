@@ -58,7 +58,7 @@ public sealed class SaveDivergenceProbe
         {
             System.Console.WriteLine("  [探针] 已跳过（设 SBOX_SIM_PROBE=1 运行）。");
             System.Console.WriteLine("  [探针] 常规回归由 SaveLoadTests 把关（秒级）。");
-            return;
+            Assert.Skip("需 SBOX_SIM_PROBE=1");
         }
 
         int size = MapSize;

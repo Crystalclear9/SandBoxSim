@@ -65,6 +65,13 @@ public sealed class StorageStore
     public float CapacityOf(int index)
         => index >= 0 && index < _capacity.Length ? _capacity[index] : 0f;
 
+    /// <summary>建筑被拆除或槽位被复用时清除旧库存。</summary>
+    public void ClearSlot(int index)
+    {
+        if (index < 0 || index >= _capacity.Length) { return; }
+        _food[index] = _wood[index] = _stone[index] = _iron[index] = _capacity[index] = 0f;
+    }
+
     public float AmountOf(int index, ResourceKind kind)
     {
         if (index < 0 || index >= _food.Length) { return 0f; }
