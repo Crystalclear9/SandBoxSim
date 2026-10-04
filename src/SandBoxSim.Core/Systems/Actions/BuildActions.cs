@@ -68,6 +68,29 @@ internal static class BuildAction
         // 采集木材才有机会被选中。**门槛与加分的区别在这里是生死攸关的。**
         builder.Consider("材料齐备", material, UtilityCurve.Threshold(0.98f), cfg.BuildMaterialWeight);
 
+        // # 第二道门：**手上必须真的有一部分材料**（M8 物流）
+        //
+        // 这一条是 M7 批量验收逼出来的。原来只有上面那道门，而它的口径是
+        // "随身 + **个体附近的**仓库/地面堆" —— 而个体马上要**走开**去工地。
+        // 于是出现了一个很坏的状态：身上一件材料都没有的人也能通过门槛、
+        // 赢得建造竞争，走到工地后因为"工地附近没有材料"而失败。
+        //
+        // 实测（seed 70138）：`BuildStorage` 被选中 **1297 次**，开工 **0** 次，
+        // 随身木材 **0** —— 每一次失败都花掉了一个本该用于"去砍木头"的决策。
+        // **这不是机制不可达，是机制在空转。**
+        //
+        // 为什么门槛取"成本的一定比例"而不是"全部成本"：
+        // 仓库需要 40 木材 + 10 石料，而 `Ai.InventoryComfort` 是 45 ——
+        // 要求"全部拿在手上"会让仓库**永远建不起来**（又一次把机制堵死）。
+        // 取 25% 的效果是：**手上空空的人不再空转，而正常采集过的人仍然够得着。**
+        float needWood = recipe.WoodCost * 0.25f;
+        float needStone = recipe.StoneCost * 0.25f;
+        float woodShare = needWood <= 0f ? 1f : SimMath.Clamp01(carriedWood / needWood);
+        float stoneShare = needStone <= 0f ? 1f : SimMath.Clamp01(carriedStone / needStone);
+        float inHand = System.Math.Min(woodShare, stoneShare);
+
+        builder.Consider("手上有材料", inHand, UtilityCurve.Threshold(0.98f), cfg.BuildMaterialWeight);
+
         // ---- 缺口（真正的驱动） ----
         float gap;
         switch (kind)
