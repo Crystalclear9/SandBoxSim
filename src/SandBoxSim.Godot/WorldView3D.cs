@@ -25,7 +25,7 @@ public partial class WorldView3D : MapView
     private Vector2 _mouse;
     private Vector2I _lastPaint = new(-1, -1);
     private int _follow = -1, _followGeneration;
-    private long _terrainSignature, _buildingSignature;
+    private long _terrainSignature, _buildingSignature, _natureSignature;
     private double _poll;
     private int _lastOverlay = -1;
     private readonly Dictionary<long, Node3D> _people = new();
@@ -36,6 +36,10 @@ public partial class WorldView3D : MapView
     private MeshInstance3D _brush = null!, _selection = null!;
     private Label _cameraHint = null!;
     private Texture2D? _terrainAtlas;
+    private MeshInstance3D _routes = null!;
+    private SandBoxSim.Core.Pathing.AStarPathfinder _observerPaths = null!;
+    private Int2[] _observedRoute = Array.Empty<Int2>();
+    private int[] _density = Array.Empty<int>();
     public bool HasTerrain => _terrainRoot.GetChildCount() > 0;
     public bool HasPerspectiveCamera => _camera.Projection == Camera3D.ProjectionType.Perspective;
     public void ValidateViewControls()
@@ -75,10 +79,14 @@ public partial class WorldView3D : MapView
         _scene.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-48, -35, 0), LightColor = new Color("#ffe8bc"),
             LightEnergy = .9f, ShadowEnabled = true, DirectionalShadowMaxDistance = 160 });
         _camera = new Camera3D { Current = true, Near = .15f, Far = 650, Fov = 52 }; _scene.AddChild(_camera);
+        _routes = new MeshInstance3D { CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+            MaterialOverride = new StandardMaterial3D { AlbedoColor = HudStyle.Accent, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded } }; _scene.AddChild(_routes);
         _brush = Ring(new Color("#e1cf8d")); _scene.AddChild(_brush);
         _selection = Ring(new Color("#f7d787")); _scene.AddChild(_selection);
         _cameraHint = new Label { Visible = false, MouseFilter = MouseFilterEnum.Ignore };
         _cameraHint.AddThemeColorOverride("font_color", new Color("#f6f0d6")); AddChild(_cameraHint);
+        _cameraHint.AddThemeFontSizeOverride("font_size", 13); _cameraHint.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, .8f));
+        _cameraHint.AddThemeConstantOverride("shadow_offset_x", 1); _cameraHint.AddThemeConstantOverride("shadow_offset_y", 1);
         RebuildWorld(); UpdateCamera();
     }
     public override void _Draw() { }
@@ -125,7 +133,7 @@ public partial class WorldView3D : MapView
         _poll += delta;
         if (_poll >= .3)
         {
-            _poll = 0; CheckTerrain(); SyncEntities();
+            _poll = 0; CheckTerrain(); SyncEntities(); UpdateObservation();
         }
         AnimateActors((float)delta); UpdateBrush();
         double now = Time.GetTicksMsec() / 1000.0;
@@ -213,20 +221,108 @@ public partial class WorldView3D : MapView
     private void RebuildWorld()
     {
         _world = Game.Sim; _follow = -1; Clear(_terrainRoot); Clear(_props); Clear(_actors);
+        _observerPaths = new SandBoxSim.Core.Pathing.AStarPathfinder(Game.Sim.World);
+        _observedRoute = new Int2[Game.Sim.World.Tiles.Length]; _density = new int[Game.Sim.World.Tiles.Length];
+        _routes.Mesh = null; _natureSignature = 0;
         foreach (var e in _effects) { e.Node.QueueFree(); } _effects.Clear(); _people.Clear(); _deer.Clear(); _wolves.Clear(); _personModels.Clear();
         BuildTerrain(); BuildNature(); BuildBuildings(); SyncEntities();
     }
     private void CheckTerrain()
     {
-        long signature = 17;
+        long signature = 17, nature = 17;
         foreach (var tile in Game.Sim.World.Tiles)
-            { signature = unchecked(signature * 31 + (int)tile.Terrain * 3 + (int)tile.Fire + (int)(tile.Height * 10000)); }
+        {
+            signature = unchecked(signature * 31 + (int)tile.Terrain * 3 + (int)tile.Fire + (int)(tile.Height * 10000));
+            int flags = (tile.Vegetation > .12f ? 1 : 0) + (tile.Resource.Kind == ResourceKind.Food && tile.Resource.Amount > 5 ? 2 : 0)
+                + (tile.Resource.Kind == ResourceKind.Iron ? 4 : 0);
+            nature = unchecked(nature * 31 + flags);
+            if (Overlay is 2 or 5) { signature = unchecked(signature * 31 + (int)tile.Resource.Kind * 1000 + (int)tile.Resource.Amount); }
+            if (Overlay == 3) { signature = unchecked(signature * 31 + (int)(tile.Moisture * 100)); }
+            if (Overlay == 4) { signature = unchecked(signature * 31 + (int)(tile.Fertility * 100)); }
+        }
+        if (Overlay == 1)
+            for (int i = 0; i < Game.Sim.Settlements.EntityCount; i++)
+            {
+                var settlement = Game.Sim.Settlements.At(i);
+                signature = unchecked(signature * 31 + settlement.Id * 101 + settlement.CenterX * 503 + settlement.CenterY * 997 + (settlement.Dissolved ? 1 : 0));
+            }
+        if (Overlay == 6)
+        {
+            Array.Clear(_density);
+            foreach (int slot in Game.Sim.Agents.AliveSlots())
+            {
+                int ax = Game.Sim.Agents.XOf(slot), ay = Game.Sim.Agents.YOf(slot);
+                for (int y = Math.Max(0, ay - 3); y <= Math.Min(Game.Sim.World.Height - 1, ay + 3); y++)
+                    for (int x = Math.Max(0, ax - 3); x <= Math.Min(Game.Sim.World.Width - 1, ax + 3); x++) { _density[y * Game.Sim.World.Width + x]++; }
+            }
+            foreach (int value in _density) { signature = unchecked(signature * 31 + value); }
+        }
         if (signature != _terrainSignature || _lastOverlay != Overlay)
-            { _terrainSignature = signature; _lastOverlay = Overlay; Clear(_terrainRoot); BuildTerrain(); Clear(_props); BuildNature(); _buildingSignature = 0; }
-        long buildings = 17;
+            { _terrainSignature = signature; _lastOverlay = Overlay; Clear(_terrainRoot); BuildTerrain(); Clear(_props); BuildNature(); _natureSignature = nature; _buildingSignature = 0; }
+        else if (_natureSignature != nature) { _natureSignature = nature; Clear(_props); BuildNature(); }
+        long buildings = 17 + Game.Sim.Settlements.ActiveCount;
         foreach (int i in Enumerable.Range(0, Game.Sim.Buildings.Capacity))
-            if (Game.Sim.Buildings.IsAlive(i)) { buildings = unchecked(buildings * 31 + i * 7 + (int)Game.Sim.Buildings.StateOf(i)); }
+            if (Game.Sim.Buildings.IsAlive(i))
+            {
+                var store = Game.Sim.Buildings;
+                buildings = unchecked(buildings * 31 + i * 7 + (int)store.StateOf(i) + (int)store.KindOf(i) * 17
+                    + store.GenerationOf(i) * 101 + store.XOf(i) * 503 + store.YOf(i) * 997);
+            }
         if (buildings != _buildingSignature) { _buildingSignature = buildings; BuildBuildings(); }
+    }
+    public void ValidateObservationLayers()
+    {
+        int original = Overlay;
+        try { for (int i = 0; i <= 8; i++) { Overlay = i; CheckTerrain(); SyncEntities(); UpdateObservation(); } }
+        finally { Overlay = original; CheckTerrain(); UpdateObservation(); }
+    }
+    private void UpdateObservation()
+    {
+        var sim = Game.Sim;
+        foreach (var pair in _people)
+        {
+            var label = pair.Value.GetNodeOrNull<Label3D>("Activity");
+            if (Overlay != 7) { if (label != null) { label.Visible = false; } continue; }
+            if (label == null)
+            {
+                label = new Label3D { Name = "Activity", Font = Game.Theme.DefaultFont, FontSize = 24, PixelSize = .014f,
+                    Position = Vector3.Up * 2.2f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, VisibilityRangeEnd = 55 };
+                pair.Value.AddChild(label);
+            }
+            int slot = (int)(pair.Key & uint.MaxValue); label.Visible = true;
+            var phase = sim.Agents.PhaseOf(slot);
+            label.Text = phase == ActionPhase.Moving ? "前往 · " + ActionRegistry.DisplayNameOf(sim.Agents.ActionOf(slot))
+                : phase == ActionPhase.Executing ? ActionRegistry.DisplayNameOf(sim.Agents.ActionOf(slot)) : "待命";
+            label.Modulate = phase == ActionPhase.Moving ? new Color("#aed4d8") : HudStyle.Accent;
+        }
+        _cameraHint.Visible = Overlay > 0;
+        _cameraHint.Text = Overlay switch
+        {
+            1 => "聚落领土 · 不同颜色对应不同聚落", 2 => "资源储量 · 绿色越亮，资源越多", 3 => "湿度 · 蓝色越明显，土地越湿润",
+            4 => "肥力 · 绿色越亮，土地越肥沃", 5 => "食物分布 · 浅绿色标出食物资源", 6 => "人口密度 · 红色越明显，附近居民越密集",
+            7 => "AI 状态 · 蓝色表示移动，金色表示当前行动", 8 => "行动路径 · 所选居民及镜头附近最多八条可达路径", _ => ""
+        };
+        _cameraHint.Position = new Vector2(24, Size.Y - 155);
+        _routes.Visible = Overlay == 8;
+        if (Overlay != 8) { return; }
+        var vertices = new List<Vector3>();
+        var candidates = sim.Agents.AliveSlots().Where(sim.Agents.HasTarget)
+            .OrderBy(i => i == Game.SelectedSlot ? -1 : PositionAt(sim.Agents.XOf(i), sim.Agents.YOf(i)).DistanceSquaredTo(_target)).Take(8);
+        foreach (int slot in candidates)
+        {
+            var goal = sim.Agents.TargetOf(slot);
+            var result = _observerPaths.FindPath(sim.Agents.XOf(slot), sim.Agents.YOf(slot), goal.X, goal.Y, _observedRoute);
+            if (!result.Success) { continue; }
+            for (int i = 1; i < result.Length; i++)
+            {
+                vertices.Add(PositionAt(_observedRoute[i - 1].X, _observedRoute[i - 1].Y) + Vector3.Up * .2f);
+                vertices.Add(PositionAt(_observedRoute[i].X, _observedRoute[i].Y) + Vector3.Up * .2f);
+            }
+        }
+        if (vertices.Count == 0) { _routes.Mesh = null; return; }
+        var mesh = new ImmediateMesh(); mesh.SurfaceBegin(Mesh.PrimitiveType.Lines);
+        foreach (Vector3 point in vertices) { mesh.SurfaceAddVertex(point); }
+        mesh.SurfaceEnd(); _routes.Mesh = mesh;
     }
     private void BuildTerrain()
     {
@@ -305,7 +401,7 @@ void fragment(){
         if (Overlay == 3) { return new Color(.5f, .65f, .4f + tile.Moisture * .6f); }
         if (Overlay == 4) { return new Color(.55f, .4f + tile.Fertility * .6f, .4f); }
         if (Overlay == 5) { return tile.Resource.Kind == ResourceKind.Food ? new Color(.85f, 1, .7f) : new Color(.5f, .55f, .5f); }
-        if (Overlay == 6) { int count = Game.Sim.Agents.CountInRect(x - 3, y - 3, x + 3, y + 3); return new Color(.5f + Math.Clamp(count / 20f, 0, .5f), .55f, .5f); }
+        if (Overlay == 6) { int count = _density[y * Game.Sim.World.Width + x]; return new Color(.5f + Math.Clamp(count / 20f, 0, .5f), .55f, .5f); }
         return new Color(.9f, .94f, .85f);
     }
     private void BuildNature()

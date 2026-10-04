@@ -462,8 +462,10 @@ public partial class MainGame : Control
             Tool = PlayerTool.Forest; ClickTile(20, 20);
             if (Sim.World.TerrainAt(20, 20) != TerrainKind.Forest) { throw new Exception("Forest tool failed"); }
             Tool = PlayerTool.Inspect; ClickTile(50, 50);
+            Sim.Tick(1);
             string before = StateHash.ComputeDigest(Sim); RefreshPanels();
             ((WorldView3D)_map).ValidateViewControls();
+            ((WorldView3D)_map).ValidateObservationLayers();
             int observed = Sim.Agents.AliveSlots().FirstOrDefault(-1);
             if (observed >= 0) { var position = Sim.Agents.PositionOf(observed); FocusStory(Sim.Society.Identity(observed), position.X, position.Y); }
             ValidateHudLayout();
