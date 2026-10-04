@@ -220,10 +220,21 @@ public sealed class M6Tests
     [Fact("可达性：稀缺世界里必须真的出现攻击（怨恨是敌意的来源）")]
     public void AttackBecomesReachableUnderScarcity()
     {
-        // ⚠️ M6 未竟项：怨恨没有产生关系记录 ⇒ 攻击仍不可达。
-        // 用 SBOX_SIM_M6_OPEN=1 复现。诊断方向：怨恨要求"饥饿者 + 附近有粮且自己不饿的人"，
-        // 而需求系统每 tick 都在改饥饿度，30 天里"有粮的人"很快也变饿 ⇒ 前提难以持续成立。
+        // ⚠️ M6 未竟项（已缩小范围到"动力学竞速"）：
+        // 怨恨**确实产生了互动**（累计互动数断言通过），但亲和度还没来得及压到敌对阈值
+        // （-0.2）以下，人就先饿死了 —— 而死亡会 `Forget` 掉他的全部关系，怨恨从头再来。
+        //
+        // 也就是说：这不是"机制没接上"，而是**两条时间尺度的竞速**：
+        //   怨恨把关系压到敌对需要 N 天  vs  饿死需要 M 天，实测 M < N。
+        // 已做的改善：怨恨强度现在随饥饿程度加速（越饿越恨）、ResentmentPerDay 0.04 → 0.12。
+        //
+        // 下一步的两个方向（都需要一轮完整验证，本轮未做）：
+        //   (a) 把"怨恨 → 敌对"这条链的时间尺度再压短一档（但要注意别让和平世界也到处结仇）；
+        //   (b) 换一个**不靠饿死人**的稀缺场景：例如食物充足但分配不均，
+        //       让怨恨有机会在几天内累积而没人死亡。
+        //       我倾向 (b) —— 它测的是机制，而不是"谁的时钟更快"。
         if (!OpenIssuesEnabled) { return; }
+
 
         // 刻意造一个**贫瘠且不平等**的世界：没有食物来源，一半人有粮、一半人挨饿。
         // 这正是「怨恨」机制的输入条件，也是攻击唯一可能的起点。
@@ -249,7 +260,12 @@ public sealed class M6Tests
 
         for (int day = 0; day < 30; day++) { sim.Tick(TicksPerDay); }
 
-        Assert.True(sim.Relationships.Count > 0, "怨恨必须产生关系记录");
+        // 断言累计互动数而不是"当前关系条数"：
+        // 这是个贫瘠世界，30 天里人会**死光**，而死亡会 Forget 掉他的全部关系 ——
+        // 于是"当前条数"在结束时必然接近 0，看起来像"怨恨从未发生"。
+        // 累计计数不会被清理，才是"机制跑过"的正确证据。
+        Assert.True(sim.Relationships.TotalInteractions > 0,
+            "怨恨必须产生互动记录（累计 " + sim.Relationships.TotalInteractions + " 次）");
         Assert.True(sim.Ai.ChosenByAction[(int)ActionKind.Attack] > 0,
             "在稀缺且不平等的社会里必须出现攻击（实测 "
             + sim.Ai.ChosenByAction[(int)ActionKind.Attack] + " 次）—— "
@@ -261,7 +277,10 @@ public sealed class M6Tests
     public void PeaceModeDisablesAttack()
     {
         // ⚠️ M6 未竟项：依赖上一条的"攻击可达"，所以现在也测不到。
+        // `AttackAction.Evaluate` 里的 PeaceMode 门本身是直白的（返回效用 0），
+        // 但"关掉了攻击"这件事只有在"本来会发生攻击"的世界里才可观测。
         if (!OpenIssuesEnabled) { return; }
+
 
         Simulation warlike = MakeScarceWorld(9004);
         Simulation peaceful = MakeScarceWorld(9004);
@@ -370,10 +389,12 @@ public sealed class M6Tests
     [Fact("关系必须完整往返存档（否则读档后所有人一夜之间变成陌生人）")]
     public void RelationshipsSurviveSaveLoad()
     {
-        // ⚠️ M6 未竟项：关系没有逐位往返存档（摘要 1763823330b14add vs 625888c39f7ca902）。
-        // 用 SBOX_SIM_M6_OPEN=1 复现。诊断方向：先确认是"没存进去"还是"恢复了但没对上"——
-        // 比较读档前后的 Relationships.Count 即可区分这两者。
+        // ⚠️ M6 未竟项（已缩小范围）：**读档瞬间的摘要一致，但续跑 600 tick 后分叉**。
+        // 这正是本项目反复出现的那一类"隐形状态"：某个字段没进存档、却影响未来的行为。
+        // 已排除：关系条数与亲和度（读档后立即比对通过）。
+        // 下一步：用 SaveDivergenceProbe 的思路逐字段比对 agents 段与关系段。
         if (!OpenIssuesEnabled) { return; }
+
 
         Simulation sim = MakeSettlement(9007, 14);
         sim.Tick(TicksPerDay * 15);
@@ -399,7 +420,11 @@ public sealed class M6Tests
         Assert.True(restored.LoadFromText(json).Success);
 
         Assert.Equal(before, restored.Relationships.Count);
-        Assert.Equal(digestBefore, restored.StateDigestString());
+        Assert.True(digestBefore == restored.StateDigestString(),
+            "读档后摘要必须逐位一致。分段差异："
+            + SandBoxSim.Core.StateHash.FirstSegmentDifference(
+                SandBoxSim.Core.StateHash.DescribeSegments(sim),
+                SandBoxSim.Core.StateHash.DescribeSegments(restored)));
 
         if (sampleA >= 0)
         {
@@ -415,34 +440,54 @@ public sealed class M6Tests
     [Fact("六项性格必须全部进状态摘要（M6 起它们都影响行为）")]
     public void AllSixTraitsAreHashed()
     {
-        // ⚠️ M6 未竟项：改 aggression 之后摘要不变。这一条最可疑 ——
-        // 因为 aggression **原本就在**摘要里（M1 起就有），所以问题多半不在摘要本身，
-        // 而在 SetPersonality 是否真的作用到了被哈希的那个槽位。
-        if (!OpenIssuesEnabled) { return; }
 
         // 依次改动每一项性格，摘要都必须变化 ——
         // 只改 kindess 而摘要不变，就说明它没有进摘要，
         // 于是「读档后性格不同」会在几百 tick 之后才表现为分叉。
         Personality baseLine = Personality.Average;
 
-        ulong HashWith(System.Action<Personality> mutate)
+        // # 这里踩过一个很典型的坑，值得写下来
+        //
+        // 第一版写的是 `HashWith(System.Action<Personality> mutate)`，
+        // 然后 `mutate(p)` —— 而 `Personality` 是 **struct**，
+        // 装进 `Action<T>` 时就**按值复制**了：lambda 里的
+        // `p.Aggression = 0.9f` 改的是那份副本，改动被**静默丢弃**。
+        //
+        // 于是六项断言全部失败（第一条就先失败），而症状看起来像
+        // "性格没有进摘要" —— 一个完全错误的方向。
+        // 这正是本项目反复出现的那类失效：**不报错，只是一个 0**。
+        // 现在直接传值，不再经过 `Action<T>`。
+        // 参数化到六个分量，**完全不经过 `Action<Personality>` / `Func<Personality,…>`**。
+        // 见下面那段注释：只要把 struct 塞进委托，改动就会被静默复制掉。
+        ulong HashWith(
+            float aggression = 0.5f, float greed = 0.5f, float kindness = 0.5f,
+            float bravery = 0.5f, float industriousness = 0.5f, float sociability = 0.5f)
         {
             var sim = new Simulation(Config(), 44, 44, 9008);
             sim.InterveneSpawnHumans(22, 22, 2, 1);
             int slot = -1;
             foreach (int s in sim.Agents.AliveSlots()) { slot = s; break; }
-            Personality p = baseLine;
-            mutate(p);
-            sim.Agents.SetPersonality(slot, p);
+            Assert.True(slot >= 0, "这一局必须有存活个体，否则测不到摘要");
+
+            sim.Agents.SetPersonality(slot, new Personality
+            {
+                Aggression = aggression,
+                Greed = greed,
+                Kindness = kindness,
+                Bravery = bravery,
+                Industriousness = industriousness,
+                Sociability = sociability,
+            });
             return sim.StateDigest();
         }
 
-        ulong reference = HashWith(_ => { });
-        Assert.True(HashWith(p => p.Aggression = 0.9f) != reference, "aggression 必须进摘要");
-        Assert.True(HashWith(p => p.Greed = 0.9f) != reference, "greed 必须进摘要");
-        Assert.True(HashWith(p => p.Kindness = 0.9f) != reference, "kindness 必须进摘要");
-        Assert.True(HashWith(p => p.Bravery = 0.9f) != reference, "bravery 必须进摘要");
-        Assert.True(HashWith(p => p.Industriousness = 0.9f) != reference, "industriousness 必须进摘要");
-        Assert.True(HashWith(p => p.Sociability = 0.9f) != reference, "sociability 必须进摘要");
+        ulong reference = HashWith();
+
+        Assert.True(HashWith(aggression: 0.9f) != reference, "aggression 必须进摘要");
+        Assert.True(HashWith(greed: 0.9f) != reference, "greed 必须进摘要");
+        Assert.True(HashWith(kindness: 0.9f) != reference, "kindness 必须进摘要");
+        Assert.True(HashWith(bravery: 0.9f) != reference, "bravery 必须进摘要");
+        Assert.True(HashWith(industriousness: 0.9f) != reference, "industriousness 必须进摘要");
+        Assert.True(HashWith(sociability: 0.9f) != reference, "sociability 必须进摘要");
     }
 }

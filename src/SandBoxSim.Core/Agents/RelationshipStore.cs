@@ -192,16 +192,40 @@ public sealed class RelationshipStore : ISimEntitySet
                 if (i == j) { continue; }
                 int holder = slots[j];
 
-                // 只怨恨"明明有粮却没分"的人。对方也饿就不算他的错。
+                // 只怨恨"明明有粮却没分"的人。
                 float carried = store.InventoryOf(holder, ResourceKind.Food);
                 if (carried < surplusThreshold) { continue; }
-                if (store.HungerOf(holder) >= hungerThreshold) { continue; }
+
+                // # 这里改过一次，原因很实际
+                //
+                // 第一版要求"对方自己不饿"（`holderHunger < hungerThreshold`）才算他的错。
+                // 看起来更讲道理，但**前提活不下来**：需求系统每 tick 都在推进饥饿度，
+                // 于是几十天之后**所有人都是饿的**，"有余粮且不饿的人"这个角色消失了，
+                // 怨恨再也没有触发过（实测关系表恒为空 ⇒ 攻击永远不可达）。
+                //
+                // 现在改成**归咎程度**：对方越饿，越不算他的错，但**不是零**。
+                // 这既更贴近"不平等产生怨恨"的本意（重要的是别人有、我没有，
+                // 而不是别人此刻饿不饿），也让这条机制在长期运行里始终有效。
+                float blame = 1f - SimMath.Clamp01(store.HungerOf(holder));
+                if (blame <= 0.1f) { continue; }
 
                 float dx = store.XOf(holder) - hx;
                 float dy = store.YOf(holder) - hy;
                 if ((dx * dx) + (dy * dy) > radiusSq) { continue; }
 
-                Interact(hungry, holder, -resentment, tick);
+                // 怨恨的强度还取决于**挨饿有多严重**：
+                // 一个快饿死的人的怨恨，比一个只是有点饿的人强得多。
+                //
+                // 这不只是"让数字变大"：实测中发现了一个真实的动力学竞争 ——
+                // 怨恨需要若干天才能把亲和度压到敌对阈值（-0.2）以下，
+                // 而在这个贫瘠的测试世界里，人**饿死得更快**；
+                // 一旦有人死，`Forget` 会把他的关系全部清掉，怨恨从头开始算。
+                // 结果是"机制跑过了，但永远来不及产生影响"。
+                //
+                // 让怨恨随饥饿程度加速，既符合直觉，也让这条链在时间上真的走得通。
+                float severity = SimMath.Clamp01((store.HungerOf(hungry) - hungerThreshold)
+                    / System.Math.Max(0.05f, 1f - hungerThreshold));
+                Interact(hungry, holder, -resentment * blame * (0.35f + (0.65f * severity)), tick);
             }
         }
     }
@@ -385,7 +409,7 @@ public sealed class RelationshipConfig
     public float ResentmentSurplusThreshold = 15f;
 
     /// <summary>每天因怨恨降低多少亲和度（累积到敌对阈值之下就会出事）。</summary>
-    public float ResentmentPerDay = 0.04f;
+    public float ResentmentPerDay = 0.12f;
 
     /// <summary>怨恨的作用半径（格）。</summary>
     public float ResentmentRadius = 10f;
