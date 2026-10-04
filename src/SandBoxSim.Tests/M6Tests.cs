@@ -189,6 +189,12 @@ public sealed class M6Tests
         Simulation sim = MakeSettlement(9001, 16);
         for (int day = 0; day < 25; day++) { sim.Tick(TicksPerDay); }
 
+        // 前置条件：这条测试只有在"有人活着"时才说明问题。
+        // 加它是因为本轮发现**基础场景本身会在第 2 天全员脱水**（见 #2/#3 的诊断），
+        // 于是同文件里几条"通过"的测试可能只是运气好 —— 那正是需要被暴露的。
+        Assert.True(sim.Agents.LiveCount > 0,
+            "社交测试的前提不成立：25 天后没有人活着（实测 " + sim.Agents.LiveCount + " 人）");
+
         int chosen = sim.Ai.ChosenByAction[(int)ActionKind.Socialize];
         Assert.True(chosen > 0,
             "社交必须被选中过（实测 " + chosen + " 次）—— "
@@ -220,31 +226,37 @@ public sealed class M6Tests
     [Fact("可达性：稀缺世界里必须真的出现攻击（怨恨是敌意的来源）")]
     public void AttackBecomesReachableUnderScarcity()
     {
-        // ⚠️ M6 未竟项（#2/#3）：已从"攻击不可达"缩小到"场景里的人全都会脱水而死"
+        // ⚠️ M6 未竟项（#2/#3）—— 结论已经**换了方向**：问题不在怨恨与攻击，而在场景本身活不下来
         //
-        // # 现在确定知道的事实（死因是打印出来的，不是猜的）
-        //   Dehydration x14，第 2 天全部死亡。于是"攻击 0 次"说明不了任何事 —— 世界已经空了。
-        //   新增的前置断言就是为了把这一点变成一次明确的失败，而不是一个看起来很像结论的 0。
-        //   这条断言本身是本轮最有价值的产出。
+        // # 决定性发现
         //
-        // # 已排除的假设（每一个都实测过）
-        //   (a) 饥饿频率 —— 每 3 天 → 每天 → 每 240 tick 维护，均无效；
-        //   (b) 可达性   —— 怀疑森林围墙挡住去水边的路，把全图铺成草地后仍第 2 天归零；
-        //   (c) 取水太远 —— 把水直接挖到出生点旁边（x=24，出生点 x=30），仍 Dehydration x14；
-        //   (d) 饥饿钉死 —— 加了"完全不钉饥饿度"的判别实验，结果同样 Dehydration x14。
+        // 二分到最后做了一个"完全不改造"的对照：直接用基础定居点 MakeSettlement(_, 14)。
+        // 结果**同样第 2 天 Dehydration x14**。
+        // 也就是说：前面四轮排掉的（饥饿频率、森林挡路、取水太远、饥饿钉死）
+        // 以及全图覆写、部分覆写、只改植被，**全都不是原因** ——
+        // 真正的原因是**基础场景本身就活不下来**。
         //
-        // # 剩下的唯一线索
-        //   与**能正常存活**的 MakeSettlement 场景相比，这里只剩一个结构性差异：
-        //   那段"把全图铺成草地"的覆写。问题很可能出在覆写本身
-        //   （例如它改动了取水判定所依赖的 chunk 统计），而不是怨恨或攻击。
+        // # 已核实的底层事实（不是猜的）
+        //   * TerrainInfo.WalkableTable：Forest = true、Mountain = true、Water = false。
+        //     "森林挡住去路"这个假设从一开始就不成立；
+        //   * World.SetTerrain 会调用 Tile.ApplyTerrainRules()，
+        //     因此 Walkable / Buildable 一定与地形同步。"改了地形但没改可通行"也不成立；
+        //   * 水在第 16 列、出生点在第 30 列，两者**同属一个 16×16 chunk**，
+        //     所以"取水搜索只在自己所在的 chunk 里找"这个解释也不成立。
         //
-        // # 下一步（很具体，不需要再猜）
-        //   二分那段覆写：
-        //     1. 只设 SetVegetation、不改 SetTerrain —— 看是否还死；
-        //     2. 只覆写定居点周围 12 格而不是全图 —— 看是否还死。
-        //   只要有一版能活下来，就定位到了是哪种改动破坏了取水。
-        //   在此之前不要再动怨恨或攻击的参数 —— 那些都不是当前的瓶颈。
-        if (!OpenIssuesEnabled) { return; }
+        // # 由此暴露的更重要的问题
+        //   如果基础场景第 2 天就全员脱水，那么**同文件里几条"通过"的测试可能是假通过**：
+        //   例如 SocializeIsActuallyChosen 既断言"社交被选中过"，也断言"关系表非空" ——
+        //   而人死光时 Forgett 会清空关系。它能通过，说明那几条用例的种子上人活下来了，
+        //   但这属于**运气**，不是设计。下一步应当先把基础场景的可存活性做成显式断言，
+        //   再谈社会行为。
+        //
+        // # 下一步（方向已明确）
+        //   在基础场景里打印第 1 天内的：干渴度曲线、Drink 被选中次数、
+        //   TryFindWaterAccess 的成功率。三者一比就能定位是
+        //   "不去喝"（效用问题）还是"找不到水"（选靶问题）——
+        //   这正是 M4 诊断脱水时用过的办法，那次一次就定位到了。
+        if (!OpenIssuesEnabled) { return; }if (!OpenIssuesEnabled) { return; }
 
         // 说明：第一版这条测试测的是"谁的时钟更快"（见 MakeScarceWorld 的注释），
         // 现在改成"食物充足但分配长期不均"，让怨恨有时间累积而没有人饿死。
@@ -424,6 +436,7 @@ public sealed class M6Tests
     private static Simulation MakeScarceWorld(int seed)
     {
         Simulation sim = MakeSettlement(seed, 14);
+
 
         // **把全图铺成草地**，只留那条水。
         //
