@@ -1,0 +1,75 @@
+using SandBoxSim.Core;
+using SandBoxSim.Core.Agents;
+using SandBoxSim.Core.Environment;
+using SandBoxSim.Core.Foundation;
+using SandBoxSim.Core.Systems;
+using SandBoxSim.Tests.Framework;
+
+namespace SandBoxSim.Tests;
+
+/// <summary>
+/// 诊断「有人却从不形成聚落」的种子（需 `SBOX_SIM_M7_DIAG=1`）。
+///
+/// # 它要区分的两件事
+///
+/// 20 种子批量验收里有 5 个种子完全没有形成聚落，而其中 4 个世界里人口仍有 40-43。
+/// 两种原因需要完全不同的修法：
+///
+///   * **人群被切成碎块** —— 大家分散成好几摊，每摊都不到 `FoundPeople = 6`。
+///     修法方向是"相邻人群是否应当合并"，或者降低 `FoundPeople`；
+///   * **没有仓库** —— 人聚在一起、住房也有，但始终没盖出仓库，
+///     于是 `MinStorages = 1`（"共用"的硬证据）永远不达标。修法是建造意愿，不是聚落规则。
+///
+/// 判据很清楚：看 `LargestClusterPeople` 与 `LargestClusterStorages` 谁不达标。
+/// </summary>
+public sealed class M7ClusterDiagnostics
+{
+    private const int TicksPerDay = 1440;
+
+    private static bool Enabled
+        => System.Environment.GetEnvironmentVariable("SBOX_SIM_M7_DIAG") == "1";
+
+    private static SimConfig Config(int size = 100)
+    {
+        var config = new SimConfig();
+        config.World.Width = size;
+        config.World.Height = size;
+        return config;
+    }
+
+    [Fact("诊断：为什么某些种子有人却不形成聚落（需 SBOX_SIM_M7_DIAG=1）")]
+    public void DiagnoseNonFormingSeeds()
+    {
+        if (!Enabled) { return; }
+
+        // 批量验收里 4 个「有人但没聚落」的种子
+        int[] seeds = { 70138, 71508, 71645, 72330 };
+
+        System.Console.WriteLine("  [聚落诊断] seed 人口 人群数 最大人群 该人群住房/仓库 候选天数 已成立");
+
+        for (int s = 0; s < seeds.Length; s++)
+        {
+            var sim = new Simulation(Config(), 100, 100, seeds[s]);
+            sim.InterveneSpawnHumans(50, 50, 40, 8);
+            sim.InterveneAddResource(48, 48, ResourceKind.Food, 60f);
+            sim.InterveneAddResource(52, 52, ResourceKind.Wood, 60f);
+
+            for (int day = 0; day < 200; day++) { sim.Tick(TicksPerDay); }
+
+            System.Console.WriteLine("  [聚落诊断] " + seeds[s]
+                + " " + sim.Agents.LiveCount.ToString("00")
+                + " 人群 " + sim.Settlements.LastClusterCount.ToString("00")
+                + " 最大 " + sim.Settlements.LargestClusterPeople.ToString("00")
+                + " 住房/仓库 " + sim.Settlements.LargestClusterHouses
+                + "/" + sim.Settlements.LargestClusterStorages
+                + " 候选天数 " + sim.Settlements.CandidateDays
+                + " 已成立 " + sim.Settlements.TotalFounded);
+        }
+
+        System.Console.WriteLine("  [聚落诊断] 阈值：FoundPeople="
+            + new SettlementConfig().FoundPeople
+            + " MinHouses=" + new SettlementConfig().MinHouses
+            + " MinStorages=" + new SettlementConfig().MinStorages
+            + " FoundDays=" + new SettlementConfig().FoundDays);
+    }
+}

@@ -84,6 +84,25 @@ public sealed class SettlementStore : ISimEntitySet
     /// <summary>`ISimEntitySet`：实体数量。</summary>
     public int EntityCount => _count;
 
+    // ---------------------------------------------------------------------
+    // 观测（不进摘要：它们只是"今天的快照"，不参与任何判定）
+    //
+    // 加这几个字段是因为批量验收里出现了"人口 40+ 却从不形成聚落"的种子，
+    // 而要区分"人群被切成碎块"与"没有仓库"这两种原因，光看聚落数是分不出来的。
+    // ---------------------------------------------------------------------
+
+    /// <summary>今天识别出的"人群"个数。</summary>
+    public int LastClusterCount { get; private set; }
+
+    /// <summary>今天最大那个人群的人数。</summary>
+    public int LargestClusterPeople { get; private set; }
+
+    /// <summary>最大人群附近的已完工住房数。</summary>
+    public int LargestClusterHouses { get; private set; }
+
+    /// <summary>最大人群附近的已完工仓库数。</summary>
+    public int LargestClusterStorages { get; private set; }
+
     public SettlementStore(Simulation sim)
     {
         _sim = sim ?? throw new System.ArgumentNullException(nameof(sim));
@@ -149,6 +168,23 @@ public sealed class SettlementStore : ISimEntitySet
 
         // 方法名不能叫 Cluster()：那会与类型 Cluster 在同一作用域里撞名（CS0102）。
         var clusters = BuildClusters();
+
+        LastClusterCount = clusters.Count;
+        LargestClusterPeople = 0;
+        LargestClusterHouses = 0;
+        LargestClusterStorages = 0;
+
+        for (int i = 0; i < clusters.Count; i++)
+        {
+            if (clusters[i].People > LargestClusterPeople)
+            {
+                LargestClusterPeople = clusters[i].People;
+                LargestClusterHouses = CountCompleted(
+                    BuildingKind.House, clusters[i].CenterX, clusters[i].CenterY, _config.FacilityRadius);
+                LargestClusterStorages = CountCompleted(
+                    BuildingKind.Storage, clusters[i].CenterX, clusters[i].CenterY, _config.FacilityRadius);
+            }
+        }
         for (int i = 0; i < clusters.Count; i++)
         {
             Evaluate(tick, clusters[i]);

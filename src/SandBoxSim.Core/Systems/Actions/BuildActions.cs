@@ -84,7 +84,24 @@ internal static class BuildAction
                              + SettledWood(in ctx);
                 float pileGap = SimMath.Clamp01(piles / 3f);
                 float storedGap = SimMath.Clamp01(pooled / 120f);
-                gap = System.Math.Max(pileGap, storedGap);
+
+                // # 第三条来源：**人口**（这是被 M7 批量验收逼出来的）
+                //
+                // 前两条都依赖"地面上堆起来了"这个偶然事件，而它又依赖
+                // `GroundStocks.SurplusThreshold`：M2 定 28 时地面堆很常见，
+                // M4 为了治"存放挤掉生存动作"把门槛提到 70 ⇒ **地面堆变得罕见** ⇒
+                // `pileGap` 常年为 0。后果是 20 个种子里有 5 个**永远不建仓库**，
+                // 而 M7 的聚落判据要求"共享至少一座仓库" ⇒ 那些世界人口 40+ 却从不形成聚落。
+                //
+                // 实测（M7ClusterDiagnostics）：三个不成立的种子分别是
+                //   住房/仓库 = 18/0、20/0、3/0 —— 房子很多，仓库恒为 0。
+                //
+                // 这是一个典型的**跨里程碑参数耦合**：M4 调一个门槛，静默地让 M7 的机制不可达。
+                // 判据改用人口，是因为"一个住着 40 人的村子需要一个公共仓库"本来就是常识 ——
+                // 它不该取决于某个个体恰好攒够了 70 份木材。
+                float populationGap = SimMath.Clamp01((ctx.Store.LiveCount - 3) / 6f);
+
+                gap = System.Math.Max(System.Math.Max(pileGap, storedGap), populationGap);
                 if ((ctx.Buildings?.CompletedStorages ?? 0) > 0)
                 {
                     // 已经有仓库：缺口降一半（第二个仓库仍然可能有用，但不那么急）
