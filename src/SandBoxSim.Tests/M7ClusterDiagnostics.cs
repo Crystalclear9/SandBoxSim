@@ -37,6 +37,14 @@ public sealed class M7ClusterDiagnostics
         return config;
     }
 
+    private static float TotalWood(Simulation sim)
+    {
+        float total = 0f;
+        int[] slots = sim.Agents.LiveSlotsRaw(out int liveCount);
+        for (int k = 0; k < liveCount; k++) { total += sim.Agents.InventoryOf(slots[k], ResourceKind.Wood); }
+        return total;
+    }
+
     [Fact("诊断：为什么某些种子有人却不形成聚落（需 SBOX_SIM_M7_DIAG=1）")]
     public void DiagnoseNonFormingSeeds()
     {
@@ -55,6 +63,23 @@ public sealed class M7ClusterDiagnostics
             sim.InterveneAddResource(52, 52, ResourceKind.Wood, 60f);
 
             for (int day = 0; day < 200; day++) { sim.Tick(TicksPerDay); }
+
+            // 区分"没被选中"与"选了但没盖成"：
+            //   BuildStorage 被选中次数 = 0        ⇒ 效用问题
+            //   被选中很多但完工数 = 0             ⇒ 选址或施工问题
+            int storageStarted = 0;
+            int storageComplete = 0;
+            for (int k = 0; k < sim.Buildings.Capacity; k++)
+            {
+                if (!sim.Buildings.IsAlive(k)) { continue; }
+                if (sim.Buildings.KindOf(k) != BuildingKind.Storage) { continue; }
+                if (sim.Buildings.StateOf(k) == BuildingState.Complete) { storageComplete++; }
+                else { storageStarted++; }
+            }
+            System.Console.WriteLine("  [聚落诊断]   -> BuildStorage 被选中 "
+                + sim.Ai.ChosenByAction[(int)ActionKind.BuildStorage]
+                + " 次；仓库在地 施工中 " + storageStarted + " 完工 " + storageComplete
+                + "；累计木材 " + ((int)TotalWood(sim)));
 
             System.Console.WriteLine("  [聚落诊断] " + seeds[s]
                 + " " + sim.Agents.LiveCount.ToString("00")
