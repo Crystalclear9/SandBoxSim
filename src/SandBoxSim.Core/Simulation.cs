@@ -107,6 +107,11 @@ public sealed class Simulation
     /// </summary>
     public RelationshipStore Relationships { get; }
 
+    /// <summary>
+    /// 聚落（M7）。它是**涌现**的：由"持续共处 + 共享住房与仓库"形成，玩家无法直接创建。
+    /// </summary>
+    public SettlementStore Settlements { get; }
+
     public SimulationStats Stats { get; } = new SimulationStats();
 
     /// <summary>世界事件日志（第 55 / 56 节）。M0 只记录地形/世界级事件。</summary>
@@ -178,6 +183,11 @@ public sealed class Simulation
 
         // 注册进实体集合，从而自动参与状态摘要（见 RegisterEntitySet 的约定）。
         RegisterEntitySet(Relationships);
+
+        // M7：聚落。它只读 Agents 与 Buildings，不写它们 —— 是一个纯观察者，
+        // 但它自己有状态（候选持续性计数、已成立的聚落），因此也要入档。
+        Settlements = new SettlementStore(this);
+        RegisterEntitySet(Settlements);
 
         // 注册进实体集合：世界重建时会自动 Reset，摘要会自动覆盖
         RegisterEntitySet(Agents);
@@ -405,6 +415,9 @@ public sealed class Simulation
             World.Tick);
 
         Relationships.TickDay(World.Tick);
+
+        // M7：聚落评估（在关系之后、日常事务之前 —— 顺序固定即可）
+        Settlements.TickDay(World.Tick);
 
         TickDay();
 

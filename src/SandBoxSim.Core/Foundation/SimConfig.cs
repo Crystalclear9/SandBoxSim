@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Globalization;
 
 using SandBoxSim.Core.Agents;
+using SandBoxSim.Core.Systems;
 
 namespace SandBoxSim.Core.Foundation;
 
@@ -28,6 +29,7 @@ public sealed class SimConfig
     public BirthConfig Birth = new BirthConfig();
     public FireConfig Fire = new FireConfig();
     public RelationshipConfig Relationship = new RelationshipConfig();
+    public SettlementConfig Settlement = new SettlementConfig();
     public RulesConfig Rules = new RulesConfig();
     public DebugConfig Debug = new DebugConfig();
 

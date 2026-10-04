@@ -2,6 +2,8 @@ using SandBoxSim.Core.Agents;
 using SandBoxSim.Core.Environment;
 using SandBoxSim.Core.Foundation;
 
+using SandBoxSim.Core.Systems;
+
 namespace SandBoxSim.Core.Save;
 
 /// <summary>
@@ -121,6 +123,9 @@ public static class SaveLoader
         // 它会影响后续所有社会行为的效用计算，因此"读档后关系为空"
         // 会让世界在一段时间内表现得像"所有人都是陌生人"。
         RestoreRelationships(sim, root);
+
+        // M7：聚落（含"候选持续性计数"—— 它会影响未来会不会成立聚落）
+        RestoreSettlements(sim, root.Get("settlements"));
 
         // ---- 5) 收尾 ----
         sim.World.RefreshSpatialIndex();
@@ -574,5 +579,39 @@ public static class SaveLoader
                 item.GetInt("interactions", 0),
                 item.GetLong("lastTick", -1));
         }
+    }
+    /// <summary>恢复聚落（M7）。</summary>
+    private static void RestoreSettlements(Simulation sim, JsonValue section)
+    {
+        sim.Settlements.Reset();
+        if (!section.IsObject) { return; }
+
+        JsonValue list = section.Get("list");
+        if (list.IsArray)
+        {
+            for (int i = 0; i < list.Items.Count; i++)
+            {
+                JsonValue it = list.Items[i];
+                sim.Settlements.Restore(
+                    it.GetInt("id", 0),
+                    it.GetInt("x", 0),
+                    it.GetInt("y", 0),
+                    (SettlementTier)it.GetInt("tier", 0),
+                    it.GetInt("population", 0),
+                    it.GetInt("houses", 0),
+                    it.GetInt("storages", 0),
+                    it.GetLong("lastActiveTick", 0L),
+                    it.GetLong("foundedTick", 0L),
+                    it.GetBool("dissolved", false));
+            }
+        }
+
+        sim.Settlements.RestoreCounters(
+            section.GetInt("totalFounded", 0), section.GetInt("totalDissolved", 0));
+        sim.Settlements.RestoreCandidate(
+            section.GetInt("candidateX", -1),
+            section.GetInt("candidateY", -1),
+            section.GetInt("candidateDays", 0),
+            section.GetInt("candidatePeople", 0));
     }
 }

@@ -2,6 +2,8 @@ using SandBoxSim.Core.Agents;
 using SandBoxSim.Core.Environment;
 using SandBoxSim.Core.Foundation;
 
+using SandBoxSim.Core.Systems;
+
 namespace SandBoxSim.Core.Save;
 
 /// <summary>
@@ -140,6 +142,7 @@ public static class SaveFile
             .Set("groundStocks", EncodeGroundStocks(sim))
             .Set("stats", EncodeStats(sim))
             .Set("relationships", EncodeRelationships(sim))
+            .Set("settlements", EncodeSettlements(sim))
             .Set("chunks", EncodeChunks(world))
             .Set("config", JsonBinder.ToJson(sim.Config));
 
@@ -308,6 +311,41 @@ public static class SaveFile
         return JsonValue.Object().Set("list", list);
     }
 
+    /// <summary>
+    /// 聚落（M7）。
+    ///
+    /// **连"候选持续性计数"也必须存。** 这是最容易漏的一处：
+    /// 它看起来只是"一个正在累积的计数器"，但它决定**再过几天会不会成立聚落** ——
+    /// 也就是它会影响未来的行为。漏掉它的症状与 M4 那八个隐形状态一模一样：
+    /// 读档瞬间摘要一致，若干天之后忽然多出一个（或少一个）聚落。
+    /// </summary>
+    private static JsonValue EncodeSettlements(Simulation sim)
+    {
+        var list = JsonValue.Array();
+        foreach (SettlementStore.Settlement s in sim.Settlements.All())
+        {
+            list.Add(JsonValue.Object()
+                .Set("id", JsonValue.From(s.Id))
+                .Set("x", JsonValue.From(s.CenterX))
+                .Set("y", JsonValue.From(s.CenterY))
+                .Set("tier", JsonValue.From((int)s.Tier))
+                .Set("population", JsonValue.From(s.Population))
+                .Set("houses", JsonValue.From(s.Houses))
+                .Set("storages", JsonValue.From(s.Storages))
+                .Set("lastActiveTick", JsonValue.From(s.LastActiveTick))
+                .Set("foundedTick", JsonValue.From(s.FoundedTick))
+                .Set("dissolved", JsonValue.From(s.Dissolved)));
+        }
+
+        return JsonValue.Object()
+            .Set("list", list)
+            .Set("totalFounded", JsonValue.From(sim.Settlements.TotalFounded))
+            .Set("totalDissolved", JsonValue.From(sim.Settlements.TotalDissolved))
+            .Set("candidateDays", JsonValue.From(sim.Settlements.CandidateDays))
+            .Set("candidatePeople", JsonValue.From(sim.Settlements.CandidatePeople))
+            .Set("candidateX", JsonValue.From(sim.Settlements.CandidateCenterX))
+            .Set("candidateY", JsonValue.From(sim.Settlements.CandidateCenterY));
+    }
     private static JsonValue EncodeAgents(Simulation sim)
     {
         AgentStore agents = sim.Agents;
