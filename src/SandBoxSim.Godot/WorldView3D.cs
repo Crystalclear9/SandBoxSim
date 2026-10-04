@@ -90,7 +90,7 @@ public partial class WorldView3D : MapView
         RebuildWorld(); UpdateCamera();
     }
     public override void _Draw() { }
-    public override void Center() { _target = new Vector3(100, 0, 100); _distance = 160; _pitch = 1.1f; _follow = -1; UpdateCamera(); }
+    public override void Center() { _target = new Vector3(Game.Sim.World.Width, 0, Game.Sim.World.Height); _distance = Math.Max(Game.Sim.World.Width, Game.Sim.World.Height) * 1.6f; _pitch = 1.1f; _follow = -1; UpdateCamera(); }
     public override void Focus(int x, int y, float zoom = 15)
     { _follow = -1; _target = PositionAt(x, y); _distance = Math.Clamp(650 / zoom, 7, 180); _pitch = .8f; UpdateCamera(); }
     public override void Follow(int slot) { _follow = slot; _followGeneration = Game.Sim.Agents.GenerationOf(slot); _distance = MathF.Min(_distance, 14); _pitch = .6f; }
@@ -147,7 +147,7 @@ public partial class WorldView3D : MapView
     private void UpdateCamera()
     {
         if (_camera == null) { return; }
-        _target.X = Math.Clamp(_target.X, 0, 200); _target.Z = Math.Clamp(_target.Z, 0, 200);
+        _target.X = Math.Clamp(_target.X, 0, Game.Sim.World.Width * 2); _target.Z = Math.Clamp(_target.Z, 0, Game.Sim.World.Height * 2);
         var offset = new Vector3(MathF.Sin(_yaw) * MathF.Cos(_pitch), MathF.Sin(_pitch), MathF.Cos(_yaw) * MathF.Cos(_pitch)) * _distance;
         _camera.Position = _target + offset; _camera.LookAt(_target, Vector3.Up);
     }
@@ -276,6 +276,16 @@ public partial class WorldView3D : MapView
         try { for (int i = 0; i <= 8; i++) { Overlay = i; CheckTerrain(); SyncEntities(); UpdateObservation(); } }
         finally { Overlay = original; CheckTerrain(); UpdateObservation(); }
     }
+    public void ValidateWorldDimensions()
+    {
+        RebuildWorld(); Center(); ValidateObservationLayers();
+        var mesh = ((MeshInstance3D)_terrainRoot.GetChild(0)).Mesh;
+        var bounds = mesh.GetAabb();
+        if (Math.Abs(bounds.Size.X - Game.Sim.World.Width * 2) > .01f || Math.Abs(bounds.Size.Z - Game.Sim.World.Height * 2) > .01f)
+            { throw new InvalidOperationException("Terrain geometry does not match loaded world dimensions"); }
+        if (_target.X != Game.Sim.World.Width || _target.Z != Game.Sim.World.Height)
+            { throw new InvalidOperationException("Camera did not center on loaded world"); }
+    }
     private void UpdateObservation()
     {
         var sim = Game.Sim;
@@ -392,7 +402,7 @@ void fragment(){
             _terrainRoot.AddChild(new MeshInstance3D { Mesh = wm, MaterialOverride = waterMaterial, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         }
         // A physical diorama edge makes the terrain volume visible from low camera angles.
-        _models.Part(_terrainRoot, "box", new Vector3(100, -3, 100), new Vector3(200, 5.0f, 200), 6);
+        _models.Part(_terrainRoot, "box", new Vector3(width, -3, Game.Sim.World.Height), new Vector3(width * 2, 5.0f, Game.Sim.World.Height * 2), 6);
     }
     private Color TerrainTint(int x, int y, Tile tile)
     {
@@ -408,7 +418,7 @@ void fragment(){
     {
         var trunks = new List<Transform3D>(); var branches = new List<Transform3D>(); var leaves = new List<Transform3D>(); var pines = new List<Transform3D>();
         var rocks = new List<Transform3D>(); var ores = new List<Transform3D>(); var bushes = new List<Transform3D>();
-        for (int y = 0; y < 100; y++) for (int x = 0; x < 100; x++)
+        for (int y = 0; y < Game.Sim.World.Height; y++) for (int x = 0; x < Game.Sim.World.Width; x++)
         {
             var tile = Game.Sim.World.TileAt(x, y); uint h = unchecked((uint)(x * 73856093 ^ y * 19349663));
             Vector3 p = PositionAt(x, y); float size = .8f + h % 7 * .07f;

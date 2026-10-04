@@ -479,6 +479,19 @@ public partial class MainGame : Control
             var restored = Simulation.CreateForRestore(Sim.Config.Clone(), 100, 100, 1);
             var result = SaveLoader.Load(restored, saved);
             if (!result.Success || !result.DigestMatches) { throw new Exception("Client save round trip failed"); }
+            var original = Sim;
+            try
+            {
+                var rectangular = new Simulation(Sim.Config.Clone(), 60, 44, 17);
+                string rectangularSave = SaveFile.Encode(rectangular);
+                Sim = Simulation.CreateForRestore(rectangular.Config.Clone(), 60, 44, 17);
+                var rectangularResult = SaveLoader.Load(Sim, rectangularSave);
+                if (!rectangularResult.Success || !rectangularResult.DigestMatches) { throw new Exception("Rectangular world restore failed"); }
+                string rectangularBefore = StateHash.ComputeDigest(Sim);
+                ((WorldView3D)_map).ValidateWorldDimensions();
+                if (rectangularBefore != StateHash.ComputeDigest(Sim)) { throw new Exception("Rectangular world rendering mutated simulation"); }
+            }
+            finally { Sim = original; ((WorldView3D)_map).ValidateWorldDimensions(); }
             GD.Print("GODOT_SELF_TEST_PASS: tools, inspector/chart purity, save/load, 3D geometry, perspective, orbit, zoom, picking, HUD controls and 1280/1600/1920 layouts");
         }
         catch (Exception ex) { GD.PushError(ex.ToString()); GetTree().Quit(1); }
