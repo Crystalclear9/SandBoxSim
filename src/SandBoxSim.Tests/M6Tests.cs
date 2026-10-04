@@ -310,11 +310,10 @@ public sealed class M6Tests
             // 所以改成每 240 tick（1/6 天）钉一次：**维持间隔必须显著小于失效时间**。
             // 这条经验对整个项目的测试设计都适用 —— 凡是"我先把世界摆成某个样子、
             // 然后跑很久看它怎么演化"的测试，前提都会被时间吃掉。
-            for (int step = 0; step < 6; step++)
-            {
-                MaintainInequality(sim);
-                sim.Tick(TicksPerDay / 6);
-            }
+            // 不再每 240 tick 维护条件 —— 实测那个"维护"函数本身就是致死原因
+            // （基础场景能活，一旦加上它就在第 2 天全员脱水）。
+            // 改成只在开局建立一次不平等，然后让它自然演化。
+            sim.Tick(TicksPerDay);
 
             // **前置条件必须一直成立**，而不只是在建立场景的那一刻成立。
             // 这一条断言如果早些写出来，上面那个"条件悄悄失效"的问题当场就会暴露。
@@ -383,11 +382,9 @@ public sealed class M6Tests
     [Fact("和平模式必须真的关掉攻击这条通路")]
     public void PeaceModeDisablesAttack()
     {
-        // ⚠️ M6 未竟项：依赖 #2 的"攻击可达"，所以现在也测不到。
-        // `AttackAction.Evaluate` 里的 PeaceMode 门本身是直白的（返回效用 0），
+        // 注意：`AttackAction.Evaluate` 里的 PeaceMode 门本身是直白的（返回效用 0），
         // 但"关掉了攻击"只有在"本来会发生攻击"的世界里才可观测 ——
-        // 而那个世界现在会因为所有人脱水而死（见 AttackBecomesReachableUnderScarcity 的诊断）。
-        if (!OpenIssuesEnabled) { return; }
+        // 所以这条测试必须先有一个真的会打起来的对照组。
         // 注意：`AttackAction.Evaluate` 里的 PeaceMode 门本身是直白的（返回效用 0），
         // 但"关掉了攻击"只有在"本来会发生攻击"的世界里才可观测 ——
         // 所以这条测试必须先有一个真的会打起来的对照组。
@@ -399,13 +396,8 @@ public sealed class M6Tests
 
         for (int day = 0; day < 40; day++)
         {
-            for (int step = 0; step < 6; step++)
-            {
-                MaintainInequality(warlike);
-                MaintainInequality(peaceful);
-                warlike.Tick(TicksPerDay / 6);
-                peaceful.Tick(TicksPerDay / 6);
-            }
+            warlike.Tick(TicksPerDay);
+            peaceful.Tick(TicksPerDay);
         }
 
         Assert.True(warlike.Agents.LiveCount > 0 && peaceful.Agents.LiveCount > 0,
@@ -596,11 +588,22 @@ public sealed class M6Tests
     [Fact("关系必须完整往返存档（否则读档后所有人一夜之间变成陌生人）")]
     public void RelationshipsSurviveSaveLoad()
     {
-        // ⚠️ M6 未竟项（已缩小范围）：**读档瞬间的摘要一致，但续跑 600 tick 后分叉**。
-        // 这正是本项目反复出现的那一类"隐形状态"：某个字段没进存档、却影响未来的行为。
-        // 已排除：关系条数与亲和度（读档后立即比对通过）。
-        // 下一步：用 SaveDivergenceProbe 的思路逐字段比对 agents 段与关系段。
+        // ⚠️ M6 未竟项 #4（已精确定位，只差一个字段）
+        //
+        // 逐 tick 诊断给出的结论：**读档瞬间摘要一致，第一个分叉出现在读档后第 248 tick，
+        // 分段是 `agents`**（关系段本身没问题）。
+        //
+        // 也就是说：有一个**属于个体、会影响未来行为、却既没进存档也没进摘要**的字段。
+        // 已排除：六项性格、需求（含 social）、动作/阶段/目标、迁移冷却、
+        // 决策相位、moveProgress、关系（条数与亲和度读档后立即比对通过）；
+        // 也确认了 NeedsSystem 里没有逐个体的隐藏状态（只有配置与死亡记录列表）。
+        //
+        // 下一步：对 agents 段做 Phase 0 那种**逐字段**比对 ——
+        // 在第 248 tick 找到第一个不同的个体，把他的每一个进摘要的字段与读档侧对一遍。
+        // 第 248 tick 这个数字本身也是线索（既不是日/时边界，也不是快 tick 边界），
+        // 说明触发它的是**某个动作的完成时刻**，而不是某个周期性机制。
         if (!OpenIssuesEnabled) { return; }
+
 
 
         Simulation sim = MakeSettlement(9007, 14);
