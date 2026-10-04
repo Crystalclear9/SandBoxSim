@@ -45,6 +45,9 @@ public struct ActionContext
     /// </summary>
     public Agents.RelationshipStore? Relationships;
 
+    /// <summary>冲突压力（M8）：`Attack` 用它判断"有多想打"（门仍然由敌意判定）。</summary>
+    public ConflictSystem? Conflict;
+
     /// <summary>当前 tick。</summary>
     public long Tick;
 

@@ -389,6 +389,7 @@ public sealed class AiSystem
             Buildings = _sim.Buildings,
             Storage = _sim.Storage,
             Relationships = _sim.Relationships,   // M6：社交/分享/逃跑/攻击要读"我和他是什么关系"
+            Conflict = _sim.Conflict,             // M8：攻击要读"我有多想打"
             Tick = tick,
             IsNight = isNight,
             HomeX = _store.HomeXOf(slot),

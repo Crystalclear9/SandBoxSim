@@ -31,6 +31,7 @@ public sealed class SimConfig
     public RelationshipConfig Relationship = new RelationshipConfig();
     public SettlementConfig Settlement = new SettlementConfig();
     public TradeConfig Trade = new TradeConfig();
+    public ConflictConfig Conflict = new ConflictConfig();
     public RulesConfig Rules = new RulesConfig();
     public DebugConfig Debug = new DebugConfig();
 
@@ -410,6 +411,9 @@ public sealed class AiConfig
 
     /// <summary>自身健康对攻击意愿的加成（伤重则不想打）。</summary>
     public float AttackHealthWeight = 0.6f;
+
+    /// <summary>冲突压力对攻击意愿的加成（M8 第 74 条）。</summary>
+    public float ConflictPressureWeight = 0.8f;
 }
 
 /// <summary>

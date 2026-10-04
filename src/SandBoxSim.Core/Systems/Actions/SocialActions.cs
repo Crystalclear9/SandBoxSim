@@ -403,6 +403,16 @@ internal static class AttackAction
         float aggression = ctx.Store.PersonalityOf(ctx.Slot).Aggression;
         builder.ConsiderScore("侵略性格", aggression, aggression, w.AggressionAttackBonus, isBonus: true);
 
+        // M8：冲突压力（第 74 条）—— 它是"关系恶化 → 冲突"这条链的最后一环。
+        //
+        // 注意它**不替代**上面的敌意门：门回答"能不能打"，压力回答"有多想打"。
+        // 把两者混起来会重演 M4 那个错误（把因子误做成门 ⇒ 机制完全失效）。
+        if (ctx.Conflict != null)
+        {
+            float pressure = ctx.Conflict.MaxPressureFrom(ctx.Slot, rel.AttackRange * 2f);
+            builder.ConsiderScore("冲突压力", pressure, pressure, w.ConflictPressureWeight, isBonus: true);
+        }
+
         // 自己越虚弱越不想打（这是"条件"而不是"性格"）
         builder.Consider("自身健康", ctx.Store.HealthOf(ctx.Slot), UtilityCurve.Linear, w.AttackHealthWeight, isBonus: true);
 

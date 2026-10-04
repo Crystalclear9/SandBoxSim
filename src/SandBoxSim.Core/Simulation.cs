@@ -118,6 +118,12 @@ public sealed class Simulation
     /// </summary>
     public TradeSystem Trade { get; }
 
+    /// <summary>
+    /// 冲突压力（M8）。与 <see cref="Trade"/> 一样是**现有状态的纯函数**：
+    /// 不存档、不进摘要，读档后重算得完全相同的值。
+    /// </summary>
+    public ConflictSystem Conflict { get; }
+
     public SimulationStats Stats { get; } = new SimulationStats();
 
     /// <summary>世界事件日志（第 55 / 56 节）。M0 只记录地形/世界级事件。</summary>
@@ -198,6 +204,9 @@ public sealed class Simulation
         // M8：贸易与价格。**刻意不注册进实体集合** —— 它没有自己的持久状态，
         // 注册进去反而会让人以为"它有需要存档的东西"。
         Trade = new TradeSystem(this);
+
+        // M8：冲突压力。同样**刻意不注册进实体集合** —— 它没有持久状态。
+        Conflict = new ConflictSystem(this);
 
         // 注册进实体集合：世界重建时会自动 Reset，摘要会自动覆盖
         RegisterEntitySet(Agents);
@@ -431,6 +440,9 @@ public sealed class Simulation
 
         // M8：逐日算价（纯派生，不写需要存档的状态）
         Trade.TickDay(World.Tick);
+
+        // M8：逐日汇总冲突压力（纯派生）
+        Conflict.TickDay(World.Tick);
 
         TickDay();
 
