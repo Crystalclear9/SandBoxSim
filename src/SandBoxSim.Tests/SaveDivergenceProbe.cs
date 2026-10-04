@@ -143,7 +143,7 @@ public sealed class SaveDivergenceProbe
     /// 而只打印家族字段会得到"什么都没不同"的假象。
     /// 这正是 Phase 0 定位 tiles 段时用过的同一招：**把字段清单穷举掉**。
     /// </summary>
-    private static void DumpAgentFieldDelta(Simulation a, Simulation b)
+    internal static void DumpAgentFieldDelta(Simulation a, Simulation b)
     {
         AgentStore x = a.Agents;
         AgentStore y = b.Agents;

@@ -608,10 +608,20 @@ public static class SaveLoader
 
         sim.Settlements.RestoreCounters(
             section.GetInt("totalFounded", 0), section.GetInt("totalDissolved", 0));
-        sim.Settlements.RestoreCandidate(
-            section.GetInt("candidateX", -1),
-            section.GetInt("candidateY", -1),
-            section.GetInt("candidateDays", 0),
-            section.GetInt("candidatePeople", 0));
+        JsonValue candidates = section.Get("candidates");
+        if (candidates.IsArray)
+        {
+            foreach (JsonValue candidate in candidates.Items)
+            {
+                sim.Settlements.RestoreCandidateEntry(candidate.GetInt("x", -1), candidate.GetInt("y", -1),
+                    candidate.GetInt("days", 0), candidate.GetInt("people", 0), candidate.GetLong("lastTick", sim.Clock));
+            }
+        }
+        else
+        {
+            sim.Settlements.RestoreCandidate(
+                section.GetInt("candidateX", -1), section.GetInt("candidateY", -1),
+                section.GetInt("candidateDays", 0), section.GetInt("candidatePeople", 0));
+        }
     }
 }

@@ -245,13 +245,15 @@ public sealed class BuildingTests
         int guard = 0;
         while (sim.Buildings.StateOf(index) != BuildingState.Complete && guard < 200)
         {
-            sim.Tick(10);
+            sim.BuildingSystem.TickFast((guard + 1) * 10);
             guard++;
         }
 
         Assert.Equal(BuildingState.Complete, sim.Buildings.StateOf(index), "足够多次 FastTick 之后必须完工");
         Assert.Equal(1, sim.Buildings.TotalCompleted, "只能完工一次（不能重复计数）");
         Assert.Greater(sim.Buildings.TotalBeds, 0);
+        sim.BuildingSystem.TickFast((guard + 1) * 10);
+        Assert.Equal(1, sim.Buildings.TotalCompleted, "已完工建筑不能在后续 FastTick 再次完工");
     }
 
     [Fact("农田建成时必须把地形改成农田")]

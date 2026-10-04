@@ -110,12 +110,18 @@ public sealed class M7Tests
         Assert.Equal(0, sim.Settlements.ActiveCount);
         Assert.Equal(0, sim.Settlements.TotalFounded);
 
-        sim.Tick(TicksPerDay * 12);
+        int peakActive = 0;
+        for (int day = 0; day < 12; day++)
+        {
+            sim.Tick(TicksPerDay);
+            peakActive = System.Math.Max(peakActive, sim.Settlements.ActiveCount);
+        }
 
         Assert.True(sim.Settlements.TotalFounded > 0,
             "条件齐备时聚落必须自己形成（实测成立 " + sim.Settlements.TotalFounded + " 个，"
             + "候选持续 " + sim.Settlements.CandidateDays + " 天）");
-        Assert.True(sim.Settlements.ActiveCount > 0, "形成之后必须处于活跃状态");
+        // 成立时必须活跃；其后居民自然迁离时允许解散，不能靠幽灵聚落通过。
+        Assert.True(peakActive > 0, "形成的聚落必须实际进入活跃状态");
     }
 
     [Fact("验收2：只有人、没有共享设施 ⇒ 不形成聚落（「住得近「不等于」一个村子」）")]

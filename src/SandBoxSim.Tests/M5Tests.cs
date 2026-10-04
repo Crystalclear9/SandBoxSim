@@ -497,29 +497,20 @@ public sealed class M5Tests
             "快进世界的年龄必须更大（" + fastAge + " vs " + normalAge + " 天）");
     }
 
-    [Fact("PeaceMode 是保留项：现在必须能被设置，且不改变世界状态")]
-    public void PeaceModeIsReserved()
+    [Fact("PeaceMode 开关随存档记录，并能按相同规则恢复")]
+    public void PeaceModeSurvivesSaveLoad()
     {
-        // 这条测试记录一个**有意的空缺**：`Attack` 动作与战争系统分别在 M6 / M8 落地，
-        // 因此 PeaceMode 在 M5 没有可观测效果。
-        //
-        // 之所以现在就把它放进配置，是为了让存档的配置结构尽早稳定
-        // （每加一个字段就要提升一次存档版本，而版本是严格拒绝旧档的）。
-        // 这条断言的作用是：**当 M6 让 PeaceMode 生效时，它会失败**，
-        // 从而提醒实现者回来更新这条测试与 docs/15 的说明 ——
-        // 而不是让一份过期的文档永远留在那里。
+        // M6 已实现 PeaceMode 对攻击的抑制；此处检验规则开关的持久化。
         Simulation withPeace = MakeSettlement(8034);
-        Simulation without = MakeSettlement(8034);
-
         withPeace.Config.Rules.PeaceMode = true;
-
-        for (int day = 0; day < 10; day++)
-        {
-            withPeace.Tick(TicksPerDay);
-            without.Tick(TicksPerDay);
-        }
-
-        Assert.Equal(without.StateDigestString(), withPeace.StateDigestString());
+        var restoreConfig = Config();
+        restoreConfig.Rules.PeaceMode = true;
+        var restored = Simulation.CreateForRestore(restoreConfig, 44, 44, 9999);
+        var result = restored.LoadFromText(withPeace.SaveToText());
+        Assert.True(result.Success);
+        Assert.True(result.ConfigMatches);
+        Assert.True(restored.Config.Rules.PeaceMode);
+        Assert.Equal(withPeace.StateDigestString(), restored.StateDigestString());
     }
 
     // ---------------------------------------------------------------------

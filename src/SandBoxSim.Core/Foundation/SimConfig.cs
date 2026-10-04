@@ -88,6 +88,9 @@ public sealed class WorldConfig
     /// <summary>世界基准气温 [0,1]，影响蒸发、作物与（未来）取暖。</summary>
     public float AmbientTemperature = 0.55f;
 
+    /// <summary>每小时向基准气温回归的比例，避免天气增量无限累积到边界。</summary>
+    public float TemperatureRecoveryPerHour = 0.05f;
+
     /// <summary>世界基准湿度 [0,1]。</summary>
     public float AmbientMoisture = 0.5f;
 }
@@ -663,11 +666,7 @@ public sealed class RulesConfig
     /// <summary>
     /// 和平模式：压制攻击与战争倾向。
     ///
-    /// ⚠️ **保留项**：`Attack` 动作与战争系统分别在 M6 / M8 落地，
-    /// 因此这个开关在 M5 **暂时没有可观测效果**。
-    /// 之所以现在就加进来，是为了让存档的配置结构尽早稳定
-    /// （每加一个字段就要提升一次存档版本，而版本是严格拒绝旧档的）。
-    /// 它会在 M6 接入 `Attack` 时立刻生效 —— 见 docs/15 的说明。
+    /// M6 已接入 Attack 的决策和执行阶段；完整战争系统仍属后续里程碑。
     /// </summary>
     public bool PeaceMode = false;
 

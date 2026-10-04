@@ -110,7 +110,7 @@ internal static class GatherFoodAction
         builder.Consider("饥饿", hunger, UtilityCurve.Survival, w.GatherFoodHungerWeight);
         builder.Consider("附近有食物", hasTarget ? 1f : 0f, UtilityCurve.Linear, w.GatherFoodAvailabilityWeight, isBonus: true);
         builder.Consider("背包里已有食物", stockPenalty, UtilityCurve.Quadratic, -0.9f);
-        builder.Consider("随身物资已够多", ActionSearch.Overstock01(in ctx), UtilityCurve.Survival, -w.GatherOverstockWeight);
+        builder.Consider("随身食物已够多", ActionSearch.Overstock01(in ctx, ResourceKind.Food), UtilityCurve.Survival, -w.GatherOverstockWeight);
 
         if (ctx.Ai.IndustriousnessWorkBonus > 0f)
         {

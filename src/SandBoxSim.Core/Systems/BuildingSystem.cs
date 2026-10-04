@@ -188,7 +188,7 @@ public sealed class BuildingSystem
                 System.Math.Abs(_store.XOf(candidate) - x),
                 System.Math.Abs(_store.YOf(candidate) - y));
 
-            if (d < distance && d <= radius)
+            if (d <= radius && (d < distance || (d == distance && (index < 0 || candidate < index))))
             {
                 distance = d;
                 index = candidate;

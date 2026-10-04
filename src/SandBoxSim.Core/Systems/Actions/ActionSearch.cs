@@ -239,12 +239,21 @@ internal static class ActionSearch
     /// 采集类动作共用它作为**压制项**（负权重）。理由见 <c>AiConfig.InventoryComfort</c>：
     /// 没有"够了"这个信号，采集会无限囤积，并把整个行为空间淹掉。
     /// </summary>
-    public static float Overstock01(in ActionContext ctx)
+    public static float Overstock01(in ActionContext ctx, ResourceKind gathering = ResourceKind.None)
     {
         float comfort = ctx.Ai.InventoryComfort;
         if (comfort <= 0.01f) { return 0f; }
 
+        // 食物储备不能被木石库存冒充；缺粮时必须仍能采食。
+        if (gathering == ResourceKind.Food)
+        { return SimMath.Clamp01(ctx.Store.InventoryOf(ctx.Slot, ResourceKind.Food) / comfort); }
         float carried = ctx.Store.InventoryTotalOf(ctx.Slot);
+        if (StorageDemand01(in ctx) > 0f)
+        {
+            BuildingRecipe recipe = BuildingRegistry.Of(BuildingKind.Storage);
+            carried -= System.Math.Min(ctx.Store.InventoryOf(ctx.Slot, ResourceKind.Wood), recipe.WoodCost);
+            carried -= System.Math.Min(ctx.Store.InventoryOf(ctx.Slot, ResourceKind.Stone), recipe.StoneCost);
+        }
         return SimMath.Clamp01(carried / comfort);
     }
 
@@ -273,41 +282,58 @@ internal static class ActionSearch
         {
             // 住房缺口：人口多于床位
             int population = ctx.Store.LiveCount;
-            int missing = population - buildings.TotalBeds;
+            int missing = population - PlannedBeds(buildings);
             demand = population <= 0 ? 0f : SimMath.Clamp01((float)missing / population);
 
-            // 地上堆得越多，说明越没地方放 ⇒ 也需要仓库（而仓库要木 + 石）
-            int piles = ctx.GroundStocks?.LiveCount ?? 0;
-            float storageGap = SimMath.Clamp01(piles / 6f);
-            if (storageGap > demand) { demand = storageGap; }
         }
-        else if (kind == ResourceKind.Stone)
+
+        // 仓库需求与建造效用使用同一人口条件。不能要求先囤够木材才
+        // 采仓库材料，也不能让住房数量把尚未满足的仓库需求归零。
+        if (kind == ResourceKind.Wood || kind == ResourceKind.Stone)
         {
-            // 石料只被仓库需要。
-            //
-            // 判据不能是"地上已经有堆"：那会形成一个死锁 ——
-            // 没有仓库 ⇒ 没有地方堆 ⇒ 地上没有堆 ⇒ 判断"不缺石料" ⇒ 永远不采石 ⇒ 永远建不成仓库。
-            // 正确的判据是"**聚落攒下的木材已经值得建仓库了，而我手上还没有石料**"。
-            // 这类"需求 A 依赖于 A 的结果"的死锁，在资源系统里非常常见，
-            // 排查方式就是问一句："这个判据本身需要什么才能成立？"
-            if (buildings.CompletedStorages == 0)
-            {
-                float pooledWood = (ctx.GroundStocks?.TotalOf(ResourceKind.Wood) ?? 0f) + CarriedOf(in ctx, ResourceKind.Wood);
-                float pooledStone = (ctx.GroundStocks?.TotalOf(ResourceKind.Stone) ?? 0f) + CarriedOf(in ctx, ResourceKind.Stone);
-
-                float woodReady = SimMath.Clamp01(pooledWood / 120f);
-                float stoneMissing = 1f - SimMath.Clamp01(pooledStone / 60f);
-
-                // 木材备得越足、石料越缺，采石的驱动越强
-                demand = woodReady * stoneMissing;
-            }
+            BuildingRecipe recipe = BuildingRegistry.Of(BuildingKind.Storage);
+            float cost = kind == ResourceKind.Wood ? recipe.WoodCost : recipe.StoneCost;
+            float missing = cost <= 0f ? 0f : 1f - SimMath.Clamp01(ctx.Store.InventoryOf(ctx.Slot, kind) / cost);
+            float storageDemand = StorageDemand01(in ctx) * missing;
+            demand = System.Math.Max(demand, storageDemand);
         }
+        return demand;
+    }
 
-        // 已经建太多了就不再驱动：**任何"只增不减"的需求都必须有饱和点**，
-        // 否则会出现"永远在砍树"（M2 的无限囤积正是这个错误的另一个版本）。
-        int completed = buildings.TotalCompleted;
-        float saturation = SimMath.Clamp01(1f - (completed / 24f));
-        return demand * saturation;
+    public static int PlannedBeds(BuildingStore buildings)
+    {
+        int beds = buildings.TotalBeds;
+        for (int k = 0; k < buildings.LiveCount; k++)
+        {
+            int index = buildings.LiveAt(k);
+            if (buildings.StateOf(index) == BuildingState.UnderConstruction)
+            { beds += BuildingRegistry.Of(buildings.KindOf(index)).Beds; }
+        }
+        return beds;
+    }
+
+    public static float StorageDemand01(in ActionContext ctx)
+    {
+        BuildingStore? buildings = ctx.Buildings;
+        if (buildings == null) { return 0f; }
+        float capacity = 0f;
+        for (int k = 0; k < buildings.LiveCount; k++)
+        {
+            int index = buildings.LiveAt(k);
+            if (buildings.KindOf(index) != BuildingKind.Storage) { continue; }
+            // 正在建的仓库先完成，再评估是否需要更多容量，避免多人重复开工。
+            if (buildings.StateOf(index) == BuildingState.UnderConstruction) { return 0f; }
+            capacity += BuildingRegistry.Of(BuildingKind.Storage).StorageCapacity;
+        }
+        if (capacity <= 0f) { return SimMath.Clamp01((ctx.Store.LiveCount - 3) / 6f); }
+        float stock = 0f;
+        for (int k = (int)ResourceKind.Food; k <= (int)ResourceKind.Iron; k++)
+        {
+            ResourceKind kind = (ResourceKind)k;
+            stock += CarriedOf(in ctx, kind) + (ctx.GroundStocks?.TotalOf(kind) ?? 0f)
+                + (ctx.Storage?.GrandTotalOf(kind, buildings.Capacity) ?? 0f);
+        }
+        return SimMath.Clamp01((stock - capacity) / System.Math.Max(1f, stock));
     }
 
     /// <summary>全体存活个体随身携带的某种资源总量。</summary>

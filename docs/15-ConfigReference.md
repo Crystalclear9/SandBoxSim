@@ -46,6 +46,7 @@
 | `width` / `height` | 100 / 100 | 地图尺寸。**改变它会改变一切**：资源总量、迁徙距离、chunk 数量 |
 | `chunkSize` | 16 | 空间索引分块边长。影响 `ChunkGrid` 聚合精度与 AI 选靶粒度 |
 | `ambientTemperature` | 0.55 | 全局温度基线（0..1 归一化），影响蒸发与火险 |
+| `temperatureRecoveryPerHour` | 0.05 | 每小时恢复当前温度与基线差值的 5%；0 关闭恢复，避免天气增量长期累计贴零 |
 | `ambientMoisture` | 0.5 | 全局湿度基线，影响植被与火险 |
 
 ---

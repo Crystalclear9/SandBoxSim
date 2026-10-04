@@ -51,7 +51,11 @@ public sealed class M7ClusterDiagnostics
         if (!Enabled) { Assert.Skip("需要显式开启此用例的环境变量，未执行验收"); }
 
         // 批量验收里 4 个「有人但没聚落」的种子
-        int[] seeds = { 70138, 71508, 71645, 72330 };
+        int[] seeds = { 70960, 71508, 71645, 71919 };
+        if (int.TryParse(System.Environment.GetEnvironmentVariable("SBOX_SIM_M7_DIAG_SEED"), out int singleSeed))
+        { seeds = new[] { singleSeed }; }
+        int days = int.TryParse(System.Environment.GetEnvironmentVariable("SBOX_SIM_M7_DIAG_DAYS"), out int requestedDays)
+            && requestedDays > 0 ? requestedDays : 200;
 
         System.Console.WriteLine("  [聚落诊断] seed 人口 人群数 最大人群 该人群住房/仓库 候选天数 已成立");
 
@@ -62,7 +66,21 @@ public sealed class M7ClusterDiagnostics
             sim.InterveneAddResource(48, 48, ResourceKind.Food, 60f);
             sim.InterveneAddResource(52, 52, ResourceKind.Wood, 60f);
 
-            for (int day = 0; day < 200; day++) { sim.Tick(TicksPerDay); }
+            for (int day = 0; day < days; day++)
+            {
+                sim.Tick(TicksPerDay);
+                if ((day + 1) % 10 == 0)
+                {
+                    System.Console.WriteLine("  [聚落诊断] day " + (day + 1)
+                        + " pop " + sim.Agents.LiveCount + " houses " + sim.Buildings.TotalBeds
+                        + " storages " + sim.Buildings.CompletedStorages
+                        + " cluster " + sim.Settlements.LargestClusterPeople
+                        + " facilities " + sim.Settlements.LargestClusterHouses + "/" + sim.Settlements.LargestClusterStorages
+                        + " candidate " + sim.Settlements.CandidateDays
+                        + " build " + sim.Actions.BuildsStarted
+                        + " selectedStorage " + sim.Ai.ChosenByAction[(int)ActionKind.BuildStorage]);
+                }
+            }
 
             // 区分"没被选中"与"选了但没盖成"：
             //   BuildStorage 被选中次数 = 0        ⇒ 效用问题

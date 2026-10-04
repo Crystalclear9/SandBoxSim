@@ -165,7 +165,12 @@ public sealed class M6Tests
     public void SocializeIsActuallyChosen()
     {
         Simulation sim = MakeSettlement(9001, 16);
-        for (int day = 0; day < 25; day++) { sim.Tick(TicksPerDay); }
+        int peakRelations = 0;
+        for (int day = 0; day < 25; day++)
+        {
+            sim.Tick(TicksPerDay);
+            if (sim.Relationships.Count > peakRelations) { peakRelations = sim.Relationships.Count; }
+        }
 
         // 前置条件：这条测试只有在"有人活着"时才说明问题。
         // 加它是因为本轮发现**基础场景本身会在第 2 天全员脱水**（见 #2/#3 的诊断），
@@ -178,8 +183,8 @@ public sealed class M6Tests
             "社交必须被选中过（实测 " + chosen + " 次）—— "
             + "一个动作「已定义但不注册」或「注册了但效用永远为 0」都会给出安静的 0");
 
-        Assert.True(sim.Relationships.Count > 0,
-            "只要社交发生过，关系表里就必须有记录（实测 " + sim.Relationships.Count + " 条）");
+        Assert.True(peakRelations > 0,
+            "社交必须实际产生关系记录；死亡清理或长期遗忘后不要求记录永久保留（峰值 " + peakRelations + " 条）");
     }
 
     [Fact("可达性：分享食物必须真的被选中过，并且真的减少了分享者的食物")]

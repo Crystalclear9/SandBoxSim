@@ -2,6 +2,7 @@ using SandBoxSim.Core.Agents;
 using SandBoxSim.Core.Environment;
 using SandBoxSim.Core.Foundation;
 using SandBoxSim.Core.Pathing;
+using SandBoxSim.Core.Systems.Actions;
 
 namespace SandBoxSim.Core.Systems;
 
@@ -499,6 +500,14 @@ public sealed class ActionSystem
 
         // 目标格优先用记录的目标（选靶时确定的空地）
         Int2 site = _store.HasTarget(slot) ? _store.TargetOf(slot) : new Int2(_store.XOf(slot), _store.YOf(slot));
+
+        var ctx = new ActionContext { Store = _store, Slot = slot, Buildings = _sim.Buildings,
+            GroundStocks = _sim.GroundStocks, Storage = _sim.Storage };
+        if (!BuildAction.HasDemand(in ctx, kind))
+        {
+            Fail(slot, ActionFailReason.PrerequisiteLost);
+            return;
+        }
 
         if (!_sim.BuildingSystem.TryStartBuilding(_store, slot, kind, site.X, site.Y, out int buildingIndex, out string failure))
         {

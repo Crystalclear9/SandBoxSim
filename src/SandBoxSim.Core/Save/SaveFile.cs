@@ -337,8 +337,17 @@ public static class SaveFile
                 .Set("dissolved", JsonValue.From(s.Dissolved)));
         }
 
+        var candidates = JsonValue.Array();
+        foreach (SettlementStore.Candidate candidate in sim.Settlements.Candidates)
+        {
+            candidates.Add(JsonValue.Object()
+                .Set("x", JsonValue.From(candidate.X)).Set("y", JsonValue.From(candidate.Y))
+                .Set("days", JsonValue.From(candidate.Days)).Set("people", JsonValue.From(candidate.People))
+                .Set("lastTick", JsonValue.From(candidate.LastTick)));
+        }
         return JsonValue.Object()
             .Set("list", list)
+            .Set("candidates", candidates)
             .Set("totalFounded", JsonValue.From(sim.Settlements.TotalFounded))
             .Set("totalDissolved", JsonValue.From(sim.Settlements.TotalDissolved))
             .Set("candidateDays", JsonValue.From(sim.Settlements.CandidateDays))

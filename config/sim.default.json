@@ -20,6 +20,7 @@
     "height": 100,
     "chunkSize": 16,
     "ambientTemperature": 0.55,
+    "temperatureRecoveryPerHour": 0.05,
     "ambientMoisture": 0.5
   },
 

@@ -133,6 +133,7 @@ public sealed class SaveLoadTests
         const int half = 1440 * 8;
 
         var config = Config(60, 60);
+        config.World.TemperatureRecoveryPerHour = 0f;
         var sim = new Simulation(config, 60, 60, 11002);
         Flatten(sim, 10, 10, 50, 50);
         sim.InterveneSpawnHumans(30, 30, 14, 6);
@@ -251,10 +252,16 @@ public sealed class SaveLoadTests
         }
 
         // 最后：真的续跑一段，确认没有隐藏的第六个字段
-        sim.Tick(1440);
-        restored.Tick(1440);
-        Assert.Equal(sim.StateDigestString(), restored.StateDigestString(),
-            "续跑 1440 tick 之后仍必须一致 —— 不一致说明还有别的'隐形状态'没进存档");
+        for (int step = 1; step <= 1440; step++)
+        {
+            sim.Tick(1);
+            restored.Tick(1);
+            if (sim.StateDigestString() != restored.StateDigestString())
+            { SaveDivergenceProbe.DumpAgentFieldDelta(sim, restored); }
+            Assert.Equal(sim.StateDigestString(), restored.StateDigestString(),
+                "续跑第 " + step + " tick 分叉：" + StateHash.FirstSegmentDifference(
+                    StateHash.DescribeSegments(sim), StateHash.DescribeSegments(restored)));
+        }
     }
 
     [Fact("读档必须采用存档里的 seed（而不是构造时传的那个）")]

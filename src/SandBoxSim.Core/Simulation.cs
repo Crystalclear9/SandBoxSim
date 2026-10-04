@@ -547,13 +547,15 @@ public sealed class Simulation
                 : tile.Moisture + (moistureDelta * tile.Moisture);
 
             targetMoisture = SimMath.Clamp01(targetMoisture);
-            float targetTemperature = SimMath.Clamp01(tile.Temperature + temperatureDelta);
+            float recovery = SimMath.Clamp01(Config.World.TemperatureRecoveryPerHour);
+            float heatDelta = temperatureDelta + (Config.World.AmbientTemperature - tile.Temperature) * recovery;
+            float targetTemperature = SimMath.Clamp01(tile.Temperature + heatDelta);
 
             // 水域恒为饱和湿度，且温度变化平缓（水体热惯性）。
             if (tile.Terrain == TerrainKind.Water)
             {
                 targetMoisture = 1f;
-                targetTemperature = SimMath.Clamp01(tile.Temperature + (temperatureDelta * 0.4f));
+                targetTemperature = SimMath.Clamp01(tile.Temperature + (heatDelta * 0.4f));
             }
 
             if (targetMoisture != tile.Moisture || targetTemperature != tile.Temperature)

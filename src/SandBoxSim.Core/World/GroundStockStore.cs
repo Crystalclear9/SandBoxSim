@@ -43,6 +43,7 @@ public sealed class GroundStockStore : ISimEntitySet
 
     /// <summary>每种资源在全图地面上的总量（报告与 UI 用）。</summary>
     private readonly float[] _totals = new float[8];
+    private readonly bool[] _totalsDirty = new bool[8];
 
     public int Capacity => _piles.Length;
     public int EntityCount => _liveCount;
@@ -72,7 +73,16 @@ public sealed class GroundStockStore : ISimEntitySet
     public float TotalOf(ResourceKind kind)
     {
         int i = (int)kind;
-        return i >= 0 && i < _totals.Length ? _totals[i] : 0f;
+        if (i < 0 || i >= _totals.Length) { return 0f; }
+        if (_totalsDirty[i])
+        {
+            double total = 0;
+            for (int slot = 0; slot < _piles.Length; slot++)
+            { if (_piles[slot].Alive) { total += _piles[slot].Stock.Get(kind); } }
+            _totals[i] = (float)total;
+            _totalsDirty[i] = false;
+        }
+        return _totals[i];
     }
 
     public ResourceStock StockOf(int index) => _piles[index].Stock;
@@ -144,6 +154,7 @@ public sealed class GroundStockStore : ISimEntitySet
         _totals[(int)ResourceKind.Wood] += stock.Wood;
         _totals[(int)ResourceKind.Stone] += stock.Stone;
         _totals[(int)ResourceKind.Iron] += stock.Iron;
+        for (int i = 0; i < _totalsDirty.Length; i++) { _totalsDirty[i] = true; }
 
         AddLive(slot);
     }
@@ -241,6 +252,8 @@ public sealed class GroundStockStore : ISimEntitySet
         {
             _piles[index].Alive = false;
             RemoveLive(index);
+            // 释放时也会丢弃其他资源的微量残余，所有总量缓存均须失效。
+            for (int i = 0; i < _totalsDirty.Length; i++) { _totalsDirty[i] = true; }
         }
 
         return taken;
@@ -278,7 +291,7 @@ public sealed class GroundStockStore : ISimEntitySet
             if (available <= 0.01f) { continue; }
 
             int d = System.Math.Max(System.Math.Abs(_piles[i].X - x), System.Math.Abs(_piles[i].Y - y));
-            if (d < distance && d <= radius)
+            if (d <= radius && (d < distance || (d == distance && (index < 0 || i < index))))
             {
                 distance = d;
                 index = i;
@@ -293,6 +306,7 @@ public sealed class GroundStockStore : ISimEntitySet
         int i = (int)kind;
         if (i < 0 || i >= _totals.Length) { return; }
         _totals[i] += delta;
+        _totalsDirty[i] = true;
         if (_totals[i] < 0f) { _totals[i] = 0f; }
     }
 

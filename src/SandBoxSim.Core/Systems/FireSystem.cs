@@ -38,6 +38,7 @@ namespace SandBoxSim.Core.Systems;
 public sealed class FireSystem
 {
     private readonly Simulation _sim;
+    private bool[] _spreadSources = System.Array.Empty<bool>();
     private readonly FireConfig _config;
 
     /// <summary>8 邻居的固定方向数组（确定性：顺序永远是这一个）。</summary>
@@ -134,6 +135,8 @@ public sealed class FireSystem
         Tile[] tiles = world.Tiles;
         int width = world.Width;
         int height = world.Height;
+        if (_spreadSources.Length != tiles.Length) { _spreadSources = new bool[tiles.Length]; }
+        System.Array.Clear(_spreadSources, 0, _spreadSources.Length);
 
         // **火灾必须用自己那条流**（`RngStream.Fire`），不能借 Events ——
         // 后者同时驱动天气，借用它会让"点燃一片森林"改变接下来的天气序列，
@@ -146,7 +149,9 @@ public sealed class FireSystem
 
         // 自然的点燃源放在**第一遍之前**，并且只烧一格 ——
         // 雷击是"世界自己会发生的事"，不该一次点着整片森林。
-        TryNaturalIgnition(tick, tiles, width, height, rng);
+        int initiallyBurning = 0;
+        foreach (Tile tile in tiles) { if (tile.Fire == FireState.Burning) { initiallyBurning++; } }
+        if (initiallyBurning < _config.MaxBurningTiles) { TryNaturalIgnition(tick, tiles, width, height, rng); }
 
         // 第一遍：结算当前燃烧（消耗植被、烧掉木材、必要时转焦土）
         for (int i = 0; i < tiles.Length; i++)
@@ -188,6 +193,7 @@ public sealed class FireSystem
             }
 
             burning++;
+            _spreadSources[i] = true;
         }
 
         // 上限闸：超过上限时不再蔓延（防止一次干旱把整张图点着而失控）
@@ -206,13 +212,14 @@ public sealed class FireSystem
                 for (int x = 0; x < width; x++)
                 {
                     int i = (y * width) + x;
-                    if (tiles[i].Fire != FireState.Burning) { continue; }
+                    if (!_spreadSources[i]) { continue; }
                     if (!maySpread) { break; }
 
                     int wind = WindIndex(tick);
 
                     for (int d = 0; d < 8; d++)
                     {
+                        if (!maySpread) { break; }
                         int nx = x + DirectionX[d];
                         int ny = y + DirectionY[d];
                         if (nx < 0 || ny < 0 || nx >= width || ny >= height) { continue; }
@@ -228,6 +235,8 @@ public sealed class FireSystem
                         tiles[ni].Fire = FireState.Burning;
                         TotalIgnitions++;
                         SpreadThisTick++;
+                        burning++;
+                        maySpread = burning < _config.MaxBurningTiles;
                         world.MarkDirtyAt(nx, ny);
                     }
                 }

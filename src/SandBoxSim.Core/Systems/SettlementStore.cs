@@ -81,6 +81,17 @@ public sealed class SettlementStore : ISimEntitySet
     private int _candidateDays;
     private int _candidatePeople;
 
+    public struct Candidate
+    {
+        public int X;
+        public int Y;
+        public int Days;
+        public int People;
+        public long LastTick;
+    }
+    private System.Collections.Generic.List<Candidate> _candidates = new System.Collections.Generic.List<Candidate>();
+    public System.Collections.Generic.IEnumerable<Candidate> Candidates => _candidates;
+
     /// <summary>`ISimEntitySet`：实体数量。</summary>
     public int EntityCount => _count;
 
@@ -125,36 +136,14 @@ public sealed class SettlementStore : ISimEntitySet
         _candidateCenterY = -1;
         _candidateDays = 0;
         _candidatePeople = 0;
+        _candidates.Clear();
+        LastClusterCount = LargestClusterPeople = LargestClusterHouses = LargestClusterStorages = 0;
     }
 
     /// <summary>
-    /// 逐日评估（由 `Simulation.TickDay` 调用）。
-    ///
-    /// # 为什么它必须做**空间聚类**，而不是"全体质心"
-    ///
-    /// 第一版用的是全体存活个体的质心，再在质心附近半径内数人。
-    /// 44×44 的手工场景里它工作得很好 —— 因为人本来就挤在一起。
-    /// 但 20 种子批量验收（100×100、40 人、200 天）立刻暴露了它完全不行：
-    ///
-    /// ```text
-    /// seed 70001 人口 58 聚落 1 (活跃 0) 首成 34天 最高等级 Camp
-    /// ```
-    ///
-    /// **人口 58，聚落却解散了、等级停在 Camp。** 原因很直白：
-    /// 人分散在一整张地图上时，全体质心会落在**没人的地方**，
-    /// 于是"质心附近有几个人"很小，聚落被自己的解散阈值判死。
-    ///
-    /// 更要紧的是：全体质心**在原理上就只能产出一个聚落**。
-    /// 而验收判据之一是"≥5/20 个种子有 ≥2 个聚落" ——
-    /// 那条判据在这个架构下**永远不可能达成**，不是参数问题。
-    ///
-    /// 所以现在改成真正的空间聚类：把个体按 `ClusterRadius` 分格，
-    /// 合并相邻的占用格，每个连通块算一个"人群"，逐个评估。
-    /// 这同时解决三件事：解散误判、等级永远 Camp、以及**多聚落**。
-    ///
-    /// 顺带一条教训：**手工摆好的场景通过，不等于机制成立。**
-    /// M7Tests 的 8 项断言每一条都真实通过，但它们共享同一个友好前提（人挤在一起）。
-    /// 批量验收的价值就在于它**不听我摆布**。
+    /// 逐日评估共享设施周围的实际居民群，并独立累计各候选的连续共处天数。
+    /// 稳定设施锚点避免全图质心落在无人处，也避免附近活动误算为整体迁离。
+    /// 人口达到原成立条件时建立记录，降至解散阈值时保留解散历史。
     /// </summary>
     public void TickDay(long tick)
     {
@@ -163,6 +152,9 @@ public sealed class SettlementStore : ISimEntitySet
         if (_sim.Agents.LiveCount == 0)
         {
             DissolveAll(tick);
+            _candidates.Clear();
+            UpdateCandidateProjection();
+            LastClusterCount = LargestClusterPeople = LargestClusterHouses = LargestClusterStorages = 0;
             return;
         }
 
@@ -185,10 +177,19 @@ public sealed class SettlementStore : ISimEntitySet
                     BuildingKind.Storage, clusters[i].CenterX, clusters[i].CenterY, _config.FacilityRadius);
             }
         }
+        var nextCandidates = new System.Collections.Generic.List<Candidate>();
+        var candidateMatched = new bool[_candidates.Count];
+        var activeMatched = new bool[_count];
         for (int i = 0; i < clusters.Count; i++)
+        { Evaluate(tick, clusters[i], nextCandidates, candidateMatched, activeMatched); }
+        for (int i = 0; i < activeMatched.Length; i++)
         {
-            Evaluate(tick, clusters[i]);
+            if (_items[i].Dissolved || activeMatched[i]) { continue; }
+            if (CountResidentsNear(_items[i].CenterX, _items[i].CenterY) <= _config.DissolvePeople)
+            { Dissolve(_items[i].Id, tick); }
         }
+        _candidates = nextCandidates;
+        UpdateCandidateProjection();
     }
 
     /// <summary>一个"人群"：空间上连成一片的个体。</summary>
@@ -200,116 +201,76 @@ public sealed class SettlementStore : ISimEntitySet
     }
 
     /// <summary>
-    /// 把个体按 `ClusterRadius` 分格并合并相邻占用格。
-    ///
-    /// 用**并查集**而不是递归漫水：递归在极端情况下会栈溢出，
-    /// 而并查集的合并顺序完全由格子遍历顺序决定 ⇒ 确定性由构造保证
-    /// （与"靠调用方自觉"相比，这是本项目一贯偏好的做法）。
+    /// 已完工仓库提供稳定的共享设施锚点；每人只属于半径内最近的锚点。
+    /// 近邻设施合并，防止同一居民被多座仓库重复计数。
     /// </summary>
     private System.Collections.Generic.List<Cluster> BuildClusters()
     {
-        var result = new System.Collections.Generic.List<Cluster>();
-
-        int cell = _config.ClusterRadius >= 1f ? (int)_config.ClusterRadius : 1;
-        int width = _sim.World.Width;
-        int height = _sim.World.Height;
-        int cellsX = ((width + cell - 1) / cell) + 1;
-        int cellsY = ((height + cell - 1) / cell) + 1;
-        int cellCount = cellsX * cellsY;
-
-        int[] parent = new int[cellCount];
-        int[] people = new int[cellCount];
-        long[] sumX = new long[cellCount];
-        long[] sumY = new long[cellCount];
-        bool[] occupied = new bool[cellCount];
-        for (int i = 0; i < cellCount; i++) { parent[i] = i; }
-
+        var anchors = new System.Collections.Generic.List<Cluster>();
+        float radiusSq = _config.ClusterRadius * _config.ClusterRadius;
+        // 活跃身份优先，随后按建筑槽位选新锚点，保持存档前后顺序一致。
+        for (int i = 0; i < _count; i++)
+            if (!_items[i].Dissolved)
+                anchors.Add(new Cluster { CenterX = _items[i].CenterX, CenterY = _items[i].CenterY });
+        for (int index = 0; index < _sim.Buildings.Capacity; index++)
+        {
+            if (_sim.Buildings.KindOf(index) != BuildingKind.Storage
+                || _sim.Buildings.StateOf(index) != BuildingState.Complete) { continue; }
+            int x = _sim.Buildings.XOf(index);
+            int y = _sim.Buildings.YOf(index);
+            bool covered = false;
+            foreach (Cluster c in anchors)
+            {
+                long dx = x - c.CenterX, dy = y - c.CenterY;
+                if (dx * dx + dy * dy <= radiusSq) { covered = true; break; }
+            }
+            if (!covered) { anchors.Add(new Cluster { CenterX = x, CenterY = y }); }
+        }
+        var unassigned = new System.Collections.Generic.List<Cluster>();
         int[] slots = _sim.Agents.LiveSlotsRaw(out int liveCount);
         for (int k = 0; k < liveCount; k++)
         {
-            int slot = slots[k];
-            int ax = _sim.Agents.XOf(slot);
-            int ay = _sim.Agents.YOf(slot);
-            int cx = ax / cell;
-            int cy = ay / cell;
-            if (cx < 0 || cy < 0 || cx >= cellsX || cy >= cellsY) { continue; }
-
-            int idx = (cy * cellsX) + cx;
-            occupied[idx] = true;
-            people[idx]++;
-            sumX[idx] += ax;
-            sumY[idx] += ay;
-        }
-
-        // 合并 4 邻接的占用格（固定顺序：先右后下）
-        for (int y = 0; y < cellsY; y++)
-        {
-            for (int x = 0; x < cellsX; x++)
+            int x = _sim.Agents.XOf(slots[k]), y = _sim.Agents.YOf(slots[k]);
+            int nearest = -1;
+            double best = double.MaxValue;
+            for (int i = 0; i < anchors.Count; i++)
             {
-                int idx = (y * cellsX) + x;
-                if (!occupied[idx]) { continue; }
-                if (x + 1 < cellsX && occupied[idx + 1]) { Union(parent, idx, idx + 1); }
-                if (y + 1 < cellsY && occupied[idx + cellsX]) { Union(parent, idx, idx + cellsX); }
+                long dx = x - anchors[i].CenterX, dy = y - anchors[i].CenterY;
+                double distance = dx * dx + dy * dy;
+                if (distance <= radiusSq && distance < best) { nearest = i; best = distance; }
+            }
+            if (nearest >= 0)
+            {
+                Cluster c = anchors[nearest]; c.People++; anchors[nearest] = c;
+            }
+            else
+            {
+                // 无共享设施的居民只参与观察，不以远处设施冒充共同生活。
+                int group = -1;
+                for (int i = 0; i < unassigned.Count; i++)
+                    if (unassigned[i].CenterX == x && unassigned[i].CenterY == y) { group = i; break; }
+                if (group < 0) { unassigned.Add(new Cluster { CenterX = x, CenterY = y, People = 1 }); }
+                else { Cluster c = unassigned[group]; c.People++; unassigned[group] = c; }
             }
         }
-
-        // 按根分组（格序遍历 ⇒ 输出顺序固定）
-        var rootIndex = new System.Collections.Generic.Dictionary<int, int>();
-        for (int i = 0; i < cellCount; i++)
-        {
-            if (!occupied[i]) { continue; }
-
-            int root = Find(parent, i);
-            if (!rootIndex.TryGetValue(root, out int slotIndex))
-            {
-                slotIndex = result.Count;
-                rootIndex[root] = slotIndex;
-                result.Add(new Cluster { CenterX = 0, CenterY = 0, People = 0 });
-            }
-
-            Cluster c = result[slotIndex];
-            c.People += people[i];
-            c.CenterX += (int)(sumX[i] / 1);   // 先累加位置和，最后再除人数
-            c.CenterY += (int)(sumY[i] / 1);
-            result[slotIndex] = c;
-        }
-
-        for (int i = 0; i < result.Count; i++)
-        {
-            Cluster c = result[i];
-            if (c.People > 0) { c.CenterX /= c.People; c.CenterY /= c.People; }
-            result[i] = c;
-        }
-
+        var result = new System.Collections.Generic.List<Cluster>();
+        foreach (Cluster c in anchors) { if (c.People > 0) { result.Add(c); } }
+        result.AddRange(unassigned);
         return result;
     }
-
-    private static int Find(int[] parent, int i)
-    {
-        while (parent[i] != i) { i = parent[i] = parent[parent[i]]; }
-        return i;
-    }
-
-    private static void Union(int[] parent, int a, int b)
-    {
-        int ra = Find(parent, a);
-        int rb = Find(parent, b);
-        if (ra == rb) { return; }
-        // 较小的根作为父节点 ⇒ 与合并顺序无关的规范形式
-        if (ra < rb) { parent[rb] = ra; } else { parent[ra] = rb; }
-    }
-
     /// <summary>评估一个人群：匹配已有聚落，或按条件成立新的。</summary>
-    private void Evaluate(long tick, Cluster c)
+    private void Evaluate(long tick, Cluster c, System.Collections.Generic.List<Candidate> nextCandidates,
+        bool[] candidateMatched, bool[] activeMatched)
     {
         int houses = CountCompleted(BuildingKind.House, c.CenterX, c.CenterY, _config.FacilityRadius);
         int storages = CountCompleted(BuildingKind.Storage, c.CenterX, c.CenterY, _config.FacilityRadius);
         bool hasFacilities = houses >= _config.MinHouses && storages >= _config.MinStorages;
 
-        int activeIndex = FindActiveNear(c.CenterX, c.CenterY, _config.MatchRadius);
+        int activeIndex = FindActiveNear(c.CenterX, c.CenterY, _config.MatchRadius, activeMatched);
 
         if (activeIndex >= 0)
         {
+            activeMatched[activeIndex] = true;
             Settlement s = _items[activeIndex];
 
             // 滞回：**解散阈值低于成立阈值**，两者之间保持不变。
@@ -332,29 +293,39 @@ public sealed class SettlementStore : ISimEntitySet
 
         // 没有可匹配的活跃聚落 ⇒ 走"候选持续性"这条路
         if (!hasFacilities || c.People < _config.FoundPeople) { return; }
-        if (!NearCandidate(c.CenterX, c.CenterY)) { _candidateDays = 0; }
-
-        _candidateDays++;
-        _candidateCenterX = c.CenterX;
-        _candidateCenterY = c.CenterY;
-        _candidatePeople = c.People;
-
-        if (_candidateDays >= _config.FoundDays)
+        int previous = -1;
+        long bestDistance = long.MaxValue;
+        for (int i = 0; i < _candidates.Count; i++)
+        {
+            Candidate candidate = _candidates[i];
+            if (candidateMatched[i] || tick - candidate.LastTick != _sim.World.Calendar.TicksPerDay) { continue; }
+            int dx = c.CenterX - candidate.X;
+            int dy = c.CenterY - candidate.Y;
+            if (System.Math.Abs(dx) > _config.CenterDriftTolerance || System.Math.Abs(dy) > _config.CenterDriftTolerance) { continue; }
+            long distance = (long)dx * dx + (long)dy * dy;
+            if (distance >= bestDistance) { continue; }
+            previous = i;
+            bestDistance = distance;
+        }
+        int days = previous < 0 ? 1 : _candidates[previous].Days + 1;
+        if (previous >= 0) { candidateMatched[previous] = true; }
+        if (days >= _config.FoundDays)
         {
             Found(tick, c.CenterX, c.CenterY, c.People, houses, storages);
         }
+        else { nextCandidates.Add(new Candidate { X = c.CenterX, Y = c.CenterY, Days = days, People = c.People, LastTick = tick }); }
     }
 
     /// <summary>找出中心附近的活跃聚落（用于跨天保持同一身份）。</summary>
-    private int FindActiveNear(int x, int y, int radius)
+    private int FindActiveNear(int x, int y, int radius, bool[] matched)
     {
         int best = -1;
         int bestDist = int.MaxValue;
         int radiusSq = radius * radius;
 
-        for (int i = 0; i < _count; i++)
+        for (int i = 0; i < matched.Length; i++)
         {
-            if (_items[i].Dissolved) { continue; }
+            if (_items[i].Dissolved || matched[i]) { continue; }
 
             int dx = _items[i].CenterX - x;
             int dy = _items[i].CenterY - y;
@@ -368,12 +339,33 @@ public sealed class SettlementStore : ISimEntitySet
         return best;
     }
 
-    /// <summary>候选中心是否还是同一个（"整体搬家"不算同一个聚落）。</summary>
-    private bool NearCandidate(int x, int y)
+    /// <summary>将最持久的候选投影到旧的单候选观察字段。</summary>
+    private void UpdateCandidateProjection()
     {
-        if (_candidateCenterX < 0) { return true; }
-        return System.Math.Abs(x - _candidateCenterX) <= _config.CenterDriftTolerance
-            && System.Math.Abs(y - _candidateCenterY) <= _config.CenterDriftTolerance;
+        _candidateCenterX = _candidateCenterY = -1;
+        _candidateDays = _candidatePeople = 0;
+        foreach (Candidate candidate in _candidates)
+        {
+            if (candidate.Days < _candidateDays || (candidate.Days == _candidateDays && candidate.People <= _candidatePeople)) { continue; }
+            _candidateCenterX = candidate.X;
+            _candidateCenterY = candidate.Y;
+            _candidateDays = candidate.Days;
+            _candidatePeople = candidate.People;
+        }
+    }
+
+    private int CountResidentsNear(int x, int y)
+    {
+        int count = 0;
+        float radiusSq = _config.ClusterRadius * _config.ClusterRadius;
+        int[] slots = _sim.Agents.LiveSlotsRaw(out int liveCount);
+        for (int i = 0; i < liveCount; i++)
+        {
+            int dx = _sim.Agents.XOf(slots[i]) - x;
+            int dy = _sim.Agents.YOf(slots[i]) - y;
+            if ((long)dx * dx + (long)dy * dy <= radiusSq) { count++; }
+        }
+        return count;
     }
     /// <summary>由人口与建筑数推导等级（观察者的标签，不是独立驱动的变量）。</summary>
     private SettlementTier TierOf(int population, int houses)
@@ -533,10 +525,15 @@ public sealed class SettlementStore : ISimEntitySet
     /// <summary>读档：恢复"候选持续性"计数（它会影响未来会不会成立聚落）。</summary>
     public void RestoreCandidate(int centerX, int centerY, int days, int people)
     {
-        _candidateCenterX = centerX;
-        _candidateCenterY = centerY;
-        _candidateDays = days;
-        _candidatePeople = people;
+        _candidates.Clear();
+        if (days > 0) { RestoreCandidateEntry(centerX, centerY, days, people, _sim.Clock); }
+        else { UpdateCandidateProjection(); }
+    }
+
+    public void RestoreCandidateEntry(int x, int y, int days, int people, long lastTick)
+    {
+        _candidates.Add(new Candidate { X = x, Y = y, Days = days, People = people, LastTick = lastTick });
+        UpdateCandidateProjection();
     }
 
     public void RestoreCounters(int totalFounded, int totalDissolved)
@@ -567,6 +564,15 @@ public sealed class SettlementStore : ISimEntitySet
         hash = Hash64.Combine(hash, _candidatePeople);
         hash = Hash64.Combine(hash, _candidateCenterX);
         hash = Hash64.Combine(hash, _candidateCenterY);
+        hash = Hash64.Combine(hash, _candidates.Count);
+        foreach (Candidate candidate in _candidates)
+        {
+            hash = Hash64.Combine(hash, candidate.X);
+            hash = Hash64.Combine(hash, candidate.Y);
+            hash = Hash64.Combine(hash, candidate.Days);
+            hash = Hash64.Combine(hash, candidate.People);
+            hash = Hash64.Combine(hash, candidate.LastTick);
+        }
 
         for (int i = 0; i < _count; i++)
         {
