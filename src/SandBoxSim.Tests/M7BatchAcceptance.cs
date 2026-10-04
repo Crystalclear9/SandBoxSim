@@ -51,8 +51,9 @@ public sealed class M7BatchAcceptance
     {
         if (!Enabled) { return; }
 
-        const int Seeds = 20;
-        const int Days = 200;
+        // 允许用环境变量缩小规模做快速迭代（默认仍是验收要求的 20 种子 x 200 天）
+        int Seeds = int.TryParse(System.Environment.GetEnvironmentVariable("SBOX_SIM_BATCH_SEEDS"), out int sc) && sc > 0 ? sc : 20;
+        int Days = int.TryParse(System.Environment.GetEnvironmentVariable("SBOX_SIM_BATCH_DAYS"), out int dc) && dc > 0 ? dc : 200;
 
         int formed = 0;
         int formedBy150 = 0;
@@ -105,11 +106,17 @@ public sealed class M7BatchAcceptance
 
         // 验收判据（任务书）：
         //   ≥15/20 在 150 天内形成聚落；≥5/20 在 200 天内有 ≥2 个聚落。
-        Assert.True(formedBy150 >= 15,
-            "至少 15/20 个种子必须在 150 天内形成聚落（实测 " + formedBy150 + "/" + Seeds + "）");
+        // 阈值按**实际种子数**成比例缩放，这样小规模快速迭代也有意义
+        // （验收要求的 20 种子对应的就是 75% 与 25%）。
+        int requiredFormed = (Seeds * 75 + 99) / 100;      // ceil(Seeds * 0.75)
+        int requiredMulti = (Seeds * 25 + 99) / 100;       // ceil(Seeds * 0.25)
 
-        Assert.True(multiSettlements >= 5,
-            "至少 5/20 个种子在 200 天内必须有 ≥2 个聚落（实测 " + multiSettlements + "/" + Seeds + "）—— "
+        Assert.True(formedBy150 >= requiredFormed,
+            "至少 " + requiredFormed + "/" + Seeds + " 个种子必须在 150 天内形成聚落（实测 "
+            + formedBy150 + "/" + Seeds + "）");
+
+        Assert.True(multiSettlements >= requiredMulti,
+            "至少 " + requiredMulti + "/" + Seeds + " 个种子在 200 天内必须有 ≥2 个聚落（实测 " + multiSettlements + "/" + Seeds + "）—— "
             + "注意这条**当前多半达不到**：全体质心的聚类方式天然只会产出一个聚落，"
             + "多聚落需要真正的空间聚类（见 docs/12 的 M7 说明）");
     }
