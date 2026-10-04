@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.Globalization;
 
+using SandBoxSim.Core.Agents;
+
 namespace SandBoxSim.Core.Foundation;
 
 /// <summary>
@@ -25,6 +27,7 @@ public sealed class SimConfig
     public BuildingConfig Buildings = new BuildingConfig();
     public BirthConfig Birth = new BirthConfig();
     public FireConfig Fire = new FireConfig();
+    public RelationshipConfig Relationship = new RelationshipConfig();
     public RulesConfig Rules = new RulesConfig();
     public DebugConfig Debug = new DebugConfig();
 
@@ -365,6 +368,45 @@ public sealed class AiConfig
     /// 所以采集类动作必须有一个"够了"的信号。
     /// </summary>
     public float InventoryComfort = 45f;
+
+    // ---- M6：社会行为的权重 ----
+    //
+    // 命名规则统一为"<驱动>×<动作>"，便于在检查器里直接读出
+    // "这个人为什么去社交了"。性格类权重一律是**加成**（isBonus），
+    // 因为性格只该改变"有多想做"，不该决定"能不能做"。
+
+    /// <summary>社交性格的加成。</summary>
+    public float SociabilityBonus = 0.6f;
+
+    /// <summary>距离对社交意愿的加成（越近越愿意）。</summary>
+    public float SocializeDistanceWeight = 0.4f;
+
+    /// <summary>对方饥饿程度对分享意愿的权重。</summary>
+    public float ShareFoodNeedWeight = 1.3f;
+
+    /// <summary>善良对分享意愿的加成。</summary>
+    public float KindnessShareBonus = 0.9f;
+
+    /// <summary>自留余量对分享意愿的**负**权重（越富越不舍得）。</summary>
+    public float GreedSharePenalty = 0.7f;
+
+    /// <summary>威胁程度对逃跑意愿的权重。</summary>
+    public float FleeThreatWeight = 1.6f;
+
+    /// <summary>勇敢对逃跑意愿的**负**权重。</summary>
+    public float BraveryFleePenalty = 0.8f;
+
+    /// <summary>伤势对逃跑意愿的加成。</summary>
+    public float FleeInjuryWeight = 0.5f;
+
+    /// <summary>敌意对攻击意愿的权重。</summary>
+    public float AttackHostilityWeight = 1.5f;
+
+    /// <summary>侵略性格对攻击意愿的加成。</summary>
+    public float AggressionAttackBonus = 0.9f;
+
+    /// <summary>自身健康对攻击意愿的加成（伤重则不想打）。</summary>
+    public float AttackHealthWeight = 0.6f;
 }
 
 /// <summary>

@@ -101,6 +101,12 @@ public sealed class Simulation
     /// </summary>
     public FireSystem Fire { get; }
 
+    /// <summary>
+    /// 个体之间的关系（M6）。对称性由数据结构保证（键是 (min,max) 打包的 long），
+    /// 因此 `Rel(A,B) == Rel(B,A)` 不可能被调用方破坏。
+    /// </summary>
+    public RelationshipStore Relationships { get; }
+
     public SimulationStats Stats { get; } = new SimulationStats();
 
     /// <summary>世界事件日志（第 55 / 56 节）。M0 只记录地形/世界级事件。</summary>
@@ -165,6 +171,13 @@ public sealed class Simulation
 
         // M5：火灾系统。它只读写 World 的格子与 Events 流，依赖最少。
         Fire = new FireSystem(this);
+
+        // M6：关系系统。它是稀疏的（只存真正发生过的关系），
+        // 且**不带任何对世界的引用** —— 它纯粹是一张表，因此依赖最少、最容易测。
+        Relationships = new RelationshipStore(Config.Relationship);
+
+        // 注册进实体集合，从而自动参与状态摘要（见 RegisterEntitySet 的约定）。
+        RegisterEntitySet(Relationships);
 
         // 注册进实体集合：世界重建时会自动 Reset，摘要会自动覆盖
         RegisterEntitySet(Agents);
@@ -325,6 +338,11 @@ public sealed class Simulation
             // 出生率缓慢掉到 0 —— 不报错，只表现为"这个世界的孩子越来越少"。
             Births.OnAgentRemoved(death.Slot);
 
+        // M6：同时忘掉这个人的全部关系。
+        // 不清理会有两个后果：条目无限增长；以及**槽位被复用时**
+        // 新个体凭空继承前一个人的关系（"我刚出生就有一个死敌"）。
+        Relationships.Forget(death.Slot);
+
             Stats.RecordDeath();
         }
     }
@@ -372,6 +390,21 @@ public sealed class Simulation
         {
             ResourceSystem.Regenerate(RegenerationDays(1.0));
         }
+
+        // M6：关系每天向 0 回落（"长期不来往就变淡"）。
+        // 放在 TickDay 之前：让本日的社会互动先发生、再统一衰减，
+        // 顺序固定即可（确定性只要求顺序稳定，不要求它必须是某一个特定顺序）。
+        // M6：怨恨先于回落 —— 让"本日的条件"先产生关系变化，再统一衰减。
+        // 顺序固定即可（确定性只要求顺序稳定）。
+        Relationships.TickResentment(
+            Agents,
+            Config.Relationship.ResentmentHungerThreshold,
+            Config.Relationship.ResentmentSurplusThreshold,
+            Config.Relationship.ResentmentPerDay,
+            Config.Relationship.ResentmentRadius,
+            World.Tick);
+
+        Relationships.TickDay(World.Tick);
 
         TickDay();
 

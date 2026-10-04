@@ -139,6 +139,7 @@ public static class SaveFile
             .Set("storage", EncodeStorage(sim))
             .Set("groundStocks", EncodeGroundStocks(sim))
             .Set("stats", EncodeStats(sim))
+            .Set("relationships", EncodeRelationships(sim))
             .Set("chunks", EncodeChunks(world))
             .Set("config", JsonBinder.ToJson(sim.Config));
 
@@ -281,6 +282,32 @@ public static class SaveFile
     /// 个体编码：**按槽位升序**（不是存活列表顺序）。
     /// 顺序必须确定，否则"同一状态两次存档"会产生不同文件（不利于人工比对差异）。
     /// </summary>
+    /// <summary>
+    /// 关系表（M6）。
+    ///
+    /// **必须按 key 升序写出**：`RelationshipStore` 内部是 `Dictionary`，
+    /// 而字典的枚举顺序不保证稳定 —— 直接枚举会让"同一局游戏"存出两份不同的文件，
+    /// 进而让摘要校验在毫不相关的地方失败。
+    /// </summary>
+    private static JsonValue EncodeRelationships(Simulation sim)
+    {
+        var list = JsonValue.Array();
+        var pairs = sim.Relationships.PairsAscending();
+
+        for (int i = 0; i < pairs.Count; i++)
+        {
+            long key = pairs[i].Key;
+            list.Add(JsonValue.Object()
+                .Set("a", JsonValue.From(RelationshipStore.LowOf(key)))
+                .Set("b", JsonValue.From(RelationshipStore.HighOf(key)))
+                .Set("affinity", JsonValue.From(pairs[i].Value.Affinity))
+                .Set("interactions", JsonValue.From(pairs[i].Value.Interactions))
+                .Set("lastTick", JsonValue.From(pairs[i].Value.LastTick)));
+        }
+
+        return JsonValue.Object().Set("list", list);
+    }
+
     private static JsonValue EncodeAgents(Simulation sim)
     {
         AgentStore agents = sim.Agents;

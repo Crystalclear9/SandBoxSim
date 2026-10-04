@@ -877,6 +877,28 @@ public sealed class AgentStore : ISimEntitySet
         => SetNeed(slot, need, NeedOf(slot, need) + delta);
 
     public void SetHealth(int slot, float value) => _health[slot] = SimMath.Clamp01(value);
+
+    /// <summary>设置社交满足度（M6：社交动作会把它拉高）。</summary>
+    public void SetSocial(int slot, float value) => _social[slot] = SimMath.Clamp01(value);
+
+    /// <summary>设置饥饿度（干预与测试用：用来构造"稀缺"这类前提）。</summary>
+    public void SetHunger(int slot, float value) => _hunger[slot] = SimMath.Clamp01(value);
+
+    /// <summary>
+    /// 覆盖性格（干预与测试用）。
+    ///
+    /// 有了它，就能做"同一个世界、只把所有人的善良拉到两个极端"这类对照实验 ——
+    /// 而这类实验正是回答"性格到底有没有影响行为"的唯一干净办法。
+    /// </summary>
+    public void SetPersonality(int slot, in Personality personality)
+    {
+        _aggression[slot] = SimMath.Clamp01(personality.Aggression);
+        _greed[slot] = SimMath.Clamp01(personality.Greed);
+        _kindness[slot] = SimMath.Clamp01(personality.Kindness);
+        _bravery[slot] = SimMath.Clamp01(personality.Bravery);
+        _industriousness[slot] = SimMath.Clamp01(personality.Industriousness);
+        _sociability[slot] = SimMath.Clamp01(personality.Sociability);
+    }
     public void AddHealth(int slot, float delta) => SetHealth(slot, _health[slot] + delta);
 
     public void SetAgeDays(int slot, int days) => _ageDays[slot] = (short)SimMath.Clamp(days, 0, 32000);
@@ -1242,8 +1264,20 @@ public sealed class AgentStore : ISimEntitySet
             hash = Hash64.Combine(hash, (int)(_invWood[i] * 100f));
             hash = Hash64.Combine(hash, (int)(_invStone[i] * 100f));
             hash = Hash64.Combine(hash, (int)(_invIron[i] * 100f));
+            // M6：六项性格**全部**进摘要。
+            //
+            // 原先只有 aggression 与 industriousness —— 那在 M1–M5 是对的，
+            // 因为另外四项当时不影响任何行为。M6 让 kindness/greed/bravery/sociability
+            // 都参与了动作效用计算，于是它们变成了"会影响未来行为的状态"，
+            // 必须进摘要（否则又是一次"读档后几百 tick 才分叉"的隐形状态）。
+            //
+            // 判据从来不是"它看起来是不是状态"，而是**它会不会影响未来的行为**。
             hash = Hash64.Combine(hash, (int)(_aggression[i] * 1000f));
+            hash = Hash64.Combine(hash, (int)(_greed[i] * 1000f));
+            hash = Hash64.Combine(hash, (int)(_kindness[i] * 1000f));
+            hash = Hash64.Combine(hash, (int)(_bravery[i] * 1000f));
             hash = Hash64.Combine(hash, (int)(_industriousness[i] * 1000f));
+            hash = Hash64.Combine(hash, (int)(_sociability[i] * 1000f));
 
             // M4 家庭与住所：都影响未来行为（伴侣决定能不能生、住所决定床位占用、
             // 而床位是出生的硬门），因此必须进摘要 —— 判据与 Phase 0 那六个隐形状态相同。

@@ -42,6 +42,11 @@ public enum WorldEventType : byte
     AgentStarving = 25,
     AgentAte = 26,
 
+    // 人与人之间（M6）
+    AgentSocialized = 27,
+    AgentSharedFood = 28,
+    AgentAttacked = 29,
+
     // 建筑（M3+）
     BuildingStarted = 30,
     BuildingCompleted = 31,

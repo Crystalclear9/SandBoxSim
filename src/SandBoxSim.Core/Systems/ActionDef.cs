@@ -37,6 +37,14 @@ public struct ActionContext
     /// <summary>共享库存（M3）：建造扣料与存放/取回读它。</summary>
     public StorageStore? Storage;
 
+    /// <summary>
+    /// 关系表（M6）：社交/分享/逃跑/攻击都要读"我和他是什么关系"。
+    ///
+    /// 它是动作层唯一能读到关系的入口 —— 这与"所有关系写入都走
+    /// `RelationshipStore.Interact`"是配对的：一个读口、一个写口。
+    /// </summary>
+    public Agents.RelationshipStore? Relationships;
+
     /// <summary>当前 tick。</summary>
     public long Tick;
 
@@ -159,6 +167,26 @@ public static class ActionRegistry
                     ActionKind.BuildFarm,
                     ActionKind.Farm,
 
+                    // M6：人与人之间的四个动作。
+
+                    //
+
+                    // 这四个与 M4 的 BuildFarm 是同一类风险：**定义在枚举里但不注册进 All
+
+                    // 的动作，AI 永远不会评估它** —— 没有任何报错，只有一个静默的 0。
+
+                    // 实测：这一次 M6 又踩了一遍（漏注册导致四个动作全部 0 次被选中）。
+
+                    // 所以每加一个动作，第一件事就是把它加到这里。
+
+                    ActionKind.Socialize,
+
+                    ActionKind.ShareFood,
+
+                    ActionKind.Flee,
+
+                    ActionKind.Attack,
+
                     ActionKind.Migrate,
                     ActionKind.Explore,
                     ActionKind.Wander,
@@ -251,6 +279,38 @@ public static class ActionRegistry
                 {
                     Evaluate = Actions.GatherStoneAction.Evaluate,
                     SelectTarget = Actions.GatherStoneAction.SelectTarget,
+                    NeedsTarget = true,
+                };
+
+            case ActionKind.Socialize:
+                return new ActionDef(kind, "社交", isWork: false)
+                {
+                    Evaluate = Actions.SocializeAction.Evaluate,
+                    SelectTarget = Actions.SocializeAction.SelectTarget,
+                    NeedsTarget = true,
+                };
+
+            case ActionKind.ShareFood:
+                return new ActionDef(kind, "分享食物", isWork: false)
+                {
+                    Evaluate = Actions.ShareFoodAction.Evaluate,
+                    SelectTarget = Actions.ShareFoodAction.SelectTarget,
+                    NeedsTarget = true,
+                };
+
+            case ActionKind.Flee:
+                return new ActionDef(kind, "逃跑", isWork: false)
+                {
+                    Evaluate = Actions.FleeAction.Evaluate,
+                    SelectTarget = Actions.FleeAction.SelectTarget,
+                    NeedsTarget = true,
+                };
+
+            case ActionKind.Attack:
+                return new ActionDef(kind, "攻击", isWork: false)
+                {
+                    Evaluate = Actions.AttackAction.Evaluate,
+                    SelectTarget = Actions.AttackAction.SelectTarget,
                     NeedsTarget = true,
                 };
 

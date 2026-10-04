@@ -388,6 +388,7 @@ public sealed class AiSystem
             Wildlife = _sim.Wildlife,
             Buildings = _sim.Buildings,
             Storage = _sim.Storage,
+            Relationships = _sim.Relationships,   // M6：社交/分享/逃跑/攻击要读"我和他是什么关系"
             Tick = tick,
             IsNight = isNight,
             HomeX = _store.HomeXOf(slot),

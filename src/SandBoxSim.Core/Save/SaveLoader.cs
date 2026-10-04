@@ -116,6 +116,12 @@ public static class SaveLoader
         // ---- 4) 累计统计 ----
         RestoreStats(sim, root.Get("stats"));
 
+        // M6：关系表。必须在**这里**（`Load` 里，而不是 `RestoreStats` 里）恢复 ——
+        // 因为 `RestoreStats` 拿不到根节点，而关系是独立的一段。
+        // 它会影响后续所有社会行为的效用计算，因此"读档后关系为空"
+        // 会让世界在一段时间内表现得像"所有人都是陌生人"。
+        RestoreRelationships(sim, root);
+
         // ---- 5) 收尾 ----
         sim.World.RefreshSpatialIndex();
         sim.NotifyAfterLoad();
@@ -546,5 +552,27 @@ public static class SaveLoader
         if (!array.IsArray || index < 0 || index >= array.Items.Count) { return 0d; }
         JsonValue v = array.Items[index];
         return v.AsDouble();
+    }
+    /// <summary>恢复关系表（M6）。按存档里的顺序写入；顺序不影响结果（每条独立）。</summary>
+    private static void RestoreRelationships(Simulation sim, JsonValue root)
+    {
+        sim.Relationships.Clear();
+
+        JsonValue section = root.Get("relationships");
+        if (!section.IsObject) { return; }
+
+        JsonValue list = section.Get("list");
+        if (!list.IsArray) { return; }
+
+        for (int i = 0; i < list.Items.Count; i++)
+        {
+            JsonValue item = list.Items[i];
+            sim.Relationships.Restore(
+                item.GetInt("a", -1),
+                item.GetInt("b", -1),
+                item.GetFloat("affinity", 0f),
+                item.GetInt("interactions", 0),
+                item.GetLong("lastTick", -1));
+        }
     }
 }

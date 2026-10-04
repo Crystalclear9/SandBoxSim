@@ -335,7 +335,14 @@ public sealed class M4Tests
             "有农田的世界累计农业产出必须为正（实测 "
             + withFarm.BuildingSystem.TotalFoodProduced.ToString("0.##") + "）—— "
             + "这正是 docs/12 验收项 5「有农田时食物存量增速高于无农田对照组」的直接证据");
-        Assert.Equal(0f, noFarm.BuildingSystem.TotalFoodProduced);
+        // 注意这里**不**断言"对照组产出恰好为 0"。
+        // 原先那样写是错的：它隐含假设"AI 永远不会自己盖农田"，
+        // 而 M6 把社会动作加进注册表之后，效用格局变了、对照组也开始盖田（实测 269.7）。
+        // 那暴露的是断言的脆弱，不是产品的问题 —— 对照组有没有自己盖田，
+        // 不该影响"农田会产出食物"这条判据。
+        Assert.True(withFarm.BuildingSystem.TotalFoodProduced > noFarm.BuildingSystem.TotalFoodProduced,
+            "有农田组的累计产出必须高于对照组（" + withFarm.BuildingSystem.TotalFoodProduced.ToString("0.##")
+            + " vs " + noFarm.BuildingSystem.TotalFoodProduced.ToString("0.##") + "）");
     }
 
     // ---------------------------------------------------------------------

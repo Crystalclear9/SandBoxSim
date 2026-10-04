@@ -311,6 +311,33 @@ public sealed class ActionSystem
                 TickGather(slot, tick);
                 break;
 
+            case ActionKind.Socialize:
+
+                TickSocialize(slot, tick);
+
+                break;
+
+
+            case ActionKind.ShareFood:
+
+                TickShareFood(slot, tick);
+
+                break;
+
+
+            case ActionKind.Flee:
+
+                TickFlee(slot, tick);
+
+                break;
+
+
+            case ActionKind.Attack:
+
+                TickAttack(slot, tick);
+
+                break;
+
             case ActionKind.Hunt:
                 TickHunt(slot, tick);
                 break;
@@ -855,5 +882,255 @@ public sealed class ActionSystem
         float sum = 0f;
         for (int i = 0; i < HarvestedByKind.Length; i++) { sum += HarvestedByKind[i]; }
         return sum;
+    }
+    // ---------------------------------------------------------------------
+    // M6：人与人之间的四个动作
+    //
+    // 共同点：它们的"目标"是一个**人**，而 AgentStore 里存的是位置。
+    // 因此执行阶段必须**按位置重新找一遍人**（而不是记住槽位）：
+    //   * 记住槽位的话，对方走开了你还会对着空气社交；
+    //   * 重新找则自然表达"我去到那儿，和当时在那儿的人互动"。
+    // 代价是同一个人可能在走到半路时换了对象 —— 而那恰恰是真实的行为。
+    // ---------------------------------------------------------------------
+
+    /// <summary>社交：和身边的人相处一会儿，双方关系变好、社交需求被满足。</summary>
+    private void TickSocialize(int slot, long tick)
+    {
+        if (!TryFindNeighbor(slot, _config.Relationship.SocializeRadius, out int other))
+        {
+            // 人走了（或自己走偏了）：再走近一次，否则放弃。
+            if (!TryResolvePartnerTarget(slot, _config.Relationship.SocializeRadius))
+            {
+                Fail(slot, ActionFailReason.TargetGone);
+                return;
+            }
+            return;
+        }
+
+        // 双方都受益：社交是**对称**的，因此两边各记一次互动
+        // （`Interact` 本身也是对称的，写一次就够了 —— 这里只写一次）。
+        _sim.Relationships.Interact(slot, other, _config.Relationship.SocializeGain, tick);
+
+        _store.SetSocial(slot, 1f);
+        _store.SetSocial(other, 1f);
+
+        Complete(slot, tick);
+    }
+
+    /// <summary>分享食物：把自己的一部分食物给附近最饿的人。</summary>
+    private void TickShareFood(int slot, long tick)
+    {
+        RelationshipConfig rel = _config.Relationship;
+        float carried = _store.InventoryOf(slot, ResourceKind.Food);
+        if (carried < rel.ShareFoodAmount)
+        {
+            Fail(slot, ActionFailReason.TargetGone);
+            return;
+        }
+
+        if (!TryFindHungriestNeighbor(slot, rel.SocializeRadius, out int other))
+        {
+            Fail(slot, ActionFailReason.TargetGone);
+            return;
+        }
+
+        float amount = rel.ShareFoodAmount;
+        if (amount > carried) { amount = carried; }
+
+        _store.AddInventory(slot, ResourceKind.Food, -amount);
+        _store.AddInventory(other, ResourceKind.Food, amount);
+
+        // 分享关系：亲和度提升，而且顺手把对方的饥饿往下压一点
+        _sim.Relationships.Interact(slot, other, rel.ShareFoodGain, tick);
+
+        _sim.Events.Record(
+            tick,
+            History.WorldEventType.AgentSharedFood,
+            _store.NameOrOverride(slot) + " 分享食物给 " + _store.NameOrOverride(other),
+            History.EventImportance.Normal,
+            new Int2(_store.XOf(slot), _store.YOf(slot)),
+            slot,
+            other,
+            "分享 " + amount.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture));
+
+        Complete(slot, tick);
+    }
+
+    /// <summary>逃跑：只要还在威胁附近就继续跑，脱离之后结束。</summary>
+    private void TickFlee(int slot, long tick)
+    {
+        if (!TryFindThreat(slot, 8f, out int threat))
+        {
+            Complete(slot, tick);
+            return;
+        }
+
+        // 还在威胁范围内：重新选一个更远的方向继续跑
+        if (!TryResolveFleeTarget(slot, threat))
+        {
+            // 无路可逃（被逼到角落）：接受现实，结束动作让对方有机会动手
+            Complete(slot, tick);
+        }
+    }
+
+    /// <summary>攻击：对身边关系敌对的人造成伤害，并让双方关系进一步恶化。</summary>
+    private void TickAttack(int slot, long tick)
+    {
+        if (_config.Rules.PeaceMode)
+        {
+            Fail(slot, ActionFailReason.TargetGone);
+            return;
+        }
+
+        if (!TryFindThreat(slot, 2f, out int victim))
+        {
+            if (!TryResolvePartnerTarget(slot, 4f))
+            {
+                Fail(slot, ActionFailReason.TargetGone);
+            }
+            return;
+        }
+
+        float damage = _config.Relationship.AttackDamage;
+        _store.SetHealth(victim, _store.HealthOf(victim) - damage);
+
+        // 攻击是**单向的伤害**，但关系是**对称的恶化**：
+        // 被打的人也会记住这件事（`Interact` 的对称性保证了这一点）。
+        _sim.Relationships.Interact(slot, victim, -_config.Relationship.AttackLoss, tick);
+
+        if (_config.Relationship.AttackRaisesAggression)
+        {
+            _store.SetHealth(slot, _store.HealthOf(slot) - (damage * 0.25f));
+        }
+
+        _sim.Events.Record(
+            tick,
+            History.WorldEventType.AgentAttacked,
+            _store.NameOrOverride(slot) + " 攻击了 " + _store.NameOrOverride(victim),
+            History.EventImportance.Important,
+            new Int2(_store.XOf(victim), _store.YOf(victim)),
+            slot,
+            victim,
+            "伤害 " + damage.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture));
+
+        Complete(slot, tick);
+    }
+
+    /// <summary>找指定半径内最近的另一个个体（槽位升序 ⇒ 平局取较小槽位）。</summary>
+    private bool TryFindNeighbor(int slot, float radius, out int found)
+    {
+        found = -1;
+        float best = float.MaxValue;
+        float radiusSq = radius * radius;
+
+        int x = _store.XOf(slot);
+        int y = _store.YOf(slot);
+        int[] slots = _store.LiveSlotsRaw(out int liveCount);
+
+        for (int k = 0; k < liveCount; k++)
+        {
+            int other = slots[k];
+            if (other == slot) { continue; }
+
+            float dx = _store.XOf(other) - x;
+            float dy = _store.YOf(other) - y;
+            float distSq = (dx * dx) + (dy * dy);
+            if (distSq > radiusSq || distSq >= best) { continue; }
+
+            best = distSq;
+            found = other;
+        }
+
+        return found >= 0;
+    }
+
+    private bool TryFindHungriestNeighbor(int slot, float radius, out int found)
+    {
+        found = -1;
+        float worst = 0f;
+        float radiusSq = radius * radius;
+
+        int x = _store.XOf(slot);
+        int y = _store.YOf(slot);
+        int[] slots = _store.LiveSlotsRaw(out int liveCount);
+
+        for (int k = 0; k < liveCount; k++)
+        {
+            int other = slots[k];
+            if (other == slot) { continue; }
+
+            float dx = _store.XOf(other) - x;
+            float dy = _store.YOf(other) - y;
+            if ((dx * dx) + (dy * dy) > radiusSq) { continue; }
+
+            float hunger = _store.HungerOf(other);
+            if (hunger <= worst) { continue; }
+
+            worst = hunger;
+            found = other;
+        }
+
+        return found >= 0;
+    }
+
+    private bool TryFindThreat(int slot, float radius, out int threat)
+    {
+        threat = -1;
+        float worst = 0f;
+        float radiusSq = radius * radius;
+
+        int x = _store.XOf(slot);
+        int y = _store.YOf(slot);
+        int[] slots = _store.LiveSlotsRaw(out int liveCount);
+
+        for (int k = 0; k < liveCount; k++)
+        {
+            int other = slots[k];
+            if (other == slot) { continue; }
+
+            float dx = _store.XOf(other) - x;
+            float dy = _store.YOf(other) - y;
+            if ((dx * dx) + (dy * dy) > radiusSq) { continue; }
+
+            float affinity = _sim.Relationships.AffinityOf(slot, other);
+            if (affinity > _config.Relationship.HostileAffinityThreshold) { continue; }
+
+            float hostility = SimMath.Clamp01(-affinity);
+            if (hostility <= worst) { continue; }
+
+            worst = hostility;
+            threat = other;
+        }
+
+        return threat >= 0;
+    }
+
+    /// <summary>重新把目标设为某个邻居的位置（用于"对方走开了"的情形）。</summary>
+    private bool TryResolvePartnerTarget(int slot, float radius)
+    {
+        if (!TryFindNeighbor(slot, radius, out int other)) { return false; }
+
+        _store.SetTarget(slot, _store.XOf(other), _store.YOf(other));
+        _store.SetPhase(slot, ActionPhase.Moving);
+        _store.SetState(slot, AgentState.Moving);
+        return true;
+    }
+
+    private bool TryResolveFleeTarget(int slot, int threat)
+    {
+        int stepX = _store.XOf(slot) - _store.XOf(threat);
+        int stepY = _store.YOf(slot) - _store.YOf(threat);
+        stepX = stepX == 0 ? 1 : System.Math.Sign(stepX);
+        stepY = stepY == 0 ? 0 : System.Math.Sign(stepY);
+
+        int nx = _store.XOf(slot) + (stepX * 3);
+        int ny = _store.YOf(slot) + (stepY * 3);
+        if (!_sim.World.IsInBounds(nx, ny)) { return false; }
+        if (!_sim.World.TileAt(nx, ny).Walkable) { return false; }
+
+        _store.SetTarget(slot, nx, ny);
+        _store.SetPhase(slot, ActionPhase.Moving);
+        _store.SetState(slot, AgentState.Fleeing);
+        return true;
     }
 }

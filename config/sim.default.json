@@ -221,6 +221,19 @@
     "woodLossFractionPerFastTick": 0.01
   },
 
+  "relationship": {
+    "$comment": "关系（M6）。对称由数据结构保证：键是 (min,max) 打包成的 long，因此 Rel(A,B)==Rel(B,A) 不可能被调用方破坏。亲和度按 1/1000 量化存储，避免浮点累加顺序影响摘要。",
+    "decayPerDay": 0.01,
+    "socializeGain": 0.06,
+    "shareFoodGain": 0.12,
+    "attackLoss": 0.35,
+    "shareAffinityThreshold": 0.15,
+    "kinAffinityThreshold": 0.5,
+    "hostileAffinityThreshold": -0.2,
+    "shareFoodAmount": 6.0,
+    "socializeRadius": 6.0
+  },
+
   "rules": {
     "$comment": "规则开关（M5）：玩家改的是世界的规则，不是数值。用于最直接的对照实验。PeaceMode 是保留项（Attack 在 M6 落地后立刻生效）。",
     "noDeath": false,
