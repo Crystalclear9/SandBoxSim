@@ -394,6 +394,16 @@ public sealed class RelationshipConfig
     /// <summary>社交的影响半径（格）。</summary>
     public float SocializeRadius = 6f;
 
+    /// <summary>
+    /// 攻击的作用半径（格）。
+    ///
+    /// **必须与 `SocializeRadius` / `ResentmentRadius` 是同一量级。**
+    /// 实测踩过一次：怨恨在 10 格内累积、社交在 6 格内发生，
+    /// 而攻击的门却写死在 4 格 —— 于是"关系已经坏透了，但两个人从没同时靠近到 4 格内"，
+    /// 攻击恒为 0 次。**三个半径不一致时，最短的那个会成为整条链的隐形瓶颈。**
+    /// </summary>
+    public float AttackRange = 6f;
+
     /// <summary>一次攻击造成多少健康损失。</summary>
     public float AttackDamage = 0.12f;
 

@@ -383,7 +383,7 @@ internal static class AttackAction
 
             float dx = ctx.Store.XOf(other) - ctx.X;
             float dy = ctx.Store.YOf(other) - ctx.Y;
-            if ((dx * dx) + (dy * dy) > 4f * 4f) { continue; }
+            if ((dx * dx) + (dy * dy) > rel.AttackRange * rel.AttackRange) { continue; }
 
             float affinity = ctx.Relationships.AffinityOf(ctx.Slot, other);
             if (affinity > rel.HostileAffinityThreshold) { continue; }
@@ -426,7 +426,7 @@ internal static class AttackAction
 
             float dx = ctx.Store.XOf(other) - ctx.X;
             float dy = ctx.Store.YOf(other) - ctx.Y;
-            if ((dx * dx) + (dy * dy) > 4f * 4f) { continue; }
+            if ((dx * dx) + (dy * dy) > rel.AttackRange * rel.AttackRange) { continue; }
 
             float affinity = ctx.Relationships.AffinityOf(ctx.Slot, other);
             if (affinity > rel.HostileAffinityThreshold) { continue; }

@@ -982,9 +982,9 @@ public sealed class ActionSystem
             return;
         }
 
-        if (!TryFindThreat(slot, 2f, out int victim))
+        if (!TryFindThreat(slot, _config.Relationship.AttackRange, out int victim))
         {
-            if (!TryResolvePartnerTarget(slot, 4f))
+            if (!TryResolvePartnerTarget(slot, _config.Relationship.AttackRange))
             {
                 Fail(slot, ActionFailReason.TargetGone);
             }

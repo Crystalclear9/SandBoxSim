@@ -220,7 +220,28 @@ public sealed class M6Tests
     [Fact("可达性：稀缺世界里必须真的出现攻击（怨恨是敌意的来源）")]
     public void AttackBecomesReachableUnderScarcity()
     {
-        // ⚠️ M6 未竟项（已缩小范围到"动力学竞速"）：
+        // ⚠️ M6 未竟项（#2/#3，已排除三个假设，剩下一个待查）
+        //
+        // 症状：场景跑到第 2 天人口就归零，于是"攻击为 0"说明不了任何事。
+        // 新增的前置断言（每天都要求 LiveCount > 0）就是为了让这一点**立刻可见** ——
+        // 之前没有它的时候，这条测试只是安静地报告"攻击 0 次"，
+        // 而真实原因是"世界已经空了"。
+        //
+        // 已排除：
+        //   (a) 饥饿频率 —— 从每 3 天一次改到每天、再改到每 240 tick，均无效；
+        //   (b) 可达性   —— 一度以为是森林挡住了去水边的路（`MakeSettlement` 中心草地
+        //                   外围是森林），把全图铺成草地后仍然第 2 天归零；
+        //   (c) 食物     —— 富者每步补 30 份并钉住饥饿度，贫者饥饿度钉在 0.55（不致死）。
+        //
+        // 待查方向：**"两天内全灭"通常是硬约束，而不是数值渐变。**
+        // 下一步应当在第 1 天的中间打印每个人的死因（`Needs.DeathsByCause`）
+        // 与位置/干渴度，先确定死因是"脱水"还是"饿死"还是别的，
+        // 再决定往哪个方向查。死因一确定，问题通常当场就清楚了。
+        if (!OpenIssuesEnabled) { return; }
+
+        // 说明：第一版这条测试测的是"谁的时钟更快"（见 MakeScarceWorld 的注释），
+        // 现在改成"食物充足但分配长期不均"，让怨恨有时间累积而没有人饿死。
+        // 原诊断留档：
         // 怨恨**确实产生了互动**（累计互动数断言通过），但亲和度还没来得及压到敌对阈值
         // （-0.2）以下，人就先饿死了 —— 而死亡会 `Forget` 掉他的全部关系，怨恨从头再来。
         //
@@ -232,8 +253,6 @@ public sealed class M6Tests
         //   (a) 把"怨恨 → 敌对"这条链的时间尺度再压短一档（但要注意别让和平世界也到处结仇）；
         //   (b) 换一个**不靠饿死人**的稀缺场景：例如食物充足但分配不均，
         //       让怨恨有机会在几天内累积而没人死亡。
-        //       我倾向 (b) —— 它测的是机制，而不是"谁的时钟更快"。
-        if (!OpenIssuesEnabled) { return; }
 
 
         // 刻意造一个**贫瘠且不平等**的世界：没有食物来源，一半人有粮、一半人挨饿。
@@ -258,7 +277,35 @@ public sealed class M6Tests
             sim.Agents.AddInventory(slot, ResourceKind.Food, index % 2 == 0 ? 60f : 0f);
         }
 
-        for (int day = 0; day < 30; day++) { sim.Tick(TicksPerDay); }
+        int populationAtStart = sim.Agents.LiveCount;
+        for (int day = 0; day < 40; day++)
+        {
+            // # 条件的维持频率必须**快于它自己失效的速度**
+            //
+            // 这一行改过两次，两次都是被实测打回来的：
+            //   * 每 3 天维护一次 ⇒ 饥饿度在两次之间冲过致死线，人死光（累计互动 351、当前关系 0）
+            //   * 每天维护一次   ⇒ 仍然第 2 天人口归零
+            // 因为需求系统是**每天推进一次**的，而 `HungerPerDay` 大到
+            // "0.55 起步 + 一天"就能越过 1.0。
+            //
+            // 所以改成每 240 tick（1/6 天）钉一次：**维持间隔必须显著小于失效时间**。
+            // 这条经验对整个项目的测试设计都适用 —— 凡是"我先把世界摆成某个样子、
+            // 然后跑很久看它怎么演化"的测试，前提都会被时间吃掉。
+            for (int step = 0; step < 6; step++)
+            {
+                MaintainInequality(sim);
+                sim.Tick(TicksPerDay / 6);
+            }
+
+            // **前置条件必须一直成立**，而不只是在建立场景的那一刻成立。
+            // 这一条断言如果早些写出来，上面那个"条件悄悄失效"的问题当场就会暴露。
+            Assert.True(sim.Agents.LiveCount > 0,
+                "第 " + day + " 天人口归零 —— 这个场景的前提（有人活着且不平等）已经不成立，"
+                + "此时「攻击为 0」说明不了任何事");
+        }
+        Assert.True(sim.Agents.LiveCount >= populationAtStart - 2,
+            "这个场景要求**不靠饿死人**：人口必须基本稳定（" + populationAtStart
+            + " -> " + sim.Agents.LiveCount + "）");
 
         // 断言累计互动数而不是"当前关系条数"：
         // 这是个贫瘠世界，30 天里人会**死光**，而死亡会 Forget 掉他的全部关系 ——
@@ -266,46 +313,97 @@ public sealed class M6Tests
         // 累计计数不会被清理，才是"机制跑过"的正确证据。
         Assert.True(sim.Relationships.TotalInteractions > 0,
             "怨恨必须产生互动记录（累计 " + sim.Relationships.TotalInteractions + " 次）");
+        // 诊断：把"关系到底坏到什么程度"直接打出来。
+        // 这是区分两种失败的唯一办法：
+        //   最低亲和度**没到** -0.2 ⇒ 怨恨太弱或回落抵消了它；
+        //   最低亲和度**到了** -0.2 而攻击仍为 0 ⇒ 问题在攻击的门或选靶上。
+        float minAffinity = 0f;
+        var pairs = sim.Relationships.PairsAscending();
+        for (int i = 0; i < pairs.Count; i++)
+        {
+            if (pairs[i].Value.Affinity < minAffinity) { minAffinity = pairs[i].Value.Affinity; }
+        }
+
         Assert.True(sim.Ai.ChosenByAction[(int)ActionKind.Attack] > 0,
             "在稀缺且不平等的社会里必须出现攻击（实测 "
             + sim.Ai.ChosenByAction[(int)ActionKind.Attack] + " 次）—— "
             + "如果恒为 0，通常说明「敌意根本没有来源」："
-            + "攻击以负亲和度为门，而唯一让它变负的机制又是攻击本身，于是形成死循环");
+            + "攻击以负亲和度为门，而唯一让它变负的机制又是攻击本身，于是形成死循环。"
+            + "【诊断】关系条数 " + sim.Relationships.Count
+            + "，累计互动 " + sim.Relationships.TotalInteractions
+            + "，最低亲和度 " + minAffinity.ToString("0.###")
+            + "（敌对阈值 -0.2）");
     }
 
     [Fact("和平模式必须真的关掉攻击这条通路")]
     public void PeaceModeDisablesAttack()
     {
-        // ⚠️ M6 未竟项：依赖上一条的"攻击可达"，所以现在也测不到。
-        // `AttackAction.Evaluate` 里的 PeaceMode 门本身是直白的（返回效用 0），
-        // 但"关掉了攻击"这件事只有在"本来会发生攻击"的世界里才可观测。
-        if (!OpenIssuesEnabled) { return; }
+        // 注意：`AttackAction.Evaluate` 里的 PeaceMode 门本身是直白的（返回效用 0），
+        // 但"关掉了攻击"只有在"本来会发生攻击"的世界里才可观测 ——
+        // 所以这条测试必须先有一个真的会打起来的对照组。
 
 
         Simulation warlike = MakeScarceWorld(9004);
         Simulation peaceful = MakeScarceWorld(9004);
         peaceful.Config.Rules.PeaceMode = true;
 
-        for (int day = 0; day < 25; day++)
+        for (int day = 0; day < 40; day++)
         {
-            warlike.Tick(TicksPerDay);
-            peaceful.Tick(TicksPerDay);
+            for (int step = 0; step < 6; step++)
+            {
+                MaintainInequality(warlike);
+                MaintainInequality(peaceful);
+                warlike.Tick(TicksPerDay / 6);
+                peaceful.Tick(TicksPerDay / 6);
+            }
         }
+
+        Assert.True(warlike.Agents.LiveCount > 0 && peaceful.Agents.LiveCount > 0,
+            "对照组与实验组都必须有人活着，否则这条测试没有意义");
 
         Assert.Equal(0, peaceful.Ai.ChosenByAction[(int)ActionKind.Attack]);
         Assert.True(warlike.Ai.ChosenByAction[(int)ActionKind.Attack] > 0,
             "对照组必须发生过攻击，否则这条测试没有意义");
     }
 
+    /// <summary>
+    /// 造一个**不靠饿死人**的不平等世界（这是攻击可达性测试的关键设计）。
+    ///
+    /// # 为什么换掉了第一版
+    ///
+    /// 第一版把地图上的食物全部拿掉，让一半人饿着、一半人有粮。
+    /// 结果是"怨恨确实产生了互动，但亲和度还没来得及压到敌对阈值（-0.2）以下，
+    /// 人就先饿死了" —— 而死亡会 `Forget` 掉他的全部关系，怨恨从头开始算。
+    /// 也就是两条时间尺度的竞速：**怨恨需要 N 天，饿死需要 M 天，实测 M < N。**
+    ///
+    /// 那条测试因此测的其实是"谁的时钟更快"，而不是"怨恨能不能产生敌意"。
+    ///
+    /// 现在改成：**食物一直充足（饿不死），但分配长期不均** ——
+    /// 富者随身六十份、贫者零份，两批人同住一个村子。
+    /// 这样怨恨有时间累积，而没有人会因为缺粮而死。
+    /// 这才是这条判据想测的东西。
+    /// </summary>
     private static Simulation MakeScarceWorld(int seed)
     {
         Simulation sim = MakeSettlement(seed, 14);
+
+        // **把全图铺成草地**，只留那条水。
+        //
+        // 这一步是诊断出来的，不是随手加的：前两版"第 2 天人口归零"，
+        // 我先怀疑饥饿频率（改了两次都没用），最后才发现真正的原因是**路不通** ——
+        // `MakeSettlement` 把中心铺成草地、外面一圈森林，而水在 x=16，
+        // 中间的连接列（x=21）是森林。森林不可通行 ⇒ 居民被困在草地里取不到水
+        // ⇒ 两天内全部脱水而死。
+        //
+        // 教训：**"人突然全死了"这类现象，先查可达性，再查数值。**
+        // 数值问题通常是渐变，而"两天内全灭"往往是硬约束（走不过去）。
         for (int y = 0; y < 44; y++)
         {
             for (int x = 0; x < 44; x++)
             {
+                if (sim.World.TileAt(x, y).Terrain == TerrainKind.Water) { continue; }
                 sim.World.SetTerrain(x, y, TerrainKind.Grass);
-                sim.World.SetVegetation(x, y, 0.05f);
+                sim.World.SetVegetation(x, y, 0.5f);
             }
         }
         sim.World.RefreshSpatialIndex();
@@ -313,10 +411,37 @@ public sealed class M6Tests
         int index = 0;
         foreach (int slot in sim.Agents.AliveSlots())
         {
-            sim.Agents.SetHunger(slot, index++ % 2 == 0 ? 0.05f : 0.9f);
+            // 贫者**持续挨饿但不致死**：饥饿度维持在中高，且身上没有食物
+            // （不给他食物，他也不会去抢 —— 那正是我们要观察的"怨恨"）。
+            sim.Agents.SetHunger(slot, index % 2 == 0 ? 0.05f : 0.55f);
             sim.Agents.AddInventory(slot, ResourceKind.Food, index % 2 == 0 ? 60f : 0f);
+            index++;
         }
+
+        // 每 3 天补一批食物给"富者"，保证世界不会因为采集耗尽而整体饥荒。
+        // 注意：补的是**富者**，不平等因此长期维持 —— 这正是怨恨持续的条件。
         return sim;
+    }
+
+    /// <summary>让富者保持富裕、贫者保持饥饿（每 3 天调用一次，维持实验条件）。</summary>
+    private static void MaintainInequality(Simulation sim)
+    {
+        int index = 0;
+        foreach (int slot in sim.Agents.AliveSlots())
+        {
+            if (index++ % 2 == 0)
+            {
+                sim.Agents.AddInventory(slot, ResourceKind.Food, 30f);
+                // 富者必须**真的不饿**，否则"归咎程度"会把他们也算成受害者
+                sim.Agents.SetHunger(slot, 0.05f);
+            }
+            else
+            {
+                // 贫者不补食物，但把饥饿度钉在中高（不致死），
+                // 否则需求系统会让他们饿死、关系被 Forget 清空。
+                sim.Agents.SetHunger(slot, 0.55f);
+            }
+        }
     }
 
     // ---------------------------------------------------------------------
@@ -431,10 +556,26 @@ public sealed class M6Tests
             Assert.Near(sampleAffinity, restored.Relationships.AffinityOf(sampleA, sampleB), 1e-4f);
         }
 
-        // 续跑 600 tick（跨过日边界）确认关系不再漂移
-        sim.Tick(600);
-        restored.Tick(600);
-        Assert.Equal(sim.StateDigestString(), restored.StateDigestString());
+        // 续跑：**逐 tick** 找出第一个分叉点。
+        //
+        // 为什么不直接 Tick(600) 再比：那样只知道"600 tick 内某一刻分叉了"，
+        // 而 Phase 0 的经验是**分叉点本身就指明原因** ——
+        // 如果是第 1 tick 就分叉，说明某段状态根本没恢复；
+        // 如果是第 N tick（N 恰好是某个周期）才分叉，说明是某个周期性机制读到了没恢复的字段。
+        int firstDiff = -1;
+        for (int step = 1; step <= 600; step++)
+        {
+            sim.Tick(1);
+            restored.Tick(1);
+            if (sim.StateDigestString() != restored.StateDigestString()) { firstDiff = step; break; }
+        }
+
+        Assert.True(firstDiff < 0,
+            "读档续跑必须逐 tick 一致；第一个分叉出现在第 " + firstDiff + " tick。分段差异："
+            + Core.StateHash.FirstSegmentDifference(
+                Core.StateHash.DescribeSegments(sim),
+                Core.StateHash.DescribeSegments(restored))
+            + "（第 " + firstDiff + " tick，绝对 tick " + ((1440 * 15) + firstDiff) + "）");
     }
 
     [Fact("六项性格必须全部进状态摘要（M6 起它们都影响行为）")]
