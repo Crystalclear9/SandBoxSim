@@ -32,6 +32,10 @@ public sealed class SimConfig
     public SettlementConfig Settlement = new SettlementConfig();
     public TradeConfig Trade = new TradeConfig();
     public ConflictConfig Conflict = new ConflictConfig();
+    public SocietyConfig Society = new SocietyConfig();
+    public CivilizationConfig Civilization = new CivilizationConfig();
+    public DiseaseConfig Disease = new DiseaseConfig();
+    public PredatorConfig Predator = new PredatorConfig();
     public RulesConfig Rules = new RulesConfig();
     public DebugConfig Debug = new DebugConfig();
 
@@ -428,6 +432,7 @@ public sealed class AiConfig
 /// </summary>
 public sealed class WildlifeConfig
 {
+    public float VegetationGrowthPerDay = 0.06f;
     /// <summary>动物每 tick 移动多少格（比人快一点，逃跑才有意义）。</summary>
     public float MoveSpeedPerTick = 0.5f;
 
@@ -669,9 +674,11 @@ public sealed class RulesConfig
     /// M6 已接入 Attack 的决策和执行阶段；完整战争系统仍属后续里程碑。
     /// </summary>
     public bool PeaceMode = false;
+    /// <summary>禁止聚落战争，保留个体间由关系引发的争执。</summary>
+    public bool DisableWar = false;
 
     /// <summary>是否任何规则开关被打开（供报告与 UI 提示"这一局是修改过的世界"）。</summary>
-    public bool AnyEnabled => NoDeath || HighBirthRate || FastAging || DoubleResource || PeaceMode;
+    public bool AnyEnabled => NoDeath || HighBirthRate || FastAging || DoubleResource || PeaceMode || DisableWar;
 }
 
 /// <summary>

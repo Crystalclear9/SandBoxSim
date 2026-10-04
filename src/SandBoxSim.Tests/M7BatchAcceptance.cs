@@ -46,14 +46,13 @@ public sealed class M7BatchAcceptance
         return config;
     }
 
-    [Fact("M7 批量验收：20 个种子里有多少能自己长出聚落（需 SBOX_SIM_BATCH=1）")]
+    [Fact("M7 批量验收：20 个种子里有多少能自己长出聚落（默认执行）")]
     public void TwentySeedsFormSettlements()
     {
-        if (!Enabled) { Assert.Skip("需要显式开启此用例的环境变量，未执行验收"); }
 
         // 允许用环境变量缩小规模做快速迭代（默认仍是验收要求的 20 种子 x 200 天）
-        int Seeds = int.TryParse(System.Environment.GetEnvironmentVariable("SBOX_SIM_BATCH_SEEDS"), out int sc) && sc > 0 ? sc : 20;
-        int Days = int.TryParse(System.Environment.GetEnvironmentVariable("SBOX_SIM_BATCH_DAYS"), out int dc) && dc > 0 ? dc : 200;
+        const int Seeds = 20;
+        const int Days = 200;
 
         int formed = 0;
         int formedBy150 = 0;

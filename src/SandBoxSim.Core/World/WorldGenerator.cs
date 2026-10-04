@@ -223,6 +223,7 @@ public static class WorldGenerator
 
                 float fertility = ComputeFertility(wg, detailNoise, x, y, h, moisture, terrain);
                 Tile tile = Tile.CreateDefault(terrain, fertility, moisture, temperature);
+                tile.Height = h;
 
                 // 植被：森林拉满，草地中等；山地/沙地/水域没有植被。
                 switch (terrain)

@@ -1,0 +1,413 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Godot;
+using SandBoxSim.Core;
+using SandBoxSim.Core.Agents;
+using SandBoxSim.Core.Environment;
+using SandBoxSim.Core.Foundation;
+using SandBoxSim.Core.Systems;
+
+namespace SandBoxSim.Client;
+
+/// <summary>Actual 3D scene with perspective orbit camera and read-only animated visual agents.</summary>
+public partial class WorldView3D : MapView
+{
+    private SubViewport _viewport = null!;
+    private SubViewportContainer _container = null!;
+    private Node3D _scene = null!, _terrainRoot = null!, _props = null!, _actors = null!;
+    private Camera3D _camera = null!;
+    private NatureModels _models = null!;
+    private Simulation? _world;
+    private Vector3 _target = new(92, 1, 100);
+    private float _distance = 44, _yaw = -.45f, _pitch = .85f;
+    private bool _orbit, _pan, _painting;
+    private Vector2 _mouse;
+    private Vector2I _lastPaint = new(-1, -1);
+    private int _follow = -1, _followGeneration;
+    private long _terrainSignature, _buildingSignature;
+    private double _poll;
+    private int _lastOverlay = -1;
+    private readonly Dictionary<long, Node3D> _people = new();
+    private readonly Dictionary<long, Node3D> _deer = new();
+    private readonly Dictionary<int, Node3D> _wolves = new();
+    private readonly Dictionary<long, (bool Child, JobType Job)> _personModels = new();
+    private readonly List<(Node3D Node, double Born)> _effects = new();
+    private MeshInstance3D _brush = null!, _selection = null!;
+    private Label _cameraHint = null!;
+    private Texture2D? _terrainAtlas;
+    public bool HasTerrain => _terrainRoot.GetChildCount() > 0;
+    public bool HasPerspectiveCamera => _camera.Projection == Camera3D.ProjectionType.Perspective;
+    public void ValidateViewControls()
+    {
+        if (!HasTerrain || !HasPerspectiveCamera || _people.Count != Game.Sim.Agents.LiveCount) { throw new InvalidOperationException("3D scene incomplete"); }
+        Vector3 target = _target; float distance = _distance, yaw = _yaw, pitch = _pitch;
+        foreach (var view in new[] { "斜视", "俯视", "近景" })
+        {
+            SetPerspective(view);
+            Vector2 screen = _camera.UnprojectPosition(PositionAt(43, 50));
+            Vector2I? picked = Pick(screen);
+            if (!picked.HasValue || Math.Abs(picked.Value.X - 43) > 1 || Math.Abs(picked.Value.Y - 50) > 1)
+                { throw new InvalidOperationException("Camera picking failed in " + view); }
+        }
+        _yaw += .8f; _distance = 8; UpdateCamera();
+        if (_camera.Position.DistanceTo(_target) > 8.1f) { throw new InvalidOperationException("Camera zoom failed"); }
+        _target = target; _distance = distance; _yaw = yaw; _pitch = pitch; UpdateCamera();
+    }
+    public override void _Ready()
+    {
+        MouseFilter = MouseFilterEnum.Stop; ClipContents = true;
+        _container = new SubViewportContainer { Stretch = true, MouseFilter = MouseFilterEnum.Ignore };
+        _container.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(_container);
+        _viewport = new SubViewport { OwnWorld3D = true, RenderTargetUpdateMode = SubViewport.UpdateMode.Always, Msaa3D = Viewport.Msaa.Msaa2X };
+        _container.AddChild(_viewport);
+        _scene = new Node3D(); _viewport.AddChild(_scene);
+        _terrainRoot = new Node3D(); _scene.AddChild(_terrainRoot);
+        _props = new Node3D(); _scene.AddChild(_props);
+        _actors = new Node3D(); _scene.AddChild(_actors);
+        _models = new NatureModels();
+        if (ResourceLoader.Exists("res://assets/natural-terrain.png")) { _terrainAtlas = GD.Load<Texture2D>("res://assets/natural-terrain.png"); }
+        var sky = new ProceduralSkyMaterial { SkyTopColor = new Color("#779ca9"), SkyHorizonColor = new Color("#d4d4b8"), GroundHorizonColor = new Color("#b8c2a0"), GroundBottomColor = new Color("#465346") };
+        _scene.AddChild(new WorldEnvironment { Environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Sky,
+            Sky = new Sky { SkyMaterial = sky }, AmbientLightSource = Godot.Environment.AmbientSource.Sky,
+            AmbientLightEnergy = .42f, TonemapMode = Godot.Environment.ToneMapper.Aces, TonemapExposure = .72f,
+            FogEnabled = true, FogDensity = .0017f, FogLightColor = new Color("#c2d1bd") } });
+        _scene.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-48, -35, 0), LightColor = new Color("#ffe8bc"),
+            LightEnergy = .9f, ShadowEnabled = true, DirectionalShadowMaxDistance = 160 });
+        _camera = new Camera3D { Current = true, Near = .15f, Far = 650, Fov = 52 }; _scene.AddChild(_camera);
+        _brush = Ring(new Color("#e1cf8d")); _scene.AddChild(_brush);
+        _selection = Ring(new Color("#f7d787")); _scene.AddChild(_selection);
+        _cameraHint = new Label { Visible = false, MouseFilter = MouseFilterEnum.Ignore };
+        _cameraHint.AddThemeColorOverride("font_color", new Color("#f6f0d6")); AddChild(_cameraHint);
+        RebuildWorld(); UpdateCamera();
+    }
+    public override void _Draw() { }
+    public override void Center() { _target = new Vector3(100, 0, 100); _distance = 160; _pitch = 1.1f; _follow = -1; UpdateCamera(); }
+    public override void Focus(int x, int y, float zoom = 15)
+    { _follow = -1; _target = PositionAt(x, y); _distance = Math.Clamp(650 / zoom, 7, 180); _pitch = .8f; UpdateCamera(); }
+    public override void Follow(int slot) { _follow = slot; _followGeneration = Game.Sim.Agents.GenerationOf(slot); _distance = MathF.Min(_distance, 14); _pitch = .6f; }
+    public void SetPerspective(string view)
+    {
+        _camera.Projection = Camera3D.ProjectionType.Perspective;
+        if (view == "俯视") { _pitch = 1.48f; }
+        else if (view == "近景") { _pitch = .48f; _distance = 11; }
+        else { _pitch = .9f; _distance = 42; }
+        UpdateCamera();
+    }
+    public override void Effect(int x, int y, Color color, string text = "")
+    {
+        var root = new Node3D { Position = PositionAt(x, y) + Vector3.Up * .2f }; _scene.AddChild(root);
+        var ring = Ring(color); ring.Visible = true; ring.Scale = Vector3.One * 1.5f; root.AddChild(ring);
+        if (text.Length > 0) { root.AddChild(new Label3D { Text = text, Position = new Vector3(0, 3, 0), Font = Game.Theme.DefaultFont, FontSize = 32,
+            PixelSize = .015f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, Modulate = color, NoDepthTest = true }); }
+        if (_effects.Count > 30) { _effects[0].Node.QueueFree(); _effects.RemoveAt(0); }
+        _effects.Add((root, Time.GetTicksMsec() / 1000.0));
+    }
+    private static MeshInstance3D Ring(Color color)
+    {
+        return new MeshInstance3D { Mesh = new TorusMesh { InnerRadius = .94f, OuterRadius = 1, Rings = 40, RingSegments = 8 },
+            MaterialOverride = new StandardMaterial3D { AlbedoColor = color, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded },
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, Visible = false };
+    }
+    public override void _Process(double delta)
+    {
+        if (_camera == null) { return; }
+        if (!ReferenceEquals(_world, Game.Sim)) { RebuildWorld(); }
+        if (_follow >= 0 && Game.Sim.Agents.IsSlotAlive(_follow) && Game.Sim.Agents.GenerationOf(_follow) == _followGeneration)
+            { _target = PositionAt(Game.Sim.Agents.XOf(_follow), Game.Sim.Agents.YOf(_follow)); }
+        if (Input.IsPhysicalKeyPressed(Key.Q)) { _yaw -= (float)delta; }
+        if (Input.IsPhysicalKeyPressed(Key.E)) { _yaw += (float)delta; }
+        if (Input.IsPhysicalKeyPressed(Key.W) || Input.IsPhysicalKeyPressed(Key.Up)) { Pan(new Vector2(0, -1) * (float)delta * 50); }
+        if (Input.IsPhysicalKeyPressed(Key.S) || Input.IsPhysicalKeyPressed(Key.Down)) { Pan(new Vector2(0, 1) * (float)delta * 50); }
+        if (Input.IsPhysicalKeyPressed(Key.A) || Input.IsPhysicalKeyPressed(Key.Left)) { Pan(new Vector2(-1, 0) * (float)delta * 50); }
+        if (Input.IsPhysicalKeyPressed(Key.D) || Input.IsPhysicalKeyPressed(Key.Right)) { Pan(new Vector2(1, 0) * (float)delta * 50); }
+        UpdateCamera();
+        _poll += delta;
+        if (_poll >= .3)
+        {
+            _poll = 0; CheckTerrain(); SyncEntities();
+        }
+        AnimateActors((float)delta); UpdateBrush();
+        double now = Time.GetTicksMsec() / 1000.0;
+        for (int i = _effects.Count - 1; i >= 0; i--)
+        {
+            var e = _effects[i]; float age = (float)(now - e.Born);
+            if (age > 3) { e.Node.QueueFree(); _effects.RemoveAt(i); }
+            else { e.Node.Position += Vector3.Up * (float)delta * .12f; e.Node.GetChild<Node3D>(0).Scale = Vector3.One * (1 + age * 2); }
+        }
+    }
+    private void UpdateCamera()
+    {
+        if (_camera == null) { return; }
+        _target.X = Math.Clamp(_target.X, 0, 200); _target.Z = Math.Clamp(_target.Z, 0, 200);
+        var offset = new Vector3(MathF.Sin(_yaw) * MathF.Cos(_pitch), MathF.Sin(_pitch), MathF.Cos(_yaw) * MathF.Cos(_pitch)) * _distance;
+        _camera.Position = _target + offset; _camera.LookAt(_target, Vector3.Up);
+    }
+    private void Pan(Vector2 screenDelta)
+    {
+        _follow = -1;
+        Vector3 right = new(MathF.Cos(_yaw), 0, -MathF.Sin(_yaw)), forward = new(MathF.Sin(_yaw), 0, MathF.Cos(_yaw));
+        _target += (right * -screenDelta.X + forward * -screenDelta.Y) * _distance * .002f;
+    }
+    public override void _GuiInput(InputEvent input)
+    {
+        if (input is InputEventMouseButton b)
+        {
+            _mouse = b.Position;
+            if (b.ButtonIndex == MouseButton.Right) { _orbit = b.Pressed; }
+            if (b.ButtonIndex == MouseButton.Middle) { _pan = b.Pressed; }
+            if (b.Pressed && (b.ButtonIndex == MouseButton.WheelUp || b.ButtonIndex == MouseButton.WheelDown))
+                { _distance = Math.Clamp(_distance * (b.ButtonIndex == MouseButton.WheelUp ? .85f : 1.18f), 4, 260); }
+            if (b.ButtonIndex == MouseButton.Left)
+            {
+                _painting = b.Pressed && Game.Tool != PlayerTool.Inspect; _lastPaint = new Vector2I(-1, -1);
+                if (b.Pressed) { Paint(b.Position); }
+            }
+        }
+        if (input is InputEventMouseMotion m)
+        {
+            _mouse = m.Position;
+            if (_orbit) { _yaw -= m.Relative.X * .008f; _pitch = Math.Clamp(_pitch + m.Relative.Y * .005f, .18f, 1.50f); }
+            if (_pan) { Pan(m.Relative); }
+            if (_painting) { Paint(m.Position); }
+        }
+        UpdateCamera(); AcceptEvent();
+    }
+    private Vector2I? Pick(Vector2 screen)
+    {
+        Vector3 origin = _camera.ProjectRayOrigin(screen), ray = _camera.ProjectRayNormal(screen);
+        if (ray.Y >= -.01f) { return null; }
+        // Intersect the visual height field without introducing physics writes into the simulation.
+        Vector3 hit = origin + ray * ((.8f - origin.Y) / ray.Y);
+        for (int i = 0; i < 4; i++)
+        {
+            int x = (int)MathF.Floor(hit.X / 2), y = (int)MathF.Floor(hit.Z / 2);
+            if (!Game.Sim.World.IsInBounds(x, y)) { return null; }
+            hit = origin + ray * ((HeightAt(x, y) - origin.Y) / ray.Y);
+        }
+        var tile = new Vector2I((int)MathF.Floor(hit.X / 2), (int)MathF.Floor(hit.Z / 2));
+        return Game.Sim.World.IsInBounds(tile.X, tile.Y) ? tile : null;
+    }
+    private void Paint(Vector2 screen)
+    {
+        Vector2I? tile = Pick(screen); if (!tile.HasValue || tile.Value == _lastPaint) { return; }
+        _lastPaint = tile.Value; Game.ClickTile(tile.Value.X, tile.Value.Y);
+    }
+    private void UpdateBrush()
+    {
+        var picked = Pick(_mouse); _brush.Visible = picked.HasValue && Game.Tool != PlayerTool.Inspect;
+        if (picked.HasValue) { _brush.Position = PositionAt(picked.Value.X, picked.Value.Y) + Vector3.Up * .12f; _brush.Scale = new Vector3(MathF.Max(1, Game.Radius * 2), .25f, MathF.Max(1, Game.Radius * 2)); }
+        _selection.Visible = Game.SelectedSlot >= 0;
+        if (Game.SelectedSlot >= 0) { _selection.Position = PositionAt(Game.Sim.Agents.XOf(Game.SelectedSlot), Game.Sim.Agents.YOf(Game.SelectedSlot)) + Vector3.Up * .08f; _selection.Scale = new Vector3(.65f, .3f, .65f); }
+    }
+    private float HeightAt(int x, int y)
+    {
+        var tile = Game.Sim.World.TileAtClamped(x, y);
+        return tile.Terrain == TerrainKind.Water ? -.25f : (tile.Height - .25f) * 4;
+    }
+    private float VertexHeight(int x, int y)
+    { return (HeightAt(x, y) + HeightAt(x - 1, y) + HeightAt(x, y - 1) + HeightAt(x - 1, y - 1)) * .25f; }
+    private Vector3 PositionAt(int x, int y) => new(x * 2 + 1,
+        (VertexHeight(x, y) + VertexHeight(x + 1, y) + VertexHeight(x, y + 1) + VertexHeight(x + 1, y + 1)) / 4, y * 2 + 1);
+    private static void Clear(Node node) { foreach (Node child in node.GetChildren()) { node.RemoveChild(child); child.QueueFree(); } }
+    private void RebuildWorld()
+    {
+        _world = Game.Sim; _follow = -1; Clear(_terrainRoot); Clear(_props); Clear(_actors);
+        foreach (var e in _effects) { e.Node.QueueFree(); } _effects.Clear(); _people.Clear(); _deer.Clear(); _wolves.Clear(); _personModels.Clear();
+        BuildTerrain(); BuildNature(); BuildBuildings(); SyncEntities();
+    }
+    private void CheckTerrain()
+    {
+        long signature = 17;
+        foreach (var tile in Game.Sim.World.Tiles)
+            { signature = unchecked(signature * 31 + (int)tile.Terrain * 3 + (int)tile.Fire + (int)(tile.Height * 10000)); }
+        if (signature != _terrainSignature || _lastOverlay != Overlay)
+            { _terrainSignature = signature; _lastOverlay = Overlay; Clear(_terrainRoot); BuildTerrain(); Clear(_props); BuildNature(); _buildingSignature = 0; }
+        long buildings = 17;
+        foreach (int i in Enumerable.Range(0, Game.Sim.Buildings.Capacity))
+            if (Game.Sim.Buildings.IsAlive(i)) { buildings = unchecked(buildings * 31 + i * 7 + (int)Game.Sim.Buildings.StateOf(i)); }
+        if (buildings != _buildingSignature) { _buildingSignature = buildings; BuildBuildings(); }
+    }
+    private void BuildTerrain()
+    {
+        var vertices = new List<Vector3>(); var normals = new List<Vector3>(); var uvs = new List<Vector2>(); var colors = new List<Color>(); var indices = new List<int>();
+        var waterV = new List<Vector3>(); var waterI = new List<int>();
+        int width = Game.Sim.World.Width;
+        var materialMap = Image.CreateEmpty(width, Game.Sim.World.Height, false, Image.Format.Rgba8);
+        for (int y = 0; y < Game.Sim.World.Height; y++) for (int x = 0; x < width; x++)
+        {
+            var tile = Game.Sim.World.TileAt(x, y); int index = vertices.Count;
+            Vector3[] quad = { new(x * 2, VertexHeight(x, y), y * 2), new(x * 2 + 2, VertexHeight(x + 1, y), y * 2),
+                new(x * 2, VertexHeight(x, y + 1), y * 2 + 2), new(x * 2 + 2, VertexHeight(x + 1, y + 1), y * 2 + 2) };
+            Vector3 normal = (quad[2] - quad[0]).Cross(quad[1] - quad[0]).Normalized();
+            int texture = tile.Fire == FireState.Burnt ? 14 : (int)tile.Terrain;
+            if (tile.Terrain == TerrainKind.Water) { texture = 13; }
+            materialMap.SetPixel(x, y, new Color(texture / 15f, 0, 0));
+            Color tint = TerrainTint(x, y, tile);
+            Vector2 cell = new(texture % 4, texture / 4);
+            Vector2[] corners = { new(.015f, .015f), new(.985f, .015f), new(.015f, .985f), new(.985f, .985f) };
+            for (int corner = 0; corner < 4; corner++) { vertices.Add(quad[corner]); normals.Add(normal); uvs.Add((cell + corners[corner]) / 4); colors.Add(tint); }
+            indices.AddRange(new[] { index, index + 1, index + 2, index + 1, index + 3, index + 2 });
+            if (tile.Terrain == TerrainKind.Water)
+            {
+                int w = waterV.Count; foreach (var point in quad) { waterV.Add(new Vector3(point.X, .02f, point.Z)); }
+                waterI.AddRange(new[] { w, w + 1, w + 2, w + 1, w + 3, w + 2 });
+            }
+        }
+        var arrays = new Godot.Collections.Array(); arrays.Resize((int)Mesh.ArrayType.Max);
+        arrays[(int)Mesh.ArrayType.Vertex] = vertices.ToArray(); arrays[(int)Mesh.ArrayType.Normal] = normals.ToArray(); arrays[(int)Mesh.ArrayType.TexUV] = uvs.ToArray();
+        arrays[(int)Mesh.ArrayType.Color] = colors.ToArray(); arrays[(int)Mesh.ArrayType.Index] = indices.ToArray();
+        var terrain = new ArrayMesh(); terrain.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
+        var groundShader = new Shader { Code = @"
+shader_type spatial;
+render_mode cull_disabled;
+uniform sampler2D atlas : source_color, filter_linear_mipmap;
+uniform sampler2D material_map : filter_nearest, repeat_disable;
+uniform vec2 map_size;
+varying vec3 world_position;
+void vertex(){ world_position = (MODEL_MATRIX * vec4(VERTEX,1.0)).xyz; }
+vec3 surface_at(vec2 tile, vec2 pattern){
+    float index = floor(texture(material_map,(clamp(tile,vec2(0.0),map_size-vec2(1.0))+vec2(.5))/map_size).r*15.0+.5);
+    vec2 cell = vec2(mod(index,4.0),floor(index/4.0));
+    vec2 uv = (cell+mix(vec2(.03),vec2(.97),pattern))/4.0;
+    return mix(texture(atlas,uv).rgb,texture(atlas,uv,3.0).rgb,.25);
+}
+void fragment(){
+    vec2 grid=world_position.xz*.5-vec2(.5);
+    vec2 origin=floor(grid), blend=smoothstep(vec2(.1),vec2(.9),fract(grid));
+    vec2 rotated=mat2(vec2(.72,.69),vec2(-.69,.72))*world_position.xz*.14;
+    vec2 pattern=abs(fract(rotated)*2.0-1.0);
+    vec3 a=mix(surface_at(origin,pattern),surface_at(origin+vec2(1.0,0.0),pattern),blend.x);
+    vec3 b=mix(surface_at(origin+vec2(0.0,1.0),pattern),surface_at(origin+vec2(1.0),pattern),blend.x);
+    vec3 c=mix(a,b,blend.y); float lum=dot(c,vec3(.2126,.7152,.0722));
+    ALBEDO=mix(vec3(lum),c,.72)*COLOR.rgb*.86; ROUGHNESS=1.0;
+}" };
+        var material = new ShaderMaterial { Shader = groundShader };
+        material.SetShaderParameter("material_map", ImageTexture.CreateFromImage(materialMap));
+        material.SetShaderParameter("map_size", new Vector2(width, Game.Sim.World.Height));
+        if (_terrainAtlas != null) { material.SetShaderParameter("atlas", _terrainAtlas); }
+        _terrainRoot.AddChild(new MeshInstance3D { Mesh = terrain, MaterialOverride = material });
+        if (waterV.Count > 0)
+        {
+            var wa = new Godot.Collections.Array(); wa.Resize((int)Mesh.ArrayType.Max); wa[(int)Mesh.ArrayType.Vertex] = waterV.ToArray(); wa[(int)Mesh.ArrayType.Index] = waterI.ToArray();
+            var wm = new ArrayMesh(); wm.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, wa);
+            var shader = new Shader { Code = "shader_type spatial; render_mode cull_disabled; uniform sampler2D atlas : source_color, filter_linear_mipmap; varying vec3 p; void vertex(){ p = VERTEX; VERTEX.y += sin(VERTEX.x*1.6+TIME*.7)*.025 + cos(VERTEX.z*1.3+TIME*.9)*.02; NORMAL=vec3(0.0,1.0,0.0); } void fragment(){ float ripple = sin(p.x*2.4+TIME)*cos(p.z*1.8-TIME*.5); vec2 uv=(vec2(2.0,0.0)+clamp(fract(p.xz*.18+vec2(TIME*.003,0.0)),vec2(.02),vec2(.98)))/4.0; ALBEDO = mix(vec3(.07,.24,.23),texture(atlas,uv).rgb,.4); METALLIC=.08; ROUGHNESS=.32; NORMAL = normalize(NORMAL+vec3(ripple*.08,0.0,sin(p.z*3.0+TIME)*.06)); }" };
+            var waterMaterial = new ShaderMaterial { Shader = shader }; if (_terrainAtlas != null) { waterMaterial.SetShaderParameter("atlas", _terrainAtlas); }
+            _terrainRoot.AddChild(new MeshInstance3D { Mesh = wm, MaterialOverride = waterMaterial, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+        }
+        // A physical diorama edge makes the terrain volume visible from low camera angles.
+        _models.Part(_terrainRoot, "box", new Vector3(100, -3, 100), new Vector3(200, 5.0f, 200), 6);
+    }
+    private Color TerrainTint(int x, int y, Tile tile)
+    {
+        if (Overlay == 1) { int s = Game.Sim.Society.TerritoryAt(x, y); return s > 0 ? Color.FromHsv(s * .618034f % 1, .3f, 1) : Colors.White; }
+        if (Overlay == 2) { return new Color(.4f, .5f + Math.Clamp(tile.Resource.Amount / 100, 0, .5f), .4f); }
+        if (Overlay == 3) { return new Color(.5f, .65f, .4f + tile.Moisture * .6f); }
+        if (Overlay == 4) { return new Color(.55f, .4f + tile.Fertility * .6f, .4f); }
+        if (Overlay == 5) { return tile.Resource.Kind == ResourceKind.Food ? new Color(.85f, 1, .7f) : new Color(.5f, .55f, .5f); }
+        if (Overlay == 6) { int count = Game.Sim.Agents.CountInRect(x - 3, y - 3, x + 3, y + 3); return new Color(.5f + Math.Clamp(count / 20f, 0, .5f), .55f, .5f); }
+        return new Color(.9f, .94f, .85f);
+    }
+    private void BuildNature()
+    {
+        var trunks = new List<Transform3D>(); var branches = new List<Transform3D>(); var leaves = new List<Transform3D>(); var pines = new List<Transform3D>();
+        var rocks = new List<Transform3D>(); var ores = new List<Transform3D>(); var bushes = new List<Transform3D>();
+        for (int y = 0; y < 100; y++) for (int x = 0; x < 100; x++)
+        {
+            var tile = Game.Sim.World.TileAt(x, y); uint h = unchecked((uint)(x * 73856093 ^ y * 19349663));
+            Vector3 p = PositionAt(x, y); float size = .8f + h % 7 * .07f;
+            if (tile.Terrain == TerrainKind.Forest && tile.Vegetation > .12f && tile.Fire != FireState.Burnt && h % 5 == 0)
+            {
+                trunks.Add(NatureModels.Transform(p + Vector3.Up * 1.7f * size, new Vector3(.42f, 3.4f, .42f) * size));
+                if (h % 3 == 0)
+                {
+                    for (int layer = 0; layer < 4; layer++) { pines.Add(NatureModels.Transform(p + Vector3.Up * (2.1f + layer * .8f) * size, new Vector3(3.4f - layer * .6f, 2.5f, 3.4f - layer * .6f) * size)); }
+                }
+                else
+                    for (int branch = 0; branch < 5; branch++)
+                    {
+                        float angle = branch * 1.256f + h % 17, dx = MathF.Cos(angle), dz = MathF.Sin(angle);
+                        branches.Add(NatureModels.Transform(p + new Vector3(dx * .65f, 2.6f, dz * .65f) * size, new Vector3(.14f, 1.7f, .14f) * size, new Vector3(dz * .6f, 0, -dx * .6f)));
+                        leaves.Add(NatureModels.Transform(p + new Vector3(dx * 1.05f, 3.2f + (branch % 2) * .65f, dz * 1.05f) * size, new Vector3(2.6f, 2.0f, 2.4f) * size));
+                    }
+            }
+            if (tile.Terrain == TerrainKind.Mountain && h % 9 == 0)
+            { var t = NatureModels.Transform(p + Vector3.Up * .4f, new Vector3(1.6f, 1.2f, 1.7f) * size, new Vector3(.2f, h % 7, .4f)); if (tile.Resource.Kind == ResourceKind.Iron) { ores.Add(t); } else { rocks.Add(t); } }
+            if (tile.Resource.Kind == ResourceKind.Food && tile.Resource.Amount > 5 && h % 17 == 0)
+                { bushes.Add(NatureModels.Transform(p + Vector3.Up * .28f, new Vector3(.9f, .7f, .9f) * size)); }
+        }
+        _models.Batch(_props, "cylinder", 0, trunks); _models.Batch(_props, "cylinder", 0, branches); _models.Batch(_props, "foliage", 4, leaves);
+        _models.Batch(_props, "cone", 5, pines); _models.Batch(_props, "rock", 6, rocks); _models.Batch(_props, "rock", 7, ores); _models.Batch(_props, "foliage", 4, bushes);
+    }
+    private Node3D? _buildings;
+    private void BuildBuildings()
+    {
+        if (_buildings != null && GodotObject.IsInstanceValid(_buildings)) { _buildings.QueueFree(); }
+        _buildings = new Node3D(); _scene.AddChild(_buildings);
+        var sim = Game.Sim;
+        for (int i = 0; i < sim.Buildings.Capacity; i++) if (sim.Buildings.IsAlive(i))
+        {
+            var node = _models.Building(sim.Buildings.KindOf(i), sim.Buildings.StateOf(i) == BuildingState.Complete);
+            _buildings.AddChild(node); node.Position = PositionAt(sim.Buildings.XOf(i), sim.Buildings.YOf(i));
+        }
+        for (int i = 0; i < sim.Settlements.EntityCount; i++)
+        {
+            var s = sim.Settlements.At(i); if (s.Dissolved) { continue; }
+            _buildings.AddChild(new Label3D { Text = sim.Society.SettlementName(s.Id), Font = Game.Theme.DefaultFont, FontSize = 32,
+                Position = PositionAt(s.CenterX, s.CenterY) + Vector3.Up * 5, PixelSize = .025f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, Modulate = new Color("#ead9ad") });
+        }
+    }
+    private void SyncEntities()
+    {
+        var sim = Game.Sim; var live = new HashSet<long>();
+        foreach (int slot in sim.Agents.AliveSlots())
+        {
+            long id = sim.Society.Identity(slot); live.Add(id);
+            bool child = sim.Agents.LifeStageOf(slot) == LifeStage.Child; JobType job = sim.Agents.JobOf(slot);
+            if (_people.TryGetValue(id, out Node3D? old) && _personModels[id] != (child, job)) { old.QueueFree(); _people.Remove(id); }
+            if (!_people.ContainsKey(id))
+            {
+                var person = _models.Human(slot, child, job); _actors.AddChild(person); person.Position = PositionAt(sim.Agents.XOf(slot), sim.Agents.YOf(slot));
+                _people[id] = person; _personModels[id] = (child, job);
+            }
+        }
+        foreach (long id in _people.Keys.Where(k => !live.Contains(k)).ToArray()) { _people[id].QueueFree(); _people.Remove(id); _personModels.Remove(id); }
+        live.Clear();
+        foreach (int i in sim.Wildlife.AliveIndices())
+        {
+            long id = ((long)sim.Wildlife.GenerationOf(i) << 32) | (uint)i; live.Add(id);
+            if (!_deer.ContainsKey(id)) { var animal = _models.Animal(false); _actors.AddChild(animal); animal.Position = PositionAt(sim.Wildlife.XOf(i), sim.Wildlife.YOf(i)); _deer[id] = animal; }
+        }
+        foreach (long id in _deer.Keys.Where(k => !live.Contains(k)).ToArray()) { _deer[id].QueueFree(); _deer.Remove(id); }
+        var wolves = new HashSet<int>();
+        foreach (var wolf in sim.Predators.Wolves)
+        {
+            wolves.Add(wolf.Id); if (!_wolves.ContainsKey(wolf.Id)) { var model = _models.Animal(true); _actors.AddChild(model); model.Position = PositionAt(wolf.X, wolf.Y); _wolves[wolf.Id] = model; }
+        }
+        foreach (int id in _wolves.Keys.Where(k => !wolves.Contains(k)).ToArray()) { _wolves[id].QueueFree(); _wolves.Remove(id); }
+    }
+    private void AnimateActors(float delta)
+    {
+        var sim = Game.Sim; float time = Time.GetTicksMsec() * .001f;
+        foreach (var pair in _people)
+        {
+            int slot = (int)(pair.Key & uint.MaxValue); if (!sim.Agents.IsSlotAlive(slot) || sim.Society.Identity(slot) != pair.Key) { continue; }
+            var node = pair.Value; Vector3 target = PositionAt(sim.Agents.XOf(slot), sim.Agents.YOf(slot));
+            Vector3 direction = target - node.Position;
+            bool moving = sim.Agents.PhaseOf(slot) == ActionPhase.Moving;
+            node.Position = node.Position.Lerp(target, MathF.Min(1, delta * 10));
+            if (direction.LengthSquared() > .02f) { node.Rotation = new Vector3(0, MathF.Atan2(direction.X, direction.Z) + MathF.PI, 0); }
+            float swing = moving ? MathF.Sin(time * 8 + slot) * .5f : 0;
+            node.GetNode<Node3D>("LeftLeg").Rotation = new Vector3(swing, 0, 0); node.GetNode<Node3D>("RightLeg").Rotation = new Vector3(-swing, 0, 0);
+            node.GetNode<Node3D>("LeftArm").Rotation = new Vector3(-swing * .8f, 0, .12f); node.GetNode<Node3D>("RightArm").Rotation = new Vector3(swing * .8f, 0, -.12f);
+        }
+        foreach (var pair in _deer)
+        { int slot = (int)(pair.Key & uint.MaxValue); if (sim.Wildlife.IsAlive(slot)) { MoveAnimal(pair.Value, PositionAt(sim.Wildlife.XOf(slot), sim.Wildlife.YOf(slot)), delta); } }
+        foreach (var wolf in sim.Predators.Wolves) if (_wolves.TryGetValue(wolf.Id, out Node3D? node)) { MoveAnimal(node, PositionAt(wolf.X, wolf.Y), delta); }
+    }
+    private static void MoveAnimal(Node3D node, Vector3 target, float delta)
+    {
+        Vector3 direction = target - node.Position; node.Position = node.Position.Lerp(target, MathF.Min(1, delta * 8));
+        if (direction.LengthSquared() > .02f) { node.Rotation = new Vector3(0, MathF.Atan2(direction.X, direction.Z) + MathF.PI, 0); }
+    }
+}

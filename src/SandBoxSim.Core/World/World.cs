@@ -32,6 +32,8 @@ public sealed class World
 
     /// <summary>创造/毁灭类的版本号：地形整体重建时 +1，表现层据此丢弃缓存。</summary>
     public int Revision { get; private set; }
+    private int[]? _waterDistance;
+    private bool _waterDistanceDirty = true;
 
     public long Tick => Calendar.Tick;
 
@@ -103,6 +105,7 @@ public sealed class World
             throw new System.ArgumentException("Tile 数组长度与世界尺寸不匹配", nameof(tiles));
         }
         System.Array.Copy(tiles, Tiles, Tiles.Length);
+        _waterDistanceDirty = true;
         Seed = seed;
         Chunks.MarkAllDirty();
         Revision++;
@@ -113,8 +116,10 @@ public sealed class World
     {
         if (!IsInBounds(x, y)) { return; }
         int idx = (y * Width) + x;
+        if ((Tiles[idx].Terrain == TerrainKind.Water) != (terrain == TerrainKind.Water)) { _waterDistanceDirty = true; }
         Tiles[idx].Terrain = terrain;
         Tiles[idx].ApplyTerrainRules();
+        Revision++;
         if (terrain != TerrainKind.Forest) { Tiles[idx].Fire = FireState.None; }
         Chunks.MarkAtDirty(x, y);
     }
@@ -137,8 +142,12 @@ public sealed class World
     {
         if (!IsInBounds(x, y)) { return; }
         Tiles[(y * Width) + x].Temperature = SimMath.Clamp01(temperature);
+        NotifyNavigationChanged();
         Chunks.MarkAtDirty(x, y);
     }
+
+    /// <summary>批量修改通行成本后使派生寻路缓存失效。</summary>
+    public void NotifyNavigationChanged() => Revision++;
 
     public void SetVegetation(int x, int y, float vegetation)
     {
@@ -151,6 +160,7 @@ public sealed class World
     {
         if (!IsInBounds(x, y)) { return; }
         Tiles[(y * Width) + x].Walkable = walkable;
+        Revision++;
         Chunks.MarkAtDirty(x, y);
     }
 
@@ -346,6 +356,39 @@ public sealed class World
     public void RestoreSeed(int seed)
     {
         Seed = seed;
+        _waterDistanceDirty = true;
         Revision++;
+    }
+
+    /// <summary>精确切比雪夫水距；水域变化后双向扫描重建，查询不消耗随机数。</summary>
+    public int DistanceToWater(int x, int y, int maximum)
+    {
+        if (!IsInBounds(x, y)) { return maximum + 1; }
+        if (_waterDistanceDirty || _waterDistance == null)
+        {
+            _waterDistance ??= new int[Tiles.Length];
+            int far = Width + Height;
+            for (int i = 0; i < Tiles.Length; i++) { _waterDistance[i] = Tiles[i].Terrain == TerrainKind.Water ? 0 : far; }
+            for (int py = 0; py < Height; py++)
+                for (int px = 0; px < Width; px++)
+                {
+                    int i = py * Width + px;
+                    if (px > 0) { _waterDistance[i] = System.Math.Min(_waterDistance[i], _waterDistance[i - 1] + 1); }
+                    if (py > 0)
+                        for (int dx = -1; dx <= 1; dx++)
+                            if (px + dx >= 0 && px + dx < Width) { _waterDistance[i] = System.Math.Min(_waterDistance[i], _waterDistance[i - Width + dx] + 1); }
+                }
+            for (int py = Height - 1; py >= 0; py--)
+                for (int px = Width - 1; px >= 0; px--)
+                {
+                    int i = py * Width + px;
+                    if (px + 1 < Width) { _waterDistance[i] = System.Math.Min(_waterDistance[i], _waterDistance[i + 1] + 1); }
+                    if (py + 1 < Height)
+                        for (int dx = -1; dx <= 1; dx++)
+                            if (px + dx >= 0 && px + dx < Width) { _waterDistance[i] = System.Math.Min(_waterDistance[i], _waterDistance[i + Width + dx] + 1); }
+                }
+            _waterDistanceDirty = false;
+        }
+        return System.Math.Min(maximum + 1, _waterDistance[y * Width + x]);
     }
 }

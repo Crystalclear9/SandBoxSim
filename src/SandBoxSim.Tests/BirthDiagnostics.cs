@@ -7,7 +7,7 @@ using SandBoxSim.Tests.Framework;
 namespace SandBoxSim.Tests;
 
 /// <summary>
-/// M4 出生系统的**诊断台**（默认跳过，需要时用 `SBOX_SIM_PROBE=1` 运行）。
+/// M4 出生系统的**诊断台**（默认执行，需要时用 `SBOX_SIM_PROBE=1` 运行）。
 ///
 /// 为什么要有它：调"人口曲线"时只看最终人口数字会失去全部信息 ——
 /// 到底是"没有合格伴侣"、"床位不够"、"食物不足"还是"概率太低"，
@@ -18,14 +18,9 @@ public sealed class BirthDiagnostics
 {
     private const int TicksPerDay = 1440;
 
-    [Fact("诊断：出生系统的逐日中间量（需 SBOX_SIM_PROBE=1）")]
+    [Fact("诊断：出生系统的逐日中间量（默认执行）")]
     public void DailyBirthTrace()
     {
-        if (System.Environment.GetEnvironmentVariable("SBOX_SIM_PROBE") != "1")
-        {
-            System.Console.WriteLine("  [出生诊断] 已跳过（设 SBOX_SIM_PROBE=1 运行）。");
-            Assert.Skip("需 SBOX_SIM_PROBE=1");
-        }
 
         int days = 120;
         var config = new SimConfig();

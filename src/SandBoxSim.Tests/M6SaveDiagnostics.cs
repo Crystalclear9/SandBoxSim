@@ -75,10 +75,9 @@ public sealed class M6SaveDiagnostics
         return sim;
     }
 
-    [Fact("诊断：读档续跑在 agents 段分叉时，指出是哪一个字段（需 SBOX_SIM_M6_OPEN=1）")]
+    [Fact("诊断：读档续跑在 agents 段分叉时，指出是哪一个字段（默认执行）")]
     public void DiagnoseAgentFieldDivergence()
     {
-        if (!Enabled) { Assert.Skip("需要显式开启此用例的环境变量，未执行验收"); }
 
         Simulation direct = MakeWorld(9007);
         direct.Tick(TicksPerDay * 15);
@@ -108,7 +107,7 @@ public sealed class M6SaveDiagnostics
             if (restored.StateDigestString() != restored2.StateDigestString())
             {
                 System.Console.WriteLine("  [存档诊断] load-vs-load 在第 " + step + " tick 分叉 ⇒ 读档路径残留隐藏状态");
-                break;
+                Assert.True(false, "两次读档续跑不一致");
             }
             if (step == 600) { System.Console.WriteLine("  [存档诊断] load-vs-load 600 tick 完全一致"); }
         }
@@ -137,6 +136,7 @@ public sealed class M6SaveDiagnostics
 
         DumpAgentFields(direct, restored);
         DumpRelationships(direct, restored);
+        Assert.True(firstDiff < 0, "存档续跑发生分叉，见上述诊断");
     }
 
     /// <summary>逐字段比对所有存活个体的全部"进摘要"字段。</summary>

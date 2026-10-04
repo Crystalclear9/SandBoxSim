@@ -319,6 +319,22 @@ public static class Program
     private static int RunHeadless(Args args)
     {
         Simulation sim = CreateSimulation(args, out SimConfig config, out string configPath, out string[] warnings);
+        long[] profileStarts = new long[6], profileElapsed = new long[6];
+        long[,] actionStarts = new long[64, 2], actionElapsed = new long[64, 2];
+        if (args.Flag("--profile"))
+            sim.Ai.ProfileAction = (kind, targeting, begin) =>
+            {
+                int index = (int)kind, phase = targeting ? 1 : 0;
+                if (index < 0 || index >= 64) { return; }
+                if (begin) { actionStarts[index, phase] = Stopwatch.GetTimestamp(); }
+                else { actionElapsed[index, phase] += Stopwatch.GetTimestamp() - actionStarts[index, phase]; }
+            };
+        if (args.Flag("--profile"))
+            sim.ProfileStage = (stage, begin) =>
+            {
+                if (begin) { profileStarts[stage] = Stopwatch.GetTimestamp(); }
+                else { profileElapsed[stage] += Stopwatch.GetTimestamp() - profileStarts[stage]; }
+            };
 
         long ticks = ResolveTickCount(args, config);
         bool wantSnapshots = args.Flag("--snapshot");
@@ -335,6 +351,18 @@ public static class Program
         System.Console.WriteLine("headless 运行：seed=" + sim.World.Seed
             + " 尺寸=" + sim.World.Width + "×" + sim.World.Height
             + " tick=" + ticks + "（≈" + ticks / sim.World.Calendar.TicksPerDay + " 天）");
+        if (args.Flag("--profile"))
+            sim.DayAdvanced += world =>
+            {
+                if (world.World.Calendar.Day % 10 != 0) { return; }
+                string[] names = { "actions", "needs", "AI", "wildlife", "environment/society", "chunks" };
+                for (int phase = 0; phase < names.Length; phase++)
+                    System.Console.WriteLine("PROFILE " + names[phase] + " " + (profileElapsed[phase] / (double)Stopwatch.Frequency).ToString("F3") + "s");
+                foreach (var kind in SandBoxSim.Core.Systems.ActionRegistry.All)
+                    System.Console.WriteLine("PROFILE action " + kind + " evaluate="
+                        + (actionElapsed[(int)kind, 0] / (double)Stopwatch.Frequency).ToString("F3")
+                        + "s target=" + (actionElapsed[(int)kind, 1] / (double)Stopwatch.Frequency).ToString("F3") + "s");
+            };
 
         var stopwatch = Stopwatch.StartNew();
 

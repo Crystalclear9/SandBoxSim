@@ -374,6 +374,7 @@ public sealed class BuildingStore : ISimEntitySet
         _tiles[slot].Clear();
         _tiles[slot].Add((y * world.Width) + x);
         world.Tiles[(y * world.Width) + x].BuildingId = slot + 1;
+        world.NotifyNavigationChanged();
 
         return slot;
     }
@@ -445,6 +446,9 @@ public sealed class BuildingStore : ISimEntitySet
         BuildingRecipe recipe = BuildingRegistry.Of(kind);
         bool wasComplete = StateOf(index) == BuildingState.Complete;
 
+        OccupiedBeds = System.Math.Max(0, OccupiedBeds - _occupiedBeds[index]);
+        _occupiedBeds[index] = 0;
+
         if (wasComplete)
         {
             TotalBeds -= recipe.Beds;
@@ -462,6 +466,7 @@ public sealed class BuildingStore : ISimEntitySet
             if (world.Tiles[flat].BuildingId == index + 1) { world.Tiles[flat].BuildingId = 0; }
         }
         tiles.Clear();
+        world.NotifyNavigationChanged();
 
         _alive[index] = false;
         _generation[index]++;
@@ -493,7 +498,7 @@ public sealed class BuildingStore : ISimEntitySet
         if (recipe.Kind == BuildingKind.None) { return false; }
 
         if (tile.BuildingId != 0) { return false; }              // 已被占用
-        if (!tile.Walkable) { return false; }                    // 不能建在深水/山壁上
+        if (!tile.Walkable || !tile.Buildable) { return false; } // Respect persistent per-tile overrides.
 
         // 道路/农田上不建（避免把已有的功能性格子覆盖掉）
         if (tile.Terrain == TerrainKind.Road || tile.Terrain == TerrainKind.Farmland) { return false; }

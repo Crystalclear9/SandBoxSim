@@ -266,7 +266,12 @@ internal static class FleeAction
 
             float hostility = SimMath.Clamp01(-affinity);
             float theirAggression = ctx.Store.PersonalityOf(other).Aggression;
-            float candidate = hostility * (0.5f + (0.5f * theirAggression));
+            // 勇气必须作用在主导威胁项上。仅作为平均分的附加项时，
+            // 八格逃跑半径总会先于六格攻击半径触发，好斗者也永远只会逃。
+            float courage = ctx.Store.PersonalityOf(ctx.Slot).Bravery;
+            float strengthRatio = ctx.Store.HealthOf(other) / System.Math.Max(0.2f, ctx.Store.HealthOf(ctx.Slot));
+            float candidate = SimMath.Clamp01(hostility * (0.5f + 0.5f * theirAggression)
+                * (1f - 0.7f * courage) * strengthRatio);
             if (candidate > threat) { threat = candidate; }
         }
 

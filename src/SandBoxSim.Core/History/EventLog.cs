@@ -70,6 +70,11 @@ public enum WorldEventType : byte
     WarDeclared = 57,
     WarEnded = 58,
     Conflict = 59,
+    AllianceFormed = 60,
+    CivilizationFounded = 61,
+    Innovation = 62,
+    Disease = 63,
+    Famine = 64,
 }
 
 /// <summary>事件重要度：玩家时间线默认只显示 Important 及以上。</summary>
@@ -144,6 +149,9 @@ public sealed class EventLog
     /// <summary>历史累计记录的事件总数（包括已被覆盖的）。</summary>
     public long TotalRecorded => _totalRecorded;
 
+    /// <summary>运行时历史归档入口；存档恢复以 Restore 方法恢复，不重播逻辑。</summary>
+    public event System.Action<WorldEvent>? Recorded;
+
     public EventLog(int capacity = DefaultCapacity)
     {
         int cap = capacity > 0 ? capacity : DefaultCapacity;
@@ -187,6 +195,7 @@ public sealed class EventLog
             _start = (_start + 1) % _events.Length;
         }
         _totalRecorded++;
+        Recorded?.Invoke(ev);
     }
 
     /// <summary>按时间序访问第 i 条（0 = 最旧）。</summary>
@@ -201,6 +210,38 @@ public sealed class EventLog
 
     /// <summary>最近一条事件（无事件时返回默认值）。</summary>
     public WorldEvent Latest => _count > 0 ? this[_count - 1] : default;
+
+    public JsonValue Encode()
+    {
+        var entries = JsonValue.Array();
+        for (int i = 0; i < Count; i++)
+        {
+            var ev = this[i];
+            entries.Add(JsonValue.Object().Set("tick", JsonValue.From(ev.Tick)).Set("type", JsonValue.From((int)ev.Type))
+                .Set("actor", JsonValue.From(ev.Actor)).Set("target", JsonValue.From(ev.Target))
+                .Set("x", JsonValue.From(ev.Location.X)).Set("y", JsonValue.From(ev.Location.Y))
+                .Set("importance", JsonValue.From((int)ev.Importance)).Set("description", JsonValue.From(ev.Description))
+                .Set("cause", JsonValue.From(ev.Cause)));
+        }
+        return JsonValue.Object().Set("entries", entries).Set("total", JsonValue.From(TotalRecorded));
+    }
+    public void Restore(JsonValue value)
+    {
+        Clear();
+        var entries = value.Get("entries");
+        if (entries.IsArray)
+            foreach (var entry in entries.Items)
+            {
+                var ev = new WorldEvent { Tick = entry.GetLong("tick"), Type = (WorldEventType)entry.GetInt("type"),
+                    Actor = entry.GetInt("actor", -1), Target = entry.GetInt("target", -1),
+                    Location = new Int2(entry.GetInt("x", -1), entry.GetInt("y", -1)),
+                    Importance = (EventImportance)entry.GetInt("importance"),
+                    Description = entry.Get("description").StringValue, Cause = entry.Get("cause").StringValue };
+                int index = (_start + _count) % _events.Length; _events[index] = ev;
+                if (_count < Capacity) { _count++; } else { _start = (_start + 1) % Capacity; }
+            }
+        _totalRecorded = value.GetLong("total", _count);
+    }
 
     /// <summary>从最新往回找第一条满足条件的事件。</summary>
     public bool TryFindLast(System.Func<WorldEvent, bool> predicate, out WorldEvent found)

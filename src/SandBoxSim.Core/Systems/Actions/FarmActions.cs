@@ -56,6 +56,15 @@ internal static class FarmAction
         float food = ctx.Store.InventoryOf(ctx.Slot, ResourceKind.Food);
         float personal = SimMath.Clamp01(1f - (food / System.Math.Max(1f, cfg.FarmBaseYieldPerDay * 2f)));
         builder.Consider("自己缺粮", personal, UtilityCurve.Survival, w.GatherFoodHungerWeight);
+        int settlement = ctx.Society?.TerritoryAt(ctx.X, ctx.Y) ?? 0;
+        if (settlement != 0 && ctx.Civilizations != null)
+        {
+            float price = ctx.Civilizations.Price(settlement, ResourceKind.Food);
+            builder.Consider("本地粮价", SimMath.Clamp01(price / (ctx.Config.Trade.BaseFoodPrice * 8)),
+                UtilityCurve.Linear, 0.3f, isBonus: true);
+            builder.Consider("农民专业分工", ctx.Store.JobOf(ctx.Slot) == JobType.Farmer ? 1 : 0,
+                UtilityCurve.Linear, 0.2f, isBonus: true);
+        }
 
         // 田里还没人干活的紧迫度：劳动量越低越该去
         if (canWork)

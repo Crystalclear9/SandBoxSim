@@ -34,6 +34,7 @@ public sealed class AiSystem
     private bool[] _scoreTried = System.Array.Empty<bool>();
 
     private int _scoreCount;
+    private readonly DecisionWorldCache _worldCache = new();
 
     /// <summary>当前生效的分批数（自适应，见 <see cref="ResolveBatchCount"/>）。</summary>
     public int BatchCount { get; private set; } = 6;
@@ -55,6 +56,10 @@ public sealed class AiSystem
     public int LastPhaseChangeTick { get; private set; }
 
     public AStarPathfinder Pathfinder => _pathfinder;
+
+    /// <summary>Optional external timing observer; it does not read clocks or change decisions.</summary>
+    public System.Action<ActionKind, bool, bool>? ProfileAction { get; set; }
+    public bool UseWorldCache { get; set; } = true;
 
     public AiSystem(Simulation sim, AgentStore store, AStarPathfinder pathfinder)
     {
@@ -147,6 +152,7 @@ public sealed class AiSystem
         int phase = (int)(tick % batch);
 
         World world = _sim.World;
+        _worldCache.Reset(_store, world.Width);
         DeterministicRandom rng = _sim.Random.Get(RngStream.Agents);
 
         for (int slot = 0; slot < _store.Capacity; slot++)
@@ -208,7 +214,9 @@ public sealed class AiSystem
             ActionDef def = ActionRegistry.DescribeCached(kind);
             if (def.Evaluate == null) { continue; }
 
+            ProfileAction?.Invoke(kind, false, true);
             ActionScore score = def.Evaluate(in ctx);
+            ProfileAction?.Invoke(kind, false, false);
 
             int kindIndex = (int)kind;
             if (kindIndex >= 0 && kindIndex < EvaluatedByAction.Length) { EvaluatedByAction[kindIndex]++; }
@@ -256,7 +264,9 @@ public sealed class AiSystem
             {
                 if (candidateDef.SelectTarget == null) { continue; }
 
+                ProfileAction?.Invoke(candidate, true, true);
                 Int2? selected = candidateDef.SelectTarget(in ctx, _pathfinder);
+                ProfileAction?.Invoke(candidate, true, false);
                 if (selected == null)
                 {
                     if (attempt == 0) { TargetSelectionFailures++; }
@@ -376,6 +386,7 @@ public sealed class AiSystem
 
         return new ActionContext
         {
+            DecisionCache = UseWorldCache ? _worldCache : null,
             World = world,
             Store = _store,
             Slot = slot,
@@ -390,6 +401,8 @@ public sealed class AiSystem
             Storage = _sim.Storage,
             Relationships = _sim.Relationships,   // M6：社交/分享/逃跑/攻击要读"我和他是什么关系"
             Conflict = _sim.Conflict,             // M8：攻击要读"我有多想打"
+            Civilizations = _sim.Civilizations,
+            Society = _sim.Society,
             Tick = tick,
             IsNight = isNight,
             HomeX = _store.HomeXOf(slot),

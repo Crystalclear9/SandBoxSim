@@ -26,6 +26,13 @@
 | 15 | [ConfigReference](15-ConfigReference.md) | 每个可调参数的含义、默认值、影响链、调参流程 | ✅ 已写（含调参踩坑记录） |
 | 16 | [BuildAndDelivery](16-BuildAndDelivery.md) | 跨平台构建修复、验收和目录约定 | ✅ 已写 |
 | 17 | [ImplementationAudit](17-ImplementationAudit.md) | 原计划核验、问题复现与修复、验收边界 | 2026-10-04 |
+| 18 | [CurrentDefectRepairs](18-CurrentDefectRepairs.md) | 已有内核与跨平台问题的修复证据 | 历史交付记录 |
+| 19 | [OriginalRequirements](19-OriginalRequirements.md) | 用户原始任务书，保留完整内容 | 原文 |
+| 20 | [FullDeliveryChecklist](20-FullDeliveryChecklist.md) | 全部 100 节的实现与验收追踪 | 核验中 |
+| 21 | [VisualInterface](21-VisualInterface.md) | 真实 3D 客户端、HUD 设计、操作与本地视觉验收 | 2026-10-05 |
+| 22 | [ArtAssets](22-ArtAssets.md) | 原创图集、生成提示与 3D 导入设置 | 已记录 |
+
+早期里程碑的性能数字与界面描述保留为历史记录；当前图形客户端以 21 为准，完整任务书状态以 20 为准。
 
 > 未写的文档不代表不重要，而是**不允许在机制落地前先写空文档** ——
 > 那只会生产"读起来很美、实现时全不对"的纸面设计。

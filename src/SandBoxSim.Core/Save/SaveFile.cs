@@ -38,8 +38,7 @@ namespace SandBoxSim.Core.Save;
 ///
 ///   * `UtilityBreakdown`（决策解释）：它是"解释"而不是"状态"，下一次决策会重算。
 ///     保存它反而危险 —— 读档后会显示一个过期 tick 的解释，看起来像世界卡住了。
-///   * 逐日统计曲线：它只影响报告，不影响演化。读档后曲线从空开始，
-///     并在文件里显式记录"曲线被重置"这件事（见 <see cref="LoadResult"/>）。
+    /// 逐日统计曲线和历史事件属于玩家的观察记录，随世界完整保存。
 /// </summary>
 public static class SaveFile
 {
@@ -56,7 +55,7 @@ public static class SaveFile
     ///     它是"按格写死、读档时不会重算"的字段，漏掉会导致读档后
     ///     第一个小时边界上大面积再生量跑偏（详见 EncodeTiles 的说明）。
     /// </summary>
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
 
     /// <summary>载入结果。</summary>
     public sealed class LoadResult
@@ -143,6 +142,11 @@ public static class SaveFile
             .Set("stats", EncodeStats(sim))
             .Set("relationships", EncodeRelationships(sim))
             .Set("settlements", EncodeSettlements(sim))
+            .Set("society", sim.Society.Encode())
+            .Set("civilization", sim.Civilizations.Encode())
+            .Set("disease", sim.Diseases.Encode())
+            .Set("events", sim.Events.Encode())
+            .Set("predators", sim.Predators.Encode())
             .Set("chunks", EncodeChunks(world))
             .Set("config", JsonBinder.ToJson(sim.Config));
 
@@ -198,8 +202,7 @@ public static class SaveFile
     /// "每格一个对象"：后者会产生 10 万个 JSON 对象与同样多的键名，文件体积大约十倍。
     ///
     /// 只存"会变"的字段：地形、火灾、资源（种类/量/容量/再生率）、湿度、温度、肥沃度、植被、建筑锚点。
-    /// 不存 `Walkable` / `Buildable` —— 它们是地形的派生值，读档时由 `ApplyTerrainRules` 重算。
-    /// **派生值不入档**是一条通用规则：两个真相来源迟早会不一致。
+    /// Walkable / Buildable 支持独立修改，必须保留覆盖值，不能只按地形重算。
     ///
     /// # 字段清单的判据（这里踩过一个很贵的坑）
     ///
@@ -220,6 +223,9 @@ public static class SaveFile
         int count = tiles.Length;
 
         var terrain = JsonValue.Array();
+        var height = JsonValue.Array();
+        var walkable = JsonValue.Array();
+        var buildable = JsonValue.Array();
         var fire = JsonValue.Array();
         var resourceKind = JsonValue.Array();
         var resourceAmount = JsonValue.Array();
@@ -235,6 +241,9 @@ public static class SaveFile
         {
             ref readonly Tile tile = ref tiles[i];
             terrain.Add(JsonValue.From((int)tile.Terrain));
+            height.Add(JsonValue.From(tile.Height));
+            walkable.Add(JsonValue.From(tile.Walkable ? 1 : 0));
+            buildable.Add(JsonValue.From(tile.Buildable ? 1 : 0));
             fire.Add(JsonValue.From((int)tile.Fire));
             resourceKind.Add(JsonValue.From((int)tile.Resource.Kind));
             resourceAmount.Add(JsonValue.From(tile.Resource.Amount));
@@ -249,6 +258,9 @@ public static class SaveFile
 
         return JsonValue.Object()
             .Set("terrain", terrain)
+            .Set("height", height)
+            .Set("walkable", walkable)
+            .Set("buildable", buildable)
             .Set("fire", fire)
             .Set("resourceKind", resourceKind)
             .Set("resourceAmount", resourceAmount)
@@ -465,6 +477,9 @@ public static class SaveFile
                 .Set("x", JsonValue.From(wildlife.XOf(index)))
                 .Set("y", JsonValue.From(wildlife.YOf(index)))
                 .Set("energy", JsonValue.From(wildlife.EnergyOf(index)))
+                .Set("thirst", JsonValue.From(wildlife.ThirstOf(index)))
+                .Set("fatigue", JsonValue.From(wildlife.FatigueOf(index)))
+                .Set("action", JsonValue.From((int)wildlife.ActionOf(index)))
                 .Set("ageDays", JsonValue.From(wildlife.AgeDaysOf(index))));
         }
 
@@ -615,6 +630,7 @@ public static class SaveFile
         // 现在两个都存、各恢复各的。
         return JsonValue.Object()
             .Set("totalBirths", JsonValue.From(sim.Stats.TotalBirths))
+            .Set("history", sim.Stats.EncodeHistory())
             .Set("totalDeaths", JsonValue.From(sim.Stats.TotalDeaths))
             .Set("totalMigrations", JsonValue.From(sim.Stats.TotalMigrations))
             .Set("migrationSystemMigrations", JsonValue.From(sim.Migration.TotalMigrations))

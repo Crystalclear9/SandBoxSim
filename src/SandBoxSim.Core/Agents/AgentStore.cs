@@ -1183,7 +1183,7 @@ public sealed class AgentStore : ISimEntitySet
     /// <summary>职业分布（数组下标 = JobType）。</summary>
     public int[] CountJobs()
     {
-        int[] counts = new int[8];
+        int[] counts = new int[16];
         for (int i = 0; i < _capacity; i++)
         {
             if (!_alive[i]) { continue; }

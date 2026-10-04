@@ -45,10 +45,9 @@ public sealed class M7ClusterDiagnostics
         return total;
     }
 
-    [Fact("诊断：为什么某些种子有人却不形成聚落（需 SBOX_SIM_M7_DIAG=1）")]
+    [Fact("诊断：为什么某些种子有人却不形成聚落（默认执行）")]
     public void DiagnoseNonFormingSeeds()
     {
-        if (!Enabled) { Assert.Skip("需要显式开启此用例的环境变量，未执行验收"); }
 
         // 批量验收里 4 个「有人但没聚落」的种子
         int[] seeds = { 70960, 71508, 71645, 71919 };

@@ -59,3 +59,4 @@ hs_err_pid*
 # 1) PNG 快照与报告是"验证证据"，默认不提交；需要时显式 git add -f。
 # 2) 存档 (*.simsave) 属于运行产物，不入库。
 *.simsave
+.godot/

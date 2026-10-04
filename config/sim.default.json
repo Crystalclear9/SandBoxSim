@@ -126,7 +126,7 @@
     "takeAvailabilityWeight": 0.9
   },
 
-  "wildlife": {
+  "wildlife": { "vegetationGrowthPerDay": 0.06,
     "$comment": "野生动物（M2）。生态链：植被 -> 动物 -> 猎人产出。砍伐森林会减少栖息地，从而减少猎物 —— 这是'砍树的长期代价'的来源。",
     "moveSpeedPerTick": 0.5,
     "foodPerKill": 30.0,
@@ -241,7 +241,8 @@
     "highBirthRate": false,
     "fastAging": false,
     "doubleResource": false,
-    "peaceMode": false
+    "peaceMode": false,
+    "disableWar": false
   },
 
   "debug": {
@@ -249,4 +250,10 @@
     "stateHashEveryTicks": 1440,
     "assertInvariants": true
   }
+,
+  "society": { "enabled": true, "territoryRadius": 32, "historyCapacity": 20000 },
+  "civilization": { "enabled": true, "caravanCapacity": 30, "warThreshold": 0.65, "peaceThreshold": 0.25, "researchPerDay": 0.05, "warPressureDays": 5, "allianceTrades": 5, "maxTechnologyLevel": 3 },
+  "disease": { "enabled": true, "incubationDays": 2, "recoveryDays": 14, "immunityDays": 30, "contactRadius": 3, "transmissionPerContact": 0.08, "healthLossPerDay": 0.04, "sickLaborMultiplier": 0.5 }
+,
+  "predator": { "enabled": true, "senseRadius": 10, "maxPopulation": 40, "lifespanDays": 150, "mealEnergy": 0.4, "energyLossPerFastTick": 0.002, "reproductionChance": 0.05 }
 }

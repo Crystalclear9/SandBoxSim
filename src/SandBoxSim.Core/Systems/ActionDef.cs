@@ -14,6 +14,7 @@ namespace SandBoxSim.Core.Systems;
 /// </summary>
 public struct ActionContext
 {
+    public DecisionWorldCache? DecisionCache;
     public SandBoxSim.Core.Environment.World World;
     public AgentStore Store;
     public int Slot;
@@ -47,6 +48,8 @@ public struct ActionContext
 
     /// <summary>冲突压力（M8）：`Attack` 用它判断"有多想打"（门仍然由敌意判定）。</summary>
     public ConflictSystem? Conflict;
+    public CivilizationSystem? Civilizations;
+    public SocietySystem? Society;
 
     /// <summary>当前 tick。</summary>
     public long Tick;
@@ -157,6 +160,7 @@ public static class ActionRegistry
                     ActionKind.Take,
                     ActionKind.GatherWood,
                     ActionKind.GatherStone,
+                    ActionKind.GatherIron,
                     ActionKind.StoreInBuilding,
                     ActionKind.Deposit,
                     ActionKind.BuildHouse,
@@ -168,6 +172,7 @@ public static class ActionRegistry
                     // 一个动作"已定义但不可达"是非常难发现的失效方式：没有任何报错，
                     // 只有一个静默的 0。这与 M2 里"存放/取回被选中 0 次"是同一类问题。
                     ActionKind.BuildFarm,
+                    ActionKind.BuildMine,
                     ActionKind.Farm,
 
                     // M6：人与人之间的四个动作。
@@ -282,6 +287,21 @@ public static class ActionRegistry
                 {
                     Evaluate = Actions.GatherStoneAction.Evaluate,
                     SelectTarget = Actions.GatherStoneAction.SelectTarget,
+                    NeedsTarget = true,
+                };
+
+            case ActionKind.GatherIron:
+                return new ActionDef(kind, "开采铁矿", isWork: true)
+                {
+                    Evaluate = Actions.GatherIronAction.Evaluate,
+                    SelectTarget = Actions.GatherIronAction.SelectTarget,
+                    NeedsTarget = true,
+                };
+            case ActionKind.BuildMine:
+                return new ActionDef(kind, "建造矿场", isWork: true)
+                {
+                    Evaluate = (in ActionContext ctx) => Actions.BuildAction.Evaluate(in ctx, ActionKind.BuildMine, BuildingKind.Mine),
+                    SelectTarget = (in ActionContext ctx, AStarPathfinder path) => Actions.BuildAction.SelectTarget(in ctx, BuildingKind.Mine, path),
                     NeedsTarget = true,
                 };
 

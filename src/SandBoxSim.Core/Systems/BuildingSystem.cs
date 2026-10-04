@@ -335,7 +335,7 @@ public sealed class BuildingSystem
             float soil = 0.25f + (0.75f * fertility);
             float water = 0.25f + (0.75f * moisture);
 
-            float yield = baseYield * soil * water * weather * laborFactor;
+            float yield = baseYield * soil * water * weather * laborFactor * _sim.Civilizations.ProductionMultiplier(position.X, position.Y);
             if (yield <= 0f) { _store.ClearLabor(index); continue; }
 
             DepositYield(position, yield);
@@ -488,4 +488,20 @@ public sealed class BuildingSystem
 
     private readonly System.Collections.Generic.List<int> _decayBuffer =
         new System.Collections.Generic.List<int>();
+
+    /// <summary>灾害摧毁建筑，同时清理实际住房和库存，避免幽灵床位。</summary>
+    public void Destroy(int index, string cause)
+    {
+        if (!_store.IsAlive(index)) { return; }
+        var position = _store.PositionOf(index);
+        var kind = _store.KindOf(index);
+        foreach (int slot in _sim.Agents.AliveSlots())
+            if (_sim.Agents.DwellingOf(slot) == index) { _sim.Agents.SetDwelling(slot, -1); }
+        _store.Demolish(_sim.World, index);
+        _sim.Storage.ClearSlot(index);
+        TotalDemolished++; DemolishedThisDay++;
+        _sim.Events.Record(_sim.Clock, History.WorldEventType.BuildingDestroyed,
+            BuildingRegistry.NameOf(kind) + "被摧毁 @ " + position,
+            History.EventImportance.Important, position, -1, index, cause);
+    }
 }

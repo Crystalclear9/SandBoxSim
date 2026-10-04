@@ -33,11 +33,17 @@ internal static class BuildAction
         // 材料评估与实际扣料采用同一工地坐标。
         Int2 fundedSite = default;
         float distance = float.MaxValue;
-        bool siteOk = HasDemand(in ctx, kind) && SelectSite(in ctx, kind, out fundedSite, out distance);
-        int materialX = siteOk ? fundedSite.X : ctx.X;
-        int materialY = siteOk ? fundedSite.Y : ctx.Y;
         float carriedWood = ctx.Store.InventoryOf(ctx.Slot, ResourceKind.Wood);
         float carriedStone = ctx.Store.InventoryOf(ctx.Slot, ResourceKind.Stone);
+        // 全世界共享料的上界都不足时，不扫描每一块候选工地。此过滤不会屏蔽任何可行建造。
+        float possibleWood = carriedWood + (ctx.GroundStocks?.TotalOf(ResourceKind.Wood) ?? 0)
+            + (ctx.Storage?.GrandTotalOf(ResourceKind.Wood, ctx.Buildings?.Capacity ?? 0) ?? 0);
+        float possibleStone = carriedStone + (ctx.GroundStocks?.TotalOf(ResourceKind.Stone) ?? 0)
+            + (ctx.Storage?.GrandTotalOf(ResourceKind.Stone, ctx.Buildings?.Capacity ?? 0) ?? 0);
+        bool canFund = possibleWood + 0.001f >= recipe.WoodCost && possibleStone + 0.001f >= recipe.StoneCost;
+        bool siteOk = HasDemand(in ctx, kind) && canFund && SelectSite(in ctx, kind, out fundedSite, out distance);
+        int materialX = siteOk ? fundedSite.X : ctx.X;
+        int materialY = siteOk ? fundedSite.Y : ctx.Y;
         float wood = carriedWood + PooledAmountAt(in ctx, ResourceKind.Wood, materialX, materialY);
         float stone = carriedStone + PooledAmountAt(in ctx, ResourceKind.Stone, materialX, materialY);
 
@@ -115,6 +121,9 @@ internal static class BuildAction
                 break;
             }
 
+            case BuildingKind.Mine:
+                gap = HasDemand(in ctx, kind) ? 0.6f : 0;
+                break;
             default:
                 gap = 0f;
                 break;
@@ -144,6 +153,18 @@ internal static class BuildAction
 
     /// <summary>统计指定工地附近的共享仓库和地面物资，与开工扣料规则一致。</summary>
     private static float PooledAmountAt(in ActionContext ctx, ResourceKind kind, int x, int y)
+    {
+        if (ctx.DecisionCache == null) { return ReadPooledAmount(in ctx, kind, x, y); }
+        int tile = y * ctx.World.Width + x;
+        if (!ctx.DecisionCache.TryMaterials(tile, out var stock))
+        {
+            stock = (ReadPooledAmount(in ctx, ResourceKind.Wood, x, y), ReadPooledAmount(in ctx, ResourceKind.Stone, x, y));
+            ctx.DecisionCache.StoreMaterials(tile, stock.Wood, stock.Stone);
+        }
+        return kind == ResourceKind.Wood ? stock.Wood : stock.Stone;
+    }
+
+    private static float ReadPooledAmount(in ActionContext ctx, ResourceKind kind, int x, int y)
     {
         float total = 0f;
 
@@ -225,6 +246,22 @@ internal static class BuildAction
             + (ctx.Storage?.GrandTotalOf(ResourceKind.Stone, ctx.Buildings?.Capacity ?? 0) ?? 0f);
         if (woodUpper + 1e-3f < recipe.WoodCost || stoneUpper + 1e-3f < recipe.StoneCost) { return false; }
 
+        if (kind == BuildingKind.Farm && ctx.DecisionCache != null)
+        {
+            int bestRing = int.MaxValue, bestSquare = int.MaxValue, best = -1;
+            // Only locally visible sites participate. The cache is a geometry index, not NPC knowledge.
+            foreach (int candidate in ctx.DecisionCache.FarmSites(in ctx))
+            {
+                int x = candidate % world.Width, y = candidate / world.Width, dx = x - ctx.X, dy = y - ctx.Y;
+                int ring = System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dy)), square = dx * dx + dy * dy;
+                if (ring < 1 || ring > radius || ring > bestRing || ring == bestRing && square >= bestSquare) { continue; }
+                if (!BuildingStore.CanPlaceAt(world, kind, x, y) || IsBusyTile(in ctx, x, y) || !HasMaterialsAt(in ctx, recipe, x, y)) { continue; }
+                bestRing = ring; bestSquare = square; best = candidate;
+            }
+            if (best < 0) { return false; }
+            site = new Int2(best % world.Width, best / world.Width); distance = (float)System.Math.Sqrt(bestSquare); return true;
+        }
+
         // 以"自己"为圆心向外按环扫描（与资源搜索同一个模式：先近后远、确定性）
         for (int ring = 1; ring <= radius; ring++)
         {
@@ -233,7 +270,8 @@ internal static class BuildAction
 
             for (int dy = -ring; dy <= ring; dy++)
             {
-                for (int dx = -ring; dx <= ring; dx++)
+                // Interior rows contain only the two edge cells. Preserve the original row/column tie order.
+                for (int dx = -ring; dx <= ring; dx += System.Math.Abs(dy) == ring ? 1 : 2 * ring)
                 {
                     int cheb = System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dy));
                     if (cheb != ring) { continue; }
@@ -246,7 +284,7 @@ internal static class BuildAction
                     // 住房额外要求：离水 1~6 格（够用但不必占着河边）
                     if (kind == BuildingKind.House)
                     {
-                        int waterDistance = DistanceToWater(world, x, y, 8);
+                        int waterDistance = world.DistanceToWater(x, y, 8);
                         if (waterDistance < 1 || waterDistance > 6) { continue; }
                     }
 
@@ -303,7 +341,7 @@ internal static class BuildAction
 
     /// <summary>这一格是不是"别人正在用的地方"（有人站在上面）。</summary>
     private static bool IsBusyTile(in ActionContext ctx, int x, int y)
-        => ctx.Store.IsSlotOccupied(ctx.Slot, x, y);
+        => ctx.DecisionCache?.Occupied(in ctx, x, y) ?? ctx.Store.IsSlotOccupied(ctx.Slot, x, y);
 
     /// <summary>选靶：返回工地位置。</summary>
     public static Int2? SelectTarget(in ActionContext ctx, BuildingKind kind, AStarPathfinder pathfinder)
@@ -331,6 +369,14 @@ internal static class BuildAction
             for (int i = 0; i < ctx.Buildings.LiveCount; i++)
             { if (ctx.Buildings.KindOf(ctx.Buildings.LiveAt(i)) == BuildingKind.Farm) { farms++; } }
             return farms < System.Math.Max(1f, ctx.Store.LiveCount / 4f);
+        }
+        if (kind == BuildingKind.Mine)
+        {
+            if (ctx.Buildings.CountOf(BuildingKind.Storage) == 0 || ctx.Buildings.CountOf(BuildingKind.House) * 4 < ctx.Store.LiveCount) { return false; }
+            int mines = 0;
+            for (int i = 0; i < ctx.Buildings.LiveCount; i++)
+                if (ctx.Buildings.KindOf(ctx.Buildings.LiveAt(i)) == BuildingKind.Mine) { mines++; }
+            return ctx.Store.LiveCount >= 6 && mines < System.Math.Max(1, ctx.Store.LiveCount / 20);
         }
         return false;
     }

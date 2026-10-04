@@ -1,0 +1,181 @@
+using System;
+using System.Collections.Generic;
+using Godot;
+using SandBoxSim.Core.Agents;
+using SandBoxSim.Core.Environment;
+
+namespace SandBoxSim.Client;
+
+/// <summary>Reusable volumetric geometry, textured with original material assets. All geometry survives camera rotation.</summary>
+internal sealed class NatureModels
+{
+    private readonly Material[] _materials = new Material[16];
+    private readonly Dictionary<string, Mesh> _meshes = new();
+    public NatureModels()
+    {
+        Texture2D? atlas = ResourceLoader.Exists("res://assets/natural-materials.png") ? GD.Load<Texture2D>("res://assets/natural-materials.png") : null;
+        if (atlas != null)
+        {
+            var shader = new Shader { Code = "shader_type spatial; uniform sampler2D atlas : source_color, filter_linear_mipmap; uniform vec2 cell; uniform vec4 tint : source_color = vec4(1.0); uniform float roughness = 0.92; uniform float repeat_scale = 1.0; void fragment(){ vec2 uv = (clamp(fract(UV*repeat_scale), vec2(0.01), vec2(0.99)) + cell) / 4.0; ALBEDO = texture(atlas, uv).rgb * tint.rgb; ROUGHNESS = roughness; }" };
+            for (int i = 0; i < 16; i++)
+            {
+                var material = new ShaderMaterial { Shader = shader }; material.SetShaderParameter("atlas", atlas);
+                material.SetShaderParameter("cell", new Vector2(i % 4, i / 4));
+                if (i == 4 || i == 5) { material.SetShaderParameter("tint", new Color(.8f, .88f, .7f)); }
+                if (i == 11) { material.SetShaderParameter("roughness", .38f); }
+                if (i is 8 or 9 or 12 or 13 or 14) { material.SetShaderParameter("repeat_scale", 4f); }
+                else if (i is 0 or 1 or 2 or 3) { material.SetShaderParameter("repeat_scale", 2f); }
+                _materials[i] = material;
+            }
+        }
+        else
+        {
+            string[] colors = { "#655044", "#887151", "#8c5a43", "#c9bea4", "#49633c", "#354f3a", "#8a8c80", "#635d53",
+                "#b7a988", "#4e6570", "#493c31", "#7f8e91", "#ad865a", "#858b81", "#bd9676", "#b09a59" };
+            for (int i = 0; i < 16; i++) { _materials[i] = new StandardMaterial3D { AlbedoColor = new Color(colors[i]), Roughness = .9f }; }
+        }
+    }
+    public Material Material(int id) => _materials[id];
+    public Mesh Shape(string kind)
+    {
+        if (_meshes.TryGetValue(kind, out Mesh? mesh)) { return mesh; }
+        mesh = kind switch
+        {
+            "box" => new BoxMesh(),
+            "cone" => new CylinderMesh { TopRadius = 0, BottomRadius = .5f, Height = 1, RadialSegments = 16 },
+            "cylinder" => new CylinderMesh { TopRadius = .5f, BottomRadius = .5f, Height = 1, RadialSegments = 16 },
+            "capsule" => new CapsuleMesh { Radius = .5f, Height = 2, RadialSegments = 12, Rings = 6 },
+            "foliage" => IrregularSphere(.16f),
+            "rock" => IrregularSphere(.22f),
+            _ => new SphereMesh { Radius = .5f, Height = 1, RadialSegments = 20, Rings = 12 }
+        };
+        _meshes[kind] = mesh; return mesh;
+    }
+    private static ArrayMesh IrregularSphere(float irregularity)
+    {
+        const int rings = 16, sides = 24;
+        var verts = new List<Vector3>(); var normals = new List<Vector3>(); var uv = new List<Vector2>(); var indices = new List<int>();
+        for (int row = 0; row <= rings; row++) for (int col = 0; col <= sides; col++)
+        {
+            float latitude = row * MathF.PI / rings, angle = col * MathF.Tau / sides;
+            var normal = new Vector3(MathF.Sin(latitude) * MathF.Cos(angle), MathF.Cos(latitude), MathF.Sin(latitude) * MathF.Sin(angle));
+            float noise = MathF.Sin(normal.X * 19 + normal.Y * 13) * MathF.Cos(normal.Z * 17 - normal.Y * 11);
+            verts.Add(normal * (.5f + noise * irregularity * .5f)); normals.Add(normal); uv.Add(new Vector2(col / (float)sides, row / (float)rings));
+        }
+        for (int row = 0; row < rings; row++) for (int col = 0; col < sides; col++)
+        { int a = row * (sides + 1) + col, b = a + sides + 1; indices.AddRange(new[] { a, a + 1, b, a + 1, b + 1, b }); }
+        var data = new Godot.Collections.Array(); data.Resize((int)Mesh.ArrayType.Max); data[(int)Mesh.ArrayType.Vertex] = verts.ToArray();
+        data[(int)Mesh.ArrayType.Normal] = normals.ToArray(); data[(int)Mesh.ArrayType.TexUV] = uv.ToArray(); data[(int)Mesh.ArrayType.Index] = indices.ToArray();
+        var mesh = new ArrayMesh(); mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, data); return mesh;
+    }
+    public MeshInstance3D Part(Node3D parent, string shape, Vector3 position, Vector3 scale, int material, Vector3? rotation = null)
+    {
+        var part = new MeshInstance3D { Mesh = Shape(shape), Position = position, Scale = scale, MaterialOverride = Material(material),
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.On };
+        if (rotation.HasValue) { part.Rotation = rotation.Value; }
+        parent.AddChild(part); return part;
+    }
+    public static Transform3D Transform(Vector3 position, Vector3 scale, Vector3? rotation = null)
+        => new(new Basis(Quaternion.FromEuler(rotation ?? Vector3.Zero)).Scaled(scale), position);
+    public void Batch(Node3D parent, string shape, int material, List<Transform3D> transforms)
+    {
+        if (transforms.Count == 0) { return; }
+        var multi = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = Shape(shape), InstanceCount = transforms.Count };
+        for (int i = 0; i < transforms.Count; i++) { multi.SetInstanceTransform(i, transforms[i]); }
+        parent.AddChild(new MultiMeshInstance3D { Multimesh = multi, MaterialOverride = Material(material) });
+    }
+    public Node3D Building(BuildingKind kind, bool complete)
+    {
+        var model = new Node3D { Scale = new Vector3(.64f, 1, .64f) };
+        if (kind == BuildingKind.Farm)
+        {
+            Part(model, "box", new Vector3(0, .08f, 0), new Vector3(2.3f, .16f, 2.3f), 1);
+            for (int row = 0; row < 5; row++) for (int i = 0; i < 6; i++)
+            {
+                var p = new Vector3(-.9f + row * .44f, .42f, -.9f + i * .35f);
+                Part(model, "cylinder", p, new Vector3(.025f, .65f, .025f), 15);
+                Part(model, "capsule", p + Vector3.Up * .37f, new Vector3(.09f, .11f, .09f), 15, new Vector3(.1f * i, 0, .2f));
+            }
+            return model;
+        }
+        if (kind == BuildingKind.Mine)
+        {
+            Part(model, "sphere", new Vector3(0, 1.1f, -.2f), new Vector3(3.0f, 2.3f, 2.6f), 6);
+            Part(model, "box", new Vector3(0, .85f, 1.05f), new Vector3(1.1f, 1.6f, .15f), 10);
+            foreach (float x in new[] { -.68f, .68f }) { Part(model, "box", new Vector3(x, .9f, 1.15f), new Vector3(.2f, 1.8f, .24f), 0); }
+            Part(model, "box", new Vector3(0, 1.8f, 1.15f), new Vector3(1.6f, .2f, .24f), 0);
+            for (int i = 0; i < 6; i++) { Part(model, "box", new Vector3(0, .12f, 1.1f + i * .22f), new Vector3(1, .1f, .09f), 1); }
+            return model;
+        }
+        float height = kind == BuildingKind.House ? 1.9f : 2.1f;
+        Part(model, "box", new Vector3(0, height / 2, 0), new Vector3(2.2f, height, 2.25f), kind == BuildingKind.House ? 3 : 1);
+        foreach (float x in new[] { -1.02f, 0, 1.02f })
+            foreach (float z in new[] { -1.14f, 1.14f }) { Part(model, "box", new Vector3(x, height / 2, z), new Vector3(.12f, height, .1f), 0); }
+        Part(model, "box", new Vector3(0, 1.25f, 1.17f), new Vector3(2.25f, .12f, .1f), 0);
+        Part(model, "box", new Vector3(0, .58f, 1.2f), new Vector3(.53f, 1.16f, .12f), 10);
+        foreach (float x in new[] { -.75f, .75f })
+        {
+            Part(model, "box", new Vector3(x, 1.1f, 1.17f), new Vector3(.38f, .5f, .11f), 9);
+            Part(model, "box", new Vector3(x, 1.1f, 1.25f), new Vector3(.04f, .54f, .06f), 1);
+            Part(model, "box", new Vector3(x, 1.1f, 1.25f), new Vector3(.42f, .04f, .06f), 1);
+        }
+        foreach (float side in new[] { -1f, 1f })
+            Part(model, "box", new Vector3(side * .65f, height + .48f, 0), new Vector3(1.65f, .14f, 2.7f), 2, new Vector3(0, 0, side * -.52f));
+        Part(model, "box", new Vector3(.6f, height + .8f, -.6f), new Vector3(.35f, 1.0f, .38f), 6);
+        Part(model, "cylinder", new Vector3(-1.35f, .35f, .7f), new Vector3(.45f, .7f, .45f), 1);
+        if (!complete)
+        {
+            foreach (float x in new[] { -1.35f, 1.35f }) { Part(model, "box", new Vector3(x, 1.6f, 0), new Vector3(.09f, 3.2f, .1f), 0); }
+            Part(model, "box", new Vector3(0, 2.6f, 1.4f), new Vector3(2.9f, .12f, .12f), 0);
+        }
+        return model;
+    }
+    public Node3D Human(int slot, bool child, JobType job)
+    {
+        var model = new Node3D();
+        int cloth = slot % 3 == 0 ? 9 : 8;
+        Part(model, "capsule", new Vector3(0, .9f, 0), new Vector3(.38f, .36f, .26f), cloth);
+        Part(model, "sphere", new Vector3(0, 1.5f, 0), new Vector3(.29f, .33f, .29f), 14);
+        Part(model, "sphere", new Vector3(0, 1.61f, -.035f), new Vector3(.31f, .17f, .30f), 10);
+        Part(model, "box", new Vector3(0, .67f, 0), new Vector3(.37f, .08f, .28f), 10);
+        foreach (float side in new[] { -1f, 1f })
+        {
+            var arm = new Node3D { Name = side < 0 ? "LeftArm" : "RightArm", Position = new Vector3(side * .27f, 1.18f, 0) }; model.AddChild(arm);
+            Part(arm, "capsule", new Vector3(0, -.23f, 0), new Vector3(.12f, .23f, .12f), cloth);
+            Part(arm, "sphere", new Vector3(0, -.47f, 0), new Vector3(.12f, .13f, .12f), 14);
+            var leg = new Node3D { Name = side < 0 ? "LeftLeg" : "RightLeg", Position = new Vector3(side * .105f, .65f, 0) }; model.AddChild(leg);
+            Part(leg, "capsule", new Vector3(0, -.27f, 0), new Vector3(.14f, .25f, .14f), 10);
+            Part(leg, "box", new Vector3(0, -.58f, -.04f), new Vector3(.17f, .11f, .26f), 10);
+        }
+        if (job == JobType.Farmer)
+            { Part(model, "cone", new Vector3(0, 1.72f, 0), new Vector3(.54f, .22f, .54f), 15); }
+        if (job == JobType.Soldier)
+        {
+            Part(model, "sphere", new Vector3(0, 1.6f, 0), new Vector3(.33f, .22f, .34f), 11);
+            Part(model, "cylinder", new Vector3(.4f, .95f, -.1f), new Vector3(.025f, 1.9f, .025f), 1);
+            Part(model, "cone", new Vector3(.4f, 1.95f, -.1f), new Vector3(.08f, .18f, .08f), 11);
+        }
+        if (child) { model.Scale = Vector3.One * .62f; }
+        return model;
+    }
+    public Node3D Animal(bool wolf)
+    {
+        var model = new Node3D(); int mat = wolf ? 13 : 12;
+        Part(model, "sphere", new Vector3(0, .7f, 0), new Vector3(.62f, .68f, 1.1f), mat);
+        Part(model, "capsule", new Vector3(0, 1.0f, -.47f), new Vector3(.26f, .27f, .28f), mat, new Vector3(-.4f, 0, 0));
+        Part(model, "sphere", new Vector3(0, 1.2f, -.7f), new Vector3(.35f, .36f, .43f), mat);
+        Part(model, "sphere", new Vector3(0, 1.15f, -.92f), new Vector3(.20f, .15f, .27f), mat);
+        foreach (float side in new[] { -1f, 1f })
+        {
+            Part(model, "cone", new Vector3(side * .13f, 1.42f, -.66f), new Vector3(.13f, .23f, .15f), mat);
+            Part(model, "sphere", new Vector3(side * .16f, 1.23f, -.82f), new Vector3(.04f, .04f, .04f), 10);
+            foreach (float z in new[] { -.35f, .35f })
+                { Part(model, "cylinder", new Vector3(side * .2f, .32f, z), new Vector3(.09f, .62f, .09f), mat); }
+            if (!wolf)
+                for (int branch = 0; branch < 3; branch++)
+                    { Part(model, "cylinder", new Vector3(side * (.12f + branch * .09f), 1.62f + branch * .12f, -.55f), new Vector3(.04f, .43f, .04f), 0, new Vector3(.12f, 0, -side * (.2f + branch * .3f))); }
+        }
+        Part(model, "capsule", new Vector3(0, .7f, .7f), new Vector3(.14f, .25f, .15f), mat, new Vector3(.9f, 0, 0));
+        return model;
+    }
+}

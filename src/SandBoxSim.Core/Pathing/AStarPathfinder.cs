@@ -233,6 +233,10 @@ public sealed class AStarPathfinder
     /// <summary>诊断计数：累计寻路次数与失败次数（报告里反映"世界是否可达"）。</summary>
     public long TotalSearches { get; private set; }
     public long FailedSearches { get; private set; }
+    public long CacheHits { get; private set; }
+    public bool UseMemoization { get; set; } = true;
+    private int _memoRevision = -1;
+    private readonly System.Collections.Generic.Dictionary<(int X, int Y, int GX, int GY, int Limit), (PathResult Result, Int2 Step)> _steps = new();
 
     /// <summary>累计扩展的节点数（A\* 的真实工作量指标；比"搜索次数"更能说明问题）。</summary>
     public long TotalExpandedNodes { get; private set; }
@@ -319,13 +323,32 @@ public sealed class AStarPathfinder
     /// </summary>
     public PathResult FindNextStep(int startX, int startY, int goalX, int goalY, out Int2 nextStep)
     {
+        if (_memoRevision != _world.Revision) { _steps.Clear(); _memoRevision = _world.Revision; }
+        var key = (startX, startY, goalX, goalY, MaxExpandedNodes);
+        if (UseMemoization && _steps.TryGetValue(key, out var cached))
+        {
+            CacheHits++; TotalSearches++;
+            switch (_nextOrigin)
+            {
+                case SearchOrigin.Movement: SearchesFromMovement++; break;
+                case SearchOrigin.Targeting: SearchesFromTargeting++; break;
+                default: SearchesFromOther++; break;
+            }
+            _nextOrigin = SearchOrigin.Other;
+            nextStep = cached.Step;
+            var answer = cached.Result; answer.ExpandedNodes = 0;
+            LastExpandedNodes = 0; LastPathLength = answer.Length;
+            if (!answer.Success) { FailedSearches++; }
+            return answer;
+        }
         nextStep = new Int2(startX, startY);
         PathResult result = FindPathCore(startX, startY, goalX, goalY);
-        if (!result.Success) { return result; }
+        if (!result.Success) { RememberStep(key, result, nextStep); return result; }
 
         if (result.Length <= 1)
         {
             nextStep = new Int2(goalX, goalY);
+            RememberStep(key, result, nextStep);
             return result;
         }
 
@@ -339,7 +362,14 @@ public sealed class AStarPathfinder
         }
 
         nextStep = new Int2(node % _width, node / _width);
+        RememberStep(key, result, nextStep);
         return result;
+    }
+    private void RememberStep((int X, int Y, int GX, int GY, int Limit) key, PathResult result, Int2 step)
+    {
+        if (!UseMemoization) { return; }
+        if (_steps.Count >= 8192) { _steps.Clear(); }
+        _steps[key] = (result, step);
     }
 
     private PathResult FindPathCore(int startX, int startY, int goalX, int goalY)

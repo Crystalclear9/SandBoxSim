@@ -20,6 +20,8 @@ public sealed class WildlifeStore : ISimEntitySet
     private int[] _x = System.Array.Empty<int>();
     private int[] _y = System.Array.Empty<int>();
     private float[] _energy = System.Array.Empty<float>();
+    private float[] _thirst = System.Array.Empty<float>(), _fatigue = System.Array.Empty<float>();
+    private byte[] _action = System.Array.Empty<byte>();
     private short[] _ageDays = System.Array.Empty<short>();
     private int[] _generation = System.Array.Empty<int>();
 
@@ -66,6 +68,8 @@ public sealed class WildlifeStore : ISimEntitySet
         System.Array.Resize(ref _x, capacity);
         System.Array.Resize(ref _y, capacity);
         System.Array.Resize(ref _energy, capacity);
+        System.Array.Resize(ref _thirst, capacity); System.Array.Resize(ref _fatigue, capacity);
+        System.Array.Resize(ref _action, capacity);
         System.Array.Resize(ref _ageDays, capacity);
         System.Array.Resize(ref _generation, capacity);
         System.Array.Resize(ref _live, capacity);
@@ -87,6 +91,11 @@ public sealed class WildlifeStore : ISimEntitySet
     public int YOf(int index) => _y[index];
     public Int2 PositionOf(int index) => new Int2(_x[index], _y[index]);
     public float EnergyOf(int index) => _energy[index];
+    public float ThirstOf(int index) => _thirst[index];
+    public float FatigueOf(int index) => _fatigue[index];
+    public ActionKind ActionOf(int index) => (ActionKind)_action[index];
+    public void SetBehavior(int index, float thirst, float fatigue, ActionKind action)
+    { _thirst[index] = SimMath.Clamp01(thirst); _fatigue[index] = SimMath.Clamp01(fatigue); _action[index] = (byte)action; }
     public int AgeDaysOf(int index) => _ageDays[index];
     public int GenerationOf(int index) => _generation[index];
 
@@ -110,6 +119,7 @@ public sealed class WildlifeStore : ISimEntitySet
         _x[slot] = x;
         _y[slot] = y;
         _energy[slot] = 0.5f + (float)rng.NextDouble() * 0.5f;
+        SetBehavior(slot, 0, 0, ActionKind.GatherFood);
         _ageDays[slot] = 0;
         TotalBorn++;
         return slot;
@@ -276,6 +286,7 @@ public sealed class WildlifeStore : ISimEntitySet
         _x[slot] = x;
         _y[slot] = y;
         _energy[slot] = SimMath.Clamp01(energy);
+        SetBehavior(slot, 0, 0, ActionKind.GatherFood);
         _ageDays[slot] = (short)SimMath.Clamp(ageDays, 0, 32000);
 
         _live[_liveCount] = slot;
@@ -380,6 +391,8 @@ public sealed class WildlifeStore : ISimEntitySet
             hash = Hash64.Combine(hash, _x[i]);
             hash = Hash64.Combine(hash, _y[i]);
             hash = Hash64.Combine(hash, (int)(_energy[i] * 1000f));
+            hash = Hash64.Combine(hash, _thirst[i]); hash = Hash64.Combine(hash, _fatigue[i]);
+            hash = Hash64.Combine(hash, _action[i]);
             hash = Hash64.Combine(hash, _ageDays[i]);
         }
         return hash;
