@@ -30,6 +30,7 @@ public sealed class SimConfig
     public FireConfig Fire = new FireConfig();
     public RelationshipConfig Relationship = new RelationshipConfig();
     public SettlementConfig Settlement = new SettlementConfig();
+    public TradeConfig Trade = new TradeConfig();
     public RulesConfig Rules = new RulesConfig();
     public DebugConfig Debug = new DebugConfig();
 

@@ -112,6 +112,12 @@ public sealed class Simulation
     /// </summary>
     public SettlementStore Settlements { get; }
 
+    /// <summary>
+    /// 贸易与价格（M8）。它是**现有状态的纯函数** —— 不存档、不进摘要，
+    /// 读档后重算一遍就得到完全相同的值。详见 TradeSystem 的注释。
+    /// </summary>
+    public TradeSystem Trade { get; }
+
     public SimulationStats Stats { get; } = new SimulationStats();
 
     /// <summary>世界事件日志（第 55 / 56 节）。M0 只记录地形/世界级事件。</summary>
@@ -188,6 +194,10 @@ public sealed class Simulation
         // 但它自己有状态（候选持续性计数、已成立的聚落），因此也要入档。
         Settlements = new SettlementStore(this);
         RegisterEntitySet(Settlements);
+
+        // M8：贸易与价格。**刻意不注册进实体集合** —— 它没有自己的持久状态，
+        // 注册进去反而会让人以为"它有需要存档的东西"。
+        Trade = new TradeSystem(this);
 
         // 注册进实体集合：世界重建时会自动 Reset，摘要会自动覆盖
         RegisterEntitySet(Agents);
@@ -418,6 +428,9 @@ public sealed class Simulation
 
         // M7：聚落评估（在关系之后、日常事务之前 —— 顺序固定即可）
         Settlements.TickDay(World.Tick);
+
+        // M8：逐日算价（纯派生，不写需要存档的状态）
+        Trade.TickDay(World.Tick);
 
         TickDay();
 
