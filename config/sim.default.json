@@ -204,6 +204,32 @@
     "mutationScale": 0.08
   },
 
+  "fire": {
+    "$comment": "火灾（M5）。任务书第 68/94 条要求的最小因果证明：玩家烧森林 -> 人口增速下降。火只用 Tile.Fire 与 Tile.Vegetation 表达，没有'烧了多久'这类计数器；风向由 tick 推导而不是存成状态。",
+    "enabled": true,
+    "baseIgnitionChancePerFastTick": 0.001,
+    "lightningChanceDuringStorm": 0.0006,
+    "drynessWeight": 1.0,
+    "temperatureWeight": 0.6,
+    "spreadChancePerFastTick": 0.04,
+    "vegetationLossPerFastTick": 0.04,
+    "burntRecoveryPerDay": 0.006,
+    "burntRecoverThreshold": 0.25,
+    "windInfluence": 0.5,
+    "maxBurningTiles": 600,
+    "burnsWoodResource": true,
+    "woodLossFractionPerFastTick": 0.01
+  },
+
+  "rules": {
+    "$comment": "规则开关（M5）：玩家改的是世界的规则，不是数值。用于最直接的对照实验。PeaceMode 是保留项（Attack 在 M6 落地后立刻生效）。",
+    "noDeath": false,
+    "highBirthRate": false,
+    "fastAging": false,
+    "doubleResource": false,
+    "peaceMode": false
+  },
+
   "debug": {
     "logDecisions": false,
     "stateHashEveryTicks": 1440,

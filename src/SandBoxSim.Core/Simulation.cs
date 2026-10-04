@@ -94,6 +94,13 @@ public sealed class Simulation
     /// </summary>
     public BirthSystem Births { get; }
 
+    /// <summary>
+    /// 火灾系统（M5）。
+    /// 它是"玩家烧森林 → 人口增速下降"这条最小因果证明的起点，
+    /// 也是玩家第一次能**毁掉条件**而不只是"加东西"。
+    /// </summary>
+    public FireSystem Fire { get; }
+
     public SimulationStats Stats { get; } = new SimulationStats();
 
     /// <summary>世界事件日志（第 55 / 56 节）。M0 只记录地形/世界级事件。</summary>
@@ -155,6 +162,9 @@ public sealed class Simulation
         // M4：出生系统。它需要 AgentStore + BuildingStore（床位是出生的硬门），
         // 因此必须在这两者之后构造。
         Births = new BirthSystem(this, Agents);
+
+        // M5：火灾系统。它只读写 World 的格子与 Events 流，依赖最少。
+        Fire = new FireSystem(this);
 
         // 注册进实体集合：世界重建时会自动 Reset，摘要会自动覆盖
         RegisterEntitySet(Agents);
@@ -324,10 +334,24 @@ public sealed class Simulation
 
     public bool IsFastTick => World.Tick % FastTickInterval == 0;
 
-    /// <summary>高频 tick：M3 接入建造施工；M5 接入火灾。</summary>
+    /// <summary>
+    /// 资源再生时长的规则修正（M5 的 `DoubleResource`）。
+    ///
+    /// 用"把时长乘 2"而不是"把再生率乘 2"：`ResourceSystem.Regenerate` 的签名收的是
+    /// **经过的天数**，而 Logistic 再生对时长是非线性的。
+    /// 乘时长恰好等价于"这块地有双倍的时间恢复"，
+    /// 语义上直接对应玩家看到的"资源长得更快"，也不需要改动再生公式本身。
+    /// </summary>
+    private double RegenerationDays(double days)
+        => Config.Rules.DoubleResource ? days * 2.0 : days;
+
+    /// <summary>
+    /// 高频 tick：M3 接入建造施工；M5 接入火灾。
+    /// </summary>
     public void TickFast()
     {
         BuildingSystem.TickFast(World.Tick);
+        Fire.TickFast(World.Tick);
     }
 
     private void TickHourInternal()
@@ -335,7 +359,7 @@ public sealed class Simulation
         WeatherTick();
         if (ResourceSystem.RegeneratesHourly)
         {
-            ResourceSystem.Regenerate(1.0 / 24.0);
+            ResourceSystem.Regenerate(RegenerationDays(1.0 / 24.0));
         }
         TickHour();
         HourEventsFired++;
@@ -346,7 +370,7 @@ public sealed class Simulation
     {
         if (!ResourceSystem.RegeneratesHourly)
         {
-            ResourceSystem.Regenerate(1.0);
+            ResourceSystem.Regenerate(RegenerationDays(1.0));
         }
 
         TickDay();
@@ -417,7 +441,33 @@ public sealed class Simulation
         for (int i = 0; i < tiles.Length; i++)
         {
             ref Tile tile = ref tiles[i];
-            float targetMoisture = SimMath.Clamp01(tile.Moisture + moistureDelta);
+
+            // # 湿度推进必须是**渐近**的，不能是"加法 + 截断"
+            //
+            // 原先写的是 `clamp01(moisture + delta)`。那看起来无害，实际上有一个
+            // 很严重的后果：**下雨会把湿度顶到 1.0 并把它钉在那里**。
+            // 因为变湿的增量与"已经多湿"无关，而变干的增量是固定的小负数 ——
+            // 一场雨赚到的湿度，要很多个晴天才能还回去，于是常年贴着上限。
+            //
+            // 实测（100×100、200 天）：平均湿度**最小 0.73、最大 1.0**，
+            // 也就是说这个世界长期是饱和的。三个后果同时发生：
+            //   * 火灾不可能发生（干燥度≈0，M5 联调时"200 天 0 起火"的根因）；
+            //   * 农田产量里的湿度因子 `(0.25 + 0.75×moisture)` 被钉在 1.0，
+            //     这个因子实际上是**死**的；
+            //   * "干旱"永远无法真正把地弄干，它只在 `CropFactor` 上体现。
+            //
+            // 改成渐近形式之后：
+            //   * 变湿：`m += delta × (1 − m)` —— 越接近饱和越难再湿（永远到不了 1）；
+            //   * 变干：`m += delta × m`       —— 蒸发与地表水量成正比（越湿干得越快）。
+            //
+            // 两者都是"朝某个吸引子指数逼近"，因此**不存在钉死的上限**，
+            // 而且物理上更自洽：蒸发量本来就该与可蒸发的水量成正比。
+            // 这也让"干旱"第一次成为一个能真正改变地表条件的天气。
+            float targetMoisture = moistureDelta > 0f
+                ? tile.Moisture + (moistureDelta * (1f - tile.Moisture))
+                : tile.Moisture + (moistureDelta * tile.Moisture);
+
+            targetMoisture = SimMath.Clamp01(targetMoisture);
             float targetTemperature = SimMath.Clamp01(tile.Temperature + temperatureDelta);
 
             // 水域恒为饱和湿度，且温度变化平缓（水体热惯性）。
@@ -705,6 +755,21 @@ public sealed class Simulation
         Config.Resources.FoodGrowthRate *= factor;
         Events.Record(Clock, History.WorldEventType.RuleChanged,
             "玩家调整再生倍率 ×" + factor.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>
+    /// 让工具记录一条"玩家做了什么"的事件（M5）。
+    ///
+    /// 为什么工具需要这个：干预分两类 —— 一类自己就会产生事件（放人、改地形、
+    /// 注入资源都走各自系统的记录），另一类只是**改了一个数**（烘干一片地、
+    /// 让一片人生病）。后者如果不留痕，玩家在事件时间线里就看不到自己做过什么，
+    /// 而"可回溯"是实验可信度的前提。
+    /// </summary>
+    public void InterveneRecordAuxiliary(string message)
+    {
+        if (string.IsNullOrEmpty(message)) { return; }
+        Events.Record(Clock, History.WorldEventType.RuleChanged, message,
+            History.EventImportance.Normal);
     }
 
     /// <summary>强制天气（Drought / Rain / Storm 等灾害与恩惠工具）。</summary>

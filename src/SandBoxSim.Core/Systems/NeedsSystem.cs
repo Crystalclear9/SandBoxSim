@@ -174,11 +174,19 @@ public sealed class NeedsSystem
         NeedsConfig needs = _config.Needs;
 
         int[] slots = store.LiveSlotsRaw(out int liveCount);
+
+        // M5 规则开关：`FastAging` 让时间在人身上走得更快。
+        //
+        // 实现方式是**推进多少天**而不是"改寿命上限"：后者会让"老年"这段
+        // 在人生里的占比变化，而前者只是把同一段人生压缩——语义更干净，
+        // 也让"同一个世界、只是老得更快"这个对照实验真的只改了一件事。
+        int ageStep = _config.Rules.FastAging ? 2 : 1;
+
         for (int k = 0; k < liveCount; k++)
         {
             int slot = slots[k];
 
-            int age = store.AgeDaysOf(slot) + 1;
+            int age = store.AgeDaysOf(slot) + ageStep;
             store.SetAgeDays(slot, age);
 
             if (age >= needs.MaxLifespanDays)
@@ -204,6 +212,14 @@ public sealed class NeedsSystem
     public void Kill(AgentStore store, int slot, DeathCause cause, long tick)
     {
         if (!store.IsSlotAlive(slot)) { return; }
+
+        // M5 规则开关：`NoDeath` 关掉一切死亡。
+        //
+        // 放在**这一个入口**而不是撒在各个判定点，是因为这个方法就是"唯一的死亡路径"
+        // （见 §3.2 的约定）—— 一个开关只需要一处生效点，而散落的判断迟早会漏掉一条路径。
+        // 代价是"掉血仍会发生"，于是玩家会看到一群健康 0 但活着的人，
+        // 这恰好是这条规则**肉眼可见**的样子。
+        if (_config.Rules.NoDeath) { return; }
 
         // 先取快照再 MarkDead：MarkDead 只改存活标志与代次，但把这些信息集中取一次更安全
         int x = store.XOf(slot);

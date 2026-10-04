@@ -292,7 +292,13 @@ public sealed class BirthSystem
             // 生育率与健康是正相关，但不是线性归零。
             float healthFactor = 0.5f + (0.5f * health);
 
-            float p = _config.BaseChancePerDay
+            // M5 规则开关：`HighBirthRate` 把基础概率翻倍。
+            // 乘以**基础值**而不是乘在最终概率上，是为了让 `MaxChancePerDay` 这道防爆闸
+            // 依然对最终结果生效 —— 否则"高出生率 + 极端参数"可以绕过上限。
+            float baseChance = _config.BaseChancePerDay;
+            if (_sim.Config.Rules.HighBirthRate) { baseChance *= 2f; }
+
+            float p = baseChance
                 * foodFactorFloorAdjusted
                 * 1f                  // 住房满足 ⇒ 因子为 1（门已在上面判定）
                 * healthFactor

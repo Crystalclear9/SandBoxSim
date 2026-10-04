@@ -18,16 +18,37 @@ public enum WeatherKind : byte
 /// <summary>天气静态信息：对湿度/温度/作物/行动的影响系数。</summary>
 public static class WeatherInfo
 {
-    /// <summary>每小时对全图湿度的基础增量（正=变湿，负=变干）。</summary>
+    /// <summary>
+    /// 每小时对全图湿度的基础增量（正=变湿，负=变干）。
+    ///
+    /// # 这组数被 M5 改过一次，原因值得记下来
+    ///
+    /// 原值：Clear −0.006、Cloudy −0.001、Rain +0.030、Storm +0.045、Drought −0.035。
+    /// 问题在于**变湿比变干强一个数量级，而且"多云"几乎不干**（−0.001）：
+    /// 只要降雨占到两成时间，净收支就是正的，于是全图湿度**长期钉在 1.0**。
+    ///
+    /// 实测（100×100、200 天）：平均湿度最小 0.73、最大 1.0。
+    /// 这不是"世界比较湿"，而是一个漂移到了上限的死状态，它同时让三件事失效：
+    ///   * **火灾不可能发生** —— 干燥度≈0，M5 联调时"200 天 0 起火"的根因；
+    ///   * **农田产量的湿度因子被钉死** `(0.25 + 0.75×1.0) = 1.0`，等于没有这一项；
+    ///   * **干旱只在 `CropFactor` 上体现**，永远无法真正把地表弄干。
+    ///
+    /// 改法是把"蒸发的强度"提到与降雨同一量级 —— 物理上也对：
+    /// 只要没在下雨，地表就在蒸发，而晴天蒸发得最快。
+    /// 现在晴朗/多云/干旱分别是 −0.020 / −0.008 / −0.050。
+    ///
+    /// 配合 `Simulation` 里的**渐近**推进（变湿按 `(1−m)`、变干按 `m`），
+    /// 湿度会在 0.4~0.6 附近自然波动，不再有上限死状态。
+    /// </summary>
     public static float MoistureDeltaPerHour(WeatherKind kind)
     {
         switch (kind)
         {
-            case WeatherKind.Clear: return -0.006f;
-            case WeatherKind.Cloudy: return -0.001f;
+            case WeatherKind.Clear: return -0.020f;
+            case WeatherKind.Cloudy: return -0.008f;
             case WeatherKind.Rain: return 0.030f;
             case WeatherKind.Storm: return 0.045f;
-            case WeatherKind.Drought: return -0.035f;
+            case WeatherKind.Drought: return -0.050f;
             case WeatherKind.Snow: return 0.010f;
             default: return 0f;
         }

@@ -211,7 +211,10 @@ public sealed class InspectorTests
             Assert.True(ToolPalette.IndicesOf(tool.Category).Length > 0);
         }
 
-        for (int i = 0; i < 4; i++)
+        // 用枚举长度而不是写死 4：M5 加了"灾害"这一类之后，
+        // 写死的 4 会让新类别**静默地不被检查**。
+        int categoryCount = System.Enum.GetValues<ToolCategory>().Length;
+        for (int i = 0; i < categoryCount; i++)
         {
             ToolCategory category = (ToolCategory)i;
             Assert.True(ToolPalette.Tools.Length > 0);
@@ -230,7 +233,8 @@ public sealed class InspectorTests
         var state = new ToolPalette.State { IsOpen = true };
 
         // 遍历所有类别与工具组合，确认绘制既不抛异常也不写状态
-        for (int i = 0; i < 4; i++)
+        int allCategories = System.Enum.GetValues<ToolCategory>().Length;
+        for (int i = 0; i < allCategories; i++)
         {
             state.NextCategory();
             for (int k = 0; k < 6; k++)

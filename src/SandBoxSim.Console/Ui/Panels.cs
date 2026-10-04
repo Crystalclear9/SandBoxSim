@@ -157,7 +157,8 @@ public static class Panels
         // 类别行：四个类别横向排开，当前类别高亮
         var categories = new StringBuilder();
         var categoryColors = new System.Collections.Generic.List<Rgb>();
-        for (int i = 0; i < 4; i++)
+        int categoryCount = ToolPalette.State.CategoryCount;
+        for (int i = 0; i < categoryCount; i++)
         {
             ToolCategory category = (ToolCategory)i;
             string label = ToolPalette.DisplayNameOf(category);

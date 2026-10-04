@@ -170,6 +170,18 @@ public static class RunReport
         sb.Append("- 平均湿度：").Append(Sparkline(moisture)).Append('\n');
         sb.Append("- 资源紧张度：").Append(Sparkline(scarcity)).Append("\n\n");
 
+        sb.Append("## 火灾与灾害（M5）\n\n");
+        sb.Append("| 指标 | 值 |\n|---|---|\n");
+        sb.Append("| 累计起火次数 | ").Append(sim.Fire.TotalIgnitions).Append(" |\n");
+        sb.Append("| 累计烧成焦土的格子 | ").Append(sim.Fire.TotalBurnedOut).Append(" |\n");
+        sb.Append("| 结束时的燃烧格数 | ").Append(sim.Fire.BurningTiles).Append(" |\n");
+        sb.Append("| 结束时的焦土格数 | ").Append(sim.Fire.BurntTiles).Append(" |\n");
+        sb.Append("| 结束时的风向（0-7） | ").Append(sim.Fire.WindIndex(sim.Clock)).Append(" |\n");
+        sb.Append("| 自然点燃判定次数 | ").Append(sim.Fire.NaturalIgnitionRolls).Append(" |\n");
+        sb.Append("| 自然点燃通过次数 | ").Append(sim.Fire.NaturalIgnitionHits).Append(" |\n");
+        sb.Append("| 逐格筛选否掉次数 | ").Append(sim.Fire.NaturalIgnitionRejected).Append(" |\n");
+        sb.Append('\n');
+
         sb.Append("## 地形分布（结束时刻）\n\n| 地形 | 格数 |\n|---|---|\n");
         int[] counts = sim.World.CountTerrain();
         for (int i = 0; i < counts.Length; i++)
@@ -207,6 +219,20 @@ public static class RunReport
         sb.Append("- [").Append(population.Count > 0 ? "x" : " ").Append("] 产生了逐日统计样本\n");
         sb.Append("- [").Append(sim.Events.TotalRecorded > 0 ? "x" : " ").Append("] 记录了世界事件\n");
         sb.Append("- [ ] 出生 / 死亡 / 建造 / 迁移 / 第二聚落 / 火灾（需要 M2–M8 的系统接入，见 docs/12-Milestones.md）\n");
+
+        // M4 / M5 已接入的机制：这里逐条给出可判定的证据，而不是让人去猜。
+        sb.Append('\n');
+        sb.Append("已接入机制的实测证据（M4 / M5）：\n\n");
+        sb.Append("- 出生：累计 ").Append(sim.Stats.TotalBirths).Append(" 次");
+        sb.Append(sim.Stats.TotalBirths > 0 ? " ✅\n" : " ⚠️ 本局没有新生儿\n");
+        sb.Append("- 农业：累计产出 ").Append(sim.BuildingSystem.TotalFoodProduced.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))
+            .Append(" 食物");
+        sb.Append(sim.BuildingSystem.TotalFoodProduced > 0f ? " ✅\n" : " ⚠️ 本局没有农田产出\n");
+        sb.Append("- 耕种：累计 ").Append(sim.Actions.FarmVisits).Append(" 次下地\n");
+        sb.Append("- 建筑衰减：累计拆除 ").Append(sim.BuildingSystem.TotalDemolished).Append(" 栋\n");
+        sb.Append("- 火灾：累计起火 ").Append(sim.Fire.TotalIgnitions).Append(" 次，烧成焦土 ")
+            .Append(sim.Fire.TotalBurnedOut).Append(" 格\n");
+        sb.Append("- 规则开关：").Append(sim.Config.Rules.AnyEnabled ? "已启用（这一局是修改过的世界）" : "全部关闭").Append('\n');
 
         return sb.ToString();
     }

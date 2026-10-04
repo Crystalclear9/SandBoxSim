@@ -24,6 +24,8 @@ public sealed class SimConfig
     public GroundStockConfig GroundStocks = new GroundStockConfig();
     public BuildingConfig Buildings = new BuildingConfig();
     public BirthConfig Birth = new BirthConfig();
+    public FireConfig Fire = new FireConfig();
+    public RulesConfig Rules = new RulesConfig();
     public DebugConfig Debug = new DebugConfig();
 
     /// <summary>深拷贝：世界重置（换 seed）时保持参数不变。</summary>
@@ -573,6 +575,124 @@ public sealed class BirthConfig
 
     /// <summary>性格遗传的突变幅度（六维各自在此幅度内扰动）。</summary>
     public float MutationScale = 0.08f;
+}
+
+/// <summary>
+/// 规则开关（M5）。
+///
+/// # 为什么这些是"开关"而不是"参数"
+///
+/// 它们改的是**世界的规则**，不是世界的数值。玩家翻一个开关就能回答
+/// "如果这个世界不会死，会长成什么样" —— 这是**对照实验**最直接的形式，
+/// 也正是任务书第 45 节要求的"玩家改的是条件"的极端版本。
+///
+/// # 它们必须进存档
+///
+/// 配置本来就随存档一起写（`config` 段），并且读档时会用 `configDigest` 校验 ——
+/// 于是"换了规则读同一份存档"会被明确提示，而不是静默跑出另一个世界。
+///
+/// # 与状态摘要的关系（一个必须写清楚的边界）
+///
+/// `StateHash` **不包含配置**。所以两个规则不同的世界可能算出同一个摘要。
+/// 这不是漏洞，而是有意为之：摘要是用来回答"同一套规则下两次运行是否一致"的，
+/// 而不是"两个不同的世界是否相同"。跨规则比较必须靠 `configDigest`。
+/// </summary>
+public sealed class RulesConfig
+{
+    /// <summary>关闭死亡：个体不会饿死、渴死或老死（仍会掉血，但不会死）。</summary>
+    public bool NoDeath = false;
+
+    /// <summary>出生率翻倍（`BirthConfig.BaseChancePerDay` × 2）。</summary>
+    public bool HighBirthRate = false;
+
+    /// <summary>衰老速度翻倍（年龄推进 × 2）。</summary>
+    public bool FastAging = false;
+
+    /// <summary>资源再生翻倍（木材/食物/石料/铁矿的 Logistic 增长率 × 2）。</summary>
+    public bool DoubleResource = false;
+
+    /// <summary>
+    /// 和平模式：压制攻击与战争倾向。
+    ///
+    /// ⚠️ **保留项**：`Attack` 动作与战争系统分别在 M6 / M8 落地，
+    /// 因此这个开关在 M5 **暂时没有可观测效果**。
+    /// 之所以现在就加进来，是为了让存档的配置结构尽早稳定
+    /// （每加一个字段就要提升一次存档版本，而版本是严格拒绝旧档的）。
+    /// 它会在 M6 接入 `Attack` 时立刻生效 —— 见 docs/15 的说明。
+    /// </summary>
+    public bool PeaceMode = false;
+
+    /// <summary>是否任何规则开关被打开（供报告与 UI 提示"这一局是修改过的世界"）。</summary>
+    public bool AnyEnabled => NoDeath || HighBirthRate || FastAging || DoubleResource || PeaceMode;
+}
+
+/// <summary>
+/// 火灾（M5）。
+///
+/// # 为什么火灾是这个项目的"必要机制"而不是锦上添花
+///
+/// 任务书第 68 / 94 条要求一个**最小的因果证明**：
+/// **玩家烧掉一片森林 → 人口增速下降**。
+/// 这条链之所以重要，是因为它同时穿过三个系统：
+///
+/// ```text
+/// 火 → 森林减少 → 木材减少 → 盖房变慢 → 床位不足 → 出生下降
+///              ↘ 猎物栖息地减少 → 打猎收益下降 → 食物下降 ↗
+/// ```
+///
+/// 没有火灾，玩家能做的干预只有"加东西"（加人、加资源、加地力）；
+/// 有了火灾，玩家第一次能**毁掉条件**，而后果会沿着上面两条链自己扩散出去。
+///
+/// # 实现上刻意不引入任何新的持久状态
+///
+/// 火只用 `Tile.Fire`（`FireState`）与 `Tile.Vegetation` 表达，
+/// **没有"已经烧了多少 tick"这类计数器** —— 燃烧进度由植被的下降量表达。
+/// 风向也**不由状态表达**，而是由 tick 确定性推导（见 `FireSystem.WindIndex`）。
+///
+/// 这不是巧合，是刻意的：M4 的联调里，"看起来只是辅助状态、实际影响未来行为"
+/// 的字段一共漏了**八个**，每一个都表现为"读档瞬间一致、续跑若干 tick 后分叉"。
+/// 所以新增系统的第一原则是：**能不新增状态就不新增。**
+/// </summary>
+public sealed class FireConfig
+{
+    /// <summary>火灾系统总开关。</summary>
+    public bool Enabled = true;
+
+    /// <summary>自然点燃的基础概率（每 fast tick、每格）。雷击是主要来源。</summary>
+    public float BaseIgnitionChancePerFastTick = 0.001f;
+
+    /// <summary>暴雨期间的雷击额外概率。</summary>
+    public float LightningChanceDuringStorm = 0.0006f;
+
+    /// <summary>点燃判定里"干燥度"的权重。</summary>
+    public float DrynessWeight = 1.0f;
+
+    /// <summary>点燃判定里"温度"的权重。</summary>
+    public float TemperatureWeight = 0.6f;
+
+    /// <summary>向单个邻居传播的基础概率（每 fast tick）。</summary>
+    public float SpreadChancePerFastTick = 0.04f;
+
+    /// <summary>燃烧时每 fast tick 损失多少植被（植被归零即转为焦土）。</summary>
+    public float VegetationLossPerFastTick = 0.04f;
+
+    /// <summary>焦土的植被恢复速度（每天）。刻意极慢：烧过的地"记很久"。</summary>
+    public float BurntRecoveryPerDay = 0.006f;
+
+    /// <summary>植被恢复到多少时焦土算"复原"（回到 None）。</summary>
+    public float BurntRecoverThreshold = 0.25f;
+
+    /// <summary>顺风传播的加成（0 = 不看风向）。</summary>
+    public float WindInfluence = 0.5f;
+
+    /// <summary>同时燃烧的格子上限（防爆炸的最后一道闸）。</summary>
+    public int MaxBurningTiles = 600;
+
+    /// <summary>燃烧是否消耗木材资源（此刻的木材存量会被烧掉一部分）。</summary>
+    public bool BurnsWoodResource = true;
+
+    /// <summary>燃烧时每 fast tick 额外烧掉多少木材（占容量的比例）。</summary>
+    public float WoodLossFractionPerFastTick = 0.01f;
 }
 
 /// <summary>地面物资堆（M2）：让"攒东西"这件事在空间上可见。</summary>
