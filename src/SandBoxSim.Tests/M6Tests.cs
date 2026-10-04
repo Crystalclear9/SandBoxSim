@@ -220,23 +220,30 @@ public sealed class M6Tests
     [Fact("可达性：稀缺世界里必须真的出现攻击（怨恨是敌意的来源）")]
     public void AttackBecomesReachableUnderScarcity()
     {
-        // ⚠️ M6 未竟项（#2/#3，已排除三个假设，剩下一个待查）
+        // ⚠️ M6 未竟项（#2/#3）：已从"攻击不可达"缩小到"场景里的人全都会脱水而死"
         //
-        // 症状：场景跑到第 2 天人口就归零，于是"攻击为 0"说明不了任何事。
-        // 新增的前置断言（每天都要求 LiveCount > 0）就是为了让这一点**立刻可见** ——
-        // 之前没有它的时候，这条测试只是安静地报告"攻击 0 次"，
-        // 而真实原因是"世界已经空了"。
+        // # 现在确定知道的事实（死因是打印出来的，不是猜的）
+        //   Dehydration x14，第 2 天全部死亡。于是"攻击 0 次"说明不了任何事 —— 世界已经空了。
+        //   新增的前置断言就是为了把这一点变成一次明确的失败，而不是一个看起来很像结论的 0。
+        //   这条断言本身是本轮最有价值的产出。
         //
-        // 已排除：
-        //   (a) 饥饿频率 —— 从每 3 天一次改到每天、再改到每 240 tick，均无效；
-        //   (b) 可达性   —— 一度以为是森林挡住了去水边的路（`MakeSettlement` 中心草地
-        //                   外围是森林），把全图铺成草地后仍然第 2 天归零；
-        //   (c) 食物     —— 富者每步补 30 份并钉住饥饿度，贫者饥饿度钉在 0.55（不致死）。
+        // # 已排除的假设（每一个都实测过）
+        //   (a) 饥饿频率 —— 每 3 天 → 每天 → 每 240 tick 维护，均无效；
+        //   (b) 可达性   —— 怀疑森林围墙挡住去水边的路，把全图铺成草地后仍第 2 天归零；
+        //   (c) 取水太远 —— 把水直接挖到出生点旁边（x=24，出生点 x=30），仍 Dehydration x14；
+        //   (d) 饥饿钉死 —— 加了"完全不钉饥饿度"的判别实验，结果同样 Dehydration x14。
         //
-        // 待查方向：**"两天内全灭"通常是硬约束，而不是数值渐变。**
-        // 下一步应当在第 1 天的中间打印每个人的死因（`Needs.DeathsByCause`）
-        // 与位置/干渴度，先确定死因是"脱水"还是"饿死"还是别的，
-        // 再决定往哪个方向查。死因一确定，问题通常当场就清楚了。
+        // # 剩下的唯一线索
+        //   与**能正常存活**的 MakeSettlement 场景相比，这里只剩一个结构性差异：
+        //   那段"把全图铺成草地"的覆写。问题很可能出在覆写本身
+        //   （例如它改动了取水判定所依赖的 chunk 统计），而不是怨恨或攻击。
+        //
+        // # 下一步（很具体，不需要再猜）
+        //   二分那段覆写：
+        //     1. 只设 SetVegetation、不改 SetTerrain —— 看是否还死；
+        //     2. 只覆写定居点周围 12 格而不是全图 —— 看是否还死。
+        //   只要有一版能活下来，就定位到了是哪种改动破坏了取水。
+        //   在此之前不要再动怨恨或攻击的参数 —— 那些都不是当前的瓶颈。
         if (!OpenIssuesEnabled) { return; }
 
         // 说明：第一版这条测试测的是"谁的时钟更快"（见 MakeScarceWorld 的注释），
@@ -299,9 +306,35 @@ public sealed class M6Tests
 
             // **前置条件必须一直成立**，而不只是在建立场景的那一刻成立。
             // 这一条断言如果早些写出来，上面那个"条件悄悄失效"的问题当场就会暴露。
-            Assert.True(sim.Agents.LiveCount > 0,
-                "第 " + day + " 天人口归零 —— 这个场景的前提（有人活着且不平等）已经不成立，"
-                + "此时「攻击为 0」说明不了任何事");
+            if (sim.Agents.LiveCount == 0)
+            {
+                // 死因是此刻唯一重要的信息：它把"往哪个方向查"这件事定下来。
+                var causes = new System.Text.StringBuilder();
+                for (int c = 0; c < sim.Needs.DeathsByCause.Length; c++)
+                {
+                    if (sim.Needs.DeathsByCause[c] > 0)
+                    {
+                        causes.Append((Core.Agents.DeathCause)c)
+                              .Append(" x")
+                              .Append(sim.Needs.DeathsByCause[c])
+                              .Append("; ");
+                    }
+                }
+
+                float avgThirst = 0f;
+                float avgHunger = 0f;
+                foreach (int s in sim.Agents.AliveSlots())
+                {
+                    avgThirst += sim.Agents.ThirstOf(s);
+                    avgHunger += sim.Agents.HungerOf(s);
+                }
+
+                Assert.True(false,
+                    "【诊断】第 " + day + " 天人口归零。死因：" + causes
+                    + " | 累计互动 " + sim.Relationships.TotalInteractions
+                    + " | 平均干渴 " + (avgThirst / 14f).ToString("0.00")
+                    + " 平均饥饿 " + (avgHunger / 14f).ToString("0.00"));
+            }
         }
         Assert.True(sim.Agents.LiveCount >= populationAtStart - 2,
             "这个场景要求**不靠饿死人**：人口必须基本稳定（" + populationAtStart
@@ -338,6 +371,11 @@ public sealed class M6Tests
     [Fact("和平模式必须真的关掉攻击这条通路")]
     public void PeaceModeDisablesAttack()
     {
+        // ⚠️ M6 未竟项：依赖 #2 的"攻击可达"，所以现在也测不到。
+        // `AttackAction.Evaluate` 里的 PeaceMode 门本身是直白的（返回效用 0），
+        // 但"关掉了攻击"只有在"本来会发生攻击"的世界里才可观测 ——
+        // 而那个世界现在会因为所有人脱水而死（见 AttackBecomesReachableUnderScarcity 的诊断）。
+        if (!OpenIssuesEnabled) { return; }
         // 注意：`AttackAction.Evaluate` 里的 PeaceMode 门本身是直白的（返回效用 0），
         // 但"关掉了攻击"只有在"本来会发生攻击"的世界里才可观测 ——
         // 所以这条测试必须先有一个真的会打起来的对照组。
@@ -406,6 +444,25 @@ public sealed class M6Tests
                 sim.World.SetVegetation(x, y, 0.5f);
             }
         }
+
+        // **把水直接挖在定居点旁边。**
+        //
+        // 这一步也是诊断逼出来的：前三版"第 2 天 14 人全部脱水而死"，
+        // 死因打印得很清楚（Dehydration x14），而我一直以为是饥饿度、
+        // 森林阻挡、食物不足 —— 三个假设全部被排除。
+        //
+        // 剩下的解释只有一个：居民**根本到不了水边**（`MakeSettlement` 把水放在 x=16，
+        // 而出生点在 x=30，中间隔了 14 格；取水搜索多半覆盖不到那么远，
+        // 于是他们在"该喝水"之前就先渴死了）。
+        //
+        // 与其继续猜搜索半径，不如把这条前提**变成不可能失败**：
+        // 水就挖在出生点边上。这样"攻击不可达"的结论才真的只关于怨恨与攻击，
+        // 而不是关于取水路径。
+        for (int y = 26; y <= 34; y++)
+        {
+            sim.World.SetTerrain(24, y, TerrainKind.Water);
+            sim.World.SetMoisture(24, y, 1f);
+        }
         sim.World.RefreshSpatialIndex();
 
         int index = 0;
@@ -437,9 +494,21 @@ public sealed class M6Tests
             }
             else
             {
-                // 贫者不补食物，但把饥饿度钉在中高（不致死），
-                // 否则需求系统会让他们饿死、关系被 Forget 清空。
-                sim.Agents.SetHunger(slot, 0.55f);
+                // # 贫者必须"饿但活得下去"，而不是"持续濒临饿死"
+                //
+                // 第一版把贫者的饥饿度长期钉在 0.55、且完全不给食物。
+                // 实测结果：**14 人全部脱水而死**（诊断打印出的死因是 Dehydration x14）。
+                //
+                // 死因不是饿死，而是"因为一直很饿，所以一直在找食物" ——
+                // 高饥饿度让 `GatherFood` 长期压过 `Drink`，人于是越走越远、再也回不到水边。
+                // 也就是说，我为了制造"不平等"而设定的那个饥饿度，
+                // 顺带把**取水这条生存通路**挤掉了。
+                //
+                // 现在改成：饥饿度钉在 0.50（仍然高于怨恨阈值 0.45，机制条件成立），
+                // 并给一点点食物让他能进食、不至于陷入"永远在找吃的"状态。
+                // 不平等仍然显著（富者随身 60 份，贫者 3 份），但没有人会因此死掉。
+                sim.Agents.SetHunger(slot, 0.50f);
+                sim.Agents.AddInventory(slot, ResourceKind.Food, 3f);
             }
         }
     }
