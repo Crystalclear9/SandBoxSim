@@ -85,34 +85,7 @@ internal sealed partial class NatureModels
         parent.AddChild(new MultiMeshInstance3D { Multimesh = multi, MaterialOverride = Material(material) });
     }
     public Node3D Building(BuildingKind kind, bool complete, uint identity = 0) => Architecture(kind, complete, identity);
-    public Node3D Human(int slot, bool child, JobType job)
-    {
-        var model = new Node3D();
-        int cloth = slot % 3 == 0 ? 9 : 8;
-        Part(model, "capsule", new Vector3(0, .9f, 0), new Vector3(.38f, .36f, .26f), cloth);
-        Part(model, "sphere", new Vector3(0, 1.5f, 0), new Vector3(.29f, .33f, .29f), 14);
-        Part(model, "sphere", new Vector3(0, 1.61f, -.035f), new Vector3(.31f, .17f, .30f), 10);
-        Part(model, "box", new Vector3(0, .67f, 0), new Vector3(.37f, .08f, .28f), 10);
-        foreach (float side in new[] { -1f, 1f })
-        {
-            var arm = new Node3D { Name = side < 0 ? "LeftArm" : "RightArm", Position = new Vector3(side * .27f, 1.18f, 0) }; model.AddChild(arm);
-            Part(arm, "capsule", new Vector3(0, -.23f, 0), new Vector3(.12f, .23f, .12f), cloth);
-            Part(arm, "sphere", new Vector3(0, -.47f, 0), new Vector3(.12f, .13f, .12f), 14);
-            var leg = new Node3D { Name = side < 0 ? "LeftLeg" : "RightLeg", Position = new Vector3(side * .105f, .65f, 0) }; model.AddChild(leg);
-            Part(leg, "capsule", new Vector3(0, -.27f, 0), new Vector3(.14f, .25f, .14f), 10);
-            Part(leg, "box", new Vector3(0, -.58f, -.04f), new Vector3(.17f, .11f, .26f), 10);
-        }
-        if (job == JobType.Farmer)
-            { Part(model, "cone", new Vector3(0, 1.72f, 0), new Vector3(.54f, .22f, .54f), 15); }
-        if (job == JobType.Soldier)
-        {
-            Part(model, "sphere", new Vector3(0, 1.6f, 0), new Vector3(.33f, .22f, .34f), 11);
-            Part(model, "cylinder", new Vector3(.4f, .95f, -.1f), new Vector3(.025f, 1.9f, .025f), 1);
-            Part(model, "cone", new Vector3(.4f, 1.95f, -.1f), new Vector3(.08f, .18f, .08f), 11);
-        }
-        if (child) { model.Scale = Vector3.One * .62f; }
-        return model;
-    }
+    public Node3D Human(int slot, bool child, JobType job) => Resident(slot, child, job);
     public Node3D Animal(bool wolf)
     {
         var model = new Node3D(); int mat = wolf ? 13 : 12;

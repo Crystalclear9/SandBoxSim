@@ -574,7 +574,7 @@ void fragment(){
     }
     private void AnimateActors(float delta)
     {
-        var sim = Game.Sim; float time = Time.GetTicksMsec() * .001f;
+        var sim = Game.Sim;
         foreach (var pair in _people)
         {
             int slot = (int)(pair.Key & uint.MaxValue); if (!sim.Agents.IsSlotAlive(slot) || sim.Society.Identity(slot) != pair.Key) { continue; }
@@ -583,9 +583,11 @@ void fragment(){
             bool moving = sim.Agents.PhaseOf(slot) == ActionPhase.Moving;
             node.Position = node.Position.Lerp(target, MathF.Min(1, delta * 10));
             if (direction.LengthSquared() > .02f) { node.Rotation = new Vector3(0, MathF.Atan2(direction.X, direction.Z) + MathF.PI, 0); }
-            float swing = moving ? MathF.Sin(time * 8 + slot) * .5f : 0;
-            node.GetNode<Node3D>("LeftLeg").Rotation = new Vector3(swing, 0, 0); node.GetNode<Node3D>("RightLeg").Rotation = new Vector3(-swing, 0, 0);
-            node.GetNode<Node3D>("LeftArm").Rotation = new Vector3(-swing * .8f, 0, .12f); node.GetNode<Node3D>("RightArm").Rotation = new Vector3(swing * .8f, 0, -.12f);
+            bool working = sim.Agents.PhaseOf(slot) == ActionPhase.Executing && sim.Agents.ActionOf(slot) is
+                ActionKind.GatherFood or ActionKind.GatherWood or ActionKind.GatherStone or ActionKind.GatherIron or
+                ActionKind.BuildHouse or ActionKind.BuildFarm or ActionKind.BuildStorage or ActionKind.BuildMine or ActionKind.Farm;
+            bool resting = sim.Agents.PhaseOf(slot) == ActionPhase.Executing && sim.Agents.ActionOf(slot) == ActionKind.Sleep;
+            ((ResidentRig)node).Pose(delta, moving, working && !resting, resting, Game.VisualPaused, slot);
         }
         foreach (var pair in _deer)
         { int slot = (int)(pair.Key & uint.MaxValue); if (sim.Wildlife.IsAlive(slot)) { MoveAnimal(pair.Value, PositionAt(sim.Wildlife.XOf(slot), sim.Wildlife.YOf(slot)), delta); } }

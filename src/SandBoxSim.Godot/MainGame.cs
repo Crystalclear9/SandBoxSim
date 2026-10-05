@@ -15,6 +15,7 @@ namespace SandBoxSim.Client;
 public partial class MainGame : Control
 {
     public Simulation Sim { get; private set; } = null!;
+    public bool VisualPaused => _speed == 0;
     public PlayerTool Tool { get; private set; }
     public int Scenario { get; private set; }
     public WorldTrial Trial { get; private set; } = new();
@@ -221,7 +222,7 @@ public partial class MainGame : Control
                     ContentMarginTop = 6, ContentMarginBottom = 6 };
                 Theme.SetStylebox(state, type, box);
             }
-        Theme.SetStylebox("panel", "TabContainer", new StyleBoxFlat { BgColor = new Color("#18241e"), ContentMarginLeft = 14,
+        Theme.SetStylebox("panel", "TabContainer", new StyleBoxFlat { BgColor = HudStyle.Surface, ContentMarginLeft = 14,
             ContentMarginRight = 14, ContentMarginTop = 14, ContentMarginBottom = 14, CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6 });
         Theme.SetColor("font_selected_color", "TabContainer", HudStyle.Accent);
         Theme.SetColor("font_unselected_color", "TabContainer", HudStyle.Muted);
@@ -527,9 +528,9 @@ public partial class MainGame : Control
         for (int i = Sim.Events.Count - 1, count = 0; i >= 0 && count < 80; i--)
         {
             var ev = Sim.Events[i]; if (ev.Importance < SandBoxSim.Core.History.EventImportance.Normal) { continue; }
-            history.AppendLine($"[color=#d0ae78]第 {ev.Tick / 1440} 天[/color]")
+            history.AppendLine($"[color=#386653]第 {ev.Tick / 1440} 天[/color]")
                 .AppendLine("[b]" + EscapeMarkup(ev.Description) + "[/b]")
-                .AppendLine("[color=#9aa597]" + EscapeMarkup(ev.Cause) + "[/color]").AppendLine(); count++;
+                .AppendLine("[color=#697367]" + EscapeMarkup(ev.Cause) + "[/color]").AppendLine(); count++;
         }
         _history.Text = history.ToString();
     }
@@ -537,6 +538,7 @@ public partial class MainGame : Control
     {
         try
         {
+            new NatureModels().ValidateResidentMeshes();
             Tool = PlayerTool.Forest; ClickTile(20, 20);
             if (Sim.World.TerrainAt(20, 20) != TerrainKind.Forest) { throw new Exception("Forest tool failed"); }
             Tool = PlayerTool.Inspect; ClickTile(50, 50);
@@ -547,6 +549,7 @@ public partial class MainGame : Control
             int observed = Sim.Agents.AliveSlots().FirstOrDefault(-1);
             if (observed >= 0) { var position = Sim.Agents.PositionOf(observed); FocusStory(Sim.Society.Identity(observed), position.X, position.Y); }
             ValidateHudLayout();
+            if (observed >= 0) { _residentPortrait.ValidatePresentation(); }
             _discovery.ValidateNavigation();
             if (observed >= 0) { TogglePin(); if (PinnedPerson != Sim.Society.Identity(observed)) { throw new Exception("Resident pin lost stable identity"); } }
             _discovery.Refresh();
@@ -636,7 +639,7 @@ public partial class MainGame : Control
                 if (rectangularBefore != StateHash.ComputeDigest(Sim)) { throw new Exception("Rectangular world rendering mutated simulation"); }
             }
             finally { Sim = original; ((WorldView3D)_map).ValidateWorldDimensions(); }
-            GD.Print("GODOT_SELF_TEST_PASS: tools, observer purity, save/load, minimap, resident pin, recipe gallery, land management/save, construction/blueprint save, project placement/cancel, hazards, mouse drag/orbit/zoom/release and 1280/1600/1920 layouts");
+            GD.Print("GODOT_SELF_TEST_PASS: resident meshes/poses/portrait gestures, tools, observer purity, save/load, minimap, resident pin, recipe gallery, land management/save, construction/blueprint save, project placement/cancel, hazards, mouse drag/orbit/zoom/release and 1280/1600/1920 layouts");
         }
         catch (Exception ex) { GD.PushError(ex.ToString()); GetTree().Quit(1); }
     }

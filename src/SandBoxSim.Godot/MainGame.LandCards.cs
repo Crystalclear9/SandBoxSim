@@ -33,7 +33,7 @@ public partial class MainGame
             card.Conditions.Text = $"地表粮食  {current.Food:0}     湿度  {current.Moisture:P0}\n植被  {current.Vegetation:P0}     本地居民  {current.Residents}"
                 + (plan.Managed ? "\n" + plan.LastNotice : "");
             card.Detail.Visible = !plan.Active;
-            card.Report.Text = $"[color=#d0ae78]建设前 → 完工时[/color]\n粮食 {plan.Before.Food:0} → {plan.After.Food:0}\n湿度 {plan.Before.Moisture:P0} → {plan.After.Moisture:P0}\n植被 {plan.Before.Vegetation:P0} → {plan.After.Vegetation:P0}\n火情 {plan.Before.Burning} → {plan.After.Burning}\n[color=#9aa597]对照已冻结；上方显示当前区域状态。[/color]";
+            card.Report.Text = $"[color=#386653]建设前 → 完工时[/color]\n粮食 {plan.Before.Food:0} → {plan.After.Food:0}\n湿度 {plan.Before.Moisture:P0} → {plan.After.Moisture:P0}\n植被 {plan.Before.Vegetation:P0} → {plan.After.Vegetation:P0}\n火情 {plan.Before.Burning} → {plan.After.Burning}\n[color=#697367]对照已冻结；上方显示当前区域状态。[/color]";
         }
         if (Projects.Items.Count == 0)
         {

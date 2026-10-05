@@ -5,13 +5,13 @@ namespace SandBoxSim.Client;
 /// <summary>One HUD palette and spacing scale. Floating surfaces communicate depth without framing the whole world.</summary>
 internal static class HudStyle
 {
-    public static readonly Color Ink = new("#111c19"), Surface = new(.075f, .105f, .09f, .97f), Text = new("#e5e7d9"),
-        Muted = new("#9aa597"), Accent = new("#d0ae78"), Border = new("#4b5141"), Wash = new("#29372b");
+    public static readonly Color Ink = new("#f5f0e4"), Surface = new(.94f, .925f, .875f, .98f), Text = new("#273c34"),
+        Muted = new("#697367"), Accent = new("#386653"), Border = new("#c5c7b6"), Wash = new("#dce1d3");
     public static StyleBoxFlat Box(Color color, int radius = 12, int padding = 16, bool border = true)
         => new() { BgColor = color, BorderColor = Border, BorderWidthBottom = border ? 1 : 0, BorderWidthTop = border ? 1 : 0,
             BorderWidthLeft = border ? 1 : 0, BorderWidthRight = border ? 1 : 0, CornerRadiusBottomLeft = radius, CornerRadiusBottomRight = radius,
             CornerRadiusTopLeft = radius, CornerRadiusTopRight = radius, ContentMarginLeft = padding, ContentMarginRight = padding,
-            ContentMarginTop = padding, ContentMarginBottom = padding, ShadowColor = new Color(.04f, .06f, .035f, .18f), ShadowSize = border ? 6 : 0, ShadowOffset = new Vector2(0, 3) };
+            ContentMarginTop = padding, ContentMarginBottom = padding, ShadowColor = new Color(.05f, .10f, .07f, .22f), ShadowSize = border ? 14 : 0, ShadowOffset = new Vector2(0, 3) };
     public static Label Label(string text, int size = 15, bool muted = false)
     {
         var label = new Label { Text = text }; label.AddThemeFontSizeOverride("font_size", size);
@@ -27,10 +27,14 @@ internal static class HudStyle
         button.AddThemeColorOverride("icon_normal_color", Text);
         button.AddThemeColorOverride("icon_hover_color", Accent);
         button.AddThemeColorOverride("icon_pressed_color", Ink);
-        button.AddThemeStyleboxOverride("normal", Box(prominent ? Accent : new Color(0, 0, 0, 0), 4, 8, false));
-        button.AddThemeStyleboxOverride("hover", Box(prominent ? Accent.Lightened(.08f) : Wash, 4, 8, false));
-        button.AddThemeStyleboxOverride("pressed", Box(Accent, 4, 8, false));
+        button.AddThemeStyleboxOverride("normal", Box(prominent ? Accent : new Color(0, 0, 0, 0), 6, 9, false));
+        button.AddThemeStyleboxOverride("hover", Box(prominent ? Accent.Lightened(.08f) : Wash, 6, 9, false));
+        button.AddThemeStyleboxOverride("pressed", Box(Accent, 6, 9, false));
         var focus = Box(new Color(0, 0, 0, 0), 4, 2); focus.BorderColor = Accent; button.AddThemeStyleboxOverride("focus", focus);
+        Tween? feedback = null;
+        void Feedback(float value) { if (!button.IsInsideTree()) { return; } feedback?.Kill(); feedback = button.CreateTween(); feedback.TweenProperty(button, "modulate", new Color(value, value, value), .12).SetTrans(Tween.TransitionType.Sine); }
+        button.MouseEntered += () => Feedback(1.07f); button.MouseExited += () => Feedback(1f);
+        button.ButtonDown += () => Feedback(.9f); button.ButtonUp += () => Feedback(1f);
     }
     public static void Float(Control item, Vector2 anchor, Vector2 offset, Vector2 size)
     {
@@ -50,8 +54,8 @@ internal static class HudStyle
     {
         var image = new Image();
         string shape = selected
-            ? "<rect x='1' y='1' width='16' height='16' rx='3' fill='#d0ae78'/><path d='M5 9l3 3 5-6' fill='none' stroke='#111c19' stroke-width='2'/>"
-            : "<rect x='1' y='1' width='16' height='16' rx='3' fill='none' stroke='#9aa597' stroke-width='1.5'/>";
+            ? "<rect x='1' y='1' width='16' height='16' rx='3' fill='#386653'/><path d='M5 9l3 3 5-6' fill='none' stroke='#f5f0e4' stroke-width='2'/>"
+            : "<rect x='1' y='1' width='16' height='16' rx='3' fill='none' stroke='#697367' stroke-width='1.5'/>";
         image.LoadSvgFromString("<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18'>" + shape + "</svg>");
         return ImageTexture.CreateFromImage(image);
     }

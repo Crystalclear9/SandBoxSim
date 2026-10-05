@@ -24,9 +24,11 @@ public partial class MainGame
     private string _category = "生命";
     private bool _decisionDetails;
     private VBoxContainer _residentVitals = null!;
+    private ResidentPortrait _residentPortrait = null!;
     private Label _residentTitle = null!, _residentSubtitle = null!;
     private readonly Label[] _vitalLabels = new Label[4];
     private readonly ProgressBar[] _vitalBars = new ProgressBar[4];
+    private Tween? _vitalTransition;
 
     private static string EscapeMarkup(string value) => value.Replace("[", "[lb]");
     private static string JobName(SandBoxSim.Core.Agents.JobType job) => job switch
@@ -57,7 +59,7 @@ public partial class MainGame
             if (hidden) { continue; }
             string escaped = EscapeMarkup(line);
             if (first && line.Length > 0) { result.AppendLine("[font_size=23][b]" + escaped + "[/b][/font_size]"); first = false; }
-            else if (section) { result.AppendLine("[color=#d0ae78][b]" + escaped + "[/b][/color]"); }
+            else if (section) { result.AppendLine("[color=#386653][b]" + escaped + "[/b][/color]"); }
             else { result.AppendLine(escaped); }
         }
         return result.ToString();
@@ -172,7 +174,7 @@ public partial class MainGame
         var views = new HBoxContainer(); cameraBox.AddChild(views); ActionButton(views, "全景", () => _map.Center());
         foreach (string label in new[] { "斜视", "俯视", "近景" }) { string view = label; ActionButton(views, label, () => ((WorldView3D)_map).SetPerspective(view)); }
         ActionButton(views, "跟随", () => { if (SelectedSlot >= 0) { _map.Follow(SelectedSlot); } else { _status.Text = "选择一个人物后，跟随他的故事"; } });
-        _toolBadge = HudStyle.Label("自由观察", 13); HudStyle.Float(_toolBadge, new Vector2(.5f, 1), new Vector2(-200, -180), new Vector2(400, 26)); _toolBadge.HorizontalAlignment = HorizontalAlignment.Center; _toolBadge.AddThemeColorOverride("font_color", new Color("#f3efe3")); _toolBadge.AddThemeColorOverride("font_shadow_color", HudStyle.Ink); _toolBadge.AddThemeConstantOverride("shadow_offset_y", 1); overlay.AddChild(_toolBadge);
+        _toolBadge = HudStyle.Label("自由观察", 13); HudStyle.Float(_toolBadge, new Vector2(.5f, 1), new Vector2(-200, -180), new Vector2(400, 26)); _toolBadge.HorizontalAlignment = HorizontalAlignment.Center; _toolBadge.AddThemeColorOverride("font_color", new Color("#f3efe3")); _toolBadge.AddThemeColorOverride("font_shadow_color", new Color("#17241e")); _toolBadge.AddThemeConstantOverride("shadow_offset_y", 1); overlay.AddChild(_toolBadge);
         _status = HudStyle.Label("观察模式：左键拖动平移 · 右键拖动旋转/俯仰 · 滚轮缩放 · 单击选择", 11, true); HudStyle.Float(_status, new Vector2(0, 1), new Vector2(28, -34), new Vector2(1000, 18)); overlay.AddChild(_status);
         BuildPlanningCard(overlay);
         _save = Dialog(FileDialog.FileModeEnum.SaveFile); _save.FileSelected += SaveWorld; _load = Dialog(FileDialog.FileModeEnum.OpenFile); _load.FileSelected += LoadWorld;
@@ -220,11 +222,11 @@ public partial class MainGame
     }
     private static PanelContainer Surface(Control parent, Vector2 anchor, Vector2 offset, Vector2 size, int padding = 16)
     {
-        var panel = new PanelContainer(); panel.AddThemeStyleboxOverride("panel", HudStyle.Box(HudStyle.Surface, 5, padding)); HudStyle.Float(panel, anchor, offset, size); parent.AddChild(panel); return panel;
+        var panel = new PanelContainer(); panel.AddThemeStyleboxOverride("panel", HudStyle.Box(HudStyle.Surface, 10, padding)); HudStyle.Float(panel, anchor, offset, size); parent.AddChild(panel); return panel;
     }
     private static void ClearSurface(PanelContainer panel)
     {
-        var box = HudStyle.Box(new Color(.06f, .085f, .07f, .90f), 3, 8, false);
+        var box = HudStyle.Box(new Color(.94f, .925f, .875f, .96f), 7, 8, false);
         box.BorderWidthBottom = 1; box.BorderColor = new Color(HudStyle.Accent, .35f); panel.AddThemeStyleboxOverride("panel", box);
     }
     private void BuildResidentVitals(VBoxContainer parent)
@@ -232,6 +234,7 @@ public partial class MainGame
         _residentVitals = new VBoxContainer { Visible = false }; _residentVitals.AddThemeConstantOverride("separation", 8); parent.AddChild(_residentVitals);
         _residentTitle = HudStyle.Label("", 26); _residentSubtitle = HudStyle.Label("", 12, true);
         _residentVitals.AddChild(_residentTitle); _residentVitals.AddChild(_residentSubtitle);
+        _residentPortrait = new ResidentPortrait(); _residentVitals.AddChild(_residentPortrait);
         var grid = new GridContainer { Columns = 2 }; grid.AddThemeConstantOverride("h_separation", 12); grid.AddThemeConstantOverride("v_separation", 8); _residentVitals.AddChild(grid);
         for (int i = 0; i < 4; i++)
         {
@@ -245,17 +248,21 @@ public partial class MainGame
     }
     private void RefreshResidentVitals()
     {
+        _vitalTransition?.Kill();
         int slot = SelectedSlot; _residentVitals.Visible = slot >= 0;
         if (slot < 0) { return; }
         var a = Sim.Agents;
+        _residentPortrait.ShowResident(Sim.Society.Identity(slot), slot, a.LifeStageOf(slot) == SandBoxSim.Core.Agents.LifeStage.Child, a.JobOf(slot));
         _residentTitle.Text = a.NameOrOverride(slot);
         _residentSubtitle.Text = $"{a.AgeDaysOf(slot)} 天  /  {LifeStageName(a.LifeStageOf(slot))}  /  {JobName(a.JobOf(slot))}  ·  {a.PositionOf(slot)}";
         float[] values = { a.HealthOf(slot), a.HungerOf(slot), a.ThirstOf(slot), 1 - a.FatigueOf(slot) };
         string[] names = { "生命", "饥饿", "干渴", "精力" };
+        _vitalTransition = CreateTween().SetParallel().SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.Out);
         for (int i = 0; i < values.Length; i++)
         {
             bool danger = i is 1 or 2 ? values[i] > .7f : values[i] < .35f;
-            _vitalLabels[i].Text = names[i] + "   " + values[i].ToString("P0"); _vitalBars[i].Value = values[i];
+            _vitalLabels[i].Text = names[i] + "   " + values[i].ToString("P0");
+            _vitalTransition.TweenProperty(_vitalBars[i], "value", values[i], .24);
             ((StyleBoxFlat)_vitalBars[i].GetThemeStylebox("fill")).BgColor = danger ? new Color("#a84e32") : HudStyle.Accent;
         }
     }
@@ -270,7 +277,14 @@ public partial class MainGame
     private void ShowJournal(bool visible) { _journalPanel.Visible = visible; _journalButton.SetPressedNoSignal(visible); if (_pulseButton != null) { _pulseButton.Visible = !visible; } if (visible) { FadeIn(_journalPanel); } }
     private void ShowSettings(bool visible)
     { _settingsOpen = visible; _settingsButton.SetPressedNoSignal(visible); _settingsPanel.Visible = visible; _brushPanel.Visible = !visible && Tool != PlayerTool.Inspect; if (visible) { FadeIn(_settingsPanel); } }
-    private void FadeIn(Control panel) { panel.Modulate = new Color(1, 1, 1, 0); CreateTween().TweenProperty(panel, "modulate:a", 1f, .18); }
+    private readonly Dictionary<Control, Tween> _panelTransitions = new();
+    private void FadeIn(Control panel)
+    {
+        if (_panelTransitions.TryGetValue(panel, out var previous)) { previous.Kill(); }
+        panel.PivotOffset = new Vector2(panel.Size.X, 0); panel.Scale = Vector2.One * .985f; panel.Modulate = new Color(1, 1, 1, 0);
+        var transition = panel.CreateTween().SetParallel().SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
+        transition.TweenProperty(panel, "modulate:a", 1f, .22); transition.TweenProperty(panel, "scale", Vector2.One, .22); _panelTransitions[panel] = transition;
+    }
     private void SetCategory(string category)
     {
         _category = category; foreach (var pair in _categoryButtons) { pair.Value.SetPressedNoSignal(pair.Key == category); }
