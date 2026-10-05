@@ -4,7 +4,7 @@ namespace SandBoxSim.ConsoleApp.Cli;
 /// 极简命令行解析器。
 ///
 /// 不用 System.CommandLine 的理由：本仓库要求在"只有 Roslyn csc"的环境下也能构建，
-/// 任何 NuGet 依赖都会破坏这条降级通道（见 docs/12-Milestones.md）。
+/// 任何 NuGet 依赖都会破坏这条降级通道（见 docs/build.md）。
 /// 参数集很小，手写解析反而更好控制 —— 包括"未知参数必须报错而不是静默忽略"这条。
 /// </summary>
 public sealed class Args

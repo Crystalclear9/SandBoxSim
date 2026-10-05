@@ -9,8 +9,8 @@ internal sealed class WorldArt
     public Texture2D? Objects { get; private set; }
     public void Load()
     {
-        if (ResourceLoader.Exists("res://assets/natural-terrain.png")) { Terrain = GD.Load<Texture2D>("res://assets/natural-terrain.png"); }
-        if (ResourceLoader.Exists("res://assets/natural-objects.png")) { Objects = GD.Load<Texture2D>("res://assets/natural-objects.png"); }
+        if (ResourceLoader.Exists("res://assets/textures/natural-terrain.png")) { Terrain = GD.Load<Texture2D>("res://assets/textures/natural-terrain.png"); }
+        if (ResourceLoader.Exists("res://assets/textures/natural-objects.png")) { Objects = GD.Load<Texture2D>("res://assets/textures/natural-objects.png"); }
         GD.Print("WORLD_ART terrain=" + (Terrain?.GetSize().ToString() ?? "missing") + " objects=" + (Objects?.GetSize().ToString() ?? "missing"));
     }
     public static Rect2 Region(Texture2D texture, int index)

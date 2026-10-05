@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c263ei14fja7y"
-path="res://.godot/imported/ecology-projects-v1.png-2ac18d71b252fc9f8373a527f51c3ea6.ctex"
+uid="uid://nrl43gvsir2r"
+path="res://.godot/imported/natural-terrain.png-3cc9b0dabf2accc980e432d6f2127d88.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/Art/ecology-projects-v1.png"
-dest_files=["res://.godot/imported/ecology-projects-v1.png-2ac18d71b252fc9f8373a527f51c3ea6.ctex"]
+source_file="res://assets/textures/natural-terrain.png"
+dest_files=["res://.godot/imported/natural-terrain.png-3cc9b0dabf2accc980e432d6f2127d88.ctex"]
 
 [params]
 
@@ -23,8 +23,8 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
-mipmaps/limit=-1
+mipmaps/generate=true
+mipmaps/limit=3
 roughness/mode=0
 roughness/src_normal=""
 process/channel_remap/red=0

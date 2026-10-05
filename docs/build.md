@@ -1,0 +1,59 @@
+# 构建与运行
+
+以下命令从仓库根目录运行，使用 PowerShell 7。
+
+## 构建工程
+
+```powershell
+# Core、Console 与测试：.NET 8 SDK
+./tools/build.ps1 -Mode build -Configuration Release -Channel sdk -ParallelBuild
+
+# Godot C# 客户端
+./tools/godot.ps1 -Mode build -Configuration Release
+
+# 图形运行与编辑器
+./tools/godot.ps1 -Mode run
+./tools/godot.ps1 -Mode editor
+```
+
+Core、Console 与测试另支持 `-Channel csc`，适用于已有 .NET 运行时与 Roslyn 编译器的环境；Godot 使用其 .NET SDK。自动通道通过 `-Channel auto` 选择。SDK 探测、平台可执行名称与默认安装位置集中在 `tools/build-lib.ps1`。
+
+`-ParallelBuild` 开启并行构建；不传时使用串行模式。构建输出位于 `artifacts/<Configuration>` 和项目的 `bin/obj`；Godot 缓存位于客户端 `.godot` 目录，均不提交。
+
+## 命令行模拟
+
+```powershell
+# 交互 TUI
+./tools/run.ps1
+
+# 指定种子与居民，运行 30 天
+./tools/run.ps1 -Mode headless -Seed 839102 -Days 30 -Agents 40
+
+# 同种子重放摘要
+./tools/run.ps1 -Mode digest -Seed 839102 -Days 30 -Agents 40
+
+# 定期快照与多种子模拟
+./tools/run.ps1 -Mode snapshot -Days 30 -Agents 40 -SnapshotDays 5
+./tools/run.ps1 -Mode batch -SeedRange 1..5 -Days 30 -Agents 40
+```
+
+`-ConfigPath` 指定模拟配置，`-Width/-Height` 设置地图，`-OutDir` 指定输出目录。默认运行数据放在 `runs/`，包含统计、事件、模拟记录、摘要与地图快照。Console 运行内核，不继续执行图形会话的工程、试炼或蓝图。
+
+## 测试
+
+```powershell
+./tools/test.ps1 -Configuration Release -Channel sdk
+./tools/test.ps1 -Filter ConstructionOrder -Configuration Release
+./tools/test.ps1 -Filter SettlementBlueprint -Configuration Release
+./tools/godot.ps1 -Mode test
+./tools/test-build.ps1
+git diff --check
+```
+
+自带测试运行器支持名称过滤、通过/失败/跳过统计和失败退出码。客户端自检覆盖只读观察、保存、工程、建造规划、蓝图、鼠标手势与窗口布局。图形改动还应检查实际窗口；无头自检不替代画面检查。
+
+## 持续集成
+
+`.github/workflows/ci.yml` 在 Windows、Linux 和 macOS 上构建与运行核心回归，并运行确定性和模拟检查；`godot.yml` 检查图形构建、资源导入和客户端自检。服务端执行结果以 GitHub 对相应提交的检查为准。
+
+安装工具链见 [安装与启动](getting-started.md)，目录职责见 [项目架构](architecture.md)。

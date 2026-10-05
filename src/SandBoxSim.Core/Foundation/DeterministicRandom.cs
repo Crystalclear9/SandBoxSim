@@ -76,7 +76,7 @@ public enum RngStream
 ///   3. 状态只有 4 个 ulong，存档里能直接写出，读回来精确续跑。
 ///
 /// 这是模拟内核里**唯一**允许的随机源。禁止使用 System.Random。
-/// 状态可保存/恢复，因此 save-load 之后随机序列不会错位（见 docs/13）。
+/// 状态可保存/恢复，因此 save-load 之后随机序列不会错位（见 docs/saving.md）。
 /// </summary>
 public sealed class DeterministicRandom
 {

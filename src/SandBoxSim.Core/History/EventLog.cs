@@ -5,7 +5,7 @@ namespace SandBoxSim.Core.History;
 /// <summary>
 /// 事件类型（第 56 节）。新增事件类型时必须同步：
 ///   1. <see cref="EventLog"/> 的中文描述生成；
-///   2. docs/10-DebugAndObservation.md 的事件表；
+///   2. docs/archive/10-DebugAndObservation.md 的事件表；
 ///   3. 报告里"关键事件"的筛选规则。
 /// 漏掉任何一处都会让玩家看到"这条事件没有说明"，破坏可解释性（第 91 / 92 节）。
 /// </summary>

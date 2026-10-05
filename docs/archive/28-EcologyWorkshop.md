@@ -32,7 +32,7 @@
 当前数据是实时观察，完工对照保留为冻结报告。展开“完工对照”查看建设前与完工时的差异；之后管理不会改写它。
 
 ## 增加自己的工程配方
-客户端文件为 [projects.json](../src/SandBoxSim.Godot/assets/Gameplay/projects.json)。编辑它，再创建新世界。现有存档嵌入原配方，以免修改配置后让旧世界的后续结果突然变化。
+客户端文件为 [projects.json](../../src/SandBoxSim.Godot/assets/gameplay/projects.json)。编辑它，再创建新世界。现有存档嵌入原配方，以免修改配置后让旧世界的后续结果突然变化。
 
 在 projects 数组末尾增加一个对象，例如：
 

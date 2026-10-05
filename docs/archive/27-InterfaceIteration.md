@@ -13,9 +13,9 @@
 
 土地管理页用卡片区分每项工程。卡片显示实际进度或管理方式、当前地表粮食、湿度、植被和当地居民数。自然、维护、采集三个按钮切换政策；“完工对照”展开冻结报告。新状态与历史对照分别阅读，避免把持续变化当作一次固定奖励。
 
-![生态工程图册与落点预览](images/ecology-workshop.png)
+![生态工程图册与落点预览](../images/ecology-workshop.png)
 
-![持续土地管理](images/ecology-management.png)
+![持续土地管理](../images/ecology-management.png)
 
 ## 配色与可读性
 深色炭绿表面承接场景的树影，暖铜色标识操作选择与标题，浅灰绿用于次级说明。图标、菜单、输入框、历史链接和曲线使用统一颜色。火情、疾病和需求有各自的提示色；人物状态条将危险值单独标记。
@@ -25,9 +25,9 @@
 ## 世界反馈
 真实天气和模拟日间进度驱动光照、太阳角度与雾气，变化平滑过渡。建设与持续管理区域保留 3D 圈与标签，小地图同样标记。视觉读取状态，不改写天气、时间或随机数。
 
-![默认世界视野](images/ecology-overview.png)
+![默认世界视野](../images/ecology-overview.png)
 
-![1280 × 800 中的工坊](images/ecology-compact.png)
+![1280 × 800 中的工坊](../images/ecology-compact.png)
 
 ## 阅读
 [玩家手册](24-PlayerHandbook.md)说明操作，[世界如何运转](26-WorldGuide.md)解释系统，[生态工坊与扩展](28-EcologyWorkshop.md)说明组合策略与配方，[开发指南](25-DeveloperGuide.md)说明源码。

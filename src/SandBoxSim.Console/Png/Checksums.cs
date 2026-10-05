@@ -2,7 +2,7 @@ namespace SandBoxSim.ConsoleApp.Png;
 
 /// <summary>
 /// 校验和：PNG 用 CRC-32，zlib 用 Adler-32。
-/// 两者都必须手写：本仓库不使用任何 NuGet 包（见 docs/12 的构建通道说明），
+/// 两者都必须手写：本仓库不使用任何 NuGet 包（见 docs/build.md 的构建通道说明），
 /// 而 System.IO.Compression 的 DeflateStream 无法直接产出 zlib 容器。
 /// </summary>
 public static class Checksums

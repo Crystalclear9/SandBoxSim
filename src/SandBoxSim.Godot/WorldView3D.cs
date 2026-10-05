@@ -92,7 +92,7 @@ public partial class WorldView3D : MapView
         _actors = new Node3D(); _scene.AddChild(_actors);
         _models = new NatureModels();
         BuildHazardVisuals();
-        if (ResourceLoader.Exists("res://assets/natural-terrain.png")) { _terrainAtlas = GD.Load<Texture2D>("res://assets/natural-terrain.png"); }
+        if (ResourceLoader.Exists("res://assets/textures/natural-terrain.png")) { _terrainAtlas = GD.Load<Texture2D>("res://assets/textures/natural-terrain.png"); }
         var sky = new ProceduralSkyMaterial { SkyTopColor = new Color("#779ca9"), SkyHorizonColor = new Color("#d4d4b8"), GroundHorizonColor = new Color("#b8c2a0"), GroundBottomColor = new Color("#465346") };
         _weatherEnvironment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Sky,
             Sky = new Sky { SkyMaterial = sky }, AmbientLightSource = Godot.Environment.AmbientSource.Sky,

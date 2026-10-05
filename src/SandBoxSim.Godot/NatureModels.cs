@@ -13,7 +13,7 @@ internal sealed partial class NatureModels
     private readonly Dictionary<string, Mesh> _meshes = new();
     public NatureModels()
     {
-        Texture2D? atlas = ResourceLoader.Exists("res://assets/natural-materials.png") ? GD.Load<Texture2D>("res://assets/natural-materials.png") : null;
+        Texture2D? atlas = ResourceLoader.Exists("res://assets/textures/natural-materials.png") ? GD.Load<Texture2D>("res://assets/textures/natural-materials.png") : null;
         if (atlas != null)
         {
             var shader = new Shader { Code = "shader_type spatial; uniform sampler2D atlas : source_color, filter_linear_mipmap; uniform vec2 cell; uniform vec4 tint : source_color = vec4(1.0); uniform float roughness = 0.92; uniform float repeat_scale = 1.0; void fragment(){ vec2 uv = (clamp(fract(UV*repeat_scale), vec2(0.01), vec2(0.99)) + cell) / 4.0; ALBEDO = texture(atlas, uv).rgb * tint.rgb; ROUGHNESS = roughness; }" };

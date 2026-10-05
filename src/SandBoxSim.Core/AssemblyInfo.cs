@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 // 程序集级特性（刻意写在源码里，而不是 .csproj 的 MSBuild 项里）
 //
 // 为什么：MSBuild 的 <InternalsVisibleTo> 项依赖 SDK 生成 AssemblyInfo 才生效，
-// 而本仓库的降级构建通道（Roslyn csc 直编，见 docs/12-Milestones.md）不走 SDK。
+// 而本仓库的降级构建通道（Roslyn csc 直编，见 docs/build.md）不走 SDK。
 // 写成源码特性后，通道 A 与通道 B 的行为完全一致 —— 否则会出现
 // "有 SDK 时测试全绿、没有 SDK 时 Core 编不过"这种极难排查的双通道分叉。
 //

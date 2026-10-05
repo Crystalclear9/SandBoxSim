@@ -3,7 +3,7 @@ namespace SandBoxSim.Tests.Framework;
 /// <summary>
 /// 标记一个测试方法（无参、返回 void）。
 /// 用自定义特性而不是 xUnit：本仓库要求"只有 Roslyn csc 也能编译并运行测试"
-/// （见 docs/12-Milestones.md 的构建通道说明），任何 NuGet 依赖都会破坏这条通道。
+/// （见 docs/build.md 的构建通道说明），任何 NuGet 依赖都会破坏这条通道。
 /// </summary>
 [System.AttributeUsage(System.AttributeTargets.Method, AllowMultiple = false)]
 public sealed class FactAttribute : System.Attribute
@@ -35,7 +35,7 @@ public sealed class TheoryCase
 ///   * 特性只带一个显示名（可选），用于筛选与报告；
 ///   * 用例数据写在方法体内，通过 <c>Framework.Theory.Cases(...)</c> 返回；
 ///   * 运行器按 CS0182 的错误提示无法做到的事，用"方法内部循环 + 逐条断言"达成，
-///     代价是需要应用一个约定（见 docs/12-Milestones.md 的测试章节）。
+///     代价是需要应用一个约定（见 docs/build.md 的测试章节）。
 /// 这个约定在测试里由 <c>RunnerConstraintsTests</c> 把关：标记了 [Theory] 的方法
 /// 必须至少有一个参数，否则会被判为误用。
 /// </summary>

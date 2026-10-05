@@ -25,12 +25,12 @@ public partial class MainGame
     private readonly System.Collections.Generic.Dictionary<int, Godot.Button> _scopeButtons = new();
     private static ProjectCatalog LoadProjectCatalog()
     {
-        try { return ProjectCatalog.Parse(Godot.FileAccess.GetFileAsString("res://assets/Gameplay/projects.json")); }
+        try { return ProjectCatalog.Parse(Godot.FileAccess.GetFileAsString("res://assets/gameplay/projects.json")); }
         catch (Exception ex) { GD.PushWarning("工程配方加载失败，使用默认配方：" + ex.Message); return ProjectCatalog.Default; }
     }
     private Texture2D ProjectArt(int art)
     {
-        _projectAtlas ??= GD.Load<Texture2D>("res://assets/Art/ecology-projects-v1.png");
+        _projectAtlas ??= GD.Load<Texture2D>("res://assets/illustrations/ecology-projects-v1.png");
         Vector2 cell = _projectAtlas.GetSize() / 2;
         return new AtlasTexture { Atlas = _projectAtlas, Region = new Rect2(new Vector2(art % 2, art / 2) * cell, cell) };
     }

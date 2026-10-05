@@ -29,7 +29,7 @@ namespace SandBoxSim.Tests;
 /// # 它会打印什么
 ///
 /// 每个种子的：是否形成聚落、成立时间、最高等级、聚落数。
-/// 这些数字本身就是这一阶段的交付证据 —— 它们会进 CHANGELOG 与 docs/12。
+/// 这些数字本身就是这一阶段的交付证据 —— 原始记录见 docs/archive/development-changelog.md 与 docs/archive/12-Milestones.md。
 /// </summary>
 public sealed class M7BatchAcceptance
 {
