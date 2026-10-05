@@ -31,6 +31,7 @@
 | 20 | [FullDeliveryChecklist](20-FullDeliveryChecklist.md) | 全部 100 节的实现与验收追踪 | 核验中 |
 | 21 | [VisualInterface](21-VisualInterface.md) | 真实 3D 客户端、HUD 设计、操作与本地视觉验收 | 2026-10-05 |
 | 22 | [ArtAssets](22-ArtAssets.md) | 原创图集、生成提示与 3D 导入设置 | 已记录 |
+| 23 | [GameplayTrials](23-GameplayTrials.md) | 世界试炼、干预额度、居民诉求、危机反馈与玩法对照 | 2026-10-05 |
 
 早期里程碑的性能数字与界面描述保留为历史记录；当前图形客户端以 21 为准，完整任务书状态以 20 为准。
 

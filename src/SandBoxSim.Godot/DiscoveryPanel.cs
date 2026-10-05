@@ -20,6 +20,8 @@ public partial class DiscoveryPanel : VBoxContainer
         AddThemeConstantOverride("separation", 18);
         _sceneName = HudStyle.Label("河谷新生", 20); AddChild(_sceneName);
         _question = HudStyle.Label("", 14, true); _question.AutowrapMode = TextServer.AutowrapMode.WordSmart; AddChild(_question);
+        var play = new Godot.Button { Text = "应对局势 · 开启试炼  →", Alignment = HorizontalAlignment.Left }; HudStyle.Button(play); AddChild(play);
+        play.Pressed += () => Game.OpenTrials();
         AddChild(new HSeparator());
         var values = new GridContainer { Columns = 2 }; values.AddThemeConstantOverride("h_separation", 32); values.AddThemeConstantOverride("v_separation", 14); AddChild(values);
         string[] captions = { "安居的居民", "饥饿的居民", "食草动物", "完成的交易" };

@@ -70,6 +70,7 @@ public partial class WorldView3D : MapView
         _props = new Node3D(); _scene.AddChild(_props);
         _actors = new Node3D(); _scene.AddChild(_actors);
         _models = new NatureModels();
+        BuildHazardVisuals();
         if (ResourceLoader.Exists("res://assets/natural-terrain.png")) { _terrainAtlas = GD.Load<Texture2D>("res://assets/natural-terrain.png"); }
         var sky = new ProceduralSkyMaterial { SkyTopColor = new Color("#779ca9"), SkyHorizonColor = new Color("#d4d4b8"), GroundHorizonColor = new Color("#b8c2a0"), GroundBottomColor = new Color("#465346") };
         _scene.AddChild(new WorldEnvironment { Environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Sky,
@@ -225,7 +226,7 @@ public partial class WorldView3D : MapView
         _observedRoute = new Int2[Game.Sim.World.Tiles.Length]; _density = new int[Game.Sim.World.Tiles.Length];
         _routes.Mesh = null; _natureSignature = 0;
         foreach (var e in _effects) { e.Node.QueueFree(); } _effects.Clear(); _people.Clear(); _deer.Clear(); _wolves.Clear(); _personModels.Clear();
-        BuildTerrain(); BuildNature(); BuildBuildings(); SyncEntities();
+        BuildTerrain(); BuildNature(); BuildBuildings(); SyncEntities(); SyncHazards();
     }
     private void CheckTerrain()
     {
@@ -465,6 +466,7 @@ void fragment(){
     }
     private void SyncEntities()
     {
+        SyncHazards();
         var sim = Game.Sim; var live = new HashSet<long>();
         foreach (int slot in sim.Agents.AliveSlots())
         {

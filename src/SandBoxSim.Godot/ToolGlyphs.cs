@@ -33,6 +33,7 @@ internal static class ToolGlyphs
             PlayerTool.Plague => "<circle cx='24' cy='24' r='11'/><path d='M24 7v6m0 22v6M7 24h6m22 0h6M12 12l4 4m16 16 4 4M12 36l4-4m16-16 4-4'/><circle cx='20' cy='22' r='1'/><circle cx='28' cy='27' r='1'/>",
             PlayerTool.Meteor => "<circle cx='15' cy='33' r='9'/><path d='m22 27 17-17M16 20 29 7M28 33l13-13'/>",
             PlayerTool.Heal => "<path d='M19 7h10v12h12v10H29v12H19V29H7V19h12Z'/>",
+            PlayerTool.Rain => "<path d='M12 25a7 7 0 0 1 0-14 10 10 0 0 1 19-2 8 8 0 1 1 6 16ZM14 31l-3 7m13-7-3 7m13-7-3 7'/>",
             PlayerTool.BirthBlessing => "<path d='M24 40C5 28 5 17 12 12c5-4 10-1 12 4 2-5 7-8 12-4 7 5 7 16-12 28ZM24 23v10m-5-5h10'/>",
             PlayerTool.Production => "<path d='M24 5v7m0 24v7M5 24h7m24 0h7M10 10l5 5m18 18 5 5M10 38l5-5m18-18 5-5m-14-1 3 9 9 3-9 3-3 9-3-9-9-3 9-3Z'/>",
             _ => "<path d='M9 37h30M12 30l6-13 6 9 6-15 6 19'/>",

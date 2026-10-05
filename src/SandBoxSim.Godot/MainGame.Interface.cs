@@ -93,6 +93,7 @@ public partial class MainGame
         var details = ActionButton(detailControls, "显示决策与性格", () => { _decisionDetails = !_decisionDetails; RefreshPanels(); }); details.ToggleMode = true;
         _inspector = TextPanel("人物详情"); personPanel.AddChild(_inspector); _history = TextPanel("历史"); _drawer.AddChild(_history);
         _chart = new StatisticsView { Name = "曲线", Game = this }; _drawer.AddChild(_chart);
+        BuildTrialPanel();
 
         _brushPanel = Surface(overlay, new Vector2(0, 0), new Vector2(24, 116), new Vector2(245, 230), 20);
         var brush = new VBoxContainer(); brush.AddThemeConstantOverride("separation", 10); _brushPanel.AddChild(brush);
@@ -117,11 +118,11 @@ public partial class MainGame
         Rule(tools, "资源双倍恢复", () => Sim.Config.Rules.DoubleResource, v => Sim.Config.Rules.DoubleResource = v);
         Rule(tools, "和平模式", () => Sim.Config.Rules.PeaceMode, v => Sim.Config.Rules.PeaceMode = v);
         Rule(tools, "禁止聚落战争", () => Sim.Config.Rules.DisableWar, v => Sim.Config.Rules.DisableWar = v);
-        var weather = new HBoxContainer(); tools.AddChild(weather); ActionButton(weather, "降雨", () => Sim.InterveneForceWeather(WeatherKind.Rain, 24)); ActionButton(weather, "旱季", () => Sim.InterveneForceWeather(WeatherKind.Drought, 24));
+        var weather = new HBoxContainer(); tools.AddChild(weather); ActionButton(weather, "降雨", () => TrialWeather(WeatherKind.Rain)); ActionButton(weather, "旱季", () => TrialWeather(WeatherKind.Drought));
         tools.AddChild(new HSeparator()); tools.AddChild(HudStyle.Label("观察图层", 17));
         var layer = new OptionButton(); foreach (string text in new[] { "自然地形", "聚落领土", "资源储量", "湿度", "肥力", "食物分布", "人口密度", "AI 状态", "行动路径" }) { layer.AddItem(text); }
         tools.AddChild(layer); layer.ItemSelected += i => _map.Overlay = (int)i;
-        _birth = Spin(tools, "出生概率", 0, 1, Sim.Config.Birth.BaseChancePerDay, .005); _birth.ValueChanged += v => Sim.Config.Birth.BaseChancePerDay = (float)v;
+        _birth = Spin(tools, "出生概率", 0, 1, Sim.Config.Birth.BaseChancePerDay, .005); _birth.ValueChanged += v => { Sim.Config.Birth.BaseChancePerDay = (float)v; Trial.MarkAssisted(); };
         _seed = Spin(tools, "随机种子", 0, int.MaxValue, Sim.World.Seed);
         ActionButton(tools, "重新生成世界", () => { NewWorld((int)_seed.Value); _checkpoint = ""; _map.Focus(43, 50, 16); });
         ActionButton(tools, "保存世界…", () => _save.PopupCenteredRatio(.65f)); ActionButton(tools, "载入世界…", () => _load.PopupCenteredRatio(.65f));
@@ -150,6 +151,7 @@ public partial class MainGame
         _save = Dialog(FileDialog.FileModeEnum.SaveFile); _save.FileSelected += SaveWorld; _load = Dialog(FileDialog.FileModeEnum.OpenFile); _load.FileSelected += LoadWorld;
         Resized += FitHud; FitHud();
         RefreshPanels();
+        OpenTrials();
     }
     private void FitHud() => FitHudFor(Size);
     private void FitHudFor(Vector2 size)
@@ -208,7 +210,7 @@ public partial class MainGame
             "地貌" => new[] { PlayerTool.Grass, PlayerTool.River, PlayerTool.Mountain, PlayerTool.Sand, PlayerTool.Raise, PlayerTool.Lower, PlayerTool.RemoveWater },
             "资源" => new[] { PlayerTool.Forest, PlayerTool.Food, PlayerTool.Wood, PlayerTool.Stone, PlayerTool.Iron, PlayerTool.Fertility },
             "灾害" => new[] { PlayerTool.Fire, PlayerTool.Lightning, PlayerTool.Flood, PlayerTool.Drought, PlayerTool.Plague, PlayerTool.Meteor },
-            "祝福" => new[] { PlayerTool.Heal, PlayerTool.BirthBlessing, PlayerTool.Production, PlayerTool.Fertility },
+            "祝福" => new[] { PlayerTool.Heal, PlayerTool.Rain, PlayerTool.BirthBlessing, PlayerTool.Production, PlayerTool.Fertility },
             _ => new[] { PlayerTool.Inspect, PlayerTool.Human, PlayerTool.Animal, PlayerTool.Wolf, PlayerTool.Forest, PlayerTool.Food }
         };
         foreach (PlayerTool tool in tools)

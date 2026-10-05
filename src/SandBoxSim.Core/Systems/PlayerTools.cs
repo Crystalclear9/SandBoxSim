@@ -10,7 +10,7 @@ public enum PlayerTool
     Inspect, Human, Animal, Forest, Food, Wood, Stone, Iron,
     Grass, Water, Mountain, Sand, Farmland, Road, Snow, Swamp, Desert, Lava,
     Raise, Lower, River, RemoveWater, Fertility, BirthBlessing, Heal, Production,
-    Fire, Lightning, Flood, Drought, Plague, Meteor, Wolf
+    Fire, Lightning, Flood, Drought, Plague, Meteor, Wolf, Rain
 }
 /// <summary>UI 与自动验收共用的干预入口。玩家改变条件，不能直接创建社会结果。</summary>
 public static class PlayerTools
@@ -66,6 +66,15 @@ public static class PlayerTools
                     sim.InterveneSetTerrain(px, py, height < 0.25f ? TerrainKind.Water : height > 0.75f ? TerrainKind.Mountain : TerrainKind.Grass);
                 }
                 if (tool == PlayerTool.Drought) { sim.World.SetMoisture(px, py, 0); }
+                if (tool == PlayerTool.Rain)
+                {
+                    sim.World.SetMoisture(px, py, SimMath.Clamp01(tile.Moisture + strength / 100));
+                    if (tile.Fire == FireState.Burning && strength >= 25)
+                    {
+                        sim.World.SetFire(px, py, FireState.None);
+                        sim.Events.Record(sim.Clock, WorldEventType.FireExtinguished, "降雨扑灭火情", EventImportance.Minor, new Int2(px, py), cause: "玩家降雨");
+                    }
+                }
                 if (tool == PlayerTool.Production && tile.Resource.RegenerationRate > 0)
                 { var node = tile.Resource; node.RegenerationRate *= 1 + strength / 100; sim.World.SetResource(px, py, node); }
                 if (tool == PlayerTool.Fire || tool == PlayerTool.Lightning) { sim.Fire.Ignite(px, py, sim.Clock, "玩家干预"); }

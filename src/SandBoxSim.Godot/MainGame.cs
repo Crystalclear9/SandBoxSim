@@ -17,6 +17,7 @@ public partial class MainGame : Control
     public Simulation Sim { get; private set; } = null!;
     public PlayerTool Tool { get; private set; }
     public int Scenario { get; private set; }
+    public WorldTrial Trial { get; private set; } = new();
     public int Radius => (int)_radius.Value;
     public float Strength => (float)_strength.Value;
     public int SelectedSlot => _selected >= 0 && Sim.Agents.IsSlotAlive(_selected)
@@ -48,6 +49,7 @@ public partial class MainGame : Control
     private int _previewDays;
     private string _previewView = "";
     private string _previewPanel = "";
+    private int _previewTrial = -1, _trialPreviewDays;
     private double _benchmarkSeconds, _benchmarkElapsed, _benchmarkMeasuredSeconds;
     private long _benchmarkFrames;
     private string _benchmarkOutput = "";
@@ -56,7 +58,7 @@ public partial class MainGame : Control
         "观察 / 选择", "创造人类", "创造食草动物", "生长森林", "添加食物", "添加木材", "添加石料", "添加铁矿",
         "草地", "水域", "山脉", "沙地", "农田", "道路", "雪地", "沼泽", "沙漠", "熔岩",
         "升高地形", "降低地形", "河流画笔", "移除水域", "肥力祝福", "生育祝福", "治愈祝福", "生产祝福",
-        "火灾", "闪电", "洪水", "干旱", "瘟疫", "陨石", "创造狼"
+        "火灾", "闪电", "洪水", "干旱", "瘟疫", "陨石", "创造狼", "局部降雨"
     };
 
     public override void _Ready()
@@ -76,15 +78,19 @@ public partial class MainGame : Control
             if (arg.StartsWith("--demo-days=", StringComparison.Ordinal)) { int.TryParse(arg.Substring(12), out _previewDays); _previewDays = Math.Clamp(_previewDays, 0, 30); }
             if (arg.StartsWith("--view=", StringComparison.Ordinal)) { _previewView = arg.Substring(7); }
             if (arg.StartsWith("--panel=", StringComparison.Ordinal)) { _previewPanel = arg.Substring(8); }
+            if (arg.StartsWith("--trial=", StringComparison.Ordinal) && int.TryParse(arg.Substring(8), out int trial)) { _previewTrial = Math.Clamp(trial, 0, 2); }
+            if (arg.StartsWith("--trial-days=", StringComparison.Ordinal) && int.TryParse(arg.Substring(13), out int trialDays)) { _trialPreviewDays = Math.Clamp(trialDays, 0, 14); }
         }
         NewWorld(839102);
         if (_previewDays > 0) { Sim.Tick(_previewDays * Sim.Config.Clock.TicksPerDay); }
         BuildInterface();
+        if (_previewTrial >= 0) { StartTrial(_previewTrial); AdvanceWorld(_trialPreviewDays * Sim.Config.Clock.TicksPerDay); RefreshTrialPanel(); }
         if (_selfTest) { RunSelfTest(); }
     }
     private void NewWorld(int seed)
     {
         Sim = SandboxScenarios.Create(Scenario, seed, _initialPopulation);
+        Trial = new WorldTrial();
         SubscribeVisualEvents();
         _pending = 0; _selected = -1; _selectedPersonId = 0; _selectedAnimal = -1; _selectedWolf = -1;
         SyncControls();
@@ -99,7 +105,7 @@ public partial class MainGame : Control
     {
         var check = new CheckBox { Text = label, ButtonPressed = get() }; parent.AddChild(check);
         _rules.Add((check, get));
-        check.Toggled += value => { set(value); Sim.InterveneRecordAuxiliary(label + " = " + value); };
+        check.Toggled += value => { set(value); Trial.MarkAssisted(); Sim.InterveneRecordAuxiliary(label + " = " + value); };
     }
     private void SyncControls()
     {
@@ -120,6 +126,7 @@ public partial class MainGame : Control
             PlayerTool.Wolf => "加入捕食者，观察鹿群与植被的连锁变化。",
             PlayerTool.Fire => "火会蔓延；水源、天气与燃料决定后果。",
             PlayerTool.Food => "增加本地粮食，观察生存、出生与贸易需求。",
+            PlayerTool.Rain => "增加局部土壤湿度；强度至少 25 时扑灭范围内的火，保留未烧尽的植被。",
             PlayerTool.Grass or PlayerTool.Road => "改变通行条件，让分隔的居民有机会相遇。",
             PlayerTool.Inspect => "点击人物、动物或聚落，追踪他们的故事。",
             _ => "在地图点击或拖动施加干预；右键 / Esc 返回观察。"
@@ -215,7 +222,7 @@ public partial class MainGame : Control
         try
         {
             string temporary = path + ".tmp";
-            System.IO.File.WriteAllText(temporary, EncodeClientWorld(), Encoding.UTF8);
+            System.IO.File.WriteAllText(temporary, EncodeClientWorld(true), Encoding.UTF8);
             System.IO.File.Move(temporary, path, true);
             _status.Text = "已保存 " + path;
         }
@@ -233,17 +240,27 @@ public partial class MainGame : Control
             var restored = Simulation.CreateForRestore(config, root.GetInt("width"), root.GetInt("height"), root.GetInt("seed"));
             var result = SaveLoader.Load(restored, json);
             if (!result.Success || !result.DigestMatches) { throw new InvalidOperationException(result.Error + " " + result.SegmentDifference); }
-            RestoreClientContext(root);
+            RestoreClientContext(root, true);
             Sim = restored; SubscribeVisualEvents(); _selected = -1; _selectedPersonId = 0; _selectedAnimal = -1; _selectedWolf = -1; _pending = 0; _map.Center(); SyncControls();
             _status.Text = "已恢复第 " + result.Day + " 天"; RefreshPanels(); _discovery.Refresh();
         }
         catch (Exception ex) { _status.Text = "载入失败：" + ex.Message; GD.PushError(ex.Message); }
     }
-    private string EncodeClientWorld()
-        => JsonParser.Parse(SaveFile.Encode(Sim)).Set("client", JsonValue.Object().Set("scenario", JsonValue.From(Scenario))).ToJson(true);
-    private void RestoreClientContext(JsonValue root)
+    private string EncodeClientWorld(bool includeCheckpoint = false)
+    {
+        var client = JsonValue.Object().Set("scenario", JsonValue.From(Scenario)).Set("trial", Trial.Encode());
+        if (includeCheckpoint) { client.Set("checkpoint", JsonValue.From(_checkpoint)).Set("experiment", JsonValue.From(_experimentLabel)); }
+        return JsonParser.Parse(SaveFile.Encode(Sim)).Set("client", client).ToJson(true);
+    }
+    private void RestoreClientContext(JsonValue root, bool restoreCheckpoint = false)
     {
         Scenario = Math.Clamp(root.Get("client").GetInt("scenario", Scenario), 0, SandboxScenarios.Names.Length - 1);
+        Trial = WorldTrial.Decode(root.Get("client").Get("trial"));
+        if (restoreCheckpoint)
+        {
+            _checkpoint = root.Get("client").GetString("checkpoint", "");
+            _experimentLabel = root.Get("client").GetString("experiment", "实验起点");
+        }
         _scenarioPicker.Select(Scenario);
     }
     public override void _Process(double delta)
@@ -272,11 +289,11 @@ public partial class MainGame : Control
         {
             _pending += delta * Sim.Config.Clock.TicksPerSecondAt1x * _speed;
             int ticks = Math.Min((int)_pending, Sim.Config.Clock.MaxCatchUpTicksPerFrame);
-            Sim.Tick(ticks); _pending -= ticks;
+            AdvanceWorld(ticks); _pending -= ticks;
         }
         _refresh += delta;
         _map.QueueRedraw();
-        if (_refresh >= 0.2) { _refresh = 0; RefreshPanels(); SyncControls(); _chart.QueueRedraw(); _discovery.Refresh(); }
+        if (_refresh >= 0.2) { _refresh = 0; RefreshPanels(); RefreshTrialPanel(); SyncControls(); _chart.QueueRedraw(); _discovery.Refresh(); }
         _captureElapsed += delta;
         if (_capture.Length > 0 && !_captureRequested && _captureElapsed >= .7) { _captureRequested = true; Capture(); }
         if (_selfTest && _frames >= 15) { GetTree().Quit(0); }
@@ -320,6 +337,7 @@ public partial class MainGame : Control
         if (Tool != PlayerTool.Inspect)
         {
             int before = Sim.Agents.LiveCount;
+            if (!Trial.TrySpend(Tool, Radius, Strength)) { _status.Text = Trial.Notice; RefreshTrialPanel(); return; }
             PlayerTools.Apply(Sim, Tool, x, y, Radius, Strength); _map.QueueRedraw();
             _map.Effect(x, y, Tool >= PlayerTool.Fire && Tool <= PlayerTool.Meteor ? new Color("#e59970") : new Color("#c5dda0"), ToolNames[(int)Tool]);
             _status.Text = $"{ToolNames[(int)Tool]} · ({x}, {y}) · 半径 {Radius}" + (Tool == PlayerTool.Human ? $" · 新增 {Sim.Agents.LiveCount - before} 人" : " · 观察接下来的变化");
@@ -479,6 +497,31 @@ public partial class MainGame : Control
             var restored = Simulation.CreateForRestore(Sim.Config.Clone(), 100, 100, 1);
             var result = SaveLoader.Load(restored, saved);
             if (!result.Success || !result.DigestMatches) { throw new Exception("Client save round trip failed"); }
+            var originalTrial = Trial;
+            try
+            {
+                StartTrial(1);
+                if (!Trial.Running || _drawer.CurrentTab != 4) { throw new Exception("Trial entry failed"); }
+                string trialSave = EncodeClientWorld();
+                var savedTrial = WorldTrial.Decode(JsonParser.Parse(trialSave).Get("client").Get("trial"));
+                if (!savedTrial.Running || savedTrial.OriginalCount != Sim.Agents.LiveCount) { throw new Exception("Trial save omitted player session"); }
+                var fileSave = JsonParser.Parse(EncodeClientWorld(true));
+                string savedCheckpoint = fileSave.Get("client").GetString("checkpoint");
+                if (savedCheckpoint.Length == 0 || !JsonParser.Parse(savedCheckpoint).Get("client").Get("checkpoint").IsNull)
+                    { throw new Exception("Trial checkpoint missing or recursively nested"); }
+                PrepareAid(PlayerTool.Rain, Trial.Location);
+                if (Tool != PlayerTool.Rain || Strength < 25) { throw new Exception("Rain preparation failed"); }
+                string trialBefore = StateHash.ComputeDigest(Sim); RefreshTrialPanel();
+                if (trialBefore != StateHash.ComputeDigest(Sim)) { throw new Exception("Trial panel mutated world"); }
+                Trial.TrySpend(PlayerTool.Human, 0, 40); SelectTool(PlayerTool.Food);
+                string blockedBefore = StateHash.ComputeDigest(Sim); ClickTile(20, 20);
+                if (blockedBefore != StateHash.ComputeDigest(Sim)) { throw new Exception("Rejected intervention mutated world"); }
+                PlayerTools.Apply(Sim, PlayerTool.Forest, 20, 20, 1, 10); Sim.Fire.Ignite(20, 20, Sim.Clock, "客户端火情自检");
+                int patient = Sim.Agents.AliveSlots().FirstOrDefault(-1); if (patient >= 0) { Sim.Diseases.Infect(patient); }
+                string hazardBefore = StateHash.ComputeDigest(Sim); ((WorldView3D)_map).ValidateHazardVisuals();
+                if (hazardBefore != StateHash.ComputeDigest(Sim)) { throw new Exception("Hazard rendering mutated world"); }
+            }
+            finally { Trial = originalTrial; SelectTool(PlayerTool.Inspect); _drawer.CurrentTab = 0; }
             var original = Sim;
             try
             {
