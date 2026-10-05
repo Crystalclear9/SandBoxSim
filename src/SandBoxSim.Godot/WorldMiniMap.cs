@@ -42,7 +42,7 @@ public partial class WorldMiniMap : Control
         DrawTextureRect(_terrain, rect, false); DrawRect(rect, HudStyle.Border, false, 1);
         Vector2 Position(int x, int y) => rect.Position + new Vector2((x + .5f) / sim.World.Width * rect.Size.X, (y + .5f) / sim.World.Height * rect.Size.Y);
         foreach (int slot in sim.Agents.AliveSlots()) { DrawCircle(Position(sim.Agents.XOf(slot), sim.Agents.YOf(slot)), 1.5f, HudStyle.Surface); }
-        foreach (var p in Game.Projects.Items) if (p.Active) { DrawCircle(Position(p.X, p.Y), p.Radius / (float)sim.World.Width * rect.Size.X, new Color("#9dcec0"), false, 1.5f); }
+        foreach (var p in Game.Projects.Items) if (p.Active || p.Managed) { DrawCircle(Position(p.X, p.Y), p.Radius / (float)sim.World.Width * rect.Size.X, new Color("#9dcec0"), false, 1.5f); }
         for (int i = 0; i < sim.World.Tiles.Length; i++) if (sim.World.Tiles[i].Fire == FireState.Burning) { DrawCircle(Position(i % sim.World.Width, i / sim.World.Width), 2, new Color("#ee9367")); }
         var person = sim.Society.Find(Game.PinnedPerson);
         if (person?.Alive == true) { DrawCircle(Position(sim.Agents.XOf(person.Slot), sim.Agents.YOf(person.Slot)), 4, HudStyle.Accent, false, 1.5f); }

@@ -22,7 +22,7 @@ public partial class MainGame
             int toBoundary = Sim.Config.Clock.TicksPerDay - (int)(Sim.Clock % Sim.Config.Clock.TicksPerDay);
             int step = Math.Min(ticks, toBoundary);
             string before = Trial.Notice;
-            Sim.Tick(step); ticks -= step; Projects.Advance(Sim); Trial.Advance(Sim);
+            Sim.Tick(step); ticks -= step; Projects.Advance(Sim, Trial); Trial.Advance(Sim);
             if (Trial.Notice != before && _status != null) { _status.Text = Trial.Notice; }
         }
     }

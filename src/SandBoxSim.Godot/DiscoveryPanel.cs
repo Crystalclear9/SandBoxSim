@@ -71,7 +71,7 @@ public partial class DiscoveryPanel : VBoxContainer
         {
             _cards[i].Visible = i < _alerts.Count; if (i >= _alerts.Count) { continue; }
             var a = _alerts[i]; _titles[i].Text = a.Title + "  ·  " + a.Count;
-            Color severity = a.Key == "fire" ? new Color("#a84e32") : a.Key == "disease" ? new Color("#775975") : new Color("#80683b");
+            Color severity = a.Key == "fire" ? new Color("#e5a17d") : a.Key == "disease" ? new Color("#bda0c8") : HudStyle.Accent;
             _titles[i].AddThemeColorOverride("font_color", severity);
             ((StyleBoxFlat)_cards[i].GetThemeStylebox("panel")).BorderColor = severity;
             _details[i].Text = a.Detail;
@@ -83,11 +83,11 @@ public partial class DiscoveryPanel : VBoxContainer
         var text = new StringBuilder();
         foreach (var ev in sim.Society.History.Where(e => IsStory((WorldEventType)e.Type)).TakeLast(3).Reverse())
         {
-            text.AppendLine($"[color=#70776a]第 {ev.Tick / sim.Config.Clock.TicksPerDay + 1} 天[/color]  " + ev.Description.Replace("[", "[lb]"));
-            if (ev.Actor != 0 || ev.X >= 0 && ev.Y >= 0) { text.AppendLine($"[url={ev.Actor}:{ev.X}:{ev.Y}][color=#526f53]追踪故事 →[/color][/url]"); }
+            text.AppendLine($"[color=#9aa597]第 {ev.Tick / sim.Config.Clock.TicksPerDay + 1} 天[/color]  " + ev.Description.Replace("[", "[lb]"));
+            if (ev.Actor != 0 || ev.X >= 0 && ev.Y >= 0) { text.AppendLine($"[url={ev.Actor}:{ev.X}:{ev.Y}][color=#d0ae78]追踪故事 →[/color][/url]"); }
             text.AppendLine();
         }
-        _stories.Text = text.Length == 0 ? "[color=#70776a]居民的第一次选择，将成为这里的故事。[/color]" : text.ToString();
+        _stories.Text = text.Length == 0 ? "[color=#9aa597]居民的第一次选择，将成为这里的故事。[/color]" : text.ToString();
         _miniMap.QueueRedraw();
     }
     public void ValidateNavigation() => _miniMap.ValidateMapping();

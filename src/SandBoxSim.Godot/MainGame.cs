@@ -94,7 +94,7 @@ public partial class MainGame : Control
     {
         Sim = SandboxScenarios.Create(Scenario, seed, _initialPopulation);
         Trial = new WorldTrial();
-        Projects = new LandProjects(); PinnedPerson = 0; PlanningKind = -1;
+        Projects = new LandProjects(LoadProjectCatalog()); PinnedPerson = 0; PlanningKind = -1;
         SubscribeVisualEvents();
         _pending = 0; _selected = -1; _selectedPersonId = 0; _selectedAnimal = -1; _selectedWolf = -1;
         SyncControls();
@@ -107,7 +107,7 @@ public partial class MainGame : Control
     }
     private void Rule(VBoxContainer parent, string label, Func<bool> get, Action<bool> set)
     {
-        var check = new CheckBox { Text = label, ButtonPressed = get() }; parent.AddChild(check);
+        var check = new CheckBox { Text = label, ButtonPressed = get() }; HudStyle.Rule(check); parent.AddChild(check);
         _rules.Add((check, get));
         check.Toggled += value => { set(value); Trial.MarkAssisted(); Sim.InterveneRecordAuxiliary(label + " = " + value); };
     }
@@ -155,14 +155,16 @@ public partial class MainGame : Control
         ShowJournal(true); _drawer.CurrentTab = 1;
         RefreshPanels();
     }
+    private ulong _lastStoryPulse;
     private void SubscribeVisualEvents()
     {
         Sim.Events.Recorded += ev =>
         {
             if (_map == null || !ev.HasLocation) { return; }
+            ulong now = Time.GetTicksMsec(); if (now - _lastStoryPulse < 700) { return; }
             if (ev.Type is SandBoxSim.Core.History.WorldEventType.BuildingCompleted or SandBoxSim.Core.History.WorldEventType.AgentBorn
                 or SandBoxSim.Core.History.WorldEventType.SettlementFounded or SandBoxSim.Core.History.WorldEventType.Innovation)
-                { _map.Effect(ev.Location.X, ev.Location.Y, new Color("#ddcc99"), ev.Type == SandBoxSim.Core.History.WorldEventType.AgentBorn ? "新生命" : "新的故事"); }
+                { _lastStoryPulse = now; _map.Effect(ev.Location.X, ev.Location.Y, new Color("#ddcc99"), ev.Type == SandBoxSim.Core.History.WorldEventType.AgentBorn ? "新生命" : "新的故事"); }
         };
     }
     private void RestoreCheckpoint()
@@ -300,6 +302,17 @@ public partial class MainGame : Control
                 AdvanceWorld(Sim.Config.Clock.TicksPerDay); OpenProjects();
             }
             if (_previewPanel == "planning") { OpenProjects(); PrepareProject(2); }
+            if (_previewPanel == "management")
+            {
+                var wet = Projects.Queue(Sim, 2, 43, 53, 5);
+                var food = Projects.Queue(Sim, 0, 43, 53, 4);
+                AdvanceWorld(Sim.Config.Clock.TicksPerDay * 3);
+                if (wet != null) { Projects.SetPolicy(Sim, wet.Id, 1); }
+                if (food != null) { Projects.SetPolicy(Sim, food.Id, 2); }
+                AdvanceWorld(Sim.Config.Clock.TicksPerDay);
+                OpenProjects(); SwitchProjectView(true);
+            }
+            if (_previewPanel == "field") { ShowJournal(true); _drawer.CurrentTab = 0; }
             if (_previewPanel == "brush") { SetCategory("地貌"); SelectTool(PlayerTool.River); }
             if (_previewPanel == "person")
             {
@@ -497,9 +510,9 @@ public partial class MainGame : Control
         for (int i = Sim.Events.Count - 1, count = 0; i >= 0 && count < 80; i--)
         {
             var ev = Sim.Events[i]; if (ev.Importance < SandBoxSim.Core.History.EventImportance.Normal) { continue; }
-            history.AppendLine($"[color=#526f53]第 {ev.Tick / 1440} 天[/color]")
+            history.AppendLine($"[color=#d0ae78]第 {ev.Tick / 1440} 天[/color]")
                 .AppendLine("[b]" + EscapeMarkup(ev.Description) + "[/b]")
-                .AppendLine("[color=#70776a]" + EscapeMarkup(ev.Cause) + "[/color]").AppendLine(); count++;
+                .AppendLine("[color=#9aa597]" + EscapeMarkup(ev.Cause) + "[/color]").AppendLine(); count++;
         }
         _history.Text = history.ToString();
     }
@@ -572,6 +585,17 @@ public partial class MainGame : Control
             if (operationBefore != StateHash.ComputeDigest(Sim)) { throw new Exception("Operations observations mutated world"); }
             PrepareProject(0); SelectTool(PlayerTool.Inspect);
             if (PlanningKind != -1) { throw new Exception("Project placement cancellation failed"); }
+            AdvanceWorld(Sim.Config.Clock.TicksPerDay * 3);
+            var managedPlan = Projects.Items[0];
+            if (!Projects.SetPolicy(Sim, managedPlan.Id, 1)) { throw new Exception("Land policy selection failed"); }
+            AdvanceWorld(Sim.Config.Clock.TicksPerDay);
+            var managedSave = JsonParser.Parse(EncodeClientWorld()).Get("client").Get("projects");
+            var restoredManagement = LandProjects.Decode(managedSave);
+            if (restoredManagement.ManagedCount != 1 || restoredManagement.Items[0].CareDays < 1 || ProjectArt(0).GetWidth() < 1)
+                { throw new Exception("Managed land state or illustrated asset missing"); }
+            operationBefore = StateHash.ComputeDigest(Sim);
+            SwitchProjectView(true); RefreshOperations(); ((WorldView3D)_map).ValidateHazardVisuals();
+            if (operationBefore != StateHash.ComputeDigest(Sim)) { throw new Exception("Managed land UI mutated simulation"); }
             var original = Sim;
             try
             {
@@ -586,7 +610,7 @@ public partial class MainGame : Control
                 if (rectangularBefore != StateHash.ComputeDigest(Sim)) { throw new Exception("Rectangular world rendering mutated simulation"); }
             }
             finally { Sim = original; ((WorldView3D)_map).ValidateWorldDimensions(); }
-            GD.Print("GODOT_SELF_TEST_PASS: tools, inspector/chart purity, save/load, minimap, resident pin, project placement/save/cancel, hazards, 3D geometry, camera and 1280/1600/1920 layouts");
+            GD.Print("GODOT_SELF_TEST_PASS: tools, observer purity, save/load, minimap, resident pin, recipe gallery, land management/save, project placement/cancel, hazards, camera and 1280/1600/1920 layouts");
         }
         catch (Exception ex) { GD.PushError(ex.ToString()); GetTree().Quit(1); }
     }

@@ -34,6 +34,8 @@ public partial class WorldView3D : MapView
     private readonly Dictionary<long, (bool Child, JobType Job)> _personModels = new();
     private readonly List<(Node3D Node, double Born)> _effects = new();
     private MeshInstance3D _brush = null!, _selection = null!;
+    private Godot.Environment _weatherEnvironment = null!;
+    private DirectionalLight3D _sunlight = null!;
     private Label _cameraHint = null!;
     private Texture2D? _terrainAtlas;
     private MeshInstance3D _routes = null!;
@@ -73,16 +75,20 @@ public partial class WorldView3D : MapView
         BuildHazardVisuals();
         if (ResourceLoader.Exists("res://assets/natural-terrain.png")) { _terrainAtlas = GD.Load<Texture2D>("res://assets/natural-terrain.png"); }
         var sky = new ProceduralSkyMaterial { SkyTopColor = new Color("#779ca9"), SkyHorizonColor = new Color("#d4d4b8"), GroundHorizonColor = new Color("#b8c2a0"), GroundBottomColor = new Color("#465346") };
-        _scene.AddChild(new WorldEnvironment { Environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Sky,
+        _weatherEnvironment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Sky,
             Sky = new Sky { SkyMaterial = sky }, AmbientLightSource = Godot.Environment.AmbientSource.Sky,
             AmbientLightEnergy = .42f, TonemapMode = Godot.Environment.ToneMapper.Aces, TonemapExposure = .72f,
-            FogEnabled = true, FogDensity = .0017f, FogLightColor = new Color("#c2d1bd") } });
-        _scene.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-48, -35, 0), LightColor = new Color("#ffe8bc"),
-            LightEnergy = .9f, ShadowEnabled = true, DirectionalShadowMaxDistance = 160 });
+            FogEnabled = true, FogDensity = .0017f, FogLightColor = new Color("#c2d1bd") };
+        _scene.AddChild(new WorldEnvironment { Environment = _weatherEnvironment });
+        _sunlight = new DirectionalLight3D { RotationDegrees = new Vector3(-48, -35, 0), LightColor = new Color("#ffe8bc"),
+            LightEnergy = .9f, ShadowEnabled = true, DirectionalShadowMaxDistance = 160 };
+        _scene.AddChild(_sunlight);
         _camera = new Camera3D { Current = true, Near = .15f, Far = 650, Fov = 52 }; _scene.AddChild(_camera);
         _routes = new MeshInstance3D { CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
             MaterialOverride = new StandardMaterial3D { AlbedoColor = HudStyle.Accent, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded } }; _scene.AddChild(_routes);
-        _brush = Ring(new Color("#e1cf8d")); _scene.AddChild(_brush);
+        _brush = Ring(new Color("#e1cf8d"));
+        _brush.Mesh = new TorusMesh { InnerRadius = .994f, OuterRadius = 1, Rings = 64, RingSegments = 6 };
+        _scene.AddChild(_brush);
         _selection = Ring(new Color("#f7d787")); _scene.AddChild(_selection);
         _cameraHint = new Label { Visible = false, MouseFilter = MouseFilterEnum.Ignore };
         _cameraHint.AddThemeColorOverride("font_color", new Color("#f6f0d6")); AddChild(_cameraHint);
@@ -107,9 +113,12 @@ public partial class WorldView3D : MapView
     {
         var root = new Node3D { Position = PositionAt(x, y) + Vector3.Up * .2f }; _scene.AddChild(root);
         var ring = Ring(color); ring.Visible = true; ring.Scale = Vector3.One * 1.5f; root.AddChild(ring);
-        if (text.Length > 0) { root.AddChild(new Label3D { Text = text, Position = new Vector3(0, 3, 0), Font = Game.Theme.DefaultFont, FontSize = 32,
-            PixelSize = .015f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, Modulate = color, NoDepthTest = true }); }
-        if (_effects.Count > 30) { _effects[0].Node.QueueFree(); _effects.RemoveAt(0); }
+        ring.Mesh = new TorusMesh { InnerRadius = .99f, OuterRadius = 1, Rings = 48, RingSegments = 6 };
+        ring.MaterialOverride = new StandardMaterial3D { AlbedoColor = color, Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
+            ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };
+        if (text.Length > 0) { root.AddChild(new Label3D { Text = text, Position = new Vector3(0, 2.2f, 0), Font = Game.Theme.DefaultFont, FontSize = 22,
+            PixelSize = .012f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, Modulate = color, NoDepthTest = true }); }
+        if (_effects.Count >= 6) { _effects[0].Node.QueueFree(); _effects.RemoveAt(0); }
         _effects.Add((root, Time.GetTicksMsec() / 1000.0));
     }
     private static MeshInstance3D Ring(Color color)
@@ -136,13 +145,23 @@ public partial class WorldView3D : MapView
         {
             _poll = 0; CheckTerrain(); SyncEntities(); UpdateObservation();
         }
-        AnimateActors((float)delta); UpdateBrush();
+        AnimateActors((float)delta); UpdateBrush(); UpdateWeatherAtmosphere((float)delta);
         double now = Time.GetTicksMsec() / 1000.0;
         for (int i = _effects.Count - 1; i >= 0; i--)
         {
             var e = _effects[i]; float age = (float)(now - e.Born);
-            if (age > 3) { e.Node.QueueFree(); _effects.RemoveAt(i); }
-            else { e.Node.Position += Vector3.Up * (float)delta * .12f; e.Node.GetChild<Node3D>(0).Scale = Vector3.One * (1 + age * 2); }
+            if (age > 1.6f) { e.Node.QueueFree(); _effects.RemoveAt(i); }
+            else
+            {
+                var ring = e.Node.GetChild<MeshInstance3D>(0); ring.Scale = Vector3.One * (1 + age * .55f);
+                var material = (StandardMaterial3D)ring.MaterialOverride; float alpha = 1 - age / 1.6f;
+                material.AlbedoColor = new Color(material.AlbedoColor, alpha);
+                if (e.Node.GetChildCount() > 1)
+                {
+                    var label = e.Node.GetChild<Label3D>(1); label.Modulate = new Color(label.Modulate, alpha);
+                    label.OutlineModulate = new Color(HudStyle.Ink, alpha * .6f);
+                }
+            }
         }
     }
     private void UpdateCamera()

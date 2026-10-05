@@ -57,7 +57,7 @@ public partial class MainGame
             if (hidden) { continue; }
             string escaped = EscapeMarkup(line);
             if (first && line.Length > 0) { result.AppendLine("[font_size=23][b]" + escaped + "[/b][/font_size]"); first = false; }
-            else if (section) { result.AppendLine("[color=#526f53][b]" + escaped + "[/b][/color]"); }
+            else if (section) { result.AppendLine("[color=#d0ae78][b]" + escaped + "[/b][/color]"); }
             else { result.AppendLine(escaped); }
         }
         return result.ToString();
@@ -70,6 +70,7 @@ public partial class MainGame
         var overlay = new Control { MouseFilter = MouseFilterEnum.Ignore }; overlay.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(overlay);
         var header = Surface(overlay, Vector2.Zero, new Vector2(16, 16), new Vector2(1264, 72), 0);
         header.AnchorRight = 1; header.OffsetRight = -16;
+        header.Visible = false;
         var worldCard = Surface(overlay, new Vector2(0, 0), new Vector2(28, 20), new Vector2(270, 64), 12);
         ClearSurface(worldCard);
         var worldRow = new HBoxContainer(); worldRow.AddThemeConstantOverride("separation", 18); worldCard.AddChild(worldRow);
@@ -90,7 +91,7 @@ public partial class MainGame
         ClearSurface(topActions);
         var actions = new HBoxContainer(); actions.AddThemeConstantOverride("separation", 6); topActions.AddChild(actions);
         _settingsButton = ActionButton(actions, "世界设置", () => ShowSettings(!_settingsOpen)); _settingsButton.ToggleMode = true;
-        _journalButton = ActionButton(actions, "世界手记", () => ShowJournal(!_journalPanel.Visible)); _journalButton.ToggleMode = true; _journalButton.SetPressedNoSignal(true);
+        _journalButton = ActionButton(actions, "世界手记", () => ShowJournal(!_journalPanel.Visible)); _journalButton.ToggleMode = true;
 
         _journalPanel = Surface(overlay, new Vector2(1, 0), new Vector2(-360, 104), new Vector2(344, 664), 18);
         var journal = new VBoxContainer(); journal.AddThemeConstantOverride("separation", 12); _journalPanel.AddChild(journal);
@@ -149,6 +150,7 @@ public partial class MainGame
 
         var footer = Surface(overlay, new Vector2(0, 1), new Vector2(16, -144), new Vector2(1264, 128), 0);
         footer.AnchorRight = 1; footer.OffsetRight = -16;
+        footer.Visible = false;
         var dock = Surface(overlay, new Vector2(.5f, 1), new Vector2(-300, -136), new Vector2(600, 108), 6); _dockPanel = dock;
         ClearSurface(dock);
         var dockContents = new VBoxContainer(); dockContents.AddThemeConstantOverride("separation", 4); dock.AddChild(dockContents);
@@ -176,6 +178,13 @@ public partial class MainGame
         Resized += FitHud; FitHud();
         RefreshPanels();
         _drawer.CurrentTab = 0;
+        BuildWorldPulse(overlay);
+        ShowJournal(false);
+        if (_capture.Length > 0)
+        {
+            var captureShield = new Control { MouseFilter = MouseFilterEnum.Stop };
+            captureShield.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); overlay.AddChild(captureShield);
+        }
     }
     private void FitHud() => FitHudFor(Size);
     private void FitHudFor(Vector2 size)
@@ -212,7 +221,11 @@ public partial class MainGame
     {
         var panel = new PanelContainer(); panel.AddThemeStyleboxOverride("panel", HudStyle.Box(HudStyle.Surface, 5, padding)); HudStyle.Float(panel, anchor, offset, size); parent.AddChild(panel); return panel;
     }
-    private static void ClearSurface(PanelContainer panel) => panel.AddThemeStyleboxOverride("panel", HudStyle.Box(new Color(0, 0, 0, 0), 0, 8, false));
+    private static void ClearSurface(PanelContainer panel)
+    {
+        var box = HudStyle.Box(new Color(.06f, .085f, .07f, .90f), 3, 8, false);
+        box.BorderWidthBottom = 1; box.BorderColor = new Color(HudStyle.Accent, .35f); panel.AddThemeStyleboxOverride("panel", box);
+    }
     private void BuildResidentVitals(VBoxContainer parent)
     {
         _residentVitals = new VBoxContainer { Visible = false }; _residentVitals.AddThemeConstantOverride("separation", 8); parent.AddChild(_residentVitals);
@@ -253,7 +266,7 @@ public partial class MainGame
     private static Godot.Button ActionButton(BoxContainer parent, string label, Action action)
     { var button = new Godot.Button { Text = label }; HudStyle.Button(button); parent.AddChild(button); button.Pressed += action; return button; }
     private void SetSpeed(int speed) { _speed = speed; foreach (var pair in _speedButtons) { pair.Value.SetPressedNoSignal(pair.Key == speed); } }
-    private void ShowJournal(bool visible) { _journalPanel.Visible = visible; _journalButton.SetPressedNoSignal(visible); if (visible) { FadeIn(_journalPanel); } }
+    private void ShowJournal(bool visible) { _journalPanel.Visible = visible; _journalButton.SetPressedNoSignal(visible); if (_pulseButton != null) { _pulseButton.Visible = !visible; } if (visible) { FadeIn(_journalPanel); } }
     private void ShowSettings(bool visible)
     { _settingsOpen = visible; _settingsButton.SetPressedNoSignal(visible); _settingsPanel.Visible = visible; _brushPanel.Visible = !visible && Tool != PlayerTool.Inspect; if (visible) { FadeIn(_settingsPanel); } }
     private void FadeIn(Control panel) { panel.Modulate = new Color(1, 1, 1, 0); CreateTween().TweenProperty(panel, "modulate:a", 1f, .18); }
@@ -276,7 +289,7 @@ public partial class MainGame
             button.AddThemeConstantOverride("icon_max_width", 26);
             HudStyle.Button(button);
             button.Icon = ToolGlyphs.For(tool);
-            button.AddThemeColorOverride("icon_pressed_color", HudStyle.Surface);
+            button.AddThemeColorOverride("icon_pressed_color", HudStyle.Ink);
             var chosen = tool; button.Pressed += () => SelectTool(chosen); stack.AddChild(button);
             var label = HudStyle.Label(ToolNames[(int)tool].Replace("创造", "").Replace("添加", "").Replace("生长", "").Replace(" / 选择", "").Replace("画笔", ""), 12, true); label.HorizontalAlignment = HorizontalAlignment.Center; stack.AddChild(label);
             _toolButtons[tool] = button; button.SetPressedNoSignal(Tool == tool);

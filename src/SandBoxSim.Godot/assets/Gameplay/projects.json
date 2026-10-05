@@ -1,0 +1,197 @@
+{
+  "version": 1,
+  "projects": [
+    {
+      "key": "meadow",
+      "name": "食物绿洲",
+      "brief": "改善土壤，播散粮食，再用雨水稳定生长。维护需要湿度与肥力；过量取粮会消耗土地。",
+      "art": 0,
+      "excludeForest": true,
+      "excludeRoad": true,
+      "steps": [
+        {
+          "action": "meadow",
+          "amount": 0.25
+        },
+        {
+          "action": "food",
+          "amount": 28
+        },
+        {
+          "action": "rain",
+          "amount": 35
+        }
+      ],
+      "care": {
+        "action": "food",
+        "amount": 4,
+        "minMoisture": 0.35,
+        "minFertility": 0.25
+      },
+      "harvest": {
+        "action": "extract_food",
+        "amount": 9,
+        "minMoisture": 0.15,
+        "minFertility": 0.1
+      },
+      "upkeep": 3
+    },
+    {
+      "key": "firebreak",
+      "name": "防火走廊",
+      "brief": "逐段清除燃料，形成道路。维护清除复燃和新燃料；自然演替会继续改变周边。",
+      "art": 1,
+      "steps": [
+        {
+          "action": "clear_strip",
+          "amount": 0
+        },
+        {
+          "action": "clear_strip",
+          "amount": 0
+        },
+        {
+          "action": "clear_strip",
+          "amount": 0
+        }
+      ],
+      "care": {
+        "action": "clear_strip",
+        "amount": 0
+      },
+      "harvest": {
+        "action": "clear_strip",
+        "amount": 0
+      },
+      "upkeep": 2
+    },
+    {
+      "key": "wetland",
+      "name": "湿地修复",
+      "brief": "持续涵养土壤，为相邻粮地和林地创造湿润条件。它不会代替饮水水域。",
+      "art": 2,
+      "steps": [
+        {
+          "action": "wetland",
+          "amount": 0.22
+        },
+        {
+          "action": "wetland",
+          "amount": 0.22
+        },
+        {
+          "action": "wetland",
+          "amount": 0.22
+        }
+      ],
+      "care": {
+        "action": "wetland",
+        "amount": 0.08
+      },
+      "harvest": {
+        "action": "extract_food",
+        "amount": 5,
+        "minMoisture": 0.4,
+        "minFertility": 0.2
+      },
+      "upkeep": 3
+    },
+    {
+      "key": "woodland",
+      "name": "林地复苏",
+      "brief": "分圈恢复森林。维护依赖水分；资源优先增加薪柴，同时降低湿度与植被。",
+      "art": 3,
+      "excludeRoad": true,
+      "noBurning": true,
+      "steps": [
+        {
+          "action": "forest_ring",
+          "amount": 1
+        },
+        {
+          "action": "forest_ring",
+          "amount": 1
+        },
+        {
+          "action": "forest_ring",
+          "amount": 1
+        }
+      ],
+      "care": {
+        "action": "forest",
+        "amount": 1,
+        "minMoisture": 0.3
+      },
+      "harvest": {
+        "action": "extract_wood",
+        "amount": 8,
+        "minMoisture": 0.1
+      },
+      "upkeep": 3
+    },
+    {
+      "key": "trail",
+      "name": "迁徙通道",
+      "brief": "分段铺设一条斜向小径，让可达性改变居民的选择。清理植被与资源是代价。",
+      "art": 1,
+      "steps": [
+        {
+          "action": "trail",
+          "amount": 0
+        },
+        {
+          "action": "trail",
+          "amount": 0
+        },
+        {
+          "action": "trail",
+          "amount": 0
+        }
+      ],
+      "care": {
+        "action": "trail",
+        "amount": 0
+      },
+      "harvest": {
+        "action": "trail",
+        "amount": 0
+      },
+      "upkeep": 2
+    },
+    {
+      "key": "mosaic",
+      "name": "林粮镶嵌",
+      "brief": "分区建立林地与粮地。用湿地维护支持它；干旱和集约采集会削弱产出。",
+      "art": 0,
+      "excludeRoad": true,
+      "noBurning": true,
+      "steps": [
+        {
+          "action": "mosaic",
+          "amount": 6
+        },
+        {
+          "action": "mosaic",
+          "amount": 6
+        },
+        {
+          "action": "rain",
+          "amount": 40
+        }
+      ],
+      "care": {
+        "action": "mosaic",
+        "amount": 3,
+        "minMoisture": 0.35,
+        "minFertility": 0.2
+      },
+      "harvest": {
+        "action": "extract_food",
+        "amount": 7,
+        "minMoisture": 0.2,
+        "minFertility": 0.15
+      },
+      "upkeep": 4
+    }
+  ]
+}

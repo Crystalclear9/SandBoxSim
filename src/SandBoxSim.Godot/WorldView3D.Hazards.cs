@@ -70,7 +70,7 @@ void fragment(){
         var active = new HashSet<int>();
         foreach (var p in Game.Projects.Items)
         {
-            if (!p.Active) { continue; } active.Add(p.Id);
+            if (!p.Active && !p.Managed) { continue; } active.Add(p.Id);
             if (!_projectMarks.TryGetValue(p.Id, out var root))
             {
                 root = new Node3D(); _scene.AddChild(root); _projectMarks[p.Id] = root;
@@ -81,7 +81,7 @@ void fragment(){
             }
             root.Position = PositionAt(p.X, p.Y) + Vector3.Up * .1f;
             root.GetChild<Node3D>(0).Scale = new Vector3(p.Radius * 2, .7f, p.Radius * 2);
-            root.GetNode<Label3D>("Title").Text = SandBoxSim.Core.Systems.LandProjects.Names[p.Kind] + $"  {p.Stage}/3";
+            root.GetNode<Label3D>("Title").Text = Game.Projects.Recipe(p.Kind).Name + (p.Active ? $"  {p.Stage}/{p.Duration}" : " · " + SandBoxSim.Core.Systems.LandProjects.Policies[p.Policy]);
         }
         foreach (int id in new List<int>(_projectMarks.Keys)) if (!active.Contains(id)) { _projectMarks[id].QueueFree(); _projectMarks.Remove(id); }
     }
@@ -91,7 +91,7 @@ void fragment(){
         int burning = 0, sick = 0;
         foreach (var tile in Game.Sim.World.Tiles) { if (tile.Fire == FireState.Burning) { burning++; } }
         foreach (int slot in Game.Sim.Agents.AliveSlots()) { if (Game.Sim.Diseases.OfSlot(slot)?.Active == true) { sick++; } }
-        if (_flames.Multimesh.InstanceCount != burning || _illness.Multimesh.InstanceCount != sick || _projectMarks.Count != Game.Projects.ActiveCount)
+        if (_flames.Multimesh.InstanceCount != burning || _illness.Multimesh.InstanceCount != sick || _projectMarks.Count != Game.Projects.ActiveCount + Game.Projects.ManagedCount)
             { throw new System.InvalidOperationException("Hazard visuals do not match physical world state"); }
     }
 }
