@@ -103,6 +103,10 @@ internal sealed partial class NatureModels
                 tool.SetUV(new Vector2(0, 1)); tool.AddVertex(new Vector3(-side * width / 2, height, z));
                 tool.SetUV(new Vector2(.5f, 0)); tool.AddVertex(new Vector3(0, height + (width + .4f) * .24f, z));
                 tool.SetUV(new Vector2(1, 1)); tool.AddVertex(new Vector3(side * width / 2, height, z));
+                // Both windings keep the thin gable visible from outside and inside the overhang.
+                tool.SetUV(new Vector2(0, 1)); tool.AddVertex(new Vector3(-side * width / 2, height, z));
+                tool.SetUV(new Vector2(1, 1)); tool.AddVertex(new Vector3(side * width / 2, height, z));
+                tool.SetUV(new Vector2(.5f, 0)); tool.AddVertex(new Vector3(0, height + (width + .4f) * .24f, z));
             }
             mesh = tool.Commit(); _meshes[key] = mesh;
         }
