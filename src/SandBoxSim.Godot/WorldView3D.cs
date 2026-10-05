@@ -21,7 +21,8 @@ public partial class WorldView3D : MapView
     private Simulation? _world;
     private Vector3 _target = new(92, 1, 100);
     private float _distance = 44, _yaw = -.45f, _pitch = .85f;
-    private bool _orbit, _pan, _painting;
+    private bool _orbit, _pan, _painting, _leftHeld, _leftDragged;
+    private Vector2 _leftStart;
     private Vector2 _mouse;
     private Vector2I _lastPaint = new(-1, -1);
     private int _follow = -1, _followGeneration;
@@ -58,7 +59,25 @@ public partial class WorldView3D : MapView
         }
         _yaw += .8f; _distance = 8; UpdateCamera();
         if (_camera.Position.DistanceTo(_target) > 8.1f) { throw new InvalidOperationException("Camera zoom failed"); }
+        Game.SelectTool(PlayerTool.Inspect);
+        Vector3 beforeDrag = _target;
+        _GuiInput(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true, Position = new Vector2(400, 300) });
+        _Input(new InputEventMouseMotion { Position = new Vector2(460, 320), Relative = new Vector2(60, 20) });
+        _Input(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = false, Position = new Vector2(-20, -20) });
+        if (_target == beforeDrag || _leftHeld || _painting) { throw new InvalidOperationException("Left drag/release failed"); }
+        float beforeYaw = _yaw, beforePitch = _pitch;
+        _GuiInput(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = true, Position = new Vector2(400, 300) });
+        _Input(new InputEventMouseMotion { Position = new Vector2(430, 310), Relative = new Vector2(30, 10) });
+        _Input(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = false, Position = new Vector2(-20, -20) });
+        if (_yaw == beforeYaw || _pitch == beforePitch || _orbit) { throw new InvalidOperationException("Orbit/release failed"); }
+        float beforeZoom = _distance;
+        _GuiInput(new InputEventMouseButton { ButtonIndex = MouseButton.WheelUp, Pressed = true, Position = new Vector2(400, 300) });
+        if (_distance >= beforeZoom) { throw new InvalidOperationException("Mouse wheel zoom failed"); }
         _target = target; _distance = distance; _yaw = yaw; _pitch = pitch; UpdateCamera();
+    }
+    public override void _Notification(int what)
+    {
+        if (what == NotificationWMWindowFocusOut) { _orbit = _pan = _painting = _leftHeld = _leftDragged = false; }
     }
     public override void _Ready()
     {
@@ -133,12 +152,6 @@ public partial class WorldView3D : MapView
         if (!ReferenceEquals(_world, Game.Sim)) { RebuildWorld(); }
         if (_follow >= 0 && Game.Sim.Agents.IsSlotAlive(_follow) && Game.Sim.Agents.GenerationOf(_follow) == _followGeneration)
             { _target = PositionAt(Game.Sim.Agents.XOf(_follow), Game.Sim.Agents.YOf(_follow)); }
-        if (Input.IsPhysicalKeyPressed(Key.Q)) { _yaw -= (float)delta; }
-        if (Input.IsPhysicalKeyPressed(Key.E)) { _yaw += (float)delta; }
-        if (Input.IsPhysicalKeyPressed(Key.W) || Input.IsPhysicalKeyPressed(Key.Up)) { Pan(new Vector2(0, -1) * (float)delta * 50); }
-        if (Input.IsPhysicalKeyPressed(Key.S) || Input.IsPhysicalKeyPressed(Key.Down)) { Pan(new Vector2(0, 1) * (float)delta * 50); }
-        if (Input.IsPhysicalKeyPressed(Key.A) || Input.IsPhysicalKeyPressed(Key.Left)) { Pan(new Vector2(-1, 0) * (float)delta * 50); }
-        if (Input.IsPhysicalKeyPressed(Key.D) || Input.IsPhysicalKeyPressed(Key.Right)) { Pan(new Vector2(1, 0) * (float)delta * 50); }
         UpdateCamera();
         _poll += delta;
         if (_poll >= .3)
@@ -188,18 +201,48 @@ public partial class WorldView3D : MapView
                 { _distance = Math.Clamp(_distance * (b.ButtonIndex == MouseButton.WheelUp ? .85f : 1.18f), 4, 260); }
             if (b.ButtonIndex == MouseButton.Left)
             {
-                _painting = b.Pressed && Game.Tool != PlayerTool.Inspect; _lastPaint = new Vector2I(-1, -1);
-                if (b.Pressed) { Paint(b.Position); }
+                if (b.Pressed)
+                {
+                    _leftHeld = true; _leftDragged = false; _leftStart = b.Position;
+                    _painting = Game.Tool != PlayerTool.Inspect; _lastPaint = new Vector2I(-1, -1);
+                    if (_painting) { Paint(b.Position); }
+                }
             }
         }
         if (input is InputEventMouseMotion m)
         {
             _mouse = m.Position;
-            if (_orbit) { _yaw -= m.Relative.X * .008f; _pitch = Math.Clamp(_pitch + m.Relative.Y * .005f, .18f, 1.50f); }
-            if (_pan) { Pan(m.Relative); }
-            if (_painting) { Paint(m.Position); }
         }
         UpdateCamera(); AcceptEvent();
+    }
+    public override void _Input(InputEvent input)
+    {
+        // Release globally: crossing a HUD panel must never leave an orbit or brush latched.
+        if (input is InputEventMouseButton b && !b.Pressed)
+        {
+            if (b.ButtonIndex == MouseButton.Right) { _orbit = false; }
+            if (b.ButtonIndex == MouseButton.Middle) { _pan = false; }
+            if (b.ButtonIndex == MouseButton.Left && _leftHeld)
+            {
+                Vector2 local = GetGlobalTransform().AffineInverse() * b.Position;
+                if (!_painting && !_leftDragged && !_orbit && !_pan && new Rect2(Vector2.Zero, Size).HasPoint(local)
+                    && GetViewport().GuiGetHoveredControl() == this) { Paint(local); }
+                _leftHeld = _painting = _leftDragged = false;
+            }
+        }
+        if (input is InputEventMouseMotion m && (_orbit || _pan || _leftHeld))
+        {
+            _mouse = GetGlobalTransform().AffineInverse() * m.Position;
+            if (_orbit) { _follow = -1; if (_leftHeld) _leftDragged = true; _yaw -= m.Relative.X * .008f; _pitch = Math.Clamp(_pitch + m.Relative.Y * .005f, .18f, 1.50f); }
+            if (_pan) { Pan(m.Relative); }
+            if (_leftHeld && !_painting && !_orbit && !_pan)
+            {
+                if (!_leftDragged && _mouse.DistanceTo(_leftStart) >= 6) { _leftDragged = true; }
+                if (_leftDragged) { Pan(m.Relative); }
+            }
+            if (_painting && !_orbit && !_pan && GetViewport().GuiGetHoveredControl() == this) { Paint(_mouse); }
+            UpdateCamera();
+        }
     }
     private Vector2I? Pick(Vector2 screen)
     {
@@ -223,8 +266,8 @@ public partial class WorldView3D : MapView
     }
     private void UpdateBrush()
     {
-        var picked = Pick(_mouse); _brush.Visible = picked.HasValue && (Game.Tool != PlayerTool.Inspect || Game.PlanningKind >= 0);
-        if (picked.HasValue) { _brush.Position = PositionAt(picked.Value.X, picked.Value.Y) + Vector3.Up * .12f; _brush.Scale = new Vector3(MathF.Max(1, Game.Radius * 2), .25f, MathF.Max(1, Game.Radius * 2)); }
+        var picked = Pick(_mouse); _brush.Visible = picked.HasValue && (Game.Tool != PlayerTool.Inspect || Game.PlanningKind >= 0 || Game.PlanningBuilding != BuildingKind.None || Game.PlanningBlueprint);
+        if (picked.HasValue) { _brush.Position = PositionAt(picked.Value.X, picked.Value.Y) + Vector3.Up * .12f; float radius = Game.PlanningBuilding != BuildingKind.None ? 1 : Game.PlanningBlueprint ? 20 : MathF.Max(1, Game.Radius * 2); _brush.Scale = new Vector3(radius, .25f, radius); }
         _selection.Visible = Game.SelectedSlot >= 0;
         if (Game.SelectedSlot >= 0) { _selection.Position = PositionAt(Game.Sim.Agents.XOf(Game.SelectedSlot), Game.Sim.Agents.YOf(Game.SelectedSlot)) + Vector3.Up * .08f; _selection.Scale = new Vector3(.65f, .3f, .65f); }
     }
@@ -287,6 +330,9 @@ public partial class WorldView3D : MapView
                 var store = Game.Sim.Buildings;
                 buildings = unchecked(buildings * 31 + i * 7 + (int)store.StateOf(i) + (int)store.KindOf(i) * 17
                     + store.GenerationOf(i) * 101 + store.XOf(i) * 503 + store.YOf(i) * 997);
+                for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++)
+                    if (Math.Abs(dx) + Math.Abs(dy) == 1 && Game.Sim.World.IsInBounds(store.XOf(i) + dx, store.YOf(i) + dy))
+                        buildings = unchecked(buildings * 31 + (int)Game.Sim.World.TerrainAt(store.XOf(i) + dx, store.YOf(i) + dy));
             }
         if (buildings != _buildingSignature) { _buildingSignature = buildings; BuildBuildings(); }
     }
@@ -473,8 +519,21 @@ void fragment(){
         var sim = Game.Sim;
         for (int i = 0; i < sim.Buildings.Capacity; i++) if (sim.Buildings.IsAlive(i))
         {
-            var node = _models.Building(sim.Buildings.KindOf(i), sim.Buildings.StateOf(i) == BuildingState.Complete);
+            int x = sim.Buildings.XOf(i), y = sim.Buildings.YOf(i);
+            uint identity = unchecked((uint)(x * 73856093 ^ y * 19349663 ^ sim.World.Seed * 83492791));
+            var node = _models.Building(sim.Buildings.KindOf(i), sim.Buildings.StateOf(i) == BuildingState.Complete, identity);
             _buildings.AddChild(node); node.Position = PositionAt(sim.Buildings.XOf(i), sim.Buildings.YOf(i));
+            int facing = (int)(identity % 4), best = int.MinValue;
+            for (int side = 0; side < 4; side++)
+            {
+                int direction = (side + (int)(identity % 4)) % 4;
+                int nx = x + (direction == 1 ? 1 : direction == 3 ? -1 : 0), ny = y + (direction == 0 ? 1 : direction == 2 ? -1 : 0);
+                if (!sim.World.IsInBounds(nx, ny)) { continue; }
+                var tile = sim.World.TileAt(nx, ny);
+                int score = tile.Terrain == TerrainKind.Road ? 10 : tile.BuildingId > 0 ? -5 : tile.Walkable ? 1 : -10;
+                if (score > best) { best = score; facing = direction; }
+            }
+            node.RotationDegrees = new Vector3(0, facing * 90, 0);
         }
         for (int i = 0; i < sim.Settlements.EntityCount; i++)
         {

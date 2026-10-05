@@ -8,8 +8,12 @@ public partial class WorldView3D
 {
     private MultiMeshInstance3D _flames = null!, _smoke = null!, _illness = null!;
     private readonly Dictionary<int, Node3D> _projectMarks = new();
+    private MeshInstance3D _blueprintRing = null!;
     private void BuildHazardVisuals()
     {
+        _blueprintRing = Ring(HudStyle.Accent);
+        _blueprintRing.Mesh = new TorusMesh { InnerRadius = .998f, OuterRadius = 1, Rings = 80, RingSegments = 6 };
+        _blueprintRing.Scale = new Vector3(20, .5f, 20); _scene.AddChild(_blueprintRing);
         var flameShader = new Shader { Code = @"
 shader_type spatial;
 render_mode unshaded,cull_disabled,depth_draw_never;
@@ -57,6 +61,8 @@ void fragment(){
     {
         var flames = new List<Transform3D>(); var smoke = new List<Transform3D>(); var illness = new List<Transform3D>();
         var sim = Game.Sim;
+        _blueprintRing.Visible = Game.Blueprint.Kind >= 0;
+        if (_blueprintRing.Visible) _blueprintRing.Position = PositionAt(Game.Blueprint.X, Game.Blueprint.Y) + Vector3.Up * .12f;
         for (int i = 0; i < sim.World.Tiles.Length; i++)
         {
             if (sim.World.Tiles[i].Fire != FireState.Burning) { continue; }

@@ -21,6 +21,10 @@ public partial class MainGame : Control
     public LandProjects Projects { get; private set; } = new();
     public long PinnedPerson { get; private set; }
     public int PlanningKind { get; private set; } = -1;
+    public BuildingKind PlanningBuilding { get; private set; } = BuildingKind.None;
+    public SettlementBlueprint Blueprint { get; private set; } = new();
+    public bool PlanningBlueprint => _planningBlueprint >= 0;
+    private int _planningBlueprint = -1;
     public int Radius => (int)_radius.Value;
     public float Strength => (float)_strength.Value;
     public int SelectedSlot => _selected >= 0 && Sim.Agents.IsSlotAlive(_selected)
@@ -93,8 +97,9 @@ public partial class MainGame : Control
     private void NewWorld(int seed)
     {
         Sim = SandboxScenarios.Create(Scenario, seed, _initialPopulation);
+        Sim.Config.Buildings.OrganicHousing = true;
         Trial = new WorldTrial();
-        Projects = new LandProjects(LoadProjectCatalog()); PinnedPerson = 0; PlanningKind = -1;
+        Projects = new LandProjects(LoadProjectCatalog()); Blueprint = new(); PinnedPerson = 0; PlanningKind = -1; PlanningBuilding = BuildingKind.None; _planningBlueprint = -1;
         SubscribeVisualEvents();
         _pending = 0; _selected = -1; _selectedPersonId = 0; _selectedAnimal = -1; _selectedWolf = -1;
         SyncControls();
@@ -122,6 +127,8 @@ public partial class MainGame : Control
     public void SelectTool(PlayerTool tool)
     {
         PlanningKind = -1;
+        PlanningBuilding = BuildingKind.None;
+        _planningBlueprint = -1;
         Tool = tool; _toolPicker.Select((int)tool);
         string hint = tool switch
         {
@@ -269,7 +276,7 @@ public partial class MainGame : Control
     }
     private string EncodeClientWorld(bool includeCheckpoint = false)
     {
-        var client = JsonValue.Object().Set("scenario", JsonValue.From(Scenario)).Set("trial", Trial.Encode()).Set("projects", Projects.Encode())
+        var client = JsonValue.Object().Set("scenario", JsonValue.From(Scenario)).Set("trial", Trial.Encode()).Set("projects", Projects.Encode()).Set("blueprint", Blueprint.Encode())
             .Set("pin", JsonValue.From(PinnedPerson.ToString(System.Globalization.CultureInfo.InvariantCulture)));
         if (includeCheckpoint) { client.Set("checkpoint", JsonValue.From(_checkpoint)).Set("experiment", JsonValue.From(_experimentLabel)); }
         return JsonParser.Parse(SaveFile.Encode(Sim)).Set("client", client).ToJson(true);
@@ -278,7 +285,7 @@ public partial class MainGame : Control
     {
         Scenario = Math.Clamp(root.Get("client").GetInt("scenario", Scenario), 0, SandboxScenarios.Names.Length - 1);
         Trial = WorldTrial.Decode(root.Get("client").Get("trial"));
-        Projects = LandProjects.Decode(root.Get("client").Get("projects")); PlanningKind = -1;
+        Projects = LandProjects.Decode(root.Get("client").Get("projects")); Blueprint = SettlementBlueprint.Decode(root.Get("client").Get("blueprint")); PlanningKind = -1; PlanningBuilding = BuildingKind.None; _planningBlueprint = -1;
         long.TryParse(root.Get("client").GetString("pin"), out long pin); PinnedPerson = pin;
         if (restoreCheckpoint)
         {
@@ -296,6 +303,9 @@ public partial class MainGame : Control
             if (_previewView.Length > 0) { ((WorldView3D)_map).SetPerspective(_previewView == "near" ? "近景" : _previewView == "top" ? "俯视" : "斜视"); }
             if (_previewPanel == "chart") { ShowJournal(true); _drawer.CurrentTab = 3; }
             if (_previewPanel == "settings") { ShowSettings(true); }
+            if (_previewPanel == "construction") { OpenConstruction(); PrepareConstruction(BuildingKind.House); }
+            if (_previewPanel == "blueprint") { Blueprint.Start(Sim, 1, 43, 50); OpenConstruction(); }
+            if (_previewPanel == "village") { _map.Focus(43, 50, 38); SetSpeed(0); }
             if (_previewPanel == "projects")
             {
                 Projects.Queue(Sim, 0, 43, 53, 5); Projects.Queue(Sim, 3, 35, 50, 4);
@@ -375,6 +385,13 @@ public partial class MainGame : Control
     {
         if (!Sim.World.IsInBounds(x, y)) { return; }
         _selectedX = x; _selectedY = y;
+        if (_planningBlueprint >= 0)
+        {
+            if (Blueprint.Start(Sim, _planningBlueprint, x, y)) { _planningBlueprint = -1; _status.Text = "蓝图已开始：在中心十格内经营，连续两个日界达成目标"; RefreshOperations(); }
+            else { _status.Text = "请选择可以通行的蓝图中心"; }
+            return;
+        }
+        if (PlanningBuilding != BuildingKind.None) { CommitConstruction(x, y); return; }
         if (PlanningKind >= 0) { CommitProject(x, y); return; }
         if (Tool != PlayerTool.Inspect)
         {
@@ -596,6 +613,15 @@ public partial class MainGame : Control
             operationBefore = StateHash.ComputeDigest(Sim);
             SwitchProjectView(true); RefreshOperations(); ((WorldView3D)_map).ValidateHazardVisuals();
             if (operationBefore != StateHash.ComputeDigest(Sim)) { throw new Exception("Managed land UI mutated simulation"); }
+            int blueprintTile = Array.FindIndex(Sim.World.Tiles, t => t.Walkable);
+            if (!Blueprint.Start(Sim, 1, blueprintTile % Sim.World.Width, blueprintTile / Sim.World.Width)) { throw new Exception("Blueprint start failed"); }
+            string blueprintState = Blueprint.Encode().ToJson();
+            var clientSnapshot = JsonParser.Parse(EncodeClientWorld()); RestoreClientContext(clientSnapshot);
+            if (Blueprint.Encode().ToJson() != blueprintState) { throw new Exception("Blueprint client save failed"); }
+            operationBefore = StateHash.ComputeDigest(Sim); OpenConstruction(); PrepareConstruction(BuildingKind.House);
+            if (PlanningBuilding != BuildingKind.House || !_constructionPanel.Visible) { throw new Exception("Construction UI failed"); }
+            SelectTool(PlayerTool.Inspect); RefreshOperations(); ((WorldView3D)_map).ValidateHazardVisuals();
+            if (PlanningBuilding != BuildingKind.None || operationBefore != StateHash.ComputeDigest(Sim)) { throw new Exception("Construction planning purity/cancel failed"); }
             var original = Sim;
             try
             {
@@ -610,7 +636,7 @@ public partial class MainGame : Control
                 if (rectangularBefore != StateHash.ComputeDigest(Sim)) { throw new Exception("Rectangular world rendering mutated simulation"); }
             }
             finally { Sim = original; ((WorldView3D)_map).ValidateWorldDimensions(); }
-            GD.Print("GODOT_SELF_TEST_PASS: tools, observer purity, save/load, minimap, resident pin, recipe gallery, land management/save, project placement/cancel, hazards, camera and 1280/1600/1920 layouts");
+            GD.Print("GODOT_SELF_TEST_PASS: tools, observer purity, save/load, minimap, resident pin, recipe gallery, land management/save, construction/blueprint save, project placement/cancel, hazards, mouse drag/orbit/zoom/release and 1280/1600/1920 layouts");
         }
         catch (Exception ex) { GD.PushError(ex.ToString()); GetTree().Quit(1); }
     }

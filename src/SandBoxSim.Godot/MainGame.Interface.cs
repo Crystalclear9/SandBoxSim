@@ -137,6 +137,7 @@ public partial class MainGame
         Rule(tools, "资源双倍恢复", () => Sim.Config.Rules.DoubleResource, v => Sim.Config.Rules.DoubleResource = v);
         Rule(tools, "和平模式", () => Sim.Config.Rules.PeaceMode, v => Sim.Config.Rules.PeaceMode = v);
         Rule(tools, "禁止聚落战争", () => Sim.Config.Rules.DisableWar, v => Sim.Config.Rules.DisableWar = v);
+        Rule(tools, "自然住房布局", () => Sim.Config.Buildings.OrganicHousing, v => Sim.Config.Buildings.OrganicHousing = v);
         var weather = new HBoxContainer(); tools.AddChild(weather); ActionButton(weather, "降雨", () => TrialWeather(WeatherKind.Rain)); ActionButton(weather, "旱季", () => TrialWeather(WeatherKind.Drought));
         tools.AddChild(new HSeparator()); tools.AddChild(HudStyle.Label("观察图层", 17));
         var layer = new OptionButton(); foreach (string text in new[] { "自然地形", "聚落领土", "资源储量", "湿度", "肥力", "食物分布", "人口密度", "AI 状态", "行动路径" }) { layer.AddItem(text); }
@@ -172,7 +173,7 @@ public partial class MainGame
         foreach (string label in new[] { "斜视", "俯视", "近景" }) { string view = label; ActionButton(views, label, () => ((WorldView3D)_map).SetPerspective(view)); }
         ActionButton(views, "跟随", () => { if (SelectedSlot >= 0) { _map.Follow(SelectedSlot); } else { _status.Text = "选择一个人物后，跟随他的故事"; } });
         _toolBadge = HudStyle.Label("自由观察", 13); HudStyle.Float(_toolBadge, new Vector2(.5f, 1), new Vector2(-200, -180), new Vector2(400, 26)); _toolBadge.HorizontalAlignment = HorizontalAlignment.Center; _toolBadge.AddThemeColorOverride("font_color", new Color("#f3efe3")); _toolBadge.AddThemeColorOverride("font_shadow_color", HudStyle.Ink); _toolBadge.AddThemeConstantOverride("shadow_offset_y", 1); overlay.AddChild(_toolBadge);
-        _status = HudStyle.Label("右键旋转  ·  滚轮缩放  ·  中键平移  ·  点击人物查看细节", 11, true); HudStyle.Float(_status, new Vector2(0, 1), new Vector2(28, -34), new Vector2(1000, 18)); overlay.AddChild(_status);
+        _status = HudStyle.Label("观察模式：左键拖动平移 · 右键拖动旋转/俯仰 · 滚轮缩放 · 单击选择", 11, true); HudStyle.Float(_status, new Vector2(0, 1), new Vector2(28, -34), new Vector2(1000, 18)); overlay.AddChild(_status);
         BuildPlanningCard(overlay);
         _save = Dialog(FileDialog.FileModeEnum.SaveFile); _save.FileSelected += SaveWorld; _load = Dialog(FileDialog.FileModeEnum.OpenFile); _load.FileSelected += LoadWorld;
         Resized += FitHud; FitHud();
@@ -263,7 +264,7 @@ public partial class MainGame
         var stack = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; stack.AddThemeConstantOverride("separation", 2); row.AddChild(stack); stack.AddChild(HudStyle.Label(title, 11, true));
         var metric = HudStyle.Label(value, size); stack.AddChild(metric); return metric;
     }
-    private static Godot.Button ActionButton(BoxContainer parent, string label, Action action)
+    private static Godot.Button ActionButton(Container parent, string label, Action action)
     { var button = new Godot.Button { Text = label }; HudStyle.Button(button); parent.AddChild(button); button.Pressed += action; return button; }
     private void SetSpeed(int speed) { _speed = speed; foreach (var pair in _speedButtons) { pair.Value.SetPressedNoSignal(pair.Key == speed); } }
     private void ShowJournal(bool visible) { _journalPanel.Visible = visible; _journalButton.SetPressedNoSignal(visible); if (_pulseButton != null) { _pulseButton.Visible = !visible; } if (visible) { FadeIn(_journalPanel); } }

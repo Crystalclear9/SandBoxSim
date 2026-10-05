@@ -7,7 +7,7 @@ using SandBoxSim.Core.Environment;
 namespace SandBoxSim.Client;
 
 /// <summary>Reusable volumetric geometry, textured with original material assets. All geometry survives camera rotation.</summary>
-internal sealed class NatureModels
+internal sealed partial class NatureModels
 {
     private readonly Material[] _materials = new Material[16];
     private readonly Dictionary<string, Mesh> _meshes = new();
@@ -84,52 +84,7 @@ internal sealed class NatureModels
         for (int i = 0; i < transforms.Count; i++) { multi.SetInstanceTransform(i, transforms[i]); }
         parent.AddChild(new MultiMeshInstance3D { Multimesh = multi, MaterialOverride = Material(material) });
     }
-    public Node3D Building(BuildingKind kind, bool complete)
-    {
-        var model = new Node3D { Scale = new Vector3(.64f, 1, .64f) };
-        if (kind == BuildingKind.Farm)
-        {
-            Part(model, "box", new Vector3(0, .08f, 0), new Vector3(2.3f, .16f, 2.3f), 1);
-            for (int row = 0; row < 5; row++) for (int i = 0; i < 6; i++)
-            {
-                var p = new Vector3(-.9f + row * .44f, .42f, -.9f + i * .35f);
-                Part(model, "cylinder", p, new Vector3(.025f, .65f, .025f), 15);
-                Part(model, "capsule", p + Vector3.Up * .37f, new Vector3(.09f, .11f, .09f), 15, new Vector3(.1f * i, 0, .2f));
-            }
-            return model;
-        }
-        if (kind == BuildingKind.Mine)
-        {
-            Part(model, "sphere", new Vector3(0, 1.1f, -.2f), new Vector3(3.0f, 2.3f, 2.6f), 6);
-            Part(model, "box", new Vector3(0, .85f, 1.05f), new Vector3(1.1f, 1.6f, .15f), 10);
-            foreach (float x in new[] { -.68f, .68f }) { Part(model, "box", new Vector3(x, .9f, 1.15f), new Vector3(.2f, 1.8f, .24f), 0); }
-            Part(model, "box", new Vector3(0, 1.8f, 1.15f), new Vector3(1.6f, .2f, .24f), 0);
-            for (int i = 0; i < 6; i++) { Part(model, "box", new Vector3(0, .12f, 1.1f + i * .22f), new Vector3(1, .1f, .09f), 1); }
-            return model;
-        }
-        float height = kind == BuildingKind.House ? 1.9f : 2.1f;
-        Part(model, "box", new Vector3(0, height / 2, 0), new Vector3(2.2f, height, 2.25f), kind == BuildingKind.House ? 3 : 1);
-        foreach (float x in new[] { -1.02f, 0, 1.02f })
-            foreach (float z in new[] { -1.14f, 1.14f }) { Part(model, "box", new Vector3(x, height / 2, z), new Vector3(.12f, height, .1f), 0); }
-        Part(model, "box", new Vector3(0, 1.25f, 1.17f), new Vector3(2.25f, .12f, .1f), 0);
-        Part(model, "box", new Vector3(0, .58f, 1.2f), new Vector3(.53f, 1.16f, .12f), 10);
-        foreach (float x in new[] { -.75f, .75f })
-        {
-            Part(model, "box", new Vector3(x, 1.1f, 1.17f), new Vector3(.38f, .5f, .11f), 9);
-            Part(model, "box", new Vector3(x, 1.1f, 1.25f), new Vector3(.04f, .54f, .06f), 1);
-            Part(model, "box", new Vector3(x, 1.1f, 1.25f), new Vector3(.42f, .04f, .06f), 1);
-        }
-        foreach (float side in new[] { -1f, 1f })
-            Part(model, "box", new Vector3(side * .65f, height + .48f, 0), new Vector3(1.65f, .14f, 2.7f), 2, new Vector3(0, 0, side * -.52f));
-        Part(model, "box", new Vector3(.6f, height + .8f, -.6f), new Vector3(.35f, 1.0f, .38f), 6);
-        Part(model, "cylinder", new Vector3(-1.35f, .35f, .7f), new Vector3(.45f, .7f, .45f), 1);
-        if (!complete)
-        {
-            foreach (float x in new[] { -1.35f, 1.35f }) { Part(model, "box", new Vector3(x, 1.6f, 0), new Vector3(.09f, 3.2f, .1f), 0); }
-            Part(model, "box", new Vector3(0, 2.6f, 1.4f), new Vector3(2.9f, .12f, .12f), 0);
-        }
-        return model;
-    }
+    public Node3D Building(BuildingKind kind, bool complete, uint identity = 0) => Architecture(kind, complete, identity);
     public Node3D Human(int slot, bool child, JobType job)
     {
         var model = new Node3D();

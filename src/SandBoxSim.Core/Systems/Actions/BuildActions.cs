@@ -263,10 +263,12 @@ internal static class BuildAction
         }
 
         // 以"自己"为圆心向外按环扫描（与资源搜索同一个模式：先近后远、确定性）
+        int houseIndex = -1, housePreference = int.MaxValue, houseDistance = 0;
         for (int ring = 1; ring <= radius; ring++)
         {
             int bestIndex = -1;
             int bestDistance = int.MaxValue;
+            int bestPreference = int.MaxValue;
 
             for (int dy = -ring; dy <= ring; dy++)
             {
@@ -295,10 +297,31 @@ internal static class BuildAction
                     if (!HasMaterialsAt(in ctx, recipe, x, y)) { continue; }
 
                     int d = (dx * dx) + (dy * dy);
-                    if (d < bestDistance) { bestDistance = d; bestIndex = (y * world.Width) + x; }
+                    int preference = d;
+                    if (kind == BuildingKind.House && ctx.Config.Buildings.OrganicHousing)
+                    {
+                        // Keep proximity, but avoid a universal north-first tie and leave breathing room.
+                        int neighbours = 0, roads = 0;
+                        for (int ny = y - 1; ny <= y + 1; ny++) for (int nx = x - 1; nx <= x + 1; nx++)
+                        {
+                            if (!world.IsInBounds(nx, ny)) { continue; }
+                            var nearby = world.TileAt(nx, ny);
+                            if (nearby.BuildingId > 0) { neighbours++; }
+                            if (nearby.Terrain == TerrainKind.Road) { roads++; }
+                        }
+                        uint variation = unchecked((uint)(x * 73856093 ^ y * 19349663 ^ ctx.Slot * 83492791));
+                        preference = d * 16 + neighbours * 160 - roads * 5 + (int)(variation % 13);
+                    }
+                    if (preference < bestPreference) { bestPreference = preference; bestDistance = d; bestIndex = (y * world.Width) + x; }
                 }
             }
 
+            if (kind == BuildingKind.House && ctx.Config.Buildings.OrganicHousing)
+            {
+                if (bestIndex >= 0 && bestPreference < housePreference) { houseIndex = bestIndex; housePreference = bestPreference; houseDistance = bestDistance; }
+                if (ring < System.Math.Min(radius, 4)) { continue; }
+                bestIndex = houseIndex; bestDistance = houseDistance;
+            }
             if (bestIndex >= 0)
             {
                 int x = bestIndex % world.Width;

@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Godot;
+using SandBoxSim.Core.Environment;
 using SandBoxSim.Core.Foundation;
 using SandBoxSim.Core.Systems;
 
@@ -14,6 +15,8 @@ public partial class MainGame
     private LineEdit _residentName = null!;
     private TextureRect _planArt = null!;
     private VBoxContainer _projectLibrary = null!, _projectManagement = null!;
+    private VBoxContainer _constructionPanel = null!;
+    private Godot.Button _constructionTab = null!;
     private VBoxContainer _landCards = null!;
     private readonly System.Collections.Generic.Dictionary<int, LandCard> _landViews = new();
     private GridContainer _recipeGrid = null!;
@@ -88,10 +91,13 @@ public partial class MainGame
         var tabs = new HBoxContainer(); body.AddChild(tabs);
         _libraryTab = ActionButton(tabs, "工程图册", () => SwitchProjectView(false)); _libraryTab.ToggleMode = true;
         _managementTab = ActionButton(tabs, "土地管理", () => SwitchProjectView(true)); _managementTab.ToggleMode = true;
+        _constructionTab = ActionButton(tabs, "聚落营造", OpenConstruction); _constructionTab.ToggleMode = true;
         _projectLibrary = new VBoxContainer(); _projectLibrary.AddThemeConstantOverride("separation", 10); body.AddChild(_projectLibrary);
         _recipeGrid = new GridContainer { Columns = 2 }; _recipeGrid.AddThemeConstantOverride("h_separation", 8); _recipeGrid.AddThemeConstantOverride("v_separation", 10); _projectLibrary.AddChild(_recipeGrid);
         var note = HudStyle.Label("先改善水土，再选择生产方式。\n插画展示工程主题；地形与结果由真实模拟决定。", 12, true);
         note.AutowrapMode = TextServer.AutowrapMode.WordSmart; _projectLibrary.AddChild(note);
+        _constructionPanel = new VBoxContainer(); _constructionPanel.AddThemeConstantOverride("separation", 10); body.AddChild(_constructionPanel);
+        BuildConstructionChoices(_constructionPanel);
         _projectManagement = new VBoxContainer(); _projectManagement.AddThemeConstantOverride("separation", 10); body.AddChild(_projectManagement);
         _projectLog = TextPanel("土地管理"); _projectLog.Visible = false; _projectManagement.AddChild(_projectLog);
         _landCards = new VBoxContainer(); _landCards.AddThemeConstantOverride("separation", 12); _projectManagement.AddChild(_landCards);
@@ -133,6 +139,7 @@ public partial class MainGame
     private void SwitchProjectView(bool management)
     {
         _projectLibrary.Visible = !management; _projectManagement.Visible = management;
+        _constructionPanel.Visible = false; _constructionTab.SetPressedNoSignal(false);
         _libraryTab.SetPressedNoSignal(!management); _managementTab.SetPressedNoSignal(management);
     }
     private void BuildPlanningCard(Control overlay)
@@ -149,7 +156,7 @@ public partial class MainGame
             int chosen = radius; var button = ActionButton(scope, radius == 3 ? "小片 · 3" : radius == 5 ? "标准 · 5" : "广域 · 8", () => { _radius.Value = chosen; RefreshOperations(); });
             button.ToggleMode = true; _scopeButtons[radius] = button;
         }
-        ActionButton(body, "取消放置  Esc", () => { PlanningKind = -1; RefreshOperations(); });
+        ActionButton(body, "取消放置  Esc", () => SelectTool(PlayerTool.Inspect));
     }
     private void RefreshOperations()
     {
@@ -186,9 +193,20 @@ public partial class MainGame
         }
         _projectLog.Text = text.Length == 0 ? "[color=#9aa597]还没有土地工程。\n\n去图册选择一项改变，工程完成后再决定如何经营。[/color]" : text.ToString();
         RefreshLandCards();
+        RefreshBlueprint();
         if (_planPanel != null)
         {
-            _planPanel.Visible = PlanningKind >= 0 && !_settingsOpen;
+            _planPanel.Visible = (PlanningKind >= 0 || PlanningBuilding != BuildingKind.None || _planningBlueprint >= 0) && !_settingsOpen;
+            _planPanel.OffsetBottom = _planPanel.OffsetTop + (PlanningKind >= 0 ? 425 : 320);
+            _planArt.Visible = PlanningBuilding == BuildingKind.None && _planningBlueprint < 0;
+            foreach (var pair in _scopeButtons) { pair.Value.Visible = PlanningBuilding == BuildingKind.None && _planningBlueprint < 0; }
+            if (PlanningBuilding != BuildingKind.None) { RefreshConstructionPreview(); }
+            if (_planningBlueprint >= 0)
+            {
+                _planTitle.Text = SettlementBlueprint.Names[_planningBlueprint];
+                _planDescription.Text = SettlementBlueprint.Briefs[_planningBlueprint] + "\n\n单击确定中心，十格半径内统计真实人口、完工建筑与地块。连续两个日界达成。\n\n蓝图不会强制建造、移民或改变文明。左键拖动调整落点。";
+                _toolBadge.Text = "蓝图中心 · 单击落点";
+            }
             if (PlanningKind >= 0 && PlanningKind < Projects.Catalog.Recipes.Count)
             {
                 var recipe = Projects.Recipe(PlanningKind); _planTitle.Text = recipe.Name; _planArt.Texture = ProjectArt(recipe.Art);

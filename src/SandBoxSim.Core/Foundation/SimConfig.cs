@@ -535,6 +535,8 @@ public sealed class BuildingConfig
 
     /// <summary>选址搜索半径（格）：个体只在这么大范围内找空地。</summary>
     public int SiteSearchRadius = 14;
+    // Opt-in for existing headless scenarios and saves; new graphical worlds enable this.
+    public bool OrganicHousing = false;
 
     /// <summary>仓库的可见半径（格）：存放/取回/扣料只在附近找仓库。</summary>
     public int StorageSearchRadius = 24;
