@@ -528,9 +528,9 @@ public partial class MainGame : Control
         for (int i = Sim.Events.Count - 1, count = 0; i >= 0 && count < 80; i--)
         {
             var ev = Sim.Events[i]; if (ev.Importance < SandBoxSim.Core.History.EventImportance.Normal) { continue; }
-            history.AppendLine($"[color=#386653]第 {ev.Tick / 1440} 天[/color]")
+            history.AppendLine($"[color=#806544]第 {ev.Tick / 1440} 天[/color]")
                 .AppendLine("[b]" + EscapeMarkup(ev.Description) + "[/b]")
-                .AppendLine("[color=#697367]" + EscapeMarkup(ev.Cause) + "[/color]").AppendLine(); count++;
+                .AppendLine("[color=#747568]" + EscapeMarkup(ev.Cause) + "[/color]").AppendLine(); count++;
         }
         _history.Text = history.ToString();
     }

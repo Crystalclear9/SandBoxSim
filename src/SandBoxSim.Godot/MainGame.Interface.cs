@@ -59,7 +59,7 @@ public partial class MainGame
             if (hidden) { continue; }
             string escaped = EscapeMarkup(line);
             if (first && line.Length > 0) { result.AppendLine("[font_size=23][b]" + escaped + "[/b][/font_size]"); first = false; }
-            else if (section) { result.AppendLine("[color=#386653][b]" + escaped + "[/b][/color]"); }
+            else if (section) { result.AppendLine("[color=#806544][b]" + escaped + "[/b][/color]"); }
             else { result.AppendLine(escaped); }
         }
         return result.ToString();
@@ -76,7 +76,7 @@ public partial class MainGame
         var worldCard = Surface(overlay, new Vector2(0, 0), new Vector2(28, 20), new Vector2(270, 64), 12);
         ClearSurface(worldCard);
         var worldRow = new HBoxContainer(); worldRow.AddThemeConstantOverride("separation", 18); worldCard.AddChild(worldRow);
-        var wordmark = HudStyle.Label("河 山", 28); worldRow.AddChild(wordmark);
+        var wordmark = HudStyle.Heading("河 山", 30); worldRow.AddChild(wordmark);
         var worldInfo = new VBoxContainer(); worldInfo.AddThemeConstantOverride("separation", 0); worldRow.AddChild(worldInfo);
         worldInfo.AddChild(HudStyle.Label("SANDBOX  /  自然与文明", 10, true));
         var scenario = new OptionButton { Flat = true, CustomMinimumSize = new Vector2(137, 31) }; _scenarioPicker = scenario; HudStyle.Button(scenario);
@@ -97,8 +97,9 @@ public partial class MainGame
 
         _journalPanel = Surface(overlay, new Vector2(1, 0), new Vector2(-360, 104), new Vector2(344, 664), 18);
         var journal = new VBoxContainer(); journal.AddThemeConstantOverride("separation", 12); _journalPanel.AddChild(journal);
+        journal.AddChild(HudStyle.Label("FIELD NOTES   /   自然与聚落", 10, true));
         var journalHeader = new HBoxContainer(); journal.AddChild(journalHeader);
-        var journalTitle = HudStyle.Label("世界手记", 18); journalTitle.SizeFlagsHorizontal = SizeFlags.ExpandFill; journalHeader.AddChild(journalTitle);
+        var journalTitle = HudStyle.Heading("世界手记", 25); journalTitle.SizeFlagsHorizontal = SizeFlags.ExpandFill; journalHeader.AddChild(journalTitle);
         ActionButton(journalHeader, "关闭 ×", () => ShowJournal(false));
         _drawer = new TabContainer { SizeFlagsVertical = SizeFlags.ExpandFill }; journal.AddChild(_drawer);
         _drawer.AddThemeStyleboxOverride("panel", HudStyle.Box(new Color(0, 0, 0, 0), 0, 0, false));
@@ -222,19 +223,19 @@ public partial class MainGame
     }
     private static PanelContainer Surface(Control parent, Vector2 anchor, Vector2 offset, Vector2 size, int padding = 16)
     {
-        var panel = new PanelContainer(); panel.AddThemeStyleboxOverride("panel", HudStyle.Box(HudStyle.Surface, 10, padding)); HudStyle.Float(panel, anchor, offset, size); parent.AddChild(panel); return panel;
+        var panel = new PanelContainer(); panel.AddThemeStyleboxOverride("panel", HudStyle.Box(HudStyle.Surface, 3, padding)); HudStyle.Float(panel, anchor, offset, size); parent.AddChild(panel); return panel;
     }
     private static void ClearSurface(PanelContainer panel)
     {
-        var box = HudStyle.Box(new Color(.94f, .925f, .875f, .96f), 7, 8, false);
+        var box = HudStyle.Box(HudStyle.Surface, 3, 8, false);
         box.BorderWidthBottom = 1; box.BorderColor = new Color(HudStyle.Accent, .35f); panel.AddThemeStyleboxOverride("panel", box);
     }
     private void BuildResidentVitals(VBoxContainer parent)
     {
         _residentVitals = new VBoxContainer { Visible = false }; _residentVitals.AddThemeConstantOverride("separation", 8); parent.AddChild(_residentVitals);
-        _residentTitle = HudStyle.Label("", 26); _residentSubtitle = HudStyle.Label("", 12, true);
-        _residentVitals.AddChild(_residentTitle); _residentVitals.AddChild(_residentSubtitle);
+        _residentTitle = HudStyle.Heading("", 28); _residentSubtitle = HudStyle.Label("", 12, true);
         _residentPortrait = new ResidentPortrait(); _residentVitals.AddChild(_residentPortrait);
+        _residentVitals.AddChild(_residentTitle); _residentVitals.AddChild(_residentSubtitle);
         var grid = new GridContainer { Columns = 2 }; grid.AddThemeConstantOverride("h_separation", 12); grid.AddThemeConstantOverride("v_separation", 8); _residentVitals.AddChild(grid);
         for (int i = 0; i < 4; i++)
         {

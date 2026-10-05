@@ -5,8 +5,11 @@ namespace SandBoxSim.Client;
 /// <summary>One HUD palette and spacing scale. Floating surfaces communicate depth without framing the whole world.</summary>
 internal static class HudStyle
 {
-    public static readonly Color Ink = new("#f5f0e4"), Surface = new(.94f, .925f, .875f, .98f), Text = new("#273c34"),
-        Muted = new("#697367"), Accent = new("#386653"), Border = new("#c5c7b6"), Wash = new("#dce1d3");
+    public static readonly Color Ink = new("#faf4e7"), Surface = new(.935f, .91f, .85f, .99f), Text = new("#343b32"),
+        Muted = new("#747568"), Accent = new("#806544"), Border = new("#c8bfa8"), Wash = new("#e2ddcb");
+    private static readonly SystemFont DisplayFont = new() { FontNames = new[] { "Noto Serif CJK SC", "SimSun", "Songti SC", "serif" } };
+    public static Label Heading(string text, int size)
+    { var label = Label(text, size); label.AddThemeFontOverride("font", DisplayFont); return label; }
     public static StyleBoxFlat Box(Color color, int radius = 12, int padding = 16, bool border = true)
         => new() { BgColor = color, BorderColor = Border, BorderWidthBottom = border ? 1 : 0, BorderWidthTop = border ? 1 : 0,
             BorderWidthLeft = border ? 1 : 0, BorderWidthRight = border ? 1 : 0, CornerRadiusBottomLeft = radius, CornerRadiusBottomRight = radius,
@@ -54,8 +57,8 @@ internal static class HudStyle
     {
         var image = new Image();
         string shape = selected
-            ? "<rect x='1' y='1' width='16' height='16' rx='3' fill='#386653'/><path d='M5 9l3 3 5-6' fill='none' stroke='#f5f0e4' stroke-width='2'/>"
-            : "<rect x='1' y='1' width='16' height='16' rx='3' fill='none' stroke='#697367' stroke-width='1.5'/>";
+            ? "<rect x='1' y='1' width='16' height='16' rx='3' fill='#806544'/><path d='M5 9l3 3 5-6' fill='none' stroke='#f5f0e4' stroke-width='2'/>"
+            : "<rect x='1' y='1' width='16' height='16' rx='3' fill='none' stroke='#747568' stroke-width='1.5'/>";
         image.LoadSvgFromString("<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18'>" + shape + "</svg>");
         return ImageTexture.CreateFromImage(image);
     }

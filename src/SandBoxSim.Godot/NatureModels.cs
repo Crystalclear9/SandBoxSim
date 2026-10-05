@@ -42,6 +42,8 @@ internal sealed partial class NatureModels
         mesh = kind switch
         {
             "box" => new BoxMesh(),
+            "face" => SculptedHead(false),
+            "hair" => SculptedHead(true),
             "cone" => new CylinderMesh { TopRadius = 0, BottomRadius = .5f, Height = 1, RadialSegments = 16 },
             "cylinder" => new CylinderMesh { TopRadius = .5f, BottomRadius = .5f, Height = 1, RadialSegments = 16 },
             "capsule" => new CapsuleMesh { Radius = .5f, Height = 2, RadialSegments = 12, Rings = 6 },

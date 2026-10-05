@@ -7,12 +7,13 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
-    private readonly Dictionary<string, StandardMaterial3D> _residentMaterials = new();
+    private readonly Dictionary<string, Material> _residentMaterials = new();
     private Material ResidentMaterial(string color, float roughness = .88f)
     {
         if (!_residentMaterials.TryGetValue(color, out var material))
         {
-            material = new StandardMaterial3D { AlbedoColor = new Color(color), Roughness = roughness };
+            bool fabric = color is "#536d68" or "#b4956a" or "#866756" or "#6e7881" or "#798261" or "#a8937d" or "#75654f";
+            material = fabric ? Fabric(color) : new StandardMaterial3D { AlbedoColor = new Color(color), Roughness = roughness, MetallicSpecular = .22f };
             _residentMaterials[color] = material;
         }
         return material;
@@ -26,15 +27,15 @@ internal sealed partial class NatureModels
     private Mesh Garment()
     {
         if (_meshes.TryGetValue("tunic", out var existing)) { return existing; }
-        const int sides = 16;
-        float[] height = { .61f, .72f, .99f, 1.18f, 1.28f };
-        float[] width = { .245f, .205f, .21f, .25f, .115f };
-        float[] depth = { .145f, .13f, .145f, .135f, .08f };
-        var surface = new SurfaceTool(); surface.Begin(Mesh.PrimitiveType.Triangles);
+        const int sides = 32;
+        float[] height = { .60f, .65f, .73f, .82f, .97f, 1.10f, 1.19f, 1.24f, 1.28f };
+        float[] width = { .23f, .225f, .185f, .19f, .205f, .23f, .25f, .20f, .085f };
+        float[] depth = { .145f, .15f, .125f, .125f, .145f, .155f, .13f, .10f, .07f };
+        var surface = new SurfaceTool(); surface.Begin(Mesh.PrimitiveType.Triangles); surface.SetSmoothGroup(0);
         Vector3 Point(int ring, int side)
         {
             float angle = side * MathF.Tau / sides;
-            float fold = ring < 2 ? 1 + .045f * MathF.Cos(angle * 8) : 1;
+            float fold = 1 + .025f * MathF.Cos(angle * 10 + ring * .6f) * (ring is 2 or 8 ? .2f : 1);
             return new Vector3(MathF.Cos(angle) * width[ring] * fold, height[ring], MathF.Sin(angle) * depth[ring] * fold);
         }
         for (int ring = 0; ring < height.Length - 1; ring++) for (int side = 0; side < sides; side++)
@@ -109,15 +110,14 @@ internal sealed partial class NatureModels
         Detail(rig.Torso, "capsule", new Vector3(.23f, .7f, .075f), new Vector3(.075f, .065f, .055f), "#725b40");
         Detail(rig.Torso, "cylinder", new Vector3(0, 1.30f, 0), new Vector3(.105f, .10f, .105f), skin);
         rig.Head = new Node3D { Name = "Head", Position = new Vector3(0, 1.46f, 0) }; rig.Torso.AddChild(rig.Head);
-        Detail(rig.Head, "sphere", Vector3.Zero, new Vector3(.215f, .285f, .215f), skin);
-        Detail(rig.Head, "sphere", new Vector3(0, .07f, .015f), new Vector3(.225f, .18f, .225f), hair);
-        Detail(rig.Head, "sphere", new Vector3(0, -.005f, -.108f), new Vector3(.037f, .06f, .043f), skin);
+        Detail(rig.Head, "face", Vector3.Zero, new Vector3(.215f, .285f, .215f), skin);
+        Detail(rig.Head, "hair", new Vector3(0, .008f, .006f), new Vector3(.222f, .29f, .224f), hair);
         foreach (float side in new[] { -1f, 1f })
         {
             Detail(rig.Head, "sphere", new Vector3(side * .107f, -.005f, 0), new Vector3(.04f, .073f, .046f), skin);
             Detail(rig.Head, "sphere", new Vector3(side * .042f, .025f, -.097f), new Vector3(.025f, .015f, .011f), "#e5dbc6");
             Detail(rig.Head, "sphere", new Vector3(side * .042f, .025f, -.106f), new Vector3(.01f, .011f, .006f), "#342f28");
-            Detail(rig.Head, "box", new Vector3(side * .042f, .049f, -.096f), new Vector3(.039f, .01f, .01f), hair);
+            Detail(rig.Head, "capsule", new Vector3(side * .042f, .046f, -.101f), new Vector3(.009f, .019f, .008f), hair, new Vector3(0, 0, MathF.PI * .5f));
         }
         Detail(rig.Head, "box", new Vector3(0, -.053f, -.095f), new Vector3(.045f, .008f, .009f), "#976e5a");
         for (int i = 0; i < 2; i++)

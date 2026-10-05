@@ -168,12 +168,12 @@ public partial class MainGame
         foreach (var p in Projects.Items.Reverse())
         {
             var recipe = Projects.Recipe(p.Kind);
-            text.AppendLine("[color=#386653][b]" + recipe.Name + "[/b][/color]  " + (p.Cancelled ? "已停止" : p.Active ? $"第 {p.Stage}/{p.Duration} 阶段" : LandProjects.Policies[p.Policy]))
+            text.AppendLine("[color=#806544][b]" + recipe.Name + "[/b][/color]  " + (p.Cancelled ? "已停止" : p.Active ? $"第 {p.Stage}/{p.Duration} 阶段" : LandProjects.Policies[p.Policy]))
                 .AppendLine($"[url=focus:{p.Id}]前往 ({p.X}, {p.Y}) →[/url]");
             if (p.Active)
             {
                 text.AppendLine($"还有 {p.Duration - p.Stage} 个游戏天 · 半径 {p.Radius}")
-                    .AppendLine($"[url=cancel:{p.Id}][color=#697367]停止剩余工程[/color][/url]");
+                    .AppendLine($"[url=cancel:{p.Id}][color=#747568]停止剩余工程[/color][/url]");
             }
             else
             {
@@ -191,7 +191,7 @@ public partial class MainGame
             }
             text.AppendLine();
         }
-        _projectLog.Text = text.Length == 0 ? "[color=#697367]还没有土地工程。\n\n去图册选择一项改变，工程完成后再决定如何经营。[/color]" : text.ToString();
+        _projectLog.Text = text.Length == 0 ? "[color=#747568]还没有土地工程。\n\n去图册选择一项改变，工程完成后再决定如何经营。[/color]" : text.ToString();
         RefreshLandCards();
         RefreshBlueprint();
         if (_planPanel != null)

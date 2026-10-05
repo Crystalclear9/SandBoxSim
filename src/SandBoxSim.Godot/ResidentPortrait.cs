@@ -18,20 +18,23 @@ internal partial class ResidentPortrait : SubViewportContainer
     private float _yaw = -.28f, _distance = 1.7f;
     public override void _Ready()
     {
-        Stretch = true; CustomMinimumSize = new Vector2(270, 156);
+        Stretch = true; CustomMinimumSize = new Vector2(270, 196);
         TooltipText = "拖动旋转人物 · 滚轮查看细节";
         MouseFilter = MouseFilterEnum.Stop;
-        _viewport = new SubViewport { Size = new Vector2I(540, 312), OwnWorld3D = true,
+        _viewport = new SubViewport { Size = new Vector2I(540, 392), OwnWorld3D = true,
             RenderTargetUpdateMode = SubViewport.UpdateMode.WhenVisible, HandleInputLocally = false };
         AddChild(_viewport);
         _stage = new Node3D(); _viewport.AddChild(_stage);
         var environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color,
-            BackgroundColor = new Color("#ddd9ca"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
-            AmbientLightColor = new Color("#f6eedc"), AmbientLightEnergy = .65f };
+            BackgroundColor = new Color("#252c29"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
+            AmbientLightColor = new Color("#becbbb"), AmbientLightEnergy = .35f };
         _stage.AddChild(new WorldEnvironment { Environment = environment });
-        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-35, -35, 0), LightColor = new Color("#fff1dc"), LightEnergy = 1.1f });
-        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-15, 145, 0), LightColor = new Color("#b7cfca"), LightEnergy = .55f });
+        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-35, -35, 0), LightColor = new Color("#fff1dc"), LightEnergy = 1.5f });
+        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-15, 145, 0), LightColor = new Color("#c8d8cd"), LightEnergy = 1.2f });
         _camera = new Camera3D { Current = true, Fov = 34 }; _stage.AddChild(_camera); Aim();
+        var caption = HudStyle.Label("拖动旋转  /  滚轮查看细节", 10);
+        caption.AddThemeColorOverride("font_color", new Color("#cabfa8")); caption.MouseFilter = MouseFilterEnum.Ignore;
+        caption.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide); caption.OffsetTop = -22; caption.OffsetLeft = 10; AddChild(caption);
     }
     public void ShowResident(long identity, int slot, bool child, JobType job)
     {
@@ -49,7 +52,11 @@ internal partial class ResidentPortrait : SubViewportContainer
     public override void _Process(double delta)
     {
         // Idle breathing is a portrait presentation, not a simulated action.
-        if (IsVisibleInTree()) { _resident?.Pose((float)delta, false, false, false, false, (float)(_identity % 11)); }
+        if (IsVisibleInTree() && _resident != null)
+        {
+            _resident.Pose((float)delta, false, false, false, false, (float)(_identity % 11));
+            _resident.Rotation = new Vector3(0, Mathf.LerpAngle(_resident.Rotation.Y, _yaw, 1 - MathF.Exp(-(float)delta * 12)), 0);
+        }
     }
     public override void _GuiInput(InputEvent input)
     {
@@ -61,7 +68,7 @@ internal partial class ResidentPortrait : SubViewportContainer
             AcceptEvent();
         }
         if (input is InputEventMouseMotion motion && _drag && _resident != null)
-        { _yaw += motion.Relative.X * .012f; _resident.Rotation = new Vector3(0, _yaw, 0); AcceptEvent(); }
+        { _yaw += motion.Relative.X * .012f; AcceptEvent(); }
     }
     public override void _Input(InputEvent input)
     { if (input is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false } || input is InputEventMouseMotion { ButtonMask: 0 }) { _drag = false; } }
