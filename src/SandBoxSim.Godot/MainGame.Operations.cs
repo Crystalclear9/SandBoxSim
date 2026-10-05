@@ -38,7 +38,7 @@ public partial class MainGame
     {
         _pulseButton = new Godot.Button { Text = "现场 · 走进世界 →", Alignment = HorizontalAlignment.Left };
         HudStyle.Button(_pulseButton); _pulseButton.AddThemeStyleboxOverride("normal", HudStyle.Box(HudStyle.Surface, 3, 14));
-        HudStyle.Float(_pulseButton, new Vector2(1, 0), new Vector2(-360, 104), new Vector2(344, 48)); overlay.AddChild(_pulseButton);
+        HudStyle.Float(_pulseButton, new Vector2(1, 0), new Vector2(-404, 104), new Vector2(380, 48)); overlay.AddChild(_pulseButton);
         _pulseButton.Pressed += () => { ShowJournal(true); _drawer.CurrentTab = 0; };
     }
     private void RenameResident()
@@ -144,7 +144,7 @@ public partial class MainGame
     }
     private void BuildPlanningCard(Control overlay)
     {
-        _planPanel = Surface(overlay, Vector2.Zero, new Vector2(16, 104), new Vector2(280, 425), 16); _planPanel.Visible = false;
+        _planPanel = Surface(overlay, Vector2.Zero, new Vector2(224, 104), new Vector2(280, 425), 16); _planPanel.Visible = false;
         var body = new VBoxContainer(); body.AddThemeConstantOverride("separation", 10); _planPanel.AddChild(body);
         _planArt = new TextureRect { ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
             CustomMinimumSize = new Vector2(0, 128) }; body.AddChild(_planArt);
@@ -168,12 +168,12 @@ public partial class MainGame
         foreach (var p in Projects.Items.Reverse())
         {
             var recipe = Projects.Recipe(p.Kind);
-            text.AppendLine("[color=#806544][b]" + recipe.Name + "[/b][/color]  " + (p.Cancelled ? "已停止" : p.Active ? $"第 {p.Stage}/{p.Duration} 阶段" : LandProjects.Policies[p.Policy]))
+            text.AppendLine("[color=#a1d2cd][b]" + recipe.Name + "[/b][/color]  " + (p.Cancelled ? "已停止" : p.Active ? $"第 {p.Stage}/{p.Duration} 阶段" : LandProjects.Policies[p.Policy]))
                 .AppendLine($"[url=focus:{p.Id}]前往 ({p.X}, {p.Y}) →[/url]");
             if (p.Active)
             {
                 text.AppendLine($"还有 {p.Duration - p.Stage} 个游戏天 · 半径 {p.Radius}")
-                    .AppendLine($"[url=cancel:{p.Id}][color=#747568]停止剩余工程[/color][/url]");
+                    .AppendLine($"[url=cancel:{p.Id}][color=#9cb0b7]停止剩余工程[/color][/url]");
             }
             else
             {
@@ -191,7 +191,7 @@ public partial class MainGame
             }
             text.AppendLine();
         }
-        _projectLog.Text = text.Length == 0 ? "[color=#747568]还没有土地工程。\n\n去图册选择一项改变，工程完成后再决定如何经营。[/color]" : text.ToString();
+        _projectLog.Text = text.Length == 0 ? "[color=#9cb0b7]还没有土地工程。\n\n去图册选择一项改变，工程完成后再决定如何经营。[/color]" : text.ToString();
         RefreshLandCards();
         RefreshBlueprint();
         if (_planPanel != null)

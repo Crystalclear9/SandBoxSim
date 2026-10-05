@@ -26,14 +26,14 @@ internal partial class ResidentPortrait : SubViewportContainer
         AddChild(_viewport);
         _stage = new Node3D(); _viewport.AddChild(_stage);
         var environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color,
-            BackgroundColor = new Color("#252c29"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
+            BackgroundColor = new Color("#172731"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
             AmbientLightColor = new Color("#becbbb"), AmbientLightEnergy = .35f };
         _stage.AddChild(new WorldEnvironment { Environment = environment });
-        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-35, -35, 0), LightColor = new Color("#fff1dc"), LightEnergy = 1.5f });
-        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-15, 145, 0), LightColor = new Color("#c8d8cd"), LightEnergy = 1.2f });
+        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-35, -35, 0), LightColor = new Color("#f0f3ed"), LightEnergy = 1.5f });
+        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-15, 145, 0), LightColor = new Color("#adcbd8"), LightEnergy = 1.2f });
         _camera = new Camera3D { Current = true, Fov = 34 }; _stage.AddChild(_camera); Aim();
         var caption = HudStyle.Label("拖动旋转  /  滚轮查看细节", 10);
-        caption.AddThemeColorOverride("font_color", new Color("#cabfa8")); caption.MouseFilter = MouseFilterEnum.Ignore;
+        caption.AddThemeColorOverride("font_color", new Color("#9cb0b7")); caption.MouseFilter = MouseFilterEnum.Ignore;
         caption.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide); caption.OffsetTop = -22; caption.OffsetLeft = 10; AddChild(caption);
     }
     public void ShowResident(long identity, int slot, bool child, JobType job)

@@ -5,8 +5,8 @@ namespace SandBoxSim.Client;
 /// <summary>One HUD palette and spacing scale. Floating surfaces communicate depth without framing the whole world.</summary>
 internal static class HudStyle
 {
-    public static readonly Color Ink = new("#faf4e7"), Surface = new(.935f, .91f, .85f, .99f), Text = new("#343b32"),
-        Muted = new("#747568"), Accent = new("#806544"), Border = new("#c8bfa8"), Wash = new("#e2ddcb");
+    public static readonly Color Ink = new("#15242c"), Surface = new(.065f, .105f, .135f, .965f), Text = new("#edf3f2"),
+        Muted = new("#9cb0b7"), Accent = new("#a1d2cd"), Border = new("#344d59"), Wash = new("#243b47");
     private static readonly SystemFont DisplayFont = new() { FontNames = new[] { "Noto Serif CJK SC", "SimSun", "Songti SC", "serif" } };
     public static Label Heading(string text, int size)
     { var label = Label(text, size); label.AddThemeFontOverride("font", DisplayFont); return label; }
@@ -57,8 +57,8 @@ internal static class HudStyle
     {
         var image = new Image();
         string shape = selected
-            ? "<rect x='1' y='1' width='16' height='16' rx='3' fill='#806544'/><path d='M5 9l3 3 5-6' fill='none' stroke='#f5f0e4' stroke-width='2'/>"
-            : "<rect x='1' y='1' width='16' height='16' rx='3' fill='none' stroke='#747568' stroke-width='1.5'/>";
+            ? "<rect x='1' y='1' width='16' height='16' rx='3' fill='#a1d2cd'/><path d='M5 9l3 3 5-6' fill='none' stroke='#f5f0e4' stroke-width='2'/>"
+            : "<rect x='1' y='1' width='16' height='16' rx='3' fill='none' stroke='#9cb0b7' stroke-width='1.5'/>";
         image.LoadSvgFromString("<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18'>" + shape + "</svg>");
         return ImageTexture.CreateFromImage(image);
     }

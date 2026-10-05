@@ -83,11 +83,11 @@ public partial class DiscoveryPanel : VBoxContainer
         var text = new StringBuilder();
         foreach (var ev in sim.Society.History.Where(e => IsStory((WorldEventType)e.Type)).TakeLast(3).Reverse())
         {
-            text.AppendLine($"[color=#747568]第 {ev.Tick / sim.Config.Clock.TicksPerDay + 1} 天[/color]  " + ev.Description.Replace("[", "[lb]"));
-            if (ev.Actor != 0 || ev.X >= 0 && ev.Y >= 0) { text.AppendLine($"[url={ev.Actor}:{ev.X}:{ev.Y}][color=#806544]追踪故事 →[/color][/url]"); }
+            text.AppendLine($"[color=#9cb0b7]第 {ev.Tick / sim.Config.Clock.TicksPerDay + 1} 天[/color]  " + ev.Description.Replace("[", "[lb]"));
+            if (ev.Actor != 0 || ev.X >= 0 && ev.Y >= 0) { text.AppendLine($"[url={ev.Actor}:{ev.X}:{ev.Y}][color=#a1d2cd]追踪故事 →[/color][/url]"); }
             text.AppendLine();
         }
-        _stories.Text = text.Length == 0 ? "[color=#747568]居民的第一次选择，将成为这里的故事。[/color]" : text.ToString();
+        _stories.Text = text.Length == 0 ? "[color=#9cb0b7]居民的第一次选择，将成为这里的故事。[/color]" : text.ToString();
         _miniMap.QueueRedraw();
     }
     public void ValidateNavigation() => _miniMap.ValidateMapping();

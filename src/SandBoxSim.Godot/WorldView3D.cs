@@ -452,7 +452,7 @@ void fragment(){
     vec3 a=mix(surface_at(origin,pattern),surface_at(origin+vec2(1.0,0.0),pattern),blend.x);
     vec3 b=mix(surface_at(origin+vec2(0.0,1.0),pattern),surface_at(origin+vec2(1.0),pattern),blend.x);
     vec3 c=mix(a,b,blend.y); float lum=dot(c,vec3(.2126,.7152,.0722));
-    ALBEDO=mix(vec3(lum),c,.72)*COLOR.rgb*.86; ROUGHNESS=1.0;
+    ALBEDO=mix(vec3(lum),c,.55)*COLOR.rgb*vec3(.90,.96,1.02)*.90; ROUGHNESS=1.0;
 }" };
         var material = new ShaderMaterial { Shader = groundShader };
         material.SetShaderParameter("material_map", ImageTexture.CreateFromImage(materialMap));
