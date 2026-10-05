@@ -52,7 +52,7 @@ public partial class MainGame
         _trialForecast = HudStyle.Label("", 13, true); _trialForecast.AutowrapMode = TextServer.AutowrapMode.WordSmart; body.AddChild(_trialForecast);
         _trialValues = HudStyle.Label("", 15); body.AddChild(_trialValues);
         _trialProgress = new ProgressBar { CustomMinimumSize = new Vector2(0, 8), ShowPercentage = false, MaxValue = 2 };
-        _trialProgress.AddThemeStyleboxOverride("background", HudStyle.Box(new Color("#26332c"), 4, 0, false));
+        _trialProgress.AddThemeStyleboxOverride("background", HudStyle.Box(HudStyle.Wash, 4, 0, false));
         _trialProgress.AddThemeStyleboxOverride("fill", HudStyle.Box(HudStyle.Accent, 4, 0, false)); body.AddChild(_trialProgress);
         _trialGoal = HudStyle.Label("", 13, true); _trialGoal.AutowrapMode = TextServer.AutowrapMode.WordSmart; body.AddChild(_trialGoal);
         _trialNotice = HudStyle.Label("", 14); _trialNotice.AutowrapMode = TextServer.AutowrapMode.WordSmart; body.AddChild(_trialNotice);

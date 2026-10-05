@@ -1,7 +1,12 @@
 # 00 — 文档地图与自检表
 
-本目录是项目的**设计真相**。代码与文档必须一致：文档描述的字段、公式、阈值，
-都能在源码里找到对应实现；源码里的新机制也必须在文档里留下理由。
+## 当前阅读入口
+
+先读 [玩家手册](24-PlayerHandbook.md)，了解按键、工具、工程、试炼与保存。
+想理解居民为何这样行动，读 [世界如何运转](26-WorldGuide.md)；界面布局见
+[界面与交互设计](27-InterfaceIteration.md)，源码和扩展见 [开发指南](25-DeveloperGuide.md)。
+
+下方保留详细设计资料、原始计划与历史开发记录。历史性能、界面和阶段说明不代表当前版本。
 
 ---
 
@@ -35,7 +40,7 @@
 
 | 24 | [PlayerHandbook](24-PlayerHandbook.md) | 当前玩家操作与玩法手册 | 2026-10-05 |
 | 25 | [DeveloperGuide](25-DeveloperGuide.md) | 当前架构、存档与扩展契约 | 2026-10-05 |
-| 26 | [DeliveryAndValidation](26-DeliveryAndValidation.md) | 当前构建、实测与交付边界 | 2026-10-05 |
+| 26 | [WorldGuide](26-WorldGuide.md) | 系统关系、世界反馈与玩法策略 | 2026-10-05 |
 | 27 | [InterfaceIteration](27-InterfaceIteration.md) | 现场界面、工程玩法与实际截图 | 2026-10-05 |
 
 早期里程碑保留为历史记录；当前版本以 24–27 为准，原始任务书的全部验收状态以 20 为准。

@@ -184,15 +184,29 @@ public partial class MainGame : Control
     }
     private void ApplyVisualTheme()
     {
-        Theme.SetColor("font_color", "Label", new Color("#dde3d3"));
-        Theme.SetColor("default_color", "RichTextLabel", new Color("#d8dfcc"));
-        Theme.SetColor("font_color", "Button", new Color("#dce1cb"));
-        Theme.SetColor("font_hover_color", "Button", new Color("#fff0c4"));
+        Theme.SetColor("font_color", "Label", HudStyle.Text);
+        Theme.SetColor("default_color", "RichTextLabel", HudStyle.Text);
+        Theme.SetColor("font_color", "Button", HudStyle.Text);
+        Theme.SetColor("font_hover_color", "Button", HudStyle.Accent);
+        foreach (string type in new[] { "CheckBox", "CheckButton", "OptionButton" })
+        {
+            Theme.SetColor("font_color", type, HudStyle.Text);
+            Theme.SetColor("font_hover_color", type, HudStyle.Accent);
+            Theme.SetColor("font_pressed_color", type, HudStyle.Text);
+        }
+        Theme.SetColor("font_color", "LineEdit", HudStyle.Text);
+        Theme.SetColor("font_placeholder_color", "LineEdit", HudStyle.Muted);
+        Theme.SetColor("caret_color", "LineEdit", HudStyle.Ink);
+        Theme.SetStylebox("panel", "PopupMenu", HudStyle.Box(HudStyle.Surface, 4, 12));
+        Theme.SetColor("font_color", "PopupMenu", HudStyle.Text);
+        Theme.SetColor("font_hover_color", "PopupMenu", HudStyle.Surface);
+        Theme.SetStylebox("hover", "PopupMenu", HudStyle.Box(HudStyle.Accent, 2, 6, false));
+        Theme.SetStylebox("separator", "HSeparator", new StyleBoxLine { Color = HudStyle.Border, Thickness = 1 });
         foreach (string type in new[] { "Button", "OptionButton", "LineEdit" })
             foreach (string state in new[] { "normal", "hover", "pressed", "focus" })
             {
-                var box = new StyleBoxFlat { BgColor = new Color(state == "hover" ? "#354237" : state == "pressed" ? "#42523b" : "#202d24"),
-                    BorderColor = new Color(state == "focus" ? "#b4ac79" : "#43503f"), BorderWidthBottom = 1, BorderWidthTop = 1,
+                var box = new StyleBoxFlat { BgColor = state == "hover" ? HudStyle.Wash : HudStyle.Surface,
+                    BorderColor = state == "focus" ? HudStyle.Accent : HudStyle.Border, BorderWidthBottom = 1, BorderWidthTop = 1,
                     BorderWidthLeft = 1, BorderWidthRight = 1, CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4,
                     CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4, ContentMarginLeft = 10, ContentMarginRight = 10,
                     ContentMarginTop = 6, ContentMarginBottom = 6 };
@@ -206,7 +220,7 @@ public partial class MainGame : Control
         var selected = HudStyle.Box(new Color(0, 0, 0, 0), 0, 8, false); selected.BorderWidthBottom = 2; selected.BorderColor = HudStyle.Accent;
         Theme.SetStylebox("tab_selected", "TabContainer", selected);
         Theme.SetStylebox("tab_unselected", "TabContainer", HudStyle.Box(new Color(0, 0, 0, 0), 0, 8, false));
-        Theme.SetStylebox("tab_hovered", "TabContainer", HudStyle.Box(new Color(.2f, .27f, .21f, .7f), 6, 8, false));
+        Theme.SetStylebox("tab_hovered", "TabContainer", HudStyle.Box(HudStyle.Wash, 2, 8, false));
         Theme.SetFontSize("normal_font_size", "RichTextLabel", 14); Theme.SetConstant("line_separation", "RichTextLabel", 5);
         Theme.SetColor("default_color", "RichTextLabel", HudStyle.Text);
         Theme.SetColor("font_color", "TooltipLabel", HudStyle.Text);
@@ -477,14 +491,15 @@ public partial class MainGame : Control
                     text.AppendLine(ev.Description + " · " + ev.Cause);
             }
         }
+        RefreshResidentVitals();
         _inspector.Text = FormatInspector(text.ToString());
         var history = new StringBuilder();
         for (int i = Sim.Events.Count - 1, count = 0; i >= 0 && count < 80; i--)
         {
             var ev = Sim.Events[i]; if (ev.Importance < SandBoxSim.Core.History.EventImportance.Normal) { continue; }
-            history.AppendLine($"[color=#d8bb84]第 {ev.Tick / 1440} 天[/color]")
+            history.AppendLine($"[color=#526f53]第 {ev.Tick / 1440} 天[/color]")
                 .AppendLine("[b]" + EscapeMarkup(ev.Description) + "[/b]")
-                .AppendLine("[color=#a2b1a5]" + EscapeMarkup(ev.Cause) + "[/color]").AppendLine(); count++;
+                .AppendLine("[color=#70776a]" + EscapeMarkup(ev.Cause) + "[/color]").AppendLine(); count++;
         }
         _history.Text = history.ToString();
     }

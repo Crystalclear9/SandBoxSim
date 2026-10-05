@@ -1,6 +1,6 @@
 # 23 — 世界试炼与主动干预
 
-> 历史设计与验收记录。当前版本操作见 [玩家手册](24-PlayerHandbook.md)，架构见 [开发指南](25-DeveloperGuide.md)，最新验证见 [交付说明](26-DeliveryAndValidation.md)。
+> 历史设计与验收记录。当前版本操作见 [玩家手册](24-PlayerHandbook.md)，架构见 [开发指南](25-DeveloperGuide.md)，系统玩法见 [世界如何运转](26-WorldGuide.md)。
 
 2026-10-05。这次玩法改动针对“放下居民后，只能等待”的问题：给玩家提前可读的风险、有限的干预资源、能定位的居民诉求与真实结果复盘。
 

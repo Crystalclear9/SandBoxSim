@@ -1,6 +1,6 @@
 # 原计划实现核验 · 2026-10-04
 
-> 历史设计与验收记录。当前版本操作见 [玩家手册](24-PlayerHandbook.md)，架构见 [开发指南](25-DeveloperGuide.md)，最新验证见 [交付说明](26-DeliveryAndValidation.md)。
+> 历史设计与验收记录。当前版本操作见 [玩家手册](24-PlayerHandbook.md)，架构见 [开发指南](25-DeveloperGuide.md)，系统玩法见 [世界如何运转](26-WorldGuide.md)。
 
 > 下文记录本轮修复前的核验基线。接续修复、最新验证与计划完成情况见 [当前缺陷修复交付](18-CurrentDefectRepairs.md)。旧的 11/20 形成率、260 项通过和温度贴零问题不可当作修复后结论。
 

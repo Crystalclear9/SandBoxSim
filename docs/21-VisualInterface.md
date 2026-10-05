@@ -1,6 +1,6 @@
 # 河山：3D 界面与视觉验收
 
-> 历史设计与验收记录。当前版本操作见 [玩家手册](24-PlayerHandbook.md)，架构见 [开发指南](25-DeveloperGuide.md)，最新验证见 [交付说明](26-DeliveryAndValidation.md)。
+> 历史设计与验收记录。当前版本操作见 [玩家手册](24-PlayerHandbook.md)，架构见 [开发指南](25-DeveloperGuide.md)，系统玩法见 [世界如何运转](26-WorldGuide.md)。
 
 ## 视觉方向
 

@@ -14,7 +14,7 @@ public partial class StatisticsView : Control
     {
         var picker = new OptionButton();
         picker.SetAnchorsAndOffsetsPreset(LayoutPreset.TopWide); picker.OffsetBottom = 38;
-        HudStyle.Button(picker); picker.AddThemeStyleboxOverride("normal", HudStyle.Box(new Color(.13f, .19f, .16f), 8, 10, false));
+        HudStyle.Button(picker); picker.AddThemeStyleboxOverride("normal", HudStyle.Box(HudStyle.Wash, 3, 10, false));
         foreach (string name in Names) { picker.AddItem(name); }
         AddChild(picker); picker.ItemSelected += index => { _metric = (int)index; QueueRedraw(); };
         MouseExited += () => { _hover = false; QueueRedraw(); };

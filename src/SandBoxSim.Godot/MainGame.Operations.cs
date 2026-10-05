@@ -67,9 +67,9 @@ public partial class MainGame
         {
             int kind = i;
             var button = new Godot.Button { Text = LandProjects.Names[i], Icon = ToolGlyphs.For(icons[i]), ExpandIcon = true,
-                CustomMinimumSize = new Vector2(148, 70), SizeFlagsHorizontal = SizeFlags.ExpandFill, TooltipText = LandProjects.Briefs[i] };
+                CustomMinimumSize = new Vector2(132, 68), SizeFlagsHorizontal = SizeFlags.ExpandFill, TooltipText = LandProjects.Briefs[i] };
             button.AddThemeConstantOverride("icon_max_width", 27); HudStyle.Button(button);
-            button.AddThemeStyleboxOverride("normal", HudStyle.Box(new Color("#1f302b"), 10, 12, false));
+            button.AddThemeStyleboxOverride("normal", HudStyle.Box(HudStyle.Wash, 3, 10, false));
             button.Pressed += () => PrepareProject(kind); choices.AddChild(button);
         }
         body.AddChild(HudStyle.Label("工程日志", 18)); _projectLog = TextPanel("工程日志"); _projectLog.CustomMinimumSize = new Vector2(0, 280); body.AddChild(_projectLog);
@@ -86,7 +86,7 @@ public partial class MainGame
     }
     private void BuildPlanningCard(Control overlay)
     {
-        _planPanel = Surface(overlay, Vector2.Zero, new Vector2(24, 116), new Vector2(270, 230), 20); _planPanel.Visible = false;
+        _planPanel = Surface(overlay, Vector2.Zero, new Vector2(16, 104), new Vector2(270, 230), 18); _planPanel.Visible = false;
         var body = new VBoxContainer(); body.AddThemeConstantOverride("separation", 10); _planPanel.AddChild(body);
         body.AddChild(HudStyle.Label("生态工程 · 放置预览", 11, true)); _planTitle = HudStyle.Label("", 23); body.AddChild(_planTitle);
         _planDescription = HudStyle.Label("", 14, true); _planDescription.AutowrapMode = TextServer.AutowrapMode.WordSmart; body.AddChild(_planDescription);
@@ -99,12 +99,12 @@ public partial class MainGame
         var text = new System.Text.StringBuilder();
         foreach (var p in Projects.Items.Reverse())
         {
-            text.AppendLine("[color=#9dcec0][b]" + LandProjects.Names[p.Kind] + "[/b][/color]  " + (p.Cancelled ? "已停止" : p.Active ? $"第 {p.Stage}/3 阶段" : "已完成"))
+            text.AppendLine("[color=#526f53][b]" + LandProjects.Names[p.Kind] + "[/b][/color]  " + (p.Cancelled ? "已停止" : p.Active ? $"第 {p.Stage}/3 阶段" : "已完成"))
                 .AppendLine($"[url=focus:{p.Id}]前往 ({p.X}, {p.Y}) →[/url]");
             if (p.Active)
             {
                 text.AppendLine($"还有 {3 - p.Stage} 个游戏天 · 半径 {p.Radius}")
-                    .AppendLine($"[url=cancel:{p.Id}][color=#a2b1a5]停止剩余工程（不撤销已生效部分）[/color][/url]");
+                    .AppendLine($"[url=cancel:{p.Id}][color=#70776a]停止剩余工程（不撤销已生效部分）[/color][/url]");
             }
             else
             {
@@ -114,7 +114,7 @@ public partial class MainGame
             }
             text.AppendLine();
         }
-        _projectLog.Text = text.Length == 0 ? "[color=#a2b1a5]还没有工程。\n\n用三天的准备，换一片土地的长期变化。工程不会直接为居民创建建筑。[/color]" : text.ToString();
+        _projectLog.Text = text.Length == 0 ? "[color=#70776a]还没有工程。\n\n用三天的准备，换一片土地的长期变化。工程不会直接为居民创建建筑。[/color]" : text.ToString();
         if (_planPanel != null)
         {
             _planPanel.Visible = PlanningKind >= 0 && !_settingsOpen;
