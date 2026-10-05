@@ -18,6 +18,9 @@ public partial class MainGame : Control
     public PlayerTool Tool { get; private set; }
     public int Scenario { get; private set; }
     public WorldTrial Trial { get; private set; } = new();
+    public LandProjects Projects { get; private set; } = new();
+    public long PinnedPerson { get; private set; }
+    public int PlanningKind { get; private set; } = -1;
     public int Radius => (int)_radius.Value;
     public float Strength => (float)_strength.Value;
     public int SelectedSlot => _selected >= 0 && Sim.Agents.IsSlotAlive(_selected)
@@ -91,6 +94,7 @@ public partial class MainGame : Control
     {
         Sim = SandboxScenarios.Create(Scenario, seed, _initialPopulation);
         Trial = new WorldTrial();
+        Projects = new LandProjects(); PinnedPerson = 0; PlanningKind = -1;
         SubscribeVisualEvents();
         _pending = 0; _selected = -1; _selectedPersonId = 0; _selectedAnimal = -1; _selectedWolf = -1;
         SyncControls();
@@ -117,6 +121,7 @@ public partial class MainGame : Control
     { var button = new Godot.Button { Text = label }; parent.AddChild(button); button.Pressed += action; }
     public void SelectTool(PlayerTool tool)
     {
+        PlanningKind = -1;
         Tool = tool; _toolPicker.Select((int)tool);
         string hint = tool switch
         {
@@ -248,7 +253,8 @@ public partial class MainGame : Control
     }
     private string EncodeClientWorld(bool includeCheckpoint = false)
     {
-        var client = JsonValue.Object().Set("scenario", JsonValue.From(Scenario)).Set("trial", Trial.Encode());
+        var client = JsonValue.Object().Set("scenario", JsonValue.From(Scenario)).Set("trial", Trial.Encode()).Set("projects", Projects.Encode())
+            .Set("pin", JsonValue.From(PinnedPerson.ToString(System.Globalization.CultureInfo.InvariantCulture)));
         if (includeCheckpoint) { client.Set("checkpoint", JsonValue.From(_checkpoint)).Set("experiment", JsonValue.From(_experimentLabel)); }
         return JsonParser.Parse(SaveFile.Encode(Sim)).Set("client", client).ToJson(true);
     }
@@ -256,6 +262,8 @@ public partial class MainGame : Control
     {
         Scenario = Math.Clamp(root.Get("client").GetInt("scenario", Scenario), 0, SandboxScenarios.Names.Length - 1);
         Trial = WorldTrial.Decode(root.Get("client").Get("trial"));
+        Projects = LandProjects.Decode(root.Get("client").Get("projects")); PlanningKind = -1;
+        long.TryParse(root.Get("client").GetString("pin"), out long pin); PinnedPerson = pin;
         if (restoreCheckpoint)
         {
             _checkpoint = root.Get("client").GetString("checkpoint", "");
@@ -272,6 +280,12 @@ public partial class MainGame : Control
             if (_previewView.Length > 0) { ((WorldView3D)_map).SetPerspective(_previewView == "near" ? "近景" : _previewView == "top" ? "俯视" : "斜视"); }
             if (_previewPanel == "chart") { ShowJournal(true); _drawer.CurrentTab = 3; }
             if (_previewPanel == "settings") { ShowSettings(true); }
+            if (_previewPanel == "projects")
+            {
+                Projects.Queue(Sim, 0, 43, 53, 5); Projects.Queue(Sim, 3, 35, 50, 4);
+                AdvanceWorld(Sim.Config.Clock.TicksPerDay); OpenProjects();
+            }
+            if (_previewPanel == "planning") { OpenProjects(); PrepareProject(2); }
             if (_previewPanel == "brush") { SetCategory("地貌"); SelectTool(PlayerTool.River); }
             if (_previewPanel == "person")
             {
@@ -293,7 +307,7 @@ public partial class MainGame : Control
         }
         _refresh += delta;
         _map.QueueRedraw();
-        if (_refresh >= 0.2) { _refresh = 0; RefreshPanels(); RefreshTrialPanel(); SyncControls(); _chart.QueueRedraw(); _discovery.Refresh(); }
+        if (_refresh >= 0.2) { _refresh = 0; RefreshPanels(); RefreshTrialPanel(); RefreshOperations(); SyncControls(); _chart.QueueRedraw(); _discovery.Refresh(); }
         _captureElapsed += delta;
         if (_capture.Length > 0 && !_captureRequested && _captureElapsed >= .7) { _captureRequested = true; Capture(); }
         if (_selfTest && _frames >= 15) { GetTree().Quit(0); }
@@ -334,6 +348,7 @@ public partial class MainGame : Control
     {
         if (!Sim.World.IsInBounds(x, y)) { return; }
         _selectedX = x; _selectedY = y;
+        if (PlanningKind >= 0) { CommitProject(x, y); return; }
         if (Tool != PlayerTool.Inspect)
         {
             int before = Sim.Agents.LiveCount;
@@ -487,17 +502,26 @@ public partial class MainGame : Control
             int observed = Sim.Agents.AliveSlots().FirstOrDefault(-1);
             if (observed >= 0) { var position = Sim.Agents.PositionOf(observed); FocusStory(Sim.Society.Identity(observed), position.X, position.Y); }
             ValidateHudLayout();
+            _discovery.ValidateNavigation();
+            if (observed >= 0) { TogglePin(); if (PinnedPerson != Sim.Society.Identity(observed)) { throw new Exception("Resident pin lost stable identity"); } }
+            _discovery.Refresh();
             _decisionDetails = true; RefreshPanels(); _decisionDetails = false;
             _drawer.CurrentTab = 3; _chart._GuiInput(new InputEventMouseMotion { Position = new Vector2(150, 200) });
             SetCategory("地貌"); SelectTool(PlayerTool.River); SetCategory("生命"); SelectTool(PlayerTool.Inspect);
             ShowSettings(true); ShowSettings(false); ShowJournal(false); ShowJournal(true);
             if (before != StateHash.ComputeDigest(Sim)) { throw new Exception("Inspector mutated simulation"); }
+            if (observed >= 0)
+            {
+                _residentName.Text = "林溪[一]"; RenameResident();
+                if (Sim.Society.Find(PinnedPerson)?.Name != "林溪[一]") { throw new Exception("Resident naming lost stable identity"); }
+            }
             string saved = EncodeClientWorld();
             if (JsonParser.Parse(saved).Get("client").GetInt("scenario", -1) != Scenario) { throw new Exception("Scenario context missing from client save"); }
             var restored = Simulation.CreateForRestore(Sim.Config.Clone(), 100, 100, 1);
             var result = SaveLoader.Load(restored, saved);
             if (!result.Success || !result.DigestMatches) { throw new Exception("Client save round trip failed"); }
             var originalTrial = Trial;
+            Trial = new WorldTrial();
             try
             {
                 StartTrial(1);
@@ -522,6 +546,17 @@ public partial class MainGame : Control
                 if (hazardBefore != StateHash.ComputeDigest(Sim)) { throw new Exception("Hazard rendering mutated world"); }
             }
             finally { Trial = originalTrial; SelectTool(PlayerTool.Inspect); _drawer.CurrentTab = 0; }
+            OpenProjects(); PrepareProject(2); ClickTile(30, 30);
+            if (Projects.ActiveCount != 1 || PlanningKind != -1) { throw new Exception("Project placement failed"); }
+            var projectsSave = JsonParser.Parse(EncodeClientWorld());
+            var savedProjects = LandProjects.Decode(projectsSave.Get("client").Get("projects"));
+            if (savedProjects.ActiveCount != 1 || projectsSave.Get("client").GetString("pin") != PinnedPerson.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                { throw new Exception("Project or resident pin missing from client save"); }
+            string operationBefore = StateHash.ComputeDigest(Sim);
+            RefreshOperations(); _discovery.Refresh(); _discovery.ValidateNavigation(); ((WorldView3D)_map).ValidateHazardVisuals();
+            if (operationBefore != StateHash.ComputeDigest(Sim)) { throw new Exception("Operations observations mutated world"); }
+            PrepareProject(0); SelectTool(PlayerTool.Inspect);
+            if (PlanningKind != -1) { throw new Exception("Project placement cancellation failed"); }
             var original = Sim;
             try
             {
@@ -532,10 +567,11 @@ public partial class MainGame : Control
                 if (!rectangularResult.Success || !rectangularResult.DigestMatches) { throw new Exception("Rectangular world restore failed"); }
                 string rectangularBefore = StateHash.ComputeDigest(Sim);
                 ((WorldView3D)_map).ValidateWorldDimensions();
+                _discovery.ValidateNavigation();
                 if (rectangularBefore != StateHash.ComputeDigest(Sim)) { throw new Exception("Rectangular world rendering mutated simulation"); }
             }
             finally { Sim = original; ((WorldView3D)_map).ValidateWorldDimensions(); }
-            GD.Print("GODOT_SELF_TEST_PASS: tools, inspector/chart purity, save/load, 3D geometry, perspective, orbit, zoom, picking, HUD controls and 1280/1600/1920 layouts");
+            GD.Print("GODOT_SELF_TEST_PASS: tools, inspector/chart purity, save/load, minimap, resident pin, project placement/save/cancel, hazards, 3D geometry, camera and 1280/1600/1920 layouts");
         }
         catch (Exception ex) { GD.PushError(ex.ToString()); GetTree().Quit(1); }
     }

@@ -33,7 +33,12 @@
 | 22 | [ArtAssets](22-ArtAssets.md) | 原创图集、生成提示与 3D 导入设置 | 已记录 |
 | 23 | [GameplayTrials](23-GameplayTrials.md) | 世界试炼、干预额度、居民诉求、危机反馈与玩法对照 | 2026-10-05 |
 
-早期里程碑的性能数字与界面描述保留为历史记录；当前图形客户端以 21 为准，完整任务书状态以 20 为准。
+| 24 | [PlayerHandbook](24-PlayerHandbook.md) | 当前玩家操作与玩法手册 | 2026-10-05 |
+| 25 | [DeveloperGuide](25-DeveloperGuide.md) | 当前架构、存档与扩展契约 | 2026-10-05 |
+| 26 | [DeliveryAndValidation](26-DeliveryAndValidation.md) | 当前构建、实测与交付边界 | 2026-10-05 |
+| 27 | [InterfaceIteration](27-InterfaceIteration.md) | 现场界面、工程玩法与实际截图 | 2026-10-05 |
+
+早期里程碑保留为历史记录；当前版本以 24–27 为准，原始任务书的全部验收状态以 20 为准。
 
 > 未写的文档不代表不重要，而是**不允许在机制落地前先写空文档** ——
 > 那只会生产"读起来很美、实现时全不对"的纸面设计。

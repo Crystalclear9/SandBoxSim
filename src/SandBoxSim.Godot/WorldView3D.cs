@@ -204,7 +204,7 @@ public partial class WorldView3D : MapView
     }
     private void UpdateBrush()
     {
-        var picked = Pick(_mouse); _brush.Visible = picked.HasValue && Game.Tool != PlayerTool.Inspect;
+        var picked = Pick(_mouse); _brush.Visible = picked.HasValue && (Game.Tool != PlayerTool.Inspect || Game.PlanningKind >= 0);
         if (picked.HasValue) { _brush.Position = PositionAt(picked.Value.X, picked.Value.Y) + Vector3.Up * .12f; _brush.Scale = new Vector3(MathF.Max(1, Game.Radius * 2), .25f, MathF.Max(1, Game.Radius * 2)); }
         _selection.Visible = Game.SelectedSlot >= 0;
         if (Game.SelectedSlot >= 0) { _selection.Position = PositionAt(Game.Sim.Agents.XOf(Game.SelectedSlot), Game.Sim.Agents.YOf(Game.SelectedSlot)) + Vector3.Up * .08f; _selection.Scale = new Vector3(.65f, .3f, .65f); }

@@ -1,5 +1,7 @@
 # 当前缺陷修复交付 · 2026-10-04
 
+> 历史设计与验收记录。当前版本操作见 [玩家手册](24-PlayerHandbook.md)，架构见 [开发指南](25-DeveloperGuide.md)，最新验证见 [交付说明](26-DeliveryAndValidation.md)。
+
 本轮接续 [原计划实现核验](17-ImplementationAudit.md)，修复现有系统，整理项目与验证证据；没有新增图形客户端、文明、外交等后续里程碑功能。
 
 ## 修复内容与系统连接

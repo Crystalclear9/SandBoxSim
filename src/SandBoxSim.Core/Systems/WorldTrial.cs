@@ -56,7 +56,12 @@ public sealed class WorldTrial
     public bool TrySpend(PlayerTool tool, int radius, float strength)
     {
         if (!Running || tool == PlayerTool.Inspect) { return true; }
-        int cost = Cost(tool, radius, strength);
+        return TrySpendPoints(Cost(tool, radius, strength));
+    }
+    public bool TrySpendPoints(int cost)
+    {
+        if (!Running) { return true; }
+        cost = Math.Max(0, cost);
         if (Influence < cost) { Notice = $"额度不足：需要 {cost} 点，现有 {(int)Influence} 点。缩小范围或等待恢复。"; return false; }
         Influence -= cost; Interventions++; return true;
     }

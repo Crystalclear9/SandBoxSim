@@ -7,6 +7,7 @@ namespace SandBoxSim.Client;
 public partial class WorldView3D
 {
     private MultiMeshInstance3D _flames = null!, _smoke = null!, _illness = null!;
+    private readonly Dictionary<int, Node3D> _projectMarks = new();
     private void BuildHazardVisuals()
     {
         var flameShader = new Shader { Code = @"
@@ -66,6 +67,23 @@ void fragment(){
         foreach (int slot in sim.Agents.AliveSlots())
             if (sim.Diseases.OfSlot(slot)?.Active == true) { illness.Add(new Transform3D(Basis.Identity, PositionAt(sim.Agents.XOf(slot), sim.Agents.YOf(slot)) + Vector3.Up * 2.3f)); }
         SetInstances(_flames, flames); SetInstances(_smoke, smoke); SetInstances(_illness, illness);
+        var active = new HashSet<int>();
+        foreach (var p in Game.Projects.Items)
+        {
+            if (!p.Active) { continue; } active.Add(p.Id);
+            if (!_projectMarks.TryGetValue(p.Id, out var root))
+            {
+                root = new Node3D(); _scene.AddChild(root); _projectMarks[p.Id] = root;
+                var ring = Ring(new Color("#9dcec0")); ring.Visible = true; root.AddChild(ring);
+                ring.Mesh = new TorusMesh { InnerRadius = .996f, OuterRadius = 1, Rings = 64, RingSegments = 6 };
+                root.AddChild(new Label3D { Name = "Title", Font = Game.Theme.DefaultFont, FontSize = 22, PixelSize = .014f,
+                    Position = Vector3.Up * 2.3f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, Modulate = new Color("#b5e2cd") });
+            }
+            root.Position = PositionAt(p.X, p.Y) + Vector3.Up * .1f;
+            root.GetChild<Node3D>(0).Scale = new Vector3(p.Radius * 2, .7f, p.Radius * 2);
+            root.GetNode<Label3D>("Title").Text = SandBoxSim.Core.Systems.LandProjects.Names[p.Kind] + $"  {p.Stage}/3";
+        }
+        foreach (int id in new List<int>(_projectMarks.Keys)) if (!active.Contains(id)) { _projectMarks[id].QueueFree(); _projectMarks.Remove(id); }
     }
     public void ValidateHazardVisuals()
     {
@@ -73,7 +91,7 @@ void fragment(){
         int burning = 0, sick = 0;
         foreach (var tile in Game.Sim.World.Tiles) { if (tile.Fire == FireState.Burning) { burning++; } }
         foreach (int slot in Game.Sim.Agents.AliveSlots()) { if (Game.Sim.Diseases.OfSlot(slot)?.Active == true) { sick++; } }
-        if (_flames.Multimesh.InstanceCount != burning || _illness.Multimesh.InstanceCount != sick)
+        if (_flames.Multimesh.InstanceCount != burning || _illness.Multimesh.InstanceCount != sick || _projectMarks.Count != Game.Projects.ActiveCount)
             { throw new System.InvalidOperationException("Hazard visuals do not match physical world state"); }
     }
 }

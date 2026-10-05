@@ -3,90 +3,90 @@ using System.Linq;
 using System.Text;
 using Godot;
 using SandBoxSim.Core.History;
+using SandBoxSim.Core.Systems;
 
 namespace SandBoxSim.Client;
 
-/// <summary>Questions and stories derived from actual simulation; never grants scripted social outcomes.</summary>
+/// <summary>Actionable, read-only field notebook. Actual risks and personal stories lead into player choices.</summary>
 public partial class DiscoveryPanel : VBoxContainer
 {
     public MainGame Game { get; set; } = null!;
-    private Label _question = null!, _vitals = null!, _discoveries = null!, _sceneName = null!;
-    private readonly Label[] _valueLabels = new Label[4];
+    private Label _place = null!, _phase = null!, _pinText = null!, _empty = null!;
     private RichTextLabel _stories = null!;
-    private long _eventCount = -1;
-    private int _scenario = -1;
+    private WorldMiniMap _miniMap = null!;
+    private Godot.Button _pinLink = null!;
+    private readonly PanelContainer[] _cards = new PanelContainer[3];
+    private readonly Label[] _titles = new Label[3], _details = new Label[3];
+    private System.Collections.Generic.IReadOnlyList<WorldAlert> _alerts = Array.Empty<WorldAlert>();
     public override void _Ready()
     {
-        AddThemeConstantOverride("separation", 18);
-        _sceneName = HudStyle.Label("河谷新生", 20); AddChild(_sceneName);
-        _question = HudStyle.Label("", 14, true); _question.AutowrapMode = TextServer.AutowrapMode.WordSmart; AddChild(_question);
-        var play = new Godot.Button { Text = "应对局势 · 开启试炼  →", Alignment = HorizontalAlignment.Left }; HudStyle.Button(play); AddChild(play);
-        play.Pressed += () => Game.OpenTrials();
-        AddChild(new HSeparator());
-        var values = new GridContainer { Columns = 2 }; values.AddThemeConstantOverride("h_separation", 32); values.AddThemeConstantOverride("v_separation", 14); AddChild(values);
-        string[] captions = { "安居的居民", "饥饿的居民", "食草动物", "完成的交易" };
-        for (int i = 0; i < 4; i++)
+        var scroll = new ScrollContainer { SizeFlagsVertical = SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; AddChild(scroll);
+        var body = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; body.AddThemeConstantOverride("separation", 14); scroll.AddChild(body);
+        _place = HudStyle.Label("", 24); body.AddChild(_place);
+        _phase = HudStyle.Label("", 12, true); _phase.AutowrapMode = TextServer.AutowrapMode.WordSmart; body.AddChild(_phase);
+        _miniMap = new WorldMiniMap { Game = Game, CustomMinimumSize = new Vector2(300, 156) }; body.AddChild(_miniMap);
+        var heading = new HBoxContainer(); body.AddChild(heading); var title = HudStyle.Label("此刻，先做什么", 17); title.SizeFlagsHorizontal = SizeFlags.ExpandFill; heading.AddChild(title);
+        var play = new Godot.Button { Text = "试炼 →" }; HudStyle.Button(play); play.Pressed += () => Game.OpenTrials(); heading.AddChild(play);
+        _empty = HudStyle.Label("局势暂时稳定。试试改变一片土地。", 13, true); _empty.AutowrapMode = TextServer.AutowrapMode.WordSmart; body.AddChild(_empty);
+        for (int i = 0; i < _cards.Length; i++)
         {
-            var column = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; column.AddThemeConstantOverride("separation", 0); values.AddChild(column);
-            column.AddChild(HudStyle.Label(captions[i], 11, true)); _valueLabels[i] = HudStyle.Label("0", 24); column.AddChild(_valueLabels[i]);
+            int index = i;
+            var card = new PanelContainer(); card.AddThemeStyleboxOverride("panel", HudStyle.Box(new Color("#20322c"), 10, 12, false)); body.AddChild(card); _cards[i] = card;
+            var content = new VBoxContainer(); content.AddThemeConstantOverride("separation", 5); card.AddChild(content);
+            _titles[i] = HudStyle.Label("", 16); content.AddChild(_titles[i]);
+            _details[i] = HudStyle.Label("", 12, true); _details[i].AutowrapMode = TextServer.AutowrapMode.WordSmart; content.AddChild(_details[i]);
+            var actions = new HBoxContainer(); content.AddChild(actions);
+            var locate = new Godot.Button { Text = "前往现场" }; HudStyle.Button(locate); locate.Pressed += () => { if (index < _alerts.Count) { Game.RespondTo(_alerts[index], false); } }; actions.AddChild(locate);
+            var aid = new Godot.Button { Text = "准备救援 →" }; HudStyle.Button(aid); aid.Pressed += () => { if (index < _alerts.Count) { Game.RespondTo(_alerts[index], true); } }; actions.AddChild(aid);
         }
-        _vitals = HudStyle.Label("", 12, true); _vitals.AutowrapMode = TextServer.AutowrapMode.WordSmart; AddChild(_vitals);
-        _discoveries = HudStyle.Label("", 13); _discoveries.AutowrapMode = TextServer.AutowrapMode.WordSmart; AddChild(_discoveries);
-        AddChild(new HSeparator());
-        AddChild(HudStyle.Label("此刻的故事", 17));
-        _stories = new RichTextLabel { BbcodeEnabled = true, ScrollActive = true, SizeFlagsVertical = SizeFlags.ExpandFill, SelectionEnabled = true };
+        var projects = new Godot.Button { Text = "规划生态工程   →", Alignment = HorizontalAlignment.Left, Icon = ToolGlyphs.For(PlayerTool.Forest), ExpandIcon = true };
+        projects.AddThemeConstantOverride("icon_max_width", 26); HudStyle.Button(projects);
+        projects.AddThemeStyleboxOverride("normal", HudStyle.Box(new Color("#31483d"), 10, 14, false)); projects.Pressed += () => Game.OpenProjects(); body.AddChild(projects);
+        body.AddChild(new HSeparator()); body.AddChild(HudStyle.Label("一个人的世界", 17));
+        _pinText = HudStyle.Label("", 13, true); _pinText.AutowrapMode = TextServer.AutowrapMode.WordSmart; body.AddChild(_pinText);
+        _pinLink = new Godot.Button { Text = "查看关注的故事 →", Alignment = HorizontalAlignment.Left }; HudStyle.Button(_pinLink); _pinLink.Pressed += () => Game.FocusPinned(); body.AddChild(_pinLink);
+        body.AddChild(new HSeparator()); body.AddChild(HudStyle.Label("刚刚发生", 16));
+        _stories = new RichTextLabel { BbcodeEnabled = true, FitContent = true, ScrollActive = false, SelectionEnabled = true, CustomMinimumSize = new Vector2(0, 80) };
         _stories.MetaClicked += meta =>
         {
-            string[] fields = meta.AsString().Split(':');
-            if (fields.Length == 3 && long.TryParse(fields[0], out long person) && int.TryParse(fields[1], out int x) && int.TryParse(fields[2], out int y))
-                { Game.FocusStory(person, x, y); }
+            var fields = meta.AsString().Split(':');
+            if (fields.Length == 3 && long.TryParse(fields[0], out long person) && int.TryParse(fields[1], out int x) && int.TryParse(fields[2], out int y)) { Game.FocusStory(person, x, y); }
         };
-        AddChild(_stories);
-        Refresh();
+        body.AddChild(_stories); Refresh();
     }
     public void Refresh()
     {
-        if (_question == null) { return; }
+        if (_place == null) { return; }
         var sim = Game.Sim;
-        _sceneName.Text = SandBoxSim.Core.Systems.SandboxScenarios.Names[Game.Scenario];
-        _question.Text = SandBoxSim.Core.Systems.SandboxScenarios.Questions[Game.Scenario];
-        int hungry = 0, sick = 0, housed = 0;
-        foreach (int slot in sim.Agents.AliveSlots())
+        _place.Text = SandboxScenarios.Names[Game.Scenario];
+        string weather = sim.World.Weather.Kind switch { SandBoxSim.Core.Environment.WeatherKind.Clear => "晴朗", SandBoxSim.Core.Environment.WeatherKind.Cloudy => "多云",
+            SandBoxSim.Core.Environment.WeatherKind.Rain => "降雨", SandBoxSim.Core.Environment.WeatherKind.Storm => "风暴",
+            SandBoxSim.Core.Environment.WeatherKind.Drought => "旱季", _ => "降雪" };
+        _phase.Text = Game.Trial.Running ? "试炼第 " + Game.Trial.Days + " 天 · " + Game.Trial.Forecast : weather + " · 选择一个局势，走进这个世界";
+        _alerts = WorldAlerts.Observe(sim); _empty.Visible = _alerts.Count == 0;
+        for (int i = 0; i < _cards.Length; i++)
         {
-            if (sim.Agents.HungerOf(slot) > .7f) { hungry++; }
-            if (sim.Diseases.OfSlot(slot)?.Active == true) { sick++; }
-            if (sim.Agents.DwellingOf(slot) >= 0) { housed++; }
+            _cards[i].Visible = i < _alerts.Count; if (i >= _alerts.Count) { continue; }
+            var a = _alerts[i]; _titles[i].Text = a.Title + "  ·  " + a.Count;
+            _titles[i].AddThemeColorOverride("font_color", a.Key == "fire" ? new Color("#efa678") : a.Key == "disease" ? new Color("#c9a5dd") : HudStyle.Accent);
+            _details[i].Text = a.Detail;
         }
-        int trade = sim.Civilizations.Relations.Sum(r => r.Trades);
-        _valueLabels[0].Text = housed.ToString(); _valueLabels[1].Text = hungry.ToString(); _valueLabels[2].Text = sim.Wildlife.LiveCount.ToString(); _valueLabels[3].Text = trade.ToString();
-        _vitals.Text = $"狼群 {sim.Predators.Wolves.Count}   ·   患病 {sick}   ·   交战 {sim.Civilizations.Relations.Count(r => r.War)}";
-        bool[] found = { sim.Buildings.TotalCompleted > 0, sim.Settlements.ActiveCount > 0, sim.Stats.TotalBirths > 0, trade > 0,
-            sim.Civilizations.Civilizations.Any(c => c.Tools > 0), sim.Civilizations.Relations.Any(r => r.Alliance) };
-        string[] names = { "第一栋建筑", "聚落诞生", "下一代", "互通有无", "工具革新", "结成联盟" };
-        int discovered = found.Count(v => v), next = Array.FindIndex(found, value => !value);
-        _discoveries.Text = $"文明见闻   {discovered} / {found.Length}\n" + (next >= 0 ? "可观察：" + names[next] : "六种文明变化都已发生");
-        if (_eventCount == sim.Events.TotalRecorded && _scenario == Game.Scenario) { return; }
-        _eventCount = sim.Events.TotalRecorded; _scenario = Game.Scenario;
+        var pinned = sim.Society.Find(Game.PinnedPerson); _pinLink.Disabled = pinned == null;
+        _pinText.Text = pinned == null ? "在人物页关注一位居民。\n从安居到迁徙，看看他如何回应你的改变。"
+            : pinned.Alive ? pinned.Name + $" · 健康 {sim.Agents.HealthOf(pinned.Slot):P0}\n饥饿 {sim.Agents.HungerOf(pinned.Slot):P0} · " + (sim.Agents.DwellingOf(pinned.Slot) >= 0 ? "已有居所" : "仍在寻找家园")
+            : pinned.Name + "已离世。\n他的家庭与个人历史仍保留在人物页。";
         var text = new StringBuilder();
-        var recent = sim.Society.History.Where(e => IsStory((WorldEventType)e.Type)).TakeLast(100).Reverse()
-            .GroupBy(e => e.Type).SelectMany(group => group.Take(2)).OrderByDescending(e => e.Tick).Take(8);
-        foreach (var ev in recent)
+        foreach (var ev in sim.Society.History.Where(e => IsStory((WorldEventType)e.Type)).TakeLast(3).Reverse())
         {
-            string description = ev.Description;
-            int location = description.IndexOf(" @ ", StringComparison.Ordinal); if (location > 0) { description = description.Substring(0, location); }
-            if ((WorldEventType)ev.Type == WorldEventType.AgentMigrated) { description = (sim.Society.Find(ev.Actor)?.Name ?? "一位居民") + " 寻找新的家园"; }
-            text.AppendLine($"[color=#9dac9f]第 {ev.Tick / sim.Config.Clock.TicksPerDay + 1} 天[/color]")
-                .AppendLine("[b]" + Escape(description) + "[/b]");
-            if (ev.X >= 0 && ev.Y >= 0 || ev.Actor != 0) { text.AppendLine($"[url={ev.Actor}:{ev.X}:{ev.Y}][color=#d8bb84]查看故事  →[/color][/url]"); }
+            text.AppendLine($"[color=#a2b1a5]第 {ev.Tick / sim.Config.Clock.TicksPerDay + 1} 天[/color]  " + ev.Description.Replace("[", "[lb]"));
+            if (ev.Actor != 0 || ev.X >= 0 && ev.Y >= 0) { text.AppendLine($"[url={ev.Actor}:{ev.X}:{ev.Y}][color=#d8bb84]追踪故事 →[/color][/url]"); }
             text.AppendLine();
         }
-        if (text.Length == 0) { text.Append("[color=#a2b1a5]故事从一片土地开始。\n\n居民正在寻找水与食物。靠近他们，看看下一步会发生什么。[/color]"); }
-        _stories.Text = text.ToString();
+        _stories.Text = text.Length == 0 ? "[color=#a2b1a5]居民的第一次选择，将成为这里的故事。[/color]" : text.ToString();
+        _miniMap.QueueRedraw();
     }
-    private static string Escape(string value) => value.Replace("[", "[lb]");
+    public void ValidateNavigation() => _miniMap.ValidateMapping();
     private static bool IsStory(WorldEventType type) => type is WorldEventType.AgentBorn or WorldEventType.AgentDied
-        or WorldEventType.AgentMigrated or WorldEventType.Marriage or WorldEventType.BuildingCompleted
-        or WorldEventType.BuildingDestroyed or WorldEventType.SettlementFounded or WorldEventType.SettlementAbandoned
-        or WorldEventType.TradeRouteEstablished or WorldEventType.WarDeclared or WorldEventType.WarEnded
-        or WorldEventType.AllianceFormed or WorldEventType.Innovation or WorldEventType.Disease or WorldEventType.LeaderElected;
+        or WorldEventType.Marriage or WorldEventType.BuildingCompleted or WorldEventType.SettlementFounded
+        or WorldEventType.TradeRouteEstablished or WorldEventType.WarDeclared or WorldEventType.Innovation or WorldEventType.LeaderElected;
 }

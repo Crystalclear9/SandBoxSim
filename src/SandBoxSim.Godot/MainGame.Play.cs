@@ -22,7 +22,7 @@ public partial class MainGame
             int toBoundary = Sim.Config.Clock.TicksPerDay - (int)(Sim.Clock % Sim.Config.Clock.TicksPerDay);
             int step = Math.Min(ticks, toBoundary);
             string before = Trial.Notice;
-            Sim.Tick(step); ticks -= step; Trial.Advance(Sim);
+            Sim.Tick(step); ticks -= step; Projects.Advance(Sim); Trial.Advance(Sim);
             if (Trial.Notice != before && _status != null) { _status.Text = Trial.Notice; }
         }
     }
@@ -82,7 +82,7 @@ public partial class MainGame
     }
     private void PrepareAid(PlayerTool tool, Int2 location)
     {
-        SetCategory("祝福"); SelectTool(tool);
+        SetCategory(tool is PlayerTool.Heal or PlayerTool.Rain ? "祝福" : tool is PlayerTool.River or PlayerTool.Water ? "地貌" : tool == PlayerTool.Wood ? "资源" : "生命"); SelectTool(tool);
         _radius.Value = 4; _strength.Value = tool == PlayerTool.Rain ? 70 : tool == PlayerTool.Food ? 35 : 10;
         _map.Focus(location.X, location.Y, 24);
         _status.Text = "在需要帮助的地点点击施加干预；改变条件后，观察居民的行动";

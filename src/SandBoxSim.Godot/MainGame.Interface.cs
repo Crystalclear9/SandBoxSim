@@ -78,22 +78,27 @@ public partial class MainGame
         var topActions = Surface(overlay, new Vector2(1, 0), new Vector2(-234, 24), new Vector2(210, 72), 8);
         var actions = new HBoxContainer(); actions.AddThemeConstantOverride("separation", 6); topActions.AddChild(actions);
         _settingsButton = ActionButton(actions, "世界设置", () => ShowSettings(!_settingsOpen)); _settingsButton.ToggleMode = true;
-        _journalButton = ActionButton(actions, "世界手记", () => ShowJournal(!_journalPanel.Visible)); _journalButton.ToggleMode = true; _journalButton.SetPressedNoSignal(true);
+        _journalButton = ActionButton(actions, "世界脉搏", () => ShowJournal(!_journalPanel.Visible)); _journalButton.ToggleMode = true; _journalButton.SetPressedNoSignal(true);
 
-        _journalPanel = Surface(overlay, new Vector2(1, 0), new Vector2(-340, 116), new Vector2(316, 664), 20);
+        _journalPanel = Surface(overlay, new Vector2(1, 0), new Vector2(-404, 116), new Vector2(380, 664), 20);
         var journal = new VBoxContainer(); journal.AddThemeConstantOverride("separation", 16); _journalPanel.AddChild(journal);
         var journalHeader = new HBoxContainer(); journal.AddChild(journalHeader);
-        var journalTitle = HudStyle.Label("世界手记", 21); journalTitle.SizeFlagsHorizontal = SizeFlags.ExpandFill; journalHeader.AddChild(journalTitle);
+        var journalTitle = HudStyle.Label("世界脉搏", 21); journalTitle.SizeFlagsHorizontal = SizeFlags.ExpandFill; journalHeader.AddChild(journalTitle);
         ActionButton(journalHeader, "收起", () => ShowJournal(false));
         _drawer = new TabContainer { SizeFlagsVertical = SizeFlags.ExpandFill }; journal.AddChild(_drawer);
         _drawer.AddThemeStyleboxOverride("panel", HudStyle.Box(new Color(0, 0, 0, 0), 0, 0, false));
-        _discovery = new DiscoveryPanel { Name = "故事", Game = this }; _drawer.AddChild(_discovery);
+        _discovery = new DiscoveryPanel { Name = "现场", Game = this }; _drawer.AddChild(_discovery);
         var personPanel = new VBoxContainer { Name = "人物" }; personPanel.AddThemeConstantOverride("separation", 12); _drawer.AddChild(personPanel);
         var detailControls = new HBoxContainer(); personPanel.AddChild(detailControls);
         var details = ActionButton(detailControls, "显示决策与性格", () => { _decisionDetails = !_decisionDetails; RefreshPanels(); }); details.ToggleMode = true;
+        _pinButton = ActionButton(detailControls, "关注这个居民", TogglePin);
+        var nameControls = new HBoxContainer(); personPanel.AddChild(nameControls);
+        _residentName = new LineEdit { PlaceholderText = "给这个居民起个名字", MaxLength = 24, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        nameControls.AddChild(_residentName); ActionButton(nameControls, "命名", RenameResident);
         _inspector = TextPanel("人物详情"); personPanel.AddChild(_inspector); _history = TextPanel("历史"); _drawer.AddChild(_history);
         _chart = new StatisticsView { Name = "曲线", Game = this }; _drawer.AddChild(_chart);
         BuildTrialPanel();
+        BuildProjectPanel();
 
         _brushPanel = Surface(overlay, new Vector2(0, 0), new Vector2(24, 116), new Vector2(245, 230), 20);
         var brush = new VBoxContainer(); brush.AddThemeConstantOverride("separation", 10); _brushPanel.AddChild(brush);
@@ -148,10 +153,11 @@ public partial class MainGame
         ActionButton(views, "跟随", () => { if (SelectedSlot >= 0) { _map.Follow(SelectedSlot); } else { _status.Text = "选择一个人物后，跟随他的故事"; } });
         _toolBadge = HudStyle.Label("自由观察", 13); HudStyle.Float(_toolBadge, new Vector2(.5f, 1), new Vector2(-200, -192), new Vector2(400, 26)); _toolBadge.HorizontalAlignment = HorizontalAlignment.Center; overlay.AddChild(_toolBadge);
         _status = HudStyle.Label("右键旋转  ·  滚轮缩放  ·  中键平移  ·  点击人物查看细节", 12, true); HudStyle.Float(_status, new Vector2(0, 1), new Vector2(24, -24), new Vector2(1000, 20)); overlay.AddChild(_status);
+        BuildPlanningCard(overlay);
         _save = Dialog(FileDialog.FileModeEnum.SaveFile); _save.FileSelected += SaveWorld; _load = Dialog(FileDialog.FileModeEnum.OpenFile); _load.FileSelected += LoadWorld;
         Resized += FitHud; FitHud();
         RefreshPanels();
-        OpenTrials();
+        _drawer.CurrentTab = 0;
     }
     private void FitHud() => FitHudFor(Size);
     private void FitHudFor(Vector2 size)
