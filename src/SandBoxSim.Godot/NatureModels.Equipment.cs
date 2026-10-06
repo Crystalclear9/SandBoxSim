@@ -151,16 +151,8 @@ ROUGHNESS = 0.93; SPECULAR = 0.18;
         if(job is JobType.Builder or JobType.Miner or JobType.Craftsman or JobType.Soldier)
         {
             Sculpt(rig.Torso,FittedRibbon(job==JobType.Soldier?"armor":"apron",job==JobType.Soldier?.91f:.79f,1.17f),Vector3.Zero,ResidentMaterial(job==JobType.Soldier?"#7d8581":"#75654f"));
-            rig.Grip=new Node3D {Name="RightGrip",Position=new(0,-.273f,-.027f)};rig.Elbows[1].AddChild(rig.Grip);
-            bool soldier=job==JobType.Soldier;
-            Detail(rig.Grip,"cylinder",new(0,soldier?.12f:-.10f,0),new(.020f,soldier?1.6f:.42f,.020f),"#8b6c46");
-            if(soldier) Detail(rig.Grip,"cone",new(0,.98f,0),new(.055f,.15f,.038f),"#7d8581");
-            else
-            {
-                Detail(rig.Grip,"masonry",new(0,-.30f,0),new(.13f,.052f,.046f),"#68716f");
-                Detail(rig.Grip,"cylinder",new(0,-.26f,0),new(.025f,.026f,.025f),"#514237");
-            }
         }
+        AddHandTools(rig,job);
         if(job is JobType.Gatherer or JobType.Hunter or JobType.Trader)
         {
             rig.PackMount=new Node3D {Name="PackMount",Position=new(0,1.02f,TorsoSurface(0,1.02f,true).Z+.066f)};rig.Torso.AddChild(rig.PackMount);

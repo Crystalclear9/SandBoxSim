@@ -26,7 +26,23 @@
 
 围裙、护胸、腰带和斜背带从衣服的实际三角面采样，不再用浮在身体前面的矩形或直线替代。曲面层与衣服保留 4–6 毫米的表现间距。行囊通过 `PackMount` 贴合后背，采用圆角皮革轮廓、盖片与扣带。
 
-工具的 `RightGrip` 挂在右肘下方的手掌内，握柄穿过弯曲的手指。锤头朝向手指外侧；工作时肩肘向身体前方弯曲，配件保留固定局部挂点。网格检查覆盖各职业及成人/儿童的帽腔范围、曲面间距、握持挂点、前向工作姿态和暂停行为。
+人物具有独立手腕、四指的两段指节、拇指和脚踝。工具通过 `HandGrip` 横穿合拢的手指，手部目标由肩肘两节逆运动学求解；俯身围绕髋部旋转，脚踝补偿小腿倾斜。工具在腰侧 `BeltToolLoop` 与手掌之间切换父节点，只在手已接触收纳位置时转移；取出和放回期间不会单独漂移。
+
+工具与动作由真实的 `ActionKind` 和 `ActionPhase` 驱动，前往作业地点时可取出工具，到达后才开始作业；停止作业后收回。工具是表现层几何，不新增工具库存或改变作业收益。
+
+| 真实动作 | 外观与动作 |
+|---|---|
+| 采伐木材 | 斧头、双手支撑与挥击 |
+| 采集石料 / 铁矿 | 弯曲镐头、双手握持、蓄力与快速下击 |
+| 耕种 | 长柄锄头、双手推拉 |
+| 建造住房 / 农田 / 仓库 / 矿场 | 锤头、取出、抬臂、锤击与收回 |
+| 采集食物 / 取回物资 | 俯身、屈膝、伸手与手指收拢 |
+| 存放 / 分享 / 交易 | 双手递送 |
+| 进食 / 饮水 | 手移向口部 |
+
+木料束与物资袋根据居民的实际非零库存显示，代表主要携带资源，不按袋子数量计算库存。儿童不使用成人工具。近景独立指节参与握持，远景采用合并的手部和头部网格，近景与肖像保持完整曲面和指节；距离较远的人物降低姿态更新频率，根节点移动仍连续。暂停冻结表现层动作，不推进模拟或随机流。
+
+![取出、握持、使用与收回的实际运行演示](../images/resident-tool-motion.gif)
 
 ![帽子、工具与背包的实际模型](../images/resident-equipment.png)
 
@@ -43,7 +59,10 @@
 | `NatureModels.Buildings.cs` | 建筑轮廓、屋顶与窗结构 |
 | `NatureModels.ArchitectureDetail.cs` | 门、屋面搭接、砌石、支架与道具 |
 | `NatureModels.Residents.cs`、`NatureModels.Tailoring.cs` | 人物衣装、四肢、手部与配件 |
-| `NatureModels.Equipment.cs` | 帽壳、贴合衣装、握持与背包挂点 |
+| `NatureModels.Equipment.cs` | 帽壳、贴合衣装与背包挂点 |
+| `NatureModels.HandTools.cs`、`ResidentRig.cs` | 工具、腕部和指节、逆运动学、行为动作及收纳切换 |
+| `NatureModels.ResidentLod.cs` | 保留轮廓与肤发色的远景头部网格 |
+| `NatureModels.HandlingValidation.cs` | 工具转移连续性、握持、作业、切换、携带与暂停检查 |
 | `NatureModels.Sculpture.cs` | 连续头部曲面与布料表面 |
 | `NatureModels.Animals.cs`、`AnimalRig.cs` | 动物解剖轮廓、材质与四足步态 |
 | `NatureModels.Vegetation.cs` | 树冠、针叶枝层与树干 |
@@ -61,6 +80,8 @@
 & $env:GODOT_EXE --path src/SandBoxSim.Godot -- --panel=architecture
 & $env:GODOT_EXE --path src/SandBoxSim.Godot -- --panel=characters
 & $env:GODOT_EXE --path src/SandBoxSim.Godot -- --panel=equipment
+& $env:GODOT_EXE --path src/SandBoxSim.Godot -- --panel=actions
+& $env:GODOT_EXE --path src/SandBoxSim.Godot -- --panel=motion
 & $env:GODOT_EXE --path src/SandBoxSim.Godot -- --panel=naturemodels
 ```
 

@@ -25,6 +25,11 @@ public partial class MainGame
                 button.AddThemeStyleboxOverride("hover",HudStyle.Box(new Color("#c5c2ae"),3,9,false));
                 button.AddThemeStyleboxOverride("pressed",HudStyle.Box(new Color("#babba3"),3,9,false));
             }
+            if(node is VScrollBar scroll)
+            {
+                scroll.CustomMinimumSize=new(5,0);scroll.AddThemeStyleboxOverride("scroll",HudStyle.Box(new Color(0,0,0,.06f),2,0,false));
+                foreach(string state in new[]{"grabber","grabber_highlight","grabber_pressed"})scroll.AddThemeStyleboxOverride(state,HudStyle.Box(new Color("#a5a08a"),2,0,false));
+            }
             if(node is LineEdit field)
             {
                 field.AddThemeColorOverride("font_color",ink);field.AddThemeColorOverride("font_placeholder_color",muted);field.AddThemeColorOverride("caret_color",accent);

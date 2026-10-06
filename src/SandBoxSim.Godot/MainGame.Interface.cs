@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 using SandBoxSim.Core.Environment;
+using SandBoxSim.Core.Agents;
 using SandBoxSim.Core.Save;
 using SandBoxSim.Core.Systems;
 
@@ -31,7 +32,7 @@ public partial class MainGame
     private bool _editingResidentName;
     private HBoxContainer _residentControls = null!, _residentNameControls = null!;
     private ResidentPortrait _residentPortrait = null!;
-    private Label _residentTitle = null!, _residentSubtitle = null!;
+    private Label _residentTitle = null!, _residentSubtitle = null!, _residentAction = null!, _residentActionPhase = null!;
     private readonly Label[] _vitalLabels = new Label[4];
     private readonly ProgressBar[] _vitalBars = new ProgressBar[4];
     private Tween? _vitalTransition, _landTransition;
@@ -63,7 +64,7 @@ public partial class MainGame
         for (int i = _residentVitals.Visible || _landVitals.Visible ? 2 : 0; i < lines.Length; i++)
         {
             string line = lines[i];
-            if (_residentVitals.Visible && (line.StartsWith("生命 ") || line.StartsWith("精力 "))) { continue; }
+            if (_residentVitals.Visible && (line.StartsWith("生命 ") || line.StartsWith("精力 ") || line.StartsWith("正在") || line.StartsWith("目的地 ") || line=="身体与需求" || line=="原地活动")) { continue; }
             bool section = line is "身体与需求" or "随身物资" or "性格倾向" or "居所与关系" or "个人历史" or "上次决策 / 效用" or "聚落历史";
             if (section) { hidden = !_decisionDetails && (line is "性格倾向" or "上次决策 / 效用"); }
             if (hidden) { continue; }
@@ -72,7 +73,7 @@ public partial class MainGame
             else if (section) { result.AppendLine("[color=#806644][b]" + escaped + "[/b][/color]"); }
             else { result.AppendLine(escaped); }
         }
-        return result.ToString();
+        return result.ToString().TrimStart('\n');
     }
 
     private void BuildInterface()
@@ -116,7 +117,8 @@ public partial class MainGame
         _drawer = new TabContainer { SizeFlagsVertical = SizeFlags.ExpandFill }; journal.AddChild(_drawer);
         _drawer.AddThemeStyleboxOverride("panel", HudStyle.Box(new Color(0, 0, 0, 0), 0, 0, false));
         _discovery = new DiscoveryPanel { Name = "现场", Game = this }; _drawer.AddChild(_discovery);
-        var personPanel = new VBoxContainer { Name = "人物" }; personPanel.AddThemeConstantOverride("separation", 12); _drawer.AddChild(personPanel);
+        var personScroll=new ScrollContainer {Name="人物",HorizontalScrollMode=ScrollContainer.ScrollMode.Disabled,SizeFlagsVertical=SizeFlags.ExpandFill};_drawer.AddChild(personScroll);
+        var personPanel=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};personPanel.AddThemeConstantOverride("separation",8);personScroll.AddChild(personPanel);
         BuildResidentVitals(personPanel); BuildLandVitals(personPanel);
         var detailControls = new HBoxContainer(); _residentControls = detailControls; personPanel.AddChild(detailControls);
         var details = ActionButton(detailControls, "决策与性格", () => { _decisionDetails = !_decisionDetails; RefreshPanels(); }); details.ToggleMode = true;
@@ -125,7 +127,7 @@ public partial class MainGame
         var nameControls = new HBoxContainer(); _residentNameControls = nameControls; personPanel.AddChild(nameControls);
         _residentName = new LineEdit { PlaceholderText = "给这个居民起个名字", MaxLength = 24, SizeFlagsHorizontal = SizeFlags.ExpandFill };
         nameControls.AddChild(_residentName); ActionButton(nameControls, "命名", RenameResident);
-        _inspector = TextPanel("人物详情"); personPanel.AddChild(_inspector); _history = TextPanel("历史"); _drawer.AddChild(_history);
+        _inspector = TextPanel("人物详情"); _inspector.FitContent=true;_inspector.ScrollActive=false;personPanel.AddChild(_inspector); _history = TextPanel("历史"); _drawer.AddChild(_history);
         _chart = new StatisticsView { Name = "曲线", Game = this }; _drawer.AddChild(_chart);
         _drawer.TabChanged += _ => RevealJournalPage();
 
@@ -196,7 +198,7 @@ public partial class MainGame
         foreach (Godot.Button command in commands.GetChildren())
         {
             command.Icon = command.Text switch { "生命"=>ToolGlyphs.For(PlayerTool.Human),"地貌"=>ToolGlyphs.For(PlayerTool.Mountain),"气候"=>ToolGlyphs.For(PlayerTool.Rain),_=>HudSymbols.For(command.Text) }; command.ExpandIcon = true;
-            command.AddThemeConstantOverride("icon_max_width", 27); command.AddThemeConstantOverride("h_separation", 8);
+            command.AddThemeFontSizeOverride("font_size",14); command.AddThemeConstantOverride("icon_max_width", 25); command.AddThemeConstantOverride("h_separation", 8);
             command.CustomMinimumSize = new Vector2(88, 60);
         }
 
@@ -273,12 +275,15 @@ public partial class MainGame
     { panel.AddThemeStyleboxOverride("panel", HudStyle.Box(new Color(0, 0, 0, 0), 0, 8, false)); panel.GetChild<HudBevel>(0).Visible = false; }
     private void BuildResidentVitals(VBoxContainer parent)
     {
-        _residentVitals = new VBoxContainer { Visible = false }; _residentVitals.AddThemeConstantOverride("separation", 8); parent.AddChild(_residentVitals);
+        _residentVitals = new VBoxContainer { Visible = false }; _residentVitals.AddThemeConstantOverride("separation", 6); parent.AddChild(_residentVitals);
         _residentTitle = HudStyle.Heading("", 24); _residentSubtitle = HudStyle.Label("", 12, true);
         _residentPortrait = new ResidentPortrait { Compact = true, SizeFlagsHorizontal = SizeFlags.ExpandFill }; _residentVitals.AddChild(_residentPortrait);
         var identity = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; identity.AddThemeConstantOverride("separation", 3); _residentVitals.AddChild(identity);
         identity.AddChild(_residentTitle); identity.AddChild(_residentSubtitle);
         _residentTitle.AutowrapMode = TextServer.AutowrapMode.WordSmart; _residentSubtitle.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        var activity = new PanelContainer(); var activityStyle=HudStyle.Box(new Color("#c8c0ab"),2,8,false);activityStyle.BorderWidthLeft=2;activityStyle.BorderColor=new("#877657");activity.AddThemeStyleboxOverride("panel",activityStyle);_residentVitals.AddChild(activity);
+        var activityBody=new VBoxContainer();activityBody.AddThemeConstantOverride("separation",2);activity.AddChild(activityBody);
+        _residentAction=HudStyle.Label("",13);_residentActionPhase=HudStyle.Label("",11,true);activityBody.AddChild(_residentAction);activityBody.AddChild(_residentActionPhase);
         var grid = new GridContainer { Columns = 2 }; grid.AddThemeConstantOverride("h_separation", 12); grid.AddThemeConstantOverride("v_separation", 8); _residentVitals.AddChild(grid);
         for (int i = 0; i < 4; i++)
         {
@@ -337,6 +342,12 @@ public partial class MainGame
         if (slot < 0) { return; }
         var a = Sim.Agents;
         _residentPortrait.ShowResident(Sim.Society.Identity(slot), slot, a.LifeStageOf(slot) == SandBoxSim.Core.Agents.LifeStage.Child, a.JobOf(slot));
+        _residentPortrait.ShowActivity(a.ActionOf(slot),a.PhaseOf(slot),VisualPaused);
+        ResourceKind cargoKind=ResourceKind.Food;float cargoAmount=0;
+        foreach(var resource in ResidentRig.CargoKinds){float amount=a.InventoryOf(slot,resource);if(amount>cargoAmount){cargoAmount=amount;cargoKind=resource;}}
+        _residentPortrait.ShowCargo(cargoAmount>.01f,cargoKind);
+        _residentAction.Text = a.ActionOf(slot)==ActionKind.None?"休息与观察":ActionRegistry.DisplayNameOf(a.ActionOf(slot));
+        _residentActionPhase.Text = (a.PhaseOf(slot)==ActionPhase.Moving?"行进中":PhaseName(a.PhaseOf(slot)))+(a.PhaseOf(slot) is ActionPhase.Moving or ActionPhase.Executing ? "  ·  目的地 "+a.TargetOf(slot):"");
         _residentTitle.Text = a.NameOrOverride(slot);
         _residentSubtitle.Text = $"{a.AgeDaysOf(slot)} 天  /  {LifeStageName(a.LifeStageOf(slot))}  /  {JobName(a.JobOf(slot))}  ·  {a.PositionOf(slot)}";
         float[] values = { a.HealthOf(slot), a.HungerOf(slot), a.ThirstOf(slot), 1 - a.FatigueOf(slot) };

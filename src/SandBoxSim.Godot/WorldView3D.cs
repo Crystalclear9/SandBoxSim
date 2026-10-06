@@ -362,7 +362,7 @@ public partial class WorldView3D : MapView
     }
     private void UpdateObservation()
     {
-        var sim = Game.Sim;
+        var sim = Game.Sim; _poseFrame++;
         foreach (var pair in _people)
         {
             var label = pair.Value.GetNodeOrNull<Label3D>("Activity");
@@ -587,9 +587,10 @@ void fragment(){
         }
         foreach (int id in _wolves.Keys.Where(k => !wolves.Contains(k)).ToArray()) { _wolves[id].QueueFree(); _wolves.Remove(id); }
     }
+    private int _poseFrame;
     private void AnimateActors(float delta)
     {
-        var sim = Game.Sim;
+        var sim = Game.Sim; _poseFrame++;
         foreach (var pair in _people)
         {
             int slot = (int)(pair.Key & uint.MaxValue); if (!sim.Agents.IsSlotAlive(slot) || sim.Society.Identity(slot) != pair.Key) { continue; }
@@ -598,11 +599,20 @@ void fragment(){
             bool moving = sim.Agents.PhaseOf(slot) == ActionPhase.Moving;
             node.Position = node.Position.Lerp(target, MathF.Min(1, delta * 10));
             if (direction.LengthSquared() > .02f) { node.Rotation = new Vector3(0, MathF.Atan2(direction.X, direction.Z) + MathF.PI, 0); }
-            bool working = sim.Agents.PhaseOf(slot) == ActionPhase.Executing && sim.Agents.ActionOf(slot) is
-                ActionKind.GatherFood or ActionKind.GatherWood or ActionKind.GatherStone or ActionKind.GatherIron or
-                ActionKind.BuildHouse or ActionKind.BuildFarm or ActionKind.BuildStorage or ActionKind.BuildMine or ActionKind.Farm;
-            bool resting = sim.Agents.PhaseOf(slot) == ActionPhase.Executing && sim.Agents.ActionOf(slot) == ActionKind.Sleep;
-            ((ResidentRig)node).Pose(delta, moving, working && !resting, resting, Game.VisualPaused, slot);
+            if(sim.Agents.PhaseOf(slot)==ActionPhase.Executing)
+            {
+                var destination=sim.Agents.TargetOf(slot);var facing=PositionAt(destination.X,destination.Y)-target;
+                if(facing.LengthSquared()>.02f) node.Rotation=new(0,MathF.Atan2(facing.X,facing.Z)+MathF.PI,0);
+            }
+            var cargoKind=ResourceKind.Food;float cargoAmount=0;
+            foreach(var resource in ResidentRig.CargoKinds)
+            {float amount=sim.Agents.InventoryOf(slot,resource);if(amount>cargoAmount){cargoAmount=amount;cargoKind=resource;}}
+            ((ResidentRig)node).ShowCargo(cargoAmount>.01f,cargoKind);
+            ((ResidentRig)node).SetHeadDetail(_camera.Position.DistanceTo(node.Position)<18);
+            ((ResidentRig)node).SetHandDetail(_camera.Position.DistanceTo(node.Position)<12);
+            float distance=_camera.Position.DistanceTo(node.Position);int stride=distance>30?3:distance>12?2:1;
+            if((_poseFrame+slot)%stride==0)
+                ((ResidentRig)node).PoseAction(delta*stride,sim.Agents.ActionOf(slot),sim.Agents.PhaseOf(slot),Game.VisualPaused,slot);
         }
         foreach (var pair in _deer)
         { int slot = (int)(pair.Key & uint.MaxValue); if (sim.Wildlife.IsAlive(slot)) { MoveAnimal(pair.Value, PositionAt(sim.Wildlife.XOf(slot), sim.Wildlife.YOf(slot)), delta); } }

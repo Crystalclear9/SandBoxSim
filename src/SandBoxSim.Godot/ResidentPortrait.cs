@@ -11,15 +11,18 @@ internal partial class ResidentPortrait : SubViewportContainer
     private readonly NatureModels _models = new();
     private SubViewport _viewport = null!;
     private Node3D _stage = null!;
+    private MeshInstance3D _portraitGround=null!;
     private Camera3D _camera = null!;
     private ResidentRig? _resident;
     private long _identity = -1;
     private JobType _job;
-    private bool _child, _drag;
+    private bool _child, _drag, _fullBody, _worldPaused;
+    private ActionKind _action;
+    private ActionPhase _actionPhase;
     private float _yaw = -.28f, _distance = .85f;
     public override void _Ready()
     {
-        Stretch = true; CustomMinimumSize = Compact ? new Vector2(0, 160) : new Vector2(270, 196);
+        Stretch = true; CustomMinimumSize = Compact ? new Vector2(0, 144) : new Vector2(270, 196);
         TooltipText = "拖动旋转人物 · 滚轮查看细节";
         MouseFilter = MouseFilterEnum.Stop;
         _viewport = new SubViewport { Size = Compact ? new Vector2I(624, 320) : new Vector2I(540, 392), OwnWorld3D = true, Msaa3D = Viewport.Msaa.Msaa4X,
@@ -32,7 +35,11 @@ internal partial class ResidentPortrait : SubViewportContainer
         _stage.AddChild(new WorldEnvironment { Environment = environment });
         _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-35, -35, 0), LightColor = new Color("#f0f3ed"), LightEnergy = .78f });
         _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-15, 145, 0), LightColor = new Color("#c9ccc0"), LightEnergy = .36f });
+        _portraitGround=new MeshInstance3D { Mesh = new PlaneMesh { Size = new(20,20) }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new("#454b40"), Roughness = 1 },Visible=false };_stage.AddChild(_portraitGround);
         _camera = new Camera3D { Current = true, Fov = 34 }; _stage.AddChild(_camera); Aim();
+        var framing = new Godot.Button { Text = "全身", Flat = true, CustomMinimumSize = new(48,28) }; HudStyle.Button(framing);
+        framing.SetAnchorsAndOffsetsPreset(LayoutPreset.TopRight); framing.OffsetLeft=-60; framing.OffsetRight=-8; framing.OffsetTop=8; framing.OffsetBottom=36; AddChild(framing);
+        framing.Pressed += () => { _fullBody=!_fullBody;_portraitGround.Visible=_fullBody;framing.Text=_fullBody?"面部":"全身";_distance=_fullBody?3.5f:.85f;Aim(); };
         var caption = HudStyle.Label(Compact ? "拖动旋转" : "拖动旋转  /  滚轮查看细节", 10);
         caption.AddThemeColorOverride("font_color", new Color("#b2aa97")); caption.MouseFilter = MouseFilterEnum.Ignore;
         caption.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide); caption.OffsetTop = -22; caption.OffsetLeft = 10; AddChild(caption);
@@ -44,18 +51,20 @@ internal partial class ResidentPortrait : SubViewportContainer
         _resident = _models.Resident(slot, child, job); _stage.AddChild(_resident);
         _resident.Rotation = new Vector3(0, _yaw, 0); Aim();
     }
+    public void ShowCargo(bool hasCargo, SandBoxSim.Core.Environment.ResourceKind resource) => _resident?.ShowCargo(hasCargo,resource);
+    public void ShowActivity(ActionKind action,ActionPhase phase,bool paused) { _action=action;_actionPhase=phase;_worldPaused=paused; }
     private void Aim()
     {
-        var center = _resident != null ? _resident.Head.GlobalPosition - new Vector3(0, Compact ? .055f : .19f, 0) : new Vector3(0, 1.4f, 0);
+        var center = _fullBody ? new Vector3(0,_child?.62f:1.0f,0) : _resident != null ? _resident.Head.GlobalPosition - new Vector3(0, Compact ? .055f : .19f, 0) : new Vector3(0, 1.4f, 0);
         _camera.Position = center + new Vector3(0, .035f, -_distance);
         _camera.LookAt(center);
     }
     public override void _Process(double delta)
     {
-        // Idle breathing is a portrait presentation, not a simulated action.
+        // Mirrors the selected real action; this isolated model never advances the simulation.
         if (IsVisibleInTree() && _resident != null)
         {
-            _resident.Pose((float)delta, false, false, false, false, (float)(_identity % 11));
+            _resident.PoseAction((float)delta, _action, _actionPhase, _worldPaused, (float)(_identity % 11));
             _resident.Rotation = new Vector3(0, Mathf.LerpAngle(_resident.Rotation.Y, _yaw, 1 - MathF.Exp(-(float)delta * 12)), 0);
         }
     }
@@ -65,7 +74,7 @@ internal partial class ResidentPortrait : SubViewportContainer
         {
             if (button.ButtonIndex == MouseButton.Left) { _drag = button.Pressed; }
             if (button.Pressed && button.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
-            { _distance = Math.Clamp(_distance + (button.ButtonIndex == MouseButton.WheelUp ? -.2f : .2f), .50f, 3.2f); Aim(); }
+            { _distance = Math.Clamp(_distance + (button.ButtonIndex == MouseButton.WheelUp ? -.2f : .2f), .50f, 3.8f); Aim(); }
             AcceptEvent();
         }
         if (input is InputEventMouseMotion motion && _drag && _resident != null)

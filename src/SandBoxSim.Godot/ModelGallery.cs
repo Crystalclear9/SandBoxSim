@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Godot;
 using SandBoxSim.Core.Agents;
 using SandBoxSim.Core.Environment;
@@ -7,6 +8,8 @@ namespace SandBoxSim.Client;
 /// <summary>Opt-in developer preview of actual reusable meshes; never instantiates simulation entities.</summary>
 internal partial class ModelGallery : PanelContainer
 {
+    private readonly List<(ResidentRig Rig,ActionKind Action)> _animated=new();
+    private float _elapsed;
     public string Collection { get; set; } = "architecture";
     public override void _Ready()
     {
@@ -14,7 +17,7 @@ internal partial class ModelGallery : PanelContainer
         OffsetLeft=20; OffsetRight=-20; OffsetTop=90; OffsetBottom=-110;
         AddThemeStyleboxOverride("panel",HudStyle.Box(new Color("#1b2521"),3,16));
         var body=new VBoxContainer(); body.AddThemeConstantOverride("separation",12); AddChild(body);
-        body.AddChild(HudStyle.Heading(Collection=="equipment" ? "配件与衣装 · 实际挂点与姿态" : Collection=="architecture" ? "木作与砌筑 · 实际建筑模型" : Collection is "characters" or "faces" ? Collection=="faces" ? "面部与衣领 · 实际人物模型" : "人物与动物 · 实际角色模型" : "地表与植被 · 实际场景模型",22));
+        body.AddChild(HudStyle.Heading(Collection is "actions" or "motion" ? "居民动作 · 取出、握持、使用与收回" : Collection=="equipment" ? "配件与衣装 · 实际挂点与姿态" : Collection=="architecture" ? "木作与砌筑 · 实际建筑模型" : Collection is "characters" or "faces" ? Collection=="faces" ? "面部与衣领 · 实际人物模型" : "人物与动物 · 实际角色模型" : "地表与植被 · 实际场景模型",22));
         var grid=new GridContainer { Columns=3,SizeFlagsVertical=SizeFlags.ExpandFill };
         grid.AddThemeConstantOverride("h_separation",12); grid.AddThemeConstantOverride("v_separation",12); body.AddChild(grid);
         var models=new NatureModels();
@@ -23,6 +26,22 @@ internal partial class ModelGallery : PanelContainer
             string[] names={"原木屋 · 屋面与檐柱","灰泥屋 · 门窗与烟囱","石屋 · 基座与侧墙","高山墙屋 · 木架与砌筑","单坡屋 · 柱廊与木作"};
             for(uint i=0;i<5;i++) Card(grid,names[i],models.Building(BuildingKind.House,true,i),i==3 ? 4.5f : 3.8f,false);
             Card(grid,"仓库 · 木门、铁箍与物料",models.Building(BuildingKind.Storage,true,1),3.2f,false);
+        }
+        else if(Collection=="motion")
+        {
+            grid.Columns=1;ActionCard(grid,models.Resident(17,false,JobType.Builder),ActionKind.BuildHouse,"从腰侧取出工具、握持、锤击、放回");
+            var viewport=grid.GetChild<VBoxContainer>(0).GetChild<SubViewportContainer>(0).GetChild<SubViewport>(0);
+            var stage=viewport.GetChild<Node3D>(0);var camera=stage.GetChild<Camera3D>(stage.GetChildCount()-1);
+            camera.Size=1.4f;var target=new Vector3(0,1.04f,0);camera.Position=target+new Vector3(0,.07f,4);camera.LookAt(target);
+        }
+        else if(Collection=="actions")
+        {
+            ActionCard(grid,models.Resident(42,false,JobType.Farmer),ActionKind.Farm,"耕作 · 锄头与腕部");
+            ActionCard(grid,models.Resident(17,false,JobType.Gatherer),ActionKind.GatherWood,"伐木 · 斧头与挥击");
+            ActionCard(grid,models.Resident(19,false,JobType.Miner),ActionKind.GatherIron,"采矿 · 镐头与蓄力");
+            ActionCard(grid,models.Resident(17,false,JobType.Builder),ActionKind.BuildHouse,"施工 · 锤击与收纳");
+            ActionCard(grid,models.Resident(42,false,JobType.Gatherer),ActionKind.GatherFood,"采集 · 俯身与拿取");
+            ActionCard(grid,models.Resident(19,false,JobType.Trader),ActionKind.StoreInBuilding,"存放 · 双手递送");
         }
         else if(Collection=="equipment")
         {
@@ -56,13 +75,29 @@ internal partial class ModelGallery : PanelContainer
             Card(grid,"古树林 · 根系与大树冠",models.WildPlace(SandBoxSim.Core.Systems.WildPlaceKind.OldGrove,1,true),9.6f,false);
         }
     }
+    public override void _Process(double delta)
+    {
+        _elapsed+=(float)delta;
+        float cycle=_elapsed%6.8f;
+        foreach(var (rig,action) in _animated)rig.PoseAction((float)delta,action,cycle>.65f&&cycle<4.5f?ActionPhase.Executing:ActionPhase.Idle,false,0);
+    }
+    private void ActionCard(GridContainer grid,ResidentRig rig,ActionKind action,string title)
+    {
+        Card(grid,title,rig,2.05f,true);
+        var view=grid.GetChild<VBoxContainer>(grid.GetChildCount()-1).GetChild<SubViewportContainer>(0).GetChild<SubViewport>(0);
+        view.RenderTargetUpdateMode=SubViewport.UpdateMode.WhenVisible;
+        var stage=view.GetChild<Node3D>(0);var camera=stage.GetChild<Camera3D>(stage.GetChildCount()-1);
+        var target=new Vector3(0,.92f,0);camera.Position=target+new Vector3(.03f,.08f,4);camera.LookAt(target);
+        if(action==ActionKind.StoreInBuilding)rig.ShowCargo(true,ResourceKind.Wood);
+        _animated.Add((rig,action));
+    }
     private static void Equipment(GridContainer grid,ResidentRig model,string title,float yaw,bool working)
     {
         Card(grid,title,model,.85f,true);
         var card=grid.GetChild<VBoxContainer>(grid.GetChildCount()-1);
         var viewport=card.GetChild<SubViewportContainer>(0).GetChild<SubViewport>(0);
         var stage=viewport.GetChild<Node3D>(0);var camera=stage.GetChild<Camera3D>(stage.GetChildCount()-1);
-        model.Rotation=new(0,yaw,0);model.Pose(.3f,false,working,false,false,0);
+        model.Rotation=new(0,yaw,0);for(int i=0;i<(working?90:1);i++)model.Pose(1f/60,false,working,false,false,0);
         bool pack=yaw<0;
         var target=working ? model.Grip!.GlobalPosition+new Vector3(0,.05f,0) : pack ? model.Torso.GlobalPosition+new Vector3(0,1.10f,0) : model.Head.GlobalPosition-new Vector3(0,.03f,0);
         camera.Size=working?.68f:pack?.75f:.55f;camera.Position=target+new Vector3(.02f,.025f,2);camera.LookAt(target);

@@ -5,9 +5,8 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
-    private Mesh SculptedHead(bool hair)
+    private Mesh SculptedHead(bool hair,int sides=80,int rings=32)
     {
-        const int sides = 80, rings = 32;
         using var surface = new SurfaceTool(); surface.Begin(Mesh.PrimitiveType.Triangles); surface.SetSmoothGroup(0);
         float[] levels={-.50f,-.45f,-.35f,-.22f,-.06f,.10f,.22f,.34f,.43f,.49f,.50f};
         float[] widths={.115f,.25f,.365f,.43f,.475f,.48f,.485f,.435f,.34f,.14f,.025f};

@@ -46,7 +46,8 @@ public partial class MainGame : Control
     private int _selectedX = 50, _selectedY = 50;
     private bool _selfTest;
     private int _frames;
-    private string _capture = "";
+    private string _capture = "", _captureFrames = "";
+    private int _captureFrame;
     private double _captureElapsed;
     private bool _captureRequested;
     private int _initialPopulation = 40;
@@ -74,6 +75,7 @@ public partial class MainGame : Control
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
             if (arg == "--self-test") { _selfTest = true; }
+            if(arg.StartsWith("--capture-frames=",StringComparison.Ordinal)){_captureFrames=arg.Substring(17);System.IO.Directory.CreateDirectory(_captureFrames);}
             if (arg.StartsWith("--capture=", StringComparison.Ordinal)) { _capture = arg.Substring(10); }
             if (arg.StartsWith("--agents=", StringComparison.Ordinal) && int.TryParse(arg.Substring(9), out int population))
                 { _initialPopulation = Math.Clamp(population, 0, 2000); }
@@ -87,7 +89,7 @@ public partial class MainGame : Control
         NewWorld(839102);
         if (_previewDays > 0) { AdvanceWorld(_previewDays * Sim.Config.Clock.TicksPerDay); }
         BuildInterface();
-        if (_previewPanel is "architecture" or "characters" or "naturemodels" or "faces" or "equipment")
+        if (_previewPanel is "architecture" or "characters" or "naturemodels" or "faces" or "equipment" or "actions" or "motion")
         { SetSpeed(0); AddChild(new ModelGallery { Collection = _previewPanel == "naturemodels" ? "nature" : _previewPanel }); }
 
         if (_selfTest) { RunSelfTest(); }
@@ -337,6 +339,7 @@ public partial class MainGame : Control
         _map.QueueRedraw();
         if (_refresh >= 0.2) { _refresh = 0; RefreshPanels(); RefreshOperations(); SyncControls(); _chart.QueueRedraw(); _discovery.Refresh(); }
         _captureElapsed += delta;
+        if(_captureFrames.Length>0&&_captureFrame<56&&_captureElapsed>=.25+_captureFrame/8.0)CaptureFrame(_captureFrame++);
         if (_capture.Length > 0 && !_captureRequested && _captureElapsed >= .7) { _captureRequested = true; Capture(); }
         if (_selfTest && _frames >= 15) { GetTree().Quit(0); }
         if (_benchmarkSeconds > 0)
@@ -356,6 +359,11 @@ public partial class MainGame : Control
                 _benchmarkSeconds = 0;
             }
         }
+    }
+    private async void CaptureFrame(int frame)
+    {
+        await ToSignal(RenderingServer.Singleton,RenderingServer.SignalName.FramePostDraw);
+        GetViewport().GetTexture().GetImage().SavePng(System.IO.Path.Combine(_captureFrames,$"frame-{frame:D3}.png"));
     }
     private async void Capture()
     {
