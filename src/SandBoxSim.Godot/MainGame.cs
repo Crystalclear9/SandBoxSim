@@ -76,6 +76,8 @@ public partial class MainGame : Control
     {
         Theme = new Theme { DefaultFontSize = 16, DefaultFont = new SystemFont
             { FontNames = new[] { "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "WenQuanYi Zen Hei", "sans-serif" } } };
+        var preferences = new ConfigFile();
+        HudStyle.MotionEnabled = preferences.Load("user://interface.cfg") != Error.Ok || preferences.GetValue("interface", "motion", true).AsBool();
         ApplyVisualTheme();
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
@@ -238,7 +240,15 @@ public partial class MainGame : Control
         Theme.SetFontSize("normal_font_size", "RichTextLabel", 14); Theme.SetConstant("line_separation", "RichTextLabel", 5);
         Theme.SetColor("default_color", "RichTextLabel", HudStyle.Text);
         Theme.SetColor("font_color", "TooltipLabel", HudStyle.Text);
-        Theme.SetStylebox("panel", "TooltipPanel", HudStyle.Box(HudStyle.Surface, 8, 12));
+        var tooltip = HudStyle.Box(new Color("#202721"), 3, 12);
+        tooltip.BorderColor = new Color(HudStyle.Accent, .5f);
+        Theme.SetStylebox("panel", "TooltipPanel", tooltip);
+        Theme.SetFontSize("font_size", "TooltipLabel", 13);
+        Theme.SetConstant("outline_size", "TooltipLabel", 0);
+        Theme.SetColor("selection_color", "LineEdit", new Color(HudStyle.Accent, .28f));
+        Theme.SetStylebox("read_only", "LineEdit", HudStyle.Box(HudStyle.Ink, 3, 10));
+        Theme.SetStylebox("scroll", "VScrollBar", HudStyle.Box(new Color(0, 0, 0, .18f), 2, 3, false));
+        Theme.SetStylebox("grabber_pressed", "VScrollBar", HudStyle.Box(HudStyle.Accent.Lightened(.12f), 3, 3, false));
         Theme.SetStylebox("grabber", "VScrollBar", HudStyle.Box(new Color(HudStyle.Muted, .35f), 3, 3, false));
         Theme.SetStylebox("grabber_highlight", "VScrollBar", HudStyle.Box(HudStyle.Accent, 3, 3, false));
     }
@@ -451,8 +461,8 @@ public partial class MainGame : Control
         var sample = Sim.Observe();
         _summary.Text = $"第 {Sim.World.Calendar.Day} 天  ·  {Sim.Agents.LiveCount} 位居民  ·  {WeatherInfo.NameOf(Sim.World.Weather.Kind)}\n{Sim.Settlements.ActiveCount} 个聚落  ·  {Sim.Buildings.TotalCompleted} 栋建筑  ·  出生 {Sim.Stats.TotalBirths} / 死亡 {Sim.Stats.TotalDeaths}";
         _dayLabel.Text = "第 " + Sim.World.Calendar.Day + " 天 · " + WildPlaces.PhaseName(Sim.Clock / Sim.Config.Clock.TicksPerDay);
-        _foodLabel.Text = CollectedStock(ResourceKind.Food).ToString("0"); _woodLabel.Text = CollectedStock(ResourceKind.Wood).ToString("0"); _stoneLabel.Text = CollectedStock(ResourceKind.Stone).ToString("0");
-        _populationLabel.Text = Sim.Agents.LiveCount.ToString(); _settlementLabel.Text = Sim.Settlements.ActiveCount.ToString(); _buildingLabel.Text = Sim.Buildings.TotalCompleted.ToString();
+        UpdateMetric(_foodLabel, CollectedStock(ResourceKind.Food).ToString("0")); UpdateMetric(_woodLabel, CollectedStock(ResourceKind.Wood).ToString("0")); UpdateMetric(_stoneLabel, CollectedStock(ResourceKind.Stone).ToString("0"));
+        UpdateMetric(_populationLabel, Sim.Agents.LiveCount.ToString()); UpdateMetric(_settlementLabel, Sim.Settlements.ActiveCount.ToString()); UpdateMetric(_buildingLabel, Sim.Buildings.TotalCompleted.ToString());
         var text = new StringBuilder();
         var archive = Sim.Society.Find(_selectedPersonId);
         var wolfView = Sim.Predators.Wolves.FirstOrDefault(w => w.Id == _selectedWolf);
@@ -527,7 +537,7 @@ public partial class MainGame : Control
             text.AppendLine(place?.Name ?? "土地");
             text.AppendLine($"({_selectedX}, {_selectedY}) · {TerrainLabel(tile.Terrain)}");
             if (place != null) { text.AppendLine().AppendLine(Wild.Describe(Sim, place).Substring(place.Name.Length).TrimStart('\n')).AppendLine(); }
-            text.AppendLine($"肥力 {tile.Fertility:P0}  湿度 {tile.Moisture:P0}\n地表{ResourceLabel(tile.Resource.Kind)} {tile.Resource.Amount:F1}");
+            text.AppendLine($"地表{ResourceLabel(tile.Resource.Kind)}  {tile.Resource.Amount:F1}");
             int settlement = Sim.Society.TerritoryAt(_selectedX, _selectedY);
             var s = Sim.Civilizations.Settlement(settlement);
             if (s != null)
@@ -596,7 +606,7 @@ public partial class MainGame : Control
             _decisionDetails = true; RefreshPanels(); _decisionDetails = false;
             _drawer.CurrentTab = 3; _chart._GuiInput(new InputEventMouseMotion { Position = new Vector2(150, 200) });
             SetCategory("地貌"); SelectTool(PlayerTool.River); SetCategory("生命"); SelectTool(PlayerTool.Inspect);
-            ShowSettings(true); ShowSettings(false); ShowJournal(false); ShowJournal(true);
+            ShowSettings(true); ShowSettings(false); ShowJournal(false); ShowJournal(true); ValidateHudMotion();
             if (before != StateHash.ComputeDigest(Sim)) { throw new Exception("Inspector mutated simulation"); }
             if (observed >= 0)
             {

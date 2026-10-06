@@ -5,12 +5,13 @@ namespace SandBoxSim.Client;
 /// <summary>One HUD palette and spacing scale. Floating surfaces communicate depth without framing the whole world.</summary>
 internal static class HudStyle
 {
+    public static bool MotionEnabled { get; set; } = true;
     public static readonly Color Ink = new("#1b201f"), Surface = new(.075f, .092f, .09f, .97f), Text = new("#e9e3d6"),
         Muted = new("#a6aaa1"), Accent = new("#c4ad78"), Border = new("#52564b"), Wash = new("#30382f");
     private static Texture2D? _leather;
     private static ShaderMaterial? _frameMaterial;
     public static ShaderMaterial FrameMaterial => _frameMaterial ??= new ShaderMaterial { Shader = new Shader { Code =
-        "shader_type canvas_item; void fragment(){ vec4 c = texture(TEXTURE,UV)*COLOR; vec3 base=mix(vec3(.062,.077,.075),vec3(.115,.132,.123),1.0-UV.y); COLOR=vec4(base+c.rgb*.08,c.a); }" } };
+        "shader_type canvas_item; void fragment(){ vec4 c = texture(TEXTURE,UV)*COLOR; vec3 base=mix(vec3(.062,.071,.070),vec3(.137,.145,.130),1.0-UV.y); float edge=pow(1.0-UV.y,8.0)*.018; COLOR=vec4(base+c.rgb*.10+edge,c.a); }" } };
     public static StyleBox Frame(int padding)
     {
         if (_leather == null)
@@ -46,16 +47,17 @@ internal static class HudStyle
         button.AddThemeColorOverride("icon_normal_color", Text);
         button.AddThemeColorOverride("icon_hover_color", Accent);
         button.AddThemeColorOverride("icon_pressed_color", Ink);
-        button.AddThemeStyleboxOverride("normal", Box(prominent ? Accent : new Color(0, 0, 0, 0), 6, 9, false));
-        button.AddThemeStyleboxOverride("hover", Box(prominent ? Accent.Lightened(.08f) : Wash, 6, 9, false));
-        var pressed = Box(Wash, 2, 9, false); pressed.BorderWidthBottom = 2; pressed.BorderColor = Accent;
+        button.AddThemeStyleboxOverride("normal", Box(prominent ? Accent : new Color(0, 0, 0, 0), 3, 9, false));
+        button.AddThemeStyleboxOverride("hover", Box(prominent ? Accent.Lightened(.08f) : new Color(.25f, .27f, .22f, .55f), 3, 9, false));
+        var pressed = Box(new Color(.24f, .25f, .19f, .72f), 3, 9, false);
         button.AddThemeStyleboxOverride("pressed", pressed);
         button.AddThemeColorOverride("font_pressed_color", Accent); button.AddThemeColorOverride("icon_pressed_color", Accent);
         var focus = Box(new Color(0, 0, 0, 0), 4, 2); focus.BorderColor = Accent; button.AddThemeStyleboxOverride("focus", focus);
         Tween? feedback = null;
-        void Feedback(float value) { if (!button.IsInsideTree()) { return; } feedback?.Kill(); feedback = button.CreateTween(); feedback.TweenProperty(button, "modulate", new Color(value, value, value), .12).SetTrans(Tween.TransitionType.Sine); }
+        void Feedback(float value) { if (!button.IsInsideTree() || button.Disabled) { return; } feedback?.Kill(); feedback = button.CreateTween(); feedback.TweenProperty(button, "modulate", new Color(value, value, value), MotionEnabled ? .12 : 0).SetTrans(Tween.TransitionType.Sine); }
         button.MouseEntered += () => Feedback(1.07f); button.MouseExited += () => Feedback(1f);
         button.ButtonDown += () => Feedback(.9f); button.ButtonUp += () => Feedback(1f);
+        button.AddChild(new HudButtonDetail());
     }
     public static void Float(Control item, Vector2 anchor, Vector2 offset, Vector2 size)
     {

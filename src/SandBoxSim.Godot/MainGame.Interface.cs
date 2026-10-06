@@ -32,7 +32,11 @@ public partial class MainGame
     private Label _residentTitle = null!, _residentSubtitle = null!;
     private readonly Label[] _vitalLabels = new Label[4];
     private readonly ProgressBar[] _vitalBars = new ProgressBar[4];
-    private Tween? _vitalTransition;
+    private Tween? _vitalTransition, _landTransition;
+    private VBoxContainer _landVitals = null!;
+    private Label _landTitle = null!, _landSubtitle = null!;
+    private readonly Label[] _landLabels = new Label[3];
+    private readonly ProgressBar[] _landBars = new ProgressBar[3];
 
     private static string EscapeMarkup(string value) => value.Replace("[", "[lb]");
     private static string JobName(SandBoxSim.Core.Agents.JobType job) => job switch
@@ -52,9 +56,9 @@ public partial class MainGame
     };
     private string FormatInspector(string plain)
     {
-        var result = new System.Text.StringBuilder(); bool first = !_residentVitals.Visible, hidden = false;
+        var result = new System.Text.StringBuilder(); bool first = !_residentVitals.Visible && !_landVitals.Visible, hidden = false;
         string[] lines = plain.Replace("\r", "").Split('\n');
-        for (int i = _residentVitals.Visible ? 2 : 0; i < lines.Length; i++)
+        for (int i = _residentVitals.Visible || _landVitals.Visible ? 2 : 0; i < lines.Length; i++)
         {
             string line = lines[i];
             if (_residentVitals.Visible && (line.StartsWith("生命 ") || line.StartsWith("精力 "))) { continue; }
@@ -111,7 +115,7 @@ public partial class MainGame
         _drawer.AddThemeStyleboxOverride("panel", HudStyle.Box(new Color(0, 0, 0, 0), 0, 0, false));
         _discovery = new DiscoveryPanel { Name = "现场", Game = this }; _drawer.AddChild(_discovery);
         var personPanel = new VBoxContainer { Name = "人物" }; personPanel.AddThemeConstantOverride("separation", 12); _drawer.AddChild(personPanel);
-        BuildResidentVitals(personPanel);
+        BuildResidentVitals(personPanel); BuildLandVitals(personPanel);
         var detailControls = new HBoxContainer(); _residentControls = detailControls; personPanel.AddChild(detailControls);
         var details = ActionButton(detailControls, "显示决策与性格", () => { _decisionDetails = !_decisionDetails; RefreshPanels(); }); details.ToggleMode = true;
         _pinButton = ActionButton(detailControls, "关注这个居民", TogglePin);
@@ -122,6 +126,7 @@ public partial class MainGame
         _chart = new StatisticsView { Name = "曲线", Game = this }; _drawer.AddChild(_chart);
         BuildTrialPanel(); _drawer.SetTabHidden(4, true);
         BuildProjectPanel();
+        _drawer.TabChanged += _ => RevealJournalPage();
 
         _brushPanel = Surface(overlay, new Vector2(0, 0), new Vector2(24, 104), new Vector2(245, 230), 18);
         var brush = new VBoxContainer(); brush.AddThemeConstantOverride("separation", 10); _brushPanel.AddChild(brush);
@@ -139,6 +144,17 @@ public partial class MainGame
         tools.AddChild(HudStyle.Label("全部干预", 14, true));
         _toolPicker = new OptionButton(); foreach (string name in ToolNames) { _toolPicker.AddItem(name); } tools.AddChild(_toolPicker); _toolPicker.ItemSelected += index => SelectTool((PlayerTool)index);
         _toolDescription = HudStyle.Label("选择工具，再改变这个世界。", 14, true); _toolDescription.AutowrapMode = TextServer.AutowrapMode.WordSmart; tools.AddChild(_toolDescription);
+        tools.AddChild(new HSeparator()); tools.AddChild(HudStyle.Label("界面表现", 17));
+        var motion = new CheckBox { Text = "柔和界面动效", ButtonPressed = HudStyle.MotionEnabled };
+        HudStyle.Rule(motion); tools.AddChild(motion);
+        motion.TooltipText = "控制按钮、面板和数值的过渡；关闭后立即显示结果。";
+        motion.Toggled += enabled =>
+        {
+            HudStyle.MotionEnabled = enabled;
+            if (!enabled) { ResetHudMotion(); }
+            var preferences = new ConfigFile(); preferences.SetValue("interface", "motion", enabled);
+            preferences.Save("user://interface.cfg");
+        };
         tools.AddChild(new HSeparator()); tools.AddChild(HudStyle.Label("世界规则", 17));
         Rule(tools, "禁止死亡", () => Sim.Config.Rules.NoDeath, v => Sim.Config.Rules.NoDeath = v);
         Rule(tools, "高出生率", () => Sim.Config.Rules.HighBirthRate, v => Sim.Config.Rules.HighBirthRate = v);
@@ -191,7 +207,11 @@ public partial class MainGame
         { int chosen = speed; var button = ActionButton(timeRow, speed == 0 ? "暂停" : speed + "×", () => SetSpeed(chosen)); button.ToggleMode = true; _speedButtons[speed] = button; } SetSpeed(_speed);
         var cameraPanel = Surface(overlay, new Vector2(1, 1), new Vector2(-320, -90), new Vector2(296, 68), 8); _cameraPanel = cameraPanel;
 
-        var cameraBox = new VBoxContainer(); cameraBox.AddThemeConstantOverride("separation", 4); cameraPanel.AddChild(cameraBox); cameraBox.AddChild(HudStyle.Label("观察视角", 11, true));
+        var cameraBox = new VBoxContainer(); cameraBox.AddThemeConstantOverride("separation", 4); cameraPanel.AddChild(cameraBox);
+        var cameraHeading = new HBoxContainer(); cameraBox.AddChild(cameraHeading);
+        var cameraTitle = HudStyle.Label("观察视角", 11, true); cameraTitle.SizeFlagsHorizontal = SizeFlags.ExpandFill; cameraHeading.AddChild(cameraTitle);
+        cameraHeading.TooltipText = "罗盘铜色尖端指向地图北方，随鼠标旋转视角同步变化。";
+        cameraHeading.AddChild(new HudCompass { View = (WorldView3D)_map });
         var views = new HBoxContainer(); cameraBox.AddChild(views); ActionButton(views, "全景", () => _map.Center());
         foreach (string label in new[] { "斜视", "俯视", "近景" }) { string view = label; ActionButton(views, label, () => ((WorldView3D)_map).SetPerspective(view)); }
         ActionButton(views, "跟随", () => { if (SelectedSlot >= 0) { _map.Follow(SelectedSlot); } else { _status.Text = "选择一个人物后，跟随他的故事"; } });
@@ -270,9 +290,47 @@ public partial class MainGame
         }
         _residentVitals.AddChild(new HSeparator());
     }
+    private void BuildLandVitals(VBoxContainer parent)
+    {
+        _landVitals = new VBoxContainer { Visible = false };
+        _landVitals.AddThemeConstantOverride("separation", 9); parent.AddChild(_landVitals);
+        _landTitle = HudStyle.Heading("土地", 24); _landTitle.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        _landSubtitle = HudStyle.Label("", 12, true);
+        _landVitals.AddChild(_landTitle); _landVitals.AddChild(_landSubtitle);
+        var card = new PanelContainer(); card.AddThemeStyleboxOverride("panel", HudStyle.Box(new Color(.24f, .26f, .22f, .32f), 3, 12, false)); _landVitals.AddChild(card);
+        var body = new VBoxContainer(); body.AddThemeConstantOverride("separation", 8); card.AddChild(body);
+        body.AddChild(HudStyle.Label("水土与生长", 11, true));
+        Color[] colors = { new("#8daeb1"), new("#baab7e"), new("#91a781") };
+        for (int i = 0; i < 3; i++)
+        {
+            _landLabels[i] = HudStyle.Label("", 12); body.AddChild(_landLabels[i]);
+            var bar = new ProgressBar { MaxValue = 1, ShowPercentage = false, CustomMinimumSize = new Vector2(0, 4), MouseFilter = MouseFilterEnum.Ignore };
+            bar.AddThemeStyleboxOverride("background", HudStyle.Box(new Color(0, 0, 0, .25f), 1, 0, false));
+            bar.AddThemeStyleboxOverride("fill", HudStyle.Box(colors[i], 1, 0, false)); body.AddChild(bar); _landBars[i] = bar;
+        }
+    }
+    private void RefreshLandVitals()
+    {
+        _landTransition?.Kill();
+        _landVitals.Visible = _drawer.GetTabTitle(1) == "土地";
+        if (!_landVitals.Visible) { return; }
+        var tile = Sim.World.TileAtClamped(_selectedX, _selectedY);
+        _landTitle.Text = Wild.At(_selectedX, _selectedY)?.Name ?? "土地";
+        _landSubtitle.Text = $"{TerrainLabel(tile.Terrain)}  ·  {_selectedX}, {_selectedY}";
+        float[] values = { tile.Moisture, tile.Fertility, tile.Vegetation };
+        string[] names = { "土壤湿度", "土地肥力", "植被覆盖" };
+        _landTransition = HudStyle.MotionEnabled ? CreateTween().SetParallel().SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.Out) : null;
+        for (int i = 0; i < 3; i++)
+        {
+            _landLabels[i].Text = names[i] + "   " + values[i].ToString("P0");
+            if (HudStyle.MotionEnabled) { _landTransition!.TweenProperty(_landBars[i], "value", values[i], .18); }
+            else { _landBars[i].Value = values[i]; }
+        }
+    }
     private void RefreshResidentVitals()
     {
         _vitalTransition?.Kill();
+        RefreshLandVitals();
         int slot = SelectedSlot; _residentVitals.Visible = slot >= 0;
         _residentControls.Visible = _residentNameControls.Visible = _selectedPersonId != 0;
         if (slot < 0) { return; }
@@ -282,12 +340,13 @@ public partial class MainGame
         _residentSubtitle.Text = $"{a.AgeDaysOf(slot)} 天  /  {LifeStageName(a.LifeStageOf(slot))}  /  {JobName(a.JobOf(slot))}  ·  {a.PositionOf(slot)}";
         float[] values = { a.HealthOf(slot), a.HungerOf(slot), a.ThirstOf(slot), 1 - a.FatigueOf(slot) };
         string[] names = { "生命", "饥饿", "干渴", "精力" };
-        _vitalTransition = CreateTween().SetParallel().SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.Out);
+        _vitalTransition = HudStyle.MotionEnabled ? CreateTween().SetParallel().SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.Out) : null;
         for (int i = 0; i < values.Length; i++)
         {
             bool danger = i is 1 or 2 ? values[i] > .7f : values[i] < .35f;
             _vitalLabels[i].Text = names[i] + "   " + values[i].ToString("P0");
-            _vitalTransition.TweenProperty(_vitalBars[i], "value", values[i], .24);
+            if (HudStyle.MotionEnabled) { _vitalTransition!.TweenProperty(_vitalBars[i], "value", values[i], .18); }
+            else { _vitalBars[i].Value = values[i]; }
             ((StyleBoxFlat)_vitalBars[i].GetThemeStylebox("fill")).BgColor = danger ? new Color("#a84e32") : HudStyle.Accent;
         }
     }
@@ -310,9 +369,68 @@ public partial class MainGame
     private void FadeIn(Control panel)
     {
         if (_panelTransitions.TryGetValue(panel, out var previous)) { previous.Kill(); }
-        panel.PivotOffset = new Vector2(panel.Size.X, 0); panel.Scale = Vector2.One * .985f; panel.Modulate = new Color(1, 1, 1, 0);
+        panel.PivotOffset = new Vector2(panel.Size.X * (panel.AnchorLeft > .5f ? 1 : .5f), panel.Size.Y);
+        if (!HudStyle.MotionEnabled) { panel.Scale = Vector2.One; panel.Modulate = Colors.White; return; }
+        panel.Scale = new Vector2(.995f, .97f); panel.Modulate = new Color(1, 1, 1, 0);
         var transition = panel.CreateTween().SetParallel().SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
-        transition.TweenProperty(panel, "modulate:a", 1f, .22); transition.TweenProperty(panel, "scale", Vector2.One, .22); _panelTransitions[panel] = transition;
+        transition.TweenProperty(panel, "modulate:a", 1f, .18); transition.TweenProperty(panel, "scale", Vector2.One, .26); _panelTransitions[panel] = transition;
+    }
+    private Tween? _pageTransition;
+    private void RevealJournalPage()
+    {
+        _pageTransition?.Kill();
+        foreach (Node child in _drawer.GetChildren()) { if (child is Control content) { content.Modulate = Colors.White; } }
+        var page = _drawer.GetCurrentTabControl();
+        if (page == null || !HudStyle.MotionEnabled || !_journalPanel.Visible) { return; }
+        page.Modulate = new Color(1, 1, 1, .35f);
+        _pageTransition = page.CreateTween();
+        _pageTransition.TweenProperty(page, "modulate:a", 1f, .18).SetTrans(Tween.TransitionType.Sine);
+    }
+    private readonly Dictionary<Label, Tween> _metricTransitions = new();
+    private void UpdateMetric(Label label, string value)
+    {
+        if (label.Text == value) { return; }
+        label.Text = value;
+        if (_metricTransitions.TryGetValue(label, out var previous)) { previous.Kill(); }
+        if (!HudStyle.MotionEnabled || !label.IsVisibleInTree()) { label.Modulate = Colors.White; return; }
+        label.Modulate = new Color(1.18f, 1.12f, .88f);
+        var transition = label.CreateTween();
+        transition.TweenProperty(label, "modulate", Colors.White, .6).SetTrans(Tween.TransitionType.Sine);
+        _metricTransitions[label] = transition;
+    }
+    private void ResetHudMotion()
+    {
+        foreach (var pair in _panelTransitions) { pair.Value.Kill(); pair.Key.Scale = Vector2.One; pair.Key.Modulate = Colors.White; }
+        foreach (var pair in _metricTransitions) { pair.Value.Kill(); pair.Key.Modulate = Colors.White; }
+        _pageTransition?.Kill();
+        _vitalTransition?.Kill(); _landTransition?.Kill();
+        foreach (Node child in _drawer.GetChildren()) { if (child is Control content) { content.Modulate = Colors.White; } }
+        RefreshResidentVitals();
+    }
+    private void ValidateHudMotion()
+    {
+        bool enabled = HudStyle.MotionEnabled;
+        try
+        {
+            HudStyle.MotionEnabled = true;
+            ShowJournal(true); ShowJournal(false); ShowJournal(true);
+            _panelTransitions[_journalPanel].CustomStep(1);
+            if (_journalPanel.Scale != Vector2.One || _journalPanel.Modulate.A != 1)
+                { throw new InvalidOperationException("Interrupted journal transition did not settle"); }
+            _drawer.CurrentTab = 1; RevealJournalPage(); _pageTransition?.CustomStep(1);
+            if (_drawer.GetCurrentTabControl().Modulate.A != 1)
+                { throw new InvalidOperationException("Journal page remained transparent"); }
+            FadeIn(_settingsPanel);
+            HudStyle.MotionEnabled = false; ResetHudMotion();
+            if (_settingsPanel.Scale != Vector2.One || _settingsPanel.Modulate.A != 1)
+                { throw new InvalidOperationException("Reduced motion failed to restore panel"); }
+            UpdateMetric(_populationLabel, Sim.Agents.LiveCount.ToString());
+            if (_populationLabel.Modulate != Colors.White)
+                { throw new InvalidOperationException("Reduced motion left a metric highlighted"); }
+            if (_journalButton.GetChild<HudButtonDetail>(0).MouseFilter != MouseFilterEnum.Ignore)
+                { throw new InvalidOperationException("Decorative feedback intercepts input"); }
+        }
+        finally { HudStyle.MotionEnabled = enabled; }
     }
     private void SetCategory(string category)
     {

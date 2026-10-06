@@ -21,6 +21,7 @@ public partial class WorldView3D : MapView
     private Simulation? _world;
     private Vector3 _target = new(92, 1, 100);
     private float _distance = 44, _yaw = -.45f, _pitch = .85f;
+    public float CameraYaw => _yaw;
     private bool _orbit, _pan, _painting, _leftHeld, _leftDragged;
     private Vector2 _leftStart;
     private Vector2 _mouse;

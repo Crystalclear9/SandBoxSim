@@ -12,7 +12,7 @@
 
 PNG 的 `.import` 文件与资源一起存放，Godot 的生成缓存位于忽略提交的 `.godot/`。修改资源位置时，需要同步源码中的 `res://` 路径和导入设置。
 
-界面皮革底纹复用材质图集，`HudStyle.cs` 的 Canvas 着色器降低纹理对比，`HudBevel.cs` 绘制双层细线、旧铜边角与微弱高光。面板、按钮与图标沿用项目自己的资源，界面布局参考见 [观察与界面](../guides/gameplay-observation.md)。
+界面皮革底纹复用材质图集，`HudStyle.cs` 的 Canvas 着色器降低纹理对比，`HudBevel.cs` 绘制双层细线、旧铜边角、中央铜饰与微弱高光。`HudButtonDetail.cs` 是不接收鼠标事件的绘制层，只在交互期间渐变，不改变布局或命中范围。面板、按钮与图标沿用项目自己的资源，界面布局参考见 [观察与界面](../guides/gameplay-observation.md)。
 
 ## 建筑展示
 
