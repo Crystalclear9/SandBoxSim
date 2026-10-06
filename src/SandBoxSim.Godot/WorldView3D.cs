@@ -609,10 +609,10 @@ void fragment(){
             {float amount=sim.Agents.InventoryOf(slot,resource);if(amount>cargoAmount){cargoAmount=amount;cargoKind=resource;}}
             ((ResidentRig)node).ShowCargo(cargoAmount>.01f,cargoKind);
             ((ResidentRig)node).SetHeadDetail(_camera.Position.DistanceTo(node.Position)<18);
-            ((ResidentRig)node).SetHandDetail(_camera.Position.DistanceTo(node.Position)<12);
+            ((ResidentRig)node).SetHandDetail(_camera.Position.DistanceTo(node.Position)<18);
             float distance=_camera.Position.DistanceTo(node.Position);int stride=distance>30?3:distance>12?2:1;
             if((_poseFrame+slot)%stride==0)
-                ((ResidentRig)node).PoseAction(delta*stride,sim.Agents.ActionOf(slot),sim.Agents.PhaseOf(slot),Game.VisualPaused,slot);
+                ((ResidentRig)node).PresentAction(delta*stride,sim.Agents.ActionOf(slot),sim.Agents.PhaseOf(slot),Game.VisualPaused,slot);
         }
         foreach (var pair in _deer)
         { int slot = (int)(pair.Key & uint.MaxValue); if (sim.Wildlife.IsAlive(slot)) { MoveAnimal(pair.Value, PositionAt(sim.Wildlife.XOf(slot), sim.Wildlife.YOf(slot)), delta); } }

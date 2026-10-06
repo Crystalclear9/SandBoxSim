@@ -10,7 +10,7 @@ internal sealed partial class NatureModels
 {
     private void AddHandTools(ResidentRig rig,JobType job)
     {
-        rig.Grip=new Node3D {Name="HandGrip",Position=new(0,-.025f,-.026f),Rotation=new(0,0,MathF.PI/2)};rig.Hands[1].AddChild(rig.Grip);
+        rig.Grip=new Node3D {Name="HandGrip",Position=new(0,-.046f,-.025f),Rotation=new(0,0,MathF.PI/2)};rig.Hands[1].AddChild(rig.Grip);
         rig.Holster=new Node3D {Name="BeltToolLoop",Position=new(.235f,.79f,-.14f)};rig.Torso.AddChild(rig.Holster);
         if(!rig.IsChild)
         {
@@ -23,7 +23,7 @@ internal sealed partial class NatureModels
             JobType.Farmer=>ResidentTool.Hoe, JobType.Miner=>ResidentTool.Pick,
             JobType.Builder or JobType.Craftsman=>ResidentTool.Hammer, JobType.Soldier=>ResidentTool.Spear,_=>ResidentTool.None };
         rig.SelectTool(rig.DefaultTool);
-        rig.CargoMesh=new MeshInstance3D {Name="CarriedResources",Position=new(-.12f,-.085f,-.026f),Visible=false};rig.Hands[1].AddChild(rig.CargoMesh);
+        rig.CargoMesh=new MeshInstance3D {Name="CarriedResources",Position=new(-.12f,-.106f,-.025f),Visible=false};rig.Hands[1].AddChild(rig.CargoMesh);
         foreach(var resource in new[]{ResourceKind.Food,ResourceKind.Wood,ResourceKind.Stone,ResourceKind.Iron})rig.CargoMeshes[resource]=CargoBundle(resource);
     }
     private Mesh CargoBundle(ResourceKind resource)
@@ -49,8 +49,8 @@ internal sealed partial class NatureModels
         var root=new Node3D();
         Sculpt(root,Loft("resident-palm",new[]{new Vector4(-.05f,0,.008f,.01f),new(-.03f,0,.031f,.025f),new(.016f,0,.035f,.019f),new(.045f,0,.022f,.012f)}),Vector3.Zero,ResidentMaterial(skin),new(MathF.PI/2,0,0));
         Detail(root,"finger-low",new(0,.01f,0),new(.057f,.048f,.052f),skin);
-        for(int digit=0;digit<4;digit++)Detail(root,"finger-low",new(-.022f+digit*.014f,closed?-.025f:-.037f,closed?-.020f:-.005f),new(.010f,closed?.024f:.038f,.010f),skin,new(closed?1.1f:0,0,0));
-        Detail(root,"finger-low",new(.025f,-.015f,closed?-.023f:-.009f),new(.013f,.026f,.013f),skin,new(0,0,-.6f));
+        for(int digit=0;digit<4;digit++)Detail(root,"finger-low",new(-.022f+digit*.014f,closed?-.063f:-.070f,closed?-.030f:-.005f),new(.010f,closed?.030f:.062f,.010f),skin,new(closed?1.1f:0,0,0));
+        Detail(root,"finger-low",new(.025f,-.035f,closed?-.026f:-.021f),new(.013f,.026f,.013f),skin,new(0,0,-.6f));
         MergeResidentParts(root,key);mesh=root.GetChild<MeshInstance3D>(0).Mesh;_meshes[key]=mesh;root.Free();return mesh;
     }
     private Mesh HandTool(ResidentTool kind)
@@ -59,7 +59,7 @@ internal sealed partial class NatureModels
         if(_meshes.TryGetValue(key,out var mesh))return mesh;
         var root=new Node3D();
         float length=kind==ResidentTool.Hoe?.61f:kind==ResidentTool.Spear?1.38f:.39f;
-        Detail(root,"cylinder",new(0,kind==ResidentTool.Spear?.28f:-.11f,0),new(.022f,length,.022f),"#8b6c46");
+        Detail(root,"cylinder",new(0,kind==ResidentTool.Spear?.28f:-.11f,0),new(.024f,length,.024f),"#8b6c46");
         if(kind==ResidentTool.Hammer)
         {
             Detail(root,"masonry",new(0,-.30f,0),new(.13f,.046f,.046f),"#68716f");

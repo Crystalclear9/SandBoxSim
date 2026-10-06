@@ -94,7 +94,7 @@ internal sealed partial class NatureModels
     {
         uint variation = unchecked((uint)identity * 2654435761u);
         string[] clothColors = { "#536d68", "#b4956a", "#866756", "#6e7881", "#798261", "#a8937d" };
-        string[] skinColors = { "#c29a7a", "#aa7c5a", "#d3ad8b", "#946b50" };
+        string[] skinColors = { "#b48e76", "#956e55", "#c6a48c", "#896851" };
         string cloth = clothColors[variation % clothColors.Length], skin = skinColors[(variation >> 4) % skinColors.Length];
         string hair = (variation & 1) == 0 ? "#42352c" : "#695344";
         var rig = new ResidentRig { Name = "Resident", IsChild = child };
@@ -120,19 +120,9 @@ internal sealed partial class NatureModels
         {
             Detail(rig.Head,"sphere",new(side*.087f,-.005f,0),new(.024f,.043f,.026f),skin);
             Detail(rig.Head,"seed",new(side*.095f,-.003f,-.008f),new(.006f,.026f,.014f),"#a58065");
-            Detail(rig.Head, "sphere", new Vector3(side * .034f, .019f, -.083f), new Vector3(.024f, .010f, .007f), "#e5dbc6");
-            Detail(rig.Head, "sphere", new Vector3(side * .034f, .019f, -.087f), new Vector3(.009f, .008f, .004f), "#342f28");
-            Detail(rig.Head, "capsule", new Vector3(side * .034f, .034f, -.085f), new Vector3(.005f, .024f, .005f), hair, new Vector3(0, 0, MathF.PI * .5f));
+            Detail(rig.Head,"seed",new(side*.034f,.034f,-.086f),new(.030f,.0035f,.004f),hair,new(0,0,side*.08f));
         }
-        Detail(rig.Head, "seed", new Vector3(0, -.055f, -.092f), new Vector3(.032f, .004f, .006f), "#a37862");
-        Detail(rig.Head, "seed", new Vector3(0, -.060f, -.092f), new Vector3(.029f, .005f, .005f), "#b98c73");
-        FineBeam(rig.Head,new(-.013f,-.058f,-.095f),new(.013f,-.058f,-.095f),.0013f,"#785b4c");
-        foreach(float side in new[]{-1f,1f})
-        {
-            Detail(rig.Head,"sphere",new(side*.006f,-.028f,-.101f),new(.006f,.003f,.003f),"#805e4c");
-            Detail(rig.Head,"capsule",new(side*.034f,.014f,-.085f),new(.004f,.023f,.005f),skin,new(0,0,MathF.PI/2));
-            Detail(rig.Head,"sphere",new(side*.034f+.001f,.020f,-.090f),Vector3.One*.003f,"#eee4d3");
-        }
+
         for (int i = 0; i < 2; i++)
         {
             float side = i == 0 ? -1 : 1;
@@ -146,14 +136,14 @@ internal sealed partial class NatureModels
             Sculpt(hand,Loft("resident-palm",new[]{new Vector4(-.05f,0,.008f,.01f),new(-.03f,0,.031f,.025f),new(.016f,0,.035f,.019f),new(.045f,0,.022f,.012f)}),Vector3.Zero,ResidentMaterial(skin),new(MathF.PI/2,0,0));
             for(int digit=0;digit<4;digit++)
             {
-                var finger=rig.Fingers[i,digit]=new Node3D {Name="Finger"+digit,Position=new(-.022f+digit*.014f,-.02f,-.005f)}; hand.AddChild(finger);
-                Detail(finger,"capsule",new(0,-.010f,0),new(.010f,.010f,.010f),skin);
-                var tip=rig.Fingertips[i,digit]=new Node3D {Name="Tip",Position=new(0,-.018f,0)}; finger.AddChild(tip);
-                Detail(tip,"capsule",new(0,-.008f,0),new(.009f,.008f,.009f),skin);
-                Detail(tip,"seed",new(0,-.009f,-.0045f),new(.006f,.007f,.0015f),"#cfab8d");
+                var finger=rig.Fingers[i,digit]=new Node3D {Name="Finger"+digit,Position=new(-.022f+digit*.014f,-.04f,-.005f)}; hand.AddChild(finger);
+                Detail(finger,"capsule",new(0,-.0135f,0),new(.010f,.0135f,.010f),skin);
+                var tip=rig.Fingertips[i,digit]=new Node3D {Name="Tip",Position=new(0,-.027f,0)}; finger.AddChild(tip);
+                Detail(tip,"capsule",new(0,-.015f,0),new(.010f,.015f,.010f),skin);
+                Detail(tip,"seed",new(0,-.017f,-.005f),new(.006f,.010f,.0015f),"#cfab8d");
             }
-            var thumb=rig.Thumbs[i]=new Node3D {Name="Thumb",Position=new(side*.032f,-.002f,-.006f)};hand.AddChild(thumb);
-            Detail(thumb,"capsule",new(0,-.012f,0),new(.013f,.013f,.013f),skin);
+            var thumb=rig.Thumbs[i]=new Node3D {Name="Thumb",Position=new(side*.032f,-.026f,-.021f)};hand.AddChild(thumb);
+            Detail(thumb,"capsule",new(0,-.009f,0),new(.013f,.010f,.013f),skin);
             rig.HandOpen[i]=FingerProxy(skin,false);rig.HandClosed[i]=FingerProxy(skin,true);
             rig.HandProxies[i]=new MeshInstance3D {Name="DistantFingers",Mesh=rig.HandOpen[i],Visible=false};hand.AddChild(rig.HandProxies[i]);
             Detail(arm,"cylinder",new(0,-.252f,0),new(.102f,.025f,.098f),"#b9b099");
@@ -172,7 +162,10 @@ internal sealed partial class NatureModels
         AddResidentEquipment(rig, job);
         AddResidentTailoring(rig, cloth, skin, job);
         MergeResidentParts(rig, "resident:" + cloth + skin + hair + job);
+        rig.BodySkin=rig.Torso.GetChild<MeshInstance3D>(rig.Torso.GetChildCount()-1);
+        AddShoulderBridges(rig,cloth,skin);
         rig.HeadSkin=rig.Head.GetChild<MeshInstance3D>(rig.Head.GetChildCount()-1);
+        AddResidentFace(rig,skin);
         rig.HeadProxy=new MeshInstance3D {Name="DistantHead",Mesh=DistantHead(skin,hair),Visible=false};rig.Head.AddChild(rig.HeadProxy);
         for(int side=0;side<2;side++)rig.HandSkins[side]=rig.Hands[side].GetChild<MeshInstance3D>(rig.Hands[side].GetChildCount()-1);
         rig.Head.Scale=new Vector3(.96f+((variation>>15)%4)*.025f,.98f+((variation>>18)%3)*.025f,1);
@@ -199,7 +192,7 @@ internal sealed partial class NatureModels
         foreach (JobType job in Enum.GetValues<JobType>()) foreach (bool child in new[] { false, true })
         {
             var resident = Resident(42, child, job);
-            var body = resident.Torso.GetChild<MeshInstance3D>(resident.Torso.GetChildCount() - 1).Mesh;
+            var body = resident.BodySkin.Mesh;
             // Losing the non-indexed garment leaves only collar/fold strips in the cloth surface.
             if (body.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array().Length < 50)
             { throw new InvalidOperationException("Resident garment disappeared during mesh consolidation"); }

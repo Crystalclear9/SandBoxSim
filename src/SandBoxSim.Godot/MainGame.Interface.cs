@@ -347,7 +347,7 @@ public partial class MainGame
         foreach(var resource in ResidentRig.CargoKinds){float amount=a.InventoryOf(slot,resource);if(amount>cargoAmount){cargoAmount=amount;cargoKind=resource;}}
         _residentPortrait.ShowCargo(cargoAmount>.01f,cargoKind);
         _residentAction.Text = a.ActionOf(slot)==ActionKind.None?"休息与观察":ActionRegistry.DisplayNameOf(a.ActionOf(slot));
-        _residentActionPhase.Text = (a.PhaseOf(slot)==ActionPhase.Moving?"行进中":PhaseName(a.PhaseOf(slot)))+(a.PhaseOf(slot) is ActionPhase.Moving or ActionPhase.Executing ? "  ·  目的地 "+a.TargetOf(slot):"");
+        _residentActionPhase.Text = (a.PhaseOf(slot)==ActionPhase.Moving?"行进中":a.PhaseOf(slot)==ActionPhase.Done&&_residentPortrait.FinishingGesture?"已完成 · 动作收尾":PhaseName(a.PhaseOf(slot)))+(a.PhaseOf(slot) is ActionPhase.Moving or ActionPhase.Executing ? "  ·  目的地 "+a.TargetOf(slot):"");
         _residentTitle.Text = a.NameOrOverride(slot);
         _residentSubtitle.Text = $"{a.AgeDaysOf(slot)} 天  /  {LifeStageName(a.LifeStageOf(slot))}  /  {JobName(a.JobOf(slot))}  ·  {a.PositionOf(slot)}";
         float[] values = { a.HealthOf(slot), a.HungerOf(slot), a.ThirstOf(slot), 1 - a.FatigueOf(slot) };

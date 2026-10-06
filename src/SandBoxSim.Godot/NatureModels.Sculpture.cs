@@ -9,8 +9,8 @@ internal sealed partial class NatureModels
     {
         using var surface = new SurfaceTool(); surface.Begin(Mesh.PrimitiveType.Triangles); surface.SetSmoothGroup(0);
         float[] levels={-.50f,-.45f,-.35f,-.22f,-.06f,.10f,.22f,.34f,.43f,.49f,.50f};
-        float[] widths={.115f,.25f,.365f,.43f,.475f,.48f,.485f,.435f,.34f,.14f,.025f};
-        float[] depths={.20f,.30f,.38f,.425f,.46f,.47f,.465f,.425f,.34f,.15f,.025f};
+        float[] widths={.18f,.30f,.40f,.45f,.475f,.48f,.48f,.435f,.37f,.16f,.025f};
+        float[] depths={.23f,.33f,.40f,.435f,.46f,.47f,.465f,.425f,.35f,.16f,.025f};
         float Profile(float y,float[] values)
         {
             for(int i=0;i<levels.Length-1;i++) if(y<=levels[i+1])

@@ -51,6 +51,7 @@ internal partial class ResidentPortrait : SubViewportContainer
         _resident = _models.Resident(slot, child, job); _stage.AddChild(_resident);
         _resident.Rotation = new Vector3(0, _yaw, 0); Aim();
     }
+    public bool FinishingGesture=>_resident?.CompletionVisible==true;
     public void ShowCargo(bool hasCargo, SandBoxSim.Core.Environment.ResourceKind resource) => _resident?.ShowCargo(hasCargo,resource);
     public void ShowActivity(ActionKind action,ActionPhase phase,bool paused) { _action=action;_actionPhase=phase;_worldPaused=paused; }
     private void Aim()
@@ -64,7 +65,7 @@ internal partial class ResidentPortrait : SubViewportContainer
         // Mirrors the selected real action; this isolated model never advances the simulation.
         if (IsVisibleInTree() && _resident != null)
         {
-            _resident.PoseAction((float)delta, _action, _actionPhase, _worldPaused, (float)(_identity % 11));
+            _resident.PresentAction((float)delta, _action, _actionPhase, _worldPaused, (float)(_identity % 11));
             _resident.Rotation = new Vector3(0, Mathf.LerpAngle(_resident.Rotation.Y, _yaw, 1 - MathF.Exp(-(float)delta * 12)), 0);
         }
     }

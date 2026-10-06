@@ -89,7 +89,7 @@ public partial class MainGame : Control
         NewWorld(839102);
         if (_previewDays > 0) { AdvanceWorld(_previewDays * Sim.Config.Clock.TicksPerDay); }
         BuildInterface();
-        if (_previewPanel is "architecture" or "characters" or "naturemodels" or "faces" or "equipment" or "actions" or "motion")
+        if (_previewPanel is "architecture" or "characters" or "naturemodels" or "faces" or "equipment" or "actions" or "motion" or "grip")
         { SetSpeed(0); AddChild(new ModelGallery { Collection = _previewPanel == "naturemodels" ? "nature" : _previewPanel }); }
 
         if (_selfTest) { RunSelfTest(); }

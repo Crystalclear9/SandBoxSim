@@ -10,6 +10,7 @@ internal partial class ModelGallery : PanelContainer
 {
     private readonly List<(ResidentRig Rig,ActionKind Action)> _animated=new();
     private float _elapsed;
+    private Label? _handlingLabel;
     public string Collection { get; set; } = "architecture";
     public override void _Ready()
     {
@@ -17,7 +18,7 @@ internal partial class ModelGallery : PanelContainer
         OffsetLeft=20; OffsetRight=-20; OffsetTop=90; OffsetBottom=-110;
         AddThemeStyleboxOverride("panel",HudStyle.Box(new Color("#1b2521"),3,16));
         var body=new VBoxContainer(); body.AddThemeConstantOverride("separation",12); AddChild(body);
-        body.AddChild(HudStyle.Heading(Collection is "actions" or "motion" ? "居民动作 · 取出、握持、使用与收回" : Collection=="equipment" ? "配件与衣装 · 实际挂点与姿态" : Collection=="architecture" ? "木作与砌筑 · 实际建筑模型" : Collection is "characters" or "faces" ? Collection=="faces" ? "面部与衣领 · 实际人物模型" : "人物与动物 · 实际角色模型" : "地表与植被 · 实际场景模型",22));
+        body.AddChild(HudStyle.Heading(Collection is "actions" or "motion" or "grip" ? "居民动作 · 取出、握持、使用与收回" : Collection=="equipment" ? "配件与衣装 · 实际挂点与姿态" : Collection=="architecture" ? "木作与砌筑 · 实际建筑模型" : Collection is "characters" or "faces" ? Collection=="faces" ? "面部与衣领 · 实际人物模型" : "人物与动物 · 实际角色模型" : "地表与植被 · 实际场景模型",22));
         var grid=new GridContainer { Columns=3,SizeFlagsVertical=SizeFlags.ExpandFill };
         grid.AddThemeConstantOverride("h_separation",12); grid.AddThemeConstantOverride("v_separation",12); body.AddChild(grid);
         var models=new NatureModels();
@@ -27,12 +28,13 @@ internal partial class ModelGallery : PanelContainer
             for(uint i=0;i<5;i++) Card(grid,names[i],models.Building(BuildingKind.House,true,i),i==3 ? 4.5f : 3.8f,false);
             Card(grid,"仓库 · 木门、铁箍与物料",models.Building(BuildingKind.Storage,true,1),3.2f,false);
         }
-        else if(Collection=="motion")
+        else if(Collection is "motion" or "grip")
         {
             grid.Columns=1;ActionCard(grid,models.Resident(17,false,JobType.Builder),ActionKind.BuildHouse,"从腰侧取出工具、握持、锤击、放回");
             var viewport=grid.GetChild<VBoxContainer>(0).GetChild<SubViewportContainer>(0).GetChild<SubViewport>(0);
             var stage=viewport.GetChild<Node3D>(0);var camera=stage.GetChild<Camera3D>(stage.GetChildCount()-1);
-            camera.Size=1.4f;var target=new Vector3(0,1.04f,0);camera.Position=target+new Vector3(0,.07f,4);camera.LookAt(target);
+            _handlingLabel=grid.GetChild<VBoxContainer>(0).GetChild<Label>(1);
+            camera.Size=Collection=="grip"?.90f:1.4f;var target=new Vector3(0,1.04f,0);camera.Position=target+new Vector3(0,.07f,4);camera.LookAt(target);
         }
         else if(Collection=="actions")
         {
@@ -80,6 +82,7 @@ internal partial class ModelGallery : PanelContainer
         _elapsed+=(float)delta;
         float cycle=_elapsed%6.8f;
         foreach(var (rig,action) in _animated)rig.PoseAction((float)delta,action,cycle>.65f&&cycle<4.5f?ActionPhase.Executing:ActionPhase.Idle,false,0);
+        if(_handlingLabel!=null&&_animated.Count>0)_handlingLabel.Text=_animated[0].Rig.Handling;
     }
     private void ActionCard(GridContainer grid,ResidentRig rig,ActionKind action,string title)
     {
@@ -102,7 +105,7 @@ internal partial class ModelGallery : PanelContainer
         var target=working ? model.Grip!.GlobalPosition+new Vector3(0,.05f,0) : pack ? model.Torso.GlobalPosition+new Vector3(0,1.10f,0) : model.Head.GlobalPosition-new Vector3(0,.03f,0);
         camera.Size=working?.68f:pack?.75f:.55f;camera.Position=target+new Vector3(.02f,.025f,2);camera.LookAt(target);
     }
-    private static void Face(GridContainer grid,Node3D model,string title,bool hat)
+    private void Face(GridContainer grid,Node3D model,string title,bool hat)
     {
         Card(grid,title,model,.48f,true);
         var card=grid.GetChild<VBoxContainer>(grid.GetChildCount()-1);
@@ -110,7 +113,7 @@ internal partial class ModelGallery : PanelContainer
         var camera=stage.GetChild<Camera3D>(stage.GetChildCount()-1);
         model.Rotation=new Vector3(0,Mathf.Pi,0);
         var target=((ResidentRig)model).Head.GlobalPosition;camera.Size=hat ? .64f : .46f;camera.Position=target+new Vector3(.03f,.02f,2);camera.LookAt(target);
-        view.RenderTargetUpdateMode=SubViewport.UpdateMode.Once;
+        view.RenderTargetUpdateMode=SubViewport.UpdateMode.WhenVisible;_animated.Add(((ResidentRig)model,ActionKind.None));
     }
     private static void Card(GridContainer grid,string title,Node3D model,float size,bool animal)
     {
