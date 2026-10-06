@@ -14,7 +14,7 @@ internal partial class ModelGallery : PanelContainer
         OffsetLeft=20; OffsetRight=-20; OffsetTop=90; OffsetBottom=-110;
         AddThemeStyleboxOverride("panel",HudStyle.Box(new Color("#1b2521"),3,16));
         var body=new VBoxContainer(); body.AddThemeConstantOverride("separation",12); AddChild(body);
-        body.AddChild(HudStyle.Heading(Collection=="architecture" ? "木作与砌筑 · 实际建筑模型" : Collection is "characters" or "faces" ? Collection=="faces" ? "面部与衣领 · 实际人物模型" : "人物与动物 · 实际角色模型" : "地表与植被 · 实际场景模型",22));
+        body.AddChild(HudStyle.Heading(Collection=="equipment" ? "配件与衣装 · 实际挂点与姿态" : Collection=="architecture" ? "木作与砌筑 · 实际建筑模型" : Collection is "characters" or "faces" ? Collection=="faces" ? "面部与衣领 · 实际人物模型" : "人物与动物 · 实际角色模型" : "地表与植被 · 实际场景模型",22));
         var grid=new GridContainer { Columns=3,SizeFlagsVertical=SizeFlags.ExpandFill };
         grid.AddThemeConstantOverride("h_separation",12); grid.AddThemeConstantOverride("v_separation",12); body.AddChild(grid);
         var models=new NatureModels();
@@ -23,6 +23,15 @@ internal partial class ModelGallery : PanelContainer
             string[] names={"原木屋 · 屋面与檐柱","灰泥屋 · 门窗与烟囱","石屋 · 基座与侧墙","高山墙屋 · 木架与砌筑","单坡屋 · 柱廊与木作"};
             for(uint i=0;i<5;i++) Card(grid,names[i],models.Building(BuildingKind.House,true,i),i==3 ? 4.5f : 3.8f,false);
             Card(grid,"仓库 · 木门、铁箍与物料",models.Building(BuildingKind.Storage,true,1),3.2f,false);
+        }
+        else if(Collection=="equipment")
+        {
+            Equipment(grid,models.Resident(42,false,JobType.Farmer),"草帽 · 正面与额头贴合",Mathf.Pi,false);
+            Equipment(grid,models.Resident(42,false,JobType.Farmer),"草帽 · 侧面帽腔与帽檐",Mathf.Pi*.5f,false);
+            Equipment(grid,models.Resident(17,false,JobType.Craftsman),"工具 · 工作姿态与握柄",Mathf.Pi-.5f,true);
+            Equipment(grid,models.Resident(19,false,JobType.Gatherer),"行囊 · 后背与肩带",-.4f,false);
+            Equipment(grid,models.Resident(17,false,JobType.Soldier),"头盔 · 额头与颈侧",Mathf.Pi-.45f,false);
+            Equipment(grid,models.Resident(42,true,JobType.Farmer),"儿童 · 配件随头部缩放",Mathf.Pi-.25f,false);
         }
         else if(Collection=="faces")
         {
@@ -47,6 +56,17 @@ internal partial class ModelGallery : PanelContainer
             Card(grid,"古树林 · 根系与大树冠",models.WildPlace(SandBoxSim.Core.Systems.WildPlaceKind.OldGrove,1,true),9.6f,false);
         }
     }
+    private static void Equipment(GridContainer grid,ResidentRig model,string title,float yaw,bool working)
+    {
+        Card(grid,title,model,.85f,true);
+        var card=grid.GetChild<VBoxContainer>(grid.GetChildCount()-1);
+        var viewport=card.GetChild<SubViewportContainer>(0).GetChild<SubViewport>(0);
+        var stage=viewport.GetChild<Node3D>(0);var camera=stage.GetChild<Camera3D>(stage.GetChildCount()-1);
+        model.Rotation=new(0,yaw,0);model.Pose(.3f,false,working,false,false,0);
+        bool pack=yaw<0;
+        var target=working ? model.Grip!.GlobalPosition+new Vector3(0,.05f,0) : pack ? model.Torso.GlobalPosition+new Vector3(0,1.10f,0) : model.Head.GlobalPosition-new Vector3(0,.03f,0);
+        camera.Size=working?.68f:pack?.75f:.55f;camera.Position=target+new Vector3(.02f,.025f,2);camera.LookAt(target);
+    }
     private static void Face(GridContainer grid,Node3D model,string title,bool hat)
     {
         Card(grid,title,model,.48f,true);
@@ -64,8 +84,8 @@ internal partial class ModelGallery : PanelContainer
         var view=new SubViewportContainer { Stretch=true,CustomMinimumSize=new(0,120),SizeFlagsVertical=SizeFlags.ExpandFill,MouseFilter=MouseFilterEnum.Ignore }; card.AddChild(view);
         var viewport=new SubViewport { OwnWorld3D=true,Size=new(420,280),Msaa3D=Viewport.Msaa.Msaa4X,RenderTargetUpdateMode=SubViewport.UpdateMode.Once }; view.AddChild(viewport);
         var stage=new Node3D(); viewport.AddChild(stage);
-        stage.AddChild(new WorldEnvironment { Environment=new Godot.Environment { BackgroundMode=Godot.Environment.BGMode.Color,BackgroundColor=new("#35423a"),AmbientLightSource=Godot.Environment.AmbientSource.Color,AmbientLightColor=new("#c3ceca"),AmbientLightEnergy=.32f,TonemapMode=Godot.Environment.ToneMapper.Aces } });
-        stage.AddChild(new DirectionalLight3D { RotationDegrees=new(-40,-35,0),LightColor=new("#fff0d7"),LightEnergy=.75f,ShadowEnabled=true });
+        stage.AddChild(new WorldEnvironment { Environment=new Godot.Environment { BackgroundMode=Godot.Environment.BGMode.Color,BackgroundColor=new("#35423a"),AmbientLightSource=Godot.Environment.AmbientSource.Color,AmbientLightColor=new("#c3ceca"),AmbientLightEnergy=.45f,TonemapMode=Godot.Environment.ToneMapper.Aces } });
+        stage.AddChild(new DirectionalLight3D { RotationDegrees=new(-40,-35,0),LightColor=new("#f2eee5"),LightEnergy=.62f,ShadowEnabled=true });
         stage.AddChild(new DirectionalLight3D { RotationDegrees=new(-20,140,0),LightColor=new("#bacbd1"),LightEnergy=.3f });
         stage.AddChild(new MeshInstance3D { Mesh=new PlaneMesh { Size=new(40,40) },MaterialOverride=new StandardMaterial3D { AlbedoColor=new("#4c5847"),Roughness=1 } });
         stage.AddChild(model); model.Rotation=new(0,(animal ? Mathf.Pi : 0)-.60f,0);

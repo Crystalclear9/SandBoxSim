@@ -16,22 +16,22 @@ internal partial class ResidentPortrait : SubViewportContainer
     private long _identity = -1;
     private JobType _job;
     private bool _child, _drag;
-    private float _yaw = -.28f, _distance = 1.7f;
+    private float _yaw = -.28f, _distance = .85f;
     public override void _Ready()
     {
-        Stretch = true; CustomMinimumSize = Compact ? new Vector2(128, 176) : new Vector2(270, 196);
+        Stretch = true; CustomMinimumSize = Compact ? new Vector2(0, 160) : new Vector2(270, 196);
         TooltipText = "拖动旋转人物 · 滚轮查看细节";
         MouseFilter = MouseFilterEnum.Stop;
-        _viewport = new SubViewport { Size = Compact ? new Vector2I(256, 352) : new Vector2I(540, 392), OwnWorld3D = true,
+        _viewport = new SubViewport { Size = Compact ? new Vector2I(624, 320) : new Vector2I(540, 392), OwnWorld3D = true, Msaa3D = Viewport.Msaa.Msaa4X,
             RenderTargetUpdateMode = SubViewport.UpdateMode.WhenVisible, HandleInputLocally = false };
         AddChild(_viewport);
         _stage = new Node3D(); _viewport.AddChild(_stage);
         var environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color,
-            BackgroundColor = new Color("#565c50"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
+            BackgroundColor = new Color("#454b40"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
             AmbientLightColor = new Color("#becbbb"), AmbientLightEnergy = .38f, TonemapMode = Godot.Environment.ToneMapper.Aces };
         _stage.AddChild(new WorldEnvironment { Environment = environment });
-        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-35, -35, 0), LightColor = new Color("#f0f3ed"), LightEnergy = .95f });
-        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-15, 145, 0), LightColor = new Color("#c9ccc0"), LightEnergy = .45f });
+        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-35, -35, 0), LightColor = new Color("#f0f3ed"), LightEnergy = .78f });
+        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-15, 145, 0), LightColor = new Color("#c9ccc0"), LightEnergy = .36f });
         _camera = new Camera3D { Current = true, Fov = 34 }; _stage.AddChild(_camera); Aim();
         var caption = HudStyle.Label(Compact ? "拖动旋转" : "拖动旋转  /  滚轮查看细节", 10);
         caption.AddThemeColorOverride("font_color", new Color("#b2aa97")); caption.MouseFilter = MouseFilterEnum.Ignore;
@@ -46,8 +46,8 @@ internal partial class ResidentPortrait : SubViewportContainer
     }
     private void Aim()
     {
-        var center = new Vector3(0, _child ? .82f : 1.32f, 0);
-        _camera.Position = center + new Vector3(0, .13f, -_distance);
+        var center = _resident != null ? _resident.Head.GlobalPosition - new Vector3(0, Compact ? .055f : .19f, 0) : new Vector3(0, 1.4f, 0);
+        _camera.Position = center + new Vector3(0, .035f, -_distance);
         _camera.LookAt(center);
     }
     public override void _Process(double delta)
@@ -65,7 +65,7 @@ internal partial class ResidentPortrait : SubViewportContainer
         {
             if (button.ButtonIndex == MouseButton.Left) { _drag = button.Pressed; }
             if (button.Pressed && button.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
-            { _distance = Math.Clamp(_distance + (button.ButtonIndex == MouseButton.WheelUp ? -.2f : .2f), 1.1f, 3.2f); Aim(); }
+            { _distance = Math.Clamp(_distance + (button.ButtonIndex == MouseButton.WheelUp ? -.2f : .2f), .50f, 3.2f); Aim(); }
             AcceptEvent();
         }
         if (input is InputEventMouseMotion motion && _drag && _resident != null)
@@ -92,7 +92,7 @@ internal partial class ResidentPortrait : SubViewportContainer
         _GuiInput(new InputEventMouseMotion { Relative = new Vector2(20, 0) });
         if (_yaw != turned) { throw new InvalidOperationException("Portrait drag continued after global release"); }
         _GuiInput(new InputEventMouseButton { ButtonIndex = MouseButton.WheelUp, Pressed = true });
-        if (_distance >= 1.7f) { throw new InvalidOperationException("Portrait zoom failed"); }
-        _distance = 1.7f; _yaw = -.28f; _resident.Rotation = new Vector3(0, _yaw, 0); Aim();
+        if (_distance >= .85f) { throw new InvalidOperationException("Portrait zoom failed"); }
+        _distance = .85f; _yaw = -.28f; _resident.Rotation = new Vector3(0, _yaw, 0); Aim();
     }
 }

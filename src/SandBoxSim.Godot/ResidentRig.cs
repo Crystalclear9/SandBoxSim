@@ -7,6 +7,7 @@ namespace SandBoxSim.Client;
 internal partial class ResidentRig : Node3D
 {
     public Node3D Torso = null!, Head = null!;
+    public Node3D? Headwear, Grip, PackMount;
     public readonly Node3D[] Arms = new Node3D[2], Elbows = new Node3D[2], Legs = new Node3D[2], Knees = new Node3D[2];
     private float _phase, _activity;
     public void Pose(float delta, bool moving, bool working, bool resting, bool paused, float identityPhase)
@@ -23,8 +24,8 @@ internal partial class ResidentRig : Node3D
             float stride = wave * (i == 0 ? 1 : -1) * _activity;
             Legs[i].Rotation = new Vector3(stride * .44f, 0, 0);
             Knees[i].Rotation = new Vector3(MathF.Max(0, -stride) * .65f, 0, 0);
-            Arms[i].Rotation = new Vector3(working ? -.65f + wave * .18f : -stride * .32f, 0, i == 0 ? .055f : -.055f);
-            Elbows[i].Rotation = new Vector3(working ? -.75f : -.12f - MathF.Max(0, stride) * .22f, 0, 0);
+            Arms[i].Rotation = new Vector3(working ? .65f - wave * .18f : -stride * .32f, 0, i == 0 ? .055f : -.055f);
+            Elbows[i].Rotation = new Vector3(working ? .75f : .12f + MathF.Max(0, stride) * .22f, 0, 0);
         }
     }
 }

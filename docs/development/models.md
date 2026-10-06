@@ -20,6 +20,16 @@
 
 ![人物与动物模型](../images/character-detail.png)
 
+## 配件与衣装贴合
+
+草帽由双层帽冠、开孔帽檐、檐边、环绕缝带和编织表面构成，帽冠包住额头和头顶；头盔采用开放底部的壳体，并在耳后与颈侧延伸。它们挂在 `Headwear` 节点下，随头部的年龄比例、朝向与呼吸姿态运动。
+
+围裙、护胸、腰带和斜背带从衣服的实际三角面采样，不再用浮在身体前面的矩形或直线替代。曲面层与衣服保留 4–6 毫米的表现间距。行囊通过 `PackMount` 贴合后背，采用圆角皮革轮廓、盖片与扣带。
+
+工具的 `RightGrip` 挂在右肘下方的手掌内，握柄穿过弯曲的手指。锤头朝向手指外侧；工作时肩肘向身体前方弯曲，配件保留固定局部挂点。网格检查覆盖各职业及成人/儿童的帽腔范围、曲面间距、握持挂点、前向工作姿态和暂停行为。
+
+![帽子、工具与背包的实际模型](../images/resident-equipment.png)
+
 ## 植被与地貌
 
 阔叶树冠由带折面的叶簇构成，针叶树使用错层枝叶；树干有渐细与轻微弯曲。地图中的树干、枝条、冠层和岩石仍批量绘制。古树林、野果地和遗迹复用同类叶片、石材与木材；岩石采用较低频轮廓变化，减少尖锐褶皱。表面保留低对比纹理、粗糙度与材质差异。
@@ -33,6 +43,7 @@
 | `NatureModels.Buildings.cs` | 建筑轮廓、屋顶与窗结构 |
 | `NatureModels.ArchitectureDetail.cs` | 门、屋面搭接、砌石、支架与道具 |
 | `NatureModels.Residents.cs`、`NatureModels.Tailoring.cs` | 人物衣装、四肢、手部与配件 |
+| `NatureModels.Equipment.cs` | 帽壳、贴合衣装、握持与背包挂点 |
 | `NatureModels.Sculpture.cs` | 连续头部曲面与布料表面 |
 | `NatureModels.Animals.cs`、`AnimalRig.cs` | 动物解剖轮廓、材质与四足步态 |
 | `NatureModels.Vegetation.cs` | 树冠、针叶枝层与树干 |
@@ -49,6 +60,7 @@
 ```powershell
 & $env:GODOT_EXE --path src/SandBoxSim.Godot -- --panel=architecture
 & $env:GODOT_EXE --path src/SandBoxSim.Godot -- --panel=characters
+& $env:GODOT_EXE --path src/SandBoxSim.Godot -- --panel=equipment
 & $env:GODOT_EXE --path src/SandBoxSim.Godot -- --panel=naturemodels
 ```
 

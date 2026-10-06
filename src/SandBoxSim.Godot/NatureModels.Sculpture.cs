@@ -27,13 +27,16 @@ internal sealed partial class NatureModels
         Vector3 Point(int row,int col)
         {
             float angle=col*MathF.Tau/sides,front=MathF.Max(0,-MathF.Sin(angle));
-            float end=hair ? 1.67f+MathF.Max(0,MathF.Sin(angle))*.18f-front*.43f+.035f*MathF.Sin(angle*5) : MathF.PI;
+            float end=hair ? 1.67f+MathF.Max(0,MathF.Sin(angle))*.18f-front*(.51f+.12f*MathF.Cos(angle+.4f))+.028f*MathF.Sin(angle*5) : MathF.PI;
             float latitude=row*end/rings,y=MathF.Cos(latitude)*.5f;
             float depth=Profile(y,depths);
             var p=new Vector3(MathF.Cos(angle)*Profile(y,widths),y,MathF.Sin(angle)*depth);
             if(hair)
             {
-                p*=1.025f+.003f*MathF.Sin(angle*19+latitude*6); p.X+=.007f*MathF.Sin(latitude*2);
+                float swept = angle + latitude*.65f;
+                float locks = .009f*MathF.Sin(swept*25) + .004f*MathF.Sin(swept*43);
+                p*=1.025f+locks*MathF.Sin(latitude); p.X+=.016f*MathF.Sin(latitude*2);
+                p.Y+=.015f*MathF.Sin(latitude)*MathF.Cos(angle+.6f);
             }
             else if(p.Z<0)
             {
@@ -43,7 +46,10 @@ internal sealed partial class NatureModels
                 float tip=MathF.Exp(-p.X*p.X*360-MathF.Pow(p.Y+.14f,2)*160);
                 float socket=MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.19f,2)*180-MathF.Pow(p.Y-.09f,2)*220);
                 float lip=MathF.Exp(-p.X*p.X*120-MathF.Pow(p.Y+.27f,2)*180);
-                p.Z-=bridge*.08f+tip*.065f+lip*.019f-socket*.020f;
+                float cheek = MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.27f,2)*90-MathF.Pow(p.Y+.06f,2)*130);
+                float brow = MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.18f,2)*170-MathF.Pow(p.Y-.17f,2)*190);
+                float ala = MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.07f,2)*380-MathF.Pow(p.Y+.15f,2)*280);
+                p.Z-=bridge*.068f+tip*.056f+ala*.035f+lip*.019f+cheek*.022f+brow*.025f-socket*.032f;
             }
             return p;
         }

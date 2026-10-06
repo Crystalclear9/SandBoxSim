@@ -16,6 +16,7 @@ public partial class MainGame
     {
         var person=Sim.Society.Find(_selectedPersonId); string name=_residentName.Text.Trim();
         if(person==null || name.Length==0) { _status.Text="选择人物后可以为他命名";return; }
+        _editingResidentName=false;
         string previous=person.Name;person.Name=name;
         if(person.Alive)Sim.Agents.SetNameOverride(person.Slot,name);
         Sim.InterveneRecordAuxiliary("居民命名："+previous+" → "+name);RefreshPanels();_discovery.Refresh();
@@ -29,7 +30,7 @@ public partial class MainGame
     private void TogglePin(){if(_selectedPersonId==0)return;PinnedPerson=PinnedPerson==_selectedPersonId?0:_selectedPersonId;RefreshOperations();_discovery.Refresh();}
     private void RefreshOperations()
     {
-        if(_pinButton!=null)_pinButton.Text=PinnedPerson!=0 && PinnedPerson==_selectedPersonId?"取消关注":"关注这个居民";
+        if(_pinButton!=null)_pinButton.Text=PinnedPerson!=0 && PinnedPerson==_selectedPersonId?"取消关注":"关注";
         if(_pulseButton!=null)_pulseButton.Text="田野手记 · "+WildPlacesLabel();
     }
     private string WildPlacesLabel()=>SandBoxSim.Core.Systems.WildPlaces.PhaseName(Sim.Clock/Sim.Config.Clock.TicksPerDay);

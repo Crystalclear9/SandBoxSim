@@ -28,6 +28,7 @@ public partial class MainGame
     private string _category = "生命";
     private bool _decisionDetails;
     private VBoxContainer _residentVitals = null!;
+    private bool _editingResidentName;
     private HBoxContainer _residentControls = null!, _residentNameControls = null!;
     private ResidentPortrait _residentPortrait = null!;
     private Label _residentTitle = null!, _residentSubtitle = null!;
@@ -118,8 +119,9 @@ public partial class MainGame
         var personPanel = new VBoxContainer { Name = "人物" }; personPanel.AddThemeConstantOverride("separation", 12); _drawer.AddChild(personPanel);
         BuildResidentVitals(personPanel); BuildLandVitals(personPanel);
         var detailControls = new HBoxContainer(); _residentControls = detailControls; personPanel.AddChild(detailControls);
-        var details = ActionButton(detailControls, "显示决策与性格", () => { _decisionDetails = !_decisionDetails; RefreshPanels(); }); details.ToggleMode = true;
-        _pinButton = ActionButton(detailControls, "关注这个居民", TogglePin);
+        var details = ActionButton(detailControls, "决策与性格", () => { _decisionDetails = !_decisionDetails; RefreshPanels(); }); details.ToggleMode = true;
+        _pinButton = ActionButton(detailControls, "关注", TogglePin);
+        ActionButton(detailControls, "改名", () => { _editingResidentName = !_editingResidentName; _residentNameControls.Visible = _editingResidentName; });
         var nameControls = new HBoxContainer(); _residentNameControls = nameControls; personPanel.AddChild(nameControls);
         _residentName = new LineEdit { PlaceholderText = "给这个居民起个名字", MaxLength = 24, SizeFlagsHorizontal = SizeFlags.ExpandFill };
         nameControls.AddChild(_residentName); ActionButton(nameControls, "命名", RenameResident);
@@ -272,11 +274,10 @@ public partial class MainGame
     private void BuildResidentVitals(VBoxContainer parent)
     {
         _residentVitals = new VBoxContainer { Visible = false }; _residentVitals.AddThemeConstantOverride("separation", 8); parent.AddChild(_residentVitals);
-        _residentTitle = HudStyle.Heading("", 28); _residentSubtitle = HudStyle.Label("", 12, true);
-        var identity = new HBoxContainer(); identity.AddThemeConstantOverride("separation", 12); _residentVitals.AddChild(identity);
-        _residentPortrait = new ResidentPortrait { Compact = true }; identity.AddChild(_residentPortrait);
-        var bio = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; bio.AddThemeConstantOverride("separation", 10); identity.AddChild(bio);
-        bio.AddChild(HudStyle.Label("居民档案", 11, true)); bio.AddChild(_residentTitle); bio.AddChild(_residentSubtitle);
+        _residentTitle = HudStyle.Heading("", 24); _residentSubtitle = HudStyle.Label("", 12, true);
+        _residentPortrait = new ResidentPortrait { Compact = true, SizeFlagsHorizontal = SizeFlags.ExpandFill }; _residentVitals.AddChild(_residentPortrait);
+        var identity = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; identity.AddThemeConstantOverride("separation", 3); _residentVitals.AddChild(identity);
+        identity.AddChild(_residentTitle); identity.AddChild(_residentSubtitle);
         _residentTitle.AutowrapMode = TextServer.AutowrapMode.WordSmart; _residentSubtitle.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         var grid = new GridContainer { Columns = 2 }; grid.AddThemeConstantOverride("h_separation", 12); grid.AddThemeConstantOverride("v_separation", 8); _residentVitals.AddChild(grid);
         for (int i = 0; i < 4; i++)
@@ -331,7 +332,8 @@ public partial class MainGame
         _vitalTransition?.Kill();
         RefreshLandVitals();
         int slot = SelectedSlot; _residentVitals.Visible = slot >= 0;
-        _residentControls.Visible = _residentNameControls.Visible = _selectedPersonId != 0;
+        _residentControls.Visible = _selectedPersonId != 0;
+        _residentNameControls.Visible = _selectedPersonId != 0 && _editingResidentName;
         if (slot < 0) { return; }
         var a = Sim.Agents;
         _residentPortrait.ShowResident(Sim.Society.Identity(slot), slot, a.LifeStageOf(slot) == SandBoxSim.Core.Agents.LifeStage.Child, a.JobOf(slot));

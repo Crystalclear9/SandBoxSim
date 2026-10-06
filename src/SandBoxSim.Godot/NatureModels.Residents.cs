@@ -109,8 +109,8 @@ internal sealed partial class NatureModels
         Detail(rig.Torso, "box", new Vector3(0, 1.11f, -.145f), new Vector3(.016f, .18f, .012f), "#b9b099");
         for (int button = 0; button < 3; button++)
         { Detail(rig.Torso, "sphere", new Vector3(.012f, 1.17f - button * .055f, -.154f), Vector3.One * .015f, "#514237"); }
-        Detail(rig.Torso, "cylinder", new Vector3(0, .76f, 0), new Vector3(.39f, .035f, .26f), "#514237");
-        Detail(rig.Torso, "box", new Vector3(.015f, .76f, -.144f), new Vector3(.055f, .045f, .013f), "#b8a17b");
+        Sculpt(rig.Torso, FittedRibbon("belt", .748f, .775f), Vector3.Zero, ResidentMaterial("#514237"));
+        Detail(rig.Torso, "box", TorsoSurface(.015f, .76f, false, .009f), new Vector3(.055f, .045f, .013f), "#b8a17b");
         Detail(rig.Torso, "capsule", new Vector3(.23f, .7f, .075f), new Vector3(.075f, .065f, .055f), "#725b40");
         Sculpt(rig.Torso,Loft("resident-neck",new[]{new Vector4(0,0,.051f,.043f),new(.04f,-.006f,.041f,.039f),new(.095f,-.012f,.047f,.040f)}),new(0,1.265f,.016f),ResidentMaterial(skin),new(-MathF.PI/2,0,0));
         rig.Head = new Node3D { Name = "Head", Position = new Vector3(0, 1.445f, 0) }; rig.Torso.AddChild(rig.Head);
@@ -120,15 +120,17 @@ internal sealed partial class NatureModels
         {
             Detail(rig.Head,"sphere",new(side*.087f,-.005f,0),new(.024f,.043f,.026f),skin);
             Detail(rig.Head,"seed",new(side*.095f,-.003f,-.008f),new(.006f,.026f,.014f),"#a58065");
-            Detail(rig.Head, "sphere", new Vector3(side * .034f, .019f, -.083f), new Vector3(.019f, .009f, .007f), "#e5dbc6");
-            Detail(rig.Head, "sphere", new Vector3(side * .034f, .019f, -.087f), new Vector3(.007f, .007f, .004f), "#342f28");
-            Detail(rig.Head, "capsule", new Vector3(side * .034f, .034f, -.085f), new Vector3(.004f, .016f, .004f), hair, new Vector3(0, 0, MathF.PI * .5f));
+            Detail(rig.Head, "sphere", new Vector3(side * .034f, .019f, -.083f), new Vector3(.024f, .010f, .007f), "#e5dbc6");
+            Detail(rig.Head, "sphere", new Vector3(side * .034f, .019f, -.087f), new Vector3(.009f, .008f, .004f), "#342f28");
+            Detail(rig.Head, "capsule", new Vector3(side * .034f, .034f, -.085f), new Vector3(.005f, .024f, .005f), hair, new Vector3(0, 0, MathF.PI * .5f));
         }
-        Detail(rig.Head, "capsule", new Vector3(0, -.059f, -.089f), new Vector3(.004f, .019f, .006f), "#976e5a", new Vector3(0,0,MathF.PI/2));
+        Detail(rig.Head, "seed", new Vector3(0, -.055f, -.092f), new Vector3(.032f, .004f, .006f), "#a37862");
+        Detail(rig.Head, "seed", new Vector3(0, -.060f, -.092f), new Vector3(.029f, .005f, .005f), "#b98c73");
+        FineBeam(rig.Head,new(-.013f,-.058f,-.095f),new(.013f,-.058f,-.095f),.0013f,"#785b4c");
         foreach(float side in new[]{-1f,1f})
         {
             Detail(rig.Head,"sphere",new(side*.006f,-.028f,-.101f),new(.006f,.003f,.003f),"#805e4c");
-            Detail(rig.Head,"capsule",new(side*.034f,.014f,-.085f),new(.005f,.012f,.005f),skin,new(0,0,MathF.PI/2));
+            Detail(rig.Head,"capsule",new(side*.034f,.014f,-.085f),new(.004f,.023f,.005f),skin,new(0,0,MathF.PI/2));
             Detail(rig.Head,"sphere",new(side*.034f+.001f,.020f,-.090f),Vector3.One*.003f,"#eee4d3");
         }
         for (int i = 0; i < 2; i++)
@@ -139,10 +141,11 @@ internal sealed partial class NatureModels
             var elbow = rig.Elbows[i] = new Node3D { Name = "Elbow", Position = new Vector3(0, -.28f, 0) }; arm.AddChild(elbow);
             Sculpt(elbow,Loft("resident-forearm",new[]{new Vector4(-.015f,0,.039f,.037f),new(.06f,0,.042f,.040f),new(.14f,0,.034f,.033f),new(.24f,0,.029f,.028f)}),Vector3.Zero,ResidentMaterial(skin),new(MathF.PI/2,0,0));
             Sculpt(elbow,Loft("resident-palm",new[]{new Vector4(-.05f,0,.008f,.01f),new(-.03f,0,.031f,.025f),new(.016f,0,.035f,.019f),new(.045f,0,.022f,.012f)}),new(0,-.255f,-.01f),ResidentMaterial(skin),new(MathF.PI/2,0,0));
+            bool gripping = i == 1 && (job is JobType.Builder or JobType.Miner or JobType.Craftsman or JobType.Soldier);
             for(int digit=0;digit<4;digit++)
-                Detail(elbow,"capsule",new(-.023f+digit*.015f,-.303f,-.012f),new(.012f,.032f-(digit%3)*.003f,.012f),skin,new(0,0,(digit-1.5f)*.035f));
+                Detail(elbow,"capsule",new(-.023f+digit*.015f,gripping ? -.282f : -.303f,gripping ? -.023f : -.012f),new(.012f,.032f-(digit%3)*.003f,.012f),skin,new(gripping ? -.9f : 0,0,(digit-1.5f)*.035f));
             Detail(elbow,"capsule",new(side*.04f,-.264f,-.022f),new(.016f,.023f,.017f),skin,new(0,0,side*.45f));
-            Detail(arm,"cylinder",new(0,-.252f,0),new(.12f,.032f,.113f),"#b9b099");
+            Detail(arm,"cylinder",new(0,-.252f,0),new(.102f,.025f,.098f),"#b9b099");
             foreach(float seam in new[]{-1f,1f})
                 FineBeam(arm,new(seam*.052f,-.05f,-.025f),new(seam*.048f,-.23f,-.025f),.006f,"#b9b099");
             var leg = rig.Legs[i] = new Node3D { Name = i == 0 ? "LeftLeg" : "RightLeg", Position = new Vector3(side * .10f, .67f, 0) }; rig.AddChild(leg);
@@ -154,28 +157,7 @@ internal sealed partial class NatureModels
             Detail(knee,"sphere",new(0,-.326f,-.044f),new(.145f,.025f,.235f),"#302e28");
             for(int lace=0;lace<3;lace++) FineBeam(knee,new(-.032f,-.26f,-.04f-lace*.023f),new(.032f,-.26f,-.054f-lace*.023f),.005f,"#a48d6d");
         }
-        if (job == JobType.Farmer)
-        {
-            Detail(rig.Head, "cylinder", new Vector3(0, .113f, 0), new Vector3(.43f, .022f, .43f), "#b49a69");
-            Detail(rig.Head, "cone", new Vector3(0, .170f, 0), new Vector3(.28f, .105f, .28f), "#b49a69");
-        }
-        if (job is JobType.Builder or JobType.Miner or JobType.Craftsman)
-        {
-            Detail(rig.Torso, "box", new Vector3(0, .97f, -.15f), new Vector3(.215f, .39f, .010f), "#75654f");
-            Detail(rig.Elbows[1], "cylinder", new Vector3(0, -.23f, -.09f), new Vector3(.022f, .38f, .022f), "#8b6c46");
-            Detail(rig.Elbows[1], "box", new Vector3(0, -.07f, -.09f), new Vector3(.17f, .06f, .065f), "#68716f");
-        }
-        if (job is JobType.Hunter or JobType.Trader or JobType.Gatherer)
-        {
-            Detail(rig.Torso, "box", new Vector3(0, 1.03f, .15f), new Vector3(.26f, .30f, .11f), "#786346");
-        }
-        if (job == JobType.Soldier)
-        {
-            Detail(rig.Head, "sphere", new Vector3(0, .08f, .01f), new Vector3(.25f, .19f, .26f), "#7d8581");
-            Detail(rig.Torso, "box", new Vector3(0, 1.05f, -.145f), new Vector3(.32f, .32f, .035f), "#7d8581");
-            Detail(rig.Elbows[1], "cylinder", new Vector3(0, -.17f, -.08f), new Vector3(.026f, 1.65f, .026f), "#786346");
-            Detail(rig.Elbows[1], "cone", new Vector3(0, .7f, -.08f), new Vector3(.075f, .16f, .065f), "#7d8581");
-        }
+        AddResidentEquipment(rig, job);
         AddResidentTailoring(rig, cloth, skin, job);
         MergeResidentParts(rig, "resident:" + cloth + skin + hair + job);
         rig.Head.Scale=new Vector3(.96f+((variation>>15)%4)*.025f,.98f+((variation>>18)%3)*.025f,1);
@@ -185,6 +167,20 @@ internal sealed partial class NatureModels
     }
     public void ValidateResidentMeshes()
     {
+        foreach (var key in new[]{"belt","apron","armor","shoulder-front","shoulder-back"})
+        {
+            bool back=key=="shoulder-back";
+            var mesh=FittedRibbon(key,key=="belt"?.748f:key=="armor"?.91f:key=="apron"?.79f:.81f,key=="belt"?.775f:key=="armor"||key=="apron"?1.17f:1.20f,back);
+            var arrays=mesh.SurfaceGetArrays(0);var vertices=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
+            for(int i=0;i<vertices.Length;i++)
+            {
+                var p=vertices[i];bool rear=key=="belt"?p.Z>0:back;
+                float gap=MathF.Abs(p.Z-TorsoSurface(p.X,p.Y,rear,0).Z);
+                if(gap<.001f || gap>.012f || !normals[i].IsFinite())
+                    throw new InvalidOperationException("Clothing layer floats or intersects garment: "+key);
+            }
+        }
         foreach (JobType job in Enum.GetValues<JobType>()) foreach (bool child in new[] { false, true })
         {
             var resident = Resident(42, child, job);
@@ -192,10 +188,34 @@ internal sealed partial class NatureModels
             // Losing the non-indexed garment leaves only collar/fold strips in the cloth surface.
             if (body.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array().Length < 50)
             { throw new InvalidOperationException("Resident garment disappeared during mesh consolidation"); }
-            resident.Pose(.1f, true, false, false, false, 0);
-            if (!resident.Knees[0].Transform.IsFinite() || !resident.Elbows[1].Transform.IsFinite())
-            { throw new InvalidOperationException("Resident pose produced invalid joints"); }
+            if (job is JobType.Farmer or JobType.Soldier)
+            {
+                if (resident.Headwear?.GetParent() != resident.Head) throw new InvalidOperationException("Headwear detached from head joint");
+                var hat = HeadwearShell(job == JobType.Soldier).GetAabb();
+                if (hat.Position.Y > .04f || hat.End.Y < .13f) throw new InvalidOperationException("Headwear does not enclose scalp");
+            }
+            if (job is JobType.Builder or JobType.Miner or JobType.Craftsman or JobType.Soldier)
+            {
+                if (resident.Grip?.GetParent() != resident.Elbows[1] || resident.Grip.Position.DistanceTo(new Vector3(0,-.273f,-.027f))>.001f)
+                    throw new InvalidOperationException("Equipment does not pass through hand grip");
+            }
+            foreach (var pose in new[]{(true,false,false),(false,true,false),(false,false,true)})
+            {
+                var grip = resident.Grip?.Transform; var headwear = resident.Headwear?.Transform;
+                resident.Pose(.2f, pose.Item1, pose.Item2, pose.Item3, false, 0);
+                if (!resident.Knees[0].Transform.IsFinite() || !resident.Elbows[1].Transform.IsFinite())
+                    throw new InvalidOperationException("Resident pose produced invalid joints");
+                if (pose.Item2 && resident.Grip != null)
+                {
+                    var elbowToTorso=resident.Arms[1].Transform*resident.Elbows[1].Transform;
+                    if ((elbowToTorso*resident.Grip.Position).Z>=0)
+                        throw new InvalidOperationException("Working grip bends behind the body");
+                }
+                if (resident.Grip?.Transform != grip || resident.Headwear?.Transform != headwear)
+                    throw new InvalidOperationException("Equipment moved relative to attachment joint");
+            }
             resident.Free();
         }
+        GD.Print("RESIDENT_FIT_PASS: scalp enclosure, fitted clothing gaps, hand grips and forward work poses across jobs/ages");
     }
 }
