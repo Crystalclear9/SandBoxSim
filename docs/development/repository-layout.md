@@ -29,6 +29,8 @@
 
 资源 PNG 和相应 `.import` 描述文件一起提交；Godot 自动生成的 `.godot/` 缓存不提交。模型代码文件与 `.uid` 一起维护，避免移动源码后出现失效脚本引用。来源和导入细节见 [美术资源](assets.md)。
 
+人物表现按职责分在 `ResidentRig.cs`（行为状态）、`ResidentRig.HandPose.cs`（肘腕和指节）、`NatureModels.HandSkin.cs`（手部蒙皮）、`NatureModels.Articulation.cs`（肩部蒙皮）与 `NatureModels.Face.cs`（面部表面）。这些文件共用人物节点与网格缓存，地图与肖像读取同一套模型，不维护额外的展示替身。入口见 [模型系统](models.md)。
+
 ## 运行资料与截图
 
 | 资料 | 建议位置 | 清理时的处理 |

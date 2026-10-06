@@ -9,8 +9,8 @@ internal sealed partial class NatureModels
     {
         using var surface = new SurfaceTool(); surface.Begin(Mesh.PrimitiveType.Triangles); surface.SetSmoothGroup(0);
         float[] levels={-.50f,-.45f,-.35f,-.22f,-.06f,.10f,.22f,.34f,.43f,.49f,.50f};
-        float[] widths={.18f,.30f,.40f,.45f,.475f,.48f,.48f,.435f,.37f,.16f,.025f};
-        float[] depths={.23f,.33f,.40f,.435f,.46f,.47f,.465f,.425f,.35f,.16f,.025f};
+        float[] widths={.135f,.25f,.355f,.42f,.465f,.48f,.48f,.435f,.37f,.16f,.025f};
+        float[] depths={.22f,.31f,.375f,.425f,.46f,.47f,.465f,.425f,.35f,.16f,.025f};
         float Profile(float y,float[] values)
         {
             for(int i=0;i<levels.Length-1;i++) if(y<=levels[i+1])
@@ -41,14 +41,14 @@ internal sealed partial class NatureModels
             {
                 // A flatter facial plane, rounded chin, nasal bridge/tip and recessed eye sockets.
                 p.Z=Mathf.Lerp(p.Z,-depth*.94f,MathF.Pow(front,8)*.45f);
-                float bridge=MathF.Exp(-p.X*p.X*210-MathF.Pow(p.Y+.04f,2)*70);
-                float tip=MathF.Exp(-p.X*p.X*360-MathF.Pow(p.Y+.14f,2)*160);
-                float socket=MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.19f,2)*180-MathF.Pow(p.Y-.09f,2)*220);
-                float lip=MathF.Exp(-p.X*p.X*120-MathF.Pow(p.Y+.27f,2)*180);
+                float bridge=MathF.Exp(-p.X*p.X*540-MathF.Pow(p.Y+.015f,2)*115);
+                float tip=MathF.Exp(-p.X*p.X*520-MathF.Pow(p.Y+.14f,2)*420);
+                float socket=MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.19f,2)*250-MathF.Pow(p.Y-.045f,2)*380);
+                float lip=MathF.Exp(-p.X*p.X*120-MathF.Pow(p.Y+.275f,2)*300);
                 float cheek = MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.27f,2)*90-MathF.Pow(p.Y+.06f,2)*130);
                 float brow = MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.18f,2)*170-MathF.Pow(p.Y-.17f,2)*190);
                 float ala = MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.07f,2)*380-MathF.Pow(p.Y+.15f,2)*280);
-                p.Z-=bridge*.068f+tip*.056f+ala*.035f+lip*.019f+cheek*.022f+brow*.025f-socket*.032f;
+                p.Z-=bridge*.050f+tip*.062f+ala*.017f+lip*.015f+cheek*.014f+brow*.014f-socket*.018f;
             }
             return p;
         }

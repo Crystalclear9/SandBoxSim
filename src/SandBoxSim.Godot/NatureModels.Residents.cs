@@ -94,7 +94,7 @@ internal sealed partial class NatureModels
     {
         uint variation = unchecked((uint)identity * 2654435761u);
         string[] clothColors = { "#536d68", "#b4956a", "#866756", "#6e7881", "#798261", "#a8937d" };
-        string[] skinColors = { "#b48e76", "#956e55", "#c6a48c", "#896851" };
+        string[] skinColors = { "#aa8b78", "#8e705e", "#ba9d89", "#806653" };
         string cloth = clothColors[variation % clothColors.Length], skin = skinColors[(variation >> 4) % skinColors.Length];
         string hair = (variation & 1) == 0 ? "#42352c" : "#695344";
         var rig = new ResidentRig { Name = "Resident", IsChild = child };
@@ -120,7 +120,7 @@ internal sealed partial class NatureModels
         {
             Detail(rig.Head,"sphere",new(side*.087f,-.005f,0),new(.024f,.043f,.026f),skin);
             Detail(rig.Head,"seed",new(side*.095f,-.003f,-.008f),new(.006f,.026f,.014f),"#a58065");
-            Detail(rig.Head,"seed",new(side*.034f,.034f,-.086f),new(.030f,.0035f,.004f),hair,new(0,0,side*.08f));
+            Detail(rig.Head,"seed",new(side*.034f,.027f,-.086f),new(.034f,.0028f,.0035f),hair,new(0,0,side*.08f));
         }
 
         for (int i = 0; i < 2; i++)
@@ -132,18 +132,17 @@ internal sealed partial class NatureModels
             Detail(elbow,"sphere",Vector3.Zero,new(.078f,.073f,.074f),skin);
             Sculpt(elbow,Loft("resident-forearm",new[]{new Vector4(-.015f,0,.039f,.037f),new(.06f,0,.042f,.040f),new(.14f,0,.034f,.033f),new(.24f,0,.029f,.028f)}),Vector3.Zero,ResidentMaterial(skin),new(MathF.PI/2,0,0));
             var hand = rig.Hands[i] = new Node3D { Name = "Hand", Position = new(0,-.255f,-.01f) }; elbow.AddChild(hand);
-            Detail(hand,"sphere",new(0,.01f,0),new(.057f,.048f,.052f),skin);
-            Sculpt(hand,Loft("resident-palm",new[]{new Vector4(-.05f,0,.008f,.01f),new(-.03f,0,.031f,.025f),new(.016f,0,.035f,.019f),new(.045f,0,.022f,.012f)}),Vector3.Zero,ResidentMaterial(skin),new(MathF.PI/2,0,0));
+            rig.HandSkins[i]=Sculpt(hand,HandPalm((int)side),Vector3.Zero,ResidentMaterial(skin));
             for(int digit=0;digit<4;digit++)
             {
                 var finger=rig.Fingers[i,digit]=new Node3D {Name="Finger"+digit,Position=new(-.022f+digit*.014f,-.04f,-.005f)}; hand.AddChild(finger);
-                Detail(finger,"capsule",new(0,-.0135f,0),new(.010f,.0135f,.010f),skin);
-                var tip=rig.Fingertips[i,digit]=new Node3D {Name="Tip",Position=new(0,-.027f,0)}; finger.AddChild(tip);
-                Detail(tip,"capsule",new(0,-.015f,0),new(.010f,.015f,.010f),skin);
-                Detail(tip,"seed",new(0,-.017f,-.005f),new(.006f,.010f,.0015f),"#cfab8d");
+                float lengthScale=digit==0?.92f:digit==1?1:digit==2?.96f:.86f;
+                float proximal=.026f*lengthScale,middle=.018f*lengthScale,distal=.014f*lengthScale;
+                var mid=rig.FingerMiddles[i,digit]=new Node3D {Name="Middle",Position=new(0,-proximal,0)};finger.AddChild(mid);
+                var tip=rig.Fingertips[i,digit]=new Node3D {Name="Tip",Position=new(0,-middle,0)};mid.AddChild(tip);
             }
-            var thumb=rig.Thumbs[i]=new Node3D {Name="Thumb",Position=new(side*.032f,-.026f,-.021f)};hand.AddChild(thumb);
-            Detail(thumb,"capsule",new(0,-.009f,0),new(.013f,.010f,.013f),skin);
+            var thumb=rig.Thumbs[i]=new Node3D {Name="Thumb",Position=new(side*.034f,-.021f,.001f)};hand.AddChild(thumb);
+            var thumbTip=rig.ThumbTips[i]=new Node3D {Name="ThumbTip",Position=new(0,-.018f,0)};thumb.AddChild(thumbTip);
             rig.HandOpen[i]=FingerProxy(skin,false);rig.HandClosed[i]=FingerProxy(skin,true);
             rig.HandProxies[i]=new MeshInstance3D {Name="DistantFingers",Mesh=rig.HandOpen[i],Visible=false};hand.AddChild(rig.HandProxies[i]);
             Detail(arm,"cylinder",new(0,-.252f,0),new(.102f,.025f,.098f),"#b9b099");
@@ -167,7 +166,7 @@ internal sealed partial class NatureModels
         rig.HeadSkin=rig.Head.GetChild<MeshInstance3D>(rig.Head.GetChildCount()-1);
         AddResidentFace(rig,skin);
         rig.HeadProxy=new MeshInstance3D {Name="DistantHead",Mesh=DistantHead(skin,hair),Visible=false};rig.Head.AddChild(rig.HeadProxy);
-        for(int side=0;side<2;side++)rig.HandSkins[side]=rig.Hands[side].GetChild<MeshInstance3D>(rig.Hands[side].GetChildCount()-1);
+        AddHandSkin(rig,skin);
         rig.Head.Scale=new Vector3(.96f+((variation>>15)%4)*.025f,.98f+((variation>>18)%3)*.025f,1);
         if (child) { rig.Scale = new Vector3(.72f, .65f, .72f); rig.Head.Scale = Vector3.One * 1.15f; }
         else { rig.Scale = new Vector3(1 + ((variation >> 8) % 5 - 2f) * .025f, 1.055f + ((variation >> 12) % 5) * .015f, 1); }
