@@ -29,12 +29,6 @@
 
 ## 本地复核
 
-![实际 3D 游戏窗口](images/ui-world.png)
-
-![人物详情](images/ui-person.png)
-
-![每日统计曲线](images/ui-chart.png)
-
 运行 `./tools/godot.ps1 -Mode run`。Godot 4.7.2 .NET 与 .NET 8 为当前开发环境；`-Mode test` 先导入素材，再执行图形客户端自检。
 
 2026-10-05 本机验证：
