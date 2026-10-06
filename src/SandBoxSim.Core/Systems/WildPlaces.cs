@@ -6,7 +6,7 @@ using SandBoxSim.Core.Foundation;
 
 namespace SandBoxSim.Core.Systems;
 
-public enum WildPlaceKind { Spring, Berries, OldGrove, Ruins, Ore }
+public enum WildPlaceKind { Spring, Berries, OldGrove, Ruins, Ore, Meadow, Wetland, FallenWood }
 
 public sealed class WildPlace
 {
@@ -52,8 +52,8 @@ public sealed class WildPlaces
                 if (sim.Agents.AliveSlots().Any(s => (sim.Agents.XOf(s)-x)*(sim.Agents.XOf(s)-x)+(sim.Agents.YOf(s)-y)*(sim.Agents.YOf(s)-y) < 144)) continue;
                 var tile = sim.World.TileAt(x, y);
                 if (!tile.Walkable || tile.BuildingId > 0 || tile.Fire != FireState.None) continue;
-                var kind = (WildPlaceKind)(index % 5);
-                string[] names = { "苔石泉", "野果洼地", "古木林", "旧聚落遗迹", "赤土岩脉" };
+                var kind = (WildPlaceKind)(index % 8);
+                string[] names = { "苔石泉", "野果洼地", "古木林", "旧聚落遗迹", "赤土岩脉", "风花草甸", "苇泽", "倒木林隙" };
                 var p = new WildPlace { Kind = kind, X = x, Y = y, Name = names[(int)kind] };
                 result._places.Add(p); Initialize(sim, p); break;
             }
@@ -68,11 +68,11 @@ public sealed class WildPlaces
             if (dx*dx+dy*dy > 9) continue;
             int x=p.X+dx, y=p.Y+dy; var t=sim.World.TileAt(x,y);
             if (t.BuildingId > 0 || t.Terrain == TerrainKind.Water) continue;
-            TerrainKind kind=p.Kind == WildPlaceKind.OldGrove ? TerrainKind.Forest : p.Kind == WildPlaceKind.Ore ? TerrainKind.Mountain : TerrainKind.Grass;
+            TerrainKind kind=p.Kind == WildPlaceKind.OldGrove ? TerrainKind.Forest : p.Kind == WildPlaceKind.Ore ? TerrainKind.Mountain : p.Kind == WildPlaceKind.Wetland ? TerrainKind.Swamp : TerrainKind.Grass;
             sim.World.SetTerrain(x,y,kind); sim.World.ApplyDefaultResource(x,y);
             sim.World.Tiles[y*sim.World.Width+x].Height = p.Kind == WildPlaceKind.Ore ? .62f+(dx*dx+dy*dy)*.012f : .43f;
             sim.World.SetMoisture(x,y,p.Kind == WildPlaceKind.Ore ? .22f : .68f);
-            sim.World.SetFertility(x,y,p.Kind == WildPlaceKind.Berries ? .82f : .6f);
+            sim.World.SetFertility(x,y,p.Kind is WildPlaceKind.Berries or WildPlaceKind.Meadow ? .82f : .6f);
             sim.World.SetVegetation(x,y,p.Kind == WildPlaceKind.OldGrove ? 1 : .58f);
             if (p.Kind == WildPlaceKind.Ore) sim.World.SetResource(x,y,new ResourceNode { Kind=(dx+dy)%3 == 0 ? ResourceKind.Iron : ResourceKind.Stone, Amount=58, Capacity=58, RegenerationRate=0 });
         }
@@ -81,6 +81,8 @@ public sealed class WildPlaces
             sim.World.SetTerrain(p.X,p.Y,TerrainKind.Water); sim.World.ClearResource(p.X,p.Y);
             sim.World.Tiles[p.Y*sim.World.Width+p.X].Height=.18f;
         }
+        if (p.Kind == WildPlaceKind.FallenWood)
+            sim.GroundStocks.Deposit(p.X,p.Y,ResourceKind.Wood,48,sim.Config.GroundStocks);
         if (p.Kind == WildPlaceKind.Ruins)
         {
             sim.GroundStocks.Deposit(p.X,p.Y,ResourceKind.Stone,42,sim.Config.GroundStocks);
@@ -93,7 +95,7 @@ public sealed class WildPlaces
         var t=sim.World.TileAt(p.X,p.Y);
         if (t.BuildingId > 0 || t.Fire != FireState.None) return false;
         return p.Kind switch { WildPlaceKind.Spring => t.Terrain == TerrainKind.Water, WildPlaceKind.OldGrove => t.Terrain == TerrainKind.Forest,
-            WildPlaceKind.Ore => t.Terrain == TerrainKind.Mountain, _ => t.Terrain == TerrainKind.Grass };
+            WildPlaceKind.Ore => t.Terrain == TerrainKind.Mountain, WildPlaceKind.Wetland => t.Terrain == TerrainKind.Swamp, _ => t.Terrain == TerrainKind.Grass };
     }
     public void Advance(Simulation sim)
     {
@@ -110,14 +112,21 @@ public sealed class WildPlaces
                     int x=p.X+dx,y=p.Y+dy;if(!sim.World.IsInBounds(x,y))continue;
                     var t=sim.World.TileAt(x,y);
                     if(t.BuildingId>0 || t.Fire!=FireState.None || t.Terrain is TerrainKind.Water or TerrainKind.Mountain or TerrainKind.Road or TerrainKind.Lava)continue;
-                    if(p.Kind==WildPlaceKind.Spring)
-                        sim.World.SetMoisture(x,y,Math.Clamp(t.Moisture+.055f,0,1));
+                    if(p.Kind is WildPlaceKind.Spring or WildPlaceKind.Wetland)
+                        sim.World.SetMoisture(x,y,Math.Clamp(t.Moisture+(p.Kind==WildPlaceKind.Spring ? .055f : .025f),0,1));
                     if(p.Kind==WildPlaceKind.OldGrove && t.Terrain==TerrainKind.Forest && t.Vegetation>.3f)
                         sim.World.SetMoisture(x,y,Math.Clamp(t.Moisture+.012f,0,1));
-                    if(p.Kind==WildPlaceKind.Berries && t.Terrain==TerrainKind.Grass && t.Moisture>=.3f && t.Fertility>=.3f && t.Vegetation>=.2f)
+                    if(p.Kind is WildPlaceKind.Berries or WildPlaceKind.Meadow && t.Terrain==TerrainKind.Grass && t.Moisture>=.3f && t.Fertility>=.3f && t.Vegetation>=.2f)
                     {
                         float fruit=Phase(LastDay) switch { 0=>1.5f,1=>5f,2=>2.5f,_=>0 };
+                        if(p.Kind==WildPlaceKind.Meadow)fruit*=.45f;
                         if(fruit>0)sim.ResourceSystem.ReplenishLivingNode(x,y,ResourceKind.Food,fruit);
+                    }
+                    if(p.Kind==WildPlaceKind.FallenWood)
+                    {
+                        int log=sim.GroundStocks.FindAt(p.X,p.Y);
+                        if(log>=0 && sim.GroundStocks.AmountOf(log,ResourceKind.Wood)>0)
+                            sim.World.SetFertility(x,y,Math.Clamp(t.Fertility+.004f,0,1));
                     }
                 }
             }
@@ -131,6 +140,9 @@ public sealed class WildPlaces
             WildPlaceKind.Berries=>"野果随生长周期补充；休眠期停止额外结果。干旱、贫瘠或火灾会影响它。",
             WildPlaceKind.OldGrove=>"老树下的湿润林地储存木材，也会燃烧。伐去林木后，涵养作用消失。",
             WildPlaceKind.Ruins=>"残墙间留有有限的石料和旧木。居民能到达才可利用；取走后不会重新出现。",
+            WildPlaceKind.Meadow=>"草甸在温润时开花与结籽，提供随生长周期变化的地表食物。动物、采集与天气共同改变这里。",
+            WildPlaceKind.Wetland=>"低洼苇泽保持周边土壤湿润。填平或烧毁后，涵养作用停止；湿土仍不同于可饮用的水域。",
+            WildPlaceKind.FallenWood=>"倒木留下有限木料；尚未被取走的朽木缓慢滋养土壤。这里没有刷新奖励。",
             _=>"露头周边分布铁矿和石料。采集与矿场需要可达的居民；矿脉并不直接变成库存。" };
         int pile=sim.GroundStocks.FindAt(p.X,p.Y);
         string stock=pile>=0 ? $"\n遗留物资：石 {sim.GroundStocks.AmountOf(pile,ResourceKind.Stone):0} · 木 {sim.GroundStocks.AmountOf(pile,ResourceKind.Wood):0}" : p.Kind==WildPlaceKind.Ruins ? "\n遗留物资已被取走。" : "";
@@ -147,7 +159,7 @@ public sealed class WildPlaces
         var result=new WildPlaces { LastDay=Math.Max(0,root.GetLong("lastDay")) };
         foreach(var v in root.Get("places").Items.Take(15))
         {
-            int kind=v.GetInt("kind",-1);if(kind<0 || kind>4)continue;
+            int kind=v.GetInt("kind",-1);if(kind<0 || kind>7)continue;
             result._places.Add(new WildPlace { Kind=(WildPlaceKind)kind,X=v.GetInt("x"),Y=v.GetInt("y"),Name=v.GetString("name", "荒野") });
         }
         foreach(var v in root.Get("marks").Items.Take(32))result.Remember(v.GetInt("x",-1),v.GetInt("y",-1),v.GetString("name"));

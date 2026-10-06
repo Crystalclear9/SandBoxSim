@@ -34,11 +34,12 @@ internal partial class HudButtonDetail : Control
         float strength = selected ? .85f : _light * .55f;
         if (strength < .01f) { return; }
         float half = (Size.X - 16) * (selected ? .5f : .16f + .34f * _light);
+        Color accent=_button.HasMeta("notebook") ? new Color("#806644") : HudStyle.Accent;
         var center = new Vector2(Size.X / 2, Size.Y - 3);
-        DrawLine(center - new Vector2(half, 0), center + new Vector2(half, 0), new Color(HudStyle.Accent, strength), 1, true);
+        DrawLine(center - new Vector2(half, 0), center + new Vector2(half, 0), new Color(accent, strength), 1, true);
         if (selected)
         {
-            DrawPolyline(new[] { center + new Vector2(-3, -1), center + new Vector2(0, -4), center + new Vector2(3, -1) }, new Color(HudStyle.Accent, .9f), 1, true);
+            DrawPolyline(new[] { center + new Vector2(-3, -1), center + new Vector2(0, -4), center + new Vector2(3, -1) }, new Color(accent, .9f), 1, true);
         }
     }
     public override void _ExitTree() => _transition?.Kill();

@@ -29,7 +29,7 @@ internal sealed partial class NatureModels
         if (_meshes.TryGetValue("tunic", out var existing)) { return existing; }
         const int sides = 48;
         float[] height = { .60f, .65f, .73f, .82f, .97f, 1.10f, 1.19f, 1.24f, 1.28f };
-        float[] width = { .23f, .225f, .185f, .19f, .205f, .23f, .25f, .20f, .085f };
+        float[] width = { .20f, .208f, .17f, .165f, .188f, .210f, .220f, .174f, .060f };
         float[] depth = { .145f, .15f, .125f, .125f, .145f, .155f, .13f, .10f, .07f };
         var surface = new SurfaceTool(); surface.Begin(Mesh.PrimitiveType.Triangles); surface.SetSmoothGroup(0);
         Vector3 Point(int ring, int side)
@@ -109,31 +109,32 @@ internal sealed partial class NatureModels
         Detail(rig.Torso, "box", new Vector3(0, 1.11f, -.145f), new Vector3(.016f, .18f, .012f), "#b9b099");
         for (int button = 0; button < 3; button++)
         { Detail(rig.Torso, "sphere", new Vector3(.012f, 1.17f - button * .055f, -.154f), Vector3.One * .015f, "#514237"); }
-        Detail(rig.Torso, "cylinder", new Vector3(0, .76f, 0), new Vector3(.425f, .045f, .275f), "#514237");
+        Detail(rig.Torso, "cylinder", new Vector3(0, .76f, 0), new Vector3(.39f, .035f, .26f), "#514237");
         Detail(rig.Torso, "box", new Vector3(.015f, .76f, -.144f), new Vector3(.055f, .045f, .013f), "#b8a17b");
         Detail(rig.Torso, "capsule", new Vector3(.23f, .7f, .075f), new Vector3(.075f, .065f, .055f), "#725b40");
-        Detail(rig.Torso, "cylinder", new Vector3(0, 1.30f, 0), new Vector3(.105f, .10f, .105f), skin);
-        rig.Head = new Node3D { Name = "Head", Position = new Vector3(0, 1.46f, 0) }; rig.Torso.AddChild(rig.Head);
-        Detail(rig.Head, "face", Vector3.Zero, new Vector3(.215f, .285f, .215f), skin);
-        Detail(rig.Head, "hair", new Vector3(0, .008f, .006f), new Vector3(.222f, .29f, .224f), hair);
+        Sculpt(rig.Torso,Loft("resident-neck",new[]{new Vector4(0,0,.051f,.043f),new(.04f,-.006f,.041f,.039f),new(.095f,-.012f,.047f,.040f)}),new(0,1.265f,.016f),ResidentMaterial(skin),new(-MathF.PI/2,0,0));
+        rig.Head = new Node3D { Name = "Head", Position = new Vector3(0, 1.445f, 0) }; rig.Torso.AddChild(rig.Head);
+        Detail(rig.Head, "face", Vector3.Zero, new Vector3(.177f, .220f, .195f), skin);
+        Detail(rig.Head, "hair", new Vector3(0, .008f, .006f), new Vector3(.181f, .224f, .200f), hair);
         foreach (float side in new[] { -1f, 1f })
         {
-            Detail(rig.Head, "sphere", new Vector3(side * .107f, -.005f, 0), new Vector3(.04f, .073f, .046f), skin);
-            Detail(rig.Head, "sphere", new Vector3(side * .042f, .025f, -.097f), new Vector3(.025f, .015f, .011f), "#e5dbc6");
-            Detail(rig.Head, "sphere", new Vector3(side * .042f, .025f, -.106f), new Vector3(.01f, .011f, .006f), "#342f28");
-            Detail(rig.Head, "capsule", new Vector3(side * .042f, .046f, -.101f), new Vector3(.009f, .019f, .008f), hair, new Vector3(0, 0, MathF.PI * .5f));
+            Detail(rig.Head,"sphere",new(side*.087f,-.005f,0),new(.024f,.043f,.026f),skin);
+            Detail(rig.Head,"seed",new(side*.095f,-.003f,-.008f),new(.006f,.026f,.014f),"#a58065");
+            Detail(rig.Head, "sphere", new Vector3(side * .034f, .019f, -.083f), new Vector3(.019f, .009f, .007f), "#e5dbc6");
+            Detail(rig.Head, "sphere", new Vector3(side * .034f, .019f, -.087f), new Vector3(.007f, .007f, .004f), "#342f28");
+            Detail(rig.Head, "capsule", new Vector3(side * .034f, .034f, -.085f), new Vector3(.004f, .016f, .004f), hair, new Vector3(0, 0, MathF.PI * .5f));
         }
-        Detail(rig.Head, "capsule", new Vector3(0, -.053f, -.097f), new Vector3(.008f, .022f, .009f), "#976e5a", new Vector3(0,0,MathF.PI/2));
+        Detail(rig.Head, "capsule", new Vector3(0, -.059f, -.089f), new Vector3(.004f, .019f, .006f), "#976e5a", new Vector3(0,0,MathF.PI/2));
         foreach(float side in new[]{-1f,1f})
         {
-            Detail(rig.Head,"sphere",new(side*.013f,-.012f,-.112f),new(.013f,.007f,.006f),"#805e4c");
-            Detail(rig.Head,"capsule",new(side*.042f,.019f,-.109f),new(.005f,.012f,.005f),skin,new(0,0,MathF.PI/2));
-            Detail(rig.Head,"sphere",new(side*.042f+.002f,.027f,-.110f),Vector3.One*.003f,"#eee4d3");
+            Detail(rig.Head,"sphere",new(side*.006f,-.028f,-.101f),new(.006f,.003f,.003f),"#805e4c");
+            Detail(rig.Head,"capsule",new(side*.034f,.014f,-.085f),new(.005f,.012f,.005f),skin,new(0,0,MathF.PI/2));
+            Detail(rig.Head,"sphere",new(side*.034f+.001f,.020f,-.090f),Vector3.One*.003f,"#eee4d3");
         }
         for (int i = 0; i < 2; i++)
         {
             float side = i == 0 ? -1 : 1;
-            var arm = rig.Arms[i] = new Node3D { Name = i == 0 ? "LeftArm" : "RightArm", Position = new Vector3(side * .235f, 1.18f, 0) }; rig.Torso.AddChild(arm);
+            var arm = rig.Arms[i] = new Node3D { Name = i == 0 ? "LeftArm" : "RightArm", Position = new Vector3(side * .218f, 1.18f, 0) }; rig.Torso.AddChild(arm);
             Sculpt(arm,Loft("tailored-sleeve",new[]{new Vector4(0,0,.053f,.048f),new(.06f,0,.066f,.060f),new(.17f,0,.057f,.053f),new(.27f,0,.047f,.044f),new(.29f,0,.043f,.042f)}),Vector3.Zero,ResidentMaterial(cloth),new(MathF.PI/2,0,0));
             var elbow = rig.Elbows[i] = new Node3D { Name = "Elbow", Position = new Vector3(0, -.28f, 0) }; arm.AddChild(elbow);
             Sculpt(elbow,Loft("resident-forearm",new[]{new Vector4(-.015f,0,.039f,.037f),new(.06f,0,.042f,.040f),new(.14f,0,.034f,.033f),new(.24f,0,.029f,.028f)}),Vector3.Zero,ResidentMaterial(skin),new(MathF.PI/2,0,0));
@@ -147,7 +148,6 @@ internal sealed partial class NatureModels
             var leg = rig.Legs[i] = new Node3D { Name = i == 0 ? "LeftLeg" : "RightLeg", Position = new Vector3(side * .10f, .67f, 0) }; rig.AddChild(leg);
             Sculpt(leg,Loft("resident-trouser",new[]{new Vector4(-.01f,0,.065f,.058f),new(.08f,0,.077f,.073f),new(.20f,0,.070f,.060f),new(.33f,0,.051f,.05f)}),Vector3.Zero,ResidentMaterial("#645e53"),new(MathF.PI/2,0,0));
             var knee = rig.Knees[i] = new Node3D { Name = "Knee", Position = new Vector3(0, -.31f, 0) }; leg.AddChild(knee);
-            Detail(knee, "sphere", Vector3.Zero, new Vector3(.11f, .115f, .105f), "#645e53");
             Sculpt(knee,Loft("resident-boot",new[]{new Vector4(0,0,.055f,.052f),new(.07f,0,.060f,.058f),new(.19f,0,.05f,.048f),new(.28f,-.012f,.052f,.051f)}),Vector3.Zero,ResidentMaterial("#514237"),new(MathF.PI/2,0,0));
             Detail(knee,"cylinder",new(0,-.04f,0),new(.122f,.019f,.118f),"#a48d6d");
             Detail(knee, "sphere", new Vector3(0, -.295f, -.04f), new Vector3(.14f, .085f, .24f), "#423a32");
@@ -156,12 +156,12 @@ internal sealed partial class NatureModels
         }
         if (job == JobType.Farmer)
         {
-            Detail(rig.Head, "cylinder", new Vector3(0, .13f, 0), new Vector3(.43f, .025f, .43f), "#b49a69");
-            Detail(rig.Head, "cone", new Vector3(0, .19f, 0), new Vector3(.28f, .12f, .28f), "#b49a69");
+            Detail(rig.Head, "cylinder", new Vector3(0, .113f, 0), new Vector3(.43f, .022f, .43f), "#b49a69");
+            Detail(rig.Head, "cone", new Vector3(0, .170f, 0), new Vector3(.28f, .105f, .28f), "#b49a69");
         }
         if (job is JobType.Builder or JobType.Miner or JobType.Craftsman)
         {
-            Detail(rig.Torso, "box", new Vector3(0, .97f, -.15f), new Vector3(.23f, .40f, .016f), "#75654f");
+            Detail(rig.Torso, "box", new Vector3(0, .97f, -.15f), new Vector3(.215f, .39f, .010f), "#75654f");
             Detail(rig.Elbows[1], "cylinder", new Vector3(0, -.23f, -.09f), new Vector3(.022f, .38f, .022f), "#8b6c46");
             Detail(rig.Elbows[1], "box", new Vector3(0, -.07f, -.09f), new Vector3(.17f, .06f, .065f), "#68716f");
         }
@@ -178,8 +178,9 @@ internal sealed partial class NatureModels
         }
         AddResidentTailoring(rig, cloth, skin, job);
         MergeResidentParts(rig, "resident:" + cloth + skin + hair + job);
+        rig.Head.Scale=new Vector3(.96f+((variation>>15)%4)*.025f,.98f+((variation>>18)%3)*.025f,1);
         if (child) { rig.Scale = new Vector3(.72f, .65f, .72f); rig.Head.Scale = Vector3.One * 1.15f; }
-        else { rig.Scale = new Vector3(1 + ((variation >> 8) % 5 - 2f) * .025f, .96f + ((variation >> 12) % 5) * .02f, 1); }
+        else { rig.Scale = new Vector3(1 + ((variation >> 8) % 5 - 2f) * .025f, 1.055f + ((variation >> 12) % 5) * .015f, 1); }
         return rig;
     }
     public void ValidateResidentMeshes()

@@ -33,25 +33,22 @@ Core 中 `Foundation` 提供配置、数学、随机数和基础数据；`World`
 | `HudStyle.cs` / `HudBevel.cs` | 材质、配色、描边和交互样式 |
 | `ResidentPortrait.cs` | 独立 3D 肖像与旋转、缩放输入 |
 | `BuildingPortrait.cs`、`HudSymbols.cs` | 独立建筑展示、悬停转向与概览/操作符号；静止预览缓存 |
-| `MainGame.Operations.cs` / `MainGame.LandCards.cs` | 工程图册、落点与持续管理 |
-| `MainGame.Construction.cs` | 建筑图册、建造委托与放置预览 |
+| `MainGame.Operations.cs` / `MainGame.Notebook.cs` | 观察、人物关注和田野手记样式 |
 | `WorldView3D*.cs` | 镜头、地形、实体、天气与风险表现 |
 | `NatureModels*.cs` | 可复用几何、人物、动物与建筑组合 |
-| `ProjectCatalog.cs` / `LandProjects.cs` | 工程配方、阶段、条件、费用与管理状态 |
+| `ProjectCatalog.cs` / `LandProjects.cs` | 历史 SDK 系统，当前客户端不加载或推进 |
 | `ConstructionOrders.cs` | 成年居民、可达性与真实材料建造事务 |
 | `SettlementBlueprint.cs` | 本地目标观察、稳定日界与进度持久化 |
 | `WildPlaces.cs` / `NatureModels.WildPlaces.cs` | 种子地貌、自然作用、地点手记与 3D 外观；由图形会话推进 |
-| `WorldTrial.cs` / `WorldAlerts.cs` | 危机、额度、稳定目标与风险查询 |
+| `WorldTrial.cs` / `WorldAlerts.cs` | 历史 SDK 系统，当前客户端不使用 |
 
 上表中的客户端文件位于 `src/SandBoxSim.Godot`，规则文件位于 `src/SandBoxSim.Core/Systems`。
 
 ## 时间与会话
 
-`Simulation` 按 tick 推进内核；图形会话的 `AdvanceWorld` 按日界拆分推进，依次更新模拟、荒野地貌和土地工程；旧试炼与蓝图代码保留兼容检查。高倍速仍处理每个日界。直接调用内核 `Tick` 不会执行客户端会话计划。
+`Simulation` 按 tick 推进内核；图形会话的 `AdvanceWorld` 按日界拆分推进，仅更新模拟与荒野地貌；客户端已删除委托、工程、试炼和蓝图流程。高倍速仍处理每个日界。直接调用内核 `Tick` 不会执行客户端会话计划。
 
-工程安排只记录位置和建设前状态，之后逐日应用配方；每阶段重新判断土地条件。完工对照被冻结，持续管理的当前观察单独显示。普通探索不使用试炼额度；原预算逻辑仅为旧格式和开发检查保留。
 
-建造委托检查八格内成年居民及路径，再调用原 `BuildingSystem` 材料事务。成功后工地进入原施工、生产、床位与核心存档路径；失败不产生工地或扣料。普通界面已移除蓝图入口，旧目标格式仍可解码用于兼容检查。
 
 ## 状态与观察边界
 

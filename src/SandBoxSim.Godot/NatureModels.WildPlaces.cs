@@ -62,6 +62,39 @@ internal sealed partial class NatureModels
                 for(int i=0;i<4;i++)Part(node,"foliage",new Vector3(-2.7f+i*.15f,.25f+i*.32f,-1.4f),new Vector3(.65f,.55f,.45f),4);
                 if(supplies)for(int i=0;i<5;i++)Part(node,"rock",new Vector3(-.5f+i*.45f,.2f,1.4f),new Vector3(.6f,.5f,.7f),6);
                 break;
+            case WildPlaceKind.Meadow:
+                for(int i=0;i<34;i++)
+                {
+                    float a=i*2.39996f,r=.45f+Mathf.Sqrt(i/34f)*2.8f;
+                    var p=new Vector3(Mathf.Cos(a)*r,.19f,Mathf.Sin(a)*r);
+                    Part(node,"cylinder",p,new(.015f,.38f,.015f),4);
+                    if(phase<2)
+                    {
+                        string color=i%3==0 ? "#c4a9b3" : i%3==1 ? "#e0d5b8" : "#c9b172";
+                        for(int petal=0;petal<5;petal++)
+                        {
+                            float angle=petal*Mathf.Tau/5;
+                            Detail(node,"seed",p+new Vector3(Mathf.Cos(angle)*.06f,.19f,Mathf.Sin(angle)*.06f),new(.10f,.035f,.07f),color,new(0,-angle,0));
+                        }
+                    }
+                }
+                break;
+            case WildPlaceKind.Wetland:
+                for(int i=0;i<28;i++)
+                {
+                    float a=i*2.39996f,r=.7f+Mathf.Sqrt(i/28f)*2.3f,h=.7f+(i%5)*.12f;
+                    var p=new Vector3(Mathf.Cos(a)*r,h/2,Mathf.Sin(a)*r);
+                    Part(node,"cylinder",p,new(.022f,h,.022f),4,new(.06f,0,.12f));
+                    Detail(node,"seed",p+Vector3.Up*(h/2-.07f),new(.055f,.21f,.055f),"#85755a");
+                    Part(node,"foliage",p-Vector3.Up*(h/2-.1f),new(.3f,.25f,.3f),4);
+                }
+                break;
+            case WildPlaceKind.FallenWood:
+                Part(node,"trunk",new(0,.23f,0),new(.7f,4.3f,.7f),0,new(0,0,1.49f));
+                Part(node,"cylinder",new(1.7f,.26f,0),new(.64f,.035f,.64f),1,new(0,0,Mathf.Pi/2));
+                for(int i=0;i<5;i++) Part(node,"foliage",new(-1.1f+i*.5f,.15f,.38f),new(.65f,.3f,.5f),4);
+                for(int i=0;i<3;i++) Timber(node,new(-1.2f+i*.6f,.23f,0),new(-1.4f+i*.6f,.50f,.75f),.065f);
+                break;
             case WildPlaceKind.Ore:
                 for(int i=0;i<5;i++)Part(node,"rock",new Vector3(-2+i,1.1f+i%2*.35f,0),new Vector3(1.7f,2.2f,2.5f),i%2==0?7:6,new Vector3(.2f,i*.4f,.15f));
                 break;

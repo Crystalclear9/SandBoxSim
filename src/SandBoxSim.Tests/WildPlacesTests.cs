@@ -21,7 +21,7 @@ public sealed class WildPlacesTests
     {
         var a=World();var b=World();var wa=WildPlaces.Create(a);var wb=WildPlaces.Create(b);
         Assert.Equal(wa.Encode().ToJson(),wb.Encode().ToJson());Assert.Equal(StateHash.ComputeDigest(a),StateHash.ComputeDigest(b));
-        Assert.Equal(5,wa.Places.Select(p=>p.Kind).Distinct().Count());
+        Assert.Equal(8,wa.Places.Select(p=>p.Kind).Distinct().Count());
         foreach(var p in wa.Places)Assert.True(a.World.IsInBounds(p.X-3,p.Y-3) && a.World.IsInBounds(p.X+3,p.Y+3));
         var ore=wa.Places.First(p=>p.Kind==WildPlaceKind.Ore);
         Assert.Equal(ResourceKind.Iron,a.World.TileAt(ore.X,ore.Y).Resource.Kind);
@@ -79,5 +79,35 @@ public sealed class WildPlacesTests
         restored.Tick(restored.Config.Clock.TicksPerDay);restoredWild.Advance(restored);
         Assert.Equal(StateHash.ComputeDigest(sim),StateHash.ComputeDigest(restored));Assert.Equal(wild.Encode().ToJson(),restoredWild.Encode().ToJson());
         Assert.Equal(0,WildPlaces.Decode(JsonValue.Null()).Places.Count);
+    }
+    [Fact("苇泽涵养可被改造停止，旧档地貌枚举继续识别")]
+    public void WetlandCanBeChanged()
+    {
+        var sim=World();var wild=WildPlaces.Create(sim);var p=wild.Places.First(p=>p.Kind==WildPlaceKind.Wetland);
+        sim.World.SetMoisture(p.X+1,p.Y,.1f);sim.World.RestoreTick(sim.Config.Clock.TicksPerDay);wild.Advance(sim);
+        Assert.Greater(sim.World.TileAt(p.X+1,p.Y).Moisture,.1f);
+        sim.World.SetTerrain(p.X,p.Y,TerrainKind.Grass);sim.World.SetMoisture(p.X+1,p.Y,.1f);
+        sim.World.RestoreTick(sim.Config.Clock.TicksPerDay*2);wild.Advance(sim);Assert.Equal(.1f,sim.World.TileAt(p.X+1,p.Y).Moisture);
+        Assert.Equal(8,WildPlaces.Decode(wild.Encode()).Places.Select(p=>p.Kind).Distinct().Count());
+    }
+    [Fact("倒木物资有限，取走后停止朽木肥力作用")]
+    public void FallenWoodIsFinite()
+    {
+        var sim=World();var wild=WildPlaces.Create(sim);var p=wild.Places.First(p=>p.Kind==WildPlaceKind.FallenWood);
+        sim.World.SetFertility(p.X+1,p.Y,.2f);sim.World.RestoreTick(sim.Config.Clock.TicksPerDay);wild.Advance(sim);
+        Assert.Greater(sim.World.TileAt(p.X+1,p.Y).Fertility,.2f);
+        Assert.Equal(48f,sim.GroundStocks.Withdraw(p.X,p.Y,ResourceKind.Wood,10000));sim.World.SetFertility(p.X+1,p.Y,.2f);
+        sim.World.RestoreTick(sim.Config.Clock.TicksPerDay*30);wild.Advance(sim);
+        Assert.Equal(.2f,sim.World.TileAt(p.X+1,p.Y).Fertility);Assert.Equal(-1,sim.GroundStocks.FindAt(p.X,p.Y));
+    }
+    [Fact("草甸食物随生长周期变化，休眠停止额外结籽")]
+    public void MeadowHasNoObjectiveOrReward()
+    {
+        var sim=World();var wild=WildPlaces.Create(sim);var p=wild.Places.First(p=>p.Kind==WildPlaceKind.Meadow);
+        sim.ResourceSystem.Harvest(p.X,p.Y,ResourceKind.Food,10000);sim.World.RestoreTick(sim.Config.Clock.TicksPerDay);wild.Advance(sim);
+        Assert.Greater(sim.World.TileAt(p.X,p.Y).Resource.Amount,0f);
+        var dormant=WildPlaces.Decode(wild.Encode().Set("lastDay",JsonValue.From(35)));
+        sim.ResourceSystem.Harvest(p.X,p.Y,ResourceKind.Food,10000);sim.World.RestoreTick(sim.Config.Clock.TicksPerDay*36);dormant.Advance(sim);
+        Assert.Equal(0f,sim.World.TileAt(p.X,p.Y).Resource.Amount);
     }
 }

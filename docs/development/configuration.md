@@ -1,6 +1,6 @@
 # 配置
 
-项目有三类配置：模拟规则、图形客户端设置、生态工程数据。
+当前项目使用模拟规则与图形客户端设置。历史工程数据保留为开发参考，当前客户端不加载。
 
 ## 模拟规则
 
@@ -26,8 +26,6 @@
 
 引擎位置使用 `GODOT_EXE` 或脚本的 `-GodotPath`；SDK 位置使用 `SANDBOXSIM_DOTNET_ROOT`。安装文件放在仓库外，详见 [安装与启动](../guides/getting-started.md)。
 
-## 生态工程数据
+## 历史数据
 
-配方文件为 [`assets/gameplay/projects.json`](../../src/SandBoxSim.Godot/assets/gameplay/projects.json)。每项定义 key、名称、描述、插画索引、适用限制、建设阶段、管理动作和费用。支持 1–8 阶段、1–32 配方；动作与数值由 `ProjectCatalog` 校验。
-
-编辑配方后创建新世界。存档嵌入原配方，因此新配置不会重写旧世界的工程。无效配置发出日志警告并使用默认配方。完整字段、动作和示例见 [生态工坊](../guides/ecology.md)。
+`assets/gameplay/projects.json` 与旧工程插画保留来源记录，当前客户端不加载这些数据。自由世界的自然地点规则在 `Core/Systems/WildPlaces.cs`，扩展方式见 [世界内容扩展](extending.md)。

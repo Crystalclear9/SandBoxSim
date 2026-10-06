@@ -24,7 +24,7 @@
 ## 图形资源
 
 - `assets/textures/`：地形、对象与自然材质图集。
-- `assets/illustrations/`：生态工程插画。
+- `assets/illustrations/`：历史工程插画，当前客户端不使用。
 - `assets/gameplay/`：可验证的 JSON 配方。
 
 资源 PNG 和相应 `.import` 描述文件一起提交；Godot 自动生成的 `.godot/` 缓存不提交。模型代码文件与 `.uid` 一起维护，避免移动源码后出现失效脚本引用。来源和导入细节见 [美术资源](assets.md)。

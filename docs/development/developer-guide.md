@@ -25,12 +25,12 @@
 |---|---|---|
 | 需求增长、居民决策与劳动 | `Core/Systems/NeedsSystem.cs`、`AiSystem.cs`、`ActionSystem.cs` | 生存行为、同种子重放与续跑 |
 | 施工、材料和建筑类型 | `Core/World/BuildingStore.cs`、`Core/Systems/BuildingSystem.cs`、`ConstructionOrders.cs` | 扣料、拒绝落点、床位/生产与存档 |
-| 世界工程与日界行为 | `Core/Systems/ProjectCatalog.cs`、`LandProjects.cs`、`Godot/MainGame.Play.cs` | 日界执行、政策、预算与会话恢复 |
+| 自然地点与日界作用 | `Core/Systems/WildPlaces.cs`、`Godot/MainGame.Play.cs` | 地理生成、生态条件、有限资源与恢复 |
 | 新建图形世界的起始条件 | `Core/Systems/SandboxScenarios.cs`、`Godot/MainGame.cs` | 新世界与旧存档分开检查 |
 | 主界面、控制栏与档案 | `Godot/MainGame.Interface.cs`、`HudStyle.cs`、`HudSymbols.cs` | 自检、实际窗口与鼠标遮挡 |
 | 3D 镜头和地表 | `Godot/WorldView3D.cs`、`WorldView3D.Atmosphere.cs` | 拖动、缩放、释放、图层与暂停 |
 | 建筑和人物外观 | `Godot/NatureModels*.cs`、`BuildingPortrait.cs`、`ResidentPortrait.cs` | 近远景、变体、动作与显示缓存 |
-| 生态工程数值和组合 | `Godot/assets/gameplay/projects.json` | 新世界加载、默认目录与旧档配方 |
+| 自由探索界面 | `Godot/MainGame.Interface.cs`、`MainGame.Notebook.cs` | 阅读层次、直接工具与无目标导航 |
 | 跨平台工具链 | `tools/build-lib.ps1` 与具体入口脚本 | 脚本回归和受影响构建通道 |
 
 表中 `Core/`、`Godot/` 分别缩写 `src/SandBoxSim.Core/`、`src/SandBoxSim.Godot/`。实体槽位可以复用；人物关注、命名和关系应使用稳定身份，不能缓存槽位作为永久人物标识。
@@ -43,7 +43,7 @@
 4. 更新玩家能感知的说明、配置或存档契约，并在根目录 `CHANGELOG.md` 记录结果。
 5. 查看 `git status --short` 与 `git diff --check`，提交源码、资源和文档；日志、个人存档与临时截图留在 `runs/`。
 
-模拟随机性使用内核随机流；不要让 UI、光照、模型变体消耗它。按日运行的工程与蓝图通过 `MainGame.AdvanceWorld` 推进，直接调用 `Simulation.Tick` 只推进内核。
+模拟随机性使用内核随机流；不要让 UI、光照、模型变体消耗它。荒野自然作用通过 `MainGame.AdvanceWorld` 的日界推进，直接调用 `Simulation.Tick` 只推进内核。
 
 ## 按改动选择检查
 
@@ -51,7 +51,7 @@
 |---|---|
 | 模拟规则、状态或持久化 | 相关名称过滤测试，然后 `./tools/test.ps1 -Configuration Release -Channel sdk` 完整回归 |
 | Godot UI、镜头或模型 | `./tools/godot.ps1 -Mode test`、Release 构建和实际窗口检查 |
-| 工程配方或会话 | `LandProject`、`ProjectManagement` 等过滤检查，加 Godot 自检与存读档 |
+| 荒野自然作用与会话 | `WildPlaces` 检查，加 Godot 自检与存读档 |
 | 构建脚本 | `./tools/test-build.ps1`，加受影响的 SDK/csc 构建 |
 | 文档或文件位置 | `./tools/check-docs.ps1`、`git diff --check`；资源移动另做 Godot 导入 |
 
@@ -64,7 +64,7 @@
 ./tools/test.ps1 -Filter ProjectManagement -Configuration Release -Channel sdk
 ```
 
-自带测试运行器使用 `[Fact]`、`[Theory]` 和名称过滤。`dotnet test` 不是本项目测试入口，构建成功也不表示测试已执行。不要只比较 `CoreDigest` 来判断图形会话续跑：还要比较工程、试炼、蓝图和关注人物的元数据，见 [存档与确定性](saving.md)。
+自带测试运行器使用 `[Fact]`、`[Theory]` 和名称过滤。`dotnet test` 不是本项目测试入口，构建成功也不表示测试已执行。不要只比较 `CoreDigest` 来判断图形会话续跑：还要比较荒野地点、日界与关注人物的元数据，见 [存档与确定性](saving.md)。
 
 ## 保存运行资料
 

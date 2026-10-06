@@ -18,17 +18,10 @@ public partial class MainGame : Control
     public bool VisualPaused => _speed == 0;
     public PlayerTool Tool { get; private set; }
     public int Scenario { get; private set; }
-    public WorldTrial Trial { get; private set; } = new();
-    public LandProjects Projects { get; private set; } = new();
     public WildPlaces Wild { get; private set; } = new();
     public int SelectedX => _selectedX;
     public int SelectedY => _selectedY;
     public long PinnedPerson { get; private set; }
-    public int PlanningKind { get; private set; } = -1;
-    public BuildingKind PlanningBuilding { get; private set; } = BuildingKind.None;
-    public SettlementBlueprint Blueprint { get; private set; } = new();
-    public bool PlanningBlueprint => _planningBlueprint >= 0;
-    private int _planningBlueprint = -1;
     public int Radius => (int)_radius.Value;
     public float Strength => (float)_strength.Value;
     public int SelectedSlot => _selected >= 0 && Sim.Agents.IsSlotAlive(_selected)
@@ -60,7 +53,6 @@ public partial class MainGame : Control
     private int _previewDays;
     private string _previewView = "";
     private string _previewPanel = "";
-    private int _previewTrial = -1, _trialPreviewDays;
     private double _benchmarkSeconds, _benchmarkElapsed, _benchmarkMeasuredSeconds;
     private long _benchmarkFrames;
     private string _benchmarkOutput = "";
@@ -91,16 +83,13 @@ public partial class MainGame : Control
             if (arg.StartsWith("--demo-days=", StringComparison.Ordinal)) { int.TryParse(arg.Substring(12), out _previewDays); _previewDays = Math.Clamp(_previewDays, 0, 30); }
             if (arg.StartsWith("--view=", StringComparison.Ordinal)) { _previewView = arg.Substring(7); }
             if (arg.StartsWith("--panel=", StringComparison.Ordinal)) { _previewPanel = arg.Substring(8); }
-            if (arg.StartsWith("--trial=", StringComparison.Ordinal) && int.TryParse(arg.Substring(8), out int trial)) { _previewTrial = Math.Clamp(trial, 0, 2); }
-            if (arg.StartsWith("--trial-days=", StringComparison.Ordinal) && int.TryParse(arg.Substring(13), out int trialDays)) { _trialPreviewDays = Math.Clamp(trialDays, 0, 14); }
         }
         NewWorld(839102);
         if (_previewDays > 0) { AdvanceWorld(_previewDays * Sim.Config.Clock.TicksPerDay); }
         BuildInterface();
-        if (_previewPanel is "architecture" or "characters" or "naturemodels")
+        if (_previewPanel is "architecture" or "characters" or "naturemodels" or "faces")
         { SetSpeed(0); AddChild(new ModelGallery { Collection = _previewPanel == "naturemodels" ? "nature" : _previewPanel }); }
 
-        if (_previewTrial >= 0) { StartTrial(_previewTrial); AdvanceWorld(_trialPreviewDays * Sim.Config.Clock.TicksPerDay); RefreshTrialPanel(); }
         if (_selfTest) { RunSelfTest(); }
     }
     private void NewWorld(int seed)
@@ -108,8 +97,7 @@ public partial class MainGame : Control
         Sim = SandboxScenarios.Create(Scenario, seed, _initialPopulation);
         Sim.Config.Buildings.OrganicHousing = true;
         Wild = WildPlaces.Create(Sim);
-        Trial = new WorldTrial();
-        Projects = new LandProjects(LoadProjectCatalog()); Blueprint = new(); PinnedPerson = 0; PlanningKind = -1; PlanningBuilding = BuildingKind.None; _planningBlueprint = -1;
+        PinnedPerson = 0;
         SubscribeVisualEvents();
         _pending = 0; _selected = -1; _selectedPersonId = 0; _selectedAnimal = -1; _selectedWolf = -1;
         SyncControls();
@@ -124,7 +112,7 @@ public partial class MainGame : Control
     {
         var check = new CheckBox { Text = label, ButtonPressed = get() }; HudStyle.Rule(check); parent.AddChild(check);
         _rules.Add((check, get));
-        check.Toggled += value => { set(value); Trial.MarkAssisted(); Sim.InterveneRecordAuxiliary(label + " = " + value); };
+        check.Toggled += value => { set(value); Sim.InterveneRecordAuxiliary(label + " = " + value); };
     }
     private void SyncControls()
     {
@@ -136,9 +124,6 @@ public partial class MainGame : Control
     { var button = new Godot.Button { Text = label }; parent.AddChild(button); button.Pressed += action; }
     public void SelectTool(PlayerTool tool)
     {
-        PlanningKind = -1;
-        PlanningBuilding = BuildingKind.None;
-        _planningBlueprint = -1;
         Tool = tool; _toolPicker.Select((int)tool);
         string hint = tool switch
         {
@@ -196,7 +181,7 @@ public partial class MainGame : Control
             var result = SaveLoader.Load(restored, _checkpoint);
             if (!result.Success || !result.DigestMatches) { throw new InvalidOperationException(result.Error); }
             RestoreClientContext(root);
-            Sim = restored; ReturnToFreeExploration(); SubscribeVisualEvents(); _pending = 0; _selected = -1; _selectedPersonId = 0; _selectedAnimal = -1; _selectedWolf = -1;
+            Sim = restored; SubscribeVisualEvents(); _pending = 0; _selected = -1; _selectedPersonId = 0; _selectedAnimal = -1; _selectedWolf = -1;
             _map.Focus(46, 50, 13); SyncControls(); _status.Text = "回到 " + _experimentLabel + "；试试另一种选择"; RefreshPanels(); _discovery.Refresh();
         }
         catch (Exception ex) { _status.Text = "回溯失败：" + ex.Message; GD.PushError(ex.ToString()); }
@@ -287,14 +272,14 @@ public partial class MainGame : Control
             var result = SaveLoader.Load(restored, json);
             if (!result.Success || !result.DigestMatches) { throw new InvalidOperationException(result.Error + " " + result.SegmentDifference); }
             RestoreClientContext(root, true);
-            Sim = restored; ReturnToFreeExploration(); SubscribeVisualEvents(); _selected = -1; _selectedPersonId = 0; _selectedAnimal = -1; _selectedWolf = -1; _pending = 0; _map.Center(); SyncControls();
+            Sim = restored; SubscribeVisualEvents(); _selected = -1; _selectedPersonId = 0; _selectedAnimal = -1; _selectedWolf = -1; _pending = 0; _map.Center(); SyncControls();
             _status.Text = "已恢复第 " + result.Day + " 天"; RefreshPanels(); _discovery.Refresh();
         }
         catch (Exception ex) { _status.Text = "载入失败：" + ex.Message; GD.PushError(ex.Message); }
     }
     private string EncodeClientWorld(bool includeCheckpoint = false)
     {
-        var client = JsonValue.Object().Set("scenario", JsonValue.From(Scenario)).Set("trial", Trial.Encode()).Set("projects", Projects.Encode()).Set("blueprint", Blueprint.Encode())
+        var client = JsonValue.Object().Set("scenario", JsonValue.From(Scenario))
             .Set("pin", JsonValue.From(PinnedPerson.ToString(System.Globalization.CultureInfo.InvariantCulture))).Set("wild", Wild.Encode());
         if (includeCheckpoint) { client.Set("checkpoint", JsonValue.From(_checkpoint)).Set("experiment", JsonValue.From(_experimentLabel)); }
         return JsonParser.Parse(SaveFile.Encode(Sim)).Set("client", client).ToJson(true);
@@ -302,9 +287,7 @@ public partial class MainGame : Control
     private void RestoreClientContext(JsonValue root, bool restoreCheckpoint = false)
     {
         Scenario = Math.Clamp(root.Get("client").GetInt("scenario", Scenario), 0, SandboxScenarios.Names.Length - 1);
-        Trial = WorldTrial.Decode(root.Get("client").Get("trial"));
         Wild = WildPlaces.Decode(root.Get("client").Get("wild"));
-        Projects = LandProjects.Decode(root.Get("client").Get("projects")); Blueprint = SettlementBlueprint.Decode(root.Get("client").Get("blueprint")); PlanningKind = -1; PlanningBuilding = BuildingKind.None; _planningBlueprint = -1;
         long.TryParse(root.Get("client").GetString("pin"), out long pin); PinnedPerson = pin;
         if (restoreCheckpoint)
         {
@@ -322,30 +305,13 @@ public partial class MainGame : Control
             if (_previewView.Length > 0) { ((WorldView3D)_map).SetPerspective(_previewView == "near" ? "近景" : _previewView == "top" ? "俯视" : "斜视"); }
             if (_previewPanel == "chart") { ShowJournal(true); _drawer.CurrentTab = 3; }
             if (_previewPanel == "settings") { ShowSettings(true); }
-            if (_previewPanel == "construction") { OpenConstruction(); PrepareConstruction(BuildingKind.House); }
-            if (_previewPanel == "blueprint") { Blueprint.Start(Sim, 1, 43, 50); OpenConstruction(); }
-            if (_previewPanel == "wild")
+            if (_previewPanel is "wild" or "meadow" or "wetland" or "fallenwood")
             {
-                var place = Wild.Places.Where(p => p.Kind == WildPlaceKind.Ruins).OrderBy(p => (p.X-50)*(p.X-50)+(p.Y-50)*(p.Y-50)).FirstOrDefault();
-                if (place != null) { ClickTile(place.X, place.Y); _map.Focus(place.X, place.Y, 30); SetSpeed(0); }
+                var place = Wild.Places.Where(p => p.Kind == (_previewPanel=="meadow" ? WildPlaceKind.Meadow : _previewPanel=="wetland" ? WildPlaceKind.Wetland : _previewPanel=="fallenwood" ? WildPlaceKind.FallenWood : WildPlaceKind.Ruins)).OrderBy(p => (p.X-50)*(p.X-50)+(p.Y-50)*(p.Y-50)).FirstOrDefault();
+                if (place != null) { ClickTile(place.X, place.Y); _map.Focus(place.X, place.Y, _previewPanel=="wild" ? 30 : 48); SetSpeed(0); }
             }
             if (_previewPanel == "village") { _map.Focus(43, 50, 38); SetSpeed(0); }
-            if (_previewPanel == "projects")
-            {
-                Projects.Queue(Sim, 0, 43, 53, 5); Projects.Queue(Sim, 3, 35, 50, 4);
-                AdvanceWorld(Sim.Config.Clock.TicksPerDay); OpenProjects();
-            }
-            if (_previewPanel == "planning") { OpenProjects(); PrepareProject(2); }
-            if (_previewPanel == "management")
-            {
-                var wet = Projects.Queue(Sim, 2, 43, 53, 5);
-                var food = Projects.Queue(Sim, 0, 43, 53, 4);
-                AdvanceWorld(Sim.Config.Clock.TicksPerDay * 3);
-                if (wet != null) { Projects.SetPolicy(Sim, wet.Id, 1); }
-                if (food != null) { Projects.SetPolicy(Sim, food.Id, 2); }
-                AdvanceWorld(Sim.Config.Clock.TicksPerDay);
-                OpenProjects(); SwitchProjectView(true);
-            }
+            if (_previewPanel=="terrain") { SetCategory("地貌");ShowTools(true); }
             if (_previewPanel == "field") { ShowJournal(true); _drawer.CurrentTab = 0; }
             if (_previewPanel == "tools") { SetCategory("地貌"); ShowTools(true); }
             if (_previewPanel == "brush") { SetCategory("地貌"); SelectTool(PlayerTool.River); }
@@ -369,7 +335,7 @@ public partial class MainGame : Control
         }
         _refresh += delta;
         _map.QueueRedraw();
-        if (_refresh >= 0.2) { _refresh = 0; RefreshPanels(); RefreshTrialPanel(); RefreshOperations(); SyncControls(); _chart.QueueRedraw(); _discovery.Refresh(); }
+        if (_refresh >= 0.2) { _refresh = 0; RefreshPanels(); RefreshOperations(); SyncControls(); _chart.QueueRedraw(); _discovery.Refresh(); }
         _captureElapsed += delta;
         if (_capture.Length > 0 && !_captureRequested && _captureElapsed >= .7) { _captureRequested = true; Capture(); }
         if (_selfTest && _frames >= 15) { GetTree().Quit(0); }
@@ -410,18 +376,9 @@ public partial class MainGame : Control
     {
         if (!Sim.World.IsInBounds(x, y)) { return; }
         _selectedX = x; _selectedY = y;
-        if (_planningBlueprint >= 0)
-        {
-            if (Blueprint.Start(Sim, _planningBlueprint, x, y)) { _planningBlueprint = -1; _status.Text = "蓝图已开始：在中心十格内经营，连续两个日界达成目标"; RefreshOperations(); }
-            else { _status.Text = "请选择可以通行的蓝图中心"; }
-            return;
-        }
-        if (PlanningBuilding != BuildingKind.None) { CommitConstruction(x, y); return; }
-        if (PlanningKind >= 0) { CommitProject(x, y); return; }
         if (Tool != PlayerTool.Inspect)
         {
             int before = Sim.Agents.LiveCount;
-            if (!Trial.TrySpend(Tool, Radius, Strength)) { _status.Text = Trial.Notice; RefreshTrialPanel(); return; }
             PlayerTools.Apply(Sim, Tool, x, y, Radius, Strength); _map.QueueRedraw();
             _map.Effect(x, y, Tool >= PlayerTool.Fire && Tool <= PlayerTool.Meteor ? new Color("#e59970") : new Color("#c5dda0"), ToolNames[(int)Tool]);
             _status.Text = $"{ToolNames[(int)Tool]} · ({x}, {y}) · 半径 {Radius}" + (Tool == PlayerTool.Human ? $" · 新增 {Sim.Agents.LiveCount - before} 人" : " · 观察接下来的变化");
@@ -499,7 +456,7 @@ public partial class MainGame : Control
             text.AppendLine("\n身体与需求");
             text.AppendLine($"生命 {a.HealthOf(slot):P0}   饥饿 {a.HungerOf(slot):P0}   干渴 {a.ThirstOf(slot):P0}");
             text.AppendLine($"精力 {1 - a.FatigueOf(slot):P0}   位置 {a.PositionOf(slot)}");
-            text.AppendLine(a.HasTarget(slot) ? "目标 " + a.TargetOf(slot) : "目标：无");
+            text.AppendLine(a.HasTarget(slot) ? "目的地 " + a.TargetOf(slot) : "原地活动");
             text.AppendLine($"正在{ActionRegistry.DisplayNameOf(a.ActionOf(slot))} · {PhaseName(a.PhaseOf(slot))}");
             text.AppendLine("\n随身物资");
             text.AppendLine($"食物 {a.InventoryOf(slot, ResourceKind.Food):F1}  木材 {a.InventoryOf(slot, ResourceKind.Wood):F1}");
@@ -565,9 +522,9 @@ public partial class MainGame : Control
         for (int i = Sim.Events.Count - 1, count = 0; i >= 0 && count < 80; i--)
         {
             var ev = Sim.Events[i]; if (ev.Importance < SandBoxSim.Core.History.EventImportance.Normal) { continue; }
-            history.AppendLine($"[color=#bda572]第 {ev.Tick / 1440} 天[/color]")
+            history.AppendLine($"[color=#806644]第 {ev.Tick / 1440} 天[/color]")
                 .AppendLine("[b]" + EscapeMarkup(ev.Description) + "[/b]")
-                .AppendLine("[color=#b2aa97]" + EscapeMarkup(ev.Cause) + "[/color]").AppendLine(); count++;
+                .AppendLine("[color=#747866]" + EscapeMarkup(ev.Cause) + "[/color]").AppendLine(); count++;
         }
         _history.Text = history.ToString();
     }
@@ -629,70 +586,18 @@ public partial class MainGame : Control
             var restored = Simulation.CreateForRestore(Sim.Config.Clone(), 100, 100, 1);
             var result = SaveLoader.Load(restored, saved);
             if (!result.Success || !result.DigestMatches) { throw new Exception("Client save round trip failed"); }
-            var originalTrial = Trial;
-            Trial = new WorldTrial();
-            try
-            {
-                StartTrial(1);
-                if (!Trial.Running || _drawer.CurrentTab != 4) { throw new Exception("Trial entry failed"); }
-                string trialSave = EncodeClientWorld();
-                var savedTrial = WorldTrial.Decode(JsonParser.Parse(trialSave).Get("client").Get("trial"));
-                if (!savedTrial.Running || savedTrial.OriginalCount != Sim.Agents.LiveCount) { throw new Exception("Trial save omitted player session"); }
-                var fileSave = JsonParser.Parse(EncodeClientWorld(true));
-                string savedCheckpoint = fileSave.Get("client").GetString("checkpoint");
-                if (savedCheckpoint.Length == 0 || !JsonParser.Parse(savedCheckpoint).Get("client").Get("checkpoint").IsNull)
-                    { throw new Exception("Trial checkpoint missing or recursively nested"); }
-                PrepareAid(PlayerTool.Rain, Trial.Location);
-                if (Tool != PlayerTool.Rain || Strength < 25) { throw new Exception("Rain preparation failed"); }
-                string trialBefore = StateHash.ComputeDigest(Sim); RefreshTrialPanel();
-                if (trialBefore != StateHash.ComputeDigest(Sim)) { throw new Exception("Trial panel mutated world"); }
-                Trial.TrySpend(PlayerTool.Human, 0, 40); SelectTool(PlayerTool.Food);
-                string blockedBefore = StateHash.ComputeDigest(Sim); ClickTile(20, 20);
-                if (blockedBefore != StateHash.ComputeDigest(Sim)) { throw new Exception("Rejected intervention mutated world"); }
-                PlayerTools.Apply(Sim, PlayerTool.Forest, 20, 20, 1, 10); Sim.Fire.Ignite(20, 20, Sim.Clock, "客户端火情自检");
-                int patient = Sim.Agents.AliveSlots().FirstOrDefault(-1); if (patient >= 0) { Sim.Diseases.Infect(patient); }
-                string hazardBefore = StateHash.ComputeDigest(Sim); ((WorldView3D)_map).ValidateHazardVisuals();
-                if (hazardBefore != StateHash.ComputeDigest(Sim)) { throw new Exception("Hazard rendering mutated world"); }
-                string priorBlueprint = Blueprint.Encode().ToJson();
-                Blueprint.Start(Sim, 0, 42, 50);
-                string freeBefore = StateHash.ComputeDigest(Sim);
-                ReturnToFreeExploration();
-                if (Trial.Running || Blueprint.Kind >= 0 || freeBefore != StateHash.ComputeDigest(Sim))
-                    { throw new Exception("Returning to free exploration changed world state or retained objectives"); }
-                Blueprint = SettlementBlueprint.Decode(JsonParser.Parse(priorBlueprint));
-            }
-            finally { Trial = originalTrial; SelectTool(PlayerTool.Inspect); _drawer.CurrentTab = 0; }
-            OpenProjects(); PrepareProject(2); ClickTile(30, 30);
-            if (Projects.ActiveCount != 1 || PlanningKind != -1) { throw new Exception("Project placement failed"); }
-            var projectsSave = JsonParser.Parse(EncodeClientWorld());
-            var savedProjects = LandProjects.Decode(projectsSave.Get("client").Get("projects"));
-            if (savedProjects.ActiveCount != 1 || projectsSave.Get("client").GetString("pin") != PinnedPerson.ToString(System.Globalization.CultureInfo.InvariantCulture))
-                { throw new Exception("Project or resident pin missing from client save"); }
-            string operationBefore = StateHash.ComputeDigest(Sim);
-            RefreshOperations(); _discovery.Refresh(); _discovery.ValidateNavigation(); ((WorldView3D)_map).ValidateHazardVisuals();
-            if (operationBefore != StateHash.ComputeDigest(Sim)) { throw new Exception("Operations observations mutated world"); }
-            PrepareProject(0); SelectTool(PlayerTool.Inspect);
-            if (PlanningKind != -1) { throw new Exception("Project placement cancellation failed"); }
-            AdvanceWorld(Sim.Config.Clock.TicksPerDay * 3);
-            var managedPlan = Projects.Items[0];
-            if (!Projects.SetPolicy(Sim, managedPlan.Id, 1)) { throw new Exception("Land policy selection failed"); }
-            AdvanceWorld(Sim.Config.Clock.TicksPerDay);
-            var managedSave = JsonParser.Parse(EncodeClientWorld()).Get("client").Get("projects");
-            var restoredManagement = LandProjects.Decode(managedSave);
-            if (restoredManagement.ManagedCount != 1 || restoredManagement.Items[0].CareDays < 1 || ProjectArt(0).GetWidth() < 1)
-                { throw new Exception("Managed land state or illustrated asset missing"); }
-            operationBefore = StateHash.ComputeDigest(Sim);
-            SwitchProjectView(true); RefreshOperations(); ((WorldView3D)_map).ValidateHazardVisuals();
-            if (operationBefore != StateHash.ComputeDigest(Sim)) { throw new Exception("Managed land UI mutated simulation"); }
-            int blueprintTile = Array.FindIndex(Sim.World.Tiles, t => t.Walkable);
-            if (!Blueprint.Start(Sim, 1, blueprintTile % Sim.World.Width, blueprintTile / Sim.World.Width)) { throw new Exception("Blueprint start failed"); }
-            string blueprintState = Blueprint.Encode().ToJson();
-            var clientSnapshot = JsonParser.Parse(EncodeClientWorld()); RestoreClientContext(clientSnapshot);
-            if (Blueprint.Encode().ToJson() != blueprintState) { throw new Exception("Blueprint client save failed"); }
-            operationBefore = StateHash.ComputeDigest(Sim); OpenConstruction(); PrepareConstruction(BuildingKind.House);
-            if (PlanningBuilding != BuildingKind.House || !_constructionPanel.Visible) { throw new Exception("Construction UI failed"); }
-            SelectTool(PlayerTool.Inspect); RefreshOperations(); ((WorldView3D)_map).ValidateHazardVisuals();
-            if (PlanningBuilding != BuildingKind.None || operationBefore != StateHash.ComputeDigest(Sim)) { throw new Exception("Construction planning purity/cancel failed"); }
+            var legacy=JsonParser.Parse(saved);
+            legacy.Get("client").Set("trial",new WorldTrial().Encode().Set("kind",JsonValue.From(1)).Set("running",JsonValue.From(true)).Set("influence",JsonValue.From(0))).Set("projects",new LandProjects().Encode()).Set("blueprint",new SettlementBlueprint().Encode());
+            RestoreClientContext(legacy);
+            var freeClient=JsonParser.Parse(EncodeClientWorld()).Get("client");
+            if(!freeClient.Get("trial").IsNull || !freeClient.Get("projects").IsNull || !freeClient.Get("blueprint").IsNull || _drawer.GetTabCount()!=4)
+                throw new Exception("Legacy objectives survived in free exploration client");
+            PlayerTools.Apply(Sim,PlayerTool.Forest,20,20,1,10); Sim.Fire.Ignite(20,20,Sim.Clock,"火情自检");
+            string hazardBefore=StateHash.ComputeDigest(Sim); ((WorldView3D)_map).ValidateHazardVisuals();
+            if(hazardBefore!=StateHash.ComputeDigest(Sim)) throw new Exception("Hazards observation mutated world");
+            SelectTool(PlayerTool.Food);string freeBefore=StateHash.ComputeDigest(Sim);ClickTile(20,20);
+            if(freeBefore==StateHash.ComputeDigest(Sim)) throw new Exception("Legacy quota blocked free creation");
+            SelectTool(PlayerTool.Inspect);
             var original = Sim;
             try
             {
@@ -707,7 +612,7 @@ public partial class MainGame : Control
                 if (rectangularBefore != StateHash.ComputeDigest(Sim)) { throw new Exception("Rectangular world rendering mutated simulation"); }
             }
             finally { Sim = original; ((WorldView3D)_map).ValidateWorldDimensions(); }
-            GD.Print("GODOT_SELF_TEST_PASS: resident meshes/poses/portrait gestures, tools, observer purity, save/load, minimap, resident pin, recipe gallery, land management/save, construction/blueprint save, project placement/cancel, hazards, mouse drag/orbit/zoom/release and 1280/1600/1920 layouts");
+            GD.Print("GODOT_SELF_TEST_PASS: resident meshes/poses/portrait gestures, tools, observer purity, save/load, minimap, resident pin, objective-free save migration, hazards, mouse drag/orbit/zoom/release and 1280/1600/1920 layouts");
         }
         catch (Exception ex) { GD.PushError(ex.ToString()); GetTree().Quit(1); }
     }

@@ -17,10 +17,11 @@ public partial class MainGame
     private bool _settingsOpen;
     private OptionButton _scenarioPicker = null!;
     private Godot.Button _settingsButton = null!, _journalButton = null!;
-    private HBoxContainer _paletteRow = null!;
+    private GridContainer _paletteRow = null!;
     private PanelContainer _commandPanel = null!;
     private Godot.Button _toolsMenuButton = null!;
     private Label _foodLabel = null!, _woodLabel = null!, _stoneLabel = null!;
+    private readonly Dictionary<string, Godot.Button> _primaryCategories = new();
     private readonly Dictionary<PlayerTool, Godot.Button> _toolButtons = new();
     private readonly Dictionary<int, Godot.Button> _speedButtons = new();
     private readonly Dictionary<string, Godot.Button> _categoryButtons = new();
@@ -51,7 +52,7 @@ public partial class MainGame
     { SandBoxSim.Core.Agents.LifeStage.Child => "儿童", SandBoxSim.Core.Agents.LifeStage.Elder => "长者", _ => "成人" };
     private static string PhaseName(SandBoxSim.Core.Agents.ActionPhase phase) => phase switch
     {
-        SandBoxSim.Core.Agents.ActionPhase.Moving => "前往目标", SandBoxSim.Core.Agents.ActionPhase.Executing => "进行中",
+        SandBoxSim.Core.Agents.ActionPhase.Moving => "前往目的地", SandBoxSim.Core.Agents.ActionPhase.Executing => "进行中",
         SandBoxSim.Core.Agents.ActionPhase.Done => "已完成", SandBoxSim.Core.Agents.ActionPhase.Failed => "受阻", _ => "休息中"
     };
     private string FormatInspector(string plain)
@@ -67,7 +68,7 @@ public partial class MainGame
             if (hidden) { continue; }
             string escaped = EscapeMarkup(line);
             if (first && line.Length > 0) { result.AppendLine("[font_size=23][b]" + escaped + "[/b][/font_size]"); first = false; }
-            else if (section) { result.AppendLine("[color=#bda572][b]" + escaped + "[/b][/color]"); }
+            else if (section) { result.AppendLine("[color=#806644][b]" + escaped + "[/b][/color]"); }
             else { result.AppendLine(escaped); }
         }
         return result.ToString();
@@ -124,8 +125,6 @@ public partial class MainGame
         nameControls.AddChild(_residentName); ActionButton(nameControls, "命名", RenameResident);
         _inspector = TextPanel("人物详情"); personPanel.AddChild(_inspector); _history = TextPanel("历史"); _drawer.AddChild(_history);
         _chart = new StatisticsView { Name = "曲线", Game = this }; _drawer.AddChild(_chart);
-        BuildTrialPanel(); _drawer.SetTabHidden(4, true);
-        BuildProjectPanel();
         _drawer.TabChanged += _ => RevealJournalPage();
 
         _brushPanel = Surface(overlay, new Vector2(0, 0), new Vector2(24, 104), new Vector2(245, 230), 18);
@@ -163,11 +162,11 @@ public partial class MainGame
         Rule(tools, "和平模式", () => Sim.Config.Rules.PeaceMode, v => Sim.Config.Rules.PeaceMode = v);
         Rule(tools, "禁止聚落战争", () => Sim.Config.Rules.DisableWar, v => Sim.Config.Rules.DisableWar = v);
         Rule(tools, "自然住房布局", () => Sim.Config.Buildings.OrganicHousing, v => Sim.Config.Buildings.OrganicHousing = v);
-        var weather = new HBoxContainer(); tools.AddChild(weather); ActionButton(weather, "降雨", () => TrialWeather(WeatherKind.Rain)); ActionButton(weather, "旱季", () => TrialWeather(WeatherKind.Drought));
+        var weather = new HBoxContainer(); tools.AddChild(weather); ActionButton(weather, "降雨", () => ChangeWeather(WeatherKind.Rain)); ActionButton(weather, "旱季", () => ChangeWeather(WeatherKind.Drought));
         tools.AddChild(new HSeparator()); tools.AddChild(HudStyle.Label("观察图层", 17));
         var layer = new OptionButton(); foreach (string text in new[] { "自然地形", "聚落领土", "资源储量", "湿度", "肥力", "食物分布", "人口密度", "AI 状态", "行动路径" }) { layer.AddItem(text); }
         tools.AddChild(layer); layer.ItemSelected += i => _map.Overlay = (int)i;
-        _birth = Spin(tools, "出生概率", 0, 1, Sim.Config.Birth.BaseChancePerDay, .005); _birth.ValueChanged += v => { Sim.Config.Birth.BaseChancePerDay = (float)v; Trial.MarkAssisted(); };
+        _birth = Spin(tools, "出生概率", 0, 1, Sim.Config.Birth.BaseChancePerDay, .005); _birth.ValueChanged += v => { Sim.Config.Birth.BaseChancePerDay = (float)v; };
         _seed = Spin(tools, "随机种子", 0, int.MaxValue, Sim.World.Seed);
         ActionButton(tools, "重新生成世界", () => { NewWorld((int)_seed.Value); _checkpoint = ""; _map.Focus(43, 50, 16); });
         ActionButton(tools, "保存世界…", () => _save.PopupCenteredRatio(.65f)); ActionButton(tools, "载入世界…", () => _load.PopupCenteredRatio(.65f));
@@ -177,24 +176,24 @@ public partial class MainGame
         var footer = Surface(overlay, new Vector2(0, 1), new Vector2(16, -100), new Vector2(1264, 84), 0);
         footer.AnchorRight = 1; footer.OffsetRight = -16;
         footer.Visible = false;
-        var dock = Surface(overlay, new Vector2(.5f, 1), new Vector2(-250, -252), new Vector2(500, 160), 6); _dockPanel = dock;
+        var dock = Surface(overlay, new Vector2(.5f, 1), new Vector2(-250, -306), new Vector2(500, 208), 6); _dockPanel = dock;
         var dockContents = new VBoxContainer(); dockContents.AddThemeConstantOverride("separation", 4); dock.AddChild(dockContents);
         var categories = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center }; categories.AddThemeConstantOverride("separation", 6); dockContents.AddChild(categories);
         foreach (string category in new[] { "生命", "地貌", "资源", "灾害", "祝福" })
         { string chosen = category; var button = ActionButton(categories, category, () => SetCategory(chosen)); button.ToggleMode = true; _categoryButtons[category] = button; }
-        _paletteRow = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center }; _paletteRow.AddThemeConstantOverride("separation", 6); dockContents.AddChild(_paletteRow); SetCategory("生命");
+        _paletteRow = new GridContainer { Columns = 7 }; _paletteRow.AddThemeConstantOverride("separation", 6); dockContents.AddChild(_paletteRow); SetCategory("生命");
         _dockPanel.Visible = false;
         _commandPanel = Surface(overlay, new Vector2(.5f, 1), new Vector2(-250, -98), new Vector2(500, 80), 6);
 
         var commands = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center }; commands.AddThemeConstantOverride("separation", 6); _commandPanel.AddChild(commands);
         ActionButton(commands, "观察", () => { SelectTool(PlayerTool.Inspect); ShowTools(false); });
-        _toolsMenuButton = ActionButton(commands, "创造", () => ShowTools(!_dockPanel.Visible)); _toolsMenuButton.ToggleMode = true;
-        ActionButton(commands, "营造", () => { ShowTools(false); OpenConstruction(); });
-        ActionButton(commands, "生态", () => { ShowTools(false); OpenProjects(); });
+        _toolsMenuButton = ActionButton(commands,"生命",()=>ShowCategory("生命"));_toolsMenuButton.ToggleMode=true;_primaryCategories["生命"]=_toolsMenuButton;
+        var terrainButton=ActionButton(commands,"地貌",()=>ShowCategory("地貌"));terrainButton.ToggleMode=true;_primaryCategories["地貌"]=terrainButton;
+        var climateButton=ActionButton(commands,"气候",()=>ShowCategory("祝福"));climateButton.ToggleMode=true;_primaryCategories["祝福"]=climateButton;
         ActionButton(commands, "手记", () => ShowJournal(!_journalPanel.Visible));
         foreach (Godot.Button command in commands.GetChildren())
         {
-            command.Icon = HudSymbols.For(command.Text); command.ExpandIcon = true;
+            command.Icon = command.Text switch { "生命"=>ToolGlyphs.For(PlayerTool.Human),"地貌"=>ToolGlyphs.For(PlayerTool.Mountain),"气候"=>ToolGlyphs.For(PlayerTool.Rain),_=>HudSymbols.For(command.Text) }; command.ExpandIcon = true;
             command.AddThemeConstantOverride("icon_max_width", 27); command.AddThemeConstantOverride("h_separation", 8);
             command.CustomMinimumSize = new Vector2(88, 60);
         }
@@ -217,9 +216,9 @@ public partial class MainGame
         ActionButton(views, "跟随", () => { if (SelectedSlot >= 0) { _map.Follow(SelectedSlot); } else { _status.Text = "选择一个人物后，跟随他的故事"; } });
         _toolBadge = HudStyle.Label("自由观察", 13); HudStyle.Float(_toolBadge, new Vector2(.5f, 1), new Vector2(-200, -180), new Vector2(400, 26)); _toolBadge.HorizontalAlignment = HorizontalAlignment.Center; _toolBadge.AddThemeColorOverride("font_color", new Color("#f3efe3")); _toolBadge.AddThemeColorOverride("font_shadow_color", new Color("#17241e")); _toolBadge.AddThemeConstantOverride("shadow_offset_y", 1); overlay.AddChild(_toolBadge);
         _status = HudStyle.Label("观察模式：左键拖动平移 · 右键拖动旋转/俯仰 · 滚轮缩放 · 单击选择", 11, true); HudStyle.Float(_status, new Vector2(.5f, 1), new Vector2(-430, -126), new Vector2(860, 18)); _status.HorizontalAlignment = HorizontalAlignment.Center; _status.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, .8f)); _status.AddThemeConstantOverride("shadow_offset_y", 1); overlay.AddChild(_status);
-        BuildPlanningCard(overlay);
         _save = Dialog(FileDialog.FileModeEnum.SaveFile); _save.FileSelected += SaveWorld; _load = Dialog(FileDialog.FileModeEnum.OpenFile); _load.FileSelected += LoadWorld;
         Resized += FitHud; FitHud();
+        StyleNotebook();
         RefreshPanels();
         _drawer.CurrentTab = 0;
         BuildWorldPulse(overlay);
@@ -251,7 +250,7 @@ public partial class MainGame
                     new Vector2(c.OffsetRight - c.OffsetLeft, c.OffsetBottom - c.OffsetTop));
                 Rect2 dock = Bounds(_dockPanel), time = Bounds(_timePanel), camera = Bounds(_cameraPanel);
                 if (dock.Intersects(time) || dock.Intersects(camera) || time.Intersects(camera)) { throw new InvalidOperationException("HUD controls overlap at " + size); }
-                foreach (var auxiliary in new[] { _brushPanel, _settingsPanel, _planPanel })
+                foreach (var auxiliary in new[] { _brushPanel, _settingsPanel })
                     if (Bounds(auxiliary).Intersects(dock)) { throw new InvalidOperationException("Tool rail obscures an auxiliary panel at " + size); }
                 foreach (var panel in new[] { _dockPanel, _commandPanel, _timePanel, _cameraPanel, _journalPanel, _settingsPanel })
                 {
@@ -360,8 +359,10 @@ public partial class MainGame
     private static Godot.Button ActionButton(Container parent, string label, Action action)
     { var button = new Godot.Button { Text = label }; HudStyle.Button(button); parent.AddChild(button); button.Pressed += action; return button; }
     private void SetSpeed(int speed) { _speed = speed; foreach (var pair in _speedButtons) { pair.Value.SetPressedNoSignal(pair.Key == speed); } }
+    private void ShowCategory(string category)
+    { bool close=_dockPanel.Visible && _category==category;SetCategory(category);ShowTools(!close); }
     private void ShowTools(bool visible)
-    { _dockPanel.Visible = visible; _toolsMenuButton.SetPressedNoSignal(visible); _toolBadge.Visible = !visible; _status.Visible = !visible; if (visible) { FadeIn(_dockPanel); } }
+    { _dockPanel.Visible = visible; foreach(var pair in _primaryCategories)pair.Value.SetPressedNoSignal(visible && pair.Key==_category); _toolBadge.Visible = !visible; _status.Visible = !visible; if (visible) { FadeIn(_dockPanel); } }
     private void ShowJournal(bool visible) { _journalPanel.Visible = visible; _journalButton.SetPressedNoSignal(visible); if (_pulseButton != null) { _pulseButton.Visible = !visible; } if (visible) { FadeIn(_journalPanel); } }
     private void ShowSettings(bool visible)
     { _settingsOpen = visible; _settingsButton.SetPressedNoSignal(visible); _settingsPanel.Visible = visible; _brushPanel.Visible = !visible && Tool != PlayerTool.Inspect; if (visible) { FadeIn(_settingsPanel); } }
@@ -434,11 +435,12 @@ public partial class MainGame
     }
     private void SetCategory(string category)
     {
-        _category = category; foreach (var pair in _categoryButtons) { pair.Value.SetPressedNoSignal(pair.Key == category); }
+        _category = category; foreach(var pair in _primaryCategories)pair.Value.SetPressedNoSignal(_dockPanel.Visible && pair.Key==category);
+        foreach (var pair in _categoryButtons) { pair.Value.SetPressedNoSignal(pair.Key == category); }
         foreach (Node child in _paletteRow.GetChildren()) { _paletteRow.RemoveChild(child); child.QueueFree(); } _toolButtons.Clear();
         PlayerTool[] tools = category switch
         {
-            "地貌" => new[] { PlayerTool.Grass, PlayerTool.River, PlayerTool.Mountain, PlayerTool.Sand, PlayerTool.Raise, PlayerTool.Lower, PlayerTool.RemoveWater },
+            "地貌" => new[] { PlayerTool.Grass, PlayerTool.River, PlayerTool.Mountain, PlayerTool.Sand, PlayerTool.Raise, PlayerTool.Lower, PlayerTool.RemoveWater, PlayerTool.Swamp, PlayerTool.Snow, PlayerTool.Desert, PlayerTool.Lava, PlayerTool.Farmland, PlayerTool.Road },
             "资源" => new[] { PlayerTool.Forest, PlayerTool.Food, PlayerTool.Wood, PlayerTool.Stone, PlayerTool.Iron, PlayerTool.Fertility },
             "灾害" => new[] { PlayerTool.Fire, PlayerTool.Lightning, PlayerTool.Flood, PlayerTool.Drought, PlayerTool.Plague, PlayerTool.Meteor },
             "祝福" => new[] { PlayerTool.Heal, PlayerTool.Rain, PlayerTool.BirthBlessing, PlayerTool.Production, PlayerTool.Fertility },

@@ -43,6 +43,7 @@ internal sealed partial class NatureModels
         mesh = kind switch
         {
             "box" => new BoxMesh(),
+            "seed" => new SphereMesh { Radius=.5f,Height=1,RadialSegments=12,Rings=6 },
             "masonry" => SoftBlock(),
             "face" => SculptedHead(false),
             "hair" => SculptedHead(true),

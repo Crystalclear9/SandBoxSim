@@ -18,7 +18,6 @@ public partial class MainGame
         SandBoxSim.Core.Environment.ResourceKind.Food => "食物", SandBoxSim.Core.Environment.ResourceKind.Wood => "木材",
         SandBoxSim.Core.Environment.ResourceKind.Stone => "石料", SandBoxSim.Core.Environment.ResourceKind.Iron => "铁矿", _ => "无"
     };
-    private void ReturnToFreeExploration() { Trial.Leave(); Blueprint.Leave(); }
     public void RememberPlace(string name)
     {
         if(string.IsNullOrWhiteSpace(name))name=Wild.At(SelectedX,SelectedY)?.Name ?? $"土地 {SelectedX},{SelectedY}";

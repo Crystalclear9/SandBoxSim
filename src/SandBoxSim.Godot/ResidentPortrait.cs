@@ -19,19 +19,19 @@ internal partial class ResidentPortrait : SubViewportContainer
     private float _yaw = -.28f, _distance = 1.7f;
     public override void _Ready()
     {
-        Stretch = true; CustomMinimumSize = Compact ? new Vector2(100, 132) : new Vector2(270, 196);
+        Stretch = true; CustomMinimumSize = Compact ? new Vector2(128, 176) : new Vector2(270, 196);
         TooltipText = "拖动旋转人物 · 滚轮查看细节";
         MouseFilter = MouseFilterEnum.Stop;
-        _viewport = new SubViewport { Size = Compact ? new Vector2I(200, 264) : new Vector2I(540, 392), OwnWorld3D = true,
+        _viewport = new SubViewport { Size = Compact ? new Vector2I(256, 352) : new Vector2I(540, 392), OwnWorld3D = true,
             RenderTargetUpdateMode = SubViewport.UpdateMode.WhenVisible, HandleInputLocally = false };
         AddChild(_viewport);
         _stage = new Node3D(); _viewport.AddChild(_stage);
         var environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color,
-            BackgroundColor = new Color("#24241f"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
-            AmbientLightColor = new Color("#becbbb"), AmbientLightEnergy = .35f };
+            BackgroundColor = new Color("#565c50"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
+            AmbientLightColor = new Color("#becbbb"), AmbientLightEnergy = .38f, TonemapMode = Godot.Environment.ToneMapper.Aces };
         _stage.AddChild(new WorldEnvironment { Environment = environment });
-        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-35, -35, 0), LightColor = new Color("#f0f3ed"), LightEnergy = 1.5f });
-        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-15, 145, 0), LightColor = new Color("#c9ccc0"), LightEnergy = 1.2f });
+        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-35, -35, 0), LightColor = new Color("#f0f3ed"), LightEnergy = .95f });
+        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-15, 145, 0), LightColor = new Color("#c9ccc0"), LightEnergy = .45f });
         _camera = new Camera3D { Current = true, Fov = 34 }; _stage.AddChild(_camera); Aim();
         var caption = HudStyle.Label(Compact ? "拖动旋转" : "拖动旋转  /  滚轮查看细节", 10);
         caption.AddThemeColorOverride("font_color", new Color("#b2aa97")); caption.MouseFilter = MouseFilterEnum.Ignore;
@@ -46,7 +46,7 @@ internal partial class ResidentPortrait : SubViewportContainer
     }
     private void Aim()
     {
-        var center = new Vector3(0, _child ? .74f : 1.12f, 0);
+        var center = new Vector3(0, _child ? .82f : 1.32f, 0);
         _camera.Position = center + new Vector3(0, .13f, -_distance);
         _camera.LookAt(center);
     }

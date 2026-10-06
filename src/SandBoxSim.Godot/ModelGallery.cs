@@ -14,7 +14,7 @@ internal partial class ModelGallery : PanelContainer
         OffsetLeft=20; OffsetRight=-20; OffsetTop=90; OffsetBottom=-110;
         AddThemeStyleboxOverride("panel",HudStyle.Box(new Color("#1b2521"),3,16));
         var body=new VBoxContainer(); body.AddThemeConstantOverride("separation",12); AddChild(body);
-        body.AddChild(HudStyle.Heading(Collection=="architecture" ? "木作与砌筑 · 实际建筑模型" : Collection=="characters" ? "人物与动物 · 实际角色模型" : "地表与植被 · 实际场景模型",22));
+        body.AddChild(HudStyle.Heading(Collection=="architecture" ? "木作与砌筑 · 实际建筑模型" : Collection is "characters" or "faces" ? Collection=="faces" ? "面部与衣领 · 实际人物模型" : "人物与动物 · 实际角色模型" : "地表与植被 · 实际场景模型",22));
         var grid=new GridContainer { Columns=3,SizeFlagsVertical=SizeFlags.ExpandFill };
         grid.AddThemeConstantOverride("h_separation",12); grid.AddThemeConstantOverride("v_separation",12); body.AddChild(grid);
         var models=new NatureModels();
@@ -23,6 +23,10 @@ internal partial class ModelGallery : PanelContainer
             string[] names={"原木屋 · 屋面与檐柱","灰泥屋 · 门窗与烟囱","石屋 · 基座与侧墙","高山墙屋 · 木架与砌筑","单坡屋 · 柱廊与木作"};
             for(uint i=0;i<5;i++) Card(grid,names[i],models.Building(BuildingKind.House,true,i),i==3 ? 4.5f : 3.8f,false);
             Card(grid,"仓库 · 木门、铁箍与物料",models.Building(BuildingKind.Storage,true,1),3.2f,false);
+        }
+        else if(Collection=="faces")
+        {
+            for(int i=0;i<6;i++)Face(grid,models.Resident(17+i,false,i%2==0 ? JobType.Gatherer : JobType.Farmer),"面部与衣领 · "+(i+1),i%2!=0);
         }
         else if(Collection=="characters")
         {
@@ -42,6 +46,16 @@ internal partial class ModelGallery : PanelContainer
             Card(grid,"遗迹 · 拱券与零散砌石",models.WildPlace(SandBoxSim.Core.Systems.WildPlaceKind.Ruins,1,true),5.6f,false);
             Card(grid,"古树林 · 根系与大树冠",models.WildPlace(SandBoxSim.Core.Systems.WildPlaceKind.OldGrove,1,true),9.6f,false);
         }
+    }
+    private static void Face(GridContainer grid,Node3D model,string title,bool hat)
+    {
+        Card(grid,title,model,.48f,true);
+        var card=grid.GetChild<VBoxContainer>(grid.GetChildCount()-1);
+        var view=card.GetChild<SubViewportContainer>(0).GetChild<SubViewport>(0);var stage=view.GetChild<Node3D>(0);
+        var camera=stage.GetChild<Camera3D>(stage.GetChildCount()-1);
+        model.Rotation=new Vector3(0,Mathf.Pi,0);
+        var target=((ResidentRig)model).Head.GlobalPosition;camera.Size=hat ? .64f : .46f;camera.Position=target+new Vector3(.03f,.02f,2);camera.LookAt(target);
+        view.RenderTargetUpdateMode=SubViewport.UpdateMode.Once;
     }
     private static void Card(GridContainer grid,string title,Node3D model,float size,bool animal)
     {

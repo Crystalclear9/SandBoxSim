@@ -11,7 +11,7 @@ internal sealed partial class NatureModels
         for(int i=0;i<24;i++)
         {
             float a=i*MathF.Tau/24;
-            Detail(rig.Torso,"sphere",new(MathF.Cos(a)*.231f,.625f,MathF.Sin(a)*.15f),new(.006f,.009f,.006f),"#b9b099");
+            Detail(rig.Torso,"sphere",new(MathF.Cos(a)*.201f,.625f,MathF.Sin(a)*.146f),new(.004f,.005f,.004f),cloth);
         }
         Detail(rig.Torso,"box",new(.021f,.737f,-.15f),new(.033f,.075f,.012f),"#514237");
         foreach(float side in new[]{-1f,1f})
@@ -28,9 +28,9 @@ internal sealed partial class NatureModels
             for(int i=0;i<16;i++)
             {
                 float a=i*MathF.Tau/16;
-                Detail(rig.Head,"capsule",new(MathF.Cos(a)*.16f,.135f,MathF.Sin(a)*.16f),new(.008f,.033f,.008f),"#816a43",new(0,0,MathF.PI/2));
+                Detail(rig.Head,"capsule",new(MathF.Cos(a)*.16f,.124f,MathF.Sin(a)*.16f),new(.008f,.033f,.008f),"#816a43",new(0,0,MathF.PI/2));
             }
-            Detail(rig.Head,"cylinder",new(0,.16f,0),new(.285f,.022f,.285f),"#75654f");
+            Detail(rig.Head,"cylinder",new(0,.139f,0),new(.226f,.018f,.226f),"#75654f");
         }
     }
 }
