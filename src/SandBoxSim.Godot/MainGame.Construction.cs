@@ -17,14 +17,23 @@ public partial class MainGame
     }
     private void BuildConstructionChoices(VBoxContainer parent)
     {
-        parent.AddChild(new HSeparator()); parent.AddChild(HudStyle.Label("聚落建造委托", 19));
-        var grid = new GridContainer { Columns = 2 }; parent.AddChild(grid);
+        parent.AddChild(new HSeparator()); parent.AddChild(HudStyle.Heading("聚落营造", 21));
+        var grid = new GridContainer { Columns = 2 }; grid.AddThemeConstantOverride("h_separation", 10); grid.AddThemeConstantOverride("v_separation", 10); parent.AddChild(grid);
         foreach (var kind in BuildingRegistry.Buildable)
         {
             var chosen = kind; var recipe = BuildingRegistry.Of(kind);
-            var button = ActionButton(grid, recipe.DisplayName + $"\n木 {recipe.WoodCost:0} · 石 {recipe.StoneCost:0}", () => PrepareConstruction(chosen));
-            button.CustomMinimumSize = new Vector2(132, 58);
-            button.AddThemeStyleboxOverride("normal", HudStyle.Box(HudStyle.Wash, 4, 10));
+            var button = ActionButton(grid, "", () => PrepareConstruction(chosen));
+            button.CustomMinimumSize = new Vector2(144, 151); button.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            button.TooltipText = recipe.DisplayName + " · 选择后单击地图安排工地";
+            button.AddThemeStyleboxOverride("normal", HudStyle.Box(new Color("#272a27"), 2, 8));
+            var content = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+            content.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+            content.OffsetLeft = content.OffsetTop = 8; content.OffsetRight = content.OffsetBottom = -8;
+            content.AddThemeConstantOverride("separation", 3); button.AddChild(content);
+            var portrait = new BuildingPortrait { Kind = kind }; content.AddChild(portrait);
+            button.MouseEntered += () => portrait.Highlighted = true; button.MouseExited += () => portrait.Highlighted = false;
+            var title = HudStyle.Heading(recipe.DisplayName, 17); title.HorizontalAlignment = HorizontalAlignment.Center; content.AddChild(title);
+            var cost = HudStyle.Label($"木 {recipe.WoodCost:0}   石 {recipe.StoneCost:0}", 11, true); cost.HorizontalAlignment = HorizontalAlignment.Center; content.AddChild(cost);
         }
         var note = HudStyle.Label("你决定落点，居民材料支付。\n八格内需要可达的成年居民；住房靠水，农田邻水，矿场依赖矿区。", 12, true);
         note.AutowrapMode = TextServer.AutowrapMode.WordSmart; parent.AddChild(note);
@@ -64,7 +73,7 @@ public partial class MainGame
     private void RefreshConstructionPreview()
     {
         var r = BuildingRegistry.Of(PlanningBuilding); _planTitle.Text = r.DisplayName + " · 建造委托";
-        _planDescription.Text = $"材料 木 {r.WoodCost:0} / 石 {r.StoneCost:0}\n使用附近居民背包、仓库与地面物资。材料不足时不会扣料或留下工地。\n\n八格内需有可达的成年居民。\n"
+        _planDescription.Text = $"木材 {r.WoodCost:0}    石料 {r.StoneCost:0}\n\n八格内需有可达的成年居民，使用背包、仓库与地面物资。\n"
             + (PlanningBuilding == BuildingKind.House ? "靠近水源，完成后提供真实床位。" : PlanningBuilding == BuildingKind.Storage ? "集中存放资源，为周边建造与交易提供库存。"
             : PlanningBuilding == BuildingKind.Farm ? "需要邻接水域；完工后仍需要农民劳动。" : "在允许的矿区落点；开采需要居民劳动。")
             + (Trial.Running ? "\n\n另消耗 15 点委托额度。" : "\n\n可连续安排多处落点，Esc 结束。") ;

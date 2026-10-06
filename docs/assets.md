@@ -8,11 +8,15 @@
 | `illustrations/` | 生态工程卡片插画 `ecology-projects-v1.png` |
 | `gameplay/` | 生态工程配方 `projects.json`，格式见 [生态工坊](ecology.md) |
 
-三张自然图集与工程插画由内置 ImageGen 根据下列提示生成；未采用外部素材站图片。自然图集请求尺寸 1024×1024，实际输出均为 1254×1254，使用 4×4 图集，区域坐标按实际尺寸计算。对象图集保留 RGBA 透明通道。3D 地面与模型材质使用 mipmap 降低远景闪烁；建筑、植被和部分环境细节由 `NatureModels.cs` 构造，HUD 符号由 `ToolGlyphs.cs` 的 SVG 路径生成。
+三张自然图集与工程插画由内置 ImageGen 根据下列提示生成；未采用外部素材站图片。自然图集请求尺寸 1024×1024，实际输出均为 1254×1254，使用 4×4 图集，区域坐标按实际尺寸计算。对象图集保留 RGBA 透明通道。3D 地面与模型材质使用 mipmap 降低远景闪烁；建筑、植被和部分环境细节由 `NatureModels.cs` 构造，干预工具符号由 `ToolGlyphs.cs` 生成；概览、操作与盾形标记由 `HudSymbols.cs` 的原创 SVG 路径生成。
 
 PNG 的 `.import` 文件与资源一起存放，Godot 的生成缓存位于忽略提交的 `.godot/`。修改资源位置时，需要同步源码中的 `res://` 路径和导入设置。
 
-界面皮革底纹复用材质图集，`HudStyle.cs` 的 Canvas 着色器降低纹理对比，`HudBevel.cs` 绘制暗金边线与微弱高光。面板、按钮与图标沿用项目自己的资源，界面布局参考见 [观察与界面](gameplay-observation.md)。
+界面皮革底纹复用材质图集，`HudStyle.cs` 的 Canvas 着色器降低纹理对比，`HudBevel.cs` 绘制双层细线、旧铜边角与微弱高光。面板、按钮与图标沿用项目自己的资源，界面布局参考见 [观察与界面](gameplay-observation.md)。
+
+## 建筑展示
+
+`BuildingPortrait.cs` 在透明背景的独立 SubViewport 中渲染 `NatureModels.Buildings.cs` 的真实模型。图册卡片与地图共用建筑生成规则，悬停转向与材料显示分别由表现层和建造配方提供。展示模型不进入模拟世界；住房卡片代表一种变体。静止后缓存画面，避免持续绘制每张图册。
 
 ## 3D 居民
 

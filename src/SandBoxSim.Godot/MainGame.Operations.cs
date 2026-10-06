@@ -14,6 +14,7 @@ public partial class MainGame
     private Godot.Button _pinButton = null!, _pulseButton = null!, _libraryTab = null!, _managementTab = null!;
     private LineEdit _residentName = null!;
     private TextureRect _planArt = null!;
+    private BuildingPortrait _planBuilding = null!;
     private VBoxContainer _projectLibrary = null!, _projectManagement = null!;
     private VBoxContainer _constructionPanel = null!;
     private Godot.Button _constructionTab = null!;
@@ -38,7 +39,7 @@ public partial class MainGame
     {
         _pulseButton = new Godot.Button { Text = "现场 · 走进世界 →", Alignment = HorizontalAlignment.Left };
         HudStyle.Button(_pulseButton); _pulseButton.AddThemeStyleboxOverride("normal", HudStyle.Box(HudStyle.Surface, 3, 14));
-        HudStyle.Float(_pulseButton, new Vector2(1, 0), new Vector2(-372, 104), new Vector2(348, 48)); overlay.AddChild(_pulseButton);
+        HudStyle.Float(_pulseButton, new Vector2(1, 0), new Vector2(-372, 92), new Vector2(348, 48)); overlay.AddChild(_pulseButton);
         _pulseButton.Pressed += () => { ShowJournal(true); _drawer.CurrentTab = 0; };
     }
     private void RenameResident()
@@ -85,8 +86,8 @@ public partial class MainGame
     {
         var scroll = new ScrollContainer { Name = "工程", SizeFlagsVertical = SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; _drawer.AddChild(scroll);
         var body = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; body.AddThemeConstantOverride("separation", 12); scroll.AddChild(body);
-        body.AddChild(HudStyle.Label("LANDSCAPE  /  生态工坊", 10, true));
-        body.AddChild(HudStyle.Label("经营这片土地", 25));
+
+        body.AddChild(HudStyle.Heading("土地与营造", 25));
         _projectBudget = HudStyle.Label("", 12, true); _projectBudget.AutowrapMode = TextServer.AutowrapMode.WordSmart; body.AddChild(_projectBudget);
         var tabs = new HBoxContainer(); body.AddChild(tabs);
         _libraryTab = ActionButton(tabs, "工程图册", () => SwitchProjectView(false)); _libraryTab.ToggleMode = true;
@@ -148,6 +149,7 @@ public partial class MainGame
         var body = new VBoxContainer(); body.AddThemeConstantOverride("separation", 10); _planPanel.AddChild(body);
         _planArt = new TextureRect { ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
             CustomMinimumSize = new Vector2(0, 128) }; body.AddChild(_planArt);
+        _planBuilding = new BuildingPortrait { Kind = BuildingKind.House, CustomMinimumSize = new Vector2(0, 116), Visible = false, Highlighted = true }; body.AddChild(_planBuilding);
         _planTitle = HudStyle.Label("", 24); body.AddChild(_planTitle);
         _planDescription = HudStyle.Label("", 13, true); _planDescription.AutowrapMode = TextServer.AutowrapMode.WordSmart; body.AddChild(_planDescription);
         var scope = new HBoxContainer(); body.AddChild(scope);
@@ -197,8 +199,10 @@ public partial class MainGame
         if (_planPanel != null)
         {
             _planPanel.Visible = (PlanningKind >= 0 || PlanningBuilding != BuildingKind.None || _planningBlueprint >= 0) && !_settingsOpen;
-            _planPanel.OffsetBottom = _planPanel.OffsetTop + (PlanningKind >= 0 ? 425 : 320);
+            _planPanel.OffsetBottom = _planPanel.OffsetTop + (PlanningKind >= 0 ? 425 : PlanningBuilding != BuildingKind.None ? 410 : 320);
             _planArt.Visible = PlanningBuilding == BuildingKind.None && _planningBlueprint < 0;
+            _planBuilding.Visible = PlanningBuilding != BuildingKind.None;
+            if (_planBuilding.Visible) { _planBuilding.Kind = PlanningBuilding; }
             foreach (var pair in _scopeButtons) { pair.Value.Visible = PlanningBuilding == BuildingKind.None && _planningBlueprint < 0; }
             if (PlanningBuilding != BuildingKind.None) { RefreshConstructionPreview(); }
             if (_planningBlueprint >= 0)

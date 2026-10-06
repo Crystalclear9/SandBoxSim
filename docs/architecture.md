@@ -32,6 +32,7 @@ Core 中 `Foundation` 提供配置、数学、随机数和基础数据；`World`
 | `MainGame.Interface.cs` | 主界面、布局和人物信息 |
 | `HudStyle.cs` / `HudBevel.cs` | 材质、配色、描边和交互样式 |
 | `ResidentPortrait.cs` | 独立 3D 肖像与旋转、缩放输入 |
+| `BuildingPortrait.cs`、`HudSymbols.cs` | 独立建筑展示、悬停转向与概览/操作符号；静止预览缓存 |
 | `MainGame.Operations.cs` / `MainGame.LandCards.cs` | 工程图册、落点与持续管理 |
 | `MainGame.Construction.cs` | 建造委托、聚落蓝图与进度 |
 | `WorldView3D*.cs` | 镜头、地形、实体、天气与风险表现 |

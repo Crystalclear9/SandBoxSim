@@ -5,12 +5,12 @@ namespace SandBoxSim.Client;
 /// <summary>One HUD palette and spacing scale. Floating surfaces communicate depth without framing the whole world.</summary>
 internal static class HudStyle
 {
-    public static readonly Color Ink = new("#211f19"), Surface = new(.095f, .092f, .08f, .97f), Text = new("#e6e0d1"),
-        Muted = new("#b2aa97"), Accent = new("#bda572"), Border = new("#655b43"), Wash = new("#353226");
+    public static readonly Color Ink = new("#1b201f"), Surface = new(.075f, .092f, .09f, .97f), Text = new("#e9e3d6"),
+        Muted = new("#a6aaa1"), Accent = new("#c4ad78"), Border = new("#52564b"), Wash = new("#30382f");
     private static Texture2D? _leather;
     private static ShaderMaterial? _frameMaterial;
     public static ShaderMaterial FrameMaterial => _frameMaterial ??= new ShaderMaterial { Shader = new Shader { Code =
-        "shader_type canvas_item; void fragment(){ vec4 c = texture(TEXTURE,UV)*COLOR; COLOR=vec4(mix(vec3(.080,.077,.065), c.rgb, .16),c.a); }" } };
+        "shader_type canvas_item; void fragment(){ vec4 c = texture(TEXTURE,UV)*COLOR; vec3 base=mix(vec3(.062,.077,.075),vec3(.115,.132,.123),1.0-UV.y); COLOR=vec4(base+c.rgb*.08,c.a); }" } };
     public static StyleBox Frame(int padding)
     {
         if (_leather == null)

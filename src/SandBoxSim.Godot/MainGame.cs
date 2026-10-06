@@ -206,7 +206,7 @@ public partial class MainGame : Control
         }
         Theme.SetColor("font_color", "LineEdit", HudStyle.Text);
         Theme.SetColor("font_placeholder_color", "LineEdit", HudStyle.Muted);
-        Theme.SetColor("caret_color", "LineEdit", HudStyle.Ink);
+        Theme.SetColor("caret_color", "LineEdit", HudStyle.Text);
         Theme.SetStylebox("panel", "PopupMenu", HudStyle.Box(HudStyle.Surface, 4, 12));
         Theme.SetColor("font_color", "PopupMenu", HudStyle.Text);
         Theme.SetColor("font_hover_color", "PopupMenu", HudStyle.Surface);
@@ -235,7 +235,7 @@ public partial class MainGame : Control
         Theme.SetColor("default_color", "RichTextLabel", HudStyle.Text);
         Theme.SetColor("font_color", "TooltipLabel", HudStyle.Text);
         Theme.SetStylebox("panel", "TooltipPanel", HudStyle.Box(HudStyle.Surface, 8, 12));
-        Theme.SetStylebox("grabber", "VScrollBar", HudStyle.Box(new Color(.48f, .59f, .49f, .5f), 3, 3, false));
+        Theme.SetStylebox("grabber", "VScrollBar", HudStyle.Box(new Color(HudStyle.Muted, .35f), 3, 3, false));
         Theme.SetStylebox("grabber_highlight", "VScrollBar", HudStyle.Box(HudStyle.Accent, 3, 3, false));
     }
     private static RichTextLabel TextPanel(string name) => new() { Name = name, BbcodeEnabled = true,

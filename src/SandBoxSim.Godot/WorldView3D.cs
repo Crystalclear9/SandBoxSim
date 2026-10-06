@@ -442,7 +442,7 @@ vec3 surface_at(vec2 tile, vec2 pattern){
     float index = floor(texture(material_map,(clamp(tile,vec2(0.0),map_size-vec2(1.0))+vec2(.5))/map_size).r*15.0+.5);
     vec2 cell = vec2(mod(index,4.0),floor(index/4.0));
     vec2 uv = (cell+mix(vec2(.03),vec2(.97),pattern))/4.0;
-    return mix(texture(atlas,uv).rgb,texture(atlas,uv,3.0).rgb,.25);
+    return mix(texture(atlas,uv,1.0).rgb,texture(atlas,uv,4.0).rgb,.55);
 }
 void fragment(){
     vec2 grid=world_position.xz*.5-vec2(.5);
@@ -452,7 +452,8 @@ void fragment(){
     vec3 a=mix(surface_at(origin,pattern),surface_at(origin+vec2(1.0,0.0),pattern),blend.x);
     vec3 b=mix(surface_at(origin+vec2(0.0,1.0),pattern),surface_at(origin+vec2(1.0),pattern),blend.x);
     vec3 c=mix(a,b,blend.y); float lum=dot(c,vec3(.2126,.7152,.0722));
-    ALBEDO=mix(vec3(lum),c,.55)*COLOR.rgb*vec3(.90,.96,1.02)*.90; ROUGHNESS=1.0;
+    float broad=sin(world_position.x*.041+cos(world_position.z*.029))*cos(world_position.z*.053)*.055;
+    ALBEDO=mix(vec3(lum),c,.42)*COLOR.rgb*vec3(.88,.92,.89)*(.88+broad); ROUGHNESS=1.0;
 }" };
         var material = new ShaderMaterial { Shader = groundShader };
         material.SetShaderParameter("material_map", ImageTexture.CreateFromImage(materialMap));
@@ -463,7 +464,7 @@ void fragment(){
         {
             var wa = new Godot.Collections.Array(); wa.Resize((int)Mesh.ArrayType.Max); wa[(int)Mesh.ArrayType.Vertex] = waterV.ToArray(); wa[(int)Mesh.ArrayType.Index] = waterI.ToArray();
             var wm = new ArrayMesh(); wm.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, wa);
-            var shader = new Shader { Code = "shader_type spatial; render_mode cull_disabled; uniform sampler2D atlas : source_color, filter_linear_mipmap; varying vec3 p; void vertex(){ p = VERTEX; VERTEX.y += sin(VERTEX.x*1.6+TIME*.7)*.025 + cos(VERTEX.z*1.3+TIME*.9)*.02; NORMAL=vec3(0.0,1.0,0.0); } void fragment(){ float ripple = sin(p.x*2.4+TIME)*cos(p.z*1.8-TIME*.5); vec2 uv=(vec2(2.0,0.0)+clamp(fract(p.xz*.18+vec2(TIME*.003,0.0)),vec2(.02),vec2(.98)))/4.0; ALBEDO = mix(vec3(.07,.24,.23),texture(atlas,uv).rgb,.4); METALLIC=.08; ROUGHNESS=.32; NORMAL = normalize(NORMAL+vec3(ripple*.08,0.0,sin(p.z*3.0+TIME)*.06)); }" };
+            var shader = new Shader { Code = "shader_type spatial; render_mode cull_disabled; uniform sampler2D atlas : source_color, filter_linear_mipmap; varying vec3 p; void vertex(){ p = VERTEX; VERTEX.y += sin(VERTEX.x*1.6+TIME*.7)*.025 + cos(VERTEX.z*1.3+TIME*.9)*.02; NORMAL=vec3(0.0,1.0,0.0); } void fragment(){ float ripple = sin(p.x*2.4+TIME)*cos(p.z*1.8-TIME*.5); vec2 uv=(vec2(2.0,0.0)+clamp(fract(p.xz*.18+vec2(TIME*.003,0.0)),vec2(.02),vec2(.98)))/4.0; float fresnel=pow(1.0-clamp(dot(normalize(NORMAL),normalize(VIEW)),0.0,1.0),3.0); float fine=sin(p.x*9.0+TIME*1.2)*cos(p.z*7.0-TIME*.8); ALBEDO = mix(vec3(.075,.135,.125),vec3(.21,.28,.27),fresnel*.55) + vec3(ripple*.008+fine*.003); METALLIC=.16; ROUGHNESS=.24; NORMAL = normalize(NORMAL+vec3(ripple*.08,0.0,sin(p.z*3.0+TIME)*.06)); }" };
             var waterMaterial = new ShaderMaterial { Shader = shader }; if (_terrainAtlas != null) { waterMaterial.SetShaderParameter("atlas", _terrainAtlas); }
             _terrainRoot.AddChild(new MeshInstance3D { Mesh = wm, MaterialOverride = waterMaterial, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         }
