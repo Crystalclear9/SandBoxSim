@@ -5,8 +5,24 @@ namespace SandBoxSim.Client;
 /// <summary>One HUD palette and spacing scale. Floating surfaces communicate depth without framing the whole world.</summary>
 internal static class HudStyle
 {
-    public static readonly Color Ink = new("#15242c"), Surface = new(.065f, .105f, .135f, .965f), Text = new("#edf3f2"),
-        Muted = new("#9cb0b7"), Accent = new("#a1d2cd"), Border = new("#344d59"), Wash = new("#243b47");
+    public static readonly Color Ink = new("#211f19"), Surface = new(.095f, .092f, .08f, .97f), Text = new("#e6e0d1"),
+        Muted = new("#b2aa97"), Accent = new("#bda572"), Border = new("#655b43"), Wash = new("#353226");
+    private static Texture2D? _leather;
+    private static ShaderMaterial? _frameMaterial;
+    public static ShaderMaterial FrameMaterial => _frameMaterial ??= new ShaderMaterial { Shader = new Shader { Code =
+        "shader_type canvas_item; void fragment(){ vec4 c = texture(TEXTURE,UV)*COLOR; COLOR=vec4(mix(vec3(.080,.077,.065), c.rgb, .16),c.a); }" } };
+    public static StyleBox Frame(int padding)
+    {
+        if (_leather == null)
+        {
+            var atlas = GD.Load<Texture2D>("res://assets/textures/natural-materials.png");
+            float cell = atlas.GetWidth() / 4f;
+            _leather = new AtlasTexture { Atlas = atlas, Region = new Rect2(cell * 2, cell * 2, cell, cell) };
+        }
+        return new StyleBoxTexture { Texture = _leather, ModulateColor = new Color(.26f, .25f, .23f, .98f),
+            TextureMarginLeft = 8, TextureMarginRight = 8, TextureMarginTop = 8, TextureMarginBottom = 8,
+            ContentMarginLeft = padding, ContentMarginRight = padding, ContentMarginTop = padding, ContentMarginBottom = padding };
+    }
     private static readonly SystemFont DisplayFont = new() { FontNames = new[] { "Noto Serif CJK SC", "SimSun", "Songti SC", "serif" } };
     public static Label Heading(string text, int size)
     { var label = Label(text, size); label.AddThemeFontOverride("font", DisplayFont); return label; }
@@ -32,7 +48,9 @@ internal static class HudStyle
         button.AddThemeColorOverride("icon_pressed_color", Ink);
         button.AddThemeStyleboxOverride("normal", Box(prominent ? Accent : new Color(0, 0, 0, 0), 6, 9, false));
         button.AddThemeStyleboxOverride("hover", Box(prominent ? Accent.Lightened(.08f) : Wash, 6, 9, false));
-        button.AddThemeStyleboxOverride("pressed", Box(Accent, 6, 9, false));
+        var pressed = Box(Wash, 2, 9, false); pressed.BorderWidthBottom = 2; pressed.BorderColor = Accent;
+        button.AddThemeStyleboxOverride("pressed", pressed);
+        button.AddThemeColorOverride("font_pressed_color", Accent); button.AddThemeColorOverride("icon_pressed_color", Accent);
         var focus = Box(new Color(0, 0, 0, 0), 4, 2); focus.BorderColor = Accent; button.AddThemeStyleboxOverride("focus", focus);
         Tween? feedback = null;
         void Feedback(float value) { if (!button.IsInsideTree()) { return; } feedback?.Kill(); feedback = button.CreateTween(); feedback.TweenProperty(button, "modulate", new Color(value, value, value), .12).SetTrans(Tween.TransitionType.Sine); }
@@ -57,8 +75,8 @@ internal static class HudStyle
     {
         var image = new Image();
         string shape = selected
-            ? "<rect x='1' y='1' width='16' height='16' rx='3' fill='#a1d2cd'/><path d='M5 9l3 3 5-6' fill='none' stroke='#f5f0e4' stroke-width='2'/>"
-            : "<rect x='1' y='1' width='16' height='16' rx='3' fill='none' stroke='#9cb0b7' stroke-width='1.5'/>";
+            ? "<rect x='1' y='1' width='16' height='16' rx='3' fill='#bda572'/><path d='M5 9l3 3 5-6' fill='none' stroke='#211f19' stroke-width='2'/>"
+            : "<rect x='1' y='1' width='16' height='16' rx='3' fill='none' stroke='#b2aa97' stroke-width='1.5'/>";
         image.LoadSvgFromString("<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18'>" + shape + "</svg>");
         return ImageTexture.CreateFromImage(image);
     }

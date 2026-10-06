@@ -12,6 +12,8 @@
 
 PNG 的 `.import` 文件与资源一起存放，Godot 的生成缓存位于忽略提交的 `.godot/`。修改资源位置时，需要同步源码中的 `res://` 路径和导入设置。
 
+界面皮革底纹复用材质图集，`HudStyle.cs` 的 Canvas 着色器降低纹理对比，`HudBevel.cs` 绘制暗金边线与微弱高光。面板、按钮与图标沿用项目自己的资源，界面布局参考见 [观察与界面](gameplay-observation.md)。
+
 ## 3D 居民
 
 `NatureModels.Residents.cs` 构造服装截面网格、面部、腰带、鞋靴与职业配件；不以旧对象图集的居民格替代 3D 人物。`ResidentRig.cs` 提供肩肘、髋膝和躯干姿态，`ResidentPortrait.cs` 提供独立展示镜头与交互。布料和肤色材质共享，静态部件按材质合并并缓存，活动关节保留独立节点。

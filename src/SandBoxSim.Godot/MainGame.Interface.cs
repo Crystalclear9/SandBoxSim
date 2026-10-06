@@ -17,7 +17,10 @@ public partial class MainGame
     private bool _settingsOpen;
     private OptionButton _scenarioPicker = null!;
     private Godot.Button _settingsButton = null!, _journalButton = null!;
-    private VBoxContainer _paletteRow = null!;
+    private HBoxContainer _paletteRow = null!;
+    private PanelContainer _commandPanel = null!;
+    private Godot.Button _toolsMenuButton = null!;
+    private Label _foodLabel = null!, _woodLabel = null!, _stoneLabel = null!;
     private readonly Dictionary<PlayerTool, Godot.Button> _toolButtons = new();
     private readonly Dictionary<int, Godot.Button> _speedButtons = new();
     private readonly Dictionary<string, Godot.Button> _categoryButtons = new();
@@ -59,7 +62,7 @@ public partial class MainGame
             if (hidden) { continue; }
             string escaped = EscapeMarkup(line);
             if (first && line.Length > 0) { result.AppendLine("[font_size=23][b]" + escaped + "[/b][/font_size]"); first = false; }
-            else if (section) { result.AppendLine("[color=#a1d2cd][b]" + escaped + "[/b][/color]"); }
+            else if (section) { result.AppendLine("[color=#bda572][b]" + escaped + "[/b][/color]"); }
             else { result.AppendLine(escaped); }
         }
         return result.ToString();
@@ -72,7 +75,7 @@ public partial class MainGame
         var overlay = new Control { MouseFilter = MouseFilterEnum.Ignore }; overlay.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(overlay);
         var header = Surface(overlay, Vector2.Zero, new Vector2(16, 16), new Vector2(1264, 72), 0);
         header.AnchorRight = 1; header.OffsetRight = -16;
-        header.Visible = false;
+        header.Visible = true;
         var worldCard = Surface(overlay, new Vector2(0, 0), new Vector2(28, 20), new Vector2(270, 64), 12);
         ClearSurface(worldCard);
         var worldRow = new HBoxContainer(); worldRow.AddThemeConstantOverride("separation", 18); worldCard.AddChild(worldRow);
@@ -83,11 +86,13 @@ public partial class MainGame
         foreach (string name in SandboxScenarios.Names) { scenario.AddItem(name); } worldInfo.AddChild(scenario);
         scenario.ItemSelected += index => { Scenario = (int)index; NewWorld((int)_seed.Value); _map.Focus(43, 50, 16); _checkpoint = ""; _discovery.Refresh(); };
 
-        var stats = Surface(overlay, new Vector2(.5f, 0), new Vector2(-207, 20), new Vector2(414, 64), 10);
+        var stats = Surface(overlay, new Vector2(.5f, 0), new Vector2(-310, 20), new Vector2(620, 64), 10);
         ClearSurface(stats);
-        var statsRow = new HBoxContainer(); statsRow.AddThemeConstantOverride("separation", 26); stats.AddChild(statsRow);
-        _dayLabel = Metric(statsRow, "时光", "第 1 天", 22);
-        _populationLabel = Metric(statsRow, "居民", "40", 24); _settlementLabel = Metric(statsRow, "聚落", "0", 24); _buildingLabel = Metric(statsRow, "建筑", "0", 24);
+        var statsRow = new HBoxContainer(); statsRow.AddThemeConstantOverride("separation", 18); stats.AddChild(statsRow);
+        _populationLabel = Metric(statsRow, "居民", "40", 20); _settlementLabel = Metric(statsRow, "聚落", "0", 20); _buildingLabel = Metric(statsRow, "建筑", "0", 20);
+        _foodLabel = Metric(statsRow, "食物储备", "0", 20); _woodLabel = Metric(statsRow, "木材储备", "0", 20); _stoneLabel = Metric(statsRow, "石料储备", "0", 20);
+        foreach (var resource in new[] { _foodLabel, _woodLabel, _stoneLabel })
+            resource.TooltipText = "居民携带 + 地面物资堆 + 仓库；不包含尚未采集的地表资源，也不保证所有居民都可到达。";
         _summary = new Label { Visible = false }; overlay.AddChild(_summary);
         var topActions = Surface(overlay, new Vector2(1, 0), new Vector2(-238, 28), new Vector2(210, 48), 4);
         ClearSurface(topActions);
@@ -95,11 +100,10 @@ public partial class MainGame
         _settingsButton = ActionButton(actions, "世界设置", () => ShowSettings(!_settingsOpen)); _settingsButton.ToggleMode = true;
         _journalButton = ActionButton(actions, "世界手记", () => ShowJournal(!_journalPanel.Visible)); _journalButton.ToggleMode = true;
 
-        _journalPanel = Surface(overlay, new Vector2(1, 0), new Vector2(-404, 104), new Vector2(380, 664), 18);
+        _journalPanel = Surface(overlay, new Vector2(1, 0), new Vector2(-372, 104), new Vector2(348, 580), 18);
         var journal = new VBoxContainer(); journal.AddThemeConstantOverride("separation", 12); _journalPanel.AddChild(journal);
-        journal.AddChild(HudStyle.Label("世界观察  /  FIELD NOTES", 10, true));
         var journalHeader = new HBoxContainer(); journal.AddChild(journalHeader);
-        var journalTitle = HudStyle.Label("世界手记", 23); journalTitle.SizeFlagsHorizontal = SizeFlags.ExpandFill; journalHeader.AddChild(journalTitle);
+        var journalTitle = HudStyle.Heading("世界手记", 22); journalTitle.SizeFlagsHorizontal = SizeFlags.ExpandFill; journalHeader.AddChild(journalTitle);
         ActionButton(journalHeader, "关闭 ×", () => ShowJournal(false));
         _drawer = new TabContainer { SizeFlagsVertical = SizeFlags.ExpandFill }; journal.AddChild(_drawer);
         _drawer.AddThemeStyleboxOverride("panel", HudStyle.Box(new Color(0, 0, 0, 0), 0, 0, false));
@@ -117,14 +121,14 @@ public partial class MainGame
         BuildTrialPanel();
         BuildProjectPanel();
 
-        _brushPanel = Surface(overlay, new Vector2(0, 0), new Vector2(224, 104), new Vector2(245, 230), 18);
+        _brushPanel = Surface(overlay, new Vector2(0, 0), new Vector2(24, 104), new Vector2(245, 230), 18);
         var brush = new VBoxContainer(); brush.AddThemeConstantOverride("separation", 10); _brushPanel.AddChild(brush);
         _brushTitle = HudStyle.Label("自由观察", 21); brush.AddChild(_brushTitle);
         _brushHint = HudStyle.Label("靠近一个人，看看他为什么\n做出自己的选择。", 14, true); _brushHint.AutowrapMode = TextServer.AutowrapMode.WordSmart; brush.AddChild(_brushHint);
         _radius = Spin(brush, "作用范围", 0, 20, 2); _strength = Spin(brush, "数量 / 强度", 1, 100, 10);
         _brushPanel.Visible = false;
 
-        _settingsPanel = Surface(overlay, new Vector2(0, 0), new Vector2(224, 104), new Vector2(300, 640), 18); _settingsPanel.Visible = false;
+        _settingsPanel = Surface(overlay, new Vector2(0, 0), new Vector2(24, 104), new Vector2(300, 640), 18); _settingsPanel.Visible = false;
         var settings = new VBoxContainer(); settings.AddThemeConstantOverride("separation", 16); _settingsPanel.AddChild(settings);
         var settingsHead = new HBoxContainer(); settings.AddChild(settingsHead); var settingsTitle = HudStyle.Label("世界设置", 21); settingsTitle.SizeFlagsHorizontal = SizeFlags.ExpandFill; settingsHead.AddChild(settingsTitle);
         ActionButton(settingsHead, "收起", () => ShowSettings(false));
@@ -152,20 +156,28 @@ public partial class MainGame
         ActionButton(tools, "记录实验起点", () => { _checkpoint = EncodeClientWorld(); _experimentLabel = $"第 {Sim.World.Calendar.Day} 天 · {Sim.Agents.LiveCount} 人"; _status.Text = "已记录 " + _experimentLabel; });
         ActionButton(tools, "回到实验起点", RestoreCheckpoint);
 
-        var footer = Surface(overlay, new Vector2(0, 1), new Vector2(16, -144), new Vector2(1264, 128), 0);
+        var footer = Surface(overlay, new Vector2(0, 1), new Vector2(16, -100), new Vector2(1264, 84), 0);
         footer.AnchorRight = 1; footer.OffsetRight = -16;
-        footer.Visible = false;
-        var dock = Surface(overlay, new Vector2(0, .5f), new Vector2(24, -205), new Vector2(176, 410), 6); _dockPanel = dock;
-        ClearSurface(dock);
+        footer.Visible = true;
+        var dock = Surface(overlay, new Vector2(.5f, 1), new Vector2(-250, -252), new Vector2(500, 160), 6); _dockPanel = dock;
         var dockContents = new VBoxContainer(); dockContents.AddThemeConstantOverride("separation", 4); dock.AddChild(dockContents);
-        var categories = new GridContainer { Columns = 3 }; categories.AddThemeConstantOverride("h_separation", 2); categories.AddThemeConstantOverride("v_separation", 2); dockContents.AddChild(categories);
+        var categories = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center }; categories.AddThemeConstantOverride("separation", 6); dockContents.AddChild(categories);
         foreach (string category in new[] { "生命", "地貌", "资源", "灾害", "祝福" })
         { string chosen = category; var button = ActionButton(categories, category, () => SetCategory(chosen)); button.ToggleMode = true; _categoryButtons[category] = button; }
-        _paletteRow = new VBoxContainer { Alignment = BoxContainer.AlignmentMode.Center }; _paletteRow.AddThemeConstantOverride("separation", 6); dockContents.AddChild(_paletteRow); SetCategory("生命");
+        _paletteRow = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center }; _paletteRow.AddThemeConstantOverride("separation", 6); dockContents.AddChild(_paletteRow); SetCategory("生命");
+        _dockPanel.Visible = false;
+        _commandPanel = Surface(overlay, new Vector2(.5f, 1), new Vector2(-250, -88), new Vector2(500, 56), 4);
+        ClearSurface(_commandPanel);
+        var commands = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center }; commands.AddThemeConstantOverride("separation", 12); _commandPanel.AddChild(commands);
+        ActionButton(commands, "观察", () => { SelectTool(PlayerTool.Inspect); ShowTools(false); });
+        _toolsMenuButton = ActionButton(commands, "创造", () => ShowTools(!_dockPanel.Visible)); _toolsMenuButton.ToggleMode = true;
+        ActionButton(commands, "营造", () => { ShowTools(false); OpenConstruction(); });
+        ActionButton(commands, "生态", () => { ShowTools(false); OpenProjects(); });
+        ActionButton(commands, "手记", () => ShowJournal(!_journalPanel.Visible));
 
         var timePanel = Surface(overlay, new Vector2(0, 1), new Vector2(24, -90), new Vector2(320, 68), 8); _timePanel = timePanel;
         ClearSurface(timePanel);
-        var timeBox = new VBoxContainer(); timeBox.AddThemeConstantOverride("separation", 4); timePanel.AddChild(timeBox); timeBox.AddChild(HudStyle.Label("时间流速", 11, true));
+        var timeBox = new VBoxContainer(); timeBox.AddThemeConstantOverride("separation", 4); timePanel.AddChild(timeBox); _dayLabel = HudStyle.Label("第 1 天", 14); timeBox.AddChild(_dayLabel);
         var timeRow = new HBoxContainer(); timeBox.AddChild(timeRow);
         foreach (int speed in new[] { 0, 1, 4, 8, 16, 32 })
         { int chosen = speed; var button = ActionButton(timeRow, speed == 0 ? "暂停" : speed + "×", () => SetSpeed(chosen)); button.ToggleMode = true; _speedButtons[speed] = button; } SetSpeed(_speed);
@@ -195,9 +207,9 @@ public partial class MainGame
     {
         HudStyle.Float(_timePanel, new Vector2(0, 1), new Vector2(24, -90), new Vector2(320, 68));
         HudStyle.Float(_cameraPanel, new Vector2(1, 1), new Vector2(-320, -90), new Vector2(296, 68));
-        _journalPanel.OffsetBottom = size.Y - 116;
-        _settingsPanel.OffsetBottom = Math.Min(size.Y - 116, 744);
-        _toolBadge.OffsetTop = -66; _toolBadge.OffsetBottom = -40;
+        _journalPanel.OffsetBottom = 104 + Math.Min(580, size.Y - 250);
+        _settingsPanel.OffsetBottom = Math.Min(size.Y - 280, 744);
+        _toolBadge.OffsetTop = -126; _toolBadge.OffsetBottom = -100;
     }
     private void ValidateHudLayout()
     {
@@ -213,7 +225,7 @@ public partial class MainGame
                 if (dock.Intersects(time) || dock.Intersects(camera) || time.Intersects(camera)) { throw new InvalidOperationException("HUD controls overlap at " + size); }
                 foreach (var auxiliary in new[] { _brushPanel, _settingsPanel, _planPanel })
                     if (Bounds(auxiliary).Intersects(dock)) { throw new InvalidOperationException("Tool rail obscures an auxiliary panel at " + size); }
-                foreach (var panel in new[] { _dockPanel, _timePanel, _cameraPanel, _journalPanel, _settingsPanel })
+                foreach (var panel in new[] { _dockPanel, _commandPanel, _timePanel, _cameraPanel, _journalPanel, _settingsPanel })
                 {
                     Rect2 bounds = Bounds(panel);
                     if (bounds.Position.X < 0 || bounds.Position.Y < 0 || bounds.End.X > size.X || bounds.End.Y > size.Y)
@@ -225,19 +237,20 @@ public partial class MainGame
     }
     private static PanelContainer Surface(Control parent, Vector2 anchor, Vector2 offset, Vector2 size, int padding = 16)
     {
-        var panel = new PanelContainer(); panel.AddThemeStyleboxOverride("panel", HudStyle.Box(HudStyle.Surface, 3, padding)); HudStyle.Float(panel, anchor, offset, size); parent.AddChild(panel); return panel;
+        var panel = new PanelContainer { Material = HudStyle.FrameMaterial }; panel.AddThemeStyleboxOverride("panel", HudStyle.Frame(padding));
+        HudStyle.Float(panel, anchor, offset, size); parent.AddChild(panel); panel.AddChild(new HudBevel { Margin = padding }); return panel;
     }
     private static void ClearSurface(PanelContainer panel)
-    {
-        var box = HudStyle.Box(HudStyle.Surface, 3, 8, false);
-        box.BorderWidthBottom = 1; box.BorderColor = new Color(HudStyle.Accent, .35f); panel.AddThemeStyleboxOverride("panel", box);
-    }
+    { panel.AddThemeStyleboxOverride("panel", HudStyle.Box(new Color(0, 0, 0, 0), 0, 8, false)); panel.GetChild<HudBevel>(0).Visible = false; }
     private void BuildResidentVitals(VBoxContainer parent)
     {
         _residentVitals = new VBoxContainer { Visible = false }; _residentVitals.AddThemeConstantOverride("separation", 8); parent.AddChild(_residentVitals);
         _residentTitle = HudStyle.Heading("", 28); _residentSubtitle = HudStyle.Label("", 12, true);
-        _residentPortrait = new ResidentPortrait(); _residentVitals.AddChild(_residentPortrait);
-        _residentVitals.AddChild(_residentTitle); _residentVitals.AddChild(_residentSubtitle);
+        var identity = new HBoxContainer(); identity.AddThemeConstantOverride("separation", 12); _residentVitals.AddChild(identity);
+        _residentPortrait = new ResidentPortrait { Compact = true }; identity.AddChild(_residentPortrait);
+        var bio = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; bio.AddThemeConstantOverride("separation", 10); identity.AddChild(bio);
+        bio.AddChild(HudStyle.Label("居民档案", 11, true)); bio.AddChild(_residentTitle); bio.AddChild(_residentSubtitle);
+        _residentTitle.AutowrapMode = TextServer.AutowrapMode.WordSmart; _residentSubtitle.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         var grid = new GridContainer { Columns = 2 }; grid.AddThemeConstantOverride("h_separation", 12); grid.AddThemeConstantOverride("v_separation", 8); _residentVitals.AddChild(grid);
         for (int i = 0; i < 4; i++)
         {
@@ -277,6 +290,8 @@ public partial class MainGame
     private static Godot.Button ActionButton(Container parent, string label, Action action)
     { var button = new Godot.Button { Text = label }; HudStyle.Button(button); parent.AddChild(button); button.Pressed += action; return button; }
     private void SetSpeed(int speed) { _speed = speed; foreach (var pair in _speedButtons) { pair.Value.SetPressedNoSignal(pair.Key == speed); } }
+    private void ShowTools(bool visible)
+    { _dockPanel.Visible = visible; _toolsMenuButton.SetPressedNoSignal(visible); _toolBadge.Visible = !visible; if (visible) { FadeIn(_dockPanel); } }
     private void ShowJournal(bool visible) { _journalPanel.Visible = visible; _journalButton.SetPressedNoSignal(visible); if (_pulseButton != null) { _pulseButton.Visible = !visible; } if (visible) { FadeIn(_journalPanel); } }
     private void ShowSettings(bool visible)
     { _settingsOpen = visible; _settingsButton.SetPressedNoSignal(visible); _settingsPanel.Visible = visible; _brushPanel.Visible = !visible && Tool != PlayerTool.Inspect; if (visible) { FadeIn(_settingsPanel); } }
@@ -300,17 +315,17 @@ public partial class MainGame
             "祝福" => new[] { PlayerTool.Heal, PlayerTool.Rain, PlayerTool.BirthBlessing, PlayerTool.Production, PlayerTool.Fertility },
             _ => new[] { PlayerTool.Inspect, PlayerTool.Human, PlayerTool.Animal, PlayerTool.Wolf, PlayerTool.Forest, PlayerTool.Food }
         };
-        _dockPanel.OffsetTop = -(tools.Length * 48 + 100) / 2f; _dockPanel.OffsetBottom = -_dockPanel.OffsetTop;
+
         foreach (PlayerTool tool in tools)
         {
-            var stack = new HBoxContainer(); stack.AddThemeConstantOverride("separation", 12); _paletteRow.AddChild(stack);
-            var button = new Godot.Button { CustomMinimumSize = new Vector2(42, 42), ExpandIcon = true, ToggleMode = true, TooltipText = ToolNames[(int)tool] };
+            var stack = new VBoxContainer(); stack.AddThemeConstantOverride("separation", 4); _paletteRow.AddChild(stack);
+            var button = new Godot.Button { CustomMinimumSize = new Vector2(54, 42), ExpandIcon = true, ToggleMode = true, TooltipText = ToolNames[(int)tool] };
             button.AddThemeConstantOverride("icon_max_width", 26);
             HudStyle.Button(button);
             button.Icon = ToolGlyphs.For(tool);
-            button.AddThemeColorOverride("icon_pressed_color", HudStyle.Ink);
+            button.AddThemeColorOverride("icon_pressed_color", HudStyle.Accent);
             var chosen = tool; button.Pressed += () => SelectTool(chosen); stack.AddChild(button);
-            var label = HudStyle.Label(ToolNames[(int)tool].Replace("创造", "").Replace("添加", "").Replace("生长", "").Replace(" / 选择", "").Replace("画笔", ""), 12, true); label.VerticalAlignment = VerticalAlignment.Center; stack.AddChild(label);
+            var label = HudStyle.Label(ToolNames[(int)tool].Replace("创造", "").Replace("添加", "").Replace("生长", "").Replace(" / 选择", "").Replace("画笔", ""), 12, true); label.HorizontalAlignment = HorizontalAlignment.Center; stack.AddChild(label);
             _toolButtons[tool] = button; button.SetPressedNoSignal(Tool == tool);
         }
     }
@@ -319,5 +334,6 @@ public partial class MainGame
         foreach (var pair in _toolButtons) { pair.Value.SetPressedNoSignal(pair.Key == Tool); }
         _brushTitle.Text = ToolNames[(int)Tool]; _brushHint.Text = hint;
         _brushPanel.Visible = Tool != PlayerTool.Inspect && !_settingsOpen;
+        if (Tool == PlayerTool.Inspect && _toolsMenuButton != null) { ShowTools(false); }
     }
 }

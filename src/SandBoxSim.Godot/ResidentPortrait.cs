@@ -7,6 +7,7 @@ namespace SandBoxSim.Client;
 /// <summary>Isolated studio viewport. Portrait interactions never reach the world camera.</summary>
 internal partial class ResidentPortrait : SubViewportContainer
 {
+    public bool Compact { get; set; }
     private readonly NatureModels _models = new();
     private SubViewport _viewport = null!;
     private Node3D _stage = null!;
@@ -18,22 +19,22 @@ internal partial class ResidentPortrait : SubViewportContainer
     private float _yaw = -.28f, _distance = 1.7f;
     public override void _Ready()
     {
-        Stretch = true; CustomMinimumSize = new Vector2(270, 196);
+        Stretch = true; CustomMinimumSize = Compact ? new Vector2(100, 132) : new Vector2(270, 196);
         TooltipText = "拖动旋转人物 · 滚轮查看细节";
         MouseFilter = MouseFilterEnum.Stop;
-        _viewport = new SubViewport { Size = new Vector2I(540, 392), OwnWorld3D = true,
+        _viewport = new SubViewport { Size = Compact ? new Vector2I(200, 264) : new Vector2I(540, 392), OwnWorld3D = true,
             RenderTargetUpdateMode = SubViewport.UpdateMode.WhenVisible, HandleInputLocally = false };
         AddChild(_viewport);
         _stage = new Node3D(); _viewport.AddChild(_stage);
         var environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color,
-            BackgroundColor = new Color("#172731"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
+            BackgroundColor = new Color("#24241f"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
             AmbientLightColor = new Color("#becbbb"), AmbientLightEnergy = .35f };
         _stage.AddChild(new WorldEnvironment { Environment = environment });
         _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-35, -35, 0), LightColor = new Color("#f0f3ed"), LightEnergy = 1.5f });
-        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-15, 145, 0), LightColor = new Color("#adcbd8"), LightEnergy = 1.2f });
+        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-15, 145, 0), LightColor = new Color("#c9ccc0"), LightEnergy = 1.2f });
         _camera = new Camera3D { Current = true, Fov = 34 }; _stage.AddChild(_camera); Aim();
-        var caption = HudStyle.Label("拖动旋转  /  滚轮查看细节", 10);
-        caption.AddThemeColorOverride("font_color", new Color("#9cb0b7")); caption.MouseFilter = MouseFilterEnum.Ignore;
+        var caption = HudStyle.Label(Compact ? "拖动旋转" : "拖动旋转  /  滚轮查看细节", 10);
+        caption.AddThemeColorOverride("font_color", new Color("#b2aa97")); caption.MouseFilter = MouseFilterEnum.Ignore;
         caption.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide); caption.OffsetTop = -22; caption.OffsetLeft = 10; AddChild(caption);
     }
     public void ShowResident(long identity, int slot, bool child, JobType job)

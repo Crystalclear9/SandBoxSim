@@ -9,6 +9,7 @@ public partial class MainGame
     private Label _blueprintState = null!;
     public void OpenConstruction()
     {
+        ShowTools(false);
         ShowJournal(true); _drawer.CurrentTab = 5;
         _projectLibrary.Visible = _projectManagement.Visible = false; _constructionPanel.Visible = true;
         _libraryTab.SetPressedNoSignal(false); _managementTab.SetPressedNoSignal(false); _constructionTab.SetPressedNoSignal(true);

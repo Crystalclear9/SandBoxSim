@@ -324,6 +324,7 @@ public partial class MainGame : Control
                 OpenProjects(); SwitchProjectView(true);
             }
             if (_previewPanel == "field") { ShowJournal(true); _drawer.CurrentTab = 0; }
+            if (_previewPanel == "tools") { SetCategory("地貌"); ShowTools(true); }
             if (_previewPanel == "brush") { SetCategory("地貌"); SelectTool(PlayerTool.River); }
             if (_previewPanel == "person")
             {
@@ -426,12 +427,19 @@ public partial class MainGame : Control
         }
         RefreshPanels();
     }
+    private float CollectedStock(ResourceKind kind)
+    {
+        float total = Sim.GroundStocks.TotalOf(kind) + Sim.Storage.GrandTotalOf(kind, Sim.Buildings.Capacity);
+        foreach (int slot in Sim.Agents.AliveSlots()) { total += Sim.Agents.InventoryOf(slot, kind); }
+        return total;
+    }
     private void RefreshPanels()
     {
         if (_summary == null) { return; }
         var sample = Sim.Observe();
         _summary.Text = $"第 {Sim.World.Calendar.Day} 天  ·  {Sim.Agents.LiveCount} 位居民  ·  {WeatherInfo.NameOf(Sim.World.Weather.Kind)}\n{Sim.Settlements.ActiveCount} 个聚落  ·  {Sim.Buildings.TotalCompleted} 栋建筑  ·  出生 {Sim.Stats.TotalBirths} / 死亡 {Sim.Stats.TotalDeaths}";
         _dayLabel.Text = "第 " + Sim.World.Calendar.Day + " 天";
+        _foodLabel.Text = CollectedStock(ResourceKind.Food).ToString("0"); _woodLabel.Text = CollectedStock(ResourceKind.Wood).ToString("0"); _stoneLabel.Text = CollectedStock(ResourceKind.Stone).ToString("0");
         _populationLabel.Text = Sim.Agents.LiveCount.ToString(); _settlementLabel.Text = Sim.Settlements.ActiveCount.ToString(); _buildingLabel.Text = Sim.Buildings.TotalCompleted.ToString();
         var text = new StringBuilder();
         var archive = Sim.Society.Find(_selectedPersonId);
@@ -528,9 +536,9 @@ public partial class MainGame : Control
         for (int i = Sim.Events.Count - 1, count = 0; i >= 0 && count < 80; i--)
         {
             var ev = Sim.Events[i]; if (ev.Importance < SandBoxSim.Core.History.EventImportance.Normal) { continue; }
-            history.AppendLine($"[color=#a1d2cd]第 {ev.Tick / 1440} 天[/color]")
+            history.AppendLine($"[color=#bda572]第 {ev.Tick / 1440} 天[/color]")
                 .AppendLine("[b]" + EscapeMarkup(ev.Description) + "[/b]")
-                .AppendLine("[color=#9cb0b7]" + EscapeMarkup(ev.Cause) + "[/color]").AppendLine(); count++;
+                .AppendLine("[color=#b2aa97]" + EscapeMarkup(ev.Cause) + "[/color]").AppendLine(); count++;
         }
         _history.Text = history.ToString();
     }
@@ -549,6 +557,21 @@ public partial class MainGame : Control
             int observed = Sim.Agents.AliveSlots().FirstOrDefault(-1);
             if (observed >= 0) { var position = Sim.Agents.PositionOf(observed); FocusStory(Sim.Society.Identity(observed), position.X, position.Y); }
             ValidateHudLayout();
+            ShowTools(true);
+            if (!_dockPanel.Visible) { throw new Exception("Contextual tool menu failed to open"); }
+            SelectTool(PlayerTool.Inspect);
+            if (_dockPanel.Visible) { throw new Exception("Observation mode did not dismiss the tool menu"); }
+            if (observed >= 0)
+            {
+                float originalFood = Sim.Agents.InventoryOf(observed, ResourceKind.Food);
+                float collected = CollectedStock(ResourceKind.Food);
+                try
+                {
+                    Sim.Agents.SetInventory(observed, ResourceKind.Food, originalFood + 7); RefreshPanels();
+                    if (_foodLabel.Text != (collected + 7).ToString("0")) { throw new Exception("Resource bar ignored carried reserves"); }
+                }
+                finally { Sim.Agents.SetInventory(observed, ResourceKind.Food, originalFood); RefreshPanels(); }
+            }
             if (observed >= 0) { _residentPortrait.ValidatePresentation(); }
             _discovery.ValidateNavigation();
             if (observed >= 0) { TogglePin(); if (PinnedPerson != Sim.Society.Identity(observed)) { throw new Exception("Resident pin lost stable identity"); } }
