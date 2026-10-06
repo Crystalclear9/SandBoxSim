@@ -34,6 +34,7 @@ internal sealed partial class NatureModels
                 "#b7a988", "#4e6570", "#493c31", "#7f8e91", "#ad865a", "#858b81", "#bd9676", "#b09a59" };
             for (int i = 0; i < 16; i++) { _materials[i] = new StandardMaterial3D { AlbedoColor = new Color(colors[i]), Roughness = .9f }; }
         }
+        InstallCraftMaterials();
     }
     public Material Material(int id) => _materials[id];
     public Mesh Shape(string kind)
@@ -42,12 +43,15 @@ internal sealed partial class NatureModels
         mesh = kind switch
         {
             "box" => new BoxMesh(),
+            "masonry" => SoftBlock(),
             "face" => SculptedHead(false),
             "hair" => SculptedHead(true),
             "cone" => new CylinderMesh { TopRadius = 0, BottomRadius = .5f, Height = 1, RadialSegments = 16 },
             "cylinder" => new CylinderMesh { TopRadius = .5f, BottomRadius = .5f, Height = 1, RadialSegments = 16 },
             "capsule" => new CapsuleMesh { Radius = .5f, Height = 2, RadialSegments = 12, Rings = 6 },
-            "foliage" => IrregularSphere(.16f),
+            "foliage" => Crown(false),
+            "pine" => Crown(true),
+            "trunk" => BentTrunk(),
             "rock" => IrregularSphere(.22f),
             _ => new SphereMesh { Radius = .5f, Height = 1, RadialSegments = 20, Rings = 12 }
         };
@@ -61,18 +65,18 @@ internal sealed partial class NatureModels
         {
             float latitude = row * MathF.PI / rings, angle = col * MathF.Tau / sides;
             var normal = new Vector3(MathF.Sin(latitude) * MathF.Cos(angle), MathF.Cos(latitude), MathF.Sin(latitude) * MathF.Sin(angle));
-            float noise = MathF.Sin(normal.X * 19 + normal.Y * 13) * MathF.Cos(normal.Z * 17 - normal.Y * 11);
+            float noise = MathF.Sin(normal.X * 4 + normal.Y * 3) * MathF.Cos(normal.Z * 4 - normal.Y * 2) + .18f * MathF.Sin(normal.X * 9 - normal.Z * 7);
             verts.Add(normal * (.5f + noise * irregularity * .5f)); normals.Add(normal); uv.Add(new Vector2(col / (float)sides, row / (float)rings));
         }
         for (int row = 0; row < rings; row++) for (int col = 0; col < sides; col++)
-        { int a = row * (sides + 1) + col, b = a + sides + 1; indices.AddRange(new[] { a, a + 1, b, a + 1, b + 1, b }); }
+        { int a = row * (sides + 1) + col, b = a + sides + 1; indices.AddRange(new[] { a, b, a + 1, a + 1, b, b + 1 }); }
         var data = new Godot.Collections.Array(); data.Resize((int)Mesh.ArrayType.Max); data[(int)Mesh.ArrayType.Vertex] = verts.ToArray();
         data[(int)Mesh.ArrayType.Normal] = normals.ToArray(); data[(int)Mesh.ArrayType.TexUV] = uv.ToArray(); data[(int)Mesh.ArrayType.Index] = indices.ToArray();
         var mesh = new ArrayMesh(); mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, data); return mesh;
     }
     public MeshInstance3D Part(Node3D parent, string shape, Vector3 position, Vector3 scale, int material, Vector3? rotation = null)
     {
-        var part = new MeshInstance3D { Mesh = Shape(shape), Position = position, Scale = scale, MaterialOverride = Material(material),
+        var part = new MeshInstance3D { Mesh = Shape(shape == "box" && material == 6 ? "masonry" : shape), Position = position, Scale = scale, MaterialOverride = Material(material),
             CastShadow = GeometryInstance3D.ShadowCastingSetting.On };
         if (rotation.HasValue) { part.Rotation = rotation.Value; }
         parent.AddChild(part); return part;
@@ -88,24 +92,5 @@ internal sealed partial class NatureModels
     }
     public Node3D Building(BuildingKind kind, bool complete, uint identity = 0) => Architecture(kind, complete, identity);
     public Node3D Human(int slot, bool child, JobType job) => Resident(slot, child, job);
-    public Node3D Animal(bool wolf)
-    {
-        var model = new Node3D(); int mat = wolf ? 13 : 12;
-        Part(model, "sphere", new Vector3(0, .7f, 0), new Vector3(.62f, .68f, 1.1f), mat);
-        Part(model, "capsule", new Vector3(0, 1.0f, -.47f), new Vector3(.26f, .27f, .28f), mat, new Vector3(-.4f, 0, 0));
-        Part(model, "sphere", new Vector3(0, 1.2f, -.7f), new Vector3(.35f, .36f, .43f), mat);
-        Part(model, "sphere", new Vector3(0, 1.15f, -.92f), new Vector3(.20f, .15f, .27f), mat);
-        foreach (float side in new[] { -1f, 1f })
-        {
-            Part(model, "cone", new Vector3(side * .13f, 1.42f, -.66f), new Vector3(.13f, .23f, .15f), mat);
-            Part(model, "sphere", new Vector3(side * .16f, 1.23f, -.82f), new Vector3(.04f, .04f, .04f), 10);
-            foreach (float z in new[] { -.35f, .35f })
-                { Part(model, "cylinder", new Vector3(side * .2f, .32f, z), new Vector3(.09f, .62f, .09f), mat); }
-            if (!wolf)
-                for (int branch = 0; branch < 3; branch++)
-                    { Part(model, "cylinder", new Vector3(side * (.12f + branch * .09f), 1.62f + branch * .12f, -.55f), new Vector3(.04f, .43f, .04f), 0, new Vector3(.12f, 0, -side * (.2f + branch * .3f))); }
-        }
-        Part(model, "capsule", new Vector3(0, .7f, .7f), new Vector3(.14f, .25f, .15f), mat, new Vector3(.9f, 0, 0));
-        return model;
-    }
+    public Node3D Animal(bool wolf) => DetailedAnimal(wolf);
 }

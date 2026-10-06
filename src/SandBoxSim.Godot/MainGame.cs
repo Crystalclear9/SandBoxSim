@@ -97,6 +97,9 @@ public partial class MainGame : Control
         NewWorld(839102);
         if (_previewDays > 0) { AdvanceWorld(_previewDays * Sim.Config.Clock.TicksPerDay); }
         BuildInterface();
+        if (_previewPanel is "architecture" or "characters" or "naturemodels")
+        { SetSpeed(0); AddChild(new ModelGallery { Collection = _previewPanel == "naturemodels" ? "nature" : _previewPanel }); }
+
         if (_previewTrial >= 0) { StartTrial(_previewTrial); AdvanceWorld(_trialPreviewDays * Sim.Config.Clock.TicksPerDay); RefreshTrialPanel(); }
         if (_selfTest) { RunSelfTest(); }
     }
@@ -572,6 +575,7 @@ public partial class MainGame : Control
     {
         try
         {
+            new NatureModels().ValidateCraftedModels();
             new NatureModels().ValidateResidentMeshes();
             new NatureModels().ValidateWildPlaceMeshes();
             Tool = PlayerTool.Forest; ClickTile(20, 20);

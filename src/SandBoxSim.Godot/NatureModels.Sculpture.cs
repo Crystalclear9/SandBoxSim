@@ -7,7 +7,7 @@ internal sealed partial class NatureModels
 {
     private Mesh SculptedHead(bool hair)
     {
-        const int sides = 32, rings = 18;
+        const int sides = 48, rings = 28;
         var surface = new SurfaceTool(); surface.Begin(Mesh.PrimitiveType.Triangles); surface.SetSmoothGroup(0);
         Vector3 Point(int row, int col)
         {
@@ -38,7 +38,7 @@ internal sealed partial class NatureModels
         for (int row = 0; row < rings; row++) for (int col = 0; col < sides; col++)
         {
             var a = Point(row, col); var b = Point(row, col + 1); var c = Point(row + 1, col); var d = Point(row + 1, col + 1);
-            foreach (var p in new[] { a, b, c, b, d, c }) { surface.AddVertex(p); }
+            foreach (var p in new[] { a, c, b, b, c, d }) { surface.AddVertex(p); }
         }
         surface.GenerateNormals(); surface.Index(); return surface.Commit();
     }

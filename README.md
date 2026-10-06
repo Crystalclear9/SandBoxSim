@@ -77,3 +77,5 @@ SandBoxSim/
 游戏纹理、插画和配方分别位于 `src/SandBoxSim.Godot/assets/textures/`、`illustrations/`、`gameplay/`。开发期间的临时截图放在 `runs/screenshots/`；清理临时截图时保留文档配图、游戏素材和存档。详细约定见 [文件管理](docs/development/repository-layout.md)。
 
 贡献约定见 [CONTRIBUTING.md](CONTRIBUTING.md)，代码授权见 [LICENSE](LICENSE)。
+
+房屋木作、人物衣装、四足动物和植被模型的结构说明与近景图见 [3D 模型系统](docs/development/models.md)。

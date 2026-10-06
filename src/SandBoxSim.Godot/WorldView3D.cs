@@ -502,7 +502,7 @@ void fragment(){
                 trunks.Add(NatureModels.Transform(p + Vector3.Up * 1.7f * size, new Vector3(.42f, 3.4f, .42f) * size));
                 if (h % 3 == 0)
                 {
-                    for (int layer = 0; layer < 4; layer++) { pines.Add(NatureModels.Transform(p + Vector3.Up * (2.1f + layer * .8f) * size, new Vector3(3.4f - layer * .6f, 2.5f, 3.4f - layer * .6f) * size)); }
+                    pines.Add(NatureModels.Transform(p + Vector3.Up * 3.2f * size, new Vector3(3.2f,4.4f,3.2f) * size, new Vector3(0,h%17,0)));
                 }
                 else
                     for (int branch = 0; branch < 5; branch++)
@@ -523,8 +523,8 @@ void fragment(){
             var model = _models.WildPlace(place.Kind, WildPlaces.Phase(Game.Sim.Clock / Game.Sim.Config.Clock.TicksPerDay), Game.Sim.GroundStocks.FindAt(place.X, place.Y) >= 0);
             model.Position = PositionAt(place.X, place.Y); _props.AddChild(model);
         }
-        _models.Batch(_props, "cylinder", 0, trunks); _models.Batch(_props, "cylinder", 0, branches); _models.Batch(_props, "foliage", 4, leaves);
-        _models.Batch(_props, "cone", 5, pines); _models.Batch(_props, "rock", 6, rocks); _models.Batch(_props, "rock", 7, ores); _models.Batch(_props, "foliage", 4, bushes);
+        _models.Batch(_props, "trunk", 0, trunks); _models.Batch(_props, "cylinder", 0, branches); _models.Batch(_props, "foliage", 4, leaves);
+        _models.Batch(_props, "pine", 5, pines); _models.Batch(_props, "rock", 6, rocks); _models.Batch(_props, "rock", 7, ores); _models.Batch(_props, "foliage", 4, bushes);
     }
     private Node3D? _buildings;
     private void BuildBuildings()
@@ -608,9 +608,11 @@ void fragment(){
         { int slot = (int)(pair.Key & uint.MaxValue); if (sim.Wildlife.IsAlive(slot)) { MoveAnimal(pair.Value, PositionAt(sim.Wildlife.XOf(slot), sim.Wildlife.YOf(slot)), delta); } }
         foreach (var wolf in sim.Predators.Wolves) if (_wolves.TryGetValue(wolf.Id, out Node3D? node)) { MoveAnimal(node, PositionAt(wolf.X, wolf.Y), delta); }
     }
-    private static void MoveAnimal(Node3D node, Vector3 target, float delta)
+    private void MoveAnimal(Node3D node, Vector3 target, float delta)
     {
-        Vector3 direction = target - node.Position; node.Position = node.Position.Lerp(target, MathF.Min(1, delta * 8));
+        Vector3 direction = target - node.Position;
+        ((AnimalRig)node).Pose(delta, direction.LengthSquared() > .02f, Game.VisualPaused);
+        node.Position = node.Position.Lerp(target, MathF.Min(1, delta * 8));
         if (direction.LengthSquared() > .02f) { node.Rotation = new Vector3(0, MathF.Atan2(direction.X, direction.Z) + MathF.PI, 0); }
     }
 }

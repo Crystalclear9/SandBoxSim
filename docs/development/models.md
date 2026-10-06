@@ -1,0 +1,55 @@
+# 3D 模型系统
+
+地图、人物档案和建筑图册使用同一套实际网格。模型由 C# 构造，材料图集与程序化表面结合；展示页不会生成模拟实体，世界存档仍保存居民、建筑与资源状态。
+
+## 建筑
+
+住房有原木屋、灰泥屋、石屋、高山墙屋和单坡屋五种轮廓。稳定身份决定宽深、楼高和变体；道路决定地图中的朝向。当前门洞、墙高和图册镜头按人物尺度重新调整，模拟建筑占地与通行规则沿用内核数据。
+
+门由独立木板、门框、过梁、铁带和门闩组成；窗有外框、格栅、侧板和窗台。坡屋面有分层瓦片、檐木和山墙边条，单坡屋有坡顶墙面。石屋与基础使用带细倒角的砌石，侧墙有木架；部分住房有烟囱、檐柱、木料与桶箍。
+
+仓库保留宽门及门前物料；农田采用植株、叶片与通透围栏；矿场具有暗洞口、支架、轨道与矿车。未完工建筑使用基础、立柱、斜撑和材料堆。
+
+![实际建筑模型](../images/architecture-detail.png)
+
+## 人物与动物
+
+人物头部具有连续面部曲面，衣装具有折线、领襟、袖口、缝线和腰带。手部包含掌形、手指与拇指；裤腿、靴筒及鞋底使用连续轮廓。职业配件、年龄比例、衣色和肤色继续由稳定身份和职业决定。肩肘、髋膝动作由表现层关节驱动。
+
+鹿和狼使用独立的胸腹、肩背、颈部和头部截面，包含眼、口鼻、内耳、蹄或脚掌以及尾。鹿保留分枝角；狼采用尖耳和较低肩背。四条腿具有独立关节，移动时形成对角步态，停止时收敛到站姿；暂停停止关节变化。毛发表面按实际屏幕采样范围减弱细纹，避免远景噪点。
+
+![人物与动物模型](../images/character-detail.png)
+
+## 植被与地貌
+
+阔叶树冠由带折面的叶簇构成，针叶树使用错层枝叶；树干有渐细与轻微弯曲。地图中的树干、枝条、冠层和岩石仍批量绘制。古树林、野果地和遗迹复用同类叶片、石材与木材；岩石采用较低频轮廓变化，减少尖锐褶皱。表面保留低对比纹理、粗糙度与材质差异。
+
+![地表与植被模型](../images/nature-detail.png)
+
+## 源码入口
+
+| 文件 | 作用 |
+|---|---|
+| `NatureModels.Buildings.cs` | 建筑轮廓、屋顶与窗结构 |
+| `NatureModels.ArchitectureDetail.cs` | 门、屋面搭接、砌石、支架与道具 |
+| `NatureModels.Residents.cs`、`NatureModels.Tailoring.cs` | 人物衣装、四肢、手部与配件 |
+| `NatureModels.Sculpture.cs` | 连续头部曲面与布料表面 |
+| `NatureModels.Animals.cs`、`AnimalRig.cs` | 动物解剖轮廓、材质与四足步态 |
+| `NatureModels.Vegetation.cs` | 树冠、针叶枝层与树干 |
+| `NatureModels.Craft.cs` | 平滑截面、倒角石块与连接构件 |
+| `NatureModels.Surface.cs` | 灰泥、石材、屋面和植被的表面处理 |
+| `NatureModels.Validation.cs` | 曲面朝向、网格完整性、静态合并与关节检查 |
+
+新网格需要采用 Godot 的顺时针正面约定，并保持朝外法线。截面插值保留轮廓；不要仅提高球体细分来替代身体结构。静态部件按材质合并，动物和居民保留活动关节。建筑变体键限制到 140 个稳定组合，图册和地图共用缓存规则。
+
+## 独立预览
+
+先运行 `./tools/godot.ps1 -Mode build -Configuration Debug`，再通过 Godot .NET 可执行文件打开项目：
+
+```powershell
+& $env:GODOT_EXE --path src/SandBoxSim.Godot -- --panel=architecture
+& $env:GODOT_EXE --path src/SandBoxSim.Godot -- --panel=characters
+& $env:GODOT_EXE --path src/SandBoxSim.Godot -- --panel=naturemodels
+```
+
+这些参数仅打开开发用模型预览，使用固定灯光与同一套实际网格；普通游戏不会显示预览面板。原始素材来源见 [美术资源](assets.md)，界面操作见 [观察与界面](../guides/gameplay-observation.md)。

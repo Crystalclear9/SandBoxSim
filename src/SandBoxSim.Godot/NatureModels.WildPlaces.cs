@@ -39,7 +39,7 @@ internal sealed partial class NatureModels
                 }
                 break;
             case WildPlaceKind.OldGrove:
-                Part(node,"cylinder",new Vector3(0,3.4f,0),new Vector3(1.1f,6.8f,1.1f),0);
+                Part(node,"trunk",new Vector3(0,3.4f,0),new Vector3(1.1f,6.8f,1.1f),0);
                 for(int i=0;i<7;i++)
                 {
                     float a=i*Mathf.Tau/7;

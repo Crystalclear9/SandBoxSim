@@ -43,3 +43,5 @@
 [更新记录](../CHANGELOG.md) 记录用户可见变化和维护变化；[贡献指南](../CONTRIBUTING.md) 说明提交约定。正式配图保留在 `images/`，历史资料在 [archive](archive/README.md)。历史资料中的阶段结论用于理解演变，当前操作以本导航链接的主题文档为准。
 
 修改或移动文档后执行 `./tools/check-docs.ps1`，检查本地文件链接与大小写。它不访问网站，也不检查页内标题锚点。
+
+模型结构、材质和独立预览见 [3D 模型系统](development/models.md)。
