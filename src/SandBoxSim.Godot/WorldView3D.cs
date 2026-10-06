@@ -303,6 +303,13 @@ public partial class WorldView3D : MapView
             if (Overlay == 3) { signature = unchecked(signature * 31 + (int)(tile.Moisture * 100)); }
             if (Overlay == 4) { signature = unchecked(signature * 31 + (int)(tile.Fertility * 100)); }
         }
+        nature = unchecked(nature * 31 + WildPlaces.Phase(Game.Sim.Clock / Game.Sim.Config.Clock.TicksPerDay));
+        foreach (var place in Game.Wild.Places)
+        {
+            nature = unchecked(nature * 31 + (WildPlaces.IsLiving(Game.Sim, place) ? 1 : 0));
+            int pile = Game.Sim.GroundStocks.FindAt(place.X, place.Y);
+            nature = unchecked(nature * 31 + (pile >= 0 ? 1 : 0));
+        }
         if (Overlay == 1)
             for (int i = 0; i < Game.Sim.Settlements.EntityCount; i++)
             {
@@ -508,6 +515,12 @@ void fragment(){
             { var t = NatureModels.Transform(p + Vector3.Up * .4f, new Vector3(1.6f, 1.2f, 1.7f) * size, new Vector3(.2f, h % 7, .4f)); if (tile.Resource.Kind == ResourceKind.Iron) { ores.Add(t); } else { rocks.Add(t); } }
             if (tile.Resource.Kind == ResourceKind.Food && tile.Resource.Amount > 5 && h % 17 == 0)
                 { bushes.Add(NatureModels.Transform(p + Vector3.Up * .28f, new Vector3(.9f, .7f, .9f) * size)); }
+        }
+        foreach (var place in Game.Wild.Places)
+        {
+            if (!Game.Sim.World.IsInBounds(place.X, place.Y) || !WildPlaces.IsLiving(Game.Sim, place)) continue;
+            var model = _models.WildPlace(place.Kind, WildPlaces.Phase(Game.Sim.Clock / Game.Sim.Config.Clock.TicksPerDay), Game.Sim.GroundStocks.FindAt(place.X, place.Y) >= 0);
+            model.Position = PositionAt(place.X, place.Y); _props.AddChild(model);
         }
         _models.Batch(_props, "cylinder", 0, trunks); _models.Batch(_props, "cylinder", 0, branches); _models.Batch(_props, "foliage", 4, leaves);
         _models.Batch(_props, "cone", 5, pines); _models.Batch(_props, "rock", 6, rocks); _models.Batch(_props, "rock", 7, ores); _models.Batch(_props, "foliage", 4, bushes);

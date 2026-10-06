@@ -73,3 +73,9 @@ Use case: stylized-concept. Asset type: high quality realistic PBR-like albedo m
 最终提示：
 
 Create a single production-ready landscape illustration atlas for a nature sandbox simulation game. Image is a seamless 2 by 2 grid of exactly four equal rectangular illustrations, clean straight center boundaries with no gutters, no frames, no labels, NO text, no UI, no logos. Each quadrant must be a separate self-contained landscape composition. Top left: a natural river valley with a small fertile wild meadow, grasses, berry bushes and modest food-growing patches in golden dawn light. Top right: a restrained rural woodland with a narrow cleared firebreak path crossing forest, rocky earth, hazy reddish late afternoon. Bottom left: intricate restored wetlands with reeds, rippling shallow pools, moss, soft mist and reflected silver-green light. Bottom right: a recovering woodland with young saplings, mature pines, ferns and layered undergrowth in deep forest light. Unified refined naturalistic hand-painted environment concept art, sophisticated muted olive greens, charcoal shadows, ochre sunlight, soft realistic atmospheric depth, exceptionally detailed organic vegetation and soils. Quiet, evocative, believable ecosystem scenes without people or magical objects. All four landscapes seen from low oblique environmental viewpoint, NOT overhead maps. The atlas will be sliced at exact center into four illustrated project selection thumbnails in a real Godot client. Make clear identifiable landscape silhouettes even at small thumbnail size. The image must be the art only, not a screenshot or concept UI.
+
+## 荒野地貌模型
+
+`NatureModels.WildPlaces.cs` 构造岩环泉眼、果丛、盘根古树、残墙拱门与矿石露头，复用现有自然材质。静态部件按材质合并并缓存。野果与古树林外观读取生长阶段，遗迹散石读取是否仍有物资，改造或损毁后模型跟随真实条件消失。这里不使用任务标记或领取奖励的图标。
+
+静态部件合并保留顶点、法线与 UV；地貌模型自检核对纹理坐标数量，避免合并后采样固定位置而显示为纯色块。

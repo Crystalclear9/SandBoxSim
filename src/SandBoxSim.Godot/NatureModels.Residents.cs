@@ -71,12 +71,16 @@ internal sealed partial class NatureModels
                     var arrays = part.Mesh.SurfaceGetArrays(0);
                     var vertices = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                     var normals = arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
+                    var uv = arrays[(int)Mesh.ArrayType.TexUV].VariantType == Variant.Type.Nil
+                        ? System.Array.Empty<Vector2>() : arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();
                     var indices = arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
                     var normalBasis = part.Transform.Basis.Inverse().Transposed();
                     for (int vertex = 0; vertex < (indices.Length > 0 ? indices.Length : vertices.Length); vertex++)
                     {
                         int index = indices.Length > 0 ? indices[vertex] : vertex;
-                        surface.SetNormal((normalBasis * normals[index]).Normalized()); surface.AddVertex(part.Transform * vertices[index]);
+                        surface.SetNormal((normalBasis * normals[index]).Normalized());
+                        surface.SetUV(uv.Length > index ? uv[index] : Vector2.Zero);
+                        surface.AddVertex(part.Transform * vertices[index]);
                     }
                 }
                 surface.Index(); surface.Commit(mesh);

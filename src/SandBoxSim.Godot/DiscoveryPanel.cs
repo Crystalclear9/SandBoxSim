@@ -13,6 +13,9 @@ public partial class DiscoveryPanel : VBoxContainer
     public MainGame Game { get; set; } = null!;
     private Label _place = null!, _phase = null!, _pinText = null!, _empty = null!;
     private RichTextLabel _stories = null!;
+    private Label _land = null!;
+    private LineEdit _landName = null!;
+    private RichTextLabel _marks = null!;
     private WorldMiniMap _miniMap = null!;
     private Godot.Button _pinLink = null!;
     private readonly PanelContainer[] _cards = new PanelContainer[3];
@@ -26,10 +29,21 @@ public partial class DiscoveryPanel : VBoxContainer
         _place = HudStyle.Label("", 27); body.AddChild(_place);
         _phase = HudStyle.Label("", 12, true); _phase.AutowrapMode = TextServer.AutowrapMode.WordSmart; body.AddChild(_phase);
         _miniMap = new WorldMiniMap { Game = Game, CustomMinimumSize = new Vector2(280, 146) }; body.AddChild(_miniMap);
+        _land = HudStyle.Label("", 13, true); _land.AutowrapMode = TextServer.AutowrapMode.WordSmart; body.AddChild(_land);
+        var naming = new HBoxContainer(); body.AddChild(naming);
+        _landName = new LineEdit { PlaceholderText = "为这里起个名字", MaxLength = 24, SizeFlagsHorizontal = SizeFlags.ExpandFill }; naming.AddChild(_landName);
+        var remember = new Godot.Button { Text = "记下" }; HudStyle.Button(remember); naming.AddChild(remember);
+        remember.Pressed += () => { Game.RememberPlace(_landName.Text); _landName.Text = ""; Refresh(); };
+        _marks = new RichTextLabel { BbcodeEnabled = true, FitContent = true, ScrollActive = false }; body.AddChild(_marks);
+        _marks.MetaClicked += meta => {
+            string[] parts = meta.AsString().Split(':');
+            if(parts.Length!=3 || !int.TryParse(parts[1],out int x) || !int.TryParse(parts[2],out int y))return;
+            if(parts[0]=="forget") { Game.Wild.Forget(x,y); Refresh(); } else { Game.LookAtPlace(x,y); }
+        };
         body.AddChild(new HSeparator());
-        var heading = new HBoxContainer(); body.AddChild(heading); var title = HudStyle.Label("01   值得留意", 15); title.SizeFlagsHorizontal = SizeFlags.ExpandFill; heading.AddChild(title);
-        var play = new Godot.Button { Text = "试炼 →" }; HudStyle.Button(play); play.Pressed += () => Game.OpenTrials(); heading.AddChild(play);
-        _empty = HudStyle.Label("局势暂时稳定。试试改变一片土地。", 13, true); _empty.AutowrapMode = TextServer.AutowrapMode.WordSmart; body.AddChild(_empty);
+        var heading = new HBoxContainer(); body.AddChild(heading); var title = HudStyle.Label("此刻的世界", 15); title.SizeFlagsHorizontal = SizeFlags.ExpandFill; heading.AddChild(title);
+
+        _empty = HudStyle.Label("这里暂时安稳。世界仍在自行生长。", 13, true); _empty.AutowrapMode = TextServer.AutowrapMode.WordSmart; body.AddChild(_empty);
         for (int i = 0; i < _cards.Length; i++)
         {
             int index = i;
@@ -45,10 +59,10 @@ public partial class DiscoveryPanel : VBoxContainer
         var projects = new Godot.Button { Text = "规划生态工程   →", Alignment = HorizontalAlignment.Left, Icon = ToolGlyphs.For(PlayerTool.Forest), ExpandIcon = true };
         projects.AddThemeConstantOverride("icon_max_width", 26); HudStyle.Button(projects);
         projects.AddThemeStyleboxOverride("normal", HudStyle.Box(HudStyle.Wash, 3, 12, false)); projects.Pressed += () => Game.OpenProjects(); body.AddChild(projects);
-        body.AddChild(new HSeparator()); body.AddChild(HudStyle.Label("02   一个居民的故事", 15));
+        body.AddChild(new HSeparator()); body.AddChild(HudStyle.Label("居民的故事", 15));
         _pinText = HudStyle.Label("", 13, true); _pinText.AutowrapMode = TextServer.AutowrapMode.WordSmart; body.AddChild(_pinText);
         _pinLink = new Godot.Button { Text = "查看关注的故事 →", Alignment = HorizontalAlignment.Left }; HudStyle.Button(_pinLink); _pinLink.Pressed += () => Game.FocusPinned(); body.AddChild(_pinLink);
-        body.AddChild(new HSeparator()); body.AddChild(HudStyle.Label("03   世界的回声", 15));
+        body.AddChild(new HSeparator()); body.AddChild(HudStyle.Label("世界的回声", 15));
         _stories = new RichTextLabel { BbcodeEnabled = true, FitContent = true, ScrollActive = false, SelectionEnabled = true, CustomMinimumSize = new Vector2(0, 80) };
         _stories.MetaClicked += meta =>
         {
@@ -65,7 +79,13 @@ public partial class DiscoveryPanel : VBoxContainer
         string weather = sim.World.Weather.Kind switch { SandBoxSim.Core.Environment.WeatherKind.Clear => "晴朗", SandBoxSim.Core.Environment.WeatherKind.Cloudy => "多云",
             SandBoxSim.Core.Environment.WeatherKind.Rain => "降雨", SandBoxSim.Core.Environment.WeatherKind.Storm => "风暴",
             SandBoxSim.Core.Environment.WeatherKind.Drought => "旱季", _ => "降雪" };
-        _phase.Text = Game.Trial.Running ? "试炼第 " + Game.Trial.Days + " 天 · " + Game.Trial.Forecast : weather + "   /   第 " + sim.World.Calendar.Day + " 天";
+        _phase.Text = Game.Trial.Running ? "试炼第 " + Game.Trial.Days + " 天 · " + Game.Trial.Forecast : weather + " · " + WildPlaces.PhaseName(sim.Clock / sim.Config.Clock.TicksPerDay) + " · 第 " + sim.World.Calendar.Day + " 天";
+        var local=Game.Wild.At(Game.SelectedX,Game.SelectedY);
+        _land.Text=local==null ? $"({Game.SelectedX}, {Game.SelectedY}) · 单击土地查看这里的水土与痕迹。" : Game.Wild.Describe(sim,local);
+        var notes=new StringBuilder();
+        foreach(var mark in Game.Wild.Marks)
+            notes.AppendLine($"[url=place:{mark.X}:{mark.Y}][color=#bda572]{mark.Name.Replace("[","[lb]")}[/color][/url]  [url=forget:{mark.X}:{mark.Y}]×[/url]");
+        _marks.Text=notes.ToString();
         _alerts = WorldAlerts.Observe(sim); _empty.Visible = _alerts.Count == 0;
         for (int i = 0; i < _cards.Length; i++)
         {

@@ -49,3 +49,9 @@
 运行与改动对应的行为与恢复检查；模拟规则变化再执行完整回归，图形变化再做实机检查。将新操作写进玩家指南，将规则、数据或格式写进相应开发文档，并更新 [CHANGELOG](../../CHANGELOG.md)。具体命令见 [开发指南](developer-guide.md)。
 
 本页中的 `Core/`、`Godot/` 分别缩写 `src/SandBoxSim.Core/`、`src/SandBoxSim.Godot/`。
+
+## 添加荒野地貌
+
+`Core/Systems/WildPlaces.cs` 定义种子位置、初始化、中心条件、逐日作用、地点描述与保存。`Godot/NatureModels.WildPlaces.cs` 提供独立外观，`WorldView3D.BuildNature` 根据真实状态放置模型。图形会话在日界调用 `Wild.Advance`，旧档缺失 wild 时保持原地图。
+
+新增类型需明确非再生物资、水土保护和被玩家改造后的行为，并同步枚举、解码范围、初始化、模型和说明。涉及有机资源额外生长时使用 `ResourceSystem.ReplenishLivingNode`，计入再生总量；矿产不能走这一入口。检查改造停止作用、容量、跨日重复执行、只读查询与存档续跑。不要把新地点接成收集进度或完成奖励。

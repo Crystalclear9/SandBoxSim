@@ -7,7 +7,8 @@
 | 任务 | 阅读顺序 |
 |---|---|
 | 第一次运行游戏 | [安装与启动](guides/getting-started.md) → [玩家指南](guides/player-guide.md) |
-| 理解居民和世界 | [世界系统](guides/world-systems.md) → [聚落营造](guides/settlements.md) → [生态工坊](guides/ecology.md) |
+| 理解居民和世界 | [自由探索](guides/exploration.md) | 活地貌、生长周期、遗迹物资与自选地点手记 |
+| [世界系统](guides/world-systems.md) → [聚落营造](guides/settlements.md) → [生态工坊](guides/ecology.md) |
 | 修改界面或模型 | [开发指南](development/developer-guide.md) → [架构](development/architecture.md) → [扩展指南](development/extending.md) → [素材](development/assets.md) |
 | 修改模拟规则 | [开发指南](development/developer-guide.md) → [配置](development/configuration.md) → [存档与确定性](development/saving.md) |
 | 更新项目或排错 | [版本更新](guides/updating.md)、[故障排查](guides/troubleshooting.md) |
@@ -18,6 +19,7 @@
 |---|---|
 | [安装与启动](guides/getting-started.md) | 环境、工具链位置与三平台源码启动 |
 | [玩家指南](guides/player-guide.md) | 镜头、时间、人物、工具、工程、试炼与保存 |
+| [自由探索](guides/exploration.md) | 活地貌、生长周期、遗迹物资与自选地点手记 |
 | [世界系统](guides/world-systems.md) | 地形、资源、需求、生态与社会的因果关系 |
 | [聚落营造](guides/settlements.md) | 房屋、材料施工、建筑卡片与蓝图 |
 | [生态工坊](guides/ecology.md) | 土地工程、维护、费用及 JSON 配方 |

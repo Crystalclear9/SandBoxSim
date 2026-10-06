@@ -195,7 +195,6 @@ public partial class MainGame
         }
         _projectLog.Text = text.Length == 0 ? "[color=#b2aa97]还没有土地工程。\n\n去图册选择一项改变，工程完成后再决定如何经营。[/color]" : text.ToString();
         RefreshLandCards();
-        RefreshBlueprint();
         if (_planPanel != null)
         {
             _planPanel.Visible = (PlanningKind >= 0 || PlanningBuilding != BuildingKind.None || _planningBlueprint >= 0) && !_settingsOpen;

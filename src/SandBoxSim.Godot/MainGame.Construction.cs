@@ -6,7 +6,6 @@ using SandBoxSim.Core.Systems;
 namespace SandBoxSim.Client;
 public partial class MainGame
 {
-    private Label _blueprintState = null!;
     public void OpenConstruction()
     {
         ShowTools(false);
@@ -37,32 +36,6 @@ public partial class MainGame
         }
         var note = HudStyle.Label("你决定落点，居民材料支付。\n八格内需要可达的成年居民；住房靠水，农田邻水，矿场依赖矿区。", 12, true);
         note.AutowrapMode = TextServer.AutowrapMode.WordSmart; parent.AddChild(note);
-        ActionButton(parent, "组合玩法：先路网，再建聚落 →", () =>
-        {
-            _status.Text = "先用道路留出通行线，再安排住房和仓库；在水边布置农田，外围湿地维护水土。";
-            SetCategory("地貌"); SelectTool(PlayerTool.Road); ShowSettings(true);
-        });
-        parent.AddChild(new HSeparator()); parent.AddChild(HudStyle.Label("可选聚落蓝图", 19));
-        _blueprintState = HudStyle.Label("", 12, true); _blueprintState.AutowrapMode = TextServer.AutowrapMode.WordSmart; parent.AddChild(_blueprintState);
-        for (int i = 0; i < SettlementBlueprint.Names.Length; i++)
-        {
-            int kind = i;
-            ActionButton(parent, SettlementBlueprint.Names[i] + " →", () =>
-            {
-                SelectTool(PlayerTool.Inspect); _planningBlueprint = kind; ShowSettings(false); RefreshOperations();
-            });
-            var brief = HudStyle.Label(SettlementBlueprint.Briefs[i], 11, true); brief.AutowrapMode = TextServer.AutowrapMode.WordSmart; parent.AddChild(brief);
-        }
-        ActionButton(parent, "停止蓝图追踪", () => { Blueprint.Leave(); RefreshOperations(); });
-        ActionButton(parent, "前往蓝图中心 ↗", () => { if (Blueprint.Kind >= 0) FocusLocation(Blueprint.X, Blueprint.Y); });
-    }
-    private void RefreshBlueprint()
-    {
-        if (_blueprintState == null) return;
-        if (Blueprint.Kind < 0) { _blueprintState.Text = "选择一种生活方式，单击地图确定中心。\n目标可随时更换，已有建设保留。"; return; }
-        var state = Blueprint.Observe(Sim);
-        _blueprintState.Text = SettlementBlueprint.Names[Blueprint.Kind] + (Blueprint.Completed ? " · 已达成" : $" · 稳定 {Blueprint.StableDays}/2 天")
-            + $"\n中心 ({Blueprint.X}, {Blueprint.Y}) · 半径 10\n住房 {state.Houses} · 仓库 {state.Stores} · 农田 {state.Farms}\n居民 {state.People} · 道路 {state.Roads} · 森林 {state.Forest}\n" + SettlementBlueprint.Briefs[Blueprint.Kind];
     }
     private void PrepareConstruction(BuildingKind kind)
     {

@@ -28,29 +28,30 @@ Core 中 `Foundation` 提供配置、数学、随机数和基础数据；`World`
 
 | 文件 | 作用 |
 |---|---|
-| `MainGame.cs` / `MainGame.Play.cs` | 会话创建、时间推进、存档、干预与试炼 |
+| `MainGame.cs` / `MainGame.Play.cs` | 会话创建、时间推进、存档、干预与自由探索 |
 | `MainGame.Interface.cs` | 主界面、布局和人物信息 |
 | `HudStyle.cs` / `HudBevel.cs` | 材质、配色、描边和交互样式 |
 | `ResidentPortrait.cs` | 独立 3D 肖像与旋转、缩放输入 |
 | `BuildingPortrait.cs`、`HudSymbols.cs` | 独立建筑展示、悬停转向与概览/操作符号；静止预览缓存 |
 | `MainGame.Operations.cs` / `MainGame.LandCards.cs` | 工程图册、落点与持续管理 |
-| `MainGame.Construction.cs` | 建造委托、聚落蓝图与进度 |
+| `MainGame.Construction.cs` | 建筑图册、建造委托与放置预览 |
 | `WorldView3D*.cs` | 镜头、地形、实体、天气与风险表现 |
 | `NatureModels*.cs` | 可复用几何、人物、动物与建筑组合 |
 | `ProjectCatalog.cs` / `LandProjects.cs` | 工程配方、阶段、条件、费用与管理状态 |
 | `ConstructionOrders.cs` | 成年居民、可达性与真实材料建造事务 |
 | `SettlementBlueprint.cs` | 本地目标观察、稳定日界与进度持久化 |
+| `WildPlaces.cs` / `NatureModels.WildPlaces.cs` | 种子地貌、自然作用、地点手记与 3D 外观；由图形会话推进 |
 | `WorldTrial.cs` / `WorldAlerts.cs` | 危机、额度、稳定目标与风险查询 |
 
 上表中的客户端文件位于 `src/SandBoxSim.Godot`，规则文件位于 `src/SandBoxSim.Core/Systems`。
 
 ## 时间与会话
 
-`Simulation` 按 tick 推进内核；图形会话的 `AdvanceWorld` 按日界拆分推进，依次更新模拟、土地工程、试炼与蓝图。高倍速仍处理每个日界。直接调用内核 `Tick` 不会执行客户端会话计划。
+`Simulation` 按 tick 推进内核；图形会话的 `AdvanceWorld` 按日界拆分推进，依次更新模拟、荒野地貌和土地工程；旧试炼与蓝图代码保留兼容检查。高倍速仍处理每个日界。直接调用内核 `Tick` 不会执行客户端会话计划。
 
-工程安排只记录位置和建设前状态，之后逐日应用配方；每阶段重新判断土地条件。完工对照被冻结，持续管理的当前观察单独显示。管理先支付试炼额度，随后试炼恢复当日额度。
+工程安排只记录位置和建设前状态，之后逐日应用配方；每阶段重新判断土地条件。完工对照被冻结，持续管理的当前观察单独显示。普通探索不使用试炼额度；原预算逻辑仅为旧格式和开发检查保留。
 
-建造委托检查八格内成年居民及路径，再调用原 `BuildingSystem` 材料事务。成功后工地进入原施工、生产、床位与核心存档路径；失败不产生工地或扣料。蓝图只统计本地真实状态，连续两天满足目标才完成，不直接创建社会结果。
+建造委托检查八格内成年居民及路径，再调用原 `BuildingSystem` 材料事务。成功后工地进入原施工、生产、床位与核心存档路径；失败不产生工地或扣料。普通界面已移除蓝图入口，旧目标格式仍可解码用于兼容检查。
 
 ## 状态与观察边界
 
@@ -59,3 +60,5 @@ Core 中 `Foundation` 提供配置、数学、随机数和基础数据；`World`
 稳定人物身份用于关注、改名、家庭与人生档案，不能把可复用的实体槽位当作永久身份。富文本中的用户名称须转义。
 
 扩展数据见 [配置](configuration.md)，恢复与续跑契约见 [存档与确定性](saving.md)，验证入口见 [构建与运行](build.md)。
+
+荒野地貌仅在新建图形世界初始化，使用种子与固定整数混合生成，不消耗运行中的模拟随机流。每日涵养与结果读取真实条件；生成的资源计入实际节点，额外有机生长计入再生总量。地点和日界进度保存于客户端元数据，Console 不执行这一层。
