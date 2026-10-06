@@ -48,7 +48,7 @@ Core、Console 与测试另支持 `-Channel csc`，适用于已有 .NET 运行�
 ```powershell
 ./tools/test.ps1 -Configuration Release -Channel sdk
 ./tools/test.ps1 -Filter ConstructionOrder -Configuration Release
-./tools/test.ps1 -Filter SettlementBlueprint -Configuration Release
+./tools/test.ps1 -Filter WildPlaces -Configuration Release
 ./tools/godot.ps1 -Mode test
 ./tools/test-build.ps1
 ./tools/check-docs.ps1

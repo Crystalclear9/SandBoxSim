@@ -29,6 +29,7 @@
 | 新建图形世界的起始条件 | `Core/Systems/SandboxScenarios.cs`、`Godot/MainGame.cs` | 新世界与旧存档分开检查 |
 | 主界面、控制栏与档案 | `Godot/MainGame.Interface.cs`、`HudStyle.cs`、`HudSymbols.cs` | 自检、实际窗口与鼠标遮挡 |
 | 3D 镜头和地表 | `Godot/WorldView3D.cs`、`WorldView3D.Atmosphere.cs` | 拖动、缩放、释放、图层与暂停 |
+| 居民动作与握持 | `Godot/ResidentRig.cs`、`ResidentRig.HandPose.cs`、`NatureModels.HandSkin.cs`、`NatureModels.Face.cs` | 工具取放、手部表面、肘腕范围、近远景与暂停 |
 | 建筑和人物外观 | `Godot/NatureModels*.cs`、`BuildingPortrait.cs`、`ResidentPortrait.cs` | 近远景、变体、动作与显示缓存 |
 | 自由探索界面 | `Godot/MainGame.Interface.cs`、`MainGame.Notebook.cs` | 阅读层次、直接工具与无目标导航 |
 | 跨平台工具链 | `tools/build-lib.ps1` 与具体入口脚本 | 脚本回归和受影响构建通道 |
@@ -58,10 +59,9 @@
 例如：
 
 ```powershell
-./tools/test.ps1 -Filter ConstructionOrder -Configuration Release -Channel sdk
-./tools/test.ps1 -Filter SettlementBlueprint -Configuration Release -Channel sdk
-./tools/test.ps1 -Filter LandProject -Configuration Release -Channel sdk
-./tools/test.ps1 -Filter ProjectManagement -Configuration Release -Channel sdk
+./tools/test.ps1 -Filter WildPlaces -Configuration Release -Channel sdk
+./tools/test.ps1 -Filter SaveLoad -Configuration Release -Channel sdk
+./tools/test.ps1 -Filter Building -Configuration Release -Channel sdk
 ```
 
 自带测试运行器使用 `[Fact]`、`[Theory]` 和名称过滤。`dotnet test` 不是本项目测试入口，构建成功也不表示测试已执行。不要只比较 `CoreDigest` 来判断图形会话续跑：还要比较荒野地点、日界与关注人物的元数据，见 [存档与确定性](saving.md)。

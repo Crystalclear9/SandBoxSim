@@ -40,3 +40,7 @@
 | [29-SettlementPlay.md](29-SettlementPlay.md) | 聚落营造与鼠标镜头 |
 | [contributing-notes.md](contributing-notes.md) | 贡献指南 |
 | [development-changelog.md](development-changelog.md) | Changelog |
+
+## 历史配图
+
+`images/` 保存旧版界面、工程管理、蓝图营造及早期设计的正式图片。它们随历史记录保留；当前人物、手部、面部、建筑与自由探索配图位于 `../images/`，由当前主题文档引用。

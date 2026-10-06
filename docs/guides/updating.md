@@ -4,11 +4,13 @@
 
 ## 更新已有项目
 
-先保存游戏并退出。备份个人存档、修改过的 `config/` 参数和生态配方；查看 `git status --short`，处理需要保留的源码或资源改动。已有 Git 工作目录且当前分支设置了对应远端时，可以执行：
+先保存游戏并退出。备份个人存档与修改过的 `config/` 参数；查看 `git status --short`，处理需要保留的源码或资源改动。使用主分支更新已有 Git 工作目录时，执行：
 
 ```powershell
 git status --short
-git pull --ff-only
+git fetch origin
+git switch main
+git pull --ff-only origin main
 ./tools/godot.ps1 -Mode build -Configuration Release
 ./tools/godot.ps1 -Mode run
 ```
@@ -24,7 +26,7 @@ git pull --ff-only
 | UI、材质、模型和镜头 | 通常不修改核心状态，但仍应检查显示与输入 |
 | 模拟默认参数 | 已有存档使用保存的有效规则，不会自动替换成新默认值 |
 | 自然住房布局默认值 | 新建图形世界开启；旧存档保留自己的开关 |
-| `projects.json` | 新世界读取新配方；旧档沿用嵌入的配方快照 |
+| `projects.json` | 历史 SDK 配方；当前图形客户端不加载或推进 |
 | 荒野地点 | 新建图形世界生成；旧档缺少 wild 时保留原地图，不重绘 |
 | 旧工程、试炼和蓝图 | 元数据被忽略，已存在建筑和地形保留 |
 | 核心存档格式 | 必须符合加载器接受的版本；当前版本为 3 |
@@ -38,6 +40,6 @@ git pull --ff-only
 
 开发者还应运行 [开发指南](../development/developer-guide.md) 中对应的检查。发生问题时记录提交、环境、存档版本和操作步骤，见 [故障排查](troubleshooting.md)。
 
-## 本次文档与目录更新
+## 文档与资源位置
 
-使用文档已整理到 `docs/guides/`，开发资料整理到 `docs/development/`。`docs/images/` 和历史配图继续保留；临时截图使用 `runs/screenshots/`。文档移动不改变游戏存档或资源路径，源码和脚本中的文档地址已同步。
+使用文档位于 `docs/guides/`，开发资料位于 `docs/development/`。当前配图位于 `docs/images/`，旧界面和历史配图位于 `docs/archive/images/`；临时截图使用 `runs/screenshots/`。文档移动不改变游戏存档或资源路径，移动文档与配图时需同步所有引用，维护方法见 [目录与文件管理](../development/repository-layout.md)。

@@ -14,7 +14,8 @@
 | `tools/` | 安装、构建、运行、测试与文档检查 | 脚本，PowerShell 使用 UTF-8 BOM |
 | `docs/guides/` | 安装、游玩、排错与更新 | 当前使用文档 |
 | `docs/development/` | 架构、扩展、文件管理与维护 | 当前开发文档 |
-| `docs/images/` | 当前文档的正式实机配图 | 保留并提交 |
+| `docs/images/` | 当前玩法、界面与模型文档使用的正式实机配图 | 保留并提交 |
+| `docs/archive/images/` | 历史界面与设计记录的正式配图 | 保留出处并提交 |
 | `docs/archive/` | 原始任务、设计、历史记录与配图 | 保留出处；不代替当前说明 |
 | `runs/` | 本机模拟输出、日志、临时截图 | 除 `README.md` 与 `.gitkeep` 外忽略 |
 | `artifacts/`、`bin/`、`obj/`、`.godot/` | 构建与导入缓存 | 忽略提交 |
@@ -59,4 +60,4 @@ git diff --check
 
 ## 文档维护
 
-`README.md` 是项目概览，`docs/README.md` 是阅读导航，`CHANGELOG.md` 是用户和维护者的更新记录。功能行为写入对应指南；配置和存档变化写入开发文档。历史计划留在 `docs/archive/`，不在当前主页重复放置阶段验收说明。
+`README.md` 是项目概览，`docs/README.md` 是阅读导航，`CHANGELOG.md` 是用户和维护者的更新记录。功能行为写入对应指南；配置和存档变化写入开发文档。旧界面配图和仅供历史记录引用的图片归入 `docs/archive/images/`，同时更新归档文档链接；保留文件内容，不用旧流程配图介绍当前玩法。历史计划留在 `docs/archive/`，不在当前主页重复放置阶段验收说明。

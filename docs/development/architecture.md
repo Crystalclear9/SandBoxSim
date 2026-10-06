@@ -38,8 +38,9 @@ Core 中 `Foundation` 提供配置、数学、随机数和基础数据；`World`
 | `WorldView3D*.cs` | 镜头、地形、实体、天气与风险表现 |
 | `NatureModels*.cs` | 可复用几何、人物、动物与建筑组合 |
 | `ProjectCatalog.cs` / `LandProjects.cs` | 历史 SDK 系统，当前客户端不加载或推进 |
-| `ConstructionOrders.cs` | 成年居民、可达性与真实材料建造事务 |
-| `SettlementBlueprint.cs` | 本地目标观察、稳定日界与进度持久化 |
+| `ActionSystem.cs` / `BuildingSystem.cs` | 居民自主施工、材料消费与已建建筑的运行 |
+| `ConstructionOrders.cs` | 保留的 SDK 直接建造事务，当前客户端没有委托入口 |
+| `SettlementBlueprint.cs` | 历史 SDK 蓝图观察系统，当前客户端不推进 |
 | `WildPlaces.cs` / `NatureModels.WildPlaces.cs` | 种子地貌、自然作用、地点手记与 3D 外观；由图形会话推进 |
 | `WorldTrial.cs` / `WorldAlerts.cs` | 历史 SDK 系统，当前客户端不使用 |
 
@@ -47,9 +48,7 @@ Core 中 `Foundation` 提供配置、数学、随机数和基础数据；`World`
 
 ## 时间与会话
 
-`Simulation` 按 tick 推进内核；图形会话的 `AdvanceWorld` 按日界拆分推进，仅更新模拟与荒野地貌；客户端已删除委托、工程、试炼和蓝图流程。高倍速仍处理每个日界。直接调用内核 `Tick` 不会执行客户端会话计划。
-
-
+`Simulation` 按 tick 推进内核；图形会话的 `AdvanceWorld` 按日界拆分推进，仅更新模拟与荒野地貌；客户端已删除委托、工程、试炼和蓝图流程。高倍速仍处理每个日界。直接调用内核 `Tick` 不会执行图形会话的荒野日界作用。
 
 ## 状态与观察边界
 
