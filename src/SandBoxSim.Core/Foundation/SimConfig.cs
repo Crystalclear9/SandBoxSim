@@ -9,7 +9,7 @@ namespace SandBoxSim.Core.Foundation;
 /// <summary>
 /// 模拟配置根。所有影响涌现行为的数值都必须在这里可调（第 96.6 / 96.7 条）。
 ///
-/// 每个字段的含义与影响链见 docs/configuration.md。
+/// 每个字段的含义与影响链见 docs/development/configuration.md。
 /// 修改这里必须同步修改 config/sim.default.json —— 测试 <c>ConfigTests.DefaultsMatchJson</c> 会强制这一点。
 /// </summary>
 public sealed class SimConfig
@@ -820,7 +820,7 @@ public sealed class DebugConfig
 
 /// <summary>
 /// 配置加载。注意：这是 Core 里**唯一**允许触碰文件系统的位置，
-/// 且只发生在世界创建之前，不参与模拟循环（见 docs/saving.md 的确定性约束）。
+/// 且只发生在世界创建之前，不参与模拟循环（见 docs/development/saving.md 的确定性约束）。
 /// </summary>
 public static class ConfigLoader
 {

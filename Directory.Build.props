@@ -24,7 +24,7 @@
     <UseAppHost>false</UseAppHost>
   </PropertyGroup>
 
-  <!-- 模拟内核：绝对不允许依赖时钟、环境或平台 API（见 docs/13-DeterminismAndSave.md） -->
+  <!-- 模拟内核：绝对不允许依赖时钟、环境或平台 API（见 docs/development/saving.md） -->
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'SandBoxSim.Core'">
     <RootNamespace>SandBoxSim.Core</RootNamespace>
     <AssemblyName>SandBoxSim.Core</AssemblyName>

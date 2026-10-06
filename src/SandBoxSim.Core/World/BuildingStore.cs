@@ -700,7 +700,7 @@ public sealed class BuildingStore : ISimEntitySet
     ///
     /// 为什么**不**在这里直接拆：拆除需要清掉 `Tile.BuildingId` 锚点，也就是需要 `World`。
     /// 让 <see cref="BuildingStore"/> 持有 World 引用会破坏分层
-    /// （见 docs/architecture.md 的依赖方向），所以这里只产出"待拆清单"，
+    /// （见 docs/development/architecture.md 的依赖方向），所以这里只产出"待拆清单"，
     /// 由持有 World 的 <c>BuildingSystem</c> 调用既有的 <see cref="Demolish"/> 完成。
     ///
     /// 规则：**只有"被使用"的建筑才不掉耐久**。M4 里"被使用"的判据是
@@ -768,7 +768,7 @@ public sealed class BuildingStore : ISimEntitySet
     /// <summary>
     /// 读档时需要知道地图宽度才能算出占据格的扁平索引。
     /// 由一个显式的设置方法传入，而不是让 BuildingStore 持有 World 引用 ——
-    /// 后者会让"建筑存储"与"世界"互相依赖，破坏分层（见 docs/architecture.md 的依赖方向）。
+    /// 后者会让"建筑存储"与"世界"互相依赖，破坏分层（见 docs/development/architecture.md 的依赖方向）。
     /// </summary>
     private int _lastKnownWidth = 1;
 

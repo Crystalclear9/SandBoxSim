@@ -987,7 +987,7 @@ public sealed class Simulation
     ///
     /// 用 <see cref="RngStream.Intervention"/> 流的随机数（**不是** Events 流）：
     /// 干预必须与天气/火灾/灾害的随机序列完全隔离，
-    /// 否则玩家改一个条件就会连带改变天气，因果就再也无法归因（见 docs/saving.md 与 RngStream.Intervention）。
+    /// 否则玩家改一个条件就会连带改变天气，因果就再也无法归因（见 docs/development/saving.md 与 RngStream.Intervention）。
     /// </summary>
     /// <returns>实际被修改的格子数。</returns>
     public int InterveneSetFertility(int centerX, int centerY, int radius, float delta)

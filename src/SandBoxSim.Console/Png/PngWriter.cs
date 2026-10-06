@@ -79,7 +79,7 @@ public sealed class PngImage
 ///
 /// 为什么需要它：控制台 TUI 只能"活着看"，无法在 CI 或评审时留下证据。
 /// 世界快照 PNG 让"涌现性是否真的发生"变成可以贴进 PR、可以被人眼复核的产物
-/// （见 docs/gameplay-observation.md 与验收标准 5）。
+/// （见 docs/guides/gameplay-observation.md 与验收标准 5）。
 /// </summary>
 public static class PngWriter
 {

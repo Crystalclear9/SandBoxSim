@@ -1,6 +1,6 @@
 # SandBoxSim 持续集成
 #
-# 构建与测试说明见 docs/build.md：
+# 构建与测试说明见 docs/development/build.md：
 #   1. 三平台都能构建 —— 证明模拟内核没有平台相关依赖；
 #   2. 全部测试通过；
 #   3. **确定性校验**（同 seed 两跑摘要一致）—— 这是本项目最核心的承诺；
@@ -50,6 +50,10 @@ jobs:
       # 先用通道 A 构建 + 跑全部测试（三平台都做）。
       # CI 上允许并行构建（GitHub 的 runner 不会拦截 MSBuild 用的命名管道）。
       # -ParallelBuild 在受限环境里必须关掉，见 tools/build-lib.ps1 的注释。
+      - name: Documentation links and path casing
+        shell: pwsh
+        run: ./tools/check-docs.ps1
+
       - name: Build script regression tests
         shell: pwsh
         run: ./tools/test-build.ps1

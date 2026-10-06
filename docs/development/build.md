@@ -20,6 +20,10 @@ Core、Console 与测试另支持 `-Channel csc`，适用于已有 .NET 运行�
 
 `-ParallelBuild` 开启并行构建；不传时使用串行模式。构建输出位于 `artifacts/<Configuration>` 和项目的 `bin/obj`；Godot 缓存位于客户端 `.godot` 目录，均不提交。
 
+`SandBoxSim.sln` 包含 Core、Console 和 Tests，图形工程单独通过 Godot 脚本构建。`godot.ps1` 的 run、editor、test 使用 Debug，因为编辑器加载 Debug 程序集；`-Mode build -Configuration Release` 单独生成 Release，不启动编辑器。
+
+`tools/dev.ps1 -SkipRun` 是 Core/Console 的构建与测试流程；不包含图形启动。图形开发使用 `godot.ps1 -Mode editor`。
+
 ## 命令行模拟
 
 ```powershell
@@ -47,13 +51,18 @@ Core、Console 与测试另支持 `-Channel csc`，适用于已有 .NET 运行�
 ./tools/test.ps1 -Filter SettlementBlueprint -Configuration Release
 ./tools/godot.ps1 -Mode test
 ./tools/test-build.ps1
+./tools/check-docs.ps1
 git diff --check
 ```
 
 自带测试运行器支持名称过滤、通过/失败/跳过统计和失败退出码。客户端自检覆盖只读观察、保存、工程、建造规划、蓝图、鼠标手势与窗口布局。图形改动还应检查实际窗口；无头自检不替代画面检查。
 
+测试通过 `tools/test.ps1` 执行项目自带运行器，`dotnet test` 不会代替它。文档检查不需要 SDK 或 Godot，但默认使用 Git 枚举当前 Markdown 文件；检查本地文件是否存在、大小写是否一致，不检查外部网址与页内锚点。
+
+各类修改需要的验证范围见 [开发指南](developer-guide.md)，运行资料位置见 [文件管理](repository-layout.md)。
+
 ## 持续集成
 
-`.github/workflows/ci.yml` 在 Windows、Linux 和 macOS 上构建与运行核心回归，并运行确定性和模拟检查；`godot.yml` 检查图形构建、资源导入和客户端自检。服务端执行结果以 GitHub 对相应提交的检查为准。
+`.github/workflows/ci.yml` 在 Windows、Linux 和 macOS 上检查文档链接、构建与运行核心回归，并在 Linux 上运行确定性和模拟检查；`godot.yml` 检查图形构建、资源导入和客户端自检。服务端执行结果以 GitHub 对相应提交的检查为准。
 
-安装工具链见 [安装与启动](getting-started.md)，目录职责见 [项目架构](architecture.md)。
+安装工具链见 [安装与启动](../guides/getting-started.md)，目录职责见 [项目架构](architecture.md)。

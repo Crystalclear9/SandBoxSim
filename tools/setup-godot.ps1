@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$Version = '4.7.2',
     [string]$InstallRoot = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.sandboxsim-tool/godot-4.7.2')

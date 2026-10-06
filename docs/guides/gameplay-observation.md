@@ -10,15 +10,15 @@
 
 按钮在悬停和按下时平滑反馈，打开面板使用短暂淡入和缩放，需求条平滑过渡到实际数值。重复打开会中止上次过渡，避免动画堆积。视觉动画不推进内核、不消耗模拟随机流。
 
-![人物档案与沉稳界面](images/resident-portrait.png)
+![人物档案与沉稳界面](../images/resident-portrait.png)
 
-![按需展开的创造菜单](images/contextual-tools.png)
+![按需展开的创造菜单](../images/contextual-tools.png)
 
 ## 建筑图册
 
 聚落营造中的住房、仓库、农田与矿场使用真实 3D 模型卡片，标明材料费用。悬停时模型缓慢转向，移开后恢复展示角度；选择后，左侧放置面板展示同类建筑与落点条件。图册使用独立场景与镜头，不生成世界建筑，也不改变人口、资源或随机流。静止预览保留已渲染图像，仅在模型变化、显示或转向时重新绘制。实际住房仍由稳定身份决定变体，卡片展示的是代表性样式。
 
-![建筑模型图册与放置预览](images/village-construction.png)
+![建筑模型图册与放置预览](../images/village-construction.png)
 
 ## 镜头与控制
 
@@ -40,20 +40,20 @@
 
 人口规模和地表存量不能单独解释一个人的处境。把人物行动、仓库库存、路径和每日变化结合起来，才能区分短期救助与持续改善。所有观察界面读取实际状态。
 
-![生态工坊](images/ecology-workshop.png)
+![生态工坊](../images/ecology-workshop.png)
 
-![持续土地管理](images/ecology-management.png)
+![持续土地管理](../images/ecology-management.png)
 
-![聚落蓝图](images/village-blueprint.png)
+![聚落蓝图](../images/village-blueprint.png)
 
 ## 世界反馈
 
 真实天气与模拟日间进度驱动光照、太阳角度和雾气。地表采样混合不同 mip 层，减少近远景重复纹理；大尺度明暗变化保留地形层次。河水使用深绿灰底、视角相关的亮度及两组动态波纹。火灾、疾病、施工、土地工程和蓝图区域有独立反馈；事件提示圈限制数量并快速淡出，详细记录保存在历史页。
 
-工程插画说明主题，地图、人物和建筑由真实场景表现。素材来源见 [美术资源](assets.md)，规则关系见 [世界系统](world-systems.md)。
+工程插画说明主题，地图、人物和建筑由真实场景表现。素材来源见 [美术资源](../development/assets.md)，规则关系见 [世界系统](world-systems.md)。
 
 ## 储备数值与参考
 
 资源栏统计存活居民背包、地面物资堆与仓库中的食物、木材和石料，不包含尚未采集的地表资源。总量不代表每个居民均可到达物资，定位和个人库存仍需结合检查。
 
-界面构图参考：[《庄园领主》官方界面指南](https://wiki.hoodedhorse.com/Manor_Lords/Beginner%27s_Guide)。项目材质、模型与图标说明见 [美术资源](assets.md)。
+界面构图参考：[《庄园领主》官方界面指南](https://wiki.hoodedhorse.com/Manor_Lords/Beginner%27s_Guide)。项目材质、模型与图标说明见 [美术资源](../development/assets.md)。

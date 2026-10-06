@@ -1,12 +1,12 @@
 # 河山 · SandBoxSim
 
-河山是一款以自然生态与居民自主行为为核心的 3D 沙盒模拟游戏。玩家塑造地形、水源和资源，规划土地与聚落；居民根据需求、材料和可达性选择生存、劳动、建造与迁移。世界通过人物经历、事件历史和每日曲线呈现这些选择的后果。
+河山是一款以自然生态与居民自主行为为核心的 3D 沙盒模拟游戏。玩家塑造地形、水源和资源，规划土地与聚落；居民依据需求、材料与可达性选择生存、劳动、建造和迁移。人物档案、世界事件与每日曲线帮助观察这些选择的后果。
 
 ![聚落营造与实际游戏画面](docs/images/village-construction.png)
 
-## 开始使用
+## 安装与开始游玩
 
-环境要求：PowerShell 7、.NET 8 SDK、Godot 4.7.2 .NET。
+源码运行环境为 **PowerShell 7、.NET 8 SDK、Godot 4.7.2 .NET**。从仓库根目录执行：
 
 ```powershell
 ./tools/install-sdk.ps1
@@ -14,47 +14,66 @@
 ./tools/godot.ps1 -Mode run
 ```
 
-Windows 配置好环境后，可双击根目录的 **Play-3D.cmd**。其他平台通过 `GODOT_EXE` 或 `-GodotPath` 指定引擎路径。安装位置与故障处理见 [安装与启动](docs/getting-started.md)。
+Windows 配置完成后可以双击 [Play-3D.cmd](Play-3D.cmd)。Linux/macOS 根据安装脚本输出设置 `GODOT_EXE`，再运行启动脚本。已有环境、工具链路径和常见问题见 [安装与启动](docs/guides/getting-started.md)。
 
-观察模式下，**左键拖动平移、右键拖动旋转与俯仰、滚轮缩放**；单击选择对象或确认落点。先暂停世界，查看现场提醒，再选择干预、土地工程或聚落建造。
+第一局先暂停，再打开现场提醒或单击居民。**左键拖动平移、右键拖动旋转与俯仰、滚轮缩放**；单击选择或确认落点。底部“创造”“营造”“生态”分别进入干预工具、建筑规划和土地工程。完整操作见 [玩家指南](docs/guides/player-guide.md)。
 
-## 游戏内容
+## 当前游戏内容
 
-- **自然世界**：地形、水土、资源再生、天气、火灾与野生动物相互影响。
-- **自主居民**：需求和行动成本驱动采集、劳动、休息、社交、建造和迁移；人物档案连接家庭、住所与人生事件。
-- **生态经营**：六种土地工程支持分阶段建设与自然、维护、资源优先三种管理方式。
-- **聚落营造**：指定住房、仓库、农田和矿场落点，使用真实材料施工；房屋有五种体量组合，朝向与布局响应周边条件。
-- **经营目标**：河畔农庄、林间驿站、集市小镇蓝图追踪真实发展；旱季、火情、疫病试炼提供有限预算与危机。
-- **观察与保存**：地图图层、人物检查、世界历史和曲线帮助理解因果；存档与实验回溯保留世界及会话状态。
-
-## 项目文档
-
-| 需要了解 | 文档 |
+| 内容 | 可以做什么 |
 |---|---|
-| 完整阅读入口 | [文档导航](docs/README.md) |
-| 安装、启动与环境设置 | [安装与启动](docs/getting-started.md) |
-| 操作、工具、试炼与保存 | [玩家指南](docs/player-guide.md) |
-| 资源、居民、生态与文明 | [世界系统](docs/world-systems.md) |
-| 建造、房屋、经营目标 | [聚落营造](docs/settlements.md) |
-| 持续土地管理与配方扩展 | [生态工坊](docs/ecology.md) |
-| 源码分层与系统边界 | [项目架构](docs/architecture.md) |
-| 构建、测试与命令行模拟 | [构建与运行](docs/build.md) |
-| 参数和存档规则 | [配置](docs/configuration.md)、[存档与确定性](docs/saving.md) |
-| 界面和素材 | [观察与界面](docs/gameplay-observation.md)、[美术资源](docs/assets.md) |
+| 自然与生态 | 改变地形、水土和资源，观察天气、火灾与动物的相互影响 |
+| 自主居民 | 观察生存、采集、劳动、建造、迁移及家庭与人生记录 |
+| 聚落营造 | 委托住房、仓库、农田与矿场，用真实材料施工；查看 3D 建筑卡片与不同房屋变体 |
+| 土地经营 | 安排六种分阶段工程，选择自然、维护或资源优先管理 |
+| 目标与试炼 | 经营河畔农庄、林间驿站或集市小镇；应对旱季、火情与疫病 |
+| 观察与保存 | 使用图层、人物档案、历史和曲线；保存世界与会话进度，记录实验起点 |
+
+顶部食物、木材与石料表示已采集储备，包括居民背包、地面物资堆和仓库。地表节点仍需要采集；库存总量也不保证每位居民都能到达物资。
+
+## 文档入口
+
+- **开始使用**：[安装与启动](docs/guides/getting-started.md)、[玩家指南](docs/guides/player-guide.md)、[故障排查](docs/guides/troubleshooting.md)。
+- **理解玩法**：[世界系统](docs/guides/world-systems.md)、[聚落营造](docs/guides/settlements.md)、[生态工坊](docs/guides/ecology.md)。
+- **继续开发**：[开发指南](docs/development/developer-guide.md)、[项目架构](docs/development/architecture.md)、[扩展指南](docs/development/extending.md)。
+- **维护项目**：[目录与文件管理](docs/development/repository-layout.md)、[构建与运行](docs/development/build.md)、[配置](docs/development/configuration.md)、[存档](docs/development/saving.md)。
+- **查看更新**：[更新记录](CHANGELOG.md)、[版本更新与兼容](docs/guides/updating.md)。
+
+所有主题见 [文档导航](docs/README.md)。历史设计与阶段记录独立保存在 `docs/archive/`。
+
+## 开发入口
+
+```powershell
+# 内核、命令行与测试工程
+./tools/build.ps1 -Mode build -Configuration Release -Channel sdk -ParallelBuild
+
+# 图形客户端：构建或打开编辑器
+./tools/godot.ps1 -Mode build -Configuration Release
+./tools/godot.ps1 -Mode editor
+
+# 检查文档文件链接与大小写
+./tools/check-docs.ps1
+```
+
+`SandBoxSim.sln` 包含 Core、Console 和 Tests；Godot 工程通过 `tools/godot.ps1` 单独构建。测试使用项目自带运行器，入口是 `tools/test.ps1`。逐项操作及验证选择见 [开发指南](docs/development/developer-guide.md)。
 
 ## 仓库结构
 
 ```text
 SandBoxSim/
-├─ src/                 模拟内核、命令行客户端、Godot 客户端与测试
-├─ config/              默认模拟配置
-├─ tools/               安装、构建、运行和测试脚本
-├─ docs/                项目说明、玩法和技术文档
-│  ├─ images/           文档使用的游戏截图
-│  └─ archive/          历史设计、计划和阶段记录
-├─ .github/workflows/   跨平台持续集成
+├─ src/                 Core、Console、Godot 与 Tests 四个工程
+├─ config/              默认模拟参数
+├─ tools/               安装、构建、运行、测试与文档检查脚本
+├─ docs/
+│  ├─ guides/           安装、游玩、排错和版本更新
+│  ├─ development/      架构、扩展、构建、配置、存档与素材
+│  ├─ images/           正式文档配图，保留并提交
+│  └─ archive/          原始要求、设计与历史记录
+├─ .github/workflows/   核心与图形持续集成
 ├─ artifacts/           本机构建输出，忽略提交
-└─ runs/                本机模拟数据与日志，忽略提交
+└─ runs/                日志、模拟数据和临时截图，忽略提交
 ```
 
-Godot 资源按 `assets/textures`、`assets/illustrations`、`assets/gameplay` 分类。SDK 与引擎安装在仓库外；核心内核、命令行客户端和测试可独立于 Godot 构建。贡献约定见 [CONTRIBUTING.md](CONTRIBUTING.md)，授权条款见 [LICENSE](LICENSE)。
+游戏纹理、插画和配方分别位于 `src/SandBoxSim.Godot/assets/textures/`、`illustrations/`、`gameplay/`。开发期间的临时截图放在 `runs/screenshots/`；清理临时截图时保留文档配图、游戏素材和存档。详细约定见 [文件管理](docs/development/repository-layout.md)。
+
+贡献约定见 [CONTRIBUTING.md](CONTRIBUTING.md)，代码授权见 [LICENSE](LICENSE)。

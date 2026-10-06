@@ -3,7 +3,7 @@
     SandBoxSim 构建/运行命令行入口。
 
 .DESCRIPTION
-    本仓库刻意支持两条构建通道，参见 docs/build.md：
+    本仓库刻意支持两条构建通道，参见 docs/development/build.md：
 
       通道 A（首选）：机器上有 .NET 8 SDK 时，走标准 dotnet build / dotnet run。
       通道 B（降级）：机器上只有 .NET 8 运行时 + Roslyn csc（例如只装了 VS2022）时，

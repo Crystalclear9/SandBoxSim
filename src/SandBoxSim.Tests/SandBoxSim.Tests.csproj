@@ -3,7 +3,7 @@
   <!--
     SandBoxSim.Tests —— 零依赖测试：自带反射测试运行器（[Fact]/[Theory]）。
     之所以不用 xUnit：本项目要求"无 SDK 也能编译并跑测试"，
-    任何 NuGet 依赖都会在降级通道下失效。详见 docs/build.md。
+    任何 NuGet 依赖都会在降级通道下失效。详见 docs/development/build.md。
   -->
   <PropertyGroup>
     <AssemblyTitle>SandBoxSim Tests</AssemblyTitle>

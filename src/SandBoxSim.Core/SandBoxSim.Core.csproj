@@ -2,7 +2,7 @@
 
   <!--
     SandBoxSim.Core —— 纯模拟内核。
-    硬性约束（由 docs/saving.md 与 Tests/DeterminismTests 保证）：
+    硬性约束（由 docs/development/saving.md 与 Tests/DeterminismTests 保证）：
       1. 不引用任何平台/UI/IO 库（不使用 System.Console、System.IO、System.Drawing）。
       2. 不读取时钟（不使用 DateTime.Now / Environment.TickCount / Stopwatch）。
       3. 不直接使用 System.Random，统一走 Foundation/DeterministicRandom。

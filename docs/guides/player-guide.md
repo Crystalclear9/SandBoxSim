@@ -93,9 +93,9 @@ Windows 已配置环境时双击根目录 Play-3D.cmd。第一次进入先暂停
 
 世界设置位于顶部右侧，其中包含世界规则、观察图层、随机种子、保存与载入以及实验起点。列表可以向下滚动。
 
-![世界设置入口与规则](images/ecology-settings.png)
+![世界设置入口与规则](../images/ecology-settings.png)
 
 热力图用于看资源、湿度、肥力、危险等分布，曲线用于比较日间趋势；实际住址和物资仍应在人物或建筑检查器中确认。
 
 ## 运行与表现
-项目通过 Godot .NET 和启动脚本运行，安装方式见 [安装与启动](getting-started.md)。地形、建筑与部分细节使用程序生成表现。世界系统与策略见 [世界如何运转](world-systems.md)，开发与内容扩展见 [开发指南](architecture.md)。
+项目通过 Godot .NET 和启动脚本运行，安装方式见 [安装与启动](getting-started.md)。地形、建筑与部分细节使用程序生成表现。世界系统与策略见 [世界如何运转](world-systems.md)，开发与内容扩展见 [开发指南](../development/architecture.md)。

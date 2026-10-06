@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [ValidateSet('build', 'run', 'test', 'editor')]
     [string]$Mode = 'run',
