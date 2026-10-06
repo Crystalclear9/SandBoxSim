@@ -1,196 +1,26 @@
 # 贡献指南
 
-感谢你对 SandBoxSim 感兴趣。这个项目的目标不是"功能最多的模拟游戏"，而是
-**"规则最少、耦合最强、最可解释、最有生命力"的模拟世界**。因此贡献的第一原则是：
+项目通过相互连接的规则呈现生态与社会变化。提交新机制时，说明它读取什么条件、改变什么状态、付出什么成本，以及玩家怎样观察结果。开发入口见 [开发指南](docs/development/developer-guide.md)，接入方法见 [扩展指南](docs/development/extending.md)。
 
-> 加一个新机制之前，先读 [docs/00-Index.md](docs/00-Index.md) 的系统连接度自检表，
-> 并回答三个问题：它增加**涌现性**吗？增加**玩家能动性**吗？增加**可观察性**吗？
-> 三个都答不上来 → 这个改动大概率不该做（见 [docs/11-MVP-Scope.md](docs/11-MVP-Scope.md)）。
+## 开发约定
 
----
+- Core 仅依赖 BCL，保持独立于 Godot；Console 与测试支持 SDK/csc 两条构建通道。
+- 随机性使用明确的内核随机流，模拟规则不使用系统时间、`System.Random` 或对象哈希。
+- 改变地块和资源通过正式状态入口，保持索引、容量与事件一致；观察、镜头和展示动画保持只读。
+- 影响未来行为的状态进入存档与摘要；图形会话另检查工程、试炼和蓝图的编码及续跑。
+- 区分行动门槛和偏好，控制热路径遍历与搜索次数；材料操作保持事务性，失败原因可观察。
+- 源码使用四空格缩进；PowerShell 脚本保留 UTF-8 BOM。移动 Godot 文件时维护 `.uid`、`.import` 和 `res://` 引用。
 
-## 一、环境准备
+## 验证与提交
 
-跨平台入口使用 PowerShell 7：`pwsh -NoProfile -File ./tools/build.ps1 -Mode test -Channel sdk`。
-修改 `tools/` 后运行 `pwsh -NoProfile -File ./tools/test-build.ps1`，并验证 SDK 和 csc 两条通道。
-`.ps1` 保持 UTF-8 BOM，以兼容 Windows PowerShell 5.1 的中文注释解析。
-目录职责、产物管理及 CI 验收见 [构建与交付说明](docs/16-BuildAndDelivery.md)。
-
-```powershell
-# 一键：确保 SDK（没有就装到仓库外）→ 构建 → 测试 → 启动
-.\tools\dev.ps1
-
-# 只构建 + 跑测试
-.\tools\dev.ps1 -SkipRun
-```
-
-仓库**不依赖任何 NuGet 包**（测试框架、JSON、PNG/zlib 全部自带），因此只要有
-.NET 8 SDK 或"运行时 + Roslyn csc"就能构建。细节见
-[docs/12-Milestones.md](docs/12-Milestones.md) 的《构建通道》一节。
-
-### 受限环境（沙箱 / 企业策略）
-
-本仓库的构建脚本默认使用 `-nodeReuse:false -maxCpuCount:1`（串行构建）。
-原因是 MSBuild 的多进程构建依赖**命名管道**，在部分沙箱环境下会被拦截，
-表现为 `restore` 静默失败（输出"生成失败 / 0 个错误"，没有错误行，极难排查）。
-
-如果你的环境允许命名管道，加 `-ParallelBuild` 找回并行速度：
+依据改动范围选择 [开发指南中的检查](docs/development/developer-guide.md#按改动选择检查)。模拟规则提交前运行完整回归；图形修改增加实机检查；脚本修改运行脚本回归。所有文档改动运行：
 
 ```powershell
-.\tools\build.ps1 -Mode test -ParallelBuild
+./tools/check-docs.ps1
+git diff --check
+git status --short
 ```
 
----
+PR 描述先说明具体问题与变化后的行为，再说明实际运行的检查和限制。使用、配置或存档变化同步对应文档，并在 [CHANGELOG](CHANGELOG.md) 写清更新内容及影响。
 
-## 二、提交前的检查清单
-
-```powershell
-.\tools\test.ps1                 # 1) 全部测试必须绿
-.\tools\run.ps1 -Mode digest -Days 30 -Agents 30   # 2) 确定性校验必须通过（带上个体）
-.\tools\run.ps1 -Mode batch -SeedRange 1..5 -Days 60 -Agents 20  # 3) 多 seed 不崩
-```
-
-如果你改了任何影响模拟行为的代码，还应该：
-
-```powershell
-.\tools\run.ps1 -Mode snapshot -Days 100 -Agents 40 -SnapshotDays 25
-# 打开 runs/<runId>/report.md 与 World_*.png，确认世界仍在"活着"（出现建造/人口/迁移等现象）
-
-.\tools\test.ps1 -Filter EconomyDiagnostics
-# 看"行为诊断"：各动作被选中的次数、动物种群是否可持续、人均随身物资是否稳定。
-# 这一条比看曲线更有用 —— 它能立刻暴露"某个机制静默失效"或"某个动作占满决策"。
-```
-
-### 2.1 改参数时必须做的三件事
-
-调参是这类项目里最常见的改动，也是最容易悄悄搞坏行为的一类改动：
-
-1. **算一遍量纲**：例如"每天需要多少食物 × 人数 = 每天需要多少次采集"。
-   算不出来就说明参数之间缺少可解释的关系，那才是真正的问题（参考
-   [docs/06](docs/06-ResourceModel.md) 的"口粮账"）。
-2. **看诊断里的行为分布**，而不是只看最终数值。
-   一个机制"数值上看起来合理"但"从来没被选中"是最常见的失败模式
-   （M2 里"存放/取回"就这样静默失效过）。
-3. **更新配置注释**：`SimConfig` 与 `config/sim.default.json` 里都要写清
-   "这个值调大/调小会发生什么"，并同步 `ConfigTests.DefaultsMatchJson`。
-
----
-
-## 三、代码约定（模拟内核尤其严格）
-
-### 3.1 `SandBoxSim.Core` 的硬约束
-
-| 禁止 | 替代 | 为什么 |
-|---|---|---|
-| `System.Random` | `SimRandom.Get(RngStream.X)` | 运行时实现可能变化，破坏可复现性 |
-| `DateTime.Now` / `Stopwatch` | `World.Calendar.Tick` | 结果不能依赖真实时间 |
-| 遍历 `Dictionary` / `HashSet` | 索引数组 / `List` | 迭代顺序不保证 |
-| `object.GetHashCode()` | `Hash64` | .NET 对 string 加了随机化种子 |
-| `Math.Pow`（热路径） | `Square` / 手写整数幂 | 跨平台可能有 1 ULP 差异 |
-| 直接改 `Tile` 字段 | `World.SetXxx(...)` | 必须同步空间索引 |
-| 在 Core 里做 I/O / 控制台输出 | 通过 `Simulation` 暴露查询接口 | 模拟要能脱离 UI 重放 |
-
-**唯一例外**：`Foundation/SimConfig.cs` 里的 `ConfigLoader` 会读文件，
-但它只在世界创建前运行一次，不参与模拟循环。
-
-### 3.1.1 两条从实测里换来的性能纪律
-
-这两条都不是"优化技巧"，而是**避免写出慢代码**的基本纪律：
-
-1. **稀疏数据永远不要用稠密数组遍历。**
-   凡是"活着的东西只占一小部分"的集合（个体、动物、物资堆），
-   都必须维护"存活前缀数组"或"存活索引列表"。
-   （实测：容量按峰值人口预留 400、实际只有 40 人，每 tick 扫空槽位曾占掉大半开销。）
-2. **不要在热路径上清零大数组。**
-   需要"每次重新开始"的状态，用**版本号/世代号**做惰性清空
-   （`AStarPathfinder` 是范例），而不是 `Array.Clear` 整个地图。
-3. **加一个高频循环之前，先问它每 tick 要做多少次。**
-   典型反例："每只动物每 tick 问一次最近的人在哪" —— 50×40×每 tick = 数亿次比较。
-
-### 3.1.2 效用系统的两条语义纪律
-
-1. **区分"门槛"与"加分"**（`Consideration.IsBonus`）。
-   门槛缺席 ⇒ 这件事不能做（会触发"被门挡住"的效用惩罚）；
-   加分缺席 ⇒ 这件事只是没那么想做。
-   把加分当门槛写，会让机制在"条件暂时不满足"时静默失效。
-2. **不要用"结果"当"意愿"的判据。**
-   例如用"离家距离"当迁移意愿，会形成自反馈"越走越远 ⇒ 越想迁移"。
-   意愿必须是**显式状态**（由决策层授予），执行层只负责执行它。
-
-### 3.2 新增系统时的接入检查清单
-
-1. 它属于哪一层？（能不能放在更下层？）
-2. 读什么、写什么？更新 [docs/02-SystemArchitecture.md](docs/02-SystemArchitecture.md) 的矩阵。
-3. 有正/负反馈吗？更新反馈环清单。
-4. 需要新随机数吗？用哪条 `RngStream`？（**不要随便开新流**，会影响旧存档）
-5. 需要新配置项吗？加进 `SimConfig` + `config/sim.default.json`，
-   并同步 `ConfigTests.DefaultsMatchJson`（这个测试会强制两者一致）。
-6. 状态怎么进摘要？实现 `ISimEntitySet.HashInto` 或加进 `StateHash`。
-7. Debug 手段是什么？检查器字段 / 热力图 / 日志。
-8. 可能造出什么故事？写进 `docs/09-EmergentStories.md`。
-9. 有测试吗？至少覆盖：确定性、边界、不变量。
-10. 现有测试还全绿吗？
-
-### 3.3 代码风格
-
-- 4 空格缩进，`max_line_length = 120`（`.editorconfig` 已配置）；
-- **注释写"为什么"，不写"是什么"**。反例：`// 把 i 加一`。
-  正例：`// 用分位数阈值而不是固定阈值：fBm 的值聚集在 0.5 附近，固定阈值会让小地图上没有水`；
-- **踩过的坑要写进注释**。这个项目里最有价值的注释往往是"为什么不能这么写"；
-- 公共 API 必须有 XML 文档注释；模拟规则、公式、阈值必须能追溯到 `docs/`。
-
-### 3.4 测试约定
-
-- `[Fact("中文说明")]`：普通用例，方法必须无参；
-- `[Theory("中文说明")]` + 方法内遍历 `Theory.Cases(...)` 数据表：参数化用例。
-  **不要**把用例数据写进特性实参 —— C# 特性实参不能是对象构造表达式（CS0182）；
-- 断言消息要带**足够定位问题的现场信息**（数值、索引、地形、时间），
-  不要只写"期望 true"；
-- 确定性相关的测试不允许有容差（除非在摘要量化精度之内）。
-
----
-
-## 四、文档约定
-
-每个机制在 `docs/` 里必须能回答五问：
-
-1. 它解决什么问题？
-2. 读哪些数据？
-3. 改哪些数据？
-4. 与其他系统如何连接？
-5. 有哪些 Debug 方法、可能产生什么涌现行为？
-
-**未落地的新机制不要先写空文档** —— 那只会生产"读起来很美、实现时全不对"的纸面设计。
-文档进度表见 [docs/00-Index.md](docs/00-Index.md)。
-
----
-
-## 五、提交与推送
-
-本项目按里程碑推进，**每个里程碑一个可运行的提交**，历史本身就是项目成长过程的记录。
-
-```
-<里程碑>: <做了什么>
-
-- 关键改动 1
-- 关键改动 2
-
-验收：
-- .\tools\test.ps1 → N/N 通过
-- .\tools\run.ps1 -Mode digest -Days 30 → digest=xxxx（两次一致）
-```
-
-- 推送前请确保 `.\tools\test.ps1` 全绿；
-- 不要提交构建产物（`bin/`、`obj/`、`artifacts/`）与运行产物（`runs/` 下的报告/PNG）；
-- 如果一次改动改变了世界演化结果，请在提交信息里**明确说明**，
-  并附上新旧摘要对比 —— 这类改动需要额外验证，不能悄悄合入。
-
----
-
-## 六、不要做的事（第一阶段禁项）
-
-见 [docs/12-Milestones.md](docs/12-Milestones.md) 结尾的禁项清单：完整科技树、几十种资源、
-复杂战斗与外交、金融经济、超大地图、多人联机、3D 美术、任务系统、剧情系统。
-
-理由不是"做不了"，而是：**真正需要先验证的是"10~30 个 NPC 在地图上自己生活是否有趣"。
-如果这个核心没有乐趣，更多内容不会让游戏变好。**
+文档属于 `docs/guides/` 或 `docs/development/`；历史资料留在 `docs/archive/`。保留正式配图，临时截图放在 `runs/screenshots/`，日志放在 `runs/logs/`。个人存档、SDK、引擎和构建缓存不提交，详细边界见 [文件管理](docs/development/repository-layout.md)。

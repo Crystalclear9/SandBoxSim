@@ -31,10 +31,9 @@ public sealed class M6WaterDiagnostics
     private static bool Enabled
         => System.Environment.GetEnvironmentVariable("SBOX_SIM_M6_OPEN") == "1";
 
-    [Fact("诊断：定居点取水失败的定位（需 SBOX_SIM_M6_OPEN=1）")]
+    [Fact("诊断：定居点取水失败的定位（默认执行）")]
     public void DiagnoseWaterAccess()
     {
-        if (!Enabled) { Assert.Skip("需要显式开启此用例的环境变量，未执行验收"); }
 
         int seed = 9003;   // 实测会全员脱水的那个种子
         var sim = new Simulation(new SimConfig { World = { Width = 44, Height = 44 } }, 44, 44, seed);
@@ -107,5 +106,7 @@ public sealed class M6WaterDiagnostics
             }
         }
         System.Console.WriteLine("  [取水诊断] 死因：" + causes);
+        Assert.True(sim.Agents.LiveCount > 0, "取水诊断场景不能全灭");
+        Assert.Equal(0, sim.Needs.DeathsByCause[(int)DeathCause.Dehydration], "可达水源场景不应出现脱水死亡");
     }
 }

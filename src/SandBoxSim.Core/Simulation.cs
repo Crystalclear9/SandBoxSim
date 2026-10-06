@@ -123,6 +123,10 @@ public sealed class Simulation
     /// 不存档、不进摘要，读档后重算得完全相同的值。
     /// </summary>
     public ConflictSystem Conflict { get; }
+    public SocietySystem Society { get; }
+    public CivilizationSystem Civilizations { get; }
+    public DiseaseSystem Diseases { get; }
+    public PredatorSystem Predators { get; }
 
     public SimulationStats Stats { get; } = new SimulationStats();
 
@@ -148,6 +152,9 @@ public sealed class Simulation
 
     /// <summary>最近一次每日采样的结果。</summary>
     public DailySample LastDailySample { get; private set; }
+    public DailySample Observe() => BuildDailySample();
+    /// <summary>可选性能观察入口；时间测量由表现层完成，内核不读取系统时钟。</summary>
+    public System.Action<int, bool>? ProfileStage;
 
     public Simulation(SimConfig config, int width, int height, int seed)
         : this(config, width, height, seed, restoreMode: false)
@@ -207,6 +214,15 @@ public sealed class Simulation
 
         // M8：冲突压力。同样**刻意不注册进实体集合** —— 它没有持久状态。
         Conflict = new ConflictSystem(this);
+        Society = new SocietySystem(this);
+        Civilizations = new CivilizationSystem(this);
+        RegisterEntitySet(Society);
+        RegisterEntitySet(Civilizations);
+        Diseases = new DiseaseSystem(this);
+        RegisterEntitySet(Diseases);
+        Predators = new PredatorSystem(this);
+        RegisterEntitySet(Predators);
+        Needs.Died += RecordDeath;
 
         // 注册进实体集合：世界重建时会自动 Reset，摘要会自动覆盖
         RegisterEntitySet(Agents);
@@ -315,22 +331,33 @@ public sealed class Simulation
             bool isNight = World.Calendar.IsNight;
 
             // ---- 个体层（M1）----
+            ProfileStage?.Invoke(0, true);
             Actions.Tick(tick);
+            ProfileStage?.Invoke(0, false);
+            ProfileStage?.Invoke(1, true);
             Needs.TickNeeds(Agents, tick, World.Calendar.TicksPerDay, isNight);
-            RecordDeathsFromNeeds(tick);
+            ProfileStage?.Invoke(1, false);
+            ProfileStage?.Invoke(2, true);
             Ai.Tick(tick, isNight);
+            ProfileStage?.Invoke(2, false);
 
             // ---- 生态层（M2）----
             // 动物每 tick 更新（它们数量多、动作简单），
             // 但种群级事件（繁殖/自然死亡/容量重算）只在日边界发生。
+            ProfileStage?.Invoke(3, true);
             WildlifeSystem.Tick(tick);
+            ProfileStage?.Invoke(3, false);
 
             // ---- 环境层 ----
+            ProfileStage?.Invoke(4, true);
             if (IsFastTick) { TickFast(); }
             if (World.Calendar.IsHourBoundary) { TickHourInternal(); }
             if (World.Calendar.IsDayBoundary) { TickDayInternal(); }
+            ProfileStage?.Invoke(4, false);
 
+            ProfileStage?.Invoke(5, true);
             World.RefreshSpatialIndex();
+            ProfileStage?.Invoke(5, false);
 
             PopulationCount = Agents.LiveCount;
             BuildingCount = Buildings.TotalCompleted;
@@ -351,12 +378,9 @@ public sealed class Simulation
     /// 只遍历需求系统给出的死亡明细（而不是扫全部槽位）——
     /// 后者是"看起来无害的 O(容量)"，在长期运行时会被死过的槽位反复扫到。
     /// </summary>
-    private void RecordDeathsFromNeeds(long tick)
+    private void RecordDeath(DeathRecord death)
     {
-        System.Collections.Generic.IReadOnlyList<DeathRecord> deaths = Needs.Deaths;
-        for (int i = 0; i < deaths.Count; i++)
-        {
-            DeathRecord death = deaths[i];
+            long tick = World.Tick;
             string name = Agents.NameOrOverride(death.Slot);
             string causeLabel = NeedsSystem.DescribeCause(death.Cause);
 
@@ -381,7 +405,6 @@ public sealed class Simulation
         Relationships.Forget(death.Slot);
 
             Stats.RecordDeath();
-        }
     }
 
     /// <summary>每 10 个 tick 一次的高频系统（建造施工、火灾蔓延、农场生长）。</summary>
@@ -407,11 +430,19 @@ public sealed class Simulation
     {
         BuildingSystem.TickFast(World.Tick);
         Fire.TickFast(World.Tick);
+        Civilizations.TickFast(World.Tick);
+        Predators.TickFast(World.Tick);
     }
 
     private void TickHourInternal()
     {
         WeatherTick();
+        // 对一天内的匮乏持续采样；日末单点采样会漏掉刚刚进食的人。
+        Relationships.TickResentment(Agents,
+            Config.Relationship.ResentmentHungerThreshold,
+            Config.Relationship.ResentmentSurplusThreshold,
+            Config.Relationship.ResentmentPerDay / 24f,
+            Config.Relationship.ResentmentRadius, World.Tick);
         if (ResourceSystem.RegeneratesHourly)
         {
             ResourceSystem.Regenerate(RegenerationDays(1.0 / 24.0));
@@ -433,14 +464,6 @@ public sealed class Simulation
         // 顺序固定即可（确定性只要求顺序稳定，不要求它必须是某一个特定顺序）。
         // M6：怨恨先于回落 —— 让"本日的条件"先产生关系变化，再统一衰减。
         // 顺序固定即可（确定性只要求顺序稳定）。
-        Relationships.TickResentment(
-            Agents,
-            Config.Relationship.ResentmentHungerThreshold,
-            Config.Relationship.ResentmentSurplusThreshold,
-            Config.Relationship.ResentmentPerDay,
-            Config.Relationship.ResentmentRadius,
-            World.Tick);
-
         Relationships.TickDay(World.Tick);
 
         // M7：聚落评估（在关系之后、日常事务之前 —— 顺序固定即可）
@@ -456,7 +479,11 @@ public sealed class Simulation
 
         DailySample sample = BuildDailySample();
         LastDailySample = sample;
+        bool famineWasActive = Stats.FamineActive;
         Stats.RecordDay(sample, FoodPerCapitaFamineThreshold);
+        if (Stats.FamineActive && !famineWasActive)
+            Events.Record(World.Tick, History.WorldEventType.Famine, "食物储备不足，世界进入饥荒",
+                History.EventImportance.Important, cause: "人口与可用食物的实际比例低于阈值");
         DayEventsFired++;
         DayAdvanced?.Invoke(this);
     }
@@ -481,7 +508,6 @@ public sealed class Simulation
     public void TickDay()
     {
         Needs.TickAging(Agents, Random.Get(RngStream.Agents), World.Tick);
-        RecordDeathsFromNeeds(World.Tick);
 
         // M4：伴侣配对要在出生之前 —— 否则"今天刚搬来的人"永远配不上对
         Births.TickPairing(World.Tick);
@@ -494,6 +520,10 @@ public sealed class Simulation
 
         // 农田产出与建筑衰减放最后：它们是"这一天的收支结算"。
         BuildingSystem.TickDay(World.Tick);
+        Society.TickDay(World.Tick);
+        Diseases.TickDay(World.Tick);
+        Predators.TickDay(World.Tick);
+        Civilizations.TickDay(World.Tick);
 
         PopulationCount = Agents.LiveCount;
         BuildingCount = Buildings.TotalCompleted;
@@ -517,6 +547,7 @@ public sealed class Simulation
         if (moistureDelta == 0f && temperatureDelta == 0f) { return; }
 
         Tile[] tiles = World.Tiles;
+        bool navigationChanged = false;
         for (int i = 0; i < tiles.Length; i++)
         {
             ref Tile tile = ref tiles[i];
@@ -560,11 +591,13 @@ public sealed class Simulation
 
             if (targetMoisture != tile.Moisture || targetTemperature != tile.Temperature)
             {
+                navigationChanged |= targetTemperature != tile.Temperature;
                 tile.Moisture = targetMoisture;
                 tile.Temperature = targetTemperature;
                 World.MarkDirtyAt(i % World.Width, i / World.Width);
             }
         }
+        if (navigationChanged) { World.NotifyNavigationChanged(); }
     }
 
     /// <summary>饥荒判定的门槛：人均食物低于此值算饥荒（第 8 节人口模型）。</summary>
@@ -954,7 +987,7 @@ public sealed class Simulation
     ///
     /// 用 <see cref="RngStream.Intervention"/> 流的随机数（**不是** Events 流）：
     /// 干预必须与天气/火灾/灾害的随机序列完全隔离，
-    /// 否则玩家改一个条件就会连带改变天气，因果就再也无法归因（见 docs/13 与 RngStream.Intervention）。
+    /// 否则玩家改一个条件就会连带改变天气，因果就再也无法归因（见 docs/development/saving.md 与 RngStream.Intervention）。
     /// </summary>
     /// <returns>实际被修改的格子数。</returns>
     public int InterveneSetFertility(int centerX, int centerY, int radius, float delta)

@@ -126,6 +126,7 @@ public sealed class ActionSystem
         for (int k = 0; k < liveCount; k++)
         {
             int slot = slots[k];
+            if (_sim.Civilizations.IsTransporting(slot)) { continue; }
 
             ActionPhase phase = _store.PhaseOf(slot);
             if (phase == ActionPhase.Idle || phase == ActionPhase.Done || phase == ActionPhase.Failed)
@@ -359,6 +360,7 @@ public sealed class ActionSystem
             case ActionKind.BuildHouse:
             case ActionKind.BuildStorage:
             case ActionKind.BuildFarm:
+            case ActionKind.BuildMine:
                 TickBuild(slot, tick);
                 break;
 
@@ -572,7 +574,7 @@ public sealed class ActionSystem
         float cap = System.Math.Max(0.01f, cfg.FarmLaborPerDayCap);
         if (_sim.Buildings.LaborOf(index) < cap)
         {
-            _sim.Buildings.AddLabor(index, System.Math.Max(0.01f, cfg.FarmWorkPerAction));
+            _sim.Buildings.AddLabor(index, System.Math.Max(0.01f, cfg.FarmWorkPerAction) * _sim.Diseases.LaborMultiplier(slot));
             FarmVisits++;
         }
 
@@ -590,6 +592,7 @@ public sealed class ActionSystem
         {            case ActionKind.BuildHouse: return BuildingKind.House;
             case ActionKind.BuildStorage: return BuildingKind.Storage;
             case ActionKind.BuildFarm: return BuildingKind.Farm;
+            case ActionKind.BuildMine: return BuildingKind.Mine;
             default: return BuildingKind.None;
         }
     }
@@ -809,6 +812,8 @@ public sealed class ActionSystem
         }
 
         float perAction = PerHarvestForAction(kind);
+        perAction *= _sim.Civilizations.ProductionMultiplier(target.X, target.Y) * _sim.Diseases.LaborMultiplier(slot);
+        if ((kind == ResourceKind.Iron || kind == ResourceKind.Stone) && HasMineNear(target.X, target.Y)) { perAction *= 1.5f; }
         float taken = _sim.ResourceSystem.Harvest(target.X, target.Y, kind, perAction);
         if (taken <= 0f)
         {
@@ -835,6 +840,15 @@ public sealed class ActionSystem
             case ActionKind.GatherIron: return ResourceKind.Iron;
             default: return ResourceKind.None;
         }
+    }
+
+    private bool HasMineNear(int x, int y)
+    {
+        for (int i = 0; i < _sim.Buildings.Capacity; i++)
+            if (_sim.Buildings.IsAlive(i) && _sim.Buildings.KindOf(i) == BuildingKind.Mine
+                && _sim.Buildings.StateOf(i) == BuildingState.Complete
+                && Int2.SquaredDistance(new Int2(x, y), new Int2(_sim.Buildings.XOf(i), _sim.Buildings.YOf(i))) <= 16) { return true; }
+        return false;
     }
 
     private float PerHarvestForAction(ResourceKind kind)
@@ -1022,6 +1036,7 @@ public sealed class ActionSystem
         }
 
         float damage = _config.Relationship.AttackDamage;
+        damage *= _sim.Civilizations.CombatMultiplier(_store.XOf(slot), _store.YOf(slot));
         _store.SetHealth(victim, _store.HealthOf(victim) - damage);
 
         // 攻击是**单向的伤害**，但关系是**对称的恶化**：

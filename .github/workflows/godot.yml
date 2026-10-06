@@ -1,0 +1,38 @@
+name: Godot client
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  client:
+    name: 3D client (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Install verified Godot .NET editor
+        shell: pwsh
+        run: |
+          $editor = ./tools/setup-godot.ps1 -InstallRoot (Join-Path $env:RUNNER_TEMP 'sandboxsim-godot')
+          "GODOT_EXE=$editor" >> $env:GITHUB_ENV
+      - name: Build release client
+        shell: pwsh
+        run: ./tools/godot.ps1 -Mode build -Configuration Release
+      - name: Import assets and verify client interactions
+        shell: pwsh
+        run: ./tools/godot.ps1 -Mode test

@@ -96,6 +96,8 @@ public enum ActionKind : byte
 
     /// <summary>把物资存进仓库（M3）：共享库存的入口。</summary>
     StoreInBuilding = 29,
+    BuildMine = 30,
+    Trade = 31,
 }
 
 /// <summary>动作的执行阶段（第 18 节：Condition → 选靶 → 移动 → 执行 → 结算）。</summary>
@@ -124,6 +126,11 @@ public enum JobType : byte
     Farmer = 2,
     Builder = 3,
     Miner = 4,
+    Hunter = 5,
+    Soldier = 6,
+    Trader = 7,
+    Craftsman = 8,
+    Leader = 9,
 }
 
 /// <summary>生命阶段（第 36 / M6 节）。M1 先只有成年，年龄系统在 M2 接入。</summary>

@@ -213,11 +213,41 @@ public sealed class M6Tests
         // The previous fixture converted EVERY tile to grass, deleting its drinking water.
         Simulation sim = MakeScarceWorld(9003);
         Assert.True(sim.World.TileAt(24, 30).Terrain == TerrainKind.Water);
-        sim.Tick(TicksPerDay * 40);
+        // 验证的是怨恨如何生成敌意，不假设中性性格一定选择暴力。
+        // 给出有冲突倾向的人格条件，关系仍全部从陌生人开始。
+        foreach (int slot in sim.Agents.AliveSlots())
+        {
+            var traits = sim.Agents.PersonalityOf(slot);
+            traits.Aggression = 0.9f; traits.Bravery = 0.9f; traits.Kindness = 0.1f;
+            sim.Agents.SetPersonality(slot, traits);
+        }
+        float worstAffinity = 0;
+        float highestAttackUtility = 0;
+        string attackContext = "";
+        for (int day = 0; day < 40; day++)
+        {
+            if (day % 3 == 0) { MaintainInequality(sim); }
+            sim.Tick(TicksPerDay);
+            foreach (int slot in sim.Agents.AliveSlots())
+                foreach (var score in sim.Agents.LastDecisionOf(slot).Scores ?? System.Array.Empty<SandBoxSim.Core.Ai.ActionScore>())
+                    if (score.Action == ActionKind.Attack && score.Utility > highestAttackUtility)
+                    {
+                        highestAttackUtility = score.Utility;
+                        var last = sim.Agents.LastDecisionOf(slot);
+                        attackContext = "选择 " + last.Chosen + " " + last.ChosenUtility + "，健康 " + sim.Agents.HealthOf(slot);
+                        foreach (var c in score.Considerations) { attackContext += " / " + c.Name + "=" + c.Input; }
+                    }
+            foreach (var pair in sim.Relationships.PairsAscending())
+            {
+                worstAffinity = System.Math.Min(worstAffinity, pair.Value.Affinity);
+            }
+        }
         Assert.Greater(sim.Agents.LiveCount, 0, "实验不能退化为空世界");
         Assert.Greater(sim.Relationships.TotalInteractions, 0L);
         Assert.Greater(sim.Ai.ChosenByAction[(int)ActionKind.Attack], 0,
-            "不预设敌意的不平等世界应自行出现攻击");
+            "不预设敌意的不平等世界应自行出现攻击；最低亲和度 " + worstAffinity
+            + "，存活 " + sim.Agents.LiveCount + "，互动 " + sim.Relationships.TotalInteractions
+            + "，攻击效用峰值 " + highestAttackUtility + "，逃跑次数 " + sim.Ai.ChosenByAction[(int)ActionKind.Flee] + "，" + attackContext);
     }
     [Fact("和平模式必须真的关掉攻击这条通路")]
     public void PeaceModeDisablesAttack()
@@ -225,9 +255,24 @@ public sealed class M6Tests
         Simulation warlike = MakeScarceWorld(9004);
         Simulation peaceful = MakeScarceWorld(9004);
         peaceful.Config.Rules.PeaceMode = true;
+        // 显式建立敌意和好斗性格：此用例验证和平规则，不依赖随机种子恰好制造冲突。
+        foreach (Simulation world in new[] { warlike, peaceful })
+        {
+            world.Config.Rules.NoDeath = true;
+            foreach (int a in world.Agents.AliveSlots())
+            {
+                var traits = world.Agents.PersonalityOf(a);
+                traits.Aggression = 1; traits.Bravery = 1; traits.Kindness = 0;
+                world.Agents.SetPersonality(a, traits);
+                foreach (int b in world.Agents.AliveSlots())
+                    if (a < b) { world.Relationships.Interact(a, b, -1, world.Clock); }
+            }
+        }
 
         for (int day = 0; day < 40; day++)
         {
+            // 和攻击可达性验收保持同样的不平等条件，避免资源恢复消除实验前提。
+            if (day % 3 == 0) { MaintainInequality(warlike); MaintainInequality(peaceful); }
             warlike.Tick(TicksPerDay);
             peaceful.Tick(TicksPerDay);
         }
@@ -318,6 +363,10 @@ public sealed class M6Tests
         {
             // 贫者**持续挨饿但不致死**：饥饿度维持在中高，且身上没有食物
             // （不给他食物，他也不会去抢 —— 那正是我们要观察的"怨恨"）。
+            // Use a young adult cohort: the forty-day relationship experiment must
+            // not lose its initial subjects to old age before grievances accumulate.
+            sim.Agents.SetAgeDays(slot, sim.Config.Needs.AdulthoodDays);
+            sim.Agents.SetLifeStage(slot, LifeStage.Adult);
             sim.Agents.SetHunger(slot, index % 2 == 0 ? 0.05f : 0.55f);
             sim.Agents.AddInventory(slot, ResourceKind.Food, index % 2 == 0 ? 60f : 0f);
             index++;

@@ -56,6 +56,7 @@ desktop.ini
 hs_err_pid*
 
 # 注意：
-# 1) PNG 快照与报告是"验证证据"，默认不提交；需要时显式 git add -f。
+# 1) runs/ 下的临时截图与模拟报告不提交；docs/ 配图和 assets/ 游戏素材正常保留。
 # 2) 存档 (*.simsave) 属于运行产物，不入库。
 *.simsave
+.godot/

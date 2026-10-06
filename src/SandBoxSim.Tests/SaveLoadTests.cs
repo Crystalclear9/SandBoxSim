@@ -194,9 +194,13 @@ public sealed class SaveLoadTests
 
         string json = sim.SaveToText();
 
-        var restoredConfig = Config(60, 60);
+        // Exact continuation requires identical rules. The source explicitly disables
+        // hourly temperature recovery above; a fresh default config changes tile state.
+        var restoredConfig = config.Clone();
         var restored = Simulation.CreateForRestore(restoredConfig, 60, 60, 11002);
-        Assert.True(restored.LoadFromText(json).Success);
+        var continuationResult = restored.LoadFromText(json);
+        Assert.True(continuationResult.Success);
+        Assert.True(continuationResult.ConfigMatches, "精确续跑必须使用相同配置");
 
         // 1) 小数步进度
         foreach (int slot in sim.Agents.AliveSlots())
@@ -389,7 +393,6 @@ public sealed class SaveLoadTests
         // 显式声明：这些字段是**派生值**，刻意不入档，读档时由 ApplyTerrainRules 重算。
         var derivedFields = new System.Collections.Generic.HashSet<string>
         {
-            "Walkable", "Buildable",
         };
 
         // Tile 的公开实例字段 → 存档键名（同一字段可能拆成多个键，例如 Resource 的四个子字段）
@@ -402,6 +405,9 @@ public sealed class SaveLoadTests
             ["Moisture"] = "moisture",
             ["Temperature"] = "temperature",
             ["Vegetation"] = "vegetation",
+            ["Height"] = "height",
+            ["Walkable"] = "walkable",
+            ["Buildable"] = "buildable",
             ["Resource"] = "resourceKind",   // 展开成四个键，见下面的 resourceFieldKeys
         };
 

@@ -85,6 +85,8 @@ public static class TestRunner
             {
                 timer.Stop();
                 skipped++;
+                failed++;
+                failures.Add("未执行验收：" + test.DisplayName + " — " + ex.Message);
                 System.Console.WriteLine("  [跳过] " + test.DisplayName + " — " + ex.Message);
             }
             catch (Assert.AssertionException ex)

@@ -1,0 +1,89 @@
+# 00 — 文档地图与自检表
+
+## 当前阅读入口
+
+先读 [玩家手册](24-PlayerHandbook.md)，了解按键、工具、工程、试炼与保存。
+想理解居民为何这样行动，读 [世界如何运转](26-WorldGuide.md)；界面布局见
+[界面与交互设计](27-InterfaceIteration.md)，源码和扩展见 [开发指南](25-DeveloperGuide.md)。
+
+想组合工程和扩展玩法，读 [生态工坊](28-EcologyWorkshop.md)。
+想规划建筑和聚落，读 [聚落营造与鼠标镜头](29-SettlementPlay.md)。
+
+下方保留详细设计资料、原始计划与历史开发记录。历史性能、界面和阶段说明不代表当前版本。
+
+---
+
+## 文档清单与进度
+
+| # | 文档 | 内容 | 状态 |
+|---|---|---|---|
+| 01 | [GameDesign](01-GameDesign.md) | 愿景、核心幻想、核心循环、涌现设计、胜负与沙盒哲学 | ✅ 已写 |
+| 02 | [SystemArchitecture](02-SystemArchitecture.md) | 依赖方向、"谁读谁/谁改谁"矩阵、反馈环清单 | ✅ 已写 |
+| 03 | [SimulationArchitecture](03-SimulationArchitecture.md) | Tick 架构、各系统更新频率、性能预算 | ✅ 已写 |
+| 04 | [DataStructures](04-DataStructures.md) | 全部数据结构与字段语义（与源码 1:1） | ✅ 已写 |
+| 05 | [UtilityAI](05-UtilityAI.md) | 效用公式、考虑项、曲线、选靶、执行、可解释输出 | ✅ M1 已写 |
+| 06 | [ResourceModel](06-ResourceModel.md) | 采集 / 消耗 / 再生 / 存储 / 枯竭、口粮账、生态链 | ✅ M2 已写 |
+| 07 | [Buildings](07-Buildings.md) | House / Storage / Farm / Mine 的造价、选址规则、施工、三层存储 | ✅ M3 已写 |
+| 08 | [PopulationModel](08-PopulationModel.md) | 死亡与死因、需求、生命历程、出生模型（M4 落地） | ✅ M2 已写 |
+| 09 | [EmergentStories](09-EmergentStories.md) | 12 个"不靠脚本就会发生"的故事及其规则组合 | ✅ M2 起持续补 |
+| 10 | [DebugAndObservation](10-DebugAndObservation.md) | 当前观察工具、诊断命令与限制 | ✅ M3 现状已整理 |
+| 11 | [MVP-Scope](11-MVP-Scope.md) | 必须做 / 可以做 / 暂时不做；区分实现与规划 | ✅ 范围已明确 |
+| 12 | [Milestones](12-Milestones.md) | 阶段拆解、每阶段可玩验收、构建通道 | ✅ 已写 |
+| 13 | [DeterminismAndSave](13-DeterminismAndSave.md) | 确定性契约、状态摘要、存档格式 | ✅ 已写 |
+| 14 | [Performance](14-Performance.md) | 分批更新、空间索引、实测数据表 | ✅ M3 已更新 |
+| 15 | [ConfigReference](15-ConfigReference.md) | 每个可调参数的含义、默认值、影响链、调参流程 | ✅ 已写（含调参踩坑记录） |
+| 16 | [BuildAndDelivery](16-BuildAndDelivery.md) | 跨平台构建修复、验收和目录约定 | ✅ 已写 |
+| 17 | [ImplementationAudit](17-ImplementationAudit.md) | 原计划核验、问题复现与修复、验收边界 | 2026-10-04 |
+| 18 | [CurrentDefectRepairs](18-CurrentDefectRepairs.md) | 已有内核与跨平台问题的修复证据 | 历史交付记录 |
+| 19 | [OriginalRequirements](19-OriginalRequirements.md) | 用户原始任务书，保留完整内容 | 原文 |
+| 20 | [FullDeliveryChecklist](20-FullDeliveryChecklist.md) | 全部 100 节的实现与验收追踪 | 核验中 |
+| 21 | [VisualInterface](21-VisualInterface.md) | 真实 3D 客户端、HUD 设计、操作与本地视觉验收 | 2026-10-05 |
+| 22 | [ArtAssets](22-ArtAssets.md) | 原创图集、生成提示与 3D 导入设置 | 已记录 |
+| 23 | [GameplayTrials](23-GameplayTrials.md) | 世界试炼、干预额度、居民诉求、危机反馈与玩法对照 | 2026-10-05 |
+| 24 | [PlayerHandbook](24-PlayerHandbook.md) | 当前玩家操作与玩法手册 | 2026-10-05 |
+| 25 | [DeveloperGuide](25-DeveloperGuide.md) | 当前架构、存档与扩展契约 | 2026-10-05 |
+| 26 | [WorldGuide](26-WorldGuide.md) | 系统关系、世界反馈与玩法策略 | 2026-10-05 |
+| 27 | [InterfaceIteration](27-InterfaceIteration.md) | 现场界面、工程玩法与实际截图 | 2026-10-05 |
+| 28 | [EcologyWorkshop](28-EcologyWorkshop.md) | 持续土地管理、组合策略与配方扩展 | 2026-10-05 |
+| 29 | [SettlementPlay](29-SettlementPlay.md) | 住房变化、建造委托、聚落蓝图与鼠标镜头 | 2026-10-05 |
+
+早期里程碑保留为历史记录；当前版本以 24–29 为准，原始任务书的全部验收状态以 20 为准。
+
+> 未写的文档不代表不重要，而是**不允许在机制落地前先写空文档** ——
+> 那只会生产"读起来很美、实现时全不对"的纸面设计。
+
+---
+
+## 系统连接度自检表（新机制准入的硬性检查）
+
+每个新系统 / 新机制在动手前必须填完这张表。**"连接列"为空或只有 1 项的系统一律不做**（见 [01-GameDesign](01-GameDesign.md) §5.1）。
+
+| 机制 | 读（Input） | 改（Output） | 正反馈 | 负反馈 / 阻尼 | 连接的其他系统 |
+|---|---|---|---|---|---|
+| 世界生成 | seed、配置 | Tile 地形/资源/湿度/肥沃度 | — | 分位数阈值保证地形齐全 | 资源、寻路、聚落选址 |
+| 天气 | 平均湿度/温度、RNG(Weather) | Tile 湿度/温度、Weather.Kind | 湿→更易下雨 | 干→更易干旱，干旱自己抬升火险 | 火灾、农业(M4)、采集效率 |
+| 资源再生 | Tile 资源量、容量 K、增长率 r | Tile 资源量 | — | Logistic：存量越低再生越慢 | 采集、建造(M3)、迁移(M7) |
+| 资源采集 | 采集动作、Tile 存量 | Tile 资源量、植被、枯竭计数 | — | 存量归零后无法再采 | 建造、火灾风险、动物栖息(M9) |
+| 空间索引 | Tile 变化 | Chunk 聚合缓存 | — | 脏标记 + 惰性重算 | AI 邻域查询、UI 热力图 |
+| 事件日志 | 各系统记录 | 环形缓冲 | — | 容量上限（20000 条） | 报告、时间线(M6)、Debug |
+| **M1** Agent 需求 | 时间、睡眠状态 | Hunger / Fatigue / Thirst / Social / Health / Age | 饥饿→更想觅食 | 吃饱→食欲归零；睡眠反解疲劳 | Utility AI、人口(M4)、死因 |
+| **M1** Utility AI | 需求、库存、邻域资源、性格 | 当前动作 + 决策分解 | 工作→资源→更想工作 | 需求满足后效用骤降 | 需求、资源、动作执行 |
+| **M1** 动作执行 | 当前动作、目标、地形 | Agent 位置、库存、地面资源存量 | — | 目标失效/耐心上限 | 资源系统、寻路、事件 |
+| **M1** 寻路 | 地形可走性与代价 | 无（纯函数，复用缓冲） | — | 扩展节点上限、不可达即失败 | 移动、选靶 |
+| **M3** 建造 | 库存、地形、住房缺口 | 建筑、Tile.BuildingId、扣料 | 房多→人口多→更多建造需求 | 木材耗尽→停建 | 资源、人口、聚落 |
+| **M4** 农业 | 肥沃度、湿度、天气 | 食物产量、地表变化 | 粮多→人口多→更多农田 | 地力/木材耗尽→减产 | 人口、资源、迁移 |
+| **M2** 迁移 | 食物/住房/危险/机会 | Agent 归属聚落 | 新地资源好→更多人迁入 | 迁入后本地资源被摊薄 | 聚落、资源、人口 |
+| **M8** 贸易与冲突 | 资源互补、关系、历史敌意 | 双方库存、WarPressure | 贸易获利→更想贸易 | 价格收敛后收益下降 | 聚落、外交、人口 |
+
+---
+
+## 文档写作约定
+
+1. **每个机制都必须写出公式**，以及公式里每个量的来源系统。
+2. **必须写"为什么这样设计"**，而不是只写"是这样"。
+   反例：`WoodGrowthRate = 0.02`（为什么不是 0.05？）
+   正例：`WoodGrowthRate = 0.02` —— 因为要让"砍伐速度 5/天"明显超过"再生 2/天"，
+   否则过度采集不会造成真实损伤，资源压力整条链就失效了。
+3. **必须写实现约束**：这个机制不能做什么（例如"不允许读 UI 状态"）。
+4. **必须写 Debug 方法**：怎么看出它坏了。
+5. **必须写涌现示例**：它可能造出什么故事（同步进 09-EmergentStories）。

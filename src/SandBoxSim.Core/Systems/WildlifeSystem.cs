@@ -132,6 +132,13 @@ public sealed class WildlifeSystem
             // 否则会跳过一只动物（表现为"种群数量偶尔莫名少一只"）。
             int x = _store.XOf(index);
             int y = _store.YOf(index);
+            float thirst = SimMath.Clamp01(_store.ThirstOf(index) + hungerPerTick * 0.2f);
+            float fatigue = SimMath.Clamp01(_store.FatigueOf(index) + hungerPerTick * 0.3f);
+            float eatUtility = 1 - _store.EnergyOf(index);
+            float drinkUtility = thirst * thirst;
+            float sleepUtility = fatigue * fatigue;
+            ActionKind action = drinkUtility > eatUtility && drinkUtility > sleepUtility ? ActionKind.Drink
+                : sleepUtility > eatUtility ? ActionKind.Sleep : ActionKind.Eat;
 
             // ---- 1) 逃跑：附近有人就往外跑（感知降频，见上面的说明） ----
             // 注意 `hunterSlot` / `hunterDistance` 必须先给出确定值：
@@ -142,13 +149,16 @@ public sealed class WildlifeSystem
             int hunterDistance = int.MaxValue;
             bool threatened = senseThisTick
                 && humans.TryFindNearest(x, y, _config.FleeRadius, out hunterSlot, out hunterDistance);
+            Int2 predator = default;
+            bool predatorThreat = senseThisTick && _sim.Predators.Nearest(x, y, _config.FleeRadius, out predator, out int _);
             int stepX = 0;
             int stepY = 0;
 
-            if (threatened)
+            if (threatened || predatorThreat)
             {
-                int hx = humans.XOf(hunterSlot);
-                int hy = humans.YOf(hunterSlot);
+                action = ActionKind.Flee;
+                int hx = predatorThreat ? predator.X : humans.XOf(hunterSlot);
+                int hy = predatorThreat ? predator.Y : humans.YOf(hunterSlot);
 
                 // 远离猎人（优先沿差距更大的那个轴）
                 int dx = x - hx;
@@ -157,12 +167,13 @@ public sealed class WildlifeSystem
                 else { stepY = dy > 0 ? 1 : -1; }
 
                 _ = hunterDistance;
-            }            else
+            }
+            else if (action == ActionKind.Eat || action == ActionKind.Drink)
             {
                 // ---- 2) 觅食：朝植被更多的邻格走（贪心，不需要寻路） ----
                 // 贪心在这里是合适的：动物只需要"大致往草多的地方去"，
                 // 不需要最优路径；这也让动物的行为明显比人"笨"，符合直觉。
-                float bestVegetation = world.TileAtClamped(x, y).Vegetation;
+                float bestVegetation = action == ActionKind.Drink ? world.TileAtClamped(x, y).Moisture : world.TileAtClamped(x, y).Vegetation;
                 for (int direction = 0; direction < 4; direction++)
                 {
                     int nx = x;
@@ -177,16 +188,17 @@ public sealed class WildlifeSystem
 
                     Tile tile = world.TileAtClamped(nx, ny);
                     if (!tile.Walkable) { continue; }
-                    if (tile.Vegetation <= bestVegetation) { continue; }
+                    float value = action == ActionKind.Drink ? tile.Moisture : tile.Vegetation;
+                    if (value <= bestVegetation) { continue; }
 
-                    bestVegetation = tile.Vegetation;
+                    bestVegetation = value;
                     stepX = nx - x;
                     stepY = ny - y;
                 }
             }
 
             // ---- 3) 移动（带一点随机抖动，避免整群动物排成一条线） ----
-            if (stepX == 0 && stepY == 0 && rng.NextDouble() < 0.25)
+            if (action != ActionKind.Sleep && stepX == 0 && stepY == 0 && rng.NextDouble() < 0.25)
             {
                 int direction = rng.NextInt(4);
                 switch (direction)
@@ -213,20 +225,20 @@ public sealed class WildlifeSystem
             // ---- 4) 进食：把所在格的植被转化为能量 ----
             Tile here = world.TileAtClamped(x, y);
             float available = TerrainInfo.IsVegetation(here.Terrain) ? here.Vegetation : 0f;
-            if (available > 0f)
+            if (available > 0f && action == ActionKind.Eat)
             {
                 // 吃得越多恢复越快，但消耗植被（因此动物多的地方会把自己吃穷）
-                float eaten = SimMath.Clamp01(available * 0.35f);
+                float eaten = _store.EnergyOf(index) < 0.9f ? System.Math.Min(available, hungerPerTick * 2f) : 0;
                 _store.AddEnergy(index, eaten * 0.25f);
-
-                // 只让人工维护的植被被吃回去一点：这里刻意不直接改 Tile，
-                // 而是让植被"被吃"的效果通过 chunk 统计被后续观察到 ——
-                // 直接改 Tile 会让"动物吃掉森林"变成一个无法追踪的隐藏耦合。
-                // M5 的生态细化会把这一步正式接入（届时会有 VegetationRegrowth）。
+                if (eaten > 0) { world.SetVegetation(x, y, available - eaten); }
             }
 
             // ---- 5) 能量衰减 ----
             _store.AddEnergy(index, -hungerPerTick * 0.35f);
+            if (action == ActionKind.Sleep) { fatigue = SimMath.Clamp01(fatigue - hungerPerTick * 2f); }
+            if (action == ActionKind.Drink && CanDrinkAt(world, x, y)) { thirst = SimMath.Clamp01(thirst - hungerPerTick * 2f); }
+            if (thirst >= 0.95f) { _store.AddEnergy(index, -hungerPerTick); }
+            _store.SetBehavior(index, thirst, fatigue, action);
 
             // ---- 6) 饿死 ----
             if (_store.EnergyOf(index) <= 0f)
@@ -246,6 +258,16 @@ public sealed class WildlifeSystem
     {
         World world = _sim.World;
         DeterministicRandom rng = _sim.Random.Get(RngStream.Events);
+        for (int i = 0; i < world.Tiles.Length; i++)
+        {
+            ref Tile tile = ref world.Tiles[i];
+            if (!TerrainInfo.IsVegetation(tile.Terrain) || tile.Fire != FireState.None) { continue; }
+            float growth = _config.VegetationGrowthPerDay * System.Math.Max(0.02f, tile.Vegetation)
+                * (1 - tile.Vegetation) * tile.Fertility * (0.25f + tile.Moisture * 0.75f);
+            if (growth <= 0) { continue; }
+            tile.Vegetation = SimMath.Clamp01(tile.Vegetation + growth);
+            world.MarkDirtyAt(i % world.Width, i / world.Width);
+        }
 
         TotalVegetation = CountVegetation(world);
         EnvironmentCapacity = (int)System.Math.Min(2000, TotalVegetation * _config.CapacityPerVegetationTile);
@@ -320,5 +342,16 @@ public sealed class WildlifeSystem
     {
         BirthsThisTick = 0;
         DeathsThisTick = 0;
+    }
+
+    /// <summary>水边或湿润植被提供饮水；持续干旱会阻断露水来源。</summary>
+    public static bool CanDrinkAt(World world, int x, int y)
+    {
+        var tile = world.TileAtClamped(x, y);
+        if (tile.Moisture >= 0.3f && tile.Vegetation > 0.05f) { return true; }
+        for (int dy = -1; dy <= 1; dy++)
+            for (int dx = -1; dx <= 1; dx++)
+                if (world.TileAtClamped(x + dx, y + dy).Terrain == TerrainKind.Water) { return true; }
+        return false;
     }
 }

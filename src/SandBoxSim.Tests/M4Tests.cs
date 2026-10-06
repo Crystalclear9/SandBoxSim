@@ -12,7 +12,7 @@ namespace SandBoxSim.Tests;
 ///
 /// # 这一组测试的写法原则
 ///
-/// 每一条都对应 docs/12 §M4 里的一个**验收判据**，并在用例名里写清楚判据原话。
+/// 每一条都对应 docs/archive/12-Milestones.md §M4 里的一个**验收判据**，并在用例名里写清楚判据原话。
 /// 凡是"方向性"的判据（例如"饥荒期出生率下降"）都用**对照世界**来断言，
 /// 而不是断言某个绝对数字 —— 后者会在每次调参后变成噪声。
 ///
@@ -334,7 +334,7 @@ public sealed class M4Tests
         Assert.True(withFarm.BuildingSystem.TotalFoodProduced > 0f,
             "有农田的世界累计农业产出必须为正（实测 "
             + withFarm.BuildingSystem.TotalFoodProduced.ToString("0.##") + "）—— "
-            + "这正是 docs/12 验收项 5「有农田时食物存量增速高于无农田对照组」的直接证据");
+            + "这正是 docs/archive/12-Milestones.md 验收项 5「有农田时食物存量增速高于无农田对照组」的直接证据");
         // 注意这里**不**断言"对照组产出恰好为 0"。
         // 原先那样写是错的：它隐含假设"AI 永远不会自己盖农田"，
         // 而 M6 把社会动作加进注册表之后，效用格局变了、对照组也开始盖田（实测 269.7）。

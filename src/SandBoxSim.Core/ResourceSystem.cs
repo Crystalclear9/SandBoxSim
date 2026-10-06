@@ -122,6 +122,15 @@ public sealed class ResourceSystem
         return taken;
     }
 
+    /// <summary>Additional living-node growth, included in regeneration totals; never replenishes minerals.</summary>
+    public float ReplenishLivingNode(int x, int y, ResourceKind kind, float amount)
+    {
+        if (kind is not (ResourceKind.Food or ResourceKind.Wood)) return 0;
+        float grown = Inject(x, y, kind, amount);
+        TotalRegenerated += grown;
+        return grown;
+    }
+
     /// <summary>
     /// 注入资源（玩家工具、事件奖励）。
     ///

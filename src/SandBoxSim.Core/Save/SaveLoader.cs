@@ -126,6 +126,11 @@ public static class SaveLoader
 
         // M7：聚落（含"候选持续性计数"—— 它会影响未来会不会成立聚落）
         RestoreSettlements(sim, root.Get("settlements"));
+        sim.Society.Restore(root.Get("society"));
+        sim.Civilizations.Restore(root.Get("civilization"));
+        sim.Diseases.Restore(root.Get("disease"));
+        sim.Events.Restore(root.Get("events"));
+        sim.Predators.Restore(root.Get("predators"));
 
         // ---- 5) 收尾 ----
         sim.World.RefreshSpatialIndex();
@@ -164,6 +169,7 @@ public static class SaveLoader
         int count = System.Math.Min(target.Length, tiles.Get("terrain").Count);
 
         JsonValue terrain = tiles.Get("terrain");
+        JsonValue height = tiles.Get("height");
         JsonValue fire = tiles.Get("fire");
         JsonValue kind = tiles.Get("resourceKind");
         JsonValue amount = tiles.Get("resourceAmount");
@@ -180,6 +186,7 @@ public static class SaveLoader
             ref Tile tile = ref target[i];
 
             tile.Terrain = (TerrainKind)NumberAt(terrain, i);
+            tile.Height = (float)NumberAtFloat(height, i);
             tile.Fire = (FireState)NumberAt(fire, i);
             tile.Resource.Kind = (ResourceKind)NumberAt(kind, i);
             tile.Resource.Amount = (float)NumberAtFloat(amount, i);
@@ -196,9 +203,8 @@ public static class SaveLoader
             tile.Vegetation = SimMath.Clamp01((float)NumberAtFloat(vegetation, i));
             tile.BuildingId = NumberAt(buildingId, i);
 
-            // Walkable / Buildable 是地形的**派生值**，不入档，这里重算。
-            // 「派生值不入档」是一条通用规则：两个真相来源迟早会不一致。
-            tile.ApplyTerrainRules();
+            tile.Walkable = NumberAt(tiles.Get("walkable"), i) != 0;
+            tile.Buildable = NumberAt(tiles.Get("buildable"), i) != 0;
         }
     }
 
@@ -356,6 +362,7 @@ public static class SaveLoader
 
             store.RestoreAnimal(slot, w.GetInt("x", 0), w.GetInt("y", 0),
                 w.GetFloat("energy", 0.5f), w.GetInt("ageDays", 0));
+            store.SetBehavior(slot, w.GetFloat("thirst"), w.GetFloat("fatigue"), (ActionKind)w.GetInt("action"));
         }
 
         store.RestoreCounters(
@@ -517,6 +524,7 @@ public static class SaveLoader
             stats.GetInt("totalBirths", 0),
             stats.GetInt("totalDeaths", 0),
             stats.GetInt("totalMigrations", 0));
+        sim.Stats.RestoreHistory(stats.Get("history"));
 
         // 迁移系统还有自己的一个计数器（只用于报告），与 Stats 的**不是同一个**。
         // 两者都要恢复：漏掉任意一个，报告或摘要就会对不上。

@@ -47,6 +47,8 @@ public sealed class NeedsSystem
 
     /// <summary>本 tick 的死亡明细（只读；上层写事件日志与统计用）。</summary>
     public System.Collections.Generic.IReadOnlyList<DeathRecord> Deaths => _deaths;
+    /// <summary>同步通知所属模拟；不可依靠下一次需求更新轮询，外部灾害也会致死。</summary>
+    public event System.Action<DeathRecord>? Died;
 
     /// <summary>累计死亡分类计数：下标 = (int)DeathCause。</summary>
     public int[] DeathsByCause { get; } = new int[16];
@@ -230,7 +232,9 @@ public sealed class NeedsSystem
 
         int index = (int)cause;
         if (index >= 0 && index < DeathsByCause.Length) { DeathsByCause[index]++; }
-        _deaths.Add(new DeathRecord(slot, x, y, age, cause));
+        var record = new DeathRecord(slot, x, y, age, cause);
+        _deaths.Add(record);
+        Died?.Invoke(record);
     }
 
     /// <summary>平均饥饿度（报告与热力图用）。</summary>

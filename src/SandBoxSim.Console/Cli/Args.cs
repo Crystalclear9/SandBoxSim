@@ -4,7 +4,7 @@ namespace SandBoxSim.ConsoleApp.Cli;
 /// 极简命令行解析器。
 ///
 /// 不用 System.CommandLine 的理由：本仓库要求在"只有 Roslyn csc"的环境下也能构建，
-/// 任何 NuGet 依赖都会破坏这条降级通道（见 docs/12-Milestones.md）。
+/// 任何 NuGet 依赖都会破坏这条降级通道（见 docs/development/build.md）。
 /// 参数集很小，手写解析反而更好控制 —— 包括"未知参数必须报错而不是静默忽略"这条。
 /// </summary>
 public sealed class Args
@@ -22,7 +22,7 @@ public sealed class Args
     private static readonly string[] KnownFlags =
     {
         "--headless", "--digest", "--batch", "--snapshot", "--no-color", "--help", "--verbose",
-        "--no-alternate-screen", "--invariants", "--no-invariants", "--repeat",
+        "--no-alternate-screen", "--invariants", "--no-invariants", "--repeat", "--profile",
         // M4：读档启动（存档路径由 --load-file 给出）
         "--load",
     };
@@ -232,6 +232,7 @@ public sealed class Args
             "其它：",
             "  --no-color            关闭颜色（重定向输出时自动关闭）",
             "  --no-invariants       关闭每 64 tick 的不变量检查（性能对比用）",
+            "  --profile             输出各模拟阶段的实际 CPU 时间",
             "  --help                显示本帮助",
         });
     }

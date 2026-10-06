@@ -110,6 +110,30 @@ public sealed class SimulationStats
     }
 
     public int DaysRecorded => _daily.Count;
+    public JsonValue EncodeHistory()
+    {
+        var daily = JsonValue.Array();
+        foreach (var sample in _daily) { daily.Add(JsonBinder.ToJson(sample)); }
+        return JsonValue.Object().Set("daily", daily).Set("peak", JsonValue.From(PeakPopulation))
+            .Set("lowest", JsonValue.From(LowestPopulation)).Set("famine", JsonValue.From(FamineActive))
+            .Set("episodes", JsonValue.From(FamineEpisodeCount));
+    }
+    public void RestoreHistory(JsonValue value)
+    {
+        _daily.Clear();
+        var daily = value.Get("daily");
+        if (daily.IsArray)
+            foreach (var entry in daily.Items)
+            {
+                object boxed = new DailySample();
+                JsonBinder.Bind(entry, boxed, new System.Collections.Generic.List<string>(), "");
+                _daily.Add((DailySample)boxed);
+            }
+        PeakPopulation = value.GetInt("peak");
+        LowestPopulation = value.GetInt("lowest", int.MaxValue);
+        FamineActive = value.GetBool("famine");
+        FamineEpisodeCount = value.GetInt("episodes");
+    }
 
     /// <summary>取最近 n 天的样本（UI 画曲线用）。</summary>
     public DailySample[] RecentDays(int count)
@@ -177,6 +201,13 @@ public static class StateHash
         for (int i = 0; i < tiles.Length; i++)
         {
             hash = Hash64.Combine(hash, (int)tiles[i].Terrain);
+            hash = Hash64.Combine(hash, tiles[i].Height);
+            hash = Hash64.Combine(hash, tiles[i].Walkable);
+            hash = Hash64.Combine(hash, tiles[i].Buildable);
+            hash = Hash64.Combine(hash, tiles[i].Temperature);
+            hash = Hash64.Combine(hash, tiles[i].Vegetation);
+            hash = Hash64.Combine(hash, tiles[i].Resource.Capacity);
+            hash = Hash64.Combine(hash, tiles[i].Resource.RegenerationRate);
             hash = Hash64.Combine(hash, (int)tiles[i].Fire);
             hash = Hash64.Combine(hash, (int)tiles[i].Resource.Kind);
             hash = Hash64.Combine(hash, (int)(tiles[i].Resource.Amount * 100f));
@@ -231,6 +262,13 @@ public static class StateHash
         for (int i = 0; i < tiles.Length; i++)
         {
             tileHash = Hash64.Combine(tileHash, (int)tiles[i].Terrain);
+            tileHash = Hash64.Combine(tileHash, tiles[i].Height);
+            tileHash = Hash64.Combine(tileHash, tiles[i].Walkable);
+            tileHash = Hash64.Combine(tileHash, tiles[i].Buildable);
+            tileHash = Hash64.Combine(tileHash, tiles[i].Temperature);
+            tileHash = Hash64.Combine(tileHash, tiles[i].Vegetation);
+            tileHash = Hash64.Combine(tileHash, tiles[i].Resource.Capacity);
+            tileHash = Hash64.Combine(tileHash, tiles[i].Resource.RegenerationRate);
             tileHash = Hash64.Combine(tileHash, (int)tiles[i].Fire);
             tileHash = Hash64.Combine(tileHash, (int)tiles[i].Resource.Kind);
             tileHash = Hash64.Combine(tileHash, (int)(tiles[i].Resource.Amount * 100f));

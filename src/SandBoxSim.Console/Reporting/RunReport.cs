@@ -215,14 +215,13 @@ public static class RunReport
             sb.Append('\n');
         }
 
-        sb.Append("## 本轮验收自检\n\n");
-        sb.Append("- [").Append(population.Count > 0 ? "x" : " ").Append("] 产生了逐日统计样本\n");
-        sb.Append("- [").Append(sim.Events.TotalRecorded > 0 ? "x" : " ").Append("] 记录了世界事件\n");
-        sb.Append("- [ ] 出生 / 死亡 / 建造 / 迁移 / 第二聚落 / 火灾（需要 M2–M8 的系统接入，见 docs/12-Milestones.md）\n");
+        sb.Append("## 模拟记录\n\n");
+        sb.Append("- 逐日统计样本：").Append(population.Count).Append("\n");
+        sb.Append("- 世界事件：").Append(sim.Events.TotalRecorded).Append("\n");
 
         // M4 / M5 已接入的机制：这里逐条给出可判定的证据，而不是让人去猜。
         sb.Append('\n');
-        sb.Append("已接入机制的实测证据（M4 / M5）：\n\n");
+        sb.Append("世界运行统计：\n\n");
         sb.Append("- 出生：累计 ").Append(sim.Stats.TotalBirths).Append(" 次");
         sb.Append(sim.Stats.TotalBirths > 0 ? " ✅\n" : " ⚠️ 本局没有新生儿\n");
         sb.Append("- 农业：累计产出 ").Append(sim.BuildingSystem.TotalFoodProduced.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))

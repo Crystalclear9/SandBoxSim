@@ -314,6 +314,14 @@ internal static class ActionSearch
 
     public static float StorageDemand01(in ActionContext ctx)
     {
+        if (ctx.DecisionCache?.StorageDemand is float cached) { return cached; }
+        float value = ComputeStorageDemand(in ctx);
+        if (ctx.DecisionCache != null) { ctx.DecisionCache.StorageDemand = value; }
+        return value;
+    }
+
+    private static float ComputeStorageDemand(in ActionContext ctx)
+    {
         BuildingStore? buildings = ctx.Buildings;
         if (buildings == null) { return 0f; }
         float capacity = 0f;

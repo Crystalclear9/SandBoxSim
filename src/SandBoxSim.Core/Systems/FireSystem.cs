@@ -247,6 +247,7 @@ public sealed class FireSystem
         RecoverBurnt(tick, tiles);
 
         BurningTiles = burning;
+        if (LastHeatRelease > 0f) { world.NotifyNavigationChanged(); }
         BurntTiles = burnt;
     }
 

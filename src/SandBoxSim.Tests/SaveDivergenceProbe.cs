@@ -23,7 +23,7 @@ namespace SandBoxSim.Tests;
 /// 每定位一个，分叉点就往后推。所以这个工具是**收敛过程的量具**，
 /// 删掉它等于下次遇到同类问题要从头再写一遍。
 ///
-/// 用法（**默认跳过**，用 `SBOX_SIM_PROBE=1` 开启）：
+/// 用法（**默认执行**，用 `SBOX_SIM_PROBE=1` 开启）：
 /// <code>
 /// $env:SBOX_SIM_PROBE = '1'
 /// dotnet src/SandBoxSim.Tests/bin/Debug/net8.0/SandBoxSim.Tests.dll --filter SaveDivergenceProbe
@@ -51,15 +51,9 @@ public sealed class SaveDivergenceProbe
     private const int HalfDays = 8;
     private const int TicksPerDay = 1440;
 
-    [Fact("诊断：读档续跑的第一个分叉 tick（需 SBOX_SIM_PROBE=1）")]
+    [Fact("诊断：读档续跑的第一个分叉 tick（默认执行）")]
     public void Probe()
     {
-        if (System.Environment.GetEnvironmentVariable("SBOX_SIM_PROBE") != "1")
-        {
-            System.Console.WriteLine("  [探针] 已跳过（设 SBOX_SIM_PROBE=1 运行）。");
-            System.Console.WriteLine("  [探针] 常规回归由 SaveLoadTests 把关（秒级）。");
-            Assert.Skip("需 SBOX_SIM_PROBE=1");
-        }
 
         int size = MapSize;
         int half = TicksPerDay * HalfDays;
@@ -95,6 +89,7 @@ public sealed class SaveDivergenceProbe
         var restored = Simulation.CreateForRestore(targetConfig, size, size, Seed);
 
         SaveFile.LoadResult load = restored.LoadFromText(json);
+        Assert.True(load.Success && load.DigestMatches, "读档必须恢复完整状态");
         System.Console.WriteLine("  [探针] 读档自校验：" + (load.DigestMatches ? "一致" : "不一致 -> " + load.SegmentDifference));
 
         DumpExactTileDeltaAtLoad(direct, restored);
@@ -133,6 +128,7 @@ public sealed class SaveDivergenceProbe
         DumpBuildingDelta(direct, restored);
         DumpAgentDelta(direct, restored);
         DumpAgentFieldDelta(direct, restored);
+        Assert.True(firstDiff < 0, "读档续跑发生分叉，见上述字段诊断");
     }
 
     /// <summary>

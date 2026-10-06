@@ -190,6 +190,11 @@ public sealed class MigrationSystem
         float attachmentTerm = _config.HomeAttachmentWeight * SimMath.Clamp01(attachment);
 
         float total = scarcityTerm + hungerTerm + populationTerm + opportunityTerm - attachmentTerm;
+        int settlement = _sim.Society.TerritoryAt(x, y);
+        var civilization = _sim.Civilizations.OfSettlement(settlement);
+        if (civilization != null)
+            total += civilization.Expansionism * opportunityTerm * 0.2f - civilization.Isolationism * attachmentTerm * 0.2f;
+        if (_sim.Diseases.OfSlot(slot)?.Active == true) { total += 0.2f; }
         float utility = SimMath.Clamp01(total);
 
         detail = "紧张 " + scarcityTerm.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)
@@ -202,7 +207,8 @@ public sealed class MigrationSystem
 
         // 硬性门槛：本地资源不紧张、或者没有更好的地方可去，就不该走。
         // 没有这两道门槛，个体会因为"饥饿 + 拥挤"而在资源充足时四处乱迁。
-        if (localScarcity < _config.ScarcityGate) { destination = new Int2(-1, -1); return utility * 0.3f; }
+        if (localScarcity < _config.ScarcityGate && _sim.Diseases.OfSlot(slot)?.Active != true)
+        { destination = new Int2(-1, -1); return utility * 0.3f; }
         if (bestOpportunity <= 0.05f) { destination = new Int2(-1, -1); return utility * 0.3f; }
 
         destination = bestTarget;

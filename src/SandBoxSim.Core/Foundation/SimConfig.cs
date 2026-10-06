@@ -9,7 +9,7 @@ namespace SandBoxSim.Core.Foundation;
 /// <summary>
 /// 模拟配置根。所有影响涌现行为的数值都必须在这里可调（第 96.6 / 96.7 条）。
 ///
-/// 每个字段的含义与影响链见 docs/15-ConfigReference.md。
+/// 每个字段的含义与影响链见 docs/development/configuration.md。
 /// 修改这里必须同步修改 config/sim.default.json —— 测试 <c>ConfigTests.DefaultsMatchJson</c> 会强制这一点。
 /// </summary>
 public sealed class SimConfig
@@ -32,6 +32,10 @@ public sealed class SimConfig
     public SettlementConfig Settlement = new SettlementConfig();
     public TradeConfig Trade = new TradeConfig();
     public ConflictConfig Conflict = new ConflictConfig();
+    public SocietyConfig Society = new SocietyConfig();
+    public CivilizationConfig Civilization = new CivilizationConfig();
+    public DiseaseConfig Disease = new DiseaseConfig();
+    public PredatorConfig Predator = new PredatorConfig();
     public RulesConfig Rules = new RulesConfig();
     public DebugConfig Debug = new DebugConfig();
 
@@ -428,6 +432,7 @@ public sealed class AiConfig
 /// </summary>
 public sealed class WildlifeConfig
 {
+    public float VegetationGrowthPerDay = 0.06f;
     /// <summary>动物每 tick 移动多少格（比人快一点，逃跑才有意义）。</summary>
     public float MoveSpeedPerTick = 0.5f;
 
@@ -530,6 +535,8 @@ public sealed class BuildingConfig
 
     /// <summary>选址搜索半径（格）：个体只在这么大范围内找空地。</summary>
     public int SiteSearchRadius = 14;
+    // Opt-in for existing headless scenarios and saves; new graphical worlds enable this.
+    public bool OrganicHousing = false;
 
     /// <summary>仓库的可见半径（格）：存放/取回/扣料只在附近找仓库。</summary>
     public int StorageSearchRadius = 24;
@@ -669,9 +676,11 @@ public sealed class RulesConfig
     /// M6 已接入 Attack 的决策和执行阶段；完整战争系统仍属后续里程碑。
     /// </summary>
     public bool PeaceMode = false;
+    /// <summary>禁止聚落战争，保留个体间由关系引发的争执。</summary>
+    public bool DisableWar = false;
 
     /// <summary>是否任何规则开关被打开（供报告与 UI 提示"这一局是修改过的世界"）。</summary>
-    public bool AnyEnabled => NoDeath || HighBirthRate || FastAging || DoubleResource || PeaceMode;
+    public bool AnyEnabled => NoDeath || HighBirthRate || FastAging || DoubleResource || PeaceMode || DisableWar;
 }
 
 /// <summary>
@@ -811,7 +820,7 @@ public sealed class DebugConfig
 
 /// <summary>
 /// 配置加载。注意：这是 Core 里**唯一**允许触碰文件系统的位置，
-/// 且只发生在世界创建之前，不参与模拟循环（见 docs/13 的确定性约束）。
+/// 且只发生在世界创建之前，不参与模拟循环（见 docs/development/saving.md 的确定性约束）。
 /// </summary>
 public static class ConfigLoader
 {

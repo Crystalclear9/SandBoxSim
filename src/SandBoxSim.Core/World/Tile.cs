@@ -21,6 +21,8 @@ public enum FireState : byte
 /// </summary>
 public struct Tile
 {
+    /// <summary>归一化海拔，世界生成与升降地形工具共同维护。</summary>
+    public float Height;
     /// <summary>地形。</summary>
     public TerrainKind Terrain;
 
