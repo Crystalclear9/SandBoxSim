@@ -2,6 +2,8 @@
 
 河山是一款以自然生态与居民自主行为为核心的 3D 沙盒模拟游戏。玩家塑造地形、水源和资源，规划土地与聚落；居民根据需求、材料和可达性选择生存、劳动、建造与迁移。世界通过人物经历、事件历史和每日曲线呈现这些选择的后果。
 
+![聚落营造与实际游戏画面](docs/images/village-construction.png)
+
 ## 开始使用
 
 环境要求：PowerShell 7、.NET 8 SDK、Godot 4.7.2 .NET。
@@ -48,6 +50,7 @@ SandBoxSim/
 ├─ config/              默认模拟配置
 ├─ tools/               安装、构建、运行和测试脚本
 ├─ docs/                项目说明、玩法和技术文档
+│  ├─ images/           文档使用的游戏截图
 │  └─ archive/          历史设计、计划和阶段记录
 ├─ .github/workflows/   跨平台持续集成
 ├─ artifacts/           本机构建输出，忽略提交

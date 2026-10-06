@@ -11,7 +11,7 @@
 | [世界系统](world-systems.md) | 地形、生态、需求、经济和社会之间的关系 |
 | [聚落营造](settlements.md) | 房屋外观、建造委托、蓝图目标与组合经营 |
 | [生态工坊](ecology.md) | 土地工程、持续管理、费用与配方扩展 |
-| [观察与界面](gameplay-observation.md) | 控制栏、手记、地图图层与历史 |
+| [观察与界面](gameplay-observation.md) | 控制栏、手记、地图图层、历史与截图 |
 
 ## 维护与扩展
 
