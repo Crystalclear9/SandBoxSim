@@ -10,6 +10,7 @@ internal partial class ModelGallery : PanelContainer
 {
     private readonly List<(ResidentRig Rig,ActionKind Action)> _animated=new();
     private float _elapsed;
+    private readonly List<(ResidentRig Rig,Camera3D Camera)> _handViews=new();
     private Label? _handlingLabel;
     public string Collection { get; set; } = "architecture";
     public override void _Ready()
@@ -18,7 +19,7 @@ internal partial class ModelGallery : PanelContainer
         OffsetLeft=20; OffsetRight=-20; OffsetTop=90; OffsetBottom=-110;
         AddThemeStyleboxOverride("panel",HudStyle.Box(new Color("#1b2521"),3,16));
         var body=new VBoxContainer(); body.AddThemeConstantOverride("separation",12); AddChild(body);
-        body.AddChild(HudStyle.Heading(Collection is "actions" or "motion" or "grip" ? "居民动作 · 取出、握持、使用与收回" : Collection=="equipment" ? "配件与衣装 · 实际挂点与姿态" : Collection=="architecture" ? "木作与砌筑 · 实际建筑模型" : Collection is "characters" or "faces" ? Collection=="faces" ? "面部与衣领 · 实际人物模型" : "人物与动物 · 实际角色模型" : "地表与植被 · 实际场景模型",22));
+        body.AddChild(HudStyle.Heading(Collection=="hands" ? "手掌与握柄 · 实际指节与接触" : Collection is "actions" or "motion" or "grip" ? "居民动作 · 取出、握持、使用与收回" : Collection=="equipment" ? "配件与衣装 · 实际挂点与姿态" : Collection=="architecture" ? "木作与砌筑 · 实际建筑模型" : Collection is "characters" or "faces" ? Collection=="faces" ? "面部与衣领 · 实际人物模型" : "人物与动物 · 实际角色模型" : "地表与植被 · 实际场景模型",22));
         var grid=new GridContainer { Columns=3,SizeFlagsVertical=SizeFlags.ExpandFill };
         grid.AddThemeConstantOverride("h_separation",12); grid.AddThemeConstantOverride("v_separation",12); body.AddChild(grid);
         var models=new NatureModels();
@@ -35,6 +36,19 @@ internal partial class ModelGallery : PanelContainer
             var stage=viewport.GetChild<Node3D>(0);var camera=stage.GetChild<Camera3D>(stage.GetChildCount()-1);
             _handlingLabel=grid.GetChild<VBoxContainer>(0).GetChild<Label>(1);
             camera.Size=Collection=="grip"?.90f:1.4f;var target=new Vector3(0,1.04f,0);camera.Position=target+new Vector3(0,.07f,4);camera.LookAt(target);
+        }
+        else if(Collection=="hands")
+        {
+            var jobs=new[]{JobType.Builder,JobType.Gatherer,JobType.Farmer};
+            var actions=new[]{ActionKind.BuildHouse,ActionKind.GatherWood,ActionKind.Farm};
+            var names=new[]{"锤柄 · 拇指与三段指节","斧柄 · 双手分别握持","锄柄 · 握持与推拉"};
+            for(int i=0;i<3;i++)
+            {
+                var rig=models.Resident(17+i,false,jobs[i]);ActionCard(grid,rig,actions[i],names[i]);
+                var view=grid.GetChild<VBoxContainer>(i).GetChild<SubViewportContainer>(0).GetChild<SubViewport>(0);
+                var stage=view.GetChild<Node3D>(0);var camera=stage.GetChild<Camera3D>(stage.GetChildCount()-1);
+                camera.Size=.30f;_handViews.Add((rig,camera));
+            }
         }
         else if(Collection=="actions")
         {
@@ -56,7 +70,7 @@ internal partial class ModelGallery : PanelContainer
         }
         else if(Collection=="faces")
         {
-            for(int i=0;i<6;i++)Face(grid,models.Resident(17+i,false,i%2==0 ? JobType.Gatherer : JobType.Farmer),"面部与衣领 · "+(i+1),i%2!=0);
+            for(int i=0;i<6;i++)Face(grid,models.Resident(17+i,false,i%2==0 ? JobType.Gatherer : JobType.Farmer),"面部与衣领 · "+(i+1),i%2!=0,(i%3)*.45f);
         }
         else if(Collection=="characters")
         {
@@ -82,6 +96,11 @@ internal partial class ModelGallery : PanelContainer
         _elapsed+=(float)delta;
         float cycle=_elapsed%6.8f;
         foreach(var (rig,action) in _animated)rig.PoseAction((float)delta,action,cycle>.65f&&cycle<4.5f?ActionPhase.Executing:ActionPhase.Idle,false,0);
+        foreach(var (rig,camera) in _handViews)
+        {
+            var target=rig.Hands[1].GlobalPosition+new Vector3(0,.015f,0);
+            camera.Position=target+new Vector3(.10f,.10f,2);camera.LookAt(target);
+        }
         if(_handlingLabel!=null&&_animated.Count>0)_handlingLabel.Text=_animated[0].Rig.Handling;
     }
     private void ActionCard(GridContainer grid,ResidentRig rig,ActionKind action,string title)
@@ -105,13 +124,13 @@ internal partial class ModelGallery : PanelContainer
         var target=working ? model.Grip!.GlobalPosition+new Vector3(0,.05f,0) : pack ? model.Torso.GlobalPosition+new Vector3(0,1.10f,0) : model.Head.GlobalPosition-new Vector3(0,.03f,0);
         camera.Size=working?.68f:pack?.75f:.55f;camera.Position=target+new Vector3(.02f,.025f,2);camera.LookAt(target);
     }
-    private void Face(GridContainer grid,Node3D model,string title,bool hat)
+    private void Face(GridContainer grid,Node3D model,string title,bool hat,float yaw)
     {
         Card(grid,title,model,.48f,true);
         var card=grid.GetChild<VBoxContainer>(grid.GetChildCount()-1);
         var view=card.GetChild<SubViewportContainer>(0).GetChild<SubViewport>(0);var stage=view.GetChild<Node3D>(0);
         var camera=stage.GetChild<Camera3D>(stage.GetChildCount()-1);
-        model.Rotation=new Vector3(0,Mathf.Pi,0);
+        model.Rotation=new Vector3(0,Mathf.Pi+yaw,0);
         var target=((ResidentRig)model).Head.GlobalPosition;camera.Size=hat ? .64f : .46f;camera.Position=target+new Vector3(.03f,.02f,2);camera.LookAt(target);
         view.RenderTargetUpdateMode=SubViewport.UpdateMode.WhenVisible;_animated.Add(((ResidentRig)model,ActionKind.None));
     }

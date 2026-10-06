@@ -3,7 +3,7 @@ using Godot;
 namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
-    private Shader? _lidShader,_shoulderFabric;
+    private Shader? _shoulderFabric;
     private Skin? _shoulderSkin;
     private void AddShoulderBridges(ResidentRig rig,string cloth,string skin)
     {
@@ -102,40 +102,5 @@ internal sealed partial class NatureModels
         }
         for(int r=0;r<rings;r++)for(int c=0;c<sides;c++){Triangle(r,c,r,c+1,r+1,c);Triangle(r,c+1,r+1,c+1,r+1,c);}
         surface.GenerateNormals();surface.Index();mesh=surface.Commit();_meshes[key]=mesh;return mesh;
-    }
-    private void AddResidentFace(ResidentRig rig,string skin)
-    {
-        _lidShader??=new Shader {Code=@"shader_type spatial;
-uniform vec4 dye:source_color;uniform float blink=0.0;
-void vertex(){ float x=UV.x*2.0-1.0;float arc=sqrt(max(0.0,1.0-x*x));VERTEX.y=arc*(0.005-UV.y*(0.001+blink*0.010)); }
-void fragment(){ALBEDO=dye.rgb;ROUGHNESS=0.76;SPECULAR=0.18;}"};
-        rig.LidMaterial=new ShaderMaterial {Shader=_lidShader};rig.LidMaterial.SetShaderParameter("dye",new Color(skin));
-        for(int eye=0;eye<2;eye++)
-        {
-            float side=eye==0?-1:1;
-            var eyeball=rig.Eyes[eye]=new Node3D {Name="Eye"+eye,Position=new(side*.034f,.019f,-.083f)};rig.Head.AddChild(eyeball);
-            Detail(eyeball,"sphere",Vector3.Zero,new(.024f,.010f,.007f),"#cec4b4");
-            Detail(eyeball,"sphere",new(0,0,-.004f),new(.009f,.008f,.004f),"#4d463a");
-            Detail(eyeball,"sphere",new(.001f,.001f,-.007f),Vector3.One*.0018f,"#eee4d3");
-            MergeResidentParts(eyeball,"animated-eye:"+eye);
-            var lid=rig.Eyelids[eye]=new MeshInstance3D {Name="Eyelid"+eye,Mesh=EyeLid(),Position=eyeball.Position,MaterialOverride=rig.LidMaterial};rig.Head.AddChild(lid);
-        }
-        rig.Mouth=new Node3D {Name="Mouth",Position=new(0,-.058f,-.092f)};rig.Head.AddChild(rig.Mouth);
-        Detail(rig.Mouth,"seed",new(0,.003f,0),new(.032f,.003f,.005f),"#976d5d");
-        Detail(rig.Mouth,"seed",new(0,-.002f,0),new(.029f,.004f,.004f),"#aa7f6b");
-        FineBeam(rig.Mouth,new(-.012f,0,-.003f),new(.012f,0,-.003f),.001f,"#785b4c");
-        MergeResidentParts(rig.Mouth,"animated-mouth");
-    }
-    private Mesh EyeLid()
-    {
-        if(_meshes.TryGetValue("eye-lid",out var mesh))return mesh;
-        var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);
-        void Vertex(int col,int row)
-        {
-            float u=col/16f,t=row/4f,x=u*2-1,arc=MathF.Sqrt(MathF.Max(0,1-x*x));
-            surface.SetNormal(Vector3.Forward);surface.SetUV(new(u,t));surface.AddVertex(new(x*.0125f,arc*(.005f-t*.001f),-.0085f*arc));
-        }
-        for(int row=0;row<4;row++)for(int col=0;col<16;col++){Vertex(col,row);Vertex(col,row+1);Vertex(col+1,row);Vertex(col+1,row);Vertex(col,row+1);Vertex(col+1,row+1);}
-        surface.Index();mesh=surface.Commit();_meshes["eye-lid"]=mesh;return mesh;
     }
 }

@@ -10,8 +10,8 @@ internal sealed partial class NatureModels
 {
     private void AddHandTools(ResidentRig rig,JobType job)
     {
-        rig.Grip=new Node3D {Name="HandGrip",Position=new(0,-.046f,-.025f),Rotation=new(0,0,MathF.PI/2)};rig.Hands[1].AddChild(rig.Grip);
-        rig.Holster=new Node3D {Name="BeltToolLoop",Position=new(.235f,.79f,-.14f)};rig.Torso.AddChild(rig.Holster);
+        rig.Grip=new Node3D {Name="HandGrip",Position=new(0,-.035f,-.0286f),Rotation=new(0,0,MathF.PI/2)};rig.Hands[1].AddChild(rig.Grip);
+        rig.Holster=new Node3D {Name="BeltToolLoop",Position=new(.235f,.79f,-.14f),Rotation=new(0,0,.65f)};rig.Torso.AddChild(rig.Holster);
         if(!rig.IsChild)
         {
             Detail(rig.Torso,"masonry",rig.Holster.Position+new Vector3(0,0,.014f),new(.032f,.052f,.020f),"#514237");
@@ -47,7 +47,7 @@ internal sealed partial class NatureModels
         string key="finger-proxy:"+skin+closed;
         if(_meshes.TryGetValue(key,out var mesh))return mesh;
         var root=new Node3D();
-        Sculpt(root,Loft("resident-palm",new[]{new Vector4(-.05f,0,.008f,.01f),new(-.03f,0,.031f,.025f),new(.016f,0,.035f,.019f),new(.045f,0,.022f,.012f)}),Vector3.Zero,ResidentMaterial(skin),new(MathF.PI/2,0,0));
+        Sculpt(root,Loft("resident-palm",new[]{new Vector4(-.035f,0,.026f,.022f),new(-.010f,0,.031f,.020f),new(.025f,0,.035f,.018f),new(.043f,0,.030f,.014f),new(.049f,0,.018f,.012f)}),Vector3.Zero,ResidentMaterial(skin),new(MathF.PI/2,0,0));
         Detail(root,"finger-low",new(0,.01f,0),new(.057f,.048f,.052f),skin);
         for(int digit=0;digit<4;digit++)Detail(root,"finger-low",new(-.022f+digit*.014f,closed?-.063f:-.070f,closed?-.030f:-.005f),new(.010f,closed?.030f:.062f,.010f),skin,new(closed?1.1f:0,0,0));
         Detail(root,"finger-low",new(.025f,-.035f,closed?-.026f:-.021f),new(.013f,.026f,.013f),skin,new(0,0,-.6f));
