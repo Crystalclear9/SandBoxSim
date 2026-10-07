@@ -15,6 +15,7 @@ namespace SandBoxSim.Core.Systems;
 public struct ActionContext
 {
     public DecisionWorldCache? DecisionCache;
+    public AStarPathfinder? Reachability;
     public SandBoxSim.Core.Environment.World World;
     public AgentStore Store;
     public int Slot;

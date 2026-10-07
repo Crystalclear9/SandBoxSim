@@ -286,6 +286,41 @@ public sealed class AStarPathfinder
         _open.EnsureCapacity(1024);
     }
 
+    private int[]? _components,_floodQueue;
+    private int _componentRevision=-1;
+    /// <summary>Derived topology only; four-neighbour components match no-corner-cut diagonal movement.</summary>
+    public bool CanReach(int startX,int startY,int goalX,int goalY)
+    {
+        if(!_world.IsInBounds(startX,startY)||!_world.IsInBounds(goalX,goalY)||!_world.TileAt(goalX,goalY).Walkable)return false;
+        if(_components==null||_componentRevision!=_world.Revision)
+        {
+            _components??=new int[_size];_floodQueue??=new int[_size];System.Array.Clear(_components,0,_size);int component=0;
+            for(int seed=0;seed<_size;seed++)
+            {
+                if(_components[seed]!=0||!_world.IsWalkableAt(seed))continue;
+                component++;int head=0,tail=1;_floodQueue[0]=seed;_components[seed]=component;
+                while(head<tail)
+                {
+                    int current=_floodQueue[head++],x=current%_width,y=current/_width;
+                    for(int direction=0;direction<4;direction++)
+                    {
+                        Neighbour(direction,out int dx,out int dy);int nx=x+dx,ny=y+dy;
+                        if(!_world.IsInBounds(nx,ny))continue;int next=ny*_width+nx;
+                        if(_components[next]!=0||!_world.IsWalkableAt(next))continue;
+                        _components[next]=component;_floodQueue[tail++]=next;
+                    }
+                }
+            }
+            _componentRevision=_world.Revision;
+        }
+        int target=_components[goalY*_width+goalX],start=_components[startY*_width+startX];
+        if(start!=0)return start==target;
+        // A terrain edit can block the tile under a resident; preserve A*'s ability to step out.
+        for(int direction=0;direction<4;direction++)
+        {Neighbour(direction,out int dx,out int dy);int x=startX+dx,y=startY+dy;if(_world.IsInBounds(x,y)&&_components[y*_width+x]==target)return true;}
+        return false;
+    }
+
     /// <summary>
     /// 寻路。结果写入 <paramref name="outPath"/>（调用方提供的缓冲，长度需 ≥ 结果长度）。
     /// </summary>

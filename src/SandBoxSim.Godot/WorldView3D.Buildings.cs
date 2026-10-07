@@ -41,11 +41,11 @@ public partial class WorldView3D
             visual.Detailed=detailed;visual.Surface.Mesh=detailed?visual.Near:visual.Far;
         }
     }
-    private void BuildBuildings()
+    private bool BuildBuildings(int maxCreations=int.MaxValue)
     {
         using var profile=RenderProfile.Measure("BuildBuildings");
         if(_buildings==null){_buildings=new Node3D {Name="Buildings"};_scene.AddChild(_buildings);}
-        var sim=Game.Sim;var store=sim.Buildings;
+        var sim=Game.Sim;var store=sim.Buildings;int creations=0;bool remaining=false;
         foreach(int slot in _buildingVisuals.Keys.Where(slot=>!store.IsAlive(slot)).ToArray())RemoveBuilding(slot);
         for(int live=0;live<store.LiveCount;live++)
         {
@@ -54,6 +54,7 @@ public partial class WorldView3D
             var kind=store.KindOf(slot);bool complete=store.StateOf(slot)==BuildingState.Complete;int generation=store.GenerationOf(slot);
             if(!_buildingVisuals.TryGetValue(slot,out var visual)||visual.Generation!=generation||visual.Identity!=identity||visual.Kind!=kind||visual.Complete!=complete)
             {
+                if(creations>=maxCreations){remaining=true;continue;}creations++;
                 using var creation=RenderProfile.Measure("CreateBuilding");
                 if(visual!=null)RemoveBuilding(slot);
                 var node=_models.Building(kind,complete,identity);_buildings.AddChild(node);
@@ -88,7 +89,7 @@ public partial class WorldView3D
         }
         foreach(int id in _settlementLabels.Keys.Where(id=>!liveSettlements.Contains(id)).ToArray())
         {var label=_settlementLabels[id];_buildings.RemoveChild(label);label.QueueFree();_settlementLabels.Remove(id);}
-        UpdateBuildingDetail();
+        UpdateBuildingDetail();return remaining;
     }
     public void ValidateIncrementalBuildings()
     {
@@ -109,6 +110,12 @@ public partial class WorldView3D
         if(_buildingVisuals.ContainsKey(second)||_buildingVisuals[first].Root!=retained)throw new Exception("Demolition leaves stale geometry");
         int reused=sim.Buildings.Place(world,BuildingKind.Storage,10,10,10);BuildBuildings();
         if(reused<0||_buildingVisuals[reused].Kind!=BuildingKind.Storage||_buildingVisuals[reused].Generation!=sim.Buildings.GenerationOf(reused))throw new Exception("Reused building slot shows old geometry");
+        int queuedA=sim.Buildings.Place(world,BuildingKind.House,8,8,10),queuedB=sim.Buildings.Place(world,BuildingKind.Storage,12,12,10);
+        if(queuedA<0||queuedB<0)throw new Exception("Deferred building fixture failed");
+        int priorCount=_buildingVisuals.Count;
+        if(!BuildBuildings(1)||_buildingVisuals.Count!=priorCount+1)throw new Exception("Per-frame building creation limit failed");
+        sim.Buildings.Demolish(world,queuedB);BuildBuildings();
+        if(_buildingVisuals.ContainsKey(queuedB)||!_buildingVisuals.ContainsKey(queuedA))throw new Exception("Queued building was resurrected after demolition");
         GD.Print("BUILDING_CACHE_PASS: reuse, road/height updates, completion, demolition and slot generations");
     }
 }

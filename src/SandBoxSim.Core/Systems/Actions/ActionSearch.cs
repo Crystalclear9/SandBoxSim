@@ -15,96 +15,42 @@ internal static class ActionSearch
     /// 实现方式是**两级搜索**，这是性能与视野半径能同时兼顾的关键：
     ///   1. 先用 chunk 聚合统计（第 74 条）找出附近"确实有这种资源"的 chunk，
     ///      按距离由近到远遍历（最多 <paramref name="chunkRadius"/> 圈）；
-    ///   2. 只对第一个命中的 chunk 内的格子做精确扫描。
+    ///   2. 依照稳定区块顺序扫描，跳过不可达格；当前区块无有效目标时继续。
     ///
     /// 为什么不能退化成"扫半径内的每一格"：
     /// 视野半径 20 意味着 41×41 = 1681 格；100 个个体 × 每次决策都扫一遍
     /// 就是这个模拟里最大的一笔开销。用 chunk 统计先把候选缩到 1~2 个块，
     /// 扫描量下降一个数量级，而搜索范围反而**更大**（chunk 半径 2 覆盖约 48×48 格）。
     ///
-    /// 代价：找到的是"最近的且有该资源的 chunk 内的最近格子"，不一定全局最近。
+    /// 代价：找到的是"最近一圈中首个可达资源区块的最近格子"，不一定全局最近。
     /// 这个近似是刻意的 —— 行为上看不出差别，但性能差别很大。
     /// </summary>
     public static bool TryFindResource(in ActionContext ctx, ResourceKind kind, out Int2 found, int chunkRadius = 2)
     {
-        found = default;
-        if (kind == ResourceKind.None) { return false; }
-
-        ChunkGrid chunks = ctx.World.Chunks;
-        int centerChunkX = ctx.X / chunks.ChunkSize;
-        int centerChunkY = ctx.Y / chunks.ChunkSize;
-
-        int bestChunkIndex = -1;
-        int bestChunkDistance = int.MaxValue;
-
-        for (int ring = 0; ring <= chunkRadius; ring++)
+        found=default;if(kind==ResourceKind.None)return false;
+        var chunks=ctx.World.Chunks;int centerX=ctx.X/chunks.ChunkSize,centerY=ctx.Y/chunks.ChunkSize,width=ctx.World.Width;
+        for(int ring=0;ring<=chunkRadius;ring++)
         {
-            for (int cy = centerChunkY - ring; cy <= centerChunkY + ring; cy++)
+            int best=-1,bestDistance=int.MaxValue;
+            for(int cy=centerY-ring;cy<=centerY+ring;cy++)for(int cx=centerX-ring;cx<=centerX+ring;cx++)
             {
-                if (cy < 0 || cy >= chunks.ChunkRows) { continue; }
-
-                for (int cx = centerChunkX - ring; cx <= centerChunkX + ring; cx++)
+                if(cx<0||cy<0||cx>=chunks.ChunkCols||cy>=chunks.ChunkRows||System.Math.Max(System.Math.Abs(cx-centerX),System.Math.Abs(cy-centerY))!=ring)continue;
+                var stats=chunks.Read(cx,cy);if(!stats.IsValid||stats.AmountOf(kind)<=.01f)continue;
+                best=-1;bestDistance=int.MaxValue;
+                chunks.GetBounds(cx,cy,out int minX,out int minY,out int maxX,out int maxY);
+                for(int y=minY;y<=maxY;y++)for(int x=minX;x<=maxX;x++)
                 {
-                    if (cx < 0 || cx >= chunks.ChunkCols) { continue; }
-
-                    // 只看当前这一圈（内部块已经在之前的迭代里检查过）
-                    int chebyshev = System.Math.Max(System.Math.Abs(cx - centerChunkX), System.Math.Abs(cy - centerChunkY));
-                    if (chebyshev != ring) { continue; }
-
-                    ChunkStatsReadOnly stats = chunks.Read(cx, cy);
-                    if (!stats.IsValid) { continue; }
-                    if (stats.AmountOf(kind) <= 0.01f) { continue; }
-
-                    int distance = chebyshev;
-                    if (distance < bestChunkDistance)
-                    {
-                        bestChunkDistance = distance;
-                        bestChunkIndex = chunks.ChunkIndex(cx, cy);
-                    }
+                    int index=y*width+x;ref readonly var tile=ref ctx.World.Tiles[index];
+                    if(tile.Resource.Kind!=kind||tile.Resource.Amount<=.01f||!tile.Walkable)continue;
+                    int dx=x-ctx.X,dy=y-ctx.Y,distance=dx*dx+dy*dy;
+                    if(distance>bestDistance||(distance==bestDistance&&best>=0&&index>=best))continue;
+                    if(ctx.Reachability!=null&&!ctx.Reachability.CanReach(ctx.X,ctx.Y,x,y))continue;
+                    best=index;bestDistance=distance;
                 }
-            }
-
-            // 找到这圈的候选就停止扩张：最近的一圈优先
-            if (bestChunkIndex >= 0) { break; }
-        }
-
-        if (bestChunkIndex < 0) { return false; }
-
-        int foundChunkX = bestChunkIndex % chunks.ChunkCols;
-        int foundChunkY = bestChunkIndex / chunks.ChunkCols;
-        chunks.GetBounds(foundChunkX, foundChunkY, out int minX, out int minY, out int maxX, out int maxY);
-
-        Tile[] tiles = ctx.World.Tiles;
-        int width = ctx.World.Width;
-
-        int bestDistance = int.MaxValue;
-        int bestIndex = -1;
-
-        for (int y = minY; y <= maxY; y++)
-        {
-            int rowBase = y * width;
-            for (int x = minX; x <= maxX; x++)
-            {
-                ref readonly Tile tile = ref tiles[rowBase + x];
-                if (tile.Resource.Kind != kind) { continue; }
-                if (tile.Resource.Amount <= 0.01f) { continue; }
-                if (!tile.Walkable) { continue; }
-
-                int dx = x - ctx.X;
-                int dy = y - ctx.Y;
-                int distance = (dx * dx) + (dy * dy);
-                if (distance < bestDistance)
-                {
-                    bestDistance = distance;
-                    bestIndex = rowBase + x;
-                }
+                if(best>=0){found=new Int2(best%width,best/width);return true;}
             }
         }
-
-        if (bestIndex < 0) { return false; }
-
-        found = new Int2(bestIndex % width, bestIndex / width);
-        return true;
+        return false;
     }
 
     /// <summary>
@@ -161,6 +107,7 @@ internal static class ActionSearch
                                 tiles[index + width].Terrain == TerrainKind.Water;
 
                             if (!adjacentWater) { continue; }
+                            if(ctx.Reachability!=null&&!ctx.Reachability.CanReach(ctx.X,ctx.Y,x,y))continue;
 
                             int dx = x - ctx.X;
                             int dy = y - ctx.Y;

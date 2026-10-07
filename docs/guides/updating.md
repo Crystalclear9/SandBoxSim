@@ -43,3 +43,5 @@ git pull --ff-only origin main
 ## 文档与资源位置
 
 使用文档位于 `docs/guides/`，开发资料位于 `docs/development/`。当前配图位于 `docs/images/`，旧界面和历史配图位于 `docs/archive/images/`；临时截图使用 `runs/screenshots/`。文档移动不改变游戏存档或资源路径，移动文档与配图时需同步所有引用，维护方法见 [目录与文件管理](../development/repository-layout.md)。
+
+资源目标的可达筛选与紧急进食属于行为规则更新，旧存档格式仍可读取，但后续行动与旧版本轨迹可能不同。连通缓存从当前世界重新推导，不写入存档；读档续跑的确定性应在同一版本内比较。

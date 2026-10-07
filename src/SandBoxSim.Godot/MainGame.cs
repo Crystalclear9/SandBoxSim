@@ -340,9 +340,7 @@ public partial class MainGame : Control
         }
         if (_evaluation==null && !_selfTest && _speed > 0)
         {
-            _pending += delta * Sim.Config.Clock.TicksPerSecondAt1x * _speed;
-            int ticks = Math.Min((int)_pending, Sim.Config.Clock.MaxCatchUpTicksPerFrame);
-            AdvanceWorld(ticks); _pending -= ticks;
+            AdvanceInteractive(delta);
         }
         _refresh += delta;
         _map.QueueRedraw();
@@ -636,6 +634,7 @@ public partial class MainGame : Control
                 Sim=new Simulation(Sim.Config.Clone(),30,30,13);
                 ((WorldView3D)_map).ValidateWorldDimensions();
                 ((WorldView3D)_map).ValidateIncrementalBuildings();
+                ValidateInteractiveBudget();
                 var rectangular = new Simulation(Sim.Config.Clone(), 60, 44, 17);
                 string rectangularSave = SaveFile.Encode(rectangular);
                 Sim = Simulation.CreateForRestore(rectangular.Config.Clone(), 60, 44, 17);

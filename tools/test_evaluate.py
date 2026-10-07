@@ -33,6 +33,14 @@ class EvaluationTests(unittest.TestCase):
         self.assertTrue(evaluate.compare(self.folder, other)["comparable"])
         request = evaluate.read(other / "request.json"); request["seed"] = 2; evaluate.write(other / "request.json", request)
         self.assertFalse(evaluate.compare(self.folder, other)["comparable"])
+    def test_render_quality_difference_rejected(self):
+        other = self.folder / "quality"; other.mkdir()
+        import shutil
+        for path in self.folder.iterdir():
+            if path.is_file(): shutil.copy2(path, other / path.name)
+        candidate = evaluate.read(other / "result.json"); candidate["renderQuality"] = {"shadowMode": "changed"}; evaluate.write(other / "result.json", candidate)
+        result = evaluate.compare(self.folder, other)
+        self.assertFalse(result["comparable"]); self.assertIn("render quality differs", result["reasons"])
     def test_modified_answer_file_rejected_with_provenance(self):
         evaluate.write(self.folder / "provenance.json", dict(artifactHashes={"answer-key.json": evaluate.digest(self.folder / "answer-key.json")}))
         evaluate.write(self.folder / "answer-key.json", [dict(id="q1", label="wolf")])
