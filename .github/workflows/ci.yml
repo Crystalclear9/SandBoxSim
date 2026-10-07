@@ -58,6 +58,17 @@ jobs:
         shell: pwsh
         run: ./tools/test-build.ps1
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: External evaluation interface tests
+        shell: pwsh
+        run: |
+          ./tools/test-godot-path.ps1
+          python -m unittest discover -s tools -p test_evaluate.py
+          python tools/evaluate.py describe
+
       - name: Build (channel A)
         shell: pwsh
         run: ./tools/build.ps1 -Mode build -Configuration $env:CONFIGURATION -Channel sdk -ParallelBuild

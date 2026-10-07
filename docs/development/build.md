@@ -80,3 +80,11 @@ $samplePath = Join-Path (Get-Location).Path 'runs/render-sample.json'
 `.github/workflows/ci.yml` 在 Windows、Linux 和 macOS 上检查文档链接、构建与运行核心回归，并在 Linux 上运行确定性和模拟检查；`godot.yml` 检查图形构建、资源导入和客户端自检。服务端执行结果以 GitHub 对相应提交的检查为准。
 
 安装工具链见 [安装与启动](../guides/getting-started.md)，目录职责见 [项目架构](architecture.md)。
+
+## 跨平台覆盖
+
+内核 CI 在 Windows、Ubuntu 和 macOS 运行构建、脚本回归、完整测试与文档路径大小写检查。Godot CI 在同三平台下载校验过的 .NET 编辑器，执行 Release 构建、资源导入和 headless 客户端自检；它验证初始化与交互状态，不等于三平台显卡下的像素或性能一致。
+
+外部评测的 Python 测试和 PowerShell 引擎路径测试也在三个平台运行，覆盖 `.exe`、Linux 二进制和 macOS `.app/Contents/MacOS/Godot`。Ubuntu 额外使用 Xvfb/Mesa 软件显示执行原生截图、问题生成和产物验证；这是接口冒烟，不设硬件 FPS 门槛。Windows/macOS 的原生显示、不同 GPU/驱动及 ARM64 设备的实机表现仍需分别运行；x64 通过不能推导所有架构都已实测。
+
+引擎启动默认目录为用户主目录的 `.sandboxsim-tool/godot-4.7.2`，可用 `GODOT_EXE` 或 `-GodotPath` 覆盖；显式路径无效会报错。SDK 的 Windows 旧路径仍由 `test-build.ps1` 验证不会导致非 Windows 的盘符崩溃。CI 运行与当前代码版本应对照同一个提交 SHA，不能把旧版通过记录当成新提交的验证结果。
