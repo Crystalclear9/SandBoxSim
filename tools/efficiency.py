@@ -108,6 +108,16 @@ def episode(client, case):
                 'finalObservation':observation}
     finally: client.request('DELETE',path)
 
+def same_binaries(old,new):
+    return all(old.get(k)==new.get(k) for k in ('coreSha256','assemblySha256'))
+
+def report_summary(samples,old,new):
+    summary=paired_summary(samples)
+    if same_binaries(old,new):
+        summary['improvementDetected']=False
+        summary['binaryUnchanged']=True
+    return summary
+
 def evaluate(reference,candidate,suite,repeats):
     if repeats < 3 or repeats > 20: raise ValueError('Use 3-20 paired repeats')
     if suite.get('schemaVersion') != 1 or len(suite['cases']) < 3: raise ValueError('Suite needs at least three cases')
@@ -138,7 +148,7 @@ def evaluate(reference,candidate,suite,repeats):
             'suiteSha256':hashlib.sha256(json.dumps(suite,sort_keys=True).encode()).hexdigest(),
             'evaluatorSha256':sha(__file__),'clientSha256':sha(Path(__file__).with_name('online.py')),
             'referenceIdentity':old,'candidateIdentity':new,'repeats':repeats,'samples':samples,'failures':failures,
-            'summary':paired_summary(samples) if correct else None,
+            'summary':report_summary(samples,old,new) if correct else None,
             'primaryMetric':'client monotonic wall time including transport and observation; allocation is untrusted service telemetry',
             'scope':'Controlled code-efficiency experiment; not proof of recursive model capability improvement'}
 
@@ -160,7 +170,7 @@ def validate_report(report):
         for key,value in [('referenceMs',old),('candidateMs',new)]:
             expected_ms=sum(number(t,'step time',.000001) for t in value['stepMs'])+number(value['pathMs'],'path time',.000001)
             if not math.isclose(sample[key],expected_ms,rel_tol=1e-9): raise ValueError('Measurement total mismatch')
-    if report['summary']!=paired_summary(report['samples']): raise ValueError('Summary was modified')
+    if report['summary']!=report_summary(report['samples'],report['referenceIdentity'],report['candidateIdentity']): raise ValueError('Summary was modified')
 
 def rounds(manifest, root):
     """Validate round lineage and budgets against immutable evaluator reports and artifact hashes."""
@@ -208,7 +218,7 @@ def rounds(manifest, root):
         if previous_report:
             parent_samples=indexed(previous_report)
             parent_gain=paired_summary([{'referenceMs':parent_samples[key]['candidateMs'],'candidateMs':s['candidateMs']} for key,s in candidate_samples.items()])
-        recursive=bool(improved and parent_gain and parent_gain['improvementDetected'])
+        recursive=bool(improved and parent_gain and parent_gain['improvementDetected'] and not same_binaries(previous_report['candidateIdentity'],report['candidateIdentity']))
         recursive_improvements+=int(recursive)
         improvements+=int(improved); previous=agent_hash
         records.append({'round':index,'agentSha256':agent_hash,'candidateCoreSha256':report['candidateIdentity']['coreSha256'],

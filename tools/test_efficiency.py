@@ -21,6 +21,8 @@ class EfficiencyTests(unittest.TestCase):
         self.assertFalse(e.paired_summary([{'referenceMs':2,'candidateMs':2}]*9)['improvementDetected'])
         self.assertFalse(e.paired_summary([{'referenceMs':2,'candidateMs':1}]*3)['improvementDetected'])
         self.assertTrue(e.paired_summary([{'referenceMs':2,'candidateMs':1}]*9)['improvementDetected'])
+        identity={'coreSha256':'same','assemblySha256':'same'}
+        self.assertFalse(e.report_summary([{'referenceMs':2,'candidateMs':1}]*9,identity,identity)['improvementDetected'])
 
     def report(self):
         suite={'schemaVersion':1,'split':'heldout','cases':[{'seed':i} for i in range(3)]}
