@@ -5,11 +5,13 @@
 | 工程 | 职责 | 依赖 |
 |---|---|---|
 | `SandBoxSim.Core` | 世界、实体、行动、资源、生态、社会、事件与存档 | .NET BCL |
-| `SandBoxSim.Console` | TUI、命令行模拟、统计、报告与 PNG 输出 | Core |
+| `SandBoxSim.Console` | TUI、命令行模拟、统计、报告、PNG 与在线 HTTP 控制 | Core |
 | `SandBoxSim.Godot` | 3D 场景、输入、界面、观察与游戏会话 | Core、Godot .NET SDK |
 | `SandBoxSim.Tests` | 自带测试框架与行为、确定性、存档回归 | Core、Console |
 
 Core 不依赖图形引擎；Console 和测试可通过 SDK 或 Roslyn csc 构建。图形客户端负责把玩家选择转换为正式干预，不以界面数字代替模拟状态。
+
+Console 的 `Online/StepApi.cs` 管理调用者驱动的独立内核会话、版本和幂等回复；`HttpService.cs` 只负责 loopback HTTP、鉴权、限额和串行调度，不启动表现层或后台模拟时钟。外部 Python 控制器与效率/多轮证据驱动器位于 `tools/online.py`、`tools/efficiency.py`，协议与指标见 [在线控制与效率实验](online-efficiency.md)。
 
 ```mermaid
 flowchart LR

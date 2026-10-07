@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SandBoxSim RSI efficiency experiment evidence v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "budget",
+    "controlAgentArtifact",
+    "controlAgentSha256",
+    "rounds"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "validationFixture": {
+      "type": "boolean"
+    },
+    "budget": {
+      "$ref": "#/$defs/cost"
+    },
+    "controlAgentArtifact": {
+      "type": "string"
+    },
+    "controlAgentSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "rounds": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "report",
+          "controlReport",
+          "agentArtifact",
+          "patch",
+          "reportSha256",
+          "controlReportSha256",
+          "agentSha256",
+          "patchSha256",
+          "parentAgentSha256",
+          "cost",
+          "controlCost"
+        ],
+        "properties": {
+          "report": {
+            "type": "string",
+            "minLength": 1
+          },
+          "controlReport": {
+            "type": "string",
+            "minLength": 1
+          },
+          "agentArtifact": {
+            "type": "string",
+            "minLength": 1
+          },
+          "patch": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reportSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "controlReportSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "agentSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "patchSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "parentAgentSha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cost": {
+            "$ref": "#/$defs/cost"
+          },
+          "controlCost": {
+            "$ref": "#/$defs/cost"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tokens",
+        "wallSeconds",
+        "attempts"
+      ],
+      "properties": {
+        "tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "wallSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  },
+  "description": "First parent null; later parents match previous agent hash. Reports, evaluator, held-out suite, fixed reference/control and budgets also checked by the verifier. Model costs are operator attestations."
+}

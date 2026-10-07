@@ -25,6 +25,7 @@ public static class Program
     public static int Main(string[] rawArgs)
     {
         var args = new Args(rawArgs);
+        int servicePort = args.Int("--port", 8765);
 
         if (args.Flag("--help"))
         {
@@ -46,6 +47,7 @@ public static class Program
 
         try
         {
+            if (args.Flag("--serve")) { return Online.HttpService.Run(servicePort); }
             if (args.Flag("--digest")) { return RunDigest(args); }
             if (args.Flag("--batch")) { return RunBatch(args); }
             if (args.Flag("--headless") || args.Flag("--snapshot")) { return RunHeadless(args); }

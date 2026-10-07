@@ -13,4 +13,6 @@
 
 这些是公开开发样例；正式实验的留出集由评测者在仓库外管理。结果、日志与临时图片写入忽略提交的 `runs/evaluation/`，不放到场景目录。
 
-外部调用从 `python tools/evaluate.py describe` 获取能力清单；请求、预测与结果分别定义在 [request.schema.json](request.schema.json)、[predictions.schema.json](predictions.schema.json) 和 [result.schema.json](result.schema.json)。接口采用本地 CLI/文件，未提供在线逐步交互或 HTTP 服务。
+外部调用从 `python tools/evaluate.py describe` 获取能力清单；渲染请求、预测与结果分别定义在 [request.schema.json](request.schema.json)、[predictions.schema.json](predictions.schema.json) 和 [result.schema.json](result.schema.json)。在线逐步控制采用 loopback HTTP，定义见 [OpenAPI](online.openapi.json)。
+
+[efficiency-smoke.json](efficiency-smoke.json) 提供公开效率回归；`tools/efficiency.py` 支持配对运行、生成留出套件与多轮证据验证。[rsi-rounds.schema.json](rsi-rounds.schema.json) 定义代理父链、固定预算与控制报告。启动、指标口径及研究边界见 [在线控制与效率实验](../docs/development/online-efficiency.md)。

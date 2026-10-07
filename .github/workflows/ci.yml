@@ -73,6 +73,21 @@ jobs:
         shell: pwsh
         run: ./tools/build.ps1 -Mode build -Configuration $env:CONFIGURATION -Channel sdk -ParallelBuild
 
+      - name: Online HTTP and efficiency evidence regression
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tools -p test_efficiency.py
+          python tools/test_online_service.py --assembly "artifacts/$env:CONFIGURATION/SandBoxSim.Console.dll" --output runs/online-ci
+
+      - name: Upload online efficiency regression evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: online-efficiency-${{ matrix.os }}
+          path: runs/online-ci
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Test (all, channel A)
         shell: pwsh
         run: ./tools/build.ps1 -Mode test -Configuration $env:CONFIGURATION -Channel sdk -ParallelBuild
