@@ -53,6 +53,19 @@ class EfficiencyTests(unittest.TestCase):
                     'agentArtifact':'agent'+str(index),'agentSha256':e.sha(root/('agent'+str(index))),'parentAgentSha256':None if index==0 else e.sha(root/'agent0'),
                     'patch':'patch','patchSha256':e.sha(root/'patch'),'cost':{'tokens':20,'wallSeconds':1,'attempts':1},'controlCost':{'tokens':20,'wallSeconds':1,'attempts':1}})
             self.assertEqual(0,e.rounds(manifest,root)['improvingRounds'])
+            # Synthetic timings test the decision rule, not measured model performance.
+            for index in range(2):
+                report=self.report(); report['candidateIdentity']['coreSha256']='candidate'+str(index)
+                for sample in report['samples']:
+                    sample['reference']['stepMs']=[2.]; sample['reference']['pathMs']=2.; sample['referenceMs']=4.
+                    sample['candidate']['stepMs']=[.5/(2**index)]; sample['candidate']['pathMs']=.5/(2**index); sample['candidateMs']=1./(2**index)
+                report['summary']=e.paired_summary(report['samples'])
+                name='report'+str(index)+'.json'; (root/name).write_text(json.dumps(report)); manifest['rounds'][index]['reportSha256']=e.sha(root/name)
+            evidence=e.rounds(manifest,root)
+            self.assertEqual(2,evidence['improvingRounds']); self.assertEqual(1,evidence['recursiveImprovingRounds'])
+            plateau=json.loads((root/'report0.json').read_text()); plateau['candidateIdentity']['coreSha256']='candidate1'
+            (root/'report1.json').write_text(json.dumps(plateau)); manifest['rounds'][1]['reportSha256']=e.sha(root/'report1.json')
+            self.assertEqual(0,e.rounds(manifest,root)['recursiveImprovingRounds'])
             broken=copy.deepcopy(manifest); broken['rounds'][1]['parentAgentSha256']='invalid'
             with self.assertRaises(ValueError): e.rounds(broken,root)
             broken=copy.deepcopy(manifest); broken['rounds'][1]['cost']['tokens']=101

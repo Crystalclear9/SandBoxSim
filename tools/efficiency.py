@@ -168,7 +168,7 @@ def rounds(manifest, root):
     budgets=manifest['budget']; number(budgets['tokens'],'token budget',1); number(budgets['wallSeconds'],'time budget',1); number(budgets['attempts'],'attempt budget',1)
     fixed_agent=sha(root/manifest['controlAgentArtifact'])
     if fixed_agent!=manifest['controlAgentSha256']: raise ValueError('Fixed control agent hash mismatch')
-    previous=None; suite_hash=None; reference_identity=None; control_identity=None; improvements=0; records=[]; seen_reports=set()
+    previous=None; previous_report=None; suite_hash=None; reference_identity=None; control_identity=None; improvements=0; recursive_improvements=0; records=[]; seen_reports=set()
     for index,r in enumerate(manifest['rounds']):
         report_path=root/r['report']; report=read(report_path)
         if sha(report_path)!=r['reportSha256']: raise ValueError('Round report hash mismatch')
@@ -199,14 +199,26 @@ def rounds(manifest, root):
         if control['referenceIdentity']!=report['referenceIdentity']: raise ValueError('Reference/control environment mismatch')
         for key in ('tokens','wallSeconds','attempts'):
             if number(r['controlCost'][key],key)>budgets[key]: raise ValueError('Control exceeded fixed budget')
-        improved=report['summary']['improvementDetected'] and report['summary']['medianSpeedup']>control['summary']['medianSpeedup']*1.05
+        def indexed(value): return {(s['case'],s['repeat']):s for s in value['samples']}
+        candidate_samples=indexed(report); control_samples=indexed(control)
+        relative_control=paired_summary([{'referenceMs':s['referenceMs']/s['candidateMs'],
+            'candidateMs':control_samples[key]['referenceMs']/control_samples[key]['candidateMs']} for key,s in candidate_samples.items()])
+        improved=report['summary']['improvementDetected'] and relative_control['improvementDetected']
+        parent_gain=None
+        if previous_report:
+            parent_samples=indexed(previous_report)
+            parent_gain=paired_summary([{'referenceMs':parent_samples[key]['candidateMs'],'candidateMs':s['candidateMs']} for key,s in candidate_samples.items()])
+        recursive=bool(improved and parent_gain and parent_gain['improvementDetected'])
+        recursive_improvements+=int(recursive)
         improvements+=int(improved); previous=agent_hash
         records.append({'round':index,'agentSha256':agent_hash,'candidateCoreSha256':report['candidateIdentity']['coreSha256'],
                         'cost':r['cost'],'controlCost':r['controlCost'],'speedup':report['summary']['medianSpeedup'],
                         'controlSpeedup':control['summary']['medianSpeedup'],'improvementAgainstControl':improved,
+                        'relativeControl':relative_control,'gainOverParent':parent_gain,'improvementOverParent':recursive,
                         'speedupGainPerThousandTokens':max(0.,report['summary']['medianSpeedup']-control['summary']['medianSpeedup'])*1000/r['cost']['tokens'] if r['cost']['tokens'] else None,
                         'speedupGainPerAgentSecond':max(0.,report['summary']['medianSpeedup']-control['summary']['medianSpeedup'])/r['cost']['wallSeconds'] if r['cost']['wallSeconds'] else None})
-    return {'schemaVersion':1,'kind':'rsi-efficiency-evidence-v1','validated':True,'validationFixture':manifest.get('validationFixture',False),'rounds':records,'improvingRounds':improvements,
+        previous_report=report
+    return {'schemaVersion':1,'kind':'rsi-efficiency-evidence-v1','validated':True,'validationFixture':manifest.get('validationFixture',False),'rounds':records,'improvingRounds':improvements,'recursiveImprovingRounds':recursive_improvements,
             'suiteSha256':suite_hash,'evaluatorSha256':sha(__file__), 'fixedControlAgentSha256':fixed_agent,
             'scope':'Lineage, correctness, budget and paired-efficiency evidence validated; costs and model identity are operator attestations, not independently metered; no general RSI claim'}
 

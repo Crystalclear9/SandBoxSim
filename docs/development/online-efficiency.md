@@ -122,7 +122,7 @@ python tools/efficiency.py experiment experiment.json --output runs/experiment
 python tools/efficiency.py rounds runs/experiment/rounds.json --output runs/experiment/evidence.json
 ```
 
-验证器重新计算报告摘要，检查原始样本是否齐全、结果是否一致、文件哈希/父链、固定控制及双方预算。每轮收益需通过配对检测，并比控制加速比再高 5%，才计入 `improvingRounds`。报告同时保留各轮成本，便于比较收益/token、收益/时间；不将不同计价和不同模型混成一个万能分数。
+验证器重新计算报告摘要，检查原始样本是否齐全、结果是否一致、文件哈希/父链、固定控制及双方预算。每轮收益需通过配对检测，其相对控制收益的区间下界也须超过 1.05，才计入 `improvingRounds`。后续轮次还与上一轮候选配对，只有父版本比较也通过才计入 `recursiveImprovingRounds`；维持同一收益不会冒充持续自我改进。报告同时保留各轮成本、收益/千 token 与收益/代理秒；不将不同计价和不同模型混成一个万能分数。
 
 `validated: true` 的含义是上述证据约束通过，**不代表已经证明通用 RSI 能力**。模型身份、真实 token 与控制器耗时当前是操作者记录，不是服务独立计量；本地哈希也不是签名或安全隔离。候选不应修改可信评分器或访问留出数据。需要防作弊的研究应在独立评测进程/机器保管这些文件，保留全部失败尝试，核对候选构建与代理调用日志。
 
