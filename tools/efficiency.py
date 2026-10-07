@@ -1,6 +1,6 @@
 """Trusted paired efficiency evaluation and multi-round improvement evidence checks."""
 from __future__ import annotations
-import argparse, hashlib, heapq, json, math, random, secrets, shutil, statistics, sys, time
+import argparse, hashlib, heapq, json, math, random, secrets, shutil, statistics, sys
 from pathlib import Path
 from online import Client
 
@@ -74,11 +74,11 @@ def paired_summary(samples):
             'improvementDetected': len(ratios) >= 9 and estimates[50] > 1.05}
 
 def episode(client, case):
-    initial_calls=client.calls; initial_bytes=client.response_bytes
+    initial_calls=client.calls; initial_bytes=client.response_bytes; initial_time=client.wall_seconds
     created = client.request('POST','/v1/sessions',{k:case[k] for k in ('seed','width','height','agents')})
     path = '/v1/sessions/'+created['sessionId']; observation=created['observation']
     try:
-        # Warmup is identical and excluded from measured latency.
+        # Identical warmup is charged in the complete episode; step scopes are also reported separately.
         observation = client.request('POST',path+'/step',{'requestId':'warmup','expectedRevision':0,'ticks':5})['observation']
         grid = client.request('GET',path+'/map')
         walkable = [i for i,t in enumerate(grid['tiles']) if t['walkable']]
@@ -86,27 +86,31 @@ def episode(client, case):
         for _ in range(case['pathQueries']):
             a,b=rng.choice(walkable),rng.choice(walkable)
             queries.append({'x':a%case['width'],'y':a//case['width'],'goalX':b%case['width'],'goalY':b//case['width']})
-        start=time.perf_counter_ns()
+        start=client.wall_seconds
         paths = client.request('POST',path+'/path',{'expectedRevision':observation['revision'],'queries':queries})
-        path_ms=(time.perf_counter_ns()-start)/1e6
+        path_ms=(client.wall_seconds-start)*1000
         if paths['digest'] != observation['digest']: raise ValueError('Path observation changed state')
         check_paths(grid,queries,paths['paths'])
         trace=[observation['digest']]; times=[]; allocated=[]
         for i in range(case['batches']):
-            start=time.perf_counter_ns()
+            start=client.wall_seconds
             response=client.request('POST',path+'/step',{'requestId':'measure-'+str(i),'expectedRevision':observation['revision'],'ticks':case['ticksPerBatch']})
-            times.append((time.perf_counter_ns()-start)/1e6)
+            times.append((client.wall_seconds-start)*1000)
             previous=observation; observation=response['observation']
             if observation['faulted'] or observation['tick'] != previous['tick']+case['ticksPerBatch'] or observation['revision'] != previous['revision']+1:
                 raise ValueError('Step count, revision or invariants failed')
             trace.append(observation['digest']); allocated.append(number(response['metrics']['allocatedBytes'],'allocation'))
-        return {'wallMs':sum(times)+path_ms,'stepMs':times,'pathMs':path_ms,'digests':trace,
+        result={'stepMs':times,'pathMs':path_ms,'digests':trace,
                 'allocatedBytesTelemetry':sum(allocated)+paths['metrics']['allocatedBytes'], 'queries':queries,
                 'mapSha256':hashlib.sha256(json.dumps(grid['tiles'],sort_keys=True).encode()).hexdigest(),
                 'httpCallsBeforeDelete':client.calls-initial_calls,'responseBytesBeforeDelete':client.response_bytes-initial_bytes,
                 'measuredTicks':case['batches']*case['ticksPerBatch'],
                 'finalObservation':observation}
     finally: client.request('DELETE',path)
+    result['wallMs']=(client.wall_seconds-initial_time)*1000
+    result['setupAndReleaseMs']=max(0.,result['wallMs']-sum(times)-path_ms)
+    result['httpCalls']=client.calls-initial_calls; result['responseBytes']=client.response_bytes-initial_bytes
+    return result
 
 def same_binaries(old,new):
     return all(old.get(k)==new.get(k) for k in ('coreSha256','assemblySha256'))
@@ -127,9 +131,14 @@ def evaluate(reference,candidate,suite,repeats):
     old,new=identity(reference),identity(candidate)
     for key in ('machineId','os','architecture','framework','processorCount','protocol'):
         if old[key] != new[key]: raise ValueError('Incompatible service environment: '+key)
-    # Run the full workload once on each service before paired sampling (JIT/cache warmup).
-    for case in suite['cases']:
-        episode(reference,case); episode(candidate,case)
+    # Retain and charge cold runs so work shifted to setup/warmup cannot become free.
+    cold=[]
+    for index,case in enumerate(suite['cases']):
+        first,second=(reference,candidate) if index%2==0 else (candidate,reference)
+        a,b=episode(first,case),episode(second,case)
+        base,trial=(a,b) if first is reference else (b,a)
+        if base['digests']!=trial['digests'] or base['mapSha256']!=trial['mapSha256']: raise ValueError('Cold-start correctness failed')
+        cold.append({'reference':base,'candidate':trial})
     samples=[]; failures=[]
     for repeat in range(repeats):
         for index,case in enumerate(suite['cases']):
@@ -140,16 +149,17 @@ def evaluate(reference,candidate,suite,repeats):
                 base,trial=(a,b) if first is reference else (b,a)
                 if base['digests'] != trial['digests'] or base['mapSha256'] != trial['mapSha256'] or base['queries'] != trial['queries']:
                     raise ValueError('Candidate changed deterministic simulation behavior')
-                samples.append({'case':index,'repeat':repeat,'referenceMs':base['wallMs'],'candidateMs':trial['wallMs'],'reference':base,'candidate':trial})
+                samples.append({'case':index,'repeat':repeat,'referenceMs':base['wallMs']+cold[index]['reference']['wallMs']/repeats,
+                    'candidateMs':trial['wallMs']+cold[index]['candidate']['wallMs']/repeats,'reference':base,'candidate':trial})
             except (ValueError,OSError,KeyError,TypeError) as e:
                 failures.append({'case':index,'repeat':repeat,'error':str(e)})
     correct=not failures and len(samples)==repeats*len(suite['cases'])
     return {'schemaVersion':1,'kind':'paired-efficiency-v1','correct':correct,'suite':suite,
             'suiteSha256':hashlib.sha256(json.dumps(suite,sort_keys=True).encode()).hexdigest(),
             'evaluatorSha256':sha(__file__),'clientSha256':sha(Path(__file__).with_name('online.py')),
-            'referenceIdentity':old,'candidateIdentity':new,'repeats':repeats,'samples':samples,'failures':failures,
+            'referenceIdentity':old,'candidateIdentity':new,'repeats':repeats,'coldEpisodes':cold,'samples':samples,'failures':failures,
             'summary':report_summary(samples,old,new) if correct else None,
-            'primaryMetric':'client monotonic wall time including transport and observation; allocation is untrusted service telemetry',
+            'primaryMetric':'complete episode HTTP wall time including setup, warmup, queries, steps and release, plus amortized measured cold run; allocation is untrusted service telemetry',
             'scope':'Controlled code-efficiency experiment; not proof of recursive model capability improvement'}
 
 def validate_report(report):
@@ -163,12 +173,22 @@ def validate_report(report):
         raise ValueError('Incomplete or duplicated paired measurements')
     suite_hash=hashlib.sha256(json.dumps(report['suite'],sort_keys=True).encode()).hexdigest()
     if report['suiteSha256']!=suite_hash: raise ValueError('Suite hash mismatch')
+    if report.get('coldEpisodes'):
+        if len(report['coldEpisodes'])!=len(report['suite']['cases']): raise ValueError('Incomplete cold measurements')
+        for cold in report['coldEpisodes']:
+            if cold['reference']['digests']!=cold['candidate']['digests'] or cold['reference']['mapSha256']!=cold['candidate']['mapSha256']:
+                raise ValueError('Incorrect cold-start state')
+            for value in cold.values():
+                total=sum(number(t,'cold step time',.000001) for t in value['stepMs'])+number(value['pathMs'],'cold path time',.000001)+number(value['setupAndReleaseMs'],'cold setup time')
+                if not math.isclose(total,value['wallMs'],rel_tol=1e-9): raise ValueError('Cold total mismatch')
     for sample in report['samples']:
         old,new=sample['reference'],sample['candidate']
         if old['digests']!=new['digests'] or old['mapSha256']!=new['mapSha256'] or old['queries']!=new['queries']:
             raise ValueError('Incorrect paired state')
         for key,value in [('referenceMs',old),('candidateMs',new)]:
-            expected_ms=sum(number(t,'step time',.000001) for t in value['stepMs'])+number(value['pathMs'],'path time',.000001)
+            expected_ms=sum(number(t,'step time',.000001) for t in value['stepMs'])+number(value['pathMs'],'path time',.000001)+number(value.get('setupAndReleaseMs',0),'setup time')
+            if report.get('coldEpisodes'):
+                expected_ms+=number(report['coldEpisodes'][sample['case']][key.removesuffix('Ms')]['wallMs'],'cold time',.000001)/report['repeats']
             if not math.isclose(sample[key],expected_ms,rel_tol=1e-9): raise ValueError('Measurement total mismatch')
     if report['summary']!=report_summary(report['samples'],report['referenceIdentity'],report['candidateIdentity']): raise ValueError('Summary was modified')
 

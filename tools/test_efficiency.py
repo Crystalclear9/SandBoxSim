@@ -35,6 +35,18 @@ class EfficiencyTests(unittest.TestCase):
         report=self.report(); e.validate_report(report)
         report['samples'][0]['candidate']['digests']=['different']
         with self.assertRaises(ValueError): e.validate_report(report)
+
+    def test_cold_and_setup_work_cannot_be_hidden(self):
+        report=self.report(); report['coldEpisodes']=[]
+        for _ in range(3):
+            cold={k:copy.deepcopy(report['samples'][0][k]) for k in ('reference','candidate')}
+            for v in cold.values(): v.update(setupAndReleaseMs=1.,wallMs=3.)
+            report['coldEpisodes'].append(cold)
+        for s in report['samples']:
+            s['referenceMs']+=1.; s['candidateMs']+=1.
+        report['summary']=e.paired_summary(report['samples']); e.validate_report(report)
+        report['coldEpisodes'][0]['candidate']['wallMs']=.001
+        with self.assertRaises(ValueError): e.validate_report(report)
         report=self.report(); report['summary']['medianSpeedup']=100
         with self.assertRaises(ValueError): e.validate_report(report)
         report=self.report(); report['samples'].pop()
