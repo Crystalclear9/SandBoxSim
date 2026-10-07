@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "seed": 839102,
+  "agents": 40,
+  "previewDays": 0,
+  "warmupFrames": 60,
+  "measuredFrames": 120,
+  "ticksPerFrame": 0,
+  "minimumFps": 0,
+  "id": "ui-portrait",
+  "panel": "person",
+  "outputDirectory": "runs/evaluation/ui-portrait",
+  "captureFrames": [
+    90,
+    150
+  ],
+  "commands": [
+    {
+      "frame": 65,
+      "command": "portrait.hands",
+      "value": ""
+    },
+    {
+      "frame": 70,
+      "command": "portrait.drag",
+      "value": "25"
+    },
+    {
+      "frame": 95,
+      "command": "portrait.reset",
+      "value": ""
+    },
+    {
+      "frame": 100,
+      "command": "settings.open",
+      "value": ""
+    },
+    {
+      "frame": 110,
+      "command": "escape",
+      "value": ""
+    },
+    {
+      "frame": 120,
+      "command": "portrait.body",
+      "value": ""
+    }
+  ]
+}

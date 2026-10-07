@@ -9,6 +9,7 @@ namespace SandBoxSim.Client;
 /// <summary>Reusable volumetric geometry, textured with original material assets. All geometry survives camera rotation.</summary>
 internal sealed partial class NatureModels
 {
+    private bool _fineArchitecture=true;
     private readonly Material[] _materials = new Material[16];
     private readonly Dictionary<string, Mesh> _meshes = new();
     public NatureModels()
@@ -43,6 +44,12 @@ internal sealed partial class NatureModels
         mesh = kind switch
         {
             "box" => new BoxMesh(),
+            "thatch-course" => RoofCourse(true,true),
+            "thatch-course-far" => RoofCourse(true,false),
+            "tile-course" => RoofCourse(false,true),
+            "tile-course-far" => RoofCourse(false,false),
+            "cylinder-low" => new CylinderMesh {TopRadius=.5f,BottomRadius=.5f,Height=1,RadialSegments=8,Rings=1},
+            "capsule-low" => new CapsuleMesh {Radius=.5f,Height=2,RadialSegments=8,Rings=3},
             "finger-low" => new SphereMesh { Radius=.5f,Height=1,RadialSegments=8,Rings=4 },
             "seed" => new SphereMesh { Radius=.5f,Height=1,RadialSegments=12,Rings=6 },
             "masonry" => SoftBlock(),
@@ -78,21 +85,51 @@ internal sealed partial class NatureModels
     }
     public MeshInstance3D Part(Node3D parent, string shape, Vector3 position, Vector3 scale, int material, Vector3? rotation = null)
     {
-        var part = new MeshInstance3D { Mesh = Shape(shape == "box" && material == 6 ? "masonry" : shape), Position = position, Scale = scale, MaterialOverride = Material(material),
+        if(!_fineArchitecture)shape=shape switch {"sphere"=>"finger-low","cylinder"=>"cylinder-low","capsule"=>"capsule-low",_=>shape};
+        var part = new MeshInstance3D { Mesh = Shape(shape == "box" && _fineArchitecture && material is 0 or 1 or 2 or 6 ? "masonry" : shape), Position = position, Scale = scale, MaterialOverride = Material(material),
             CastShadow = GeometryInstance3D.ShadowCastingSetting.On };
         if (rotation.HasValue) { part.Rotation = rotation.Value; }
         parent.AddChild(part); return part;
     }
     public static Transform3D Transform(Vector3 position, Vector3 scale, Vector3? rotation = null)
         => new(new Basis(Quaternion.FromEuler(rotation ?? Vector3.Zero)).Scaled(scale), position);
+    private static Dictionary<(int X,int Z),List<Transform3D>> PartitionInstances(List<Transform3D> transforms)
+    {
+        const float cell=24;
+        var chunks=new Dictionary<(int X,int Z),List<Transform3D>>();
+        foreach(var transform in transforms)
+        {
+            var key=((int)MathF.Floor(transform.Origin.X/cell),(int)MathF.Floor(transform.Origin.Z/cell));
+            if(!chunks.TryGetValue(key,out var group)){group=new();chunks[key]=group;}
+            group.Add(transform);
+        }
+        return chunks;
+    }
+    private static Aabb InstanceBounds(List<Transform3D> group,Aabb meshBounds)
+    {
+        var bounds=group[0]*meshBounds;
+        for(int i=1;i<group.Count;i++)bounds=bounds.Merge(group[i]*meshBounds);
+        return bounds.Grow(.01f);
+    }
     public void Batch(Node3D parent, string shape, int material, List<Transform3D> transforms)
     {
-        if (transforms.Count == 0) { return; }
-        var multi = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = Shape(shape), InstanceCount = transforms.Count };
-        for (int i = 0; i < transforms.Count; i++) { multi.SetInstanceTransform(i, transforms[i]); }
-        parent.AddChild(new MultiMeshInstance3D { Multimesh = multi, MaterialOverride = Material(material) });
+        // Each chunk has its own bounds: a visible patch no longer draws the whole forest.
+        foreach(var group in PartitionInstances(transforms).Values)
+        {
+            var multi=new MultiMesh {TransformFormat=MultiMesh.TransformFormatEnum.Transform3D,Mesh=Shape(shape),InstanceCount=group.Count};
+            for(int i=0;i<group.Count;i++)multi.SetInstanceTransform(i,group[i]);
+            multi.CustomAabb=InstanceBounds(group,multi.Mesh.GetAabb());
+            parent.AddChild(new MultiMeshInstance3D {Multimesh=multi,MaterialOverride=Material(material)});
+        }
     }
+
     public Node3D Building(BuildingKind kind, bool complete, uint identity = 0) => Architecture(kind, complete, identity);
+    public Mesh DistantBuilding(BuildingKind kind,bool complete,uint identity)
+    {
+        _fineArchitecture=false;
+        try{var node=Architecture(kind,complete,identity);var mesh=node.GetChild<MeshInstance3D>(0).Mesh;node.Free();return mesh;}
+        finally{_fineArchitecture=true;}
+    }
     public Node3D Human(int slot, bool child, JobType job) => Resident(slot, child, job);
     public Node3D Animal(bool wolf) => DetailedAnimal(wolf);
 }

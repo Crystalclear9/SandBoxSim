@@ -7,6 +7,12 @@ namespace SandBoxSim.Client;
 /// <summary>Isolated studio viewport. Portrait interactions never reach the world camera.</summary>
 internal partial class ResidentPortrait : SubViewportContainer
 {
+    private enum Framing { Face, Hands, Body }
+    private Framing _framing;
+    private readonly System.Collections.Generic.Dictionary<Framing,Godot.Button> _frameButtons=new();
+    private float _pitch,_viewDistance=.85f;
+    private Vector3 _viewCenter;
+    private bool _centerReady;
     public bool Compact { get; set; }
     private readonly NatureModels _models = new();
     private SubViewport _viewport = null!;
@@ -22,8 +28,8 @@ internal partial class ResidentPortrait : SubViewportContainer
     private float _yaw = -.28f, _distance = .85f;
     public override void _Ready()
     {
-        Stretch = true; CustomMinimumSize = Compact ? new Vector2(0, 144) : new Vector2(270, 196);
-        TooltipText = "拖动旋转人物 · 滚轮查看细节";
+        Stretch = true; CustomMinimumSize = Compact ? new Vector2(0, 172) : new Vector2(270, 196);
+        TooltipText = "拖动左右旋转与上下俯仰 · 滚轮缩放 · 双击复位";
         MouseFilter = MouseFilterEnum.Stop;
         _viewport = new SubViewport { Size = Compact ? new Vector2I(624, 320) : new Vector2I(540, 392), OwnWorld3D = true, Msaa3D = Viewport.Msaa.Msaa4X,
             RenderTargetUpdateMode = SubViewport.UpdateMode.WhenVisible, HandleInputLocally = false };
@@ -37,10 +43,17 @@ internal partial class ResidentPortrait : SubViewportContainer
         _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-15, 145, 0), LightColor = new Color("#c9ccc0"), LightEnergy = .36f });
         _portraitGround=new MeshInstance3D { Mesh = new PlaneMesh { Size = new(20,20) }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new("#454b40"), Roughness = 1 },Visible=false };_stage.AddChild(_portraitGround);
         _camera = new Camera3D { Current = true, Fov = 34 }; _stage.AddChild(_camera); Aim();
-        var framing = new Godot.Button { Text = "全身", Flat = true, CustomMinimumSize = new(48,28) }; HudStyle.Button(framing);
-        framing.SetAnchorsAndOffsetsPreset(LayoutPreset.TopRight); framing.OffsetLeft=-60; framing.OffsetRight=-8; framing.OffsetTop=8; framing.OffsetBottom=36; AddChild(framing);
-        framing.Pressed += () => { _fullBody=!_fullBody;_portraitGround.Visible=_fullBody;framing.Text=_fullBody?"面部":"全身";_distance=_fullBody?3.5f:.85f;Aim(); };
-        var caption = HudStyle.Label(Compact ? "拖动旋转" : "拖动旋转  /  滚轮查看细节", 10);
+        var controls=new HBoxContainer();controls.SetAnchorsAndOffsetsPreset(LayoutPreset.TopLeft);controls.Position=new(8,8);controls.AddThemeConstantOverride("separation",2);AddChild(controls);
+        foreach(var (mode,title) in new[]{(Framing.Face,"面部"),(Framing.Hands,"手部"),(Framing.Body,"全身")})
+        {
+            var button=new Godot.Button {Text=title,ToggleMode=true,CustomMinimumSize=new(44,28)};HudStyle.Button(button);button.AddThemeFontSizeOverride("font_size",13);
+            button.TooltipText="聚焦"+title+" · 保留当前旋转角度";controls.AddChild(button);_frameButtons[mode]=button;
+            button.Pressed+=()=>SetFraming(mode);
+        }
+        _frameButtons[Framing.Face].SetPressedNoSignal(true);
+        var reset=new Godot.Button {Text="复位",CustomMinimumSize=new(44,28)};HudStyle.Button(reset);reset.AddThemeFontSizeOverride("font_size",13);reset.TooltipText="恢复当前构图 · 也可双击画面";
+        reset.SetAnchorsAndOffsetsPreset(LayoutPreset.TopRight);reset.OffsetLeft=-52;reset.OffsetRight=-8;reset.OffsetTop=8;reset.OffsetBottom=36;reset.Pressed+=ResetView;AddChild(reset);
+        var caption = HudStyle.Label(Compact ? "拖动旋转 / 俯仰 · 滚轮缩放" : "拖动旋转与俯仰 · 滚轮缩放 · 双击复位", 10);
         caption.AddThemeColorOverride("font_color", new Color("#b2aa97")); caption.MouseFilter = MouseFilterEnum.Ignore;
         caption.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide); caption.OffsetTop = -22; caption.OffsetLeft = 10; AddChild(caption);
     }
@@ -54,32 +67,54 @@ internal partial class ResidentPortrait : SubViewportContainer
     public bool FinishingGesture=>_resident?.CompletionVisible==true;
     public void ShowCargo(bool hasCargo, SandBoxSim.Core.Environment.ResourceKind resource) => _resident?.ShowCargo(hasCargo,resource);
     public void ShowActivity(ActionKind action,ActionPhase phase,bool paused) { _action=action;_actionPhase=phase;_worldPaused=paused; }
-    private void Aim()
+    internal object EvaluationState()=>new {framing=_framing.ToString().ToLowerInvariant(),yaw=_yaw,pitch=_pitch,distance=_distance,dragging=_drag};
+    internal void EvaluationFraming(string mode)=>SetFraming(mode=="hands"?Framing.Hands:mode=="body"?Framing.Body:Framing.Face);
+    internal void EvaluationReset()=>ResetView();
+    public void FocusHands()=>SetFraming(Framing.Hands);
+    private void SetFraming(Framing mode)
+    {
+        _framing=mode;_fullBody=mode==Framing.Body;_portraitGround.Visible=_fullBody;
+        _distance=mode==Framing.Body?3.5f:mode==Framing.Hands?.68f:.85f;
+        foreach(var pair in _frameButtons)pair.Value.SetPressedNoSignal(pair.Key==mode);
+        if(!HudStyle.MotionEnabled)_viewDistance=_distance;
+    }
+    private void ResetView()
+    {
+        _yaw=-.28f;_pitch=0;_drag=false;SetFraming(_framing);
+        if(!HudStyle.MotionEnabled&&_resident!=null)_resident.Rotation=new(0,_yaw,0);
+        Aim();
+    }
+    private void Aim(float delta=0)
     {
         var center = _fullBody ? new Vector3(0,_child?.62f:1.0f,0) : _resident != null ? _resident.Head.GlobalPosition - new Vector3(0, Compact ? .055f : .19f, 0) : new Vector3(0, 1.4f, 0);
-        _camera.Position = center + new Vector3(0, .035f, -_distance);
-        _camera.LookAt(center);
+        if(_framing==Framing.Hands&&_resident!=null)center=(_resident.Hands[0].GlobalPosition+_resident.Hands[1].GlobalPosition)*.5f+new Vector3(0,-.03f,0);
+        _viewCenter=!_centerReady||delta==0||!HudStyle.MotionEnabled?center:_viewCenter.Lerp(center,1-MathF.Exp(-delta*9));_centerReady=true;
+        _camera.Position = _viewCenter + new Vector3(0, .035f+MathF.Sin(_pitch)*_viewDistance, -MathF.Cos(_pitch)*_viewDistance);
+        _camera.LookAt(_viewCenter);
     }
     public override void _Process(double delta)
     {
+        delta=EvaluationClock.Delta(delta);
         // Mirrors the selected real action; this isolated model never advances the simulation.
         if (IsVisibleInTree() && _resident != null)
         {
             _resident.PresentAction((float)delta, _action, _actionPhase, _worldPaused, (float)(_identity % 11));
-            _resident.Rotation = new Vector3(0, Mathf.LerpAngle(_resident.Rotation.Y, _yaw, 1 - MathF.Exp(-(float)delta * 12)), 0);
+            _resident.Rotation = new Vector3(0, HudStyle.MotionEnabled?Mathf.LerpAngle(_resident.Rotation.Y, _yaw, 1 - MathF.Exp(-(float)delta * 12)):_yaw, 0);
+            _viewDistance=HudStyle.MotionEnabled?Mathf.Lerp(_viewDistance,_distance,1-MathF.Exp(-(float)delta*10)):_distance;Aim((float)delta);
         }
     }
     public override void _GuiInput(InputEvent input)
     {
         if (input is InputEventMouseButton button)
         {
+            if(button.ButtonIndex==MouseButton.Left&&button.Pressed&&button.DoubleClick){ResetView();AcceptEvent();return;}
             if (button.ButtonIndex == MouseButton.Left) { _drag = button.Pressed; }
             if (button.Pressed && button.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
             { _distance = Math.Clamp(_distance + (button.ButtonIndex == MouseButton.WheelUp ? -.2f : .2f), .50f, 3.8f); Aim(); }
             AcceptEvent();
         }
         if (input is InputEventMouseMotion motion && _drag && _resident != null)
-        { _yaw += motion.Relative.X * .012f; AcceptEvent(); }
+        { _yaw += motion.Relative.X * .012f;_pitch=Math.Clamp(_pitch+motion.Relative.Y*.008f,-.45f,.60f); AcceptEvent(); }
     }
     public override void _Input(InputEvent input)
     { if (input is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false } || input is InputEventMouseMotion { ButtonMask: 0 }) { _drag = false; } }
@@ -103,6 +138,13 @@ internal partial class ResidentPortrait : SubViewportContainer
         if (_yaw != turned) { throw new InvalidOperationException("Portrait drag continued after global release"); }
         _GuiInput(new InputEventMouseButton { ButtonIndex = MouseButton.WheelUp, Pressed = true });
         if (_distance >= .85f) { throw new InvalidOperationException("Portrait zoom failed"); }
+        _GuiInput(new InputEventMouseButton {ButtonIndex=MouseButton.Left,Pressed=true});
+        _GuiInput(new InputEventMouseMotion {Relative=new(0,30)});
+        if(_pitch<=0)throw new InvalidOperationException("Portrait pitch failed");
+        SetFraming(Framing.Hands);if(_fullBody||_distance>=.85f)throw new InvalidOperationException("Hand framing failed");
+        _GuiInput(new InputEventMouseButton {ButtonIndex=MouseButton.Left,Pressed=true,DoubleClick=true});
+        if(_pitch!=0||_drag)throw new InvalidOperationException("Portrait reset did not release orbit");
+        SetFraming(Framing.Face);_viewDistance=.85f;
         _distance = .85f; _yaw = -.28f; _resident.Rotation = new Vector3(0, _yaw, 0); Aim();
     }
 }

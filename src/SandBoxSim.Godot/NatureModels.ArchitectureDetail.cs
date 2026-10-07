@@ -6,14 +6,17 @@ internal sealed partial class NatureModels
 {
     private void RoofCourses(Node3D model,float width,float depth,float height,int material)
     {
-        float half=(width+.4f)/2;
+        float half=(width+.4f)/2;const int courses=7,columns=12;
         foreach(float side in new[]{-1f,1f})
         {
-            for(int row=0;row<5;row++) for(int col=0;col<8;col++)
+            for(int row=0;row<courses;row++) for(int col=0;col<columns;col++)
             {
-                float x=(row+.5f)*half/5, z=-(depth+.4f)/2+(col+.5f)*(depth+.4f)/8;
-                Part(model,"box",new(side*x,height+half*.48f-x*.495f+.13f+(4-row)*.012f,z),
-                    new(half/5*1.18f,.035f,(depth+.4f)/8*.965f),material,new(0,0,-side*.46f));
+                float x=(row+.5f)*half/courses;
+                float step=(depth+.4f)/columns,z=-(depth+.4f)/2+(col+.5f)*step;
+                z+=row%2==0?0:step*.22f;
+                z=Mathf.Clamp(z,-(depth+.4f)/2+step*.44f,(depth+.4f)/2-step*.44f);
+                Part(model,(material==15?"thatch-course":"tile-course")+(_fineArchitecture?"":"-far"),new(side*x,height+half*.48f-x*.495f+.13f+(1-(row+.5f)/courses)*.048f,z),
+                    new(half/courses*1.20f,.032f,(depth+.4f)/columns*(.96f-((row+col)%3)*.008f)),material,new(0,0,-side*.46f));
             }
             foreach(float z in new[]{-(depth+.43f)/2,(depth+.43f)/2})
                 Part(model,"box",new(side*half/2,height+half*.25f,z),new(half*1.15f,.075f,.085f),0,new(0,0,-side*.46f));
@@ -61,6 +64,13 @@ internal sealed partial class NatureModels
             foreach(float y in new[]{centerY-doorHeight*.29f,centerY+doorHeight*.29f})
                 Part(model,"box",new(doorX,y,z+.04f),new(doorWidth*.85f,.026f,.018f),11);
             Part(model,"sphere",new(doorX+doorWidth*.3f,centerY,z+.067f),new(.033f,.033f,.025f),11);
+            if(_fineArchitecture)foreach(float hingeY in new[]{centerY-doorHeight*.29f,centerY+doorHeight*.29f})
+            {
+                Part(model,"cylinder",new(doorX-doorWidth*.44f,hingeY,z+.057f),new(.026f,.085f,.026f),11);
+                foreach(float boltX in new[]{-.25f,.25f})Part(model,"sphere",new(doorX+doorWidth*boltX,hingeY,z+.053f),new(.012f,.012f,.008f),11);
+            }
+            Timber(model,new(doorX-doorWidth*.38f,centerY-doorHeight*.36f,z+.031f),new(doorX+doorWidth*.38f,centerY+doorHeight*.36f,z+.031f),.033f);
+
             // Foundation masonry has visible joints; side framing supplies depth from every orbit angle.
             for(int row=0;row<2;row++) for(int i=0;i<6;i++)
             {
@@ -126,6 +136,6 @@ internal sealed partial class NatureModels
             foreach(float x in new[]{.45f,.88f}) foreach(float z in new[]{1.04f,1.46f})
                 Part(model,"cylinder",new(x,.12f,z),new(.15f,.045f,.15f),11,new(0,0,Godot.Mathf.Pi/2));
         }
-        MergeResidentParts(model,$"architecture:{kind}:{complete}:{identity}"); return model;
+        MergeResidentParts(model,$"architecture:{kind}:{complete}:{identity}:{_fineArchitecture}"); return model;
     }
 }

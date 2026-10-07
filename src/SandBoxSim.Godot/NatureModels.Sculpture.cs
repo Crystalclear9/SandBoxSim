@@ -33,7 +33,7 @@ internal sealed partial class NatureModels
             if(hair)
             {
                 float swept = angle + latitude*.65f;
-                float locks = .009f*MathF.Sin(swept*25) + .004f*MathF.Sin(swept*43);
+                float locks = .004f*MathF.Sin(swept*25) + .002f*MathF.Sin(swept*43);
                 p*=1.025f+locks*MathF.Sin(latitude); p.X+=.016f*MathF.Sin(latitude*2);
                 p.Y+=.015f*MathF.Sin(latitude)*MathF.Cos(angle+.6f);
             }
@@ -47,22 +47,29 @@ internal sealed partial class NatureModels
                 float lip=MathF.Exp(-p.X*p.X*120-MathF.Pow(p.Y+.275f,2)*300);
                 float cheek = MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.27f,2)*90-MathF.Pow(p.Y+.06f,2)*130);
                 float brow = MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.18f,2)*170-MathF.Pow(p.Y-.17f,2)*190);
-                float ala = MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.07f,2)*380-MathF.Pow(p.Y+.15f,2)*280);
-                p.Z-=bridge*.050f+tip*.062f+ala*.017f+lip*.015f+cheek*.014f+brow*.014f-socket*.018f;
+                float ala = MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.082f,2)*380-MathF.Pow(p.Y+.15f,2)*280);
+                p.Z-=bridge*.050f+tip*.062f+ala*.022f+lip*.015f+cheek*.014f+brow*.014f-socket*.018f;
             }
             return p;
+        }
+        void Vertex(Vector3 p)
+        {
+            surface.SetUV(new(.5f+p.X,.5f-p.Y));
+            float cheek=hair?0:MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.28f,2)*100-MathF.Pow(p.Y+.06f,2)*170)*MathF.Max(0,-p.Z)*1.8f;
+            float nostril=hair?0:MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.060f,2)*1100-MathF.Pow(p.Y+.165f,2)*950)*MathF.Max(0,-p.Z)*1.7f;
+            surface.SetColor(new Color(1-nostril*.22f,.99f-cheek*.045f-nostril*.23f,.98f-cheek*.075f-nostril*.22f));surface.AddVertex(p);
         }
         for (int row = 0; row < rings; row++) for (int col = 0; col < sides; col++)
         {
             var a = Point(row, col); var b = Point(row, col + 1); var c = Point(row + 1, col); var d = Point(row + 1, col + 1);
-            foreach (var p in new[] { a, c, b, b, c, d }) { surface.AddVertex(p); }
+            foreach (var p in new[] { a, c, b, b, c, d }) { Vertex(p); }
         }
         for(int side=0;side<sides;side++)
         {
-            surface.AddVertex(new(0,.51f,0)); surface.AddVertex(Point(0,side)); surface.AddVertex(Point(0,side+1));
+            Vertex(new(0,.51f,0)); Vertex(Point(0,side)); Vertex(Point(0,side+1));
             if(!hair)
             {
-                surface.AddVertex(new(0,-.512f,0));surface.AddVertex(Point(rings,side+1));surface.AddVertex(Point(rings,side));
+                Vertex(new(0,-.512f,0));Vertex(Point(rings,side+1));Vertex(Point(rings,side));
             }
         }
         surface.GenerateNormals(); surface.Index(); return surface.Commit();

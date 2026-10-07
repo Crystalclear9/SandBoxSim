@@ -24,7 +24,7 @@ PNG 的 `.import` 文件与资源一起存放，Godot 的生成缓存位于忽�
 
 ## 3D 居民
 
-`NatureModels.Residents.cs` 构造服装截面网格、面部、腰带、鞋靴与职业配件；不以旧对象图集的居民格替代 3D 人物。`NatureModels.HandSkin.cs` 提供连续手部蒙皮，`NatureModels.Face.cs` 提供贴合面部的眼睑、虹膜与嘴唇。`ResidentRig.cs` 提供行为与肩肘、髋膝和躯干姿态，`ResidentRig.HandPose.cs` 提供肘腕与指节求解，`ResidentPortrait.cs` 提供独立展示镜头与交互。布料和肤色材质共享，静态部件按材质合并并缓存，活动关节保留独立节点。
+`NatureModels.Residents.cs` 构造服装截面网格、面部、腰带、鞋靴与职业配件；不以旧对象图集的居民格替代 3D 人物。`NatureModels.CharacterSurface.cs` 提供耳廓、皮肤和发丝表面，`NatureModels.HandSkin.cs` 提供连续手部蒙皮与绑定指甲，`NatureModels.Face.cs` 提供贴合面部的眼睑、虹膜与嘴唇。`ResidentRig.cs` 提供行为与肩肘、髋膝和躯干姿态，`ResidentRig.HandPose.cs` 提供肘腕与指节求解，`ResidentPortrait.cs` 提供独立展示镜头与交互。布料和肤色材质共享，静态部件按材质合并并缓存，活动关节保留独立节点。
 
 这是项目内的程序化模型系统，服装、关节和职业配件可从源码扩展。模型材质和动画只影响表现，不改变居民行为与模拟数值。
 

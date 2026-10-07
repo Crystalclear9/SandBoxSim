@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "seed": 839102,
+  "agents": 40,
+  "previewDays": 0,
+  "warmupFrames": 60,
+  "measuredFrames": 120,
+  "ticksPerFrame": 0,
+  "minimumFps": 0,
+  "id": "visual-hands",
+  "panel": "hands",
+  "outputDirectory": "runs/evaluation/visual-hands",
+  "captureFrames": [
+    90,
+    150
+  ]
+}

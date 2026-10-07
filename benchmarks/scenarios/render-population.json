@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "seed": 839102,
+  "agents": 300,
+  "previewDays": 3,
+  "warmupFrames": 60,
+  "measuredFrames": 300,
+  "ticksPerFrame": 2,
+  "minimumFps": 30,
+  "id": "render-population",
+  "panel": "field",
+  "outputDirectory": "runs/evaluation/render-population"
+}

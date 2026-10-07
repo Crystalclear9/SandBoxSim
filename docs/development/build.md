@@ -61,6 +61,20 @@ git diff --check
 
 各类修改需要的验证范围见 [开发指南](developer-guide.md)，运行资料位置见 [文件管理](repository-layout.md)。
 
+## 渲染采样
+
+可复现研究采样采用 [评测接口与实验运行](benchmark.md) 的帧预算、固定步长和墙钟入口。以下为保留的旧演示采样方式，不能与新协议结果直接比较。
+
+
+图形客户端支持有界的实际世界采样。先构建 Debug 并设置 `GODOT_EXE`，从仓库根目录运行：
+
+```powershell
+$samplePath = Join-Path (Get-Location).Path 'runs/render-sample.json'
+& $env:GODOT_EXE --path src/SandBoxSim.Godot -- --agents=300 --demo-days=3 --panel=field --benchmark-seconds=20 "--benchmark-output=$samplePath"
+```
+
+前五秒作为预热，不计入平均帧率；输出包含平均帧率、引擎进程时间监视器均值、绘制调用和图元数量，以及实际人口、tick、建筑与事件。内置检查线为 30 FPS，低于此值返回非零退出码。对照时保持窗口、渲染器、场景、人口与推进速度一致；单次本机样本不代表跨平台性能。JSON 和日志放在 `runs/`，不作为正式配图提交。
+
 ## 持续集成
 
 `.github/workflows/ci.yml` 在 Windows、Linux 和 macOS 上检查文档链接、构建与运行核心回归，并在 Linux 上运行确定性和模拟检查；`godot.yml` 检查图形构建、资源导入和客户端自检。服务端执行结果以 GitHub 对相应提交的检查为准。

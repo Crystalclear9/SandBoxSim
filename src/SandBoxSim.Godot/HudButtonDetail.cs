@@ -16,13 +16,14 @@ internal partial class HudButtonDetail : Control
         _button = GetParent<BaseButton>();
         _button.MouseEntered += () => Illuminate(1);
         _button.MouseExited += () => Illuminate(0);
+        _button.FocusEntered+=()=>Illuminate(1);_button.FocusExited+=()=>Illuminate(_button.IsHovered()?1:0);
         _button.Toggled += _ => QueueRedraw();
         _button.Draw += QueueRedraw; // SetPressedNoSignal also invalidates the parent's drawing.
         Resized += QueueRedraw;
     }
     private void Illuminate(float light)
     {
-        if (_button.Disabled) { light = 0; }
+        if (_button.Disabled) { light = 0; } else if(_button.HasFocus()){light=1;}
         _transition?.Kill();
         _transition = CreateTween().SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.Out);
         _transition.TweenMethod(Callable.From<float>(value => Light = value), Light, light, HudStyle.MotionEnabled ? .16 : 0);
