@@ -13,7 +13,7 @@ internal sealed partial class NatureModels
         if (!_residentMaterials.TryGetValue(color, out var material))
         {
             bool fabric = color is "#536d68" or "#b4956a" or "#866756" or "#6e7881" or "#798261" or "#a8937d" or "#75654f" or "#645e53";
-            material = fabric ? Fabric(color) : new StandardMaterial3D { AlbedoColor = new Color(color), Roughness = roughness, MetallicSpecular = .22f };
+            material = color is "#aa8b78" or "#8e705e" or "#ba9d89" or "#806653" ? SkinSurface(color) : color is "#42352c" or "#695344" ? HairSurface(color) : fabric ? Fabric(color) : new StandardMaterial3D { AlbedoColor = new Color(color), Roughness = roughness, MetallicSpecular = .22f };
             _residentMaterials[color] = material;
         }
         return material;
@@ -73,6 +73,7 @@ internal sealed partial class NatureModels
                     var normals = arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
                     var uv = arrays[(int)Mesh.ArrayType.TexUV].VariantType == Variant.Type.Nil
                         ? System.Array.Empty<Vector2>() : arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();
+                    var colors = arrays[(int)Mesh.ArrayType.Color].VariantType == Variant.Type.Nil ? Array.Empty<Color>() : arrays[(int)Mesh.ArrayType.Color].AsColorArray();
                     var indices = arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
                     var normalBasis = part.Transform.Basis.Inverse().Transposed();
                     for (int vertex = 0; vertex < (indices.Length > 0 ? indices.Length : vertices.Length); vertex++)
@@ -80,6 +81,7 @@ internal sealed partial class NatureModels
                         int index = indices.Length > 0 ? indices[vertex] : vertex;
                         surface.SetNormal((normalBasis * normals[index]).Normalized());
                         surface.SetUV(uv.Length > index ? uv[index] : Vector2.Zero);
+                        if(group.Key is StandardMaterial3D pigment && pigment.VertexColorUseAsAlbedo)surface.SetColor(colors.Length>index?colors[index]:Colors.White);
                         surface.AddVertex(part.Transform * vertices[index]);
                     }
                 }
@@ -114,12 +116,11 @@ internal sealed partial class NatureModels
         Detail(rig.Torso, "capsule", new Vector3(.23f, .7f, .075f), new Vector3(.075f, .065f, .055f), "#725b40");
         Sculpt(rig.Torso,Loft("resident-neck",new[]{new Vector4(0,0,.051f,.043f),new(.04f,-.006f,.041f,.039f),new(.095f,-.012f,.047f,.040f)}),new(0,1.265f,.016f),ResidentMaterial(skin),new(-MathF.PI/2,0,0));
         rig.Head = new Node3D { Name = "Head", Position = new Vector3(0, 1.445f, 0) }; rig.Torso.AddChild(rig.Head);
-        Detail(rig.Head, "face", Vector3.Zero, new Vector3(.177f, .220f, .195f), skin);
+        Detail(rig.Head, "face", Vector3.Zero, new Vector3(.177f, .220f, .195f), skin).MaterialOverride=FaceSurfaceMaterial(skin);
         Detail(rig.Head, "hair", new Vector3(0, .008f, .006f), new Vector3(.181f, .224f, .200f), hair);
         foreach (float side in new[] { -1f, 1f })
         {
-            Detail(rig.Head,"sphere",new(side*.087f,-.005f,0),new(.024f,.043f,.026f),skin);
-            Detail(rig.Head,"seed",new(side*.095f,-.003f,-.008f),new(.006f,.026f,.014f),"#a58065");
+            Sculpt(rig.Head,EarSurface((int)side),new(side*.084f,-.003f,.001f),FaceSurfaceMaterial(skin));
             Detail(rig.Head,"seed",new(side*.034f,.027f,-.086f),new(.034f,.0028f,.0035f),hair,new(0,0,side*.08f));
         }
 
@@ -201,6 +202,15 @@ internal sealed partial class NatureModels
                 var hat = HeadwearShell(job == JobType.Soldier).GetAabb();
                 if (hat.Position.Y > .04f || hat.End.Y < .13f) throw new InvalidOperationException("Headwear does not enclose scalp");
             }
+            bool tintPreserved=false;
+            for(int surface=0;surface<resident.HeadSkin.Mesh.GetSurfaceCount();surface++)
+            {
+                var arrays=resident.HeadSkin.Mesh.SurfaceGetArrays(surface);
+                if(arrays[(int)Mesh.ArrayType.Color].VariantType==Variant.Type.Nil)continue;
+                foreach(var color in arrays[(int)Mesh.ArrayType.Color].AsColorArray())if(color.G<.975f)tintPreserved=true;
+            }
+            if(!tintPreserved)throw new InvalidOperationException("Facial tint lost during mesh consolidation");
+            if(resident.HandSkins[1].MaterialOverride!=null||resident.HandSkins[1].Mesh.GetSurfaceCount()!=2)throw new InvalidOperationException("Nails lost their skin binding or material");
             if(resident.Grip?.GetParent()!=resident.Hands[1]) throw new InvalidOperationException("Tool grip bypasses wrist");
             foreach(var pose in new[]{(true,false,false),(false,true,false),(false,false,true)})
             {

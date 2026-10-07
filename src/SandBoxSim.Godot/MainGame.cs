@@ -56,6 +56,7 @@ public partial class MainGame : Control
     private string _previewPanel = "";
     private double _benchmarkSeconds, _benchmarkElapsed, _benchmarkMeasuredSeconds;
     private long _benchmarkFrames;
+    private double _benchmarkProcessTime,_benchmarkDrawCalls,_benchmarkPrimitives;
     private string _benchmarkOutput = "";
     private static readonly string[] ToolNames =
     {
@@ -317,7 +318,7 @@ public partial class MainGame : Control
             if (_previewPanel == "field") { ShowJournal(true); _drawer.CurrentTab = 0; }
             if (_previewPanel == "tools") { SetCategory("地貌"); ShowTools(true); }
             if (_previewPanel == "brush") { SetCategory("地貌"); SelectTool(PlayerTool.River); }
-            if (_previewPanel == "person")
+            if (_previewPanel is "person" or "person-hands")
             {
                 _selected = Sim.Agents.AliveSlots().FirstOrDefault(-1);
                 if (_selected >= 0)
@@ -325,6 +326,7 @@ public partial class MainGame : Control
                     _selectedGeneration = Sim.Agents.GenerationOf(_selected); _selectedPersonId = Sim.Society.Identity(_selected);
                     var point = Sim.Agents.PositionOf(_selected); _map.Focus(point.X, point.Y, 30);
                     ShowJournal(true); _drawer.CurrentTab = 1;
+                    if(_previewPanel=="person-hands")_residentPortrait.FocusHands();
                 }
             }
             if (_selfTest) { SelectTool(PlayerTool.Inspect); _drawer.CurrentTab = 0; }
@@ -345,12 +347,19 @@ public partial class MainGame : Control
         if (_benchmarkSeconds > 0)
         {
             _benchmarkElapsed += delta;
-            if (_benchmarkElapsed > 5) { _benchmarkMeasuredSeconds += delta; _benchmarkFrames++; }
+            if (_benchmarkElapsed > 5)
+            {
+                _benchmarkMeasuredSeconds += delta; _benchmarkFrames++;
+                _benchmarkProcessTime+=Performance.GetMonitor(Performance.Monitor.TimeProcess);
+                _benchmarkDrawCalls+=Performance.GetMonitor(Performance.Monitor.RenderTotalDrawCallsInFrame);
+                _benchmarkPrimitives+=Performance.GetMonitor(Performance.Monitor.RenderTotalPrimitivesInFrame);
+            }
             if (_benchmarkElapsed >= _benchmarkSeconds)
             {
                 double fps = _benchmarkFrames / Math.Max(0.001, _benchmarkMeasuredSeconds);
                 var result = JsonValue.Object().Set("seconds", JsonValue.From(_benchmarkElapsed))
-                    .Set("averageFPS", JsonValue.From(fps)).Set("initialPopulation", JsonValue.From(_initialPopulation))
+                    .Set("averageFPS", JsonValue.From(fps)).Set("averageProcessMs",JsonValue.From(_benchmarkProcessTime*1000/Math.Max(1,_benchmarkFrames)))
+                    .Set("averageDrawCalls",JsonValue.From(_benchmarkDrawCalls/Math.Max(1,_benchmarkFrames))).Set("averagePrimitives",JsonValue.From(_benchmarkPrimitives/Math.Max(1,_benchmarkFrames))).Set("initialPopulation", JsonValue.From(_initialPopulation))
                     .Set("population", JsonValue.From(Sim.Agents.LiveCount)).Set("tick", JsonValue.From(Sim.Clock))
                     .Set("buildings", JsonValue.From(Sim.Buildings.TotalCompleted)).Set("events", JsonValue.From(Sim.Events.TotalRecorded))
                     .Set("births", JsonValue.From(Sim.Stats.TotalBirths)).Set("deaths", JsonValue.From(Sim.Stats.TotalDeaths));
@@ -377,7 +386,13 @@ public partial class MainGame : Control
         {
             if (key.Keycode == Key.Space) { SetSpeed(_speed == 0 ? 1 : 0); }
             if (key.Keycode == Key.F) { _map.Center(); }
-            if (key.Keycode == Key.Escape) { SelectTool(PlayerTool.Inspect); }
+            if (key.Keycode == Key.Escape)
+            {
+                if(_settingsPanel.Visible)ShowSettings(false);
+                else if(_journalPanel.Visible)ShowJournal(false);
+                else{SelectTool(PlayerTool.Inspect);ShowTools(false);}
+                GetViewport().SetInputAsHandled();
+            }
         }
     }
     public void ClickTile(int x, int y)

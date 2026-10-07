@@ -7,6 +7,22 @@ internal sealed partial class NatureModels
 {
     public void ValidateCraftedModels()
     {
+        var batch=new Node3D();
+        var placements=new System.Collections.Generic.List<Transform3D>();
+        foreach(float x in new[]{-30f,0,23.9f,24.1f,60})placements.Add(new Transform3D(Basis.Identity,new(x,0,x)));
+        var chunks=PartitionInstances(placements);var remaining=new System.Collections.Generic.List<Transform3D>(placements);
+        // The headless dummy renderer cannot read MultiMesh transforms back. Validate the
+        // CPU data and conservative bounds consumed by Batch, then its instance counts.
+        foreach(var group in chunks.Values)
+        {
+            var bounds=InstanceBounds(group,Shape("cylinder").GetAabb());
+            foreach(var transform in group)
+                if(!remaining.Remove(transform)||!bounds.Encloses(transform*Shape("cylinder").GetAabb()))
+                    throw new InvalidOperationException("Spatial batch loses an instance or its bounds");
+        }
+        Batch(batch,"cylinder",0,placements);int instanceCount=0;
+        foreach(Node child in batch.GetChildren())instanceCount+=((MultiMeshInstance3D)child).Multimesh.InstanceCount;
+        if(remaining.Count!=0||instanceCount!=placements.Count||batch.GetChildCount()!=4)throw new InvalidOperationException("Spatial batches do not separate distant objects");batch.Free();
         void Inspect(Node3D node,ref int vertices,ref int instances)
         {
             if(!node.Transform.IsFinite()) throw new InvalidOperationException("Model has invalid transform");
@@ -42,7 +58,16 @@ internal sealed partial class NatureModels
             if(facing<=0) throw new InvalidOperationException("Sculpted model normals face inward");
         }
         foreach(var kind in new[]{BuildingKind.House,BuildingKind.Storage,BuildingKind.Farm,BuildingKind.Mine})
-            for(uint identity=0;identity<5;identity++) { Validate(Building(kind,true,identity),true); Validate(Building(kind,false,identity),true); }
+            for(uint identity=0;identity<5;identity++)
+            {
+                foreach(bool complete in new[]{false,true})
+                {
+                    var near=Building(kind,complete,identity);var nearBounds=near.GetChild<MeshInstance3D>(0).Mesh.GetAabb();
+                    var far=DistantBuilding(kind,complete,identity);var farBounds=far.GetAabb();
+                    if(nearBounds.Position.DistanceTo(farBounds.Position)>.12f||nearBounds.Size.DistanceTo(farBounds.Size)>.18f)throw new InvalidOperationException("Building LOD changes silhouette");
+                    var proxy=new Node3D();proxy.AddChild(new MeshInstance3D {Mesh=far});Validate(proxy,true);Validate(near,true);
+                }
+            }
         foreach(bool wolf in new[]{false,true})
         {
             var animal=(AnimalRig)Animal(wolf); animal.Pose(.2f,true,false);
@@ -52,6 +77,6 @@ internal sealed partial class NatureModels
             Validate(animal,false);
         }
         Validate(Tree(false),false); Validate(Tree(true),false);
-        GD.Print("CRAFTED_MODELS_PASS: 40 architecture variants/states, deer/wolf gait and pause, vegetation, finite geometry/normals/UV and consolidation budgets");
+        GD.Print("CRAFTED_MODELS_PASS: 80 architecture LOD variants/states, deer/wolf gait and pause, vegetation, finite geometry/normals/UV and consolidation budgets");
     }
 }

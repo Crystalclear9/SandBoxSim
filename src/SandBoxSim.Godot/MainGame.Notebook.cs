@@ -21,6 +21,8 @@ public partial class MainGame
             if(node is Godot.Button button)
             {
                 button.SetMeta("notebook",true);
+                var focus=HudStyle.Box(new Color(0,0,0,0),3,9);focus.BorderColor=accent;focus.ShadowSize=0;button.AddThemeStyleboxOverride("focus",focus);
+                button.AddThemeColorOverride("font_disabled_color",muted);
                 foreach(string state in new[]{"font_color","font_focus_color","font_hover_color","font_pressed_color"})button.AddThemeColorOverride(state,state=="font_color"?ink:accent);
                 button.AddThemeStyleboxOverride("hover",HudStyle.Box(new Color("#c5c2ae"),3,9,false));
                 button.AddThemeStyleboxOverride("pressed",HudStyle.Box(new Color("#babba3"),3,9,false));

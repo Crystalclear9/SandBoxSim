@@ -127,7 +127,7 @@ public partial class MainGame
         var nameControls = new HBoxContainer(); _residentNameControls = nameControls; personPanel.AddChild(nameControls);
         _residentName = new LineEdit { PlaceholderText = "给这个居民起个名字", MaxLength = 24, SizeFlagsHorizontal = SizeFlags.ExpandFill };
         nameControls.AddChild(_residentName); ActionButton(nameControls, "命名", RenameResident);
-        _inspector = TextPanel("人物详情"); _inspector.FitContent=true;_inspector.ScrollActive=false;personPanel.AddChild(_inspector); _history = TextPanel("历史"); _drawer.AddChild(_history);
+        _inspector = TextPanel("人物详情"); _inspector.FitContent=true;_inspector.ScrollActive=false;_inspector.SizeFlagsVertical=SizeFlags.Fill;personPanel.AddChild(_inspector); _history = TextPanel("历史"); _drawer.AddChild(_history);
         _chart = new StatisticsView { Name = "曲线", Game = this }; _drawer.AddChild(_chart);
         _drawer.TabChanged += _ => RevealJournalPage();
 
@@ -238,7 +238,9 @@ public partial class MainGame
     {
         HudStyle.Float(_timePanel, new Vector2(0, 1), new Vector2(24, -90), new Vector2(320, 68));
         HudStyle.Float(_cameraPanel, new Vector2(1, 1), new Vector2(-320, -90), new Vector2(296, 68));
-        _journalPanel.OffsetBottom = 92 + Math.Min(600, size.Y - 214);
+        float journalWidth=Math.Clamp(size.X*.26f,348,448);
+        _journalPanel.OffsetLeft=-journalWidth-24;_journalPanel.OffsetRight=-24;
+        _journalPanel.OffsetBottom = 92 + Math.Min(740, size.Y - 220);
         _settingsPanel.OffsetBottom = Math.Min(size.Y - 280, 744);
         _toolBadge.OffsetTop = -149; _toolBadge.OffsetBottom = -129;
     }
@@ -427,6 +429,11 @@ public partial class MainGame
         try
         {
             HudStyle.MotionEnabled = true;
+            ShowJournal(true);ShowSettings(true);
+            _UnhandledKeyInput(new InputEventKey {Keycode=Key.Escape,Pressed=true});
+            if(_settingsPanel.Visible||!_journalPanel.Visible)throw new InvalidOperationException("Escape did not close topmost settings");
+            _UnhandledKeyInput(new InputEventKey {Keycode=Key.Escape,Pressed=true});
+            if(_journalPanel.Visible)throw new InvalidOperationException("Escape did not close notebook");
             ShowJournal(true); ShowJournal(false); ShowJournal(true);
             _panelTransitions[_journalPanel].CustomStep(1);
             if (_journalPanel.Scale != Vector2.One || _journalPanel.Modulate.A != 1)
