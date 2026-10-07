@@ -73,7 +73,7 @@ public partial class MainGame
             else if (section) { result.AppendLine("[color=#806644][b]" + escaped + "[/b][/color]"); }
             else { result.AppendLine(escaped); }
         }
-        return result.ToString().TrimStart('\n');
+        return result.ToString().TrimStart('\r','\n');
     }
 
     private void BuildInterface()

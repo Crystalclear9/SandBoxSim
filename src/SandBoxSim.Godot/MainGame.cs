@@ -87,7 +87,13 @@ public partial class MainGame : Control
             if (arg.StartsWith("--view=", StringComparison.Ordinal)) { _previewView = arg.Substring(7); }
             if (arg.StartsWith("--panel=", StringComparison.Ordinal)) { _previewPanel = arg.Substring(8); }
         }
-        NewWorld(839102);
+        string? evaluationPath=OS.GetCmdlineUserArgs().FirstOrDefault(a=>a.StartsWith("--evaluation=",StringComparison.Ordinal));
+        if(evaluationPath!=null)
+        {
+            try{if(_selfTest||_benchmarkSeconds>0||_capture.Length>0||_captureFrames.Length>0)throw new ArgumentException("Evaluation cannot be mixed with legacy capture/test modes");LoadEvaluation(evaluationPath.Substring(13));}
+            catch(Exception ex){GD.PrintErr("EVALUATION_CONFIG_ERROR "+ex.Message);GetTree().Quit(2);SetProcess(false);return;}
+        }
+        NewWorld(_evaluation?.Seed??839102);
         if (_previewDays > 0) { AdvanceWorld(_previewDays * Sim.Config.Clock.TicksPerDay); }
         BuildInterface();
         if (_previewPanel is "architecture" or "characters" or "naturemodels" or "faces" or "equipment" or "actions" or "motion" or "grip" or "hands")
@@ -301,6 +307,7 @@ public partial class MainGame : Control
     }
     public override void _Process(double delta)
     {
+        delta=EvaluationClock.Delta(delta);
         _frames++;
         if (_frames == 3)
         {
@@ -331,7 +338,7 @@ public partial class MainGame : Control
             }
             if (_selfTest) { SelectTool(PlayerTool.Inspect); _drawer.CurrentTab = 0; }
         }
-        if (!_selfTest && _speed > 0)
+        if (_evaluation==null && !_selfTest && _speed > 0)
         {
             _pending += delta * Sim.Config.Clock.TicksPerSecondAt1x * _speed;
             int ticks = Math.Min((int)_pending, Sim.Config.Clock.MaxCatchUpTicksPerFrame);
@@ -344,6 +351,7 @@ public partial class MainGame : Control
         if(_captureFrames.Length>0&&_captureFrame<56&&_captureElapsed>=.25+_captureFrame/8.0)CaptureFrame(_captureFrame++);
         if (_capture.Length > 0 && !_captureRequested && _captureElapsed >= .7) { _captureRequested = true; Capture(); }
         if (_selfTest && _frames >= 15) { GetTree().Quit(0); }
+        StepEvaluation();
         if (_benchmarkSeconds > 0)
         {
             _benchmarkElapsed += delta;
@@ -555,6 +563,7 @@ public partial class MainGame : Control
     {
         try
         {
+            ValidateEvaluationContract();
             new NatureModels().ValidateCraftedModels();
             new NatureModels().ValidateResidentMeshes();
             new NatureModels().ValidateWildPlaceMeshes();

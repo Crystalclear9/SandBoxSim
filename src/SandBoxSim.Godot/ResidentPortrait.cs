@@ -67,6 +67,9 @@ internal partial class ResidentPortrait : SubViewportContainer
     public bool FinishingGesture=>_resident?.CompletionVisible==true;
     public void ShowCargo(bool hasCargo, SandBoxSim.Core.Environment.ResourceKind resource) => _resident?.ShowCargo(hasCargo,resource);
     public void ShowActivity(ActionKind action,ActionPhase phase,bool paused) { _action=action;_actionPhase=phase;_worldPaused=paused; }
+    internal object EvaluationState()=>new {framing=_framing.ToString().ToLowerInvariant(),yaw=_yaw,pitch=_pitch,distance=_distance,dragging=_drag};
+    internal void EvaluationFraming(string mode)=>SetFraming(mode=="hands"?Framing.Hands:mode=="body"?Framing.Body:Framing.Face);
+    internal void EvaluationReset()=>ResetView();
     public void FocusHands()=>SetFraming(Framing.Hands);
     private void SetFraming(Framing mode)
     {
@@ -91,6 +94,7 @@ internal partial class ResidentPortrait : SubViewportContainer
     }
     public override void _Process(double delta)
     {
+        delta=EvaluationClock.Delta(delta);
         // Mirrors the selected real action; this isolated model never advances the simulation.
         if (IsVisibleInTree() && _resident != null)
         {

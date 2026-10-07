@@ -149,6 +149,7 @@ public partial class WorldView3D : MapView
     }
     public override void _Process(double delta)
     {
+        delta=EvaluationClock.Delta(delta);
         if (_camera == null) { return; }
         if (!ReferenceEquals(_world, Game.Sim)) { RebuildWorld(); }
         if (_follow >= 0 && Game.Sim.Agents.IsSlotAlive(_follow) && Game.Sim.Agents.GenerationOf(_follow) == _followGeneration)

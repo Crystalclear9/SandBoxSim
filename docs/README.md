@@ -35,6 +35,7 @@
 | [项目架构](development/architecture.md) | 工程依赖、tick、日界、会话与只读表现 |
 | [扩展指南](development/extending.md) | 自然内容、动作、建筑、AI、界面与模型扩展 |
 | [目录与文件管理](development/repository-layout.md) | 文件职责、提交范围、归档与移动规则 |
+| [评测接口与实验运行](development/benchmark.md) | 可复现运行、墙钟性能、视觉输入、界面回放与研究边界 |
 | [构建与运行](development/build.md) | SDK/csc、命令行模式、测试与 CI |
 | [配置](development/configuration.md) | 模拟默认规则、客户端设置与历史数据边界 |
 | [存档与确定性](development/saving.md) | 格式版本、恢复、客户端元数据与续跑 |

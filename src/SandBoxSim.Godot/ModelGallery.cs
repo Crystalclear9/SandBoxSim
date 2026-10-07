@@ -8,6 +8,11 @@ namespace SandBoxSim.Client;
 /// <summary>Opt-in developer preview of actual reusable meshes; never instantiates simulation entities.</summary>
 internal partial class ModelGallery : PanelContainer
 {
+    private readonly List<(SubViewportContainer View,string Label)> _evaluationRegions=new();
+    internal IEnumerable<(int Index,string Label,Rect2 Bounds)> EvaluationRegions()
+    {
+        for(int i=0;i<_evaluationRegions.Count;i++)yield return(i,_evaluationRegions[i].Label,_evaluationRegions[i].View.GetGlobalRect());
+    }
     private readonly List<(ResidentRig Rig,ActionKind Action)> _animated=new();
     private float _elapsed;
     private readonly List<(ResidentRig Rig,Camera3D Camera)> _handViews=new();
@@ -93,6 +98,7 @@ internal partial class ModelGallery : PanelContainer
     }
     public override void _Process(double delta)
     {
+        delta=EvaluationClock.Delta(delta);
         _elapsed+=(float)delta;
         float cycle=_elapsed%6.8f;
         foreach(var (rig,action) in _animated)rig.PoseAction((float)delta,action,cycle>.65f&&cycle<4.5f?ActionPhase.Executing:ActionPhase.Idle,false,0);
@@ -113,7 +119,7 @@ internal partial class ModelGallery : PanelContainer
         if(action==ActionKind.StoreInBuilding)rig.ShowCargo(true,ResourceKind.Wood);
         _animated.Add((rig,action));
     }
-    private static void Equipment(GridContainer grid,ResidentRig model,string title,float yaw,bool working)
+    private void Equipment(GridContainer grid,ResidentRig model,string title,float yaw,bool working)
     {
         Card(grid,title,model,.85f,true);
         var card=grid.GetChild<VBoxContainer>(grid.GetChildCount()-1);
@@ -134,11 +140,14 @@ internal partial class ModelGallery : PanelContainer
         var target=((ResidentRig)model).Head.GlobalPosition;camera.Size=hat ? .64f : .46f;camera.Position=target+new Vector3(.03f,.02f,2);camera.LookAt(target);
         view.RenderTargetUpdateMode=SubViewport.UpdateMode.WhenVisible;_animated.Add(((ResidentRig)model,ActionKind.None));
     }
-    private static void Card(GridContainer grid,string title,Node3D model,float size,bool animal)
+    private void Card(GridContainer grid,string title,Node3D model,float size,bool animal)
     {
         var card=new VBoxContainer { SizeFlagsHorizontal=SizeFlags.ExpandFill,SizeFlagsVertical=SizeFlags.ExpandFill };
         card.AddThemeConstantOverride("separation",7); grid.AddChild(card);
         var view=new SubViewportContainer { Stretch=true,CustomMinimumSize=new(0,120),SizeFlagsVertical=SizeFlags.ExpandFill,MouseFilter=MouseFilterEnum.Ignore }; card.AddChild(view);
+        int index=grid.GetChildCount()-1;
+        string semanticLabel=model is ResidentRig?"resident":Collection=="architecture"?(index<5?"house":"storage"):Collection=="characters"?(index==4?"deer":"wolf"):index<2?"tree":index==2?"farm":index==3?"mine":index==4?"ruins":"grove";
+        _evaluationRegions.Add((view,semanticLabel));
         var viewport=new SubViewport { OwnWorld3D=true,Size=new(420,280),Msaa3D=Viewport.Msaa.Msaa4X,RenderTargetUpdateMode=SubViewport.UpdateMode.Once }; view.AddChild(viewport);
         var stage=new Node3D(); viewport.AddChild(stage);
         stage.AddChild(new WorldEnvironment { Environment=new Godot.Environment { BackgroundMode=Godot.Environment.BGMode.Color,BackgroundColor=new("#35423a"),AmbientLightSource=Godot.Environment.AmbientSource.Color,AmbientLightColor=new("#c3ceca"),AmbientLightEnergy=.45f,TonemapMode=Godot.Environment.ToneMapper.Aces } });
