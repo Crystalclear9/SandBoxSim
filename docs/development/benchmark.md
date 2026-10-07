@@ -20,7 +20,7 @@ python tools/evaluate.py run benchmarks/scenarios/render-population.json --label
 | 文件 | 用途 |
 |---|---|
 | `request.json` | 引擎实际消费的规范化配置 |
-| `result.json` | 墙钟耗时、帧耗时分位数、环境、最终状态与回放记录 |
+| `result.json` | 墙钟耗时、帧耗时分位数/长帧次数、环境、最终状态、AI 诊断与回放记录 |
 | `frame-*.png` | 指定逻辑帧的完整画面，附 SHA-256 |
 | `f*-r*.png` | 图册模型区域的图像，按实际像素缩放裁切，不含下方标题 |
 | `questions.json` | 视觉模型输入：问题 ID、图像、校验值与候选标签 |
@@ -46,7 +46,7 @@ python tools/evaluate.py run benchmarks/scenarios/render-population.json --label
 | `minimumFps` | 墙钟平均帧率检查线；0 表示仅记录，不设置性能门槛 |
 | `outputDirectory` | 引擎输出目录，非空目录拒绝覆盖 |
 
-表现层 `_Process` 使用固定 1/60 秒，包括世界角色、肖像和图册。这不意味着每秒实际渲染 60 帧；状态推进与采样帧独立于渲染速度。字体、驱动、着色器时间及浮点光照可能使像素有差异，不要求 PNG 跨机器逐字节一致。模拟摘要可用于相同配置下的确定性检查。
+表现层 `_Process` 使用固定 1/60 秒，包括世界角色、肖像和图册。这不意味着每秒实际渲染 60 帧；状态推进与采样帧独立于渲染速度。字体、驱动、着色器时间及浮点光照可能使像素有差异，不要求 PNG 跨机器逐字节一致。模拟摘要可用于相同配置下的确定性检查。状态还记录 `worldVisuals` 的图形刷新欠账和 `ai` 的决策、目标选择失败、动作失败及寻路次数；这些是进程诊断数据，不是通用智能分数。AI 规则改变后，旧版本与新版本的摘要可能不同；比较器会拒绝把这种差异当作纯性能优化。
 
 命令白名单是 `journal.open`, `settings.open`, `escape`, `portrait.face`, `portrait.hands`, `portrait.body`, `portrait.drag`, `portrait.zoom`, `portrait.reset`, `world.view`。人物命令需要人物面板；拖动固定水平 20 像素，`value` 是垂直位移；缩放正值为向内一步、负值或 0 为向外一步；镜头预设为 `near`, `top`, `oblique`。所有命令都记录执行前后状态与模拟摘要是否保持一致。
 
@@ -54,7 +54,9 @@ python tools/evaluate.py run benchmarks/scenarios/render-population.json --label
 
 ## 性能与成对比较
 
-帧耗时来自 `Stopwatch` 单调墙钟的帧提交间隔，不使用可能受限的游戏 `delta`。输出平均 FPS、p50/p95/p99/max、绘制调用、图元数及托管堆内存快照。没有 GPU fence 时间、显存或峰值内存测量；托管堆数据不能解释为总内存。
+重复采样方法、CPU 区段的解释与渲染缓存说明见 [性能采样与渲染维护](performance.md)。
+
+帧耗时来自 `Stopwatch` 单调墙钟的帧提交间隔，不使用可能受限的游戏 `delta`。输出平均 FPS、p50/p95/p99/max、绘制调用、图元数及托管堆内存快照。`cpuScopes` 提供选定主线程区段的调用次数与耗时，父子区段重叠，不能相加。没有 GPU fence 时间、显存或峰值内存测量；托管堆数据不能解释为总内存。
 
 截图、写盘和界面回放开销包含在采样里；纯性能预设没有截图。性能候选与基线应各重复至少 3 次，报告中位数与波动，保持供电、后台负载、驱动和机器一致。不能把限帧样本与无限帧样本混合比较。
 
@@ -63,7 +65,7 @@ python tools/evaluate.py compare runs/evaluation/baseline runs/evaluation/candid
 python tools/evaluate.py verify runs/evaluation/candidate
 ```
 
-比较器拒绝配置、引擎、渲染器、设备、分辨率、VSync、运行器执行参数或最终模拟摘要不同的结果，返回原因；相同条件才输出 FPS 比值和 p95 耗时变化。它不自动断言优化显著，也不把减少几何造成的视觉损失当成成功。优化实验应同时保留视觉检查与功能自检。
+比较器拒绝配置、引擎、渲染器、设备、分辨率、VSync、`renderQuality` 阴影/MSAA 参数、运行器执行参数或最终模拟摘要不同的结果，返回原因；相同条件才输出 FPS 比值和 p95 耗时变化。它不自动断言优化显著，也不把减少几何造成的视觉损失当成成功。优化实验应同时保留视觉检查与功能自检。
 
 退出码：0 为完成且满足设定门槛；1 为低于性能门槛，结果仍保存；2 为协议/产物/对照错误；运行器 124 为超时。`artifactValidation: passed` 只说明产物及回放检查有效，不能替代性能门槛结果。
 

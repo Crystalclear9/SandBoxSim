@@ -101,7 +101,7 @@ public partial class WorldView3D : MapView
             FogEnabled = true, FogDensity = .0017f, FogLightColor = new Color("#c2d1bd") };
         _scene.AddChild(new WorldEnvironment { Environment = _weatherEnvironment });
         _sunlight = new DirectionalLight3D { RotationDegrees = new Vector3(-48, -35, 0), LightColor = new Color("#ffe8bc"),
-            LightEnergy = .9f, ShadowEnabled = true, DirectionalShadowMaxDistance = 160 };
+            LightEnergy = .9f, ShadowEnabled = true, DirectionalShadowMode=DirectionalLight3D.ShadowMode.Parallel2Splits, DirectionalShadowMaxDistance = 160 };
         _scene.AddChild(_sunlight);
         _camera = new Camera3D { Current = true, Near = .15f, Far = 650, Fov = 52 }; _scene.AddChild(_camera);
         _routes = new MeshInstance3D { CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
@@ -158,8 +158,9 @@ public partial class WorldView3D : MapView
         _poll += delta;
         if (_poll >= .3)
         {
-            _poll = 0; CheckTerrain(); SyncEntities(); UpdateObservation();
+            _poll = 0; CheckTerrain(true); SyncEntities(); UpdateObservation();
         }
+        DrainVisualUpdates();
         AnimateActors((float)delta); UpdateBrush(); UpdateWeatherAtmosphere((float)delta);
         double now = Time.GetTicksMsec() / 1000.0;
         for (int i = _effects.Count - 1; i >= 0; i--)
@@ -184,6 +185,7 @@ public partial class WorldView3D : MapView
         if (_camera == null) { return; }
         _target.X = Math.Clamp(_target.X, 0, Game.Sim.World.Width * 2); _target.Z = Math.Clamp(_target.Z, 0, Game.Sim.World.Height * 2);
         var offset = new Vector3(MathF.Sin(_yaw) * MathF.Cos(_pitch), MathF.Sin(_pitch), MathF.Cos(_yaw) * MathF.Cos(_pitch)) * _distance;
+        _sunlight.DirectionalShadowMaxDistance=Math.Clamp(_distance*1.8f,45,160);
         _camera.Position = _target + offset; _camera.LookAt(_target, Vector3.Up);
     }
     private void Pan(Vector2 screenDelta)
@@ -285,21 +287,27 @@ public partial class WorldView3D : MapView
     private static void Clear(Node node) { foreach (Node child in node.GetChildren()) { node.RemoveChild(child); child.QueueFree(); } }
     private void RebuildWorld()
     {
+        _pendingTerrain=_pendingNature=_pendingBuildings=false;
         _world = Game.Sim; _follow = -1; Clear(_terrainRoot); Clear(_props); Clear(_actors);
         _observerPaths = new SandBoxSim.Core.Pathing.AStarPathfinder(Game.Sim.World);
         _observedRoute = new Int2[Game.Sim.World.Tiles.Length]; _density = new int[Game.Sim.World.Tiles.Length];
         _routes.Mesh = null; _natureSignature = 0;
         foreach (var e in _effects) { e.Node.QueueFree(); } _effects.Clear(); _people.Clear(); _deer.Clear(); _wolves.Clear(); _personModels.Clear();
-        BuildTerrain(); BuildNature(); BuildBuildings(); SyncEntities(); SyncHazards();
+        ResetBuildingVisuals(); BuildTerrain(); BuildNature(); BuildBuildings(); SyncEntities(); SyncHazards();
     }
-    private void CheckTerrain()
+    private void CheckTerrain(bool deferred=false)
     {
+        using var profile=RenderProfile.Measure("CheckTerrain");
         long signature = 17, nature = 17;
+        int tileIndex=0;
         foreach (var tile in Game.Sim.World.Tiles)
         {
+            int tx=tileIndex%Game.Sim.World.Width,ty=tileIndex++/Game.Sim.World.Width;
+            uint decoration=unchecked((uint)(tx*73856093^ty*19349663));
             signature = unchecked(signature * 31 + (int)tile.Terrain * 3 + (int)tile.Fire + (int)(tile.Height * 10000));
-            int flags = (tile.Vegetation > .12f ? 1 : 0) + (tile.Resource.Kind == ResourceKind.Food && tile.Resource.Amount > 5 ? 2 : 0)
-                + (tile.Resource.Kind == ResourceKind.Iron ? 4 : 0);
+            int flags=(decoration%5==0&&tile.Terrain==TerrainKind.Forest&&tile.Vegetation>.12f&&tile.Fire!=FireState.Burnt?1:0)
+                +(decoration%17==0&&tile.Resource.Kind==ResourceKind.Food&&tile.Resource.Amount>5?2:0)
+                +(decoration%9==0&&tile.Terrain==TerrainKind.Mountain&&tile.Resource.Kind==ResourceKind.Iron?4:0);
             nature = unchecked(nature * 31 + flags);
             if (Overlay is 2 or 5) { signature = unchecked(signature * 31 + (int)tile.Resource.Kind * 1000 + (int)tile.Resource.Amount); }
             if (Overlay == 3) { signature = unchecked(signature * 31 + (int)(tile.Moisture * 100)); }
@@ -329,9 +337,17 @@ public partial class WorldView3D : MapView
             }
             foreach (int value in _density) { signature = unchecked(signature * 31 + value); }
         }
-        if (signature != _terrainSignature || _lastOverlay != Overlay)
-            { _terrainSignature = signature; _lastOverlay = Overlay; Clear(_terrainRoot); BuildTerrain(); Clear(_props); BuildNature(); _natureSignature = nature; _buildingSignature = 0; }
-        else if (_natureSignature != nature) { _natureSignature = nature; Clear(_props); BuildNature(); }
+        if(signature!=_terrainSignature||_lastOverlay!=Overlay)
+        {
+            _terrainSignature=signature;_lastOverlay=Overlay;_natureSignature=nature;_buildingSignature=0;
+            if(deferred){_pendingTerrain=true;_pendingNature=true;}
+            else{Clear(_terrainRoot);BuildTerrain();Clear(_props);BuildNature();}
+        }
+        else if(_natureSignature!=nature)
+        {
+            _natureSignature=nature;
+            if(deferred)_pendingNature=true;else{Clear(_props);BuildNature();}
+        }
         long buildings = 17 + Game.Sim.Settlements.ActiveCount;
         foreach (int i in Enumerable.Range(0, Game.Sim.Buildings.Capacity))
             if (Game.Sim.Buildings.IsAlive(i))
@@ -343,7 +359,23 @@ public partial class WorldView3D : MapView
                     if (Math.Abs(dx) + Math.Abs(dy) == 1 && Game.Sim.World.IsInBounds(store.XOf(i) + dx, store.YOf(i) + dy))
                         buildings = unchecked(buildings * 31 + (int)Game.Sim.World.TerrainAt(store.XOf(i) + dx, store.YOf(i) + dy));
             }
-        if (buildings != _buildingSignature) { _buildingSignature = buildings; BuildBuildings(); }
+        for(int i=0;i<Game.Sim.Settlements.EntityCount;i++)
+        {
+            var settlement=Game.Sim.Settlements.At(i);
+            buildings=unchecked(buildings*31+settlement.Id*101+settlement.CenterX*503+settlement.CenterY*997+(settlement.Dissolved?1:0));
+            foreach(char c in Game.Sim.Society.SettlementName(settlement.Id))buildings=unchecked(buildings*31+c);
+        }
+        if(buildings!=_buildingSignature){_buildingSignature=buildings;if(deferred)_pendingBuildings=true;else BuildBuildings();}
+    }
+    internal object RenderQualityState()=>new {shadowMode=_sunlight.DirectionalShadowMode.ToString(),shadowDistance=_sunlight.DirectionalShadowMaxDistance,msaa=_viewport.Msaa3D.ToString()};
+    internal object VisualUpdateState()=>new {terrainPending=_pendingTerrain,naturePending=_pendingNature,buildingsPending=_pendingBuildings,cachedBuildings=_buildingVisuals.Count};
+    private bool _pendingTerrain,_pendingNature,_pendingBuildings;
+    private void DrainVisualUpdates()
+    {
+        // One reconstruction category per frame. Entity state is re-read when the work executes.
+        if(_pendingTerrain){_pendingTerrain=false;Clear(_terrainRoot);BuildTerrain();}
+        else if(_pendingNature){_pendingNature=false;Clear(_props);BuildNature();}
+        else if(_pendingBuildings)_pendingBuildings=BuildBuildings(1);
     }
     public void ValidateObservationLayers()
     {
@@ -411,6 +443,7 @@ public partial class WorldView3D : MapView
     }
     private void BuildTerrain()
     {
+        using var profile=RenderProfile.Measure("BuildTerrain");
         var vertices = new List<Vector3>(); var normals = new List<Vector3>(); var uvs = new List<Vector2>(); var colors = new List<Color>(); var indices = new List<int>();
         var waterV = new List<Vector3>(); var waterI = new List<int>();
         int width = Game.Sim.World.Width;
@@ -492,6 +525,7 @@ void fragment(){
     }
     private void BuildNature()
     {
+        using var profile=RenderProfile.Measure("BuildNature");
         var trunks = new List<Transform3D>(); var branches = new List<Transform3D>(); var leaves = new List<Transform3D>(); var pines = new List<Transform3D>();
         var rocks = new List<Transform3D>(); var ores = new List<Transform3D>(); var bushes = new List<Transform3D>();
         for (int y = 0; y < Game.Sim.World.Height; y++) for (int x = 0; x < Game.Sim.World.Width; x++)
@@ -527,56 +561,9 @@ void fragment(){
         _models.Batch(_props, "trunk", 0, trunks); _models.Batch(_props, "cylinder", 0, branches); _models.Batch(_props, "foliage", 4, leaves);
         _models.Batch(_props, "pine", 5, pines); _models.Batch(_props, "rock", 6, rocks); _models.Batch(_props, "rock", 7, ores); _models.Batch(_props, "foliage", 4, bushes);
     }
-    private sealed class BuildingVisual
-    {
-        public required Node3D Root;public required MeshInstance3D Surface;public required Mesh Near;public required Mesh Far;public bool Detailed=true;
-    }
-    private readonly List<BuildingVisual> _buildingVisuals=new();
-    private void UpdateBuildingDetail()
-    {
-        foreach(var visual in _buildingVisuals)
-        {
-            float distance=_camera.Position.DistanceSquaredTo(visual.Root.Position);
-            bool detailed=visual.Detailed?distance<32*32:distance<24*24;
-            if(detailed==visual.Detailed)continue;
-            visual.Detailed=detailed;visual.Surface.Mesh=detailed?visual.Near:visual.Far;
-        }
-    }
-    private Node3D? _buildings;
-    private void BuildBuildings()
-    {
-        if (_buildings != null && GodotObject.IsInstanceValid(_buildings)) { _buildings.QueueFree(); }
-        _buildingVisuals.Clear();_buildings = new Node3D(); _scene.AddChild(_buildings);
-        var sim = Game.Sim;
-        for (int i = 0; i < sim.Buildings.Capacity; i++) if (sim.Buildings.IsAlive(i))
-        {
-            int x = sim.Buildings.XOf(i), y = sim.Buildings.YOf(i);
-            uint identity = unchecked((uint)(x * 73856093 ^ y * 19349663 ^ sim.World.Seed * 83492791));
-            var node = _models.Building(sim.Buildings.KindOf(i), sim.Buildings.StateOf(i) == BuildingState.Complete, identity);
-            _buildings.AddChild(node); node.Position = PositionAt(sim.Buildings.XOf(i), sim.Buildings.YOf(i));
-            var surface=node.GetChild<MeshInstance3D>(0);
-            _buildingVisuals.Add(new BuildingVisual {Root=node,Surface=surface,Near=surface.Mesh,Far=_models.DistantBuilding(sim.Buildings.KindOf(i),sim.Buildings.StateOf(i)==BuildingState.Complete,identity)});
-            int facing = (int)(identity % 4), best = int.MinValue;
-            for (int side = 0; side < 4; side++)
-            {
-                int direction = (side + (int)(identity % 4)) % 4;
-                int nx = x + (direction == 1 ? 1 : direction == 3 ? -1 : 0), ny = y + (direction == 0 ? 1 : direction == 2 ? -1 : 0);
-                if (!sim.World.IsInBounds(nx, ny)) { continue; }
-                var tile = sim.World.TileAt(nx, ny);
-                int score = tile.Terrain == TerrainKind.Road ? 10 : tile.BuildingId > 0 ? -5 : tile.Walkable ? 1 : -10;
-                if (score > best) { best = score; facing = direction; }
-            }
-            node.RotationDegrees = new Vector3(0, facing * 90, 0);
-        }
-        for (int i = 0; i < sim.Settlements.EntityCount; i++)
-        {
-            var s = sim.Settlements.At(i); if (s.Dissolved) { continue; }
-            _buildings.AddChild(new Label3D { Text = sim.Society.SettlementName(s.Id), Font = Game.Theme.DefaultFont, FontSize = 32,
-                Position = PositionAt(s.CenterX, s.CenterY) + Vector3.Up * 5, PixelSize = .025f, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, Modulate = new Color("#ead9ad") });
-        }
-    }
     private void SyncEntities()
     {
+        using var profile=RenderProfile.Measure("SyncEntities");
         SyncHazards();
         var sim = Game.Sim; var live = new HashSet<long>();
         foreach (int slot in sim.Agents.AliveSlots())
@@ -608,6 +595,7 @@ void fragment(){
     private int _poseFrame;
     private void AnimateActors(float delta)
     {
+        using var profile=RenderProfile.Measure("AnimateActors");
         var sim = Game.Sim; _poseFrame++;
         foreach (var pair in _people)
         {

@@ -170,7 +170,10 @@ public sealed class AiSystem
                                  || actionPhase == ActionPhase.Done
                                  || actionPhase == ActionPhase.Failed;
 
-            if (!needsDecision) { continue; }
+            ActionKind current=_store.ActionOf(slot);
+            bool emergencyEat=actionPhase==ActionPhase.Moving&&_store.HungerOf(slot)>=.85f&&_store.InventoryOf(slot,ResourceKind.Food)>=1
+                &&current!=ActionKind.Eat&&current!=ActionKind.Drink&&current!=ActionKind.Flee&&current!=ActionKind.Attack;
+            if(!needsDecision&&!emergencyEat)continue;
 
             // 不该过于频繁地改主意：两次决策之间至少要隔一小段时间，
             // 否则"刚决定去砍树，下一 tick 又决定去喝水"，看起来像多动症。
@@ -183,7 +186,7 @@ public sealed class AiSystem
             long nextAllowed = _store.NextDecisionTickOf(slot);
             if (tick < nextAllowed && !HasCriticalNeed(slot)) { continue; }
 
-            DecideFor(slot, tick, isNight, rng, world);
+            DecideFor(slot, tick, isNight, rng, world,emergencyEat);
             DecisionsThisTick++;
         }
 
@@ -203,7 +206,7 @@ public sealed class AiSystem
             || _store.HealthOf(slot) <= 0.35f;
     }
 
-    private void DecideFor(int slot, long tick, bool isNight, DeterministicRandom rng, World world)
+    private void DecideFor(int slot, long tick, bool isNight, DeterministicRandom rng, World world,bool emergencyEat=false)
     {
         var ctx = BuildContext(slot, tick, isNight, rng, world);
 
@@ -211,6 +214,7 @@ public sealed class AiSystem
         for (int i = 0; i < ActionRegistry.All.Length; i++)
         {
             ActionKind kind = ActionRegistry.All[i];
+            if(emergencyEat&&kind!=ActionKind.Eat)continue;
             ActionDef def = ActionRegistry.DescribeCached(kind);
             if (def.Evaluate == null) { continue; }
 
@@ -320,6 +324,7 @@ public sealed class AiSystem
             return;
         }
 
+        if(emergencyEat){_store.ClearPathStep(slot);_sim.Actions.ClearMoveProgress(slot);}
         // 不需要移动的动作（进食、睡觉）：立刻进入执行阶段
         _store.ClearTarget(slot);
         _store.SetAction(slot, chosen, ActionPhase.Executing);
@@ -387,6 +392,7 @@ public sealed class AiSystem
         return new ActionContext
         {
             DecisionCache = UseWorldCache ? _worldCache : null,
+            Reachability = _pathfinder,
             World = world,
             Store = _store,
             Slot = slot,

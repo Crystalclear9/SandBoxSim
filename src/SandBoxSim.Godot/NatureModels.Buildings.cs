@@ -10,6 +10,9 @@ internal sealed partial class NatureModels
         identity %= 140;
         int variant = (int)(identity % 5);
         var model = new Node3D { Scale = new Vector3(.82f, 1.02f + (identity % 7) * .025f, .82f) };
+        // The merged mesh already contains all static details; do not rebuild temporary parts on a cache hit.
+        if(_meshes.TryGetValue($"architecture:{kind}:{complete}:{identity}:{_fineArchitecture}",out var cached))
+        {model.AddChild(new MeshInstance3D {Mesh=cached});return model;}
         float width = 1.85f + (identity % 4) * .12f, depth = 1.8f + ((identity / 7) % 4) * .13f;
         if (!complete)
         {

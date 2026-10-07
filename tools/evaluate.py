@@ -98,6 +98,7 @@ def compare(baseline, candidate):
     for key in ("engine", "renderer", "os", "processor", "videoAdapter", "resolution", "logicalResolution", "vsync", "fixedVisualDelta", "measuredFrames"):
         if old[key] != new[key]: reasons.append(key + " differs")
     if read(Path(baseline) / "provenance.json")["execution"] != read(Path(candidate) / "provenance.json")["execution"]: reasons.append("runner execution options differ")
+    if old.get("renderQuality") != new.get("renderQuality"): reasons.append("render quality differs")
     if old["state"]["digest"] != new["state"]["digest"]: reasons.append("simulation digest differs")
     return {"schemaVersion": 1, "comparable": not reasons, "reasons": reasons,
             "fpsRatio": new["averageFps"] / old["averageFps"] if not reasons and old["averageFps"] > 0 else None,

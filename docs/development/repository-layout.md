@@ -11,7 +11,8 @@
 | `src/SandBoxSim.Godot/` | 场景、镜头、HUD、展示模型与会话 | 源码、`.uid`、场景与工程设置 |
 | `src/SandBoxSim.Tests/` | 自带测试框架与规则回归 | 测试源码与工程文件 |
 | `config/` | 模拟默认参数 | 可移植配置，避免本机路径 |
-| `tools/` | 安装、构建、运行、测试与文档检查 | 脚本，PowerShell 使用 UTF-8 BOM |
+| `benchmarks/` | 版本化场景与请求 Schema | 公开配置与接口说明；结果保存在 `runs/evaluation/` |
+| `tools/` | 安装、构建、运行、评测、测试与文档检查 | 脚本，PowerShell 使用 UTF-8 BOM |
 | `docs/guides/` | 安装、游玩、排错与更新 | 当前使用文档 |
 | `docs/development/` | 架构、扩展、文件管理与维护 | 当前开发文档 |
 | `docs/images/` | 当前玩法、界面与模型文档使用的正式实机配图 | 保留并提交 |
@@ -31,6 +32,8 @@
 资源 PNG 和相应 `.import` 描述文件一起提交；Godot 自动生成的 `.godot/` 缓存不提交。模型代码文件与 `.uid` 一起维护，避免移动源码后出现失效脚本引用。来源和导入细节见 [美术资源](assets.md)。
 
 人物表现按职责分在 `ResidentRig.cs`（行为状态）、`ResidentRig.HandPose.cs`（肘腕和指节）、`NatureModels.HandSkin.cs`（手部蒙皮）、`NatureModels.Articulation.cs`（肩部蒙皮）与 `NatureModels.Face.cs`（面部表面）。这些文件共用人物节点与网格缓存，地图与肖像读取同一套模型，不维护额外的展示替身。入口见 [模型系统](models.md)。
+
+建筑表现同步分在 `WorldView3D.Buildings.cs`，CPU 网格合并分在 `NatureModels.MeshBatching.cs`，评测区段采样分在 `RenderProfile.cs`。性能操作与缓存边界见 [性能采样与渲染维护](performance.md)。
 
 ## 运行资料与截图
 

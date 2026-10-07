@@ -10,6 +10,7 @@
 | 探索与观察世界 | [自由探索](guides/exploration.md) → [世界系统](guides/world-systems.md) → [聚落与居民](guides/settlements.md) → [天气与生态](guides/ecology.md) |
 | 查看人物和界面 | [观察与界面](guides/gameplay-observation.md) → [3D 模型系统](development/models.md) |
 | 修改界面或模型 | [开发指南](development/developer-guide.md) → [项目架构](development/architecture.md) → [3D 模型系统](development/models.md) → [美术资源](development/assets.md) |
+| 性能优化与模型评测 | [性能维护](development/performance.md) → [评测接口](development/benchmark.md) → [模型系统](development/models.md) |
 | 修改模拟规则 | [开发指南](development/developer-guide.md) → [扩展指南](development/extending.md) → [配置](development/configuration.md) → [存档与确定性](development/saving.md) |
 | 更新与排错 | [版本更新与兼容](guides/updating.md) → [故障排查](guides/troubleshooting.md) |
 
@@ -35,6 +36,7 @@
 | [项目架构](development/architecture.md) | 工程依赖、tick、日界、会话与只读表现 |
 | [扩展指南](development/extending.md) | 自然内容、动作、建筑、AI、界面与模型扩展 |
 | [目录与文件管理](development/repository-layout.md) | 文件职责、提交范围、归档与移动规则 |
+| [性能采样与渲染维护](development/performance.md) | 重复采样、CPU 区段、建筑增量同步与网格缓存 |
 | [评测接口与实验运行](development/benchmark.md) | 可复现运行、墙钟性能、视觉输入、界面回放与研究边界 |
 | [构建与运行](development/build.md) | SDK/csc、命令行模式、测试与 CI |
 | [配置](development/configuration.md) | 模拟默认规则、客户端设置与历史数据边界 |

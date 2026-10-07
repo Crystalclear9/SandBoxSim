@@ -65,27 +65,7 @@ internal sealed partial class NatureModels
             var mesh = new ArrayMesh();
             foreach (var group in groups)
             {
-                var surface = new SurfaceTool(); surface.Begin(Mesh.PrimitiveType.Triangles); surface.SetMaterial(group.Key);
-                foreach (var part in group.Value)
-                {
-                    var arrays = part.Mesh.SurfaceGetArrays(0);
-                    var vertices = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
-                    var normals = arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
-                    var uv = arrays[(int)Mesh.ArrayType.TexUV].VariantType == Variant.Type.Nil
-                        ? System.Array.Empty<Vector2>() : arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();
-                    var colors = arrays[(int)Mesh.ArrayType.Color].VariantType == Variant.Type.Nil ? Array.Empty<Color>() : arrays[(int)Mesh.ArrayType.Color].AsColorArray();
-                    var indices = arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
-                    var normalBasis = part.Transform.Basis.Inverse().Transposed();
-                    for (int vertex = 0; vertex < (indices.Length > 0 ? indices.Length : vertices.Length); vertex++)
-                    {
-                        int index = indices.Length > 0 ? indices[vertex] : vertex;
-                        surface.SetNormal((normalBasis * normals[index]).Normalized());
-                        surface.SetUV(uv.Length > index ? uv[index] : Vector2.Zero);
-                        if(group.Key is StandardMaterial3D pigment && pigment.VertexColorUseAsAlbedo)surface.SetColor(colors.Length>index?colors[index]:Colors.White);
-                        surface.AddVertex(part.Transform * vertices[index]);
-                    }
-                }
-                surface.Index(); surface.Commit(mesh);
+                AppendMergedSurface(mesh,group.Key,group.Value);
             }
             combined = mesh; _meshes[key] = mesh;
         }

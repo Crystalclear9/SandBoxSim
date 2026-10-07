@@ -23,6 +23,10 @@ internal sealed partial class NatureModels
         Batch(batch,"cylinder",0,placements);int instanceCount=0;
         foreach(Node child in batch.GetChildren())instanceCount+=((MultiMeshInstance3D)child).Multimesh.InstanceCount;
         if(remaining.Count!=0||instanceCount!=placements.Count||batch.GetChildCount()!=4)throw new InvalidOperationException("Spatial batches do not separate distant objects");batch.Free();
+        var prototype=Building(BuildingKind.House,true,1);var repeated=Building(BuildingKind.House,true,141);
+        if(prototype==repeated||prototype.GetChild<MeshInstance3D>(0).Mesh!=repeated.GetChild<MeshInstance3D>(0).Mesh||prototype.Scale!=repeated.Scale)
+            throw new InvalidOperationException("Architecture cache changes normalized variant or shares a scene node");
+        prototype.Free();repeated.Free();
         void Inspect(Node3D node,ref int vertices,ref int instances)
         {
             if(!node.Transform.IsFinite()) throw new InvalidOperationException("Model has invalid transform");
