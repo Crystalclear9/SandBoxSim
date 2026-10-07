@@ -12,3 +12,5 @@
 | `ui-portrait` | 人物构图、俯仰、复位、设置打开与 Esc 关闭顺序 |
 
 这些是公开开发样例；正式实验的留出集由评测者在仓库外管理。结果、日志与临时图片写入忽略提交的 `runs/evaluation/`，不放到场景目录。
+
+外部调用从 `python tools/evaluate.py describe` 获取能力清单；请求、预测与结果分别定义在 [request.schema.json](request.schema.json)、[predictions.schema.json](predictions.schema.json) 和 [result.schema.json](result.schema.json)。接口采用本地 CLI/文件，未提供在线逐步交互或 HTTP 服务。

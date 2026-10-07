@@ -25,6 +25,14 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check external interface and executable discovery
+        shell: pwsh
+        run: |
+          ./tools/test-godot-path.ps1
+          python -m unittest discover -s tools -p test_evaluate.py
       - name: Install verified Godot .NET editor
         shell: pwsh
         run: |
@@ -36,3 +44,29 @@ jobs:
       - name: Import assets and verify client interactions
         shell: pwsh
         run: ./tools/godot.ps1 -Mode test
+      - name: Install software display for visual interface smoke
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb libgl1-mesa-dri fonts-noto-cjk
+      - name: Native visual evaluation interface smoke
+        if: runner.os == 'Linux'
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          spec=json.loads(Path('benchmarks/scenarios/visual-characters.json').read_text())
+          spec.update(id='ci-visual-smoke',warmupFrames=3,measuredFrames=8,captureFrames=[4])
+          Path('runs').mkdir(exist_ok=True)
+          Path('runs/ci-evaluation.json').write_text(json.dumps(spec))
+          PY
+          xvfb-run -a -s "-screen 0 1600x1000x24" python tools/evaluate.py run runs/ci-evaluation.json --output runs/ci-evaluation --audio-driver Dummy --max-fps 60
+          python tools/evaluate.py verify runs/ci-evaluation
+      - name: Upload evaluation smoke artifacts
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-smoke-linux
+          path: runs/ci-evaluation
+          if-no-files-found: ignore
+          retention-days: 7

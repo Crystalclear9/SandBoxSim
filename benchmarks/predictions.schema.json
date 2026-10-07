@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SandBoxSim vision predictions v1",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "id",
+      "label"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "label": {
+        "type": "string",
+        "enum": [
+          "house",
+          "storage",
+          "resident",
+          "deer",
+          "wolf",
+          "tree",
+          "farm",
+          "mine",
+          "ruins",
+          "grove"
+        ]
+      }
+    }
+  },
+  "description": "IDs must match questions; duplicate/unknown IDs are rejected. Missing answers are incorrect."
+}

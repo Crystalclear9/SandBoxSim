@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "transport": "local-cli-and-files",
+  "commands": [
+    "run",
+    "verify",
+    "score",
+    "compare",
+    "describe"
+  ],
+  "capabilities": {
+    "fixedStepSimulation": true,
+    "renderTiming": true,
+    "visualSamples": true,
+    "semanticUiReplay": true,
+    "visionPredictionScoring": true,
+    "liveStepApi": false,
+    "httpService": false,
+    "automaticModelInvocation": false,
+    "validatedRsiBenchmark": false
+  },
+  "schemas": {
+    "request": "request.schema.json",
+    "predictions": "predictions.schema.json",
+    "result": "result.schema.json"
+  },
+  "exitCodes": {
+    "0": "completed",
+    "1": "performance threshold not met",
+    "2": "invalid input, incompatible comparison, engine or artifact error",
+    "124": "run timed out"
+  },
+  "requiredEnvironment": {
+    "python": "3.10+",
+    "dotnet": 8,
+    "godotDotnet": "4.7.2"
+  },
+  "platforms": [
+    "windows",
+    "linux",
+    "macos"
+  ],
+  "outputEncoding": "UTF-8",
+  "errors": "Use --json-errors before the subcommand for JSON on stderr."
+}

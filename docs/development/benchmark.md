@@ -2,7 +2,7 @@
 
 SandBoxSim 同时提供自由沙盒客户端和显式启用的本地评测入口。评测模式固定世界种子、人口、预演天数、模拟步数和表现层时钟，输出机器可读记录；正常游戏没有评测任务、强制目标或分数面板。
 
-当前协议为 `schemaVersion: 1`。它支持渲染性能、模型图像识别和界面语义回放，可用于代码优化对照、视觉模型输入样本与交互回归。它是研究实验的基础工具，不是已验证的 RSI 能力基准，也不衡量模型美感或真实感。
+当前协议为 `schemaVersion: 1`。能力边界可用 `python tools/evaluate.py describe` 查询，清单见 [interface.json](../../benchmarks/interface.json)。它支持渲染性能、模型图像识别和界面语义回放，可用于代码优化对照、视觉模型输入样本与交互回归。它是研究实验的基础工具，不是已验证的 RSI 能力基准，也不衡量模型美感或真实感。
 
 ## 启动与产物
 
@@ -15,7 +15,7 @@ python tools/evaluate.py run benchmarks/scenarios/ui-portrait.json --label ui-re
 python tools/evaluate.py run benchmarks/scenarios/render-population.json --label render-review
 ```
 
-通过 `--engine` 或 `GODOT_EXE` 指定引擎；运行器也会查找 PATH 与安装脚本的本机目录。`--output` 指定独立输出目录，已有目录会被拒绝，保留以前的样本。默认窗口请求为 `1440x900`、关闭 VSync、`--max-fps 0`，实际物理/逻辑尺寸与 VSync 状态写入结果；驱动可能仍限制帧率。`--max-fps 60` 可用于有上限的交互采样，但必须保持对照一致。默认子进程超时为 180 秒，超时终止本次启动的进程树，`--timeout` 可调整。
+通过 `--engine` 或 `GODOT_EXE` 指定引擎，macOS 也可传入 `.app` 目录；明确指定的无效路径直接拒绝，不悄悄换用另一个引擎。启动前核对 4.7.2 .NET 版本。运行器优先查找安装脚本的本机目录，再查找 PATH；支持 Windows 控制台 EXE、Linux 可执行文件与 macOS 包内二进制。`--output` 指定独立输出目录，已有目录会被拒绝，保留以前的样本。默认窗口请求为 `1440x900`、关闭 VSync、`--max-fps 0`，实际物理/逻辑尺寸与 VSync 状态写入结果；驱动可能仍限制帧率。`--max-fps 60` 可用于有上限的交互采样，但必须保持对照一致。`--audio-driver Dummy` 可在无声卡的 CI 中关闭音频设备依赖，执行参数写入溯源并参与比较。默认子进程超时为 180 秒，超时终止本次启动的进程树，`--timeout` 可调整。
 
 | 文件 | 用途 |
 |---|---|
@@ -67,11 +67,13 @@ python tools/evaluate.py verify runs/evaluation/candidate
 
 比较器拒绝配置、引擎、渲染器、设备、分辨率、VSync、`renderQuality` 阴影/MSAA 参数、运行器执行参数或最终模拟摘要不同的结果，返回原因；相同条件才输出 FPS 比值和 p95 耗时变化。它不自动断言优化显著，也不把减少几何造成的视觉损失当成成功。优化实验应同时保留视觉检查与功能自检。
 
+CLI 输出使用 UTF-8；`python tools/evaluate.py --json-errors <子命令> ...` 将输入或用法错误作为 JSON 写到 stderr，包含 `schemaVersion`、`error.code` 和 `error.message`。引擎异常的原始退出码保留在溯源中，运行器统一返回接口定义的错误码。验证会核对请求 ID、帧预算、截图排程、状态门槛以及 PNG 结构/CRC，不能把缺少截图的运行视为完成。
+
 退出码：0 为完成且满足设定门槛；1 为低于性能门槛，结果仍保存；2 为协议/产物/对照错误；运行器 124 为超时。`artifactValidation: passed` 只说明产物及回放检查有效，不能替代性能门槛结果。
 
 ## 视觉模型接入与评分
 
-只向被测模型提供 `questions.json` 和它引用的裁切 PNG。预测格式为：
+只向被测模型提供 `questions.json` 和它引用的裁切 PNG。机器可读定义见 [predictions.schema.json](../../benchmarks/predictions.schema.json)，结果定义见 [result.schema.json](../../benchmarks/result.schema.json)。预测格式为：
 
 ```json
 [{"id": "f00090-r0", "label": "resident"}]
@@ -95,6 +97,7 @@ python tools/evaluate.py score runs/evaluation/visual-run predictions.json
 
 ```powershell
 ./tools/godot.ps1 -Mode test
+./tools/test-godot-path.ps1
 python -m unittest discover -s tools -p test_evaluate.py
 ./tools/check-docs.ps1
 ```

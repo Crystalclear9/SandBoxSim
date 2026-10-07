@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SandBoxSim completed result v1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "id",
+    "status",
+    "measuredFrames",
+    "averageFps",
+    "wallSeconds",
+    "frameMs",
+    "state",
+    "captures",
+    "commands"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "performance_threshold_failed"
+      ]
+    },
+    "measuredFrames": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "averageFps": {
+      "type": "number",
+      "minimum": 0
+    },
+    "wallSeconds": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "frameMs": {
+      "type": "object",
+      "required": [
+        "p50",
+        "p95",
+        "p99",
+        "max"
+      ],
+      "properties": {
+        "p50": {
+          "type": "number",
+          "minimum": 0
+        },
+        "p95": {
+          "type": "number",
+          "minimum": 0
+        },
+        "p99": {
+          "type": "number",
+          "minimum": 0
+        },
+        "max": {
+          "type": "number",
+          "minimum": 0
+        },
+        "over33MsCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "over50MsCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "state": {
+      "type": "object",
+      "required": [
+        "tick",
+        "digest"
+      ],
+      "properties": {
+        "tick": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "digest": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "captures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "frame",
+          "image",
+          "sha256",
+          "state"
+        ],
+        "properties": {
+          "frame": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "image": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "state": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "commands": {
+      "type": "array"
+    },
+    "renderQuality": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Additive diagnostic fields are permitted; verifier also checks request budget, capture schedule, status and checksums."
+}
