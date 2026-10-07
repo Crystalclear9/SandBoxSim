@@ -43,7 +43,12 @@ public static class HttpService
             while (!stop.IsCancellationRequested)
             {
                 var context = await listener.GetContextAsync();
-                if (!slots.Wait(0)) { await Reply(context, 429, new { error = new { code = "busy", message = "Request limit reached" } }); continue; }
+                if (!slots.Wait(0))
+                {
+                    try { await Reply(context, 429, new { schemaVersion = 1, error = new { code = "busy", message = "Request limit reached" } }); }
+                    finally { context.Response.Close(); }
+                    continue;
+                }
                 _ = Handle(context);
             }
         }

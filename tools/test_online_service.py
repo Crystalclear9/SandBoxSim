@@ -10,7 +10,10 @@ def free_port():
 
 def smoke(assembly, output):
     output=Path(output); output.mkdir(parents=True,exist_ok=False)
-    token=secrets.token_hex(24); ports=[free_port(),free_port()]; processes=[]; logs=[]
+    token=secrets.token_hex(24); ports=[]; processes=[]; logs=[]
+    while len(ports)<2:
+        port=free_port()
+        if port not in ports: ports.append(port)
     clients=[Client('http://127.0.0.1:'+str(p),token) for p in ports]
     try:
         for i,p in enumerate(ports):
