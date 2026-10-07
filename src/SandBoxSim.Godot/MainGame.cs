@@ -633,6 +633,9 @@ public partial class MainGame : Control
             var original = Sim;
             try
             {
+                Sim=new Simulation(Sim.Config.Clone(),30,30,13);
+                ((WorldView3D)_map).ValidateWorldDimensions();
+                ((WorldView3D)_map).ValidateIncrementalBuildings();
                 var rectangular = new Simulation(Sim.Config.Clone(), 60, 44, 17);
                 string rectangularSave = SaveFile.Encode(rectangular);
                 Sim = Simulation.CreateForRestore(rectangular.Config.Clone(), 60, 44, 17);
