@@ -65,6 +65,8 @@ public partial class DiscoveryPanel : VBoxContainer
         _phase.Text = weather + " · " + WildPlaces.PhaseName(sim.Clock / sim.Config.Clock.TicksPerDay) + " · 第 " + sim.World.Calendar.Day + " 天";
         var local=Game.Wild.At(Game.SelectedX,Game.SelectedY);
         _land.Text=local==null ? $"({Game.SelectedX}, {Game.SelectedY}) · 单击土地查看这里的水土与痕迹。" : Game.Wild.Describe(sim,local);
+        float traffic=sim.World.TileAt(Game.SelectedX,Game.SelectedY).FootTraffic;
+        if(traffic>.02f)_land.Text+=$"\n反复踩踏 · 压实 {traffic:P0} · 植被恢复变慢";
         var notes=new StringBuilder();
         foreach(var mark in Game.Wild.Marks)
             notes.AppendLine($"[url=place:{mark.X}:{mark.Y}][color=#c7b992]{mark.Name.Replace("[","[lb]")}[/color][/url]  [url=forget:{mark.X}:{mark.Y}]×[/url]");

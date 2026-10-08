@@ -65,7 +65,7 @@ public sealed class StepApi
         {
             var w = s.Sim.World;
             return s.CachedMap ??= new { revision = s.Revision, width = w.Width, height = w.Height,
-                tiles = w.Tiles.Select(t => new { walkable = t.Walkable, terrain = t.Terrain.ToString(), traversalHeight = t.Temperature,
+                tiles = w.Tiles.Select(t => new { walkable = t.Walkable, terrain = t.Terrain.ToString(), traversalHeight = t.Temperature, elevation=t.Height, footTraffic=t.FootTraffic, vegetation=t.Vegetation,
                     moveCost = TerrainInfo.MoveCost(t.Terrain) }).ToArray() };
         }
         if (parts.Length != 4 || method != "POST") { throw new ApiError(404, "Unknown endpoint"); }

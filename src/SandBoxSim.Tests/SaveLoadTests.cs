@@ -406,6 +406,7 @@ public sealed class SaveLoadTests
             ["Temperature"] = "temperature",
             ["Vegetation"] = "vegetation",
             ["Height"] = "height",
+            ["FootTraffic"] = "footTraffic",
             ["Walkable"] = "walkable",
             ["Buildable"] = "buildable",
             ["Resource"] = "resourceKind",   // 展开成四个键，见下面的 resourceFieldKeys

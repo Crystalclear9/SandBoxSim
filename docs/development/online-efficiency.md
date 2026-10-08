@@ -135,3 +135,7 @@ python tools/test_online_service.py --assembly artifacts/Release/SandBoxSim.Cons
 ```
 
 最后一条启动两份真实 HTTP 服务，检查鉴权、并发重试、状态版本、9 组配对正确性及两轮证据流程。其代理/补丁是显式标记的测试夹具，正常结果为零个改进轮次，不冒充真实模型实验。独立代理改进 CI 另执行真实自修改、分叉与机制撤销夹具。三平台 CI 执行这些流程并保留报告；不对不同 CI 机器设置速度门槛。协议变更需同步 OpenAPI、能力清单、评测器和测试。
+
+### 地形状态字段
+
+地图回复的每个格子增加 `elevation`（实际归一化海拔）、`footTraffic`（0–1 压实）与 `vegetation`（0–1 植被）。`traversalHeight` 保留旧的 Temperature 寻路代理语义，与真实海拔分开。压实来自实际移动/作业，按模拟小时恢复，包含在摘要与 v4 存档中，可用于长期环境响应观察。

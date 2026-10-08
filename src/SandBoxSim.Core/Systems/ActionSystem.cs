@@ -151,6 +151,8 @@ public sealed class ActionSystem
             else if (phase == ActionPhase.Executing)
             {
                 TickExecution(slot, tick);
+                if(tick%30==0 && _store.ActionOf(slot) is ActionKind.Farm or ActionKind.GatherWood or ActionKind.GatherIron)
+                    _sim.World.RecordFootfall(_store.XOf(slot),_store.YOf(slot),.5f);
             }
         }
     }
@@ -217,6 +219,7 @@ public sealed class ActionSystem
 
             byte facing = DirectionTo(x, y, next.X, next.Y);
             _store.SetPosition(slot, next.X, next.Y);
+            _sim.World.RecordFootfall(next.X,next.Y);
             _store.SetFacing(slot, facing);
             x = next.X;
             y = next.Y;

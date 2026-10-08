@@ -7,7 +7,8 @@
 | 使用场景 | 阅读顺序 |
 |---|---|
 | 第一次运行 | [安装与启动](guides/getting-started.md) → [玩家指南](guides/player-guide.md) |
-| 探索与观察世界 | [自由探索](guides/exploration.md) → [世界系统](guides/world-systems.md) → [聚落与居民](guides/settlements.md) → [天气与生态](guides/ecology.md) |
+| 探索与观察世界 | [地形与活动痕迹](guides/terrain-and-traces.md) | 平滑地形、逐步压实、恢复与存档 |
+| [自由探索](guides/exploration.md) → [世界系统](guides/world-systems.md) → [聚落与居民](guides/settlements.md) → [天气与生态](guides/ecology.md) |
 | 查看人物和界面 | [观察与界面](guides/gameplay-observation.md) → [3D 模型系统](development/models.md) |
 | 修改界面或模型 | [开发指南](development/developer-guide.md) → [项目架构](development/architecture.md) → [3D 模型系统](development/models.md) → [美术资源](development/assets.md) |
 | 性能优化与模型评测 | [性能维护](development/performance.md) → [评测接口](development/benchmark.md) → [模型系统](development/models.md) |

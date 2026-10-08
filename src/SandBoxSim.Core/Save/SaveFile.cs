@@ -55,7 +55,8 @@ public static class SaveFile
     ///     它是"按格写死、读档时不会重算"的字段，漏掉会导致读档后
     ///     第一个小时边界上大面积再生量跑偏（详见 EncodeTiles 的说明）。
     /// </summary>
-    public const int CurrentVersion = 3;
+    // v4 adds persistent soil compaction; the loader explicitly migrates v3.
+    public const int CurrentVersion = 4;
 
     /// <summary>载入结果。</summary>
     public sealed class LoadResult
@@ -235,6 +236,7 @@ public static class SaveFile
         var temperature = JsonValue.Array();
         var fertility = JsonValue.Array();
         var vegetation = JsonValue.Array();
+        var footTraffic=JsonValue.Array();
         var buildingId = JsonValue.Array();
 
         for (int i = 0; i < count; i++)
@@ -253,6 +255,7 @@ public static class SaveFile
             temperature.Add(JsonValue.From(tile.Temperature));
             fertility.Add(JsonValue.From(tile.Fertility));
             vegetation.Add(JsonValue.From(tile.Vegetation));
+            footTraffic.Add(JsonValue.From(tile.FootTraffic));
             buildingId.Add(JsonValue.From(tile.BuildingId));
         }
 
@@ -270,6 +273,7 @@ public static class SaveFile
             .Set("temperature", temperature)
             .Set("fertility", fertility)
             .Set("vegetation", vegetation)
+            .Set("footTraffic",footTraffic)
             .Set("buildingId", buildingId);
     }
 

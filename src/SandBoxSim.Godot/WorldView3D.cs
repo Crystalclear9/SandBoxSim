@@ -49,6 +49,11 @@ public partial class WorldView3D : MapView
     public void ValidateViewControls()
     {
         if (!HasTerrain || !HasPerspectiveCamera || _people.Count != Game.Sim.Agents.LiveCount) { throw new InvalidOperationException("3D scene incomplete"); }
+        var ground=_terrainRoot.GetChild<MeshInstance3D>(0).Mesh.SurfaceGetArrays(0);
+        foreach(var normal in ground[(int)Mesh.ArrayType.Normal].AsVector3Array())
+            if(!normal.IsFinite() || MathF.Abs(normal.Length()-1)>.005f)throw new InvalidOperationException("Invalid smooth terrain normal");
+        foreach(var point in ground[(int)Mesh.ArrayType.Vertex].AsVector3Array())
+            if(!point.IsFinite())throw new InvalidOperationException("Invalid subdivided terrain vertex");
         Vector3 target = _target; float distance = _distance, yaw = _yaw, pitch = _pitch;
         foreach (var view in new[] { "斜视", "俯视", "近景" })
         {
@@ -258,7 +263,7 @@ public partial class WorldView3D : MapView
         {
             int x = (int)MathF.Floor(hit.X / 2), y = (int)MathF.Floor(hit.Z / 2);
             if (!Game.Sim.World.IsInBounds(x, y)) { return null; }
-            hit = origin + ray * ((HeightAt(x, y) - origin.Y) / ray.Y);
+            hit = origin + ray * ((PositionAt(x, y).Y - origin.Y) / ray.Y);
         }
         var tile = new Vector2I((int)MathF.Floor(hit.X / 2), (int)MathF.Floor(hit.Z / 2));
         return Game.Sim.World.IsInBounds(tile.X, tile.Y) ? tile : null;
@@ -278,12 +283,27 @@ public partial class WorldView3D : MapView
     private float HeightAt(int x, int y)
     {
         var tile = Game.Sim.World.TileAtClamped(x, y);
-        return tile.Terrain == TerrainKind.Water ? -.25f : (tile.Height - .25f) * 4;
+        return tile.Terrain == TerrainKind.Water ? -.25f : (tile.Height+.006f*tile.FootTraffic - .25f) * 4;
     }
     private float VertexHeight(int x, int y)
     { return (HeightAt(x, y) + HeightAt(x - 1, y) + HeightAt(x, y - 1) + HeightAt(x - 1, y - 1)) * .25f; }
-    private Vector3 PositionAt(int x, int y) => new(x * 2 + 1,
-        (VertexHeight(x, y) + VertexHeight(x + 1, y) + VertexHeight(x, y + 1) + VertexHeight(x + 1, y + 1)) / 4, y * 2 + 1);
+    private float[,]? _groundHeights;
+    private Image? _groundMap;private ImageTexture? _groundMapTexture;private long _wearSignature;
+    private void UpdateGroundWear()
+    {
+        if(_groundMap==null || _groundMapTexture==null)return;
+        for(int y=0;y<Game.Sim.World.Height;y++)for(int x=0;x<Game.Sim.World.Width;x++)
+        {var c=_groundMap.GetPixel(x,y);c.G=Game.Sim.World.TileAt(x,y).FootTraffic;_groundMap.SetPixel(x,y,c);}
+        _groundMapTexture.Update(_groundMap);
+    }
+    private const int GroundDetail=3;
+    private Vector3 PositionAt(int x,int y)
+    {
+        x=Math.Clamp(x,0,Game.Sim.World.Width-1);y=Math.Clamp(y,0,Game.Sim.World.Height-1);
+        if(_groundHeights==null)return new(x*2+1,VertexHeight(x,y),y*2+1);
+        int gx=x*GroundDetail+1,gy=y*GroundDetail+1;
+        return new(x*2+1,(_groundHeights[gx+1,gy]+_groundHeights[gx,gy+1])*.5f-Game.Sim.World.TileAt(x,y).FootTraffic*.024f,y*2+1);
+    }
     private static void Clear(Node node) { foreach (Node child in node.GetChildren()) { node.RemoveChild(child); child.QueueFree(); } }
     private void RebuildWorld()
     {
@@ -298,13 +318,14 @@ public partial class WorldView3D : MapView
     private void CheckTerrain(bool deferred=false)
     {
         using var profile=RenderProfile.Measure("CheckTerrain");
-        long signature = 17, nature = 17;
+        long signature = 17, nature = 17,wear=17;
         int tileIndex=0;
         foreach (var tile in Game.Sim.World.Tiles)
         {
             int tx=tileIndex%Game.Sim.World.Width,ty=tileIndex++/Game.Sim.World.Width;
             uint decoration=unchecked((uint)(tx*73856093^ty*19349663));
-            signature = unchecked(signature * 31 + (int)tile.Terrain * 3 + (int)tile.Fire + (int)(tile.Height * 10000));
+            signature = unchecked(signature * 31 + (int)tile.Terrain * 3 + (int)tile.Fire + (int)MathF.Round((tile.Height+.006f*tile.FootTraffic)*1000));
+            wear=unchecked(wear*31+(int)(tile.FootTraffic*16));
             int flags=(decoration%5==0&&tile.Terrain==TerrainKind.Forest&&tile.Vegetation>.12f&&tile.Fire!=FireState.Burnt?1:0)
                 +(decoration%17==0&&tile.Resource.Kind==ResourceKind.Food&&tile.Resource.Amount>5?2:0)
                 +(decoration%9==0&&tile.Terrain==TerrainKind.Mountain&&tile.Resource.Kind==ResourceKind.Iron?4:0);
@@ -348,6 +369,7 @@ public partial class WorldView3D : MapView
             _natureSignature=nature;
             if(deferred)_pendingNature=true;else{Clear(_props);BuildNature();}
         }
+        if(_wearSignature!=wear){_wearSignature=wear;UpdateGroundWear();}
         long buildings = 17 + Game.Sim.Settlements.ActiveCount;
         foreach (int i in Enumerable.Range(0, Game.Sim.Buildings.Capacity))
             if (Game.Sim.Buildings.IsAlive(i))
@@ -448,25 +470,61 @@ public partial class WorldView3D : MapView
         var waterV = new List<Vector3>(); var waterI = new List<int>();
         int width = Game.Sim.World.Width;
         var materialMap = Image.CreateEmpty(width, Game.Sim.World.Height, false, Image.Format.Rgba8);
-        for (int y = 0; y < Game.Sim.World.Height; y++) for (int x = 0; x < width; x++)
+        int height=Game.Sim.World.Height,nx=width*GroundDetail,ny=height*GroundDetail;
+        var coarse=new float[width+1,height+1];
+        for(int y=0;y<=height;y++)for(int x=0;x<=width;x++)coarse[x,y]=VertexHeight(x,y);
+        _groundHeights=new float[nx+1,ny+1];
+        float Cubic(float a,float b,float c,float d,float t)=>.5f*(2*b+(c-a)*t+(2*a-5*b+4*c-d)*t*t+(-a+3*b-3*c+d)*t*t*t);
+        float Sample(int x,int y)=>coarse[Math.Clamp(x,0,width),Math.Clamp(y,0,height)];
+        var waterWeights=new float[width,height];
+        for(int y=0;y<height;y++)for(int x=0;x<width;x++)
         {
-            var tile = Game.Sim.World.TileAt(x, y); int index = vertices.Count;
-            Vector3[] quad = { new(x * 2, VertexHeight(x, y), y * 2), new(x * 2 + 2, VertexHeight(x + 1, y), y * 2),
-                new(x * 2, VertexHeight(x, y + 1), y * 2 + 2), new(x * 2 + 2, VertexHeight(x + 1, y + 1), y * 2 + 2) };
-            Vector3 normal = (quad[2] - quad[0]).Cross(quad[1] - quad[0]).Normalized();
-            int texture = tile.Fire == FireState.Burnt ? 14 : (int)tile.Terrain;
-            if (tile.Terrain == TerrainKind.Water) { texture = 13; }
-            materialMap.SetPixel(x, y, new Color(texture / 15f, 0, 0));
-            Color tint = TerrainTint(x, y, tile);
-            Vector2 cell = new(texture % 4, texture / 4);
-            Vector2[] corners = { new(.015f, .015f), new(.985f, .015f), new(.015f, .985f), new(.985f, .985f) };
-            for (int corner = 0; corner < 4; corner++) { vertices.Add(quad[corner]); normals.Add(normal); uvs.Add((cell + corners[corner]) / 4); colors.Add(tint); }
-            indices.AddRange(new[] { index, index + 1, index + 2, index + 1, index + 3, index + 2 });
-            if (tile.Terrain == TerrainKind.Water)
-            {
-                int w = waterV.Count; foreach (var point in quad) { waterV.Add(new Vector3(point.X, .02f, point.Z)); }
-                waterI.AddRange(new[] { w, w + 1, w + 2, w + 1, w + 3, w + 2 });
-            }
+            float sum=0;for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++)
+                if(Game.Sim.World.IsInBounds(x+dx,y+dy)&&Game.Sim.World.TileAt(x+dx,y+dy).Terrain==TerrainKind.Water)sum+=(dx==0?4:1)*(dy==0?4:1);
+            waterWeights[x,y]=sum/36f;
+        }
+        float Wet(int x,int y)=>waterWeights[Math.Clamp(x,0,width-1),Math.Clamp(y,0,height-1)];
+        float Blend(float t){t=Math.Clamp((t-.1f)/.8f,0,1);return t*t*(3-2*t);}
+        float WaterMask(float x,float y)
+        {
+            x-=.5f;y-=.5f;int ix=(int)MathF.Floor(x),iy=(int)MathF.Floor(y);float u=Blend(x-ix),v=Blend(y-iy);
+            return Mathf.Lerp(Mathf.Lerp(Wet(ix,iy),Wet(ix+1,iy),u),Mathf.Lerp(Wet(ix,iy+1),Wet(ix+1,iy+1),u),v);
+        }
+        for(int y=0;y<=ny;y++)for(int x=0;x<=nx;x++)
+        {
+            float fx=x/(float)GroundDetail,fy=y/(float)GroundDetail;int ix=(int)fx,iy=(int)fy;float u=fx-ix,v=fy-iy;
+            float Row(int offset)=>Cubic(Sample(ix-1,iy+offset),Sample(ix,iy+offset),Sample(ix+1,iy+offset),Sample(ix+2,iy+offset),u);
+            float h=Cubic(Row(-1),Row(0),Row(1),Row(2),v);
+            float wet=WaterMask(fx,fy);h=Mathf.Lerp(h,MathF.Min(h,-.25f),Math.Clamp(wet*1.7f,0,1));
+            // Small stable relief; water and paved surfaces keep an even bed.
+            var tile=Game.Sim.World.TileAt(Math.Min(ix,width-1),Math.Min(iy,height-1));
+            float relief=tile.Terrain is TerrainKind.Water or TerrainKind.Road?0:.025f;
+            _groundHeights[x,y]=h+relief*(1-wet)*MathF.Sin(fx*2.71f+Game.Sim.World.Seed*.001f)*MathF.Sin(fy*3.19f);
+        }
+        for(int y=0;y<=ny;y++)for(int x=0;x<=nx;x++)
+        {
+            int l=Math.Max(0,x-1),r=Math.Min(nx,x+1),b=Math.Max(0,y-1),t=Math.Min(ny,y+1);
+            float dx=(_groundHeights[r,y]-_groundHeights[l,y])/((r-l)*2f/GroundDetail);
+            float dz=(_groundHeights[x,t]-_groundHeights[x,b])/((t-b)*2f/GroundDetail);
+            vertices.Add(new(x*2f/GroundDetail,_groundHeights[x,y],y*2f/GroundDetail));normals.Add(new Vector3(-dx,1,-dz).Normalized());
+            uvs.Add(new(x/(float)nx,y/(float)ny));
+            int tx=Math.Min(x/GroundDetail,width-1),ty=Math.Min(y/GroundDetail,height-1);
+            colors.Add(TerrainTint(tx,ty,Game.Sim.World.TileAt(tx,ty)));
+        }
+        for(int y=0;y<ny;y++)for(int x=0;x<nx;x++)
+        {
+            int i=y*(nx+1)+x;indices.AddRange(new[]{i,i+1,i+nx+1,i+1,i+nx+2,i+nx+1});
+        }
+        for(int y=0;y<height;y++)for(int x=0;x<width;x++)
+        {
+            var tile=Game.Sim.World.TileAt(x,y);int texture=tile.Fire==FireState.Burnt?14:(int)tile.Terrain;
+            if(tile.Terrain==TerrainKind.Water)texture=13;
+            materialMap.SetPixel(x,y,new Color(texture/15f,tile.FootTraffic,Wet(x,y)));
+            bool shore=false;for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++)
+                if(Game.Sim.World.IsInBounds(x+dx,y+dy) && Game.Sim.World.TileAt(x+dx,y+dy).Terrain==TerrainKind.Water)shore=true;
+            if(!shore)continue;
+            int w=waterV.Count;waterV.AddRange(new[]{new Vector3(x*2,.02f,y*2),new(x*2+2,.02f,y*2),new(x*2,.02f,y*2+2),new(x*2+2,.02f,y*2+2)});
+            waterI.AddRange(new[]{w,w+1,w+2,w+1,w+3,w+2});
         }
         var arrays = new Godot.Collections.Array(); arrays.Resize((int)Mesh.ArrayType.Max);
         arrays[(int)Mesh.ArrayType.Vertex] = vertices.ToArray(); arrays[(int)Mesh.ArrayType.Normal] = normals.ToArray(); arrays[(int)Mesh.ArrayType.TexUV] = uvs.ToArray();
@@ -479,7 +537,7 @@ uniform sampler2D atlas : source_color, filter_linear_mipmap;
 uniform sampler2D material_map : filter_nearest, repeat_disable;
 uniform vec2 map_size;
 varying vec3 world_position;
-void vertex(){ world_position = (MODEL_MATRIX * vec4(VERTEX,1.0)).xyz; }
+void vertex(){VERTEX.y-=texture(material_map,clamp(VERTEX.xz*.5/map_size,vec2(0.0),vec2(1.0))).g*.024; world_position = (MODEL_MATRIX * vec4(VERTEX,1.0)).xyz; }
 vec3 surface_at(vec2 tile, vec2 pattern){
     float index = floor(texture(material_map,(clamp(tile,vec2(0.0),map_size-vec2(1.0))+vec2(.5))/map_size).r*15.0+.5);
     vec2 cell = vec2(mod(index,4.0),floor(index/4.0));
@@ -495,10 +553,13 @@ void fragment(){
     vec3 b=mix(surface_at(origin+vec2(0.0,1.0),pattern),surface_at(origin+vec2(1.0),pattern),blend.x);
     vec3 c=mix(a,b,blend.y); float lum=dot(c,vec3(.2126,.7152,.0722));
     float broad=sin(world_position.x*.041+cos(world_position.z*.029))*cos(world_position.z*.053)*.055;
-    ALBEDO=mix(vec3(lum),c,.42)*COLOR.rgb*vec3(.88,.92,.89)*(.88+broad); ROUGHNESS=1.0;
+    float wear=texture(material_map,(clamp(grid,vec2(0.0),map_size-vec2(1.0))+vec2(.5))/map_size).g;
+    vec3 earth=vec3(.23,.19,.13);
+    ALBEDO=mix(mix(vec3(lum),c,.42)*COLOR.rgb*vec3(.88,.92,.89)*(.88+broad),earth,wear*.72); ROUGHNESS=1.0;
 }" };
         var material = new ShaderMaterial { Shader = groundShader };
-        material.SetShaderParameter("material_map", ImageTexture.CreateFromImage(materialMap));
+        _groundMap=materialMap;_groundMapTexture=ImageTexture.CreateFromImage(materialMap);
+        material.SetShaderParameter("material_map", _groundMapTexture);
         material.SetShaderParameter("map_size", new Vector2(width, Game.Sim.World.Height));
         if (_terrainAtlas != null) { material.SetShaderParameter("atlas", _terrainAtlas); }
         _terrainRoot.AddChild(new MeshInstance3D { Mesh = terrain, MaterialOverride = material });
@@ -506,8 +567,8 @@ void fragment(){
         {
             var wa = new Godot.Collections.Array(); wa.Resize((int)Mesh.ArrayType.Max); wa[(int)Mesh.ArrayType.Vertex] = waterV.ToArray(); wa[(int)Mesh.ArrayType.Index] = waterI.ToArray();
             var wm = new ArrayMesh(); wm.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, wa);
-            var shader = new Shader { Code = "shader_type spatial; render_mode cull_disabled; uniform sampler2D atlas : source_color, filter_linear_mipmap; varying vec3 p; void vertex(){ p = VERTEX; VERTEX.y += sin(VERTEX.x*1.6+TIME*.7)*.025 + cos(VERTEX.z*1.3+TIME*.9)*.02; NORMAL=vec3(0.0,1.0,0.0); } void fragment(){ float ripple = sin(p.x*2.4+TIME)*cos(p.z*1.8-TIME*.5); vec2 uv=(vec2(2.0,0.0)+clamp(fract(p.xz*.18+vec2(TIME*.003,0.0)),vec2(.02),vec2(.98)))/4.0; float fresnel=pow(1.0-clamp(dot(normalize(NORMAL),normalize(VIEW)),0.0,1.0),3.0); float fine=sin(p.x*9.0+TIME*1.2)*cos(p.z*7.0-TIME*.8); ALBEDO = mix(vec3(.075,.135,.125),vec3(.21,.28,.27),fresnel*.55) + vec3(ripple*.008+fine*.003); METALLIC=.16; ROUGHNESS=.24; NORMAL = normalize(NORMAL+vec3(ripple*.08,0.0,sin(p.z*3.0+TIME)*.06)); }" };
-            var waterMaterial = new ShaderMaterial { Shader = shader }; if (_terrainAtlas != null) { waterMaterial.SetShaderParameter("atlas", _terrainAtlas); }
+            var shader = new Shader { Code = "shader_type spatial; render_mode cull_disabled; uniform sampler2D atlas : source_color, filter_linear_mipmap; uniform sampler2D material_map : filter_nearest, repeat_disable; uniform vec2 map_size; varying vec3 p; float wet(vec2 tile){return texture(material_map,(clamp(tile,vec2(0.0),map_size-vec2(1.0))+vec2(.5))/map_size).b;} void vertex(){ p = VERTEX; VERTEX.y += sin(VERTEX.x*1.6+TIME*.7)*.025 + cos(VERTEX.z*1.3+TIME*.9)*.02; NORMAL=vec3(0.0,1.0,0.0); } void fragment(){vec2 grid=p.xz*.5-vec2(.5),base=floor(grid),f=smoothstep(vec2(.1),vec2(.9),fract(grid));float bank=mix(mix(wet(base),wet(base+vec2(1.0,0.0)),f.x),mix(wet(base+vec2(0.0,1.0)),wet(base+vec2(1.0)),f.x),f.y);if(bank<.48)discard; float ripple = sin(p.x*2.4+TIME)*cos(p.z*1.8-TIME*.5); vec2 uv=(vec2(2.0,0.0)+clamp(fract(p.xz*.18+vec2(TIME*.003,0.0)),vec2(.02),vec2(.98)))/4.0; float fresnel=pow(1.0-clamp(dot(normalize(NORMAL),normalize(VIEW)),0.0,1.0),3.0); float fine=sin(p.x*9.0+TIME*1.2)*cos(p.z*7.0-TIME*.8); ALBEDO = mix(vec3(.075,.135,.125),vec3(.21,.28,.27),fresnel*.55) + vec3(ripple*.008+fine*.003); METALLIC=.16; ROUGHNESS=.24; NORMAL = normalize(NORMAL+vec3(ripple*.08,0.0,sin(p.z*3.0+TIME)*.06)); }" };
+            var waterMaterial = new ShaderMaterial { Shader = shader };waterMaterial.SetShaderParameter("material_map",_groundMapTexture);waterMaterial.SetShaderParameter("map_size",new Vector2(width,height)); if (_terrainAtlas != null) { waterMaterial.SetShaderParameter("atlas", _terrainAtlas); }
             _terrainRoot.AddChild(new MeshInstance3D { Mesh = wm, MaterialOverride = waterMaterial, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         }
         // A physical diorama edge makes the terrain volume visible from low camera angles.

@@ -15,7 +15,7 @@ public enum FireState : byte
 /// <summary>
 /// 单个格子的状态（第 6 节）。
 ///
-/// 内存布局刻意保持紧凑（约 44 字节）：100×100 地图 1 万个格子，
+/// 内存布局刻意保持紧凑（约 52 字节）：100×100 地图 1 万个格子，
 /// 未来放大到 500×500 时也只占几百 MB 的零头。
 /// 用 struct + 数组而非对象，是"大量 agent/格子"场景的基本功（第 73 / 75 条）。
 /// </summary>
@@ -23,6 +23,8 @@ public struct Tile
 {
     /// <summary>归一化海拔，世界生成与升降地形工具共同维护。</summary>
     public float Height;
+    /// <summary>居民活动累积的土壤压实 [0,1]；随时间缓慢恢复。</summary>
+    public float FootTraffic;
     /// <summary>地形。</summary>
     public TerrainKind Terrain;
 

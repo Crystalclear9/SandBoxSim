@@ -263,7 +263,7 @@ public sealed class WildlifeSystem
             ref Tile tile = ref world.Tiles[i];
             if (!TerrainInfo.IsVegetation(tile.Terrain) || tile.Fire != FireState.None) { continue; }
             float growth = _config.VegetationGrowthPerDay * System.Math.Max(0.02f, tile.Vegetation)
-                * (1 - tile.Vegetation) * tile.Fertility * (0.25f + tile.Moisture * 0.75f);
+                * (1 - tile.Vegetation) * (1-.8f*tile.FootTraffic) * tile.Fertility * (0.25f + tile.Moisture * 0.75f);
             if (growth <= 0) { continue; }
             tile.Vegetation = SimMath.Clamp01(tile.Vegetation + growth);
             world.MarkDirtyAt(i % world.Width, i / world.Width);
