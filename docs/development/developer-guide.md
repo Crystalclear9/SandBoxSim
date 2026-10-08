@@ -28,13 +28,16 @@
 | 自然地点与日界作用 | `Core/Systems/WildPlaces.cs`、`Godot/MainGame.Play.cs` | 地理生成、生态条件、有限资源与恢复 |
 | 新建图形世界的起始条件 | `Core/Systems/SandboxScenarios.cs`、`Godot/MainGame.cs` | 新世界与旧存档分开检查 |
 | 主界面、控制栏与档案 | `Godot/MainGame.Interface.cs`、`HudStyle.cs`、`HudSymbols.cs` | 自检、实际窗口与鼠标遮挡 |
+| 土壤压实与长期恢复 | `Core/World/World.cs`、`Core/Systems/ActionSystem.cs`、`Core/Simulation.cs` | `TerrainImpactTests`、存档字段覆盖与续跑 |
+| 在线控制与程序效率 | `Console/Online/`、`tools/online.py`、`tools/efficiency.py` | API 测试、真实服务配对、版本与幂等 |
+| 代理自修改与代码执行 | `tools/rsi_benchmark.py`、`rsi_code.py`、`rsi_code_worker.py` | 代理和代码后端回归，源码与失败证据验证 |
 | 3D 镜头和地表 | `Godot/WorldView3D.cs`、`WorldView3D.Atmosphere.cs` | 拖动、缩放、释放、图层与暂停 |
 | 居民动作与握持 | `Godot/ResidentRig.cs`、`ResidentRig.HandPose.cs`、`NatureModels.HandSkin.cs`、`NatureModels.Face.cs` | 工具取放、手部表面、肘腕范围、近远景与暂停 |
 | 建筑和人物外观 | `Godot/NatureModels*.cs`、`BuildingPortrait.cs`、`ResidentPortrait.cs` | 近远景、变体、动作与显示缓存 |
 | 自由探索界面 | `Godot/MainGame.Interface.cs`、`MainGame.Notebook.cs` | 阅读层次、直接工具与无目标导航 |
 | 跨平台工具链 | `tools/build-lib.ps1` 与具体入口脚本 | 脚本回归和受影响构建通道 |
 
-表中 `Core/`、`Godot/` 分别缩写 `src/SandBoxSim.Core/`、`src/SandBoxSim.Godot/`。实体槽位可以复用；人物关注、命名和关系应使用稳定身份，不能缓存槽位作为永久人物标识。
+表中 `Core/`、`Console/`、`Godot/` 分别缩写 `src/SandBoxSim.Core/`、`src/SandBoxSim.Console/`、`src/SandBoxSim.Godot/`。实体槽位可以复用；人物关注、命名和关系应使用稳定身份，不能缓存槽位作为永久人物标识。
 
 ## 日常修改流程
 
@@ -71,3 +74,7 @@
 人工日志放在 `runs/logs/`，临时画面放在 `runs/screenshots/`，专题模拟放在独立子目录。正式配图放在 `docs/images/`，游戏资源放在客户端 `assets/`。清理调试截图时只处理明确的临时文件，保留配图、素材、日志和世界存档，见 [文件管理](repository-layout.md)。
 
 新增内容的具体接入顺序见 [扩展指南](extending.md)，发布前更新环境、参数和存档说明见 [版本更新](../guides/updating.md)。
+
+---
+
+[文档导航](../README.md) · [项目首页](../../README.md)

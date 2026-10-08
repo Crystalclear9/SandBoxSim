@@ -29,3 +29,13 @@
 ## 历史数据
 
 `assets/gameplay/projects.json` 与旧工程插画保留来源记录，当前客户端不加载这些数据。自由世界的自然地点规则在 `Core/Systems/WildPlaces.cs`，扩展方式见 [世界内容扩展](extending.md)。
+
+## 状态值与固定表现参数
+
+`FootTraffic` 属于存档中的逐格状态，不是默认 JSON 配置项。脚步压力、恢复比例等当前在世界与模拟系统代码中定义；草丛的距离缩退、河岸插值和光照参数属于 Godot 表现层。调整这些值时分别更新状态规则或视觉说明，不在 `sim.default.json` 中添加无人读取的字段。
+
+本机界面动态偏好保存为 `user://interface.cfg`，不进入核心摘要；API 令牌通过环境变量提供，也不写入配置或评测产物。配置文件位置见 [config](../../config/README.md)。
+
+---
+
+[文档导航](../README.md) · [项目首页](../../README.md)

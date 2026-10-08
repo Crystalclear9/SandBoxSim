@@ -9,7 +9,7 @@
 | `pwsh` 无法运行 | 安装或使用 PowerShell 7；`Play-3D.cmd` 调用的是 `pwsh.exe` |
 | 找不到 .NET SDK | 运行 `tools/install-sdk.ps1`，或将 `SANDBOXSIM_DOTNET_ROOT` 设置为本机 SDK 根目录 |
 | Linux/macOS 报 `Cannot find drive C` | 检查旧脚本或残留环境变量中的 Windows 路径；使用当前构建脚本和本机 SDK 目录 |
-| 找不到 Godot | 设置 `GODOT_EXE` 或 `-GodotPath` 为 .NET 编辑器可执行文件，而不是目录或 ZIP |
+| 找不到 Godot | 设置 `GODOT_EXE` 或 `-GodotPath` 为 .NET 编辑器可执行文件；macOS 可以传 `.app`，不传 ZIP 或普通安装目录 |
 | Godot 项目无法构建 C# | 确认是 Godot 4.7.2 .NET，且能找到 .NET 8 SDK；普通编辑器不包含 C# 支持 |
 | 并行构建在受限环境失败 | 去掉 `-ParallelBuild`，以串行构建确认错误；保留构建日志 |
 | 改代码后编辑器仍显示旧行为 | 用 `tools/godot.ps1 -Mode run` 或 `-Mode test` 构建 Debug；仅 Release 构建不足以更新编辑器 |
@@ -32,8 +32,8 @@ SDK 路径应指向含 `sdk/` 与 dotnet 主机的根目录。引擎路径应指
 | 世界没有继续变化 | 是否暂停；荒野自然作用需要跨过游戏日界 |
 | 顶部有食物，某个居民仍饥饿 | 储备的可达性、分布、个人库存与采集/进食行动 |
 | 地表粮食很多，顶部储备为零 | 顶部只统计已采集物资，地表节点仍需采集 |
-| 建筑没有开工 | 八格内可达成年居民、材料、地形要求和状态提示 |
-| 修改配方后旧档没有变化 | 旧档嵌入原配方；新世界才读取新的外部 JSON |
+| 居民迟迟没有建造 | 查看居民需求、当前行为、可达土地和材料；住房由自主决策触发，客户端没有委托开工入口 |
+| 修改 `assets/gameplay/projects.json` 后没有变化 | 这是保留的历史 SDK 配方，当前图形客户端不加载；模拟规则修改 `config/`，自然地点修改 `WildPlaces.cs` |
 | 工具使用后无法观察平移 | Esc 回到观察模式；绘制工具的左键保留连续干预，中键可以平移 |
 | 人物定位到另一个居民 | 开发时检查是否把实体槽位当成稳定人物编号缓存 |
 
@@ -56,3 +56,7 @@ git status --short
 ```
 
 工具链完整路径属于本机设置；提交说明时不需要公开用户目录或其他私人文件。
+
+---
+
+[文档导航](../README.md) · [项目首页](../../README.md)

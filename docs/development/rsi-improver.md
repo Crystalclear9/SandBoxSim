@@ -131,3 +131,13 @@ python tools/observe_benchmark.py --reference reference/SandBoxSim.Console.dll -
 ```
 
 它包含建图、20 tick、重复状态读取、两次地图读取和释放，验证观察内容与摘要一致。`--reference-client-file` 可同时比较保存的旧客户端；输出分别记录两个客户端和服务程序集哈希，区分服务端收益与整体传输收益。这不是游戏帧率或模拟 tick 吞吐的测量。
+
+## 协议版本与文件管理
+
+代理配置、请求和结果使用 `schemaVersion: 2`；Godot 渲染请求仍为 v1，在线服务标识为 `sandboxsim-step-v1`。它们是独立协议，不能按同一个版本号推断兼容性。公开配置和非 LLM 夹具见 [benchmarks](../../benchmarks/README.md)，运行器与工作进程见 [tools](../../tools/README.md)。
+
+每次使用新的输出目录，保留完整 `agents/`、`calls/`、阶段结果和失败记录。更新实现后保留旧实验原文件，再用相应版本验证；仅整理文档不会把旧夹具记录转成真实模型证据。
+
+---
+
+[文档导航](../README.md) · [项目首页](../../README.md)

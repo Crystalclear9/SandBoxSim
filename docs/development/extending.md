@@ -10,8 +10,20 @@
 
 ## 模型与界面
 
-网格及材质入口见 [3D 模型系统](models.md)。主界面在 `MainGame.Interface.cs`，田野手记的阅读样式在 `MainGame.Notebook.cs`。使用非交互装饰层、统一字体间距与实际状态；新工具直接改变世界，不引入积分或工程流程。
+网格及材质入口见 [3D 模型系统](models.md)。主界面在 `MainGame.Interface.cs`，世界手记的阅读样式在 `MainGame.Notebook.cs`。使用非交互装饰层、统一字体间距与实际状态；新工具直接改变世界，不引入积分或工程流程。
+
+## 持久化地表状态
+
+新增地表状态须同步 `Tile`、世界正式修改入口、`SaveFile`、`SaveLoader`、`CoreStateHash` 和不变量检查。压实可以作为例子：实际脚步与作业写入状态，小时恢复，生态读取压实，显示通过共享贴图更新；装饰草丛和风摆保持只读。相关契约见 [地形与活动痕迹](../guides/terrain-and-traces.md) 和 [存档](saving.md)。
+
+## 外部实验
+
+HTTP 字段变更同步 `StepApi`、OpenAPI、Python 客户端与真实服务检查；渲染字段变更同步场景 Schema 和 `evaluate.py`。代理改进后端单独维护预算、失败分叉与可信评分器。接入方法见 [在线控制](online-efficiency.md)、[渲染接口](benchmark.md) 和 [代理协议](rsi-improver.md)。
 
 ## 验证与保存
 
 扩展地点需要覆盖确定性、观察纯度、条件变化、资源有限性和保存后的继续运行。客户端自检检查输入、布局、模型和旧任务字段的忽略行为；当前存档契约见 [保存](saving.md)。
+
+---
+
+[文档导航](../README.md) · [项目首页](../../README.md)

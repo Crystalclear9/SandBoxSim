@@ -45,7 +45,7 @@ HTTP 协议见 [OpenAPI](../../benchmarks/online.openapi.json)，能力清单见
 | `/v1/sessions/{id}` | GET / DELETE | 观察 / 释放世界 |
 | `/v1/sessions/{id}/step` | POST | 先执行环境动作，再推进精确 tick 数 |
 | `/v1/sessions/{id}/reset` | POST | 重建同一会话，状态版本继续递增 |
-| `/v1/sessions/{id}/map` | GET | 行优先遍历网格、通行性、地形代价与高度代理 |
+| `/v1/sessions/{id}/map` | GET | 行优先网格、通行性、代价、海拔、压实、植被与旧高度代理 |
 | `/v1/sessions/{id}/path` | POST | 查询路径、代价与展开节点数，不推进世界 |
 
 `step`/`reset` 必须传 `requestId` 和 `expectedRevision`。版本不匹配返回 409，防止旧观察或并发操作推进错误世界。同一 requestId 和相同 JSON 请求返回缓存的原结果，不重复执行；字段顺序或内容改变会拒绝。保留最近 64 个回复；缓存淘汰后，旧版本请求仍不能再次执行。`path` 也核对版本。
@@ -139,3 +139,11 @@ python tools/test_online_service.py --assembly artifacts/Release/SandBoxSim.Cons
 ### 地形状态字段
 
 地图回复的每个格子增加 `elevation`（实际归一化海拔）、`footTraffic`（0–1 压实）与 `vegetation`（0–1 植被）。`traversalHeight` 保留旧的 Temperature 寻路代理语义，与真实海拔分开。压实来自实际移动/作业，按模拟小时恢复，包含在摘要与 v4 存档中，可用于长期环境响应观察。
+
+## 运行资料归属
+
+服务日志和配对报告写入 `runs/` 的独立实验目录，令牌只保存在进程环境与请求头。完整性能历史目录保持代理归档、补丁、套件与报告的相对结构；文件整理不拆分这些证据。目录约定见 [文件管理](repository-layout.md)，脚本入口见 [tools](../../tools/README.md)。
+
+---
+
+[文档导航](../README.md) · [项目首页](../../README.md)

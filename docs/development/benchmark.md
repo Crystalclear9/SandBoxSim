@@ -2,7 +2,7 @@
 
 SandBoxSim 同时提供自由沙盒客户端和显式启用的本地评测入口。评测模式固定世界种子、人口、预演天数、模拟步数和表现层时钟，输出机器可读记录；正常游戏没有评测任务、强制目标或分数面板。
 
-当前协议为 `schemaVersion: 1`。能力边界可用 `python tools/evaluate.py describe` 查询，清单见 [interface.json](../../benchmarks/interface.json)。本文描述渲染性能、模型图像识别和界面语义回放；在线逐步控制、HTTP 服务、配对效率 benchmark 与多轮 RSI 证据验证见 [在线控制与效率实验](online-efficiency.md)。实验流程验证不等于通用 RSI 能力已被证明，也不衡量模型美感或真实感。
+当前协议为 `schemaVersion: 1`。能力边界可用 `python tools/evaluate.py describe` 查询，清单见 [interface.json](../../benchmarks/interface.json)。本文描述渲染性能、模型图像识别和界面语义回放；在线逐步控制、HTTP 服务和配对程序效率见 [在线控制与效率实验](online-efficiency.md)；实际代理自修改及三种后端见 [代理改进协议](rsi-improver.md)。实验流程验证不等于通用 RSI 能力已被证明，也不衡量模型美感或真实感。
 
 ## 启动与产物
 
@@ -103,3 +103,11 @@ python -m unittest discover -s tools -p test_evaluate.py
 ```
 
 Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python 检查缺失/重复预测、产物改动、不兼容比较及失败的界面回放。修改协议时升版本并同步场景、文档和可信评测器。旧 `--benchmark-seconds` 是交互演示的旧采样方式；研究对照应使用本文的帧预算入口，旧样本与新样本不能直接比较。
+
+## 文档图与实验样本
+
+选定的实机配图可以复制到 `docs/images/`，完整实验样本继续保留在 `runs/evaluation/`；复制出的图片只用于说明，不替代原样本的哈希、状态、成本或答案记录。所有公开样例和协议入口集中在 [benchmarks](../../benchmarks/README.md)。
+
+---
+
+[文档导航](../README.md) · [项目首页](../../README.md)

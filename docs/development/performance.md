@@ -85,3 +85,13 @@ python tools/evaluate.py run benchmarks/scenarios/ui-portrait.json --label inter
 近景草丛使用共享 42 三角形网格和 24 米分区 MultiMesh，关闭投影；GPU 根据相机距离在 24–32 米间缩退，批次在 34 米处裁剪。批次包围盒留出风摆余量。草丛是否存在依赖植被阈值、火烧状态、地形与建筑占用，变化纳入自然表现签名；压实伏低通过共享贴图更新。
 
 河岸水面采用 16 邻域纹理采样的连续双三次插值，河床构造使用同一函数。该开销限于水面像素；材质、光照变化不代表 FPS 提升，性能比较仍须用同一相机和测量窗口执行实际评测。
+
+## 输出管理与证据版本
+
+完整样本放在 `runs/evaluation/<独立名称>/`，请求、结果、图片、答案和溯源保持在同一个目录。根目录散落的历史采样 JSON 已分类到 `runs/reports/legacy/`，独立请求在 `runs/requests/legacy/`；这些旧单文件不冒充完整的新协议样本。
+
+游戏渲染、HTTP 程序成本与代理搜索效率各有计时范围。需要程序配对或代理研究时分别使用 [在线效率](online-efficiency.md) 和 [代理改进协议](rsi-improver.md)，不把一次观察加速比当成游戏 FPS 或 RSI 结果。
+
+---
+
+[文档导航](../README.md) · [项目首页](../../README.md)
