@@ -22,7 +22,7 @@ def terminate(process):
 class Runner:
     def __init__(self,output,budget,env_allowlist=()):
         self.output=output; self.budget=budget; self.calls=0;self.env_allowlist=env_allowlist
-        self.sources={str(ROOT/'tools'/name):sha(ROOT/'tools'/name) for name in ('rsi_benchmark.py','rsi_tasks.py','rsi_code.py','rsi_code_worker.py','efficiency.py','online.py')}
+        self.sources={str(ROOT/'tools'/name):sha(ROOT/'tools'/name) for name in ('rsi_benchmark.py','rsi_tasks.py','rsi_stateful.py','rsi_code.py','rsi_code_worker.py','efficiency.py','online.py')}
     def invoke(self,agent,request,seconds=None):
         self.calls+=1; folder=self.output/'calls'/str(self.calls);folder.mkdir(parents=True)
         target=folder/'agent.py';shutil.copyfile(agent,target);source_hash=sha(agent)
@@ -68,13 +68,26 @@ def cohort(seed,count):
             'heldoutProfile':{'resource':('homogeneous','diverse'),'routing':('dense','open'),'visual_update':('churn','sparse')}[family][(i//3)%2], 'developmentSeed':rng.randrange(2**31),'heldoutSeed':rng.randrange(2**31)})
     return tasks
 
-def tasks_for(seed,count,backend):
+def tasks_for(seed,count,backend,suite='algorithm-v1',phase=0,scale=1):
+    if suite=='sandbox-stream-v1':
+        if backend!='code':raise ValueError('Stateful stream suite requires code backend')
+        from rsi_stateful import cohort as stream_cohort
+        tasks=stream_cohort(seed,count,phase)
+        if type(scale)is not int or not 1<=scale<=4:raise ValueError('workloadScale must be an integer from 1 to 4')
+        for task in tasks:task['_backend']='code';task['n']*=scale;task['q']*=scale
+        return tasks
+    if suite!='algorithm-v1':raise ValueError('Unknown task suite')
     tasks=cohort(seed,count)
     if backend=='code':
         for task in tasks:task['_backend']='code';task['n']*=4;task['q']*=2
     return tasks
 
 def public_task(task):
+    if task.get('_suite')=='sandbox-stream-v1':
+        from rsi_stateful import FORMATS,development_example
+        return {k:task[k] for k in ('id','family','n','q')} | {'taskSuite':'sandbox-stream-v1',
+            'proposalFormat':{'source':'Python defining solve(problem)'},'problemFormat':FORMATS[task['family']],
+            'developmentExample':development_example(task)}
     if task.get('_backend')=='code':
         return {k:task[k] for k in ('id','family','n','q')} | {'proposalFormat':{'source':'Python defining solve(problem)'},
             'problemFormat':{'resource':'items=[x,y,kind]; queries=[x,y,kind]; return nearest item indices (Manhattan distance; smallest index breaks ties; -1 when absent)',
@@ -134,7 +147,8 @@ def probe(runner,agent,tasks,memory):
                     dev=proposal_result(task,reply['proposal'],task['developmentSeed'])
                     if dev['correct'] and dev['gain']>best_dev:best=reply['proposal'];best_dev=dev['gain']
                 except (ValueError,KeyError,TypeError,OSError) as e:error=str(e)
-            feedback.append({'proposal':None if not reply else reply.get('proposal'),'developmentGain':None if not dev else dev['gain'],'error':error})
+            feedback.append({'proposal':None if not reply else reply.get('proposal'),'developmentGain':None if not dev else dev['gain'],'error':error,
+                             'diagnostics':development_diagnostics(dev)})
             # Evaluate checkpoints without giving any held-out measurement to the optimizer.
             heldout=None
             if best is not None:
@@ -147,6 +161,17 @@ def probe(runner,agent,tasks,memory):
             'searchCapability':sum(checkpoints)/len(checkpoints),'finalGain':checkpoints[-1],'success':checkpoints[-1]>=.15,
             'bestProposal':best,'developmentFeedback':feedback,'developmentResults':development,'heldoutResults':heldouts,'agentWallSeconds':cost,'calls':calls})
     return results
+
+def development_diagnostics(value):
+    if value is None:return None
+    result={'correct':value['correct']}
+    if 'codeReport' in value:
+        code=value['codeReport']
+        result.update(failedReplicates=sum(a['digest']!=e for a,e in zip(code['candidate'],code['expectedDigests'])),
+                      cpuSpeedupMedian=code['medianSpeedup'],wallSpeedupMedian=code['medianWallSpeedup'],
+                      memoryBudgetPassed=code['memoryBudgetPassed'],improvementDetected=code['improvementDetected'])
+    return result
+
 
 def mean(values):return sum(values)/len(values) if values else 0.
 def summary(results):
@@ -233,6 +258,34 @@ def analyze(arms,margin=.02,forks=None,mechanism_changed=True):
         'gainAgainstFrozen':frozen,'offspringYieldAdvantage':meta,'improverMechanismChanged':mechanism_changed,'improverMechanismEffect':mechanism_effect,
         'recursiveEvidenceSupported':mechanism_changed and transfer['supported'] and code_effect['supported'] and frozen['supported'] and meta['supported'] and mechanism_effect['supported']}
 
+
+def retention_analysis(parent,child,margin):
+    if len(parent)<12 or [(r['taskId'],r['family']) for r in parent]!=[(r['taskId'],r['family']) for r in child]:
+        raise ValueError('Retention requires 12 matched unseen problems')
+    families=[r['family'] for r in parent]
+    values=[c['searchCapability']-p['searchCapability'] for p,c in zip(parent,child)]
+    pooled=effect(values,families,margin)
+    by_family={name:effect([v for v,f in zip(values,families) if f==name],
+                           [name]*families.count(name),margin) for name in sorted(set(families))}
+    # No pooled score can conceal a single regressing task family.
+    passed=all(v['stratified95'][0]>=-margin for v in by_family.values())
+    def correct(row):
+        values=row.get('heldoutResults',[])
+        return bool(values and values[-1] and values[-1]['correct'])
+    losses=[{'taskId':p['taskId'],'family':p['family']} for p,c in zip(parent,child) if correct(p) and not correct(c)]
+    return {'meanCapabilityChange':pooled['meanEffect'],'stratified95':pooled['stratified95'],
+            'byFamily':by_family,'regressionTolerance':margin,'nonRegressionPassed':passed and not losses,'tasks':len(parent),
+            'retainedCorrectnessPassed':not losses,'correctnessRegressions':losses,
+            'parentCorrectTasks':sum(correct(r) for r in parent),'childCorrectTasks':sum(correct(r) for r in child)}
+
+
+def apply_retention(analysis,retention,margin):
+    result=dict(analysis)
+    if retention is not None:
+        result['retention']=retention_analysis(retention['parent'],retention['child'],margin)
+        result['recursiveEvidenceSupported']=result['recursiveEvidenceSupported'] and result['retention']['nonRegressionPassed']
+    return result
+
 def validate_successor(source,parent):
     if not isinstance(source,str) or len(source.encode())>131072:raise ValueError('successorSource must be Python source <=128 KiB')
     try:ast.parse(source)
@@ -274,26 +327,29 @@ def run(config,source,output):
     for key,low,high in [('attempts',1,8),('callSeconds',.1,120),('taskSeconds',.1,600)]:
         if isinstance(budget[key],bool) or not isinstance(budget[key],(int,float)) or not low<=budget[key]<=high:raise ValueError('Invalid budget '+key)
     if type(budget['attempts'])is not int:raise ValueError('attempts must be integer')
+    suite=config.get('taskSuite','algorithm-v1');backend=config.get('backend','kernel');scale=config.get('workloadScale',1)
+    if backend not in ('kernel','code','http'):raise ValueError('Unknown task backend')
+    if suite not in ('algorithm-v1','sandbox-stream-v1') or (suite=='sandbox-stream-v1' and backend!='code'):
+        raise ValueError('Stateful stream suite requires code backend; unknown suite rejected')
+    if type(scale)is not int or not 1<=scale<=4 or (scale!=1 and suite!='sandbox-stream-v1'):raise ValueError('workloadScale 1-4 is supported by the stateful suite only')
     output=Path(output);output.mkdir(parents=True,exist_ok=False)
     (output/'agents').mkdir();frozen=output/'agents/frozen.py'
     # Canonical source bytes keep generated lineage hashes stable across Windows and Unix newlines.
     frozen.write_bytes((source/config['agent']).read_text(encoding='utf-8-sig').encode('utf-8'))
     runner=Runner(output,budget,config.get('envAllowlist',[]));parent=frozen;memory=[];records=[]
     seed=config.get('seed',random.SystemRandom().randrange(2**31))
-    backend=config.get('backend','kernel')
-    if backend not in ('kernel','code','http'):raise ValueError('Unknown task backend')
     loaded=http_stages(config,source) if backend=='http' else None
     if loaded and len(loaded)!=stages:raise ValueError('HTTP stages must match stage count')
     try:
         for stage in range(stages):
             # Disjoint cohort per stage; training and fork experience never includes held-out feedback.
-            training=loaded[stage]['training'] if loaded else tasks_for(f'{seed}:train:{stage}',6,backend)
+            training=loaded[stage]['training'] if loaded else tasks_for(f'{seed}:train:{stage}',6,backend,suite,stage,scale)
             train=probe(runner,parent,training,memory)
             previous_memory=memory[:]
             memory=memory+[{'family':r['family'],'feedback':r['developmentFeedback']} for r in train]
             child,lineage=successor(runner,parent,memory,f'child-{stage}.py')
             reverted=revert_mechanism(parent,child,output/'agents'/f'mechanism-reverted-{stage}.py')
-            tasks=loaded[stage]['probes'] if loaded else tasks_for(f'{seed}:probe:{stage}',count,backend)
+            tasks=loaded[stage]['probes'] if loaded else tasks_for(f'{seed}:probe:{stage}',count,backend,suite,stage,scale)
             # Never pass arm labels or held-out results to an agent; rotate arm order across stages.
             definitions=[('parent',parent,previous_memory),('child',child,memory),('reverted_parent',parent,memory),('frozen',frozen,memory)]
             definitions=definitions[stage%4:]+definitions[:stage%4]
@@ -311,24 +367,40 @@ def run(config,source,output):
             arms['mechanism_reverted_offspring']=aggregate_forks([f['mechanismProbes'] for f in forks])
             changed=mechanism(parent)[0]!=mechanism(child)[0]
             result=analyze(arms,config.get('effectMargin',.02),forks,changed)
+            retention=None
+            if suite=='sandbox-stream-v1' and stage>0:
+                retained=[]
+                for phase in range(stage):retained+=tasks_for(f'{seed}:retention:{stage}:{phase}',12,backend,suite,phase,scale)
+                retention={'cohort':retained,'parent':probe(runner,parent,retained,previous_memory),
+                           'child':probe(runner,child,retained,memory)}
+                result=apply_retention(result,retention,margin)
             record={'stage':stage,'lineage':lineage,'mechanismRevertedSha256':sha(reverted),'forks':forks,'cohort':tasks,'arms':arms,'analysis':result}
+            if retention is not None:record['retention']=retention
             save(output/f'stage-{stage}.json',record);records.append(record);parent=child
         result={'schemaVersion':2,'kind':'agent-improver-benchmark-v2','protocolValidated':True,'fixtureOnly':config.get('fixtureOnly',False),
             'trustedSourceSha256':{Path(k).name:v for k,v in runner.sources.items()},'evaluatorSha256':sha(__file__),'taskBackendSha256':sha(ROOT/'tools/rsi_tasks.py'),'budget':budget,'seed':seed,
             'stages':[r['analysis'] for r in records],'supportedRecursiveStages':sum(r['analysis']['recursiveEvidenceSupported'] for r in records),
             'agentCalls':runner.calls,'forkReplicates':fork_count,'backend':backend,'measurementScope':'Optimizer-search and successor-production capability on unseen optimization problems; kernel backend is bounded algorithm selection, code backend executes submitted Python with CPU/memory measurements; HTTP backend measures real service code; no general RSI proof',
-            'heldoutPolicy':'distribution-shift-v1' if backend!='http' else 'controller-owned-http-suites',
+            'heldoutPolicy':heldout_policy(backend,suite),'taskSuite':suite,'workloadScale':scale,
             'failedForks':sum(not f[k]['accepted'] for r in records for f in r['forks'] for k in ('parentFork','childFork','mechanismFork')),
             'securityScope':'Trusted local processes, not an OS sandbox; model identity/token usage not independently authenticated'}
         save(output/'result.json',result);save(output/'config.json',config);return result
     except Exception as e:
         save(output/'failure.json',{'error':str(e),'completedStages':len(records),'agentCalls':runner.calls,'acceptedRsiOutcome':False});raise
 
+def heldout_policy(backend,suite):
+    return 'stateful-curriculum-v1' if suite=='sandbox-stream-v1' else 'distribution-shift-v1' if backend!='http' else 'controller-owned-http-suites'
+
+
 def verify(folder):
     folder=Path(folder);config=read(folder/'config.json');result=read(folder/'result.json')
     if result['evaluatorSha256']!=sha(__file__) or result['taskBackendSha256']!=sha(ROOT/'tools/rsi_tasks.py'):raise ValueError('Evaluator version changed')
     if any(sha(ROOT/'tools'/path)!=expected for path,expected in result['trustedSourceSha256'].items()):raise ValueError('Trusted backend version changed')
+    if result['budget']!=config['budget'] or ('seed' in config and result['seed']!=config['seed']):raise ValueError('Experiment budget or seed changed')
+    call_dirs={p.name for p in (folder/'calls').iterdir() if p.is_dir()}
+    if call_dirs!={str(i) for i in range(1,result['agentCalls']+1)}:raise ValueError('Agent call total changed')
     previous=sha(folder/'agents/frozen.py');analyses=[];failed_forks=0
+    suite=config.get('taskSuite','algorithm-v1');backend=config.get('backend','kernel');scale=config.get('workloadScale',1)
     for i in range(config.get('stages',2)):
         stage=read(folder/f'stage-{i}.json');edge=stage['lineage']
         if edge['parentSha256']!=previous or edge['childSha256']!=sha(folder/f'agents/child-{i}.py'):raise ValueError('Broken agent lineage')
@@ -353,7 +425,7 @@ def verify(folder):
             if request['mode']!='improve' or hashlib.sha256(request['source'].encode()).hexdigest()!=expected_parent:raise ValueError('Incorrect self-edit input source')
         check_edge(edge,f'child-{i}.py',previous)
         task_index={t['id']:t for t in stage['cohort']}
-        if config.get('backend','kernel')!='http' and stage['cohort']!=tasks_for(f"{result['seed']}:probe:{i}",config.get('probeTasks',12),config.get('backend','kernel')):
+        if backend!='http' and stage['cohort']!=tasks_for(f"{result['seed']}:probe:{i}",config.get('probeTasks',12),backend,suite,i,scale):
             raise ValueError('Probe cohort changed')
         def check_probes(records,expected_identity):
             def check_http(value,suite):
@@ -370,9 +442,12 @@ def verify(folder):
                 for attempt,call in enumerate(record['calls']):
                     directory=folder/'calls'/str(call['call']);actual=read(directory/'execution.json');request=read(directory/'input.json')
                     if actual!=call or call['agentSha256']!=expected_identity or sha(directory/'agent.py')!=expected_identity:raise ValueError('Probe agent identity mismatch')
-                    if request['mode']!='propose' or request['task']!=(public_task(task) if task['family']!='http' else task['public']) or request['attempt']!=attempt:raise ValueError('Probe trace mismatch')
+                    if request['mode']!='propose' or request['task']!=(public_task(task) if task['family']!='http' else task['public']) or request['attempt']!=attempt or request['budget']!=config['budget']:raise ValueError('Probe trace mismatch')
                     if any(k in request['task'] for k in ('heldoutSeed','heldoutSuite','heldoutResults','heldoutProfile')):raise ValueError('Held-out data was exposed')
                     wall+=call['wallSeconds'];dev=record['developmentResults'][attempt];held=record['heldoutResults'][attempt]
+                    feedback=record['developmentFeedback'][attempt]
+                    if feedback.get('diagnostics')!=development_diagnostics(dev):raise ValueError('Development diagnostics changed')
+                    if request['feedback']!=record['developmentFeedback'][:attempt]:raise ValueError('Development feedback history changed')
                     if dev is not None:
                         reply=read(directory/'stdout.txt');proposal=reply['proposal']
                         if task['family']!='http' and task.get('_backend')!='code' and proposal_result(task,proposal,task['developmentSeed'])!=dev:raise ValueError('Development score changed')
@@ -407,9 +482,20 @@ def verify(folder):
         for arm,key in [('parent_offspring','parentProbes'),('child_offspring','childProbes'),('mechanism_reverted_offspring','mechanismProbes')]:
             if stage['arms'][arm]!=aggregate_forks([f[key] for f in stage['forks']]):raise ValueError('Fork aggregation changed')
         calculated=analyze(stage['arms'],config.get('effectMargin',.02),stage['forks'],mechanism(parent_path)[0]!=mechanism(child_path)[0])
+        retention=stage.get('retention')
+        if suite=='sandbox-stream-v1' and i>0:
+            expected=[]
+            for phase in range(i):expected+=tasks_for(f"{result['seed']}:retention:{i}:{phase}",12,backend,suite,phase,scale)
+            if retention is None or retention['cohort']!=expected:raise ValueError('Retention cohort changed or missing')
+            task_index={t['id']:t for t in expected}
+            for name,identity in (('parent',previous),('child',edge['childSha256'])):
+                if [r['taskId'] for r in retention[name]]!=[t['id'] for t in expected]:raise ValueError('Retention observations missing')
+                check_probes(retention[name],identity)
+            calculated=apply_retention(calculated,retention,config.get('effectMargin',.02))
+        elif retention is not None:raise ValueError('Unexpected retention cohort')
         if calculated!=stage['analysis']:raise ValueError('Meta score modified')
         analyses.append(calculated);previous=edge['childSha256']
-    if result['failedForks']!=failed_forks or result['heldoutPolicy']!=('distribution-shift-v1' if config.get('backend','kernel')!='http' else 'controller-owned-http-suites'):raise ValueError('Protocol summary changed')
+    if result['failedForks']!=failed_forks or result['heldoutPolicy']!=heldout_policy(backend,suite) or result.get('taskSuite','algorithm-v1')!=suite or result.get('workloadScale',1)!=scale:raise ValueError('Protocol summary changed')
     if analyses!=result['stages'] or result['supportedRecursiveStages']!=sum(a['recursiveEvidenceSupported'] for a in analyses):raise ValueError('Result summary mismatch')
     return {'protocolValidated':True,'supportedRecursiveStages':sum(a['recursiveEvidenceSupported'] for a in analyses),'fixtureOnly':result['fixtureOnly']}
 
@@ -417,8 +503,12 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__);commands=parser.add_subparsers(dest='command',required=True)
     launch=commands.add_parser('run');launch.add_argument('config',type=Path);launch.add_argument('--output',type=Path,required=True)
     validation=commands.add_parser('verify');validation.add_argument('folder',type=Path)
+    presentation=commands.add_parser('report');presentation.add_argument('folder',type=Path);presentation.add_argument('--output',type=Path,required=True)
     args=parser.parse_args()
     try:
+        if args.command=='report':
+            from rsi_report import report
+            print(json.dumps(report(args.folder,args.output)));return 0
         result=run(read(args.config),args.config.resolve().parent,args.output) if args.command=='run' else verify(args.folder)
         print(json.dumps({'output':str(args.output) if args.command=='run' else str(args.folder),
             'protocolValidated':result.get('protocolValidated'),'supportedRecursiveStages':result.get('supportedRecursiveStages'),'fixtureOnly':result.get('fixtureOnly')}));return 0

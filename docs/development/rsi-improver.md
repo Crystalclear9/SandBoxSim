@@ -118,6 +118,12 @@ HTTP 配置使用 `backend: "http"` 和 `httpStages`，每轮含 `training` 与�
 
 输出包括 `agents/`、逐调用 `calls/`、`stage-*.json` 和 `result.json`；失败时保存 `failure.json`。验证器重算候选轨迹、分叉汇总和干预得分，并核对实际进程输出与归档后代源码。跨版本源码变化后不能拿旧报告冒充本版验证。
 
+## 连续世界与旧能力
+
+code 后端可选 `taskSuite: "sandbox-stream-v1"`，提交处理资源库存、带权道路变更和实体世代的真实实现。代理收到有答案的小型开发样例，开发反馈区分正确性、成本和内存；私有留出输入保持隐藏。课程改变更新率与观察范围，后续阶段重新采样旧课程，检查逐族能力和正确性是否退步。
+
+新增旧能力门槛收紧完整递归判定，不替代五项因果证据。`report` 子命令先验证原始记录，再生成带阶段曲线、控制组、区间和失败诊断的独立 HTML。工作负载范围、配置与使用方法见 [连续世界实验](stateful-rsi.md)。原有 `algorithm-v1` 默认行为保留。
+
 ## 程序加速仍独立检验
 
 `efficiency.py run` 继续做真实程序性能对照；`experiment`/`rounds` 继续整理性能历史。其输出现为 `optimization-history-v2`，原先误命名的 `recursiveImprovingRounds` 改为 `sequentialRuntimeImprovingRounds`，并明确 `rsiClaim: false`。多轮程序加速只是性能历史。

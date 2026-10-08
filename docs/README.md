@@ -14,7 +14,7 @@
 | 构建、配置和存档 | [构建与运行](development/build.md)、[配置](development/configuration.md)、[存档与确定性](development/saving.md) |
 | 性能和视觉实验 | [性能维护](development/performance.md)、[渲染与视觉评测](development/benchmark.md) |
 | 在线控制和程序效率 | [HTTP 服务与效率实验](development/online-efficiency.md) |
-| 代理自我改进实验 | [代理改进协议与三种后端](development/rsi-improver.md) |
+| 代理自我改进实验 | [代理改进协议与三种后端](development/rsi-improver.md)、[连续世界课程与实验报告](development/stateful-rsi.md) |
 | 更新和排错 | [版本更新](guides/updating.md)、[故障排查](guides/troubleshooting.md) |
 | 管理文件和贡献 | [目录与文件管理](development/repository-layout.md)、[贡献指南](../CONTRIBUTING.md) |
 

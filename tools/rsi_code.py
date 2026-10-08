@@ -38,6 +38,9 @@ def solve(problem):
 '''
 
 def problem(task,seed):
+    if task.get('_suite')=='sandbox-stream-v1':
+        from rsi_stateful import problem as stream_problem
+        return stream_problem(task,seed)
     rng=random.Random(seed);family=task['family'];n=task['n'];q=task['q']
     profile=task.get('heldoutProfile','standard') if task.get('heldoutSeed')==seed else 'standard'
     if family=='resource':
@@ -72,6 +75,13 @@ def measured(source,problems):
         if len(result['rows'])!=len(problems):raise ValueError('Incomplete candidate measurements')
         return result['rows']
 
+def reference_for(task):
+    if task.get('_suite')=='sandbox-stream-v1':
+        from rsi_stateful import REFERENCE as stream_reference
+        return stream_reference
+    return REFERENCE
+
+
 def evaluate(task,proposal,seed):
     source=proposal['source'];payloads=[]
     # Different inputs in every measured call discourage identical-input memoization.
@@ -79,11 +89,12 @@ def evaluate(task,proposal,seed):
         # All families use the original private profile but independently generated inputs.
         shifted=dict(task);shifted['heldoutSeed']=seed+replicate*104729 if seed==task['heldoutSeed'] else task['heldoutSeed']
         instance=problem(shifted,seed+replicate*104729);payloads.append(instance)
-    scope={};exec(REFERENCE,scope)
+    reference=reference_for(task)
+    scope={};exec(reference,scope)
     expected=[hashlib.sha256(json.dumps(scope['solve'](p),separators=(',',':')).encode()).hexdigest() for p in payloads]
     # Alternate full process order by seed; all candidate and reference calls receive the same payloads.
-    if seed%2:actual=measured(source,payloads);baseline=measured(REFERENCE,payloads)
-    else:baseline=measured(REFERENCE,payloads);actual=measured(source,payloads)
+    if seed%2:actual=measured(source,payloads);baseline=measured(reference,payloads)
+    else:baseline=measured(reference,payloads);actual=measured(source,payloads)
     correct=all(a['digest']==b['digest']==e for a,b,e in zip(actual,baseline,expected))
     ratios=[max(0,b['cpuNanoseconds']-b['cpuQuantumNanoseconds'])/(a['cpuNanoseconds']+a['cpuQuantumNanoseconds']) for a,b in zip(actual,baseline)]
     ratio=statistics.median(ratios)
@@ -104,7 +115,7 @@ def validate(task,proposal,seed,value):
     for i in range(7):
         shifted=dict(task);shifted['heldoutSeed']=seed+i*104729 if seed==task['heldoutSeed'] else task['heldoutSeed']
         payloads.append(problem(shifted,seed+i*104729))
-    scope={};exec(REFERENCE,scope)
+    scope={};exec(reference_for(task),scope)
     expected=[hashlib.sha256(json.dumps(scope['solve'](p),separators=(',',':')).encode()).hexdigest() for p in payloads]
     if expected!=report['expectedDigests']:raise ValueError('Code workload changed')
     reference=report['reference'];candidate=report['candidate']

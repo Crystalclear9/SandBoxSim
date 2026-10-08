@@ -95,6 +95,8 @@ $samplePath = Join-Path (Get-Location).Path 'runs/render-sample.json'
 
 仅调整说明与本机输出分类时，执行文档链接、文件大小写、Markdown 结构与 Git 空白检查即可；工程、资源和工具路径保持一致。移动源码、修改协议或模拟状态时，按 [开发指南](developer-guide.md) 执行对应实际回归。当前 CI 的结果需查看具体提交，文档不能把配置了检查等同于该提交已通过。
 
+连续世界代码实验在三平台 CI 执行两阶段非 LLM 夹具、旧能力回放和 HTML 报告，并归档证据；不要求夹具通过递归能力筛选线。入口见 [连续世界实验](stateful-rsi.md)。
+
 ---
 
 [文档导航](../README.md) · [项目首页](../../README.md)

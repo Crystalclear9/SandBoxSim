@@ -184,6 +184,19 @@
           }
         }
       }
+    },
+    "taskSuite": {
+      "enum": [
+        "algorithm-v1",
+        "sandbox-stream-v1"
+      ],
+      "default": "algorithm-v1"
+    },
+    "workloadScale": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4,
+      "default": 1
     }
   },
   "allOf": [
@@ -202,6 +215,50 @@
         "required": [
           "httpStages"
         ]
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "taskSuite"
+        ],
+        "properties": {
+          "taskSuite": {
+            "const": "sandbox-stream-v1"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "backend"
+        ],
+        "properties": {
+          "backend": {
+            "const": "code"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "workloadScale"
+        ],
+        "properties": {
+          "workloadScale": {
+            "minimum": 2
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "taskSuite"
+        ],
+        "properties": {
+          "taskSuite": {
+            "const": "sandbox-stream-v1"
+          }
+        }
       }
     }
   ]

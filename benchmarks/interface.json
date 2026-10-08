@@ -68,9 +68,16 @@
     ],
     "backends": [
       "kernel",
+      "code",
       "http"
     ],
     "trustedLocalExecutionOnly": true,
-    "generalRsiProof": false
+    "generalRsiProof": false,
+    "taskSuites": [
+      "algorithm-v1",
+      "sandbox-stream-v1"
+    ],
+    "retention": "sandbox-stream-v1 stages after the first re-probe every earlier curriculum phase with fresh private tasks; per-family non-regression gates recursive evidence",
+    "report": "verified self-contained HTML: tools/rsi_benchmark.py report <folder> --output <file>"
   }
 }

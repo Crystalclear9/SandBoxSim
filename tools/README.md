@@ -33,6 +33,9 @@ SDK 与 Godot 工具链由参数或环境变量覆盖，不提交本机绝对路
 | `efficiency.py` | 真实 HTTP 程序性能对照、留出套件及性能历史 |
 | `observe_benchmark.py` | 完整观察工作负载的程序集与客户端配对 |
 | `rsi_benchmark.py` | 代理自修改、迁移、冻结对照、后代分叉与方法撤销 |
+| `rsi_stateful.py` | 库存、带权道路、实体世代事件流与独立参考 |
+| `rsi_report.py` | 回放验证后的自包含 HTML 证据报告 |
+| `test_rsi_stateful.py` | 连续状态、缓存失效、正确性保留与任务规模回归 |
 | `rsi_tasks.py` | 内核策略后端的独立任务、答案与工作量 |
 | `rsi_code.py` / `rsi_code_worker.py` | 实际 Python 候选的正确性、CPU/墙钟和分配峰值测量 |
 | `test_evaluate.py`、`test_efficiency.py` | 渲染协议与程序效率回归 |

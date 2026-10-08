@@ -13,6 +13,7 @@
 | `efficiency-smoke.json` | 真实程序效率配对样例 | `tools/efficiency.py run` |
 | `rsi-rounds.schema.json` | 程序性能历史与父链清单，保留历史文件名 | `tools/efficiency.py experiment/rounds` |
 | `rsi-meta.schema.json`、`rsi-meta-smoke.json` | 代理自修改、留出迁移、分叉及方法撤销 | `tools/rsi_benchmark.py` |
+| `rsi-stateful-smoke.json` | 连续世界代码任务、两阶段课程与旧能力保留 | `tools/rsi_benchmark.py` 的 code 后端 |
 | `rsi-code-smoke.json` | 实际 Python 候选效率与改进控制 | `tools/rsi_benchmark.py` 的 code 后端 |
 | `agents/` | 策略和实际代码生成的非 LLM 集成夹具 | 代理协议示例 |
 
@@ -33,5 +34,7 @@ python tools/evaluate.py verify runs/evaluation/visual-example
 ```
 
 渲染需要已构建的 Godot .NET 客户端与原生图形设备；纯 HTTP 和代理内核/代码后端不需要 Godot。各测量口径见 [渲染接口](../docs/development/benchmark.md)、[在线效率](../docs/development/online-efficiency.md)、[代理改进协议](../docs/development/rsi-improver.md)。
+
+连续世界的运行与 HTML 报告见 [课程与代理实验](../docs/development/stateful-rsi.md)。报告先回放验证，不覆盖既有文件，不向代理暴露留出题目。
 
 所有结果、失败记录、日志和临时图像保存在 `runs/` 的独立目录，不能覆盖或拆分具有产物哈希的实验目录。夹具通过只说明集成流程有效，不代表真实模型已展示 RSI。

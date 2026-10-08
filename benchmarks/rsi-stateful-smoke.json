@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 2,
+  "agent": "agents/stateful_improver.py",
+  "fixtureOnly": true,
+  "backend": "code",
+  "taskSuite": "sandbox-stream-v1",
+  "stages": 2,
+  "probeTasks": 12,
+  "forkReplicates": 3,
+  "seed": 1729,
+  "effectMargin": 0.02,
+  "budget": {
+    "attempts": 1,
+    "callSeconds": 5,
+    "taskSeconds": 6
+  }
+}
