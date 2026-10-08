@@ -196,14 +196,19 @@ public sealed class M7Tests
         Simulation small = MakeWorld(11004, agents: 7, houses: 2, storages: 1);
         Simulation big = MakeWorld(11004, agents: 26, houses: 10, storages: 2);
 
-        small.Tick(TicksPerDay * 10);
-        big.Tick(TicksPerDay * 10);
+        // Exercise real clustering/persistence with fixed inputs. Survival, births and
+        // migration have separate integration tests and must not change this tier fixture.
+        for(int day=1;day<=10;day++)
+        {
+            small.Settlements.TickDay(day*TicksPerDay);
+            big.Settlements.TickDay(day*TicksPerDay);
+        }
 
         SettlementTier smallTier = HighestTier(small);
         SettlementTier bigTier = HighestTier(big);
 
-        Assert.True(bigTier > smallTier,
-            "人多、房子多的世界等级必须更高（" + bigTier + " vs " + smallTier + "）");
+        Assert.Equal(SettlementTier.Village,smallTier);
+        Assert.Equal(SettlementTier.Town,bigTier);
     }
 
     private static SettlementTier HighestTier(Simulation sim)

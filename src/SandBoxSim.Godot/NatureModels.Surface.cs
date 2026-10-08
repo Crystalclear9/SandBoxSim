@@ -15,13 +15,16 @@ uniform float texture_amount=0.0;
 varying vec3 local;
 void vertex(){ local=VERTEX; }
 void fragment(){
-float weather=sin(local.x*6.3+local.z*3.1)*sin(local.y*7.7)*0.035;
+float weather=sin(local.x*2.3+local.z*1.7)*sin(local.y*3.1)*0.075;
+float strata=sin((local.y+local.x*.18-local.z*.12)*27.0);
+strata/=1.0+pow(fwidth((local.y+local.x*.18-local.z*.12)*27.0),2.0);
+float damp=(1.0-smoothstep(-.4,.7,local.y))*.055*stone;
 float pores=sin(local.x*117.0+local.y*73.0)*sin(local.z*109.0+local.y*91.0);
 float footprint=max(length(dFdx(local)),length(dFdy(local)))*115.0;
 pores/=1.0+footprint*footprint;
 float joint=pow(1.0-abs(sin(UV.y*3.14159)),16.0)*stone*0.045;
 float patina=dot(texture(detail_atlas,(clamp(UV,vec2(0.02),vec2(0.98))+cell)/4.0).rgb,vec3(0.2126,0.7152,0.0722))-0.5;
-ALBEDO=pigment.rgb*(0.96+weather+pores*grain-joint+patina*texture_amount);
+ALBEDO=pigment.rgb*(0.96+weather+pores*grain-joint+patina*texture_amount+strata*stone*.025-damp);
 ROUGHNESS=0.92+pores*0.025; SPECULAR=0.18;
 }" };
         var atlas=ResourceLoader.Exists("res://assets/textures/natural-materials.png") ? GD.Load<Texture2D>("res://assets/textures/natural-materials.png") : null;
@@ -39,7 +42,9 @@ void fragment(){
 float coordinate=UV.x*110.0+sin(UV.y*7.0)*1.6;
 float grain=sin(coordinate)/(1.0+pow(fwidth(coordinate),2.0));
 float detail=dot(texture(detail_atlas,(clamp(UV,vec2(0.02),vec2(0.98))+cell)/4.0).rgb,vec3(0.2126,0.7152,0.0722))-0.5;
-ALBEDO=pigment.rgb*(0.98+grain*0.03+detail*0.06);ROUGHNESS=0.94;SPECULAR=0.18;
+float streak=sin(UV.x*31.0+sin(UV.y*2.0)*.6);
+float stain=sin(UV.x*5.3+UV.y*.7)*sin(UV.y*3.7)*.07;
+ALBEDO=pigment.rgb*(0.94+grain*.055+streak*.025+stain+detail*.12);ROUGHNESS=0.94;SPECULAR=0.18;
 }"};
         foreach(var (id,color) in new[]{(0,"#655747"),(1,"#87745b"),(15,"#9c8960")})
         {
@@ -47,11 +52,11 @@ ALBEDO=pigment.rgb*(0.98+grain*0.03+detail*0.06);ROUGHNESS=0.94;SPECULAR=0.18;
             if(atlas!=null)material.SetShaderParameter("detail_atlas",atlas);
             material.SetShaderParameter("cell",new Vector2(id%4,id/4));_materials[id]=material;
         }
-        Assign(2,"#82624e",.018f,1);
-        Assign(3,"#b7ad96",.014f);
-        Assign(6,"#8f9189",.04f,1);
-        Assign(7,"#74776f",.045f,1);
-        Assign(4,"#758657",.023f);
-        Assign(5,"#566e51",.025f);
+        Assign(2,"#756455",.018f,1);
+        Assign(3,"#b9b4a3",.014f);
+        Assign(6,"#777c77",.04f,1);
+        Assign(7,"#626c68",.045f,1);
+        Assign(4,"#6c7953",.023f);
+        Assign(5,"#526650",.025f);
     }
 }

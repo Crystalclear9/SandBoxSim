@@ -55,7 +55,7 @@ public static class SaveLoader
         }
 
         int version = root.GetInt("version", -1);
-        if (version != SaveFile.CurrentVersion)
+        if (version != SaveFile.CurrentVersion && version != 3)
         {
             // 刻意不做向后兼容：静默降级会让"确定性验收"变成假通过 ——
             // 载入一个缺字段的档案，之后发现演化分叉，却不知道该怀疑格式还是模拟。
@@ -179,6 +179,7 @@ public static class SaveLoader
         JsonValue temperature = tiles.Get("temperature");
         JsonValue fertility = tiles.Get("fertility");
         JsonValue vegetation = tiles.Get("vegetation");
+        JsonValue footTraffic=tiles.Get("footTraffic");
         JsonValue buildingId = tiles.Get("buildingId");
 
         for (int i = 0; i < count; i++)
@@ -201,6 +202,7 @@ public static class SaveLoader
             tile.Temperature = SimMath.Clamp01((float)NumberAtFloat(temperature, i));
             tile.Fertility = SimMath.Clamp01((float)NumberAtFloat(fertility, i));
             tile.Vegetation = SimMath.Clamp01((float)NumberAtFloat(vegetation, i));
+            tile.FootTraffic=SimMath.Clamp01((float)NumberAtFloat(footTraffic,i));
             tile.BuildingId = NumberAt(buildingId, i);
 
             tile.Walkable = NumberAt(tiles.Get("walkable"), i) != 0;

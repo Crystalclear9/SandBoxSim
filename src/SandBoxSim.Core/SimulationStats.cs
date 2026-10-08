@@ -206,6 +206,7 @@ public static class StateHash
             hash = Hash64.Combine(hash, tiles[i].Buildable);
             hash = Hash64.Combine(hash, tiles[i].Temperature);
             hash = Hash64.Combine(hash, tiles[i].Vegetation);
+            if(tiles[i].FootTraffic!=0)hash=Hash64.Combine(hash,tiles[i].FootTraffic);
             hash = Hash64.Combine(hash, tiles[i].Resource.Capacity);
             hash = Hash64.Combine(hash, tiles[i].Resource.RegenerationRate);
             hash = Hash64.Combine(hash, (int)tiles[i].Fire);
@@ -267,6 +268,7 @@ public static class StateHash
             tileHash = Hash64.Combine(tileHash, tiles[i].Buildable);
             tileHash = Hash64.Combine(tileHash, tiles[i].Temperature);
             tileHash = Hash64.Combine(tileHash, tiles[i].Vegetation);
+            if(tiles[i].FootTraffic!=0)tileHash=Hash64.Combine(tileHash,tiles[i].FootTraffic);
             tileHash = Hash64.Combine(tileHash, tiles[i].Resource.Capacity);
             tileHash = Hash64.Combine(tileHash, tiles[i].Resource.RegenerationRate);
             tileHash = Hash64.Combine(tileHash, (int)tiles[i].Fire);

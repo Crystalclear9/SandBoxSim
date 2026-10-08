@@ -36,7 +36,7 @@ Core 中 `Foundation` 提供配置、数学、随机数和基础数据；`World`
 | `ResidentRig.cs` / `ResidentRig.HandPose.cs` | 真实动作的表现状态、工具收纳、肘腕求解与连续手部蒙皮驱动 |
 | `ResidentPortrait.cs` | 独立 3D 肖像与旋转、缩放输入 |
 | `BuildingPortrait.cs`、`HudSymbols.cs` | 独立建筑展示、悬停转向与概览/操作符号；静止预览缓存 |
-| `MainGame.Operations.cs` / `MainGame.Notebook.cs` | 观察、人物关注和田野手记样式 |
+| `MainGame.Operations.cs` / `MainGame.Notebook.cs` | 观察、人物关注和世界手记样式 |
 | `WorldView3D*.cs` | 镜头、地形、实体、天气与风险表现 |
 | `NatureModels*.cs` | 可复用几何、人物、动物与建筑组合 |
 | `ProjectCatalog.cs` / `LandProjects.cs` | 历史 SDK 系统，当前客户端不加载或推进 |
@@ -52,6 +52,12 @@ Core 中 `Foundation` 提供配置、数学、随机数和基础数据；`World`
 
 `Simulation` 按 tick 推进内核；图形会话的 `AdvanceWorld` 按日界拆分推进，仅更新模拟与荒野地貌；客户端已删除委托、工程、试炼和蓝图流程。高倍速仍处理每个日界。直接调用内核 `Tick` 不会执行图形会话的荒野日界作用。
 
+## 地表状态与实验工具
+
+`Tile.FootTraffic` 是持久化内核状态：实际移动与作业通过世界入口记录接触，小时恢复，资源与植被系统读取压实。存档 v4 和状态摘要包含该值。`WorldView3D` 的共享顶点、河岸曲线、材质贴图与草丛是只读表现，显示细分不会增加模拟格子。
+
+`evaluate.py` 管理 Godot 渲染产物；`efficiency.py` 比较真实 HTTP 程序成本；`rsi_benchmark.py` 管理代理自修改、后代与撤销对照。`rsi_code.py` 和 `rsi_code_worker.py` 执行实际 Python 候选。它们在 Console/Core 之外组织实验，不改变正常游戏的操作流程，也不提供对不可信候选的安全隔离。
+
 ## 状态与观察边界
 
 镜头、图层、人物检查和地图查询保持只读，不消耗模拟随机流。动画与天气光照读取内核状态；建筑外观由位置和种子决定，不改变造价、床位和产量。自然住房布局是可保存规则，新图形世界开启，旧存档与命令行默认沿用原设置。
@@ -61,3 +67,7 @@ Core 中 `Foundation` 提供配置、数学、随机数和基础数据；`World`
 扩展数据见 [配置](configuration.md)，恢复与续跑契约见 [存档与确定性](saving.md)，验证入口见 [构建与运行](build.md)。
 
 荒野地貌仅在新建图形世界初始化，使用种子与固定整数混合生成，不消耗运行中的模拟随机流。每日涵养与结果读取真实条件；生成的资源计入实际节点，额外有机生长计入再生总量。地点和日界进度保存于客户端元数据，Console 不执行这一层。
+
+---
+
+[文档导航](../README.md) · [项目首页](../../README.md)

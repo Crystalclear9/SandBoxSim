@@ -248,7 +248,7 @@ def rounds(manifest, root):
                         'speedupGainPerThousandTokens':max(0.,report['summary']['medianSpeedup']-control['summary']['medianSpeedup'])*1000/r['cost']['tokens'] if r['cost']['tokens'] else None,
                         'speedupGainPerAgentSecond':max(0.,report['summary']['medianSpeedup']-control['summary']['medianSpeedup'])/r['cost']['wallSeconds'] if r['cost']['wallSeconds'] else None})
         previous_report=report
-    return {'schemaVersion':1,'kind':'rsi-efficiency-evidence-v1','validated':True,'validationFixture':manifest.get('validationFixture',False),'rounds':records,'improvingRounds':improvements,'recursiveImprovingRounds':recursive_improvements,
+    return {'schemaVersion':2,'kind':'optimization-history-v2','validated':True,'rsiClaim':False,'validationFixture':manifest.get('validationFixture',False),'rounds':records,'improvingRounds':improvements,'sequentialRuntimeImprovingRounds':recursive_improvements,
             'suiteSha256':suite_hash,'evaluatorSha256':sha(__file__), 'fixedControlAgentSha256':fixed_agent,
             'scope':'Lineage, correctness, budget and paired-efficiency evidence validated; costs and model identity are operator attestations, not independently metered; no general RSI claim'}
 

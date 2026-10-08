@@ -64,3 +64,15 @@ git diff --check
 ## 文档维护
 
 `README.md` 是项目概览，`docs/README.md` 是阅读导航，`CHANGELOG.md` 是用户和维护者的更新记录。功能行为写入对应指南；配置和存档变化写入开发文档。旧界面配图和仅供历史记录引用的图片归入 `docs/archive/images/`，同时更新归档文档链接；保留文件内容，不用旧流程配图介绍当前玩法。历史计划留在 `docs/archive/`，不在当前主页重复放置阶段验收说明。
+
+## 目录说明与本机整理
+
+[src](../../src/README.md)、[tools](../../tools/README.md)、[config](../../config/README.md)、[benchmarks](../../benchmarks/README.md) 各自提供职责与入口；[文档图](../images/README.md) 区分现行界面和专题记录。完整素材生成提示独立放在 `docs/archive/asset-generation.md`，当前美术说明专注实际资源、导入与扩展。
+
+`runs/` 根目录只保留说明与占位文件。散落日志归入 `logs/legacy/`，独立请求归入 `requests/legacy/`，旧报告和预测归入 `reports/legacy/`，临时文本备份归入 `backups/`。完整实验、截图、存档和 Git bundle 不拆分、不删除；本机移动清单及哈希保存在 `runs/maintenance/`。这些本机文件不推送到远程。
+
+不为整理目录搬迁 C# 工程、Godot 资源或公共工具脚本；它们有工程编译、`res://`、CI 或外部调用契约。新增文件按职责落位，移除文件先检查用途和引用。
+
+---
+
+[文档导航](../README.md) · [项目首页](../../README.md)

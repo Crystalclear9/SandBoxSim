@@ -22,6 +22,11 @@ public partial class DiscoveryPanel : VBoxContainer
     {
         var scroll = new ScrollContainer { SizeFlagsVertical = SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; AddChild(scroll);
         var body = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; body.AddThemeConstantOverride("separation", 12); scroll.AddChild(body);
+        VBoxContainer Card()
+        {
+            var panel=new PanelContainer();var box=HudStyle.Box(new Color("#2f3b32"),5,14,false);panel.AddThemeStyleboxOverride("panel",box);body.AddChild(panel);
+            var content=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};content.AddThemeConstantOverride("separation",8);panel.AddChild(content);return content;
+        }
         body.AddChild(HudStyle.Label("田野 · 随手记", 10, true));
         _place = HudStyle.Label("", 27); body.AddChild(_place);
         _phase = HudStyle.Label("", 12, true); _phase.AutowrapMode = TextServer.AutowrapMode.WordSmart; body.AddChild(_phase);
@@ -37,17 +42,17 @@ public partial class DiscoveryPanel : VBoxContainer
             if(parts.Length!=3 || !int.TryParse(parts[1],out int x) || !int.TryParse(parts[2],out int y))return;
             if(parts[0]=="forget") { Game.Wild.Forget(x,y); Refresh(); } else { Game.LookAtPlace(x,y); }
         };
-        body.AddChild(new HSeparator()); body.AddChild(HudStyle.Label("居民的故事", 15));
-        _pinText = HudStyle.Label("", 13, true); _pinText.AutowrapMode = TextServer.AutowrapMode.WordSmart; body.AddChild(_pinText);
-        _pinLink = new Godot.Button { Text = "查看关注的故事 →", Alignment = HorizontalAlignment.Left }; HudStyle.Button(_pinLink); _pinLink.Pressed += () => Game.FocusPinned(); body.AddChild(_pinLink);
-        body.AddChild(new HSeparator()); body.AddChild(HudStyle.Label("世界的回声", 15));
+        var residentCard=Card(); residentCard.AddChild(HudStyle.Heading("居民的故事", 16));
+        _pinText = HudStyle.Label("", 13, true); _pinText.AutowrapMode = TextServer.AutowrapMode.WordSmart; residentCard.AddChild(_pinText);
+        _pinLink = new Godot.Button { Text = "查看关注的故事 →", Alignment = HorizontalAlignment.Left }; HudStyle.Button(_pinLink); _pinLink.Pressed += () => Game.FocusPinned(); residentCard.AddChild(_pinLink);
+        var storyCard=Card(); storyCard.AddChild(HudStyle.Heading("世界的回声", 16));
         _stories = new RichTextLabel { BbcodeEnabled = true, FitContent = true, ScrollActive = false, SelectionEnabled = true, CustomMinimumSize = new Vector2(0, 80) };
         _stories.MetaClicked += meta =>
         {
             var fields = meta.AsString().Split(':');
             if (fields.Length == 3 && long.TryParse(fields[0], out long person) && int.TryParse(fields[1], out int x) && int.TryParse(fields[2], out int y)) { Game.FocusStory(person, x, y); }
         };
-        body.AddChild(_stories); Refresh();
+        storyCard.AddChild(_stories); Refresh();
     }
     public void Refresh()
     {
@@ -60,9 +65,11 @@ public partial class DiscoveryPanel : VBoxContainer
         _phase.Text = weather + " · " + WildPlaces.PhaseName(sim.Clock / sim.Config.Clock.TicksPerDay) + " · 第 " + sim.World.Calendar.Day + " 天";
         var local=Game.Wild.At(Game.SelectedX,Game.SelectedY);
         _land.Text=local==null ? $"({Game.SelectedX}, {Game.SelectedY}) · 单击土地查看这里的水土与痕迹。" : Game.Wild.Describe(sim,local);
+        float traffic=sim.World.TileAt(Game.SelectedX,Game.SelectedY).FootTraffic;
+        if(traffic>.02f)_land.Text+=$"\n反复踩踏 · 压实 {traffic:P0} · 植被恢复变慢";
         var notes=new StringBuilder();
         foreach(var mark in Game.Wild.Marks)
-            notes.AppendLine($"[url=place:{mark.X}:{mark.Y}][color=#806644]{mark.Name.Replace("[","[lb]")}[/color][/url]  [url=forget:{mark.X}:{mark.Y}]×[/url]");
+            notes.AppendLine($"[url=place:{mark.X}:{mark.Y}][color=#c7b992]{mark.Name.Replace("[","[lb]")}[/color][/url]  [url=forget:{mark.X}:{mark.Y}]×[/url]");
         _marks.Text=notes.ToString();
         var pinned = sim.Society.Find(Game.PinnedPerson); _pinLink.Visible = pinned != null;
         _pinText.Text = pinned == null ? "尚未关注居民。"
@@ -71,11 +78,11 @@ public partial class DiscoveryPanel : VBoxContainer
         var text = new StringBuilder();
         foreach (var ev in sim.Society.History.Where(e => IsStory((WorldEventType)e.Type)).TakeLast(3).Reverse())
         {
-            text.AppendLine($"[color=#747866]第 {ev.Tick / sim.Config.Clock.TicksPerDay + 1} 天[/color]  " + ev.Description.Replace("[", "[lb]"));
-            if (ev.Actor != 0 || ev.X >= 0 && ev.Y >= 0) { text.AppendLine($"[url={ev.Actor}:{ev.X}:{ev.Y}][color=#806644]追踪故事 →[/color][/url]"); }
+            text.AppendLine($"[color=#a8b3a5]第 {ev.Tick / sim.Config.Clock.TicksPerDay + 1} 天[/color]  " + ev.Description.Replace("[", "[lb]"));
+            if (ev.Actor != 0 || ev.X >= 0 && ev.Y >= 0) { text.AppendLine($"[url={ev.Actor}:{ev.X}:{ev.Y}][color=#c7b992]追踪故事 →[/color][/url]"); }
             text.AppendLine();
         }
-        _stories.Text = text.Length == 0 ? "[color=#747866]居民的第一次选择，将成为这里的故事。[/color]" : text.ToString();
+        _stories.Text = text.Length == 0 ? "[color=#a8b3a5]居民的第一次选择，将成为这里的故事。[/color]" : text.ToString();
         _miniMap.QueueRedraw();
     }
     public void ValidateNavigation() => _miniMap.ValidateMapping();

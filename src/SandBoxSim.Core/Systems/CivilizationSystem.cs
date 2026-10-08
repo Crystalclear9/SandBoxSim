@@ -242,7 +242,7 @@ public sealed class CivilizationSystem : ISimEntitySet
                 continue;
             }
             var route = _sim.Pathfinder.FindNextStep(caravan.X, caravan.Y, target.Value.CenterX, target.Value.CenterY, out Int2 step);
-            if (route.Success) { caravan.X = step.X; caravan.Y = step.Y; agents.SetPosition(slot, step.X, step.Y); }
+            if (route.Success) { caravan.X = step.X; caravan.Y = step.Y; agents.SetPosition(slot, step.X, step.Y); _sim.World.RecordFootfall(step.X,step.Y,1.5f); }
         }
     }
     private void ReleaseMerchant(Caravan caravan)

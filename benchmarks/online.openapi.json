@@ -279,7 +279,7 @@
     },
     "/v1/sessions/{sessionId}/map": {
       "get": {
-        "summary": "Row-major traversal grid; traversalHeight is the current Temperature proxy",
+        "summary": "Row-major traversal grid including elevation, footTraffic and vegetation; traversalHeight retains the Temperature traversal proxy",
         "responses": {
           "200": {
             "description": "Success",

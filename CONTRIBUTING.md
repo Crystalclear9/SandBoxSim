@@ -24,3 +24,9 @@ git status --short
 PR 描述先说明具体问题与变化后的行为，再说明实际运行的检查和限制。使用、配置或存档变化同步对应文档，并在 [CHANGELOG](CHANGELOG.md) 写清更新内容及影响。
 
 文档属于 `docs/guides/` 或 `docs/development/`；历史资料留在 `docs/archive/`。保留正式配图，临时截图放在 `runs/screenshots/`，日志放在 `runs/logs/`。个人存档、SDK、引擎和构建缓存不提交，详细边界见 [文件管理](docs/development/repository-layout.md)。
+
+## 文件与文档入口
+
+源码、工具、配置和公开实验分别从 [src](src/README.md)、[tools](tools/README.md)、[config](config/README.md)、[benchmarks](benchmarks/README.md) 查找。现行文档说明当前行为，原始任务和生成来源放在归档并注明历史身份；用户可见说明采用项目手册，不写成待开发清单。
+
+当前协作改动使用 `codex` 分支，通过 PR 合并到 `main`，避免为每次文档整理创建新的分支。PR 应描述与基分支相比的完整变化，列出实际完成的检查；本机日志与实验目录不会随推送上传。创建 PR 不表示自动合并或远程 CI 已通过。

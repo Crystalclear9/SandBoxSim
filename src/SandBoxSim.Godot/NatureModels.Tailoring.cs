@@ -5,6 +5,30 @@ using SandBoxSim.Core.Agents;
 namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
+    private Material CollarMaterial(string cloth)
+    {
+        string key="folded-collar:"+cloth;if(_residentMaterials.TryGetValue(key,out var cached))return cached;
+        var material=Fabric("#"+new Color(cloth).Darkened(.12f).ToHtml(false));_residentMaterials[key]=material;return material;
+    }
+    private Mesh CollarLeaf(float side)
+    {
+        string key="fitted-collar:"+side;
+        if(_meshes.TryGetValue(key,out var cached))return cached;
+        using var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);surface.SetSmoothGroup(0);
+        Vector3 Point(int row,int column)
+        {
+            float v=row/8f,u=column/8f;
+            float inner=Mathf.Lerp(.017f,.028f,v),outer=Mathf.Lerp(.075f,.033f,v)+MathF.Sin(v*MathF.PI)*.012f;
+            float x=side*Mathf.Lerp(inner,outer,u),y=Mathf.Lerp(1.255f,1.185f,v)+u*.007f*(1-v);
+            return TorsoSurface(x,y,false,.003f+.0025f*MathF.Sin(u*MathF.PI)*MathF.Sin(v*MathF.PI));
+        }
+        for(int r=0;r<8;r++)for(int c=0;c<8;c++)
+        {
+            var a=Point(r,c);var b=Point(r,c+1);var d=Point(r+1,c);var e=Point(r+1,c+1);
+            EquipmentTriangle(surface,a,b,d,Vector3.Forward);EquipmentTriangle(surface,b,e,d,Vector3.Forward);
+        }
+        surface.GenerateNormals();surface.Index();var mesh=surface.Commit();_meshes[key]=mesh;return mesh;
+    }
     private void AddResidentTailoring(ResidentRig rig,string cloth,string skin,JobType job)
     {
         // Curved hem stitches follow the existing garment, with a back vent and belt fastening.

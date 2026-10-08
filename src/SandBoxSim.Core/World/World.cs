@@ -86,6 +86,31 @@ public sealed class World
         return Tiles[(y * Width) + x];
     }
 
+    /// <summary>一次实际跨格/作业接触，不使用表现帧或随机数。</summary>
+    public void RecordFootfall(int x,int y,float pressure=1f)
+    {
+        if(!IsInBounds(x,y) || !float.IsFinite(pressure) || pressure<=0)return;
+        pressure=System.Math.Min(pressure,2f);
+        ref Tile tile=ref Tiles[IndexOf(x,y)];
+        if(!tile.Walkable || tile.Terrain==TerrainKind.Road || tile.BuildingId!=0)return;
+        float before=tile.FootTraffic;
+        tile.FootTraffic=SimMath.Clamp01(before+.0015f*System.Math.Min(pressure,2f)*(1-before));
+        tile.Height-=.006f*(tile.FootTraffic-before);
+        tile.Vegetation=SimMath.Clamp01(tile.Vegetation-.00012f*pressure*(.5f+tile.Moisture));
+        MarkDirtyAt(x,y);
+    }
+    public void RecoverFootTraffic()
+    {
+        for(int i=0;i<Tiles.Length;i++)
+        {
+            ref Tile tile=ref Tiles[i];if(tile.FootTraffic<=0)continue;
+            float before=tile.FootTraffic;tile.FootTraffic*=.996f;
+            if(tile.FootTraffic<.000001f)tile.FootTraffic=0;
+            tile.Height+=.006f*(before-tile.FootTraffic);
+            MarkDirtyAt(i%Width,i/Width);
+        }
+    }
+
     public TerrainKind TerrainAt(int x, int y) => TileAtClamped(x, y).Terrain;
 
     /// <summary>索引 → 是否可走（AI 邻域扫描用）。</summary>
@@ -117,6 +142,7 @@ public sealed class World
         if (!IsInBounds(x, y)) { return; }
         int idx = (y * Width) + x;
         if ((Tiles[idx].Terrain == TerrainKind.Water) != (terrain == TerrainKind.Water)) { _waterDistanceDirty = true; }
+        if(Tiles[idx].Terrain!=terrain){Tiles[idx].Height+=.006f*Tiles[idx].FootTraffic;Tiles[idx].FootTraffic=0;}
         Tiles[idx].Terrain = terrain;
         Tiles[idx].ApplyTerrainRules();
         Revision++;

@@ -5,11 +5,12 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
+    private int _faceVariant;
     private Mesh SculptedHead(bool hair,int sides=80,int rings=32)
     {
         using var surface = new SurfaceTool(); surface.Begin(Mesh.PrimitiveType.Triangles); surface.SetSmoothGroup(0);
         float[] levels={-.50f,-.45f,-.35f,-.22f,-.06f,.10f,.22f,.34f,.43f,.49f,.50f};
-        float[] widths={.135f,.25f,.355f,.42f,.465f,.48f,.48f,.435f,.37f,.16f,.025f};
+        float[] widths={.145f,.275f,.38f,.435f,.465f,.47f,.465f,.435f,.37f,.16f,.025f};
         float[] depths={.22f,.31f,.375f,.425f,.46f,.47f,.465f,.425f,.35f,.16f,.025f};
         float Profile(float y,float[] values)
         {
@@ -28,27 +29,36 @@ internal sealed partial class NatureModels
             float angle=col*MathF.Tau/sides,front=MathF.Max(0,-MathF.Sin(angle));
             float end=hair ? 1.67f+MathF.Max(0,MathF.Sin(angle))*.18f-front*(.51f+.12f*MathF.Cos(angle+.4f))+.028f*MathF.Sin(angle*5) : MathF.PI;
             float latitude=row*end/rings,y=MathF.Cos(latitude)*.5f;
-            float depth=Profile(y,depths);
-            var p=new Vector3(MathF.Cos(angle)*Profile(y,widths),y,MathF.Sin(angle)*depth);
+            float jaw=1+((_faceVariant%4)-1.5f)*.045f;
+            float browWidth=1+((_faceVariant/4)-.5f)*.075f;
+            float depth=Profile(y,depths)*(1+((_faceVariant%3)-1)*.045f);
+            float faceBlend=Math.Clamp((y+.35f)/.47f,0,1);faceBlend=faceBlend*faceBlend*(3-2*faceBlend);
+            var p=new Vector3(MathF.Cos(angle)*Profile(y,widths)*Mathf.Lerp(jaw,browWidth,faceBlend),y,MathF.Sin(angle)*depth);
             if(hair)
             {
-                float swept = angle + latitude*.65f;
+                float direction=_faceVariant%2==0?1:-1;
+                float swept = angle + direction*latitude*.85f;
                 float locks = .004f*MathF.Sin(swept*25) + .002f*MathF.Sin(swept*43);
-                p*=1.025f+locks*MathF.Sin(latitude); p.X+=.016f*MathF.Sin(latitude*2);
+                float part=MathF.Exp(-MathF.Pow((MathF.Cos(angle)-direction*.28f)*12,2))*MathF.Pow(front,3);
+                p*=1.028f+locks*MathF.Sin(latitude)-part*.018f; p.X+=.016f*MathF.Sin(latitude*2);
                 p.Y+=.015f*MathF.Sin(latitude)*MathF.Cos(angle+.6f);
+                p.X+=((_faceVariant%2)==0?1:-1)*.022f*MathF.Sin(latitude);
             }
             else if(p.Z<0)
             {
                 // A flatter facial plane, rounded chin, nasal bridge/tip and recessed eye sockets.
                 p.Z=Mathf.Lerp(p.Z,-depth*.94f,MathF.Pow(front,8)*.45f);
-                float bridge=MathF.Exp(-p.X*p.X*540-MathF.Pow(p.Y+.015f,2)*115);
-                float tip=MathF.Exp(-p.X*p.X*520-MathF.Pow(p.Y+.14f,2)*420);
+                float bridge=MathF.Exp(-p.X*p.X*640-MathF.Pow(p.Y+.015f,2)*72);
+                float tip=MathF.Exp(-p.X*p.X*530-MathF.Pow(p.Y+.14f,2)*430);
                 float socket=MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.19f,2)*250-MathF.Pow(p.Y-.045f,2)*380);
                 float lip=MathF.Exp(-p.X*p.X*120-MathF.Pow(p.Y+.275f,2)*300);
                 float cheek = MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.27f,2)*90-MathF.Pow(p.Y+.06f,2)*130);
                 float brow = MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.18f,2)*170-MathF.Pow(p.Y-.17f,2)*190);
                 float ala = MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.082f,2)*380-MathF.Pow(p.Y+.15f,2)*280);
-                p.Z-=bridge*.050f+tip*.062f+ala*.022f+lip*.015f+cheek*.014f+brow*.014f-socket*.018f;
+                float chin=MathF.Exp(-p.X*p.X*65-MathF.Pow(p.Y+.405f,2)*390);
+                float philtrum=MathF.Exp(-p.X*p.X*1200-MathF.Pow(p.Y+.225f,2)*850);
+                p.Z+=philtrum*.006f-chin*.018f;
+                p.Z-=bridge*(.048f+(_faceVariant%3)*.009f)+tip*(.052f+(_faceVariant%4)*.009f)+ala*.015f+lip*.026f+cheek*.022f+brow*.022f-socket*.036f;
             }
             return p;
         }

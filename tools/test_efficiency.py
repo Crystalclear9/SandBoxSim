@@ -76,10 +76,10 @@ class EfficiencyTests(unittest.TestCase):
                 report['summary']=e.paired_summary(report['samples'])
                 name='report'+str(index)+'.json'; (root/name).write_text(json.dumps(report)); manifest['rounds'][index]['reportSha256']=e.sha(root/name)
             evidence=e.rounds(manifest,root)
-            self.assertEqual(2,evidence['improvingRounds']); self.assertEqual(1,evidence['recursiveImprovingRounds'])
+            self.assertEqual(2,evidence['improvingRounds']); self.assertEqual(1,evidence['sequentialRuntimeImprovingRounds']); self.assertFalse(evidence['rsiClaim'])
             plateau=json.loads((root/'report0.json').read_text()); plateau['candidateIdentity']['coreSha256']='candidate1'
             (root/'report1.json').write_text(json.dumps(plateau)); manifest['rounds'][1]['reportSha256']=e.sha(root/'report1.json')
-            self.assertEqual(0,e.rounds(manifest,root)['recursiveImprovingRounds'])
+            self.assertEqual(0,e.rounds(manifest,root)['sequentialRuntimeImprovingRounds'])
             broken=copy.deepcopy(manifest); broken['rounds'][1]['parentAgentSha256']='invalid'
             with self.assertRaises(ValueError): e.rounds(broken,root)
             broken=copy.deepcopy(manifest); broken['rounds'][1]['cost']['tokens']=101

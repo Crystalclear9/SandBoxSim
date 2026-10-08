@@ -4,6 +4,8 @@
 
 项目也提供独立的 [在线控制与效率实验接口](docs/development/online-efficiency.md)：HTTP 固定步进、正确性约束下的配对性能比较，以及固定预算/控制代理下的多轮自我改进证据验证。研究模式不改变自由探索玩法。
 
+程序加速与代理改进能力分别评测。[代理改进协议](docs/development/rsi-improver.md) 实际执行代理自修改，并比较父/子产生后代的增益、冻结代理和只撤销自修改方法的对照；多轮程序更快不再直接标记为 RSI。
+
 ![自由探索与实际游戏画面](docs/images/free-world-ui.png)
 
 ## 安装与开始游玩
@@ -24,7 +26,7 @@ Windows 配置完成后可以双击 [Play-3D.cmd](Play-3D.cmd)。Linux/macOS 根
 
 | 内容 | 可以做什么 |
 |---|---|
-| 自然与生态 | 改变地形、水土和资源，观察天气、火灾与动物的相互影响 |
+| 自然与生态 | 改变地形、水土和资源，观察天气、火灾、动物与逐渐累积的土地压实 |
 | 自主居民 | 观察生存、采集、劳动、建造、迁移及家庭与人生记录 |
 | 荒野探索 | 寻找花甸、苇泽、倒木林隙、泉眼、野果地、古树林、遗迹和矿脉，按自己的喜好命名地点并观察变化 |
 | 观察与保存 | 使用图层、人物档案、历史和曲线；保存世界与会话进度，记录实验起点 |
@@ -35,7 +37,7 @@ Windows 配置完成后可以双击 [Play-3D.cmd](Play-3D.cmd)。Linux/macOS 根
 
 ## 实验与 benchmark 接口
 
-可通过独立评测模式运行固定场景，采集墙钟帧耗时与状态摘要，生成无标题的模型图像、视觉问题及答案，并回放人物界面操作。正常游戏仍为自由探索。运行方法、JSON 协议、模型预测格式和研究边界见 [评测接口与实验运行](docs/development/benchmark.md)，公开样例见 [评测场景](benchmarks/README.md)。这些接口用于可复现的开发实验，不代表已经验证 RSI 能力。重复采样与渲染缓存说明见 [性能维护](docs/development/performance.md)。
+可通过独立评测模式运行固定场景，采集墙钟帧耗时与状态摘要，生成无标题的模型图像、视觉问题及答案，并回放人物界面操作。正常游戏仍为自由探索。运行方法、JSON 协议、模型预测格式和研究边界见 [评测接口与实验运行](docs/development/benchmark.md)，公开样例见 [评测场景](benchmarks/README.md)。代理实验提供有界策略选择、实际 Python 候选代码和 HTTP 程序优化三种后端，均保留迁移、失败与控制证据。这些接口用于可复现的开发实验，不代表已经验证 RSI 能力。重复采样与渲染缓存说明见 [性能维护](docs/development/performance.md)。[连续世界实验](docs/development/stateful-rsi.md) 进一步检验库存变化、道路变更、实体世代与旧能力保留，并输出可展开的因果证据报告。[改进器效率研究](docs/development/rsi-efficiency.md) 比较实际时间预算、后代增量收益率与部署成本回收，明确拒绝无法确认的收益。
 
 ## 文档入口
 
@@ -45,7 +47,7 @@ Windows 配置完成后可以双击 [Play-3D.cmd](Play-3D.cmd)。Linux/macOS 根
 - **维护项目**：[目录与文件管理](docs/development/repository-layout.md)、[构建与运行](docs/development/build.md)、[配置](docs/development/configuration.md)、[存档](docs/development/saving.md)。
 - **查看更新**：[更新记录](CHANGELOG.md)、[版本更新与兼容](docs/guides/updating.md)。
 
-所有主题见 [文档导航](docs/README.md)。历史设计与阶段记录独立保存在 `docs/archive/`。
+源码入口见 [src](src/README.md)，工具入口见 [tools](tools/README.md)，公开实验与协议见 [benchmarks](benchmarks/README.md)。所有主题见 [文档导航](docs/README.md)。历史设计与阶段记录独立保存在 `docs/archive/`。
 
 ## 开发入口
 
@@ -68,7 +70,8 @@ Windows 配置完成后可以双击 [Play-3D.cmd](Play-3D.cmd)。Linux/macOS 根
 ```text
 SandBoxSim/
 ├─ src/                 Core、Console、Godot 与 Tests 四个工程
-├─ config/              默认模拟参数
+├─ config/              默认模拟参数与配置说明
+├─ benchmarks/          公开场景、代理夹具、Schema 与 OpenAPI
 ├─ tools/               安装、构建、运行、测试与文档检查脚本
 ├─ docs/
 │  ├─ guides/           安装、游玩、排错和版本更新

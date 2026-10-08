@@ -66,7 +66,7 @@ public sealed class ResourceSystem
             }
 
             float before = node.Amount;
-            float after = ResourceNode.RegenerateLogistic(before, node.Capacity, node.RegenerationRate, days);
+            float after = ResourceNode.RegenerateLogistic(before, node.Capacity, node.RegenerationRate, days*(1-.65f*tile.FootTraffic));
             if (after != before)
             {
                 regenerated += after - before;

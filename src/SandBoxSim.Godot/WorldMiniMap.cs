@@ -9,8 +9,11 @@ public partial class WorldMiniMap : Control
 {
     public MainGame Game { get; set; } = null!;
     private ImageTexture? _terrain;
+    private readonly StyleBoxFlat _mapFrame=HudStyle.Box(new Color("#c6cbb9"),3,4,false);
     private SandBoxSim.Core.Simulation? _world;
     private ulong _lastRefresh;
+    private Int2? _hovered;
+    public override void _Ready(){MouseFilter=MouseFilterEnum.Stop;MouseExited+=()=>{_hovered=null;QueueRedraw();};TooltipText="悬停查看坐标 · 单击回访地点";}
     private Rect2 MapBounds
     {
         get
@@ -38,11 +41,15 @@ public partial class WorldMiniMap : Control
             }
             _terrain = ImageTexture.CreateFromImage(image);
         }
-        var rect = MapBounds; DrawStyleBox(HudStyle.Box(new Color("#c1c4ad"),2,4,false), new Rect2(Vector2.Zero, Size));
+        var rect = MapBounds; DrawStyleBox(_mapFrame, new Rect2(Vector2.Zero, Size));
         DrawTextureRect(_terrain, rect, false); DrawRect(rect, HudStyle.Border, false, 1);
         Vector2 Position(int x, int y) => rect.Position + new Vector2((x + .5f) / sim.World.Width * rect.Size.X, (y + .5f) / sim.World.Height * rect.Size.Y);
         foreach (int slot in sim.Agents.AliveSlots()) { DrawCircle(Position(sim.Agents.XOf(slot), sim.Agents.YOf(slot)), 1.5f, HudStyle.Surface); }
         for (int i = 0; i < sim.World.Tiles.Length; i++) if (sim.World.Tiles[i].Fire == FireState.Burning) { DrawCircle(Position(i % sim.World.Width, i / sim.World.Width), 2, new Color("#ee9367")); }
+        var selected=Position(Game.SelectedX,Game.SelectedY);
+        DrawLine(selected-new Vector2(5,0),selected+new Vector2(5,0),new Color("#e5dfce"),1,true);
+        DrawLine(selected-new Vector2(0,5),selected+new Vector2(0,5),new Color("#e5dfce"),1,true);
+        if(_hovered.HasValue)DrawCircle(Position(_hovered.Value.X,_hovered.Value.Y),5,new Color("#eee7d4"),false,1);
         var person = sim.Society.Find(Game.PinnedPerson);
         if (person?.Alive == true) { DrawCircle(Position(sim.Agents.XOf(person.Slot), sim.Agents.YOf(person.Slot)), 4, HudStyle.Accent, false, 1.5f); }
         var font = GetThemeDefaultFont(); float left = rect.End.X + 15;
@@ -50,6 +57,7 @@ public partial class WorldMiniMap : Control
         Text("N ↑   区域地图",24,new Color("#68745e"), 11);
         Text("居民  " + sim.Agents.LiveCount, 54,new Color("#37402f"), 15);
         Text("聚落  " + sim.Settlements.ActiveCount, 78,new Color("#68745e"));
+        Text(_hovered.HasValue?$"坐标  {_hovered.Value.X}, {_hovered.Value.Y}":"单击地图回访",113,new Color("#68745e"),11);
     }
     public Int2? TileAt(Vector2 point)
     {
@@ -60,6 +68,7 @@ public partial class WorldMiniMap : Control
     }
     public override void _GuiInput(InputEvent input)
     {
+        if(input is InputEventMouseMotion motion){_hovered=TileAt(motion.Position);QueueRedraw();}
         if (input is InputEventMouseButton button && button.Pressed && button.ButtonIndex == MouseButton.Left)
         {
             var point = TileAt(button.Position); if (point.HasValue) { Game.FocusLocation(point.Value.X, point.Value.Y); AcceptEvent(); }

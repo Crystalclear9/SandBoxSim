@@ -19,14 +19,21 @@
     "automaticModelInvocation": false,
     "validatedRsiBenchmark": false,
     "pairedEfficiencyBenchmark": true,
-    "rsiEfficiencyEvidenceValidation": true
+    "rsiEfficiencyEvidenceValidation": true,
+    "agentSelfEditExecution": true,
+    "improverMechanismIntervention": true,
+    "offspringYieldEvaluation": true,
+    "costSensitiveImproverAnalysis": true,
+    "retrospectiveBudgetCurves": true,
+    "codeDeploymentPaybackEstimate": true
   },
   "schemas": {
     "request": "request.schema.json",
     "predictions": "predictions.schema.json",
     "result": "result.schema.json",
     "online": "online.openapi.json",
-    "rsiRounds": "rsi-rounds.schema.json"
+    "rsiRounds": "rsi-rounds.schema.json",
+    "rsiMeta": "rsi-meta.schema.json"
   },
   "exitCodes": {
     "0": "completed",
@@ -53,6 +60,35 @@
     "launcher": "tools/online.py",
     "benchmark": "tools/efficiency.py",
     "visualObservation": false,
-    "rsiValidationScope": "Correctness, paired efficiency, round lineage and fixed-budget evidence; no general RSI capability claim"
+    "rsiValidationScope": "Agent capability transfer, executed self-edit lineage, paired offspring yields and improve-method reversion; runtime acceleration remains separately measured."
+  },
+  "metaBenchmark": {
+    "entry": "tools/rsi_benchmark.py",
+    "schemaVersion": 2,
+    "agentAbi": [
+      "propose(request)",
+      "improve(request)"
+    ],
+    "backends": [
+      "kernel",
+      "code",
+      "http"
+    ],
+    "trustedLocalExecutionOnly": true,
+    "generalRsiProof": false,
+    "taskSuites": [
+      "algorithm-v1",
+      "sandbox-stream-v1"
+    ],
+    "retention": "sandbox-stream-v1 stages after the first re-probe every earlier curriculum phase with fresh private tasks; per-family non-regression gates recursive evidence",
+    "report": "verified self-contained HTML: tools/rsi_benchmark.py report <folder> --output <file>",
+    "costStudy": {
+      "entry": "tools/rsi_efficiency_study.py",
+      "outputKind": "rsi-cost-study-v1",
+      "verifiedArchiveRequired": true,
+      "completeCostLedger": false,
+      "budgetAwarePolicyRerun": false,
+      "generalRsiProof": false
+    }
   }
 }

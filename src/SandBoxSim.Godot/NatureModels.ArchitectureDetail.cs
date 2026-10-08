@@ -6,7 +6,7 @@ internal sealed partial class NatureModels
 {
     private void RoofCourses(Node3D model,float width,float depth,float height,int material)
     {
-        float half=(width+.4f)/2;const int courses=7,columns=12;
+        float half=(width+.4f)/2;int courses=_fineArchitecture?12:7,columns=_fineArchitecture?18:12;
         foreach(float side in new[]{-1f,1f})
         {
             for(int row=0;row<courses;row++) for(int col=0;col<columns;col++)
@@ -16,7 +16,7 @@ internal sealed partial class NatureModels
                 z+=row%2==0?0:step*.22f;
                 z=Mathf.Clamp(z,-(depth+.4f)/2+step*.44f,(depth+.4f)/2-step*.44f);
                 Part(model,(material==15?"thatch-course":"tile-course")+(_fineArchitecture?"":"-far"),new(side*x,height+half*.48f-x*.495f+.13f+(1-(row+.5f)/courses)*.048f,z),
-                    new(half/courses*1.20f,.032f,(depth+.4f)/columns*(.96f-((row+col)%3)*.008f)),material,new(0,0,-side*.46f));
+                    new(half/courses*1.20f,.024f,(depth+.4f)/columns*(.96f-((row+col)%3)*.008f)),material,new(0,0,-side*.46f));
             }
             foreach(float z in new[]{-(depth+.43f)/2,(depth+.43f)/2})
                 Part(model,"box",new(side*half/2,height+half*.25f,z),new(half*1.15f,.075f,.085f),0,new(0,0,-side*.46f));
@@ -54,7 +54,7 @@ internal sealed partial class NatureModels
         {
             int variant=(int)(identity%5);
             float height=kind==BuildingKind.Storage ? 1.4f : variant==3 ? 2.6f : variant==0 ? 1.8f : 2.15f;
-            float z=depth/2+.1f, doorX=kind==BuildingKind.Storage ? 0 : variant%2==0 ? -.28f : .28f;
+            float z=depth/2+.1f, doorX=kind==BuildingKind.Storage ? 0 : variant is 0 or 4 ? -.28f : 0;
             float doorHeight=kind==BuildingKind.Storage ? 1.2f : 1.55f, centerY=kind==BuildingKind.Storage ? .6f : .95f;
             float doorWidth=kind==BuildingKind.Storage ? .85f : .62f;
             // Individual planks, lintel, jambs, iron straps and latch.
@@ -91,15 +91,41 @@ internal sealed partial class NatureModels
                 for(int row=0;row<12;row++) foreach(float side in new[]{-1f,1f})
                     Part(model,"cylinder",new(side*width/2,.27f+row*.138f,0),new(.14f,depth+.12f,.14f),0,new(Godot.Mathf.Pi/2,0,0));
             if(variant==2 && kind==BuildingKind.House)
-                for(int row=0;row<11;row++) for(int col=0;col<7;col++)
+                for(int row=0;row<11;row++) for(int col=0;col<8;col++)
                 {
-                    float x=-width/2+(col+.5f)*width/7;
+                    float offset=row%2==0?0:.5f;
+                    float left=Godot.Mathf.Max(-width/2,-width/2+(col-offset)*width/7),right=Godot.Mathf.Min(width/2,-width/2+(col+1-offset)*width/7);
+                    float near=Godot.Mathf.Max(-depth/2,-depth/2+(col-offset)*depth/7),far=Godot.Mathf.Min(depth/2,-depth/2+(col+1-offset)*depth/7);
+                    if(right-left<.02f || far-near<.02f)continue;
+                    float x=(left+right)/2;
                     foreach(float side in new[]{-1f,1f})
-                        Part(model,"box",new(x,.18f+(row+.5f)*height/11,side*(depth/2+.026f)),new(width/7-.012f,height/11-.012f,.07f),6);
-                    float stoneZ=-depth/2+(col+.5f)*depth/7;
+                        Part(model,"box",new(x,.18f+(row+.5f)*height/11,side*(depth/2+.026f)),new(right-left-.012f,height/11-.012f,.07f),6);
+                    float stoneZ=(near+far)/2;
                     foreach(float side in new[]{-1f,1f})
-                        Part(model,"box",new(side*(width/2+.026f),.18f+(row+.5f)*height/11,stoneZ),new(.07f,height/11-.012f,depth/7-.012f),6);
+                        Part(model,"box",new(side*(width/2+.026f),.18f+(row+.5f)*height/11,stoneZ),new(.07f,height/11-.012f,far-near-.012f),6);
                 }
+                // Recessed entrance canopy and carved corbels vary the cottage facade.
+                if(kind==BuildingKind.House && (variant==1 || variant==2 || variant==3))
+                {
+                    Part(model,"box",new(doorX,centerY+doorHeight/2+.20f,z+.23f),new(doorWidth+.38f,.065f,.48f),variant==2?6:0,new(.12f,0,0));
+                    foreach(float side in new[]{-1f,1f})
+                    {
+                        Timber(model,new(doorX+side*(doorWidth/2+.065f),centerY+doorHeight/2-.14f,z),new(doorX+side*(doorWidth/2+.065f),centerY+doorHeight/2+.15f,z+.36f),.045f);
+                    }
+                }
+            if(kind==BuildingKind.House && _fineArchitecture)
+            {
+                foreach(float side in new[]{-1f,1f})
+                {
+                    int first=model.GetChildCount();Window(model,0,0,0);
+                    var placement=new Transform3D(new Basis(Vector3.Up,side*Godot.Mathf.Pi/2),new(side*(width/2+.075f),1.25f,depth*.13f));
+                    for(int i=first;i<model.GetChildCount();i++)
+                    {var part=model.GetChild<Node3D>(i);part.Transform=placement*part.Transform;}
+                }
+                // Cut ends and pegs make the eaves readable without unmerged accessory nodes.
+                foreach(float side in new[]{-1f,1f})for(int i=0;i<5;i++)
+                    Part(model,"box",new(side*(width/2+.11f),height+.13f,-depth/2+(i+.5f)*depth/5),new(.25f,.075f,.07f),0);
+            }
             if(variant==4 && kind==BuildingKind.House) LeanToDetail(model,width,depth,height);
             // Stacked firewood, a braced barrel and rain-darkened chimney cap.
             for(int i=0;i<5;i++) Part(model,"cylinder",new(width/2+.12f,.16f+(i/3)*.12f,-depth/2+.28f+(i%3)*.11f),new(.09f,.40f,.09f),0,new(0,0,Godot.Mathf.Pi/2));

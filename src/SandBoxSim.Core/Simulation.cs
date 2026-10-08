@@ -491,7 +491,8 @@ public sealed class Simulation
     /// <summary>每小时逻辑（后续各系统在此挂接：分工需求刷新、聚落评估……）。</summary>
     public void TickHour()
     {
-        // 预留扩展点。
+        World.RecoverFootTraffic();
+        // 压实只随模拟小时恢复，不依赖显示帧率。
     }
 
     /// <summary>
@@ -1085,7 +1086,7 @@ public sealed class Simulation
         {
             ref Tile tile = ref tiles[i];
             if (!SimMath.IsFinite(tile.Moisture) || !SimMath.IsFinite(tile.Fertility)
-                || !SimMath.IsFinite(tile.Temperature) || !SimMath.IsFinite(tile.Resource.Amount))
+                || !SimMath.IsFinite(tile.Temperature) || !SimMath.IsFinite(tile.Resource.Amount) || !SimMath.IsFinite(tile.FootTraffic) || tile.FootTraffic<0 || tile.FootTraffic>1)
             {
                 Fail("Tile[" + (i % World.Width) + "," + (i / World.Width) + "] 出现 NaN/Infinity");
                 return;

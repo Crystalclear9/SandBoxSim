@@ -133,7 +133,7 @@ internal partial class ResidentRig : Node3D
         _faceTime+=delta;
         if(_detailedHead)
         {
-            float blinkPhase=(_faceTime+identityPhase*.37f)%4.7f;
+            float blinkPhase=(_faceTime+1.1f+identityPhase*2.3f)%4.7f;
             float blink=blinkPhase<.28f?MathF.Sin(blinkPhase/.28f*MathF.PI):0;
             LidMaterial.SetShaderParameter("blink",blink);
             for(int eye=0;eye<2;eye++){Eyes[eye].Scale=new(1,MathF.Max(.02f,1-blink),1);Eyes[eye].Rotation=Vector3.Zero;}

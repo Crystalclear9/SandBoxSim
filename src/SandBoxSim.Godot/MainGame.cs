@@ -545,6 +545,7 @@ public partial class MainGame : Control
             }
         }
         _drawer.SetTabTitle(1, _selectedPersonId != 0 ? "人物" : _selectedAnimal >= 0 || _selectedWolf >= 0 ? "动物" : "土地");
+        _drawer.SetTabIcon(1,HudSymbols.For(_selectedPersonId!=0?"居民":"生态",16));
         RefreshResidentVitals();
         _inspector.Text = FormatInspector(text.ToString());
         var history = new StringBuilder();

@@ -23,6 +23,10 @@ internal sealed partial class NatureModels
         Batch(batch,"cylinder",0,placements);int instanceCount=0;
         foreach(Node child in batch.GetChildren())instanceCount+=((MultiMeshInstance3D)child).Multimesh.InstanceCount;
         if(remaining.Count!=0||instanceCount!=placements.Count||batch.GetChildCount()!=4)throw new InvalidOperationException("Spatial batches do not separate distant objects");batch.Free();
+        var faceVariants=new System.Collections.Generic.HashSet<Mesh>();int currentFace=_faceVariant;
+        for(int variant=0;variant<8;variant++){_faceVariant=variant;faceVariants.Add(Shape("face"));}
+        if(faceVariants.Count!=8)throw new InvalidOperationException("Resident face structures share the same mesh");
+        _faceVariant=currentFace;_facePoints=null;_faceIndices=null;
         var prototype=Building(BuildingKind.House,true,1);var repeated=Building(BuildingKind.House,true,141);
         if(prototype==repeated||prototype.GetChild<MeshInstance3D>(0).Mesh!=repeated.GetChild<MeshInstance3D>(0).Mesh||prototype.Scale!=repeated.Scale)
             throw new InvalidOperationException("Architecture cache changes normalized variant or shares a scene node");
@@ -54,6 +58,12 @@ internal sealed partial class NatureModels
             if(architecture && instances!=1) throw new InvalidOperationException("Static architecture was not consolidated");
             model.Free();
         }
+        var meadow=Shape("grass");var meadowData=meadow.SurfaceGetArrays(0);
+        var meadowPoints=meadowData[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var meadowNormals=meadowData[(int)Mesh.ArrayType.Normal].AsVector3Array();
+        if(meadowPoints.Length!=meadowNormals.Length)throw new InvalidOperationException("Meadow mesh lost normals");
+        foreach(var p in meadowPoints)if(!p.IsFinite()||p.Y<0)throw new InvalidOperationException("Meadow blade has invalid root or vertex");
+        foreach(var n in meadowNormals)if(!n.IsFinite())throw new InvalidOperationException("Meadow blade has invalid normal");
         foreach(var mesh in new[]{Shape("face"),Shape("hair"),Shape("rock"),Garment()})
         {
             var arrays=mesh.SurfaceGetArrays(0); var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array(); var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();

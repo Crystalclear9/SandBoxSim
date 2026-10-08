@@ -46,8 +46,8 @@ internal sealed partial class NatureModels
             {
                 float a=i*2.399963f, y=1-2*(i+.5f)/110, r=MathF.Sqrt(1-y*y);
                 var center=new Vector3(MathF.Cos(a)*r,y*.85f,MathF.Sin(a)*r)*(.39f+.035f*MathF.Sin(i*1.7f));
-                var along=new Vector3(MathF.Cos(a+.7f),.22f,MathF.Sin(a+.7f)).Normalized()*.13f;
-                var across=along.Cross(Vector3.Up).Normalized()*.075f;
+                var along=new Vector3(MathF.Cos(a+.7f),MathF.Sin(i*.83f)*.72f,MathF.Sin(a+.7f)).Normalized()*.108f;
+                var across=along.Cross(Vector3.Up).Normalized()*.055f;
                 Spray(center,along,across,.026f);
             }
         }

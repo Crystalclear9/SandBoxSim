@@ -70,7 +70,7 @@ public partial class MainGame
             if (hidden) { continue; }
             string escaped = EscapeMarkup(line);
             if (first && line.Length > 0) { result.AppendLine("[font_size=23][b]" + escaped + "[/b][/font_size]"); first = false; }
-            else if (section) { result.AppendLine("[color=#806644][b]" + escaped + "[/b][/color]"); }
+            else if (section) { result.AppendLine("[color=#c7b992][b]" + escaped + "[/b][/color]"); }
             else { result.AppendLine(escaped); }
         }
         return result.ToString().TrimStart('\r','\n');
@@ -83,9 +83,9 @@ public partial class MainGame
         var overlay = new Control { MouseFilter = MouseFilterEnum.Ignore }; overlay.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(overlay);
         var header = Surface(overlay, Vector2.Zero, new Vector2(16, 16), new Vector2(1264, 60), 0);
         header.AnchorRight = 1; header.OffsetRight = -16;
-        header.Visible = true;
+        header.Visible = false;
         var worldCard = Surface(overlay, new Vector2(0, 0), new Vector2(28, 19), new Vector2(270, 54), 4);
-        ClearSurface(worldCard);
+
         var worldRow = new HBoxContainer(); worldRow.AddThemeConstantOverride("separation", 12); worldCard.AddChild(worldRow);
         worldRow.AddChild(new TextureRect { Texture = HudSymbols.For("crest"), CustomMinimumSize = new Vector2(28, 38), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered });
         var wordmark = HudStyle.Heading("河山", 26); worldRow.AddChild(wordmark);
@@ -96,7 +96,7 @@ public partial class MainGame
         scenario.ItemSelected += index => { Scenario = (int)index; NewWorld((int)_seed.Value); _map.Focus(43, 50, 16); _checkpoint = ""; _discovery.Refresh(); };
 
         var stats = Surface(overlay, new Vector2(.5f, 0), new Vector2(-310, 20), new Vector2(620, 52), 4);
-        ClearSurface(stats);
+
         var statsRow = new HBoxContainer(); statsRow.AddThemeConstantOverride("separation", 12); stats.AddChild(statsRow);
         _populationLabel = Metric(statsRow, "居民", "40", 20); _settlementLabel = Metric(statsRow, "聚落", "0", 20); _buildingLabel = Metric(statsRow, "建筑", "0", 20);
         _foodLabel = Metric(statsRow, "食物储备", "0", 20); _woodLabel = Metric(statsRow, "木材储备", "0", 20); _stoneLabel = Metric(statsRow, "石料储备", "0", 20);
@@ -104,16 +104,20 @@ public partial class MainGame
             resource.TooltipText = "居民携带 + 地面物资堆 + 仓库；不包含尚未采集的地表资源，也不保证所有居民都可到达。";
         _summary = new Label { Visible = false }; overlay.AddChild(_summary);
         var topActions = Surface(overlay, new Vector2(1, 0), new Vector2(-238, 24), new Vector2(210, 44), 4);
-        ClearSurface(topActions);
+
         var actions = new HBoxContainer(); actions.AddThemeConstantOverride("separation", 6); topActions.AddChild(actions);
         _settingsButton = ActionButton(actions, "世界设置", () => ShowSettings(!_settingsOpen)); _settingsButton.ToggleMode = true;
         _journalButton = ActionButton(actions, "世界手记", () => ShowJournal(!_journalPanel.Visible)); _journalButton.ToggleMode = true;
 
         _journalPanel = Surface(overlay, new Vector2(1, 0), new Vector2(-372, 92), new Vector2(348, 600), 18);
         var journal = new VBoxContainer(); journal.AddThemeConstantOverride("separation", 12); _journalPanel.AddChild(journal);
-        var journalHeader = new HBoxContainer(); journal.AddChild(journalHeader);
+        var journalHeading = new PanelContainer(); journalHeading.SetMeta("journal_heading",true);
+        var headingBox=HudStyle.Box(new Color("#28332f"),2,12,false);journalHeading.AddThemeStyleboxOverride("panel",headingBox);journal.AddChild(journalHeading);
+        var headingBody=new VBoxContainer();headingBody.AddThemeConstantOverride("separation",5);journalHeading.AddChild(headingBody);
+        var journalHeader = new HBoxContainer(); headingBody.AddChild(journalHeader);
         var journalTitle = HudStyle.Heading("世界手记", 22); journalTitle.SizeFlagsHorizontal = SizeFlags.ExpandFill; journalHeader.AddChild(journalTitle);
         ActionButton(journalHeader, "关闭 ×", () => ShowJournal(false));
+        headingBody.AddChild(HudStyle.Label("观察 · 记录 · 回访",11,true));
         _drawer = new TabContainer { SizeFlagsVertical = SizeFlags.ExpandFill }; journal.AddChild(_drawer);
         _drawer.AddThemeStyleboxOverride("panel", HudStyle.Box(new Color(0, 0, 0, 0), 0, 0, false));
         _discovery = new DiscoveryPanel { Name = "现场", Game = this }; _drawer.AddChild(_discovery);
@@ -129,6 +133,7 @@ public partial class MainGame
         nameControls.AddChild(_residentName); ActionButton(nameControls, "命名", RenameResident);
         _inspector = TextPanel("人物详情"); _inspector.FitContent=true;_inspector.ScrollActive=false;_inspector.SizeFlagsVertical=SizeFlags.Fill;personPanel.AddChild(_inspector); _history = TextPanel("历史"); _drawer.AddChild(_history);
         _chart = new StatisticsView { Name = "曲线", Game = this }; _drawer.AddChild(_chart);
+        foreach(var (tab,glyph) in new[]{(0,"观察"),(1,"居民"),(2,"手记"),(3,"曲线")})_drawer.SetTabIcon(tab,HudSymbols.For(glyph,16));
         _drawer.TabChanged += _ => RevealJournalPage();
 
         _brushPanel = Surface(overlay, new Vector2(0, 0), new Vector2(24, 104), new Vector2(245, 230), 18);
@@ -368,7 +373,7 @@ public partial class MainGame
     {
         var item = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; item.AddThemeConstantOverride("separation", 7); row.AddChild(item);
         item.AddChild(new TextureRect { Texture = HudSymbols.For(title), CustomMinimumSize = new Vector2(24, 30), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered, Modulate = HudStyle.Accent });
-        var stack = new VBoxContainer(); stack.AddThemeConstantOverride("separation", 0); item.AddChild(stack); stack.AddChild(HudStyle.Label(title.Replace("储备", ""), 10, true));
+        var stack = new VBoxContainer(); stack.AddThemeConstantOverride("separation", 0); item.AddChild(stack); stack.AddChild(HudStyle.Label(title.Replace("储备", ""), 11, true));
         var metric = HudStyle.Label(value, size); stack.AddChild(metric); return metric;
     }
     private static Godot.Button ActionButton(Container parent, string label, Action action)

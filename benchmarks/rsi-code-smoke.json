@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 2,
+  "agent": "agents/code_improver.py",
+  "fixtureOnly": true,
+  "backend": "code",
+  "stages": 1,
+  "probeTasks": 12,
+  "forkReplicates": 3,
+  "seed": 1729,
+  "effectMargin": 0.02,
+  "budget": {"attempts": 1, "callSeconds": 5, "taskSeconds": 6}
+}
