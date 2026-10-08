@@ -7,11 +7,11 @@ internal static class HudStyle
 {
     public static bool MotionEnabled { get; set; } = true;
     public static readonly Color Ink = new("#1b201f"), Surface = new(.075f, .092f, .09f, .97f), Text = new("#e9e3d6"),
-        Muted = new("#aca99e"), Accent = new("#bba477"), Border = new("#4d5044"), Wash = new("#30382f");
+        Muted = new("#b5b4a9"), Accent = new("#c2ae84"), Border = new("#53574e"), Wash = new("#30382f");
     private static Texture2D? _leather;
     private static ShaderMaterial? _frameMaterial;
     public static ShaderMaterial FrameMaterial => _frameMaterial ??= new ShaderMaterial { Shader = new Shader { Code =
-        "shader_type canvas_item; void fragment(){ vec4 c = texture(TEXTURE,UV)*COLOR; vec3 base=mix(vec3(.089,.092,.081),vec3(.151,.155,.133),1.0-UV.y); float edge=pow(1.0-UV.y,8.0)*.018; COLOR=vec4(base+c.rgb*.035+edge,c.a); }" } };
+        "shader_type canvas_item; void fragment(){ vec4 c = texture(TEXTURE,UV)*COLOR; vec3 base=mix(vec3(.078,.092,.093),vec3(.145,.157,.150),1.0-UV.y); float edge=pow(1.0-UV.y,8.0)*.014; COLOR=vec4(base+c.rgb*.025+edge,c.a); }" } };
     public static StyleBox Frame(int padding)
     {
         if (_leather == null)

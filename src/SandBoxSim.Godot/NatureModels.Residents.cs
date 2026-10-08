@@ -12,7 +12,7 @@ internal sealed partial class NatureModels
     {
         if (!_residentMaterials.TryGetValue(color, out var material))
         {
-            bool fabric = color is "#536d68" or "#b4956a" or "#866756" or "#6e7881" or "#798261" or "#a8937d" or "#75654f" or "#645e53";
+            bool fabric = color is "#536d68" or "#b4956a" or "#866756" or "#6e7881" or "#798261" or "#a8937d" or "#75654f" or "#645e53" or "#a59c86";
             material = color is "#aa8b78" or "#8e705e" or "#ba9d89" or "#806653" ? SkinSurface(color) : color is "#42352c" or "#695344" ? HairSurface(color) : fabric ? Fabric(color) : new StandardMaterial3D { AlbedoColor = new Color(color), Roughness = roughness, MetallicSpecular = .22f };
             _residentMaterials[color] = material;
         }
@@ -85,7 +85,7 @@ internal sealed partial class NatureModels
         // Collar, placket and the hem distinguish tailored cloth from the body's silhouette.
         foreach (float side in new[] { -1f, 1f })
         {
-            Detail(rig.Torso, "box", new Vector3(side * .065f, 1.235f, -.095f), new Vector3(.09f, .027f, .017f), "#b9b099", new Vector3(0, 0, side * .35f));
+            Sculpt(rig.Torso,CollarLeaf(side),Vector3.Zero,ResidentMaterial("#a59c86"));
             Detail(rig.Torso, "box", new Vector3(side * .145f, .67f, -.11f), new Vector3(.012f, .13f, .012f), cloth, new Vector3(0, 0, side * -.10f));
         }
         Detail(rig.Torso, "box", new Vector3(0, 1.11f, -.145f), new Vector3(.016f, .18f, .012f), "#b9b099");
