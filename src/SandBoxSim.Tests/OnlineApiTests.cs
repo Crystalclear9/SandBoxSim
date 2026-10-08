@@ -57,4 +57,34 @@ public sealed class OnlineApiTests
         Fails(api,path+"/path","{\"expectedRevision\":0,\"queries\":[]}",409);
         Call(api,"DELETE",path);Fails(api,path+"/step","{}",404);
     }
+    [Fact("Online cached snapshots refresh after terrain mutation, ticks and reset")]
+    public void SnapshotInvalidation()
+    {
+        var api=new StepApi();string path="/v1/sessions/"+Create(api);
+        var before=Call(api,"GET",path+"/map");
+        Call(api,"POST",path+"/step","{\"requestId\":\"terrain\",\"expectedRevision\":0,\"ticks\":0,\"actions\":[{\"kind\":\"terrain\",\"x\":0,\"y\":0,\"terrain\":\"Water\"}]}");
+        var changed=Call(api,"GET",path+"/map");
+        Assert.False(changed.GetProperty("tiles")[0].GetProperty("walkable").GetBoolean());
+        Assert.Equal(1L,changed.GetProperty("revision").GetInt64());
+        Assert.Equal(changed.GetRawText(),Call(api,"GET",path+"/map").GetRawText());
+        Call(api,"POST",path+"/step","{\"requestId\":\"advance\",\"expectedRevision\":1,\"ticks\":2}");
+        Assert.Equal(2L,Call(api,"GET",path).GetProperty("tick").GetInt64());
+        Call(api,"POST",path+"/reset","{\"requestId\":\"new\",\"expectedRevision\":2,\"seed\":17,\"width\":24,\"height\":24,\"agents\":4}");
+        var restored=Call(api,"GET",path+"/map");
+        Assert.Equal(before.GetProperty("tiles").GetRawText(),restored.GetProperty("tiles").GetRawText());
+        Assert.Equal(3L,restored.GetProperty("revision").GetInt64());
+    }
+    [Fact("Encoded HTTP snapshots reuse bytes only within the same world revision")]
+    public void EncodedSnapshotInvalidation()
+    {
+        var api=new StepApi();string path="/v1/sessions/"+Create(api);using var json=JsonDocument.Parse("{}");
+        var first=api.Encode("GET",path,json.RootElement);
+        Assert.True(object.ReferenceEquals(first,api.Encode("GET",path+"/",json.RootElement)));
+        var map=api.Encode("GET",path+"/map",json.RootElement);
+        Call(api,"POST",path+"/step","{\"requestId\":\"step\",\"expectedRevision\":0,\"ticks\":1}");
+        Assert.False(object.ReferenceEquals(first,api.Encode("GET",path,json.RootElement)));
+        Assert.False(object.ReferenceEquals(map,api.Encode("GET",path+"/map",json.RootElement)));
+        using var observation=JsonDocument.Parse(api.Encode("GET",path,json.RootElement));
+        Assert.Equal(1L,observation.RootElement.GetProperty("tick").GetInt64());
+    }
 }

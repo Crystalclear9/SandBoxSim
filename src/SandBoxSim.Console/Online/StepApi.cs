@@ -24,12 +24,27 @@ public sealed class StepApi
         public long Revision;
         public long Calls, Steps, Actions;
         public bool Faulted;
+        public object? CachedObservation, CachedMap;
+        public readonly Dictionary<string, byte[]> EncodedReads = new(StringComparer.Ordinal);
         public readonly Dictionary<string, (string input, object output)> Replies = new(StringComparer.Ordinal);
         public Session(Simulation sim) { Sim = sim; }
     }
     private readonly Dictionary<string, Session> _sessions = new(StringComparer.Ordinal);
     public const int MaxSessions = 8;
     public const int MaxTicks = 1000;
+
+    public byte[] Encode(string method,string path,JsonElement body)
+    {
+        object value=Dispatch(method,path,body);
+        var parts=path.Trim('/').Split('/');
+        if(method=="GET" && parts.Length>=3 && _sessions.TryGetValue(parts[2],out var session))
+        {
+            string key=parts.Length==4?"map":"observation";
+            if(session.EncodedReads.TryGetValue(key,out var encoded))return encoded;
+            encoded=JsonSerializer.SerializeToUtf8Bytes(value);session.EncodedReads[key]=encoded;return encoded;
+        }
+        return JsonSerializer.SerializeToUtf8Bytes(value);
+    }
 
     public object Dispatch(string method, string path, JsonElement body)
     {
@@ -49,7 +64,7 @@ public sealed class StepApi
         if (parts.Length == 4 && parts[3] == "map" && method == "GET")
         {
             var w = s.Sim.World;
-            return new { revision = s.Revision, width = w.Width, height = w.Height,
+            return s.CachedMap ??= new { revision = s.Revision, width = w.Width, height = w.Height,
                 tiles = w.Tiles.Select(t => new { walkable = t.Walkable, terrain = t.Terrain.ToString(), traversalHeight = t.Temperature,
                     moveCost = TerrainInfo.MoveCost(t.Terrain) }).ToArray() };
         }
@@ -70,6 +85,8 @@ public sealed class StepApi
         {
             Fields(body, "requestId", "expectedRevision", "seed", "width", "height", "agents");
             var sim = Create(body, false); s.Sim = sim; s.Revision++; s.Steps = s.Actions = s.Calls = 0; s.Faulted = false;
+            s.CachedObservation = s.CachedMap = null;
+            s.EncodedReads.Clear();
             result = Observe(s);
         }
         else
@@ -86,6 +103,8 @@ public sealed class StepApi
             // All arguments are validated before any mutation. Unexpected engine errors quarantine the session.
             long allocated = GC.GetAllocatedBytesForCurrentThread();
             var watch = Stopwatch.StartNew();
+            s.CachedObservation = s.CachedMap = null;
+            s.EncodedReads.Clear();
             try
             {
                 foreach (var operation in operations) { operation(); }
@@ -118,8 +137,9 @@ public sealed class StepApi
 
     private static object Observe(Session s)
     {
+        if(s.CachedObservation != null) { return s.CachedObservation; }
         var sample = s.Sim.Observe();
-        return new { schemaVersion = 1, revision = s.Revision, tick = s.Sim.Clock, digest = s.Sim.StateDigestString(), faulted = s.Faulted,
+        return s.CachedObservation = new { schemaVersion = 1, revision = s.Revision, tick = s.Sim.Clock, digest = s.Sim.StateDigestString(), faulted = s.Faulted,
             population = sample.Population, food = sample.Food, wood = sample.Wood, stone = sample.Stone, buildings = sample.BuildingCount,
             episode = new { stepCalls = s.Calls, ticks = s.Steps, actions = s.Actions } };
     }
@@ -183,7 +203,7 @@ public sealed class StepApi
         }
         watch.Stop(); allocated = GC.GetAllocatedBytesForCurrentThread() - allocated;
         string after = s.Sim.StateDigestString();
-        if (before != after) { s.Faulted = true; throw new InvalidOperationException("Path query mutated simulation"); }
+        if (before != after) { s.Faulted = true; s.CachedObservation=s.CachedMap=null; s.EncodedReads.Clear(); throw new InvalidOperationException("Path query mutated simulation"); }
         return new { schemaVersion = 1, revision = s.Revision, digest = after, paths,
             metrics = new { executionMs = watch.Elapsed.TotalMilliseconds, allocatedBytes = allocated, queries = coords.Count } };
     }

@@ -20,7 +20,7 @@ name: ci
 
 on:
   push:
-    branches: [main]
+    branches: [main, codex]
   pull_request:
   workflow_dispatch:
 
@@ -68,6 +68,22 @@ jobs:
           ./tools/test-godot-path.ps1
           python -m unittest discover -s tools -p test_evaluate.py
           python tools/evaluate.py describe
+
+      - name: Agent self-edit and second-order improver regression
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tools -p test_rsi_benchmark.py
+          python tools/rsi_benchmark.py run benchmarks/rsi-meta-smoke.json --output runs/rsi-meta-ci
+          python tools/rsi_benchmark.py verify runs/rsi-meta-ci
+
+      - name: Upload improver probe evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: improver-probes-${{ matrix.os }}
+          path: runs/rsi-meta-ci
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Build (channel A)
         shell: pwsh

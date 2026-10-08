@@ -81,7 +81,7 @@ public static class HttpService
                         if (input.Length > 32768) { throw new ApiError(413, "Body exceeds 32 KiB"); }
                     }
                     using var json = JsonDocument.Parse(input.Length == 0 ? "{}" : Encoding.UTF8.GetString(input.ToArray()), new JsonDocumentOptions { MaxDepth = 16 });
-                    lock (gate) { result = api.Dispatch(method, path, json.RootElement); }
+                    lock (gate) { result = api.Encode(method, path, json.RootElement); }
                 }
                 await Reply(context, 200, result);
             }
@@ -100,7 +100,7 @@ public static class HttpService
     }
     private static async Task Reply(HttpListenerContext context, int status, object body)
     {
-        byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(body);
+        byte[] bytes = body is byte[] encoded ? encoded : JsonSerializer.SerializeToUtf8Bytes(body);
         context.Response.StatusCode = status;
         context.Response.ContentType = "application/json; charset=utf-8";
         context.Response.Headers["Cache-Control"] = "no-store";

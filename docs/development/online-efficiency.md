@@ -72,9 +72,9 @@ python tools/efficiency.py run --reference http://127.0.0.1:8765 --candidate htt
 
 完整正确的报告才输出配对加速比中位数和 2000 次 bootstrap 的 95% 区间；至少 9 组且区间下界高于 1.05 才标记 `improvementDetected`。候选与参考的 Core/Console 二进制都相同时，标记 `binaryUnchanged` 并禁止计为代码改进，即使短时测量看似更快。它是实验筛选线，不是严格的统计证明；同机负载、热状态、JIT 和短任务噪声仍会影响结果。正式实验增加重复数和批次工作量，并检查各场景，而不是只看合并分数。托管分配量来自候选服务自报，单独展示，不能作为独立防作弊证据。
 
-## 多轮自我改进证据
+## 程序性能历史与代理改进能力
 
-实现提供的是**RSI efficiency 实验与证据验证器**，用于检查优化代理修改自身后，能否在固定预算下生成更高效且正确的候选代码。一次游戏运行更快不代表代理自我改进成功。设计沿用 [ECCO](https://aclanthology.org/2024.emnlp-main.859/) 的正确性/效率分开检查，以及 [DGM](https://arxiv.org/abs/2505.22954) 的版本修改与实证评测思想；这不意味着已复现其研究结论。
+`efficiency.py experiment/rounds` 整理多轮程序性能和预算历史，不把候选程序更快称为 RSI。输出协议为 `optimization-history-v2`；真实代理执行、能力迁移、后代增益和仅撤销自修改方法的实验见 [代理改进能力与程序性能](rsi-improver.md)。
 
 在可信评测机生成留出套件：
 
@@ -122,7 +122,7 @@ python tools/efficiency.py experiment experiment.json --output runs/experiment
 python tools/efficiency.py rounds runs/experiment/rounds.json --output runs/experiment/evidence.json
 ```
 
-验证器重新计算报告摘要，检查原始样本是否齐全、结果是否一致、文件哈希/父链、固定控制及双方预算。每轮收益需通过配对检测，其相对控制收益的区间下界也须超过 1.05，才计入 `improvingRounds`。后续轮次还与上一轮候选配对，只有父版本比较也通过才计入 `recursiveImprovingRounds`；维持同一收益不会冒充持续自我改进。报告同时保留各轮成本、收益/千 token 与收益/代理秒；不将不同计价和不同模型混成一个万能分数。
+验证器重新计算报告摘要，检查原始样本是否齐全、结果是否一致、文件哈希/父链、固定控制及双方预算。每轮收益需通过配对检测，其相对控制收益的区间下界也须超过 1.05，才计入 `improvingRounds`。后续轮次还与上一轮候选配对，只有父版本比较也通过才计入 `sequentialRuntimeImprovingRounds`；这是连续程序加速，不是代理递归改进证据。报告同时保留各轮成本、收益/千 token 与收益/代理秒；不将不同计价和不同模型混成一个万能分数。
 
 `validated: true` 的含义是上述证据约束通过，**不代表已经证明通用 RSI 能力**。模型身份、真实 token 与控制器耗时当前是操作者记录，不是服务独立计量；本地哈希也不是签名或安全隔离。候选不应修改可信评分器或访问留出数据。需要防作弊的研究应在独立评测进程/机器保管这些文件，保留全部失败尝试，核对候选构建与代理调用日志。
 
@@ -134,4 +134,4 @@ dotnet artifacts/Release/SandBoxSim.Tests.dll --filter OnlineApiTests
 python tools/test_online_service.py --assembly artifacts/Release/SandBoxSim.Console.dll --output runs/online-validation
 ```
 
-最后一条启动两份真实 HTTP 服务，检查鉴权、并发重试、状态版本、9 组配对正确性及两轮证据流程。其代理/补丁是显式标记的测试夹具，正常结果为零个改进轮次，不冒充真实模型实验。三平台 CI 执行同一流程并保留报告；不对不同 CI 机器设置速度门槛。协议变更需同步 OpenAPI、能力清单、评测器和测试。
+最后一条启动两份真实 HTTP 服务，检查鉴权、并发重试、状态版本、9 组配对正确性及两轮证据流程。其代理/补丁是显式标记的测试夹具，正常结果为零个改进轮次，不冒充真实模型实验。独立代理改进 CI 另执行真实自修改、分叉与机制撤销夹具。三平台 CI 执行这些流程并保留报告；不对不同 CI 机器设置速度门槛。协议变更需同步 OpenAPI、能力清单、评测器和测试。

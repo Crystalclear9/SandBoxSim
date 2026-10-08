@@ -56,7 +56,7 @@ def smoke(assembly, output):
         write(output/'experiment.json',setup)
         evidence=experiment(setup,output,output/'experiment',lambda url:next(c for c in clients if c.url==url))
         assert evidence['validated'] and evidence['improvingRounds']==0
-        print(json.dumps({'RSI_EVIDENCE_PIPELINE_PASS':True,'rounds':len(evidence['rounds']),'fixtureOnly':True,'improvingRounds':0}))
+        print(json.dumps({'OPTIMIZATION_HISTORY_PIPELINE_PASS':True,'rounds':len(evidence['rounds']),'fixtureOnly':True,'improvingRounds':0}))
     finally:
         for process in processes:
             if process.poll() is None: process.terminate()

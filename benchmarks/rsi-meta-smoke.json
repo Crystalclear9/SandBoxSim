@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 2,
+  "agent": "agents/scripted_improver.py",
+  "fixtureOnly": true,
+  "backend": "kernel",
+  "stages": 2,
+  "probeTasks": 12,
+  "seed": 1729,
+  "effectMargin": 0.02,
+  "budget": {"attempts": 1, "callSeconds": 5, "taskSeconds": 6}
+}

@@ -16,3 +16,5 @@
 外部调用从 `python tools/evaluate.py describe` 获取能力清单；渲染请求、预测与结果分别定义在 [request.schema.json](request.schema.json)、[predictions.schema.json](predictions.schema.json) 和 [result.schema.json](result.schema.json)。在线逐步控制采用 loopback HTTP，定义见 [OpenAPI](online.openapi.json)。
 
 [efficiency-smoke.json](efficiency-smoke.json) 提供公开效率回归；`tools/efficiency.py` 支持配对运行、生成留出套件与多轮证据验证。[rsi-rounds.schema.json](rsi-rounds.schema.json) 定义代理父链、固定预算与控制报告。启动、指标口径及研究边界见 [在线控制与效率实验](../docs/development/online-efficiency.md)。
+
+[rsi-meta-smoke.json](rsi-meta-smoke.json) 与 [配置 Schema](rsi-meta.schema.json) 对应新的代理改进协议：实际自修改、三次分叉、能力迁移与改进方法撤销。内置代理是明确标记的非 LLM 夹具。真实 HTTP 程序优化和有界算法搜索后端的范围见 [代理改进说明](../docs/development/rsi-improver.md)；旧性能历史工具不再给出 RSI 判定。

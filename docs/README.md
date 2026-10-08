@@ -12,6 +12,7 @@
 | 修改界面或模型 | [开发指南](development/developer-guide.md) → [项目架构](development/architecture.md) → [3D 模型系统](development/models.md) → [美术资源](development/assets.md) |
 | 性能优化与模型评测 | [性能维护](development/performance.md) → [评测接口](development/benchmark.md) → [模型系统](development/models.md) |
 | 在线控制与效率研究 | [在线控制与效率实验](development/online-efficiency.md) → [评测接口](development/benchmark.md) |
+| 代理自我改进实验 | [代理改进能力与程序性能](development/rsi-improver.md) → [在线控制与效率实验](development/online-efficiency.md) |
 | 修改模拟规则 | [开发指南](development/developer-guide.md) → [扩展指南](development/extending.md) → [配置](development/configuration.md) → [存档与确定性](development/saving.md) |
 | 更新与排错 | [版本更新与兼容](guides/updating.md) → [故障排查](guides/troubleshooting.md) |
 
