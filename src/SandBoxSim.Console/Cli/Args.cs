@@ -24,7 +24,7 @@ public sealed class Args
         "--headless", "--digest", "--batch", "--snapshot", "--no-color", "--help", "--verbose",
         "--no-alternate-screen", "--invariants", "--no-invariants", "--repeat", "--profile",
         // M4：读档启动（存档路径由 --load-file 给出）
-        "--load",
+        "--load", "--serve",
     };
 
     /// <summary>已知的取值参数。</summary>
@@ -32,7 +32,7 @@ public sealed class Args
     {
         "--seed", "--days", "--ticks", "--width", "--height", "--config", "--out",
         "--seeds", "--snapshot-days", "--width-px", "--cell-scale", "--overlay", "--speed",
-        "--report", "--quiet-after",
+        "--report", "--quiet-after", "--port",
         // M1：初始放置的居民数量与散布半径（"玩家创造条件"的最小入口）
         "--agents", "--agent-radius",
         // M4：存档 / 读档 / 自动存档
@@ -204,6 +204,7 @@ public sealed class Args
             "  --digest              跑两遍并比对状态摘要，用于验证确定性（CI 用）",
             "  --batch               多 seed 批量长跑，检查鲁棒性与涌现性",
             "  --snapshot            长跑并在若干天数导出世界 PNG 快照",
+            "  --serve --port <int>   loopback HTTP 在线步进（默认 8765；需 SANDBOXSIM_API_TOKEN）",
             "",
             "世界参数：",
             "  --seed <int>          世界种子（默认 839102，决定一切）",

@@ -1,0 +1,729 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SandBoxSim online fixed-tick API",
+    "version": "1.0.0",
+    "description": "Loopback only, no renderer. Origin headers rejected. Step validation is atomic; engine failures fault the session. Retries require identical JSON payloads."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8765"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/v1/health": {
+      "get": {
+        "summary": "Runtime and binary identity",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured error (400/401/403/404/408/409/413/429/500)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/capabilities": {
+      "get": {
+        "summary": "Protocol limits and machine identity",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured error (400/401/403/404/408/409/413/429/500)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sessions": {
+      "post": {
+        "summary": "Create a caller-driven world",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured error (400/401/403/404/408/409/413/429/500)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Create"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sessions/{sessionId}": {
+      "get": {
+        "summary": "Pure world observation",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Observation"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured error (400/401/403/404/408/409/413/429/500)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$"
+            }
+          }
+        ]
+      },
+      "delete": {
+        "summary": "Release a session",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured error (400/401/403/404/408/409/413/429/500)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$"
+            }
+          }
+        ]
+      }
+    },
+    "/v1/sessions/{sessionId}/step": {
+      "post": {
+        "summary": "Apply validated actions and advance exact ticks; idempotent requestId",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured error (400/401/403/404/408/409/413/429/500)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Step"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sessions/{sessionId}/reset": {
+      "post": {
+        "summary": "Reset world; increment revision without resetting version counter",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Observation"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured error (400/401/403/404/408/409/413/429/500)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Reset"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sessions/{sessionId}/map": {
+      "get": {
+        "summary": "Row-major traversal grid; traversalHeight is the current Temperature proxy",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured error (400/401/403/404/408/409/413/429/500)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$"
+            }
+          }
+        ]
+      }
+    },
+    "/v1/sessions/{sessionId}/path": {
+      "post": {
+        "summary": "Batch A-star paths without advancing world; failures can reflect search budget",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured error (400/401/403/404/408/409/413/429/500)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Paths"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Create": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "seed"
+        ],
+        "properties": {
+          "seed": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 16,
+            "maximum": 128
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 16,
+            "maximum": 128
+          },
+          "agents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 200
+          }
+        }
+      },
+      "Reset": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requestId",
+          "expectedRevision",
+          "seed"
+        ],
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "seed": {
+            "type": "integer",
+            "minimum": -2147483648,
+            "maximum": 2147483647
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 16,
+            "maximum": 128
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 16,
+            "maximum": 128
+          },
+          "agents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 200
+          }
+        }
+      },
+      "Action": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "x",
+              "y",
+              "terrain"
+            ],
+            "properties": {
+              "kind": {
+                "const": "terrain"
+              },
+              "x": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 127
+              },
+              "y": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 127
+              },
+              "terrain": {
+                "enum": [
+                  "Grass",
+                  "Forest",
+                  "Water",
+                  "Mountain",
+                  "Sand",
+                  "Farmland",
+                  "Road",
+                  "Snow",
+                  "Swamp",
+                  "Desert",
+                  "Lava"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "x",
+              "y",
+              "resource",
+              "amount"
+            ],
+            "properties": {
+              "kind": {
+                "const": "resource"
+              },
+              "x": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 127
+              },
+              "y": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 127
+              },
+              "resource": {
+                "enum": [
+                  "Food",
+                  "Wood",
+                  "Stone",
+                  "Iron"
+                ]
+              },
+              "amount": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10000
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "x",
+              "y",
+              "radius",
+              "delta"
+            ],
+            "properties": {
+              "kind": {
+                "const": "fertility"
+              },
+              "x": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 127
+              },
+              "y": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 127
+              },
+              "radius": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 8
+              },
+              "delta": {
+                "type": "number",
+                "minimum": -1,
+                "maximum": 1
+              }
+            }
+          }
+        ]
+      },
+      "Step": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requestId",
+          "expectedRevision",
+          "ticks"
+        ],
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "ticks": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "actions": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "$ref": "#/components/schemas/Action"
+            }
+          }
+        }
+      },
+      "Query": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "x",
+          "y",
+          "goalX",
+          "goalY"
+        ],
+        "properties": {
+          "x": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 127
+          },
+          "y": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 127
+          },
+          "goalX": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 127
+          },
+          "goalY": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 127
+          }
+        }
+      },
+      "Paths": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "expectedRevision",
+          "queries"
+        ],
+        "properties": {
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "queries": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 128,
+            "items": {
+              "$ref": "#/components/schemas/Query"
+            }
+          }
+        }
+      },
+      "Observation": {
+        "type": "object",
+        "required": [
+          "revision",
+          "tick",
+          "digest",
+          "episode"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": 1
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "tick": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "digest": {
+            "type": "string"
+          },
+          "faulted": {
+            "type": "boolean"
+          },
+          "population": {
+            "type": "integer"
+          },
+          "food": {
+            "type": "number"
+          },
+          "wood": {
+            "type": "number"
+          },
+          "stone": {
+            "type": "number"
+          },
+          "buildings": {
+            "type": "integer"
+          },
+          "episode": {
+            "type": "object"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": 1
+          },
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -7,11 +7,11 @@
 | 位置 | 内容 | 提交约定 |
 |---|---|---|
 | `src/SandBoxSim.Core/` | 世界、实体、AI、系统、存档与确定性 | 源码与工程文件 |
-| `src/SandBoxSim.Console/` | TUI、CLI、统计、报告与 PNG 输出 | 源码与工程文件 |
+| `src/SandBoxSim.Console/` | TUI、CLI、统计、报告、PNG 输出与 `Online/` HTTP 步进服务 | 源码与工程文件 |
 | `src/SandBoxSim.Godot/` | 场景、镜头、HUD、展示模型与会话 | 源码、`.uid`、场景与工程设置 |
 | `src/SandBoxSim.Tests/` | 自带测试框架与规则回归 | 测试源码与工程文件 |
 | `config/` | 模拟默认参数 | 可移植配置，避免本机路径 |
-| `benchmarks/` | 版本化场景与请求 Schema | 公开配置与接口说明；结果保存在 `runs/evaluation/` |
+| `benchmarks/` | 渲染/效率场景、Schema 与在线 OpenAPI | 公开配置与接口说明；结果保存在 `runs/evaluation/` |
 | `tools/` | 安装、构建、运行、评测、测试与文档检查 | 脚本，PowerShell 使用 UTF-8 BOM |
 | `docs/guides/` | 安装、游玩、排错与更新 | 当前使用文档 |
 | `docs/development/` | 架构、扩展、文件管理与维护 | 当前开发文档 |

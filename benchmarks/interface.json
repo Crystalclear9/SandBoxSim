@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "transport": "local-cli-and-files",
+  "transport": "local-cli-files-and-loopback-http",
   "commands": [
     "run",
     "verify",
@@ -14,15 +14,19 @@
     "visualSamples": true,
     "semanticUiReplay": true,
     "visionPredictionScoring": true,
-    "liveStepApi": false,
-    "httpService": false,
+    "liveStepApi": true,
+    "httpService": true,
     "automaticModelInvocation": false,
-    "validatedRsiBenchmark": false
+    "validatedRsiBenchmark": false,
+    "pairedEfficiencyBenchmark": true,
+    "rsiEfficiencyEvidenceValidation": true
   },
   "schemas": {
     "request": "request.schema.json",
     "predictions": "predictions.schema.json",
-    "result": "result.schema.json"
+    "result": "result.schema.json",
+    "online": "online.openapi.json",
+    "rsiRounds": "rsi-rounds.schema.json"
   },
   "exitCodes": {
     "0": "completed",
@@ -41,5 +45,14 @@
     "macos"
   ],
   "outputEncoding": "UTF-8",
-  "errors": "Use --json-errors before the subcommand for JSON on stderr."
+  "errors": "Use --json-errors before the subcommand for JSON on stderr.",
+  "online": {
+    "protocol": "sandboxsim-step-v1",
+    "bind": "127.0.0.1",
+    "authentication": "SANDBOXSIM_API_TOKEN bearer",
+    "launcher": "tools/online.py",
+    "benchmark": "tools/efficiency.py",
+    "visualObservation": false,
+    "rsiValidationScope": "Correctness, paired efficiency, round lineage and fixed-budget evidence; no general RSI capability claim"
+  }
 }
