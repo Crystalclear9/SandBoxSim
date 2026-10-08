@@ -94,21 +94,21 @@ internal sealed partial class NatureModels
         Sculpt(rig.Torso, FittedRibbon("belt", .748f, .775f), Vector3.Zero, ResidentMaterial("#514237"));
         Detail(rig.Torso, "box", TorsoSurface(.015f, .76f, false, .009f), new Vector3(.055f, .045f, .013f), "#b8a17b");
         Detail(rig.Torso, "capsule", new Vector3(.23f, .7f, .075f), new Vector3(.075f, .065f, .055f), "#725b40");
-        Sculpt(rig.Torso,Loft("resident-neck",new[]{new Vector4(0,0,.051f,.043f),new(.04f,-.006f,.041f,.039f),new(.095f,-.012f,.047f,.040f)}),new(0,1.265f,.016f),ResidentMaterial(skin),new(-MathF.PI/2,0,0));
-        rig.Head = new Node3D { Name = "Head", Position = new Vector3(0, 1.445f, 0) }; rig.Torso.AddChild(rig.Head);
+        Sculpt(rig.Torso,Loft("resident-neck",new[]{new Vector4(0,0,.061f,.048f),new(.035f,-.006f,.045f,.041f),new(.080f,-.012f,.049f,.043f)}),new(0,1.265f,.016f),ResidentMaterial(skin),new(-MathF.PI/2,0,0));
+        rig.Head = new Node3D { Name = "Head", Position = new Vector3(0, 1.426f, 0) }; rig.Torso.AddChild(rig.Head);
         Detail(rig.Head, "face", Vector3.Zero, new Vector3(.177f, .220f, .195f), skin).MaterialOverride=FaceSurfaceMaterial(skin);
         Detail(rig.Head, "hair", new Vector3(0, .008f, .006f), new Vector3(.181f, .224f, .200f), hair);
         foreach (float side in new[] { -1f, 1f })
         {
             Sculpt(rig.Head,EarSurface((int)side),new(side*.084f,-.003f,.001f),FaceSurfaceMaterial(skin));
-            Detail(rig.Head,"seed",new(side*.034f,.027f,-.086f),new(.034f,.0028f,.0035f),hair,new(0,0,side*.08f));
+            Detail(rig.Head,"seed",new(side*.034f,.027f,FaceDepth(side*.034f,.027f)-.0015f),new(.031f,.0025f,.0025f),hair,new(0,0,side*.08f));
         }
 
         for (int i = 0; i < 2; i++)
         {
             float side = i == 0 ? -1 : 1;
             var arm = rig.Arms[i] = new Node3D { Name = i == 0 ? "LeftArm" : "RightArm", Position = new Vector3(side * .218f, 1.18f, 0) }; rig.Torso.AddChild(arm);
-            Sculpt(arm,Loft("tailored-sleeve",new[]{new Vector4(0,0,.053f,.048f),new(.06f,0,.066f,.060f),new(.17f,0,.057f,.053f),new(.27f,0,.047f,.044f),new(.29f,0,.043f,.042f)}),Vector3.Zero,ResidentMaterial(cloth),new(MathF.PI/2,0,0));
+            Sculpt(arm,Loft("tailored-sleeve",new[]{new Vector4(0,0,.053f,.048f),new(.06f,0,.059f,.054f),new(.17f,0,.057f,.053f),new(.27f,0,.047f,.044f),new(.29f,0,.043f,.042f)}),Vector3.Zero,ResidentMaterial(cloth),new(MathF.PI/2,0,0));
             var elbow = rig.Elbows[i] = new Node3D { Name = "Elbow", Position = new Vector3(0, -.28f, 0) }; arm.AddChild(elbow);
             Detail(elbow,"sphere",Vector3.Zero,new(.078f,.073f,.074f),skin);
             Sculpt(elbow,Loft("resident-forearm",new[]{new Vector4(-.015f,0,.039f,.037f),new(.06f,0,.042f,.040f),new(.14f,0,.034f,.033f),new(.24f,0,.029f,.028f)}),Vector3.Zero,ResidentMaterial(skin),new(MathF.PI/2,0,0));

@@ -41,6 +41,48 @@ class ImproverTests(unittest.TestCase):
             runner=r.Runner(root,{'attempts':1,'callSeconds':2,'taskSeconds':3})
             with self.assertRaises(ValueError):r.successor(runner,agent,[],'child.py')
             self.assertEqual(1,runner.calls)
+    def test_distribution_shift_is_private_and_changes_break_even(self):
+        tasks=r.cohort('sealed',12)
+        self.assertEqual(6,len({t['heldoutProfile'] for t in tasks}))
+        for task in tasks:
+            self.assertNotIn('heldoutProfile',r.public_task(task))
+            a=evaluate(task,{'strategy':CHOICES[task['family']][0]},task['heldoutSeed'])
+            b=evaluate(task,{'strategy':CHOICES[task['family']][1]},task['heldoutSeed'])
+            self.assertEqual(a['digest'],b['digest'])
+        task=next(t for t in tasks if t['heldoutProfile']=='homogeneous')
+        self.assertEqual(0.,evaluate(task,{'strategy':'by_kind'},task['heldoutSeed'])['gain'])
+        self.assertGreater(evaluate(task,{'strategy':'by_kind'},task['developmentSeed'])['gain'],0.)
+    def test_failed_generation_is_preserved_and_scored_zero(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);agent=root/'original.py'
+            agent.write_text("import json,sys\nr=json.load(sys.stdin)\nprint(json.dumps({'successorSource':r['source']}))\n")
+            runner=r.Runner(root,{'attempts':1,'callSeconds':2,'taskSeconds':3})
+            descendant,edge=r.successor(runner,agent,[],'child.py',allow_failure=True)
+            self.assertEqual(agent,descendant);self.assertFalse(edge['accepted'])
+            self.assertIn('unchanged',edge['failure'])
+            scores=r.failed_probes(r.cohort('failed',12),2)
+            self.assertEqual(0.,r.summary(scores)['capabilityAuc'])
+            self.assertTrue(all(s['generationFailed'] for s in scores))
+    def test_failed_forks_replay_and_cannot_be_hidden(self):
+        source="""import json,sys
+from pathlib import Path
+STAGE=0
+def improve(request):
+    return {'successorSource':request['source'].replace('STAGE=0','STAGE=1')}
+def propose(request):
+    return {'proposal':{'strategy':request['task']['strategies'][0]}}
+request=json.load(sys.stdin)
+print(json.dumps(improve(request) if request['mode']=='improve' else propose(request)))
+"""
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);(root/'agent.py').write_text(source)
+            config={'schemaVersion':2,'agent':'agent.py','stages':1,'probeTasks':12,'seed':17,'fixtureOnly':True,
+                'budget':{'attempts':1,'callSeconds':3,'taskSeconds':4}}
+            report=r.run(config,root,root/'output')
+            self.assertEqual(3,report['failedForks']);self.assertEqual(0,report['supportedRecursiveStages'])
+            self.assertTrue(r.verify(root/'output')['protocolValidated'])
+            report['failedForks']=0;(root/'output/result.json').write_text(json.dumps(report))
+            with self.assertRaises(ValueError):r.verify(root/'output')
     def test_timeout_is_a_measured_failure(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);agent=root/'timeout.py';agent.write_text('while True: pass\n')

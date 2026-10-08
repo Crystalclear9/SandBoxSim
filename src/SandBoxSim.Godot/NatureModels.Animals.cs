@@ -35,14 +35,14 @@ ROUGHNESS=0.96; SPECULAR=0.18;
         float back = wolf ? .83f : 1.03f;
         var body = Loft(wolf ? "wolf-body" : "deer-body", new[] {
             new Vector4(-.71f,back+(wolf?.32f:.40f),.015f,.03f), new(-.60f,back+.10f,.13f,.21f),
-            new(-.48f,back,.19f,.25f), new(-.3f,back,.28f,.29f),
-            new(-.08f,back-.025f,.26f,.3f), new(.18f,back-.04f,.23f,.24f), new(.40f,back,.26f,.29f),
+            new(-.48f,back,.19f,.25f), new(-.3f,back,.235f,.26f),
+            new(-.08f,back-.025f,.245f,.28f), new(.18f,back+.015f,.23f,.24f), new(.40f,back-.02f,.235f,.26f),
             new(.55f,back,.19f,.22f), new(.64f,back,.012f,.025f) });
         Sculpt(rig.Body, body, Vector3.Zero, fur);
         // Broad shoulders taper continuously into the chest and rising neck.
         var neck = Loft(wolf ? "wolf-neck" : "deer-neck", new[] {
-            new Vector4(-.32f,back,.02f,.02f), new(-.48f,back+.12f,.20f,.25f),
-            new(-.62f,back+(wolf?.25f:.33f),wolf?.13f:.15f,.21f), new(-.74f,back+(wolf?.36f:.48f),.10f,.14f), new(-.84f,back+(wolf?.35f:.47f),.02f,.025f) });
+            new Vector4(-.32f,back,.02f,.02f), new(-.48f,back+.12f,.17f,.22f),
+            new(-.62f,back+(wolf?.25f:.33f),wolf?.13f:.135f,.185f), new(-.74f,back+(wolf?.36f:.48f),.10f,.14f), new(-.84f,back+(wolf?.35f:.47f),.02f,.025f) });
         Sculpt(rig.Body, neck, Vector3.Zero, fur);
         rig.Head = new Node3D { Name = "Head", Position = new Vector3(0,back+(wolf?.32f:.44f),-.78f) }; rig.Body.AddChild(rig.Head);
         Sculpt(rig.Head, Loft(wolf ? "wolf-head" : "deer-head", new[] {

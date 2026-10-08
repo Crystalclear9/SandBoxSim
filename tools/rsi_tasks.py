@@ -7,10 +7,10 @@ import collections, hashlib, heapq, json, random
 
 CHOICES = {'resource':['scan','by_kind'], 'routing':['bfs','astar'], 'visual_update':['full','incremental']}
 
-def resource(seed, strategy, n, q):
-    rng=random.Random(seed)
-    items=[(rng.randrange(64),rng.randrange(64),rng.randrange(4)) for _ in range(n)]
-    queries=[(rng.randrange(64),rng.randrange(64),rng.randrange(4)) for _ in range(q)]
+def resource(seed, strategy, n, q, profile="standard"):
+    rng=random.Random(seed); kinds=1 if profile=="homogeneous" else 16 if profile=="diverse" else 4
+    items=[(rng.randrange(64),rng.randrange(64),rng.randrange(kinds)) for _ in range(n)]
+    queries=[(rng.randrange(64),rng.randrange(64),rng.randrange(kinds)) for _ in range(q)]
     groups=collections.defaultdict(list); work=0
     if strategy=='by_kind':
         for i,item in enumerate(items): groups[item[2]].append((i,item)); work+=1
@@ -24,8 +24,8 @@ def resource(seed, strategy, n, q):
         result.append(best[1])
     return result,work
 
-def routing(seed, strategy, n, q):
-    rng=random.Random(seed); size=max(8,int(n**.5)); blocked={i for i in range(size*size) if rng.random()<.17}
+def routing(seed, strategy, n, q, profile="standard"):
+    rng=random.Random(seed); size=max(8,int(n**.5)); blocked={i for i in range(size*size) if rng.random()<( .38 if profile=="dense" else .02 if profile=="open" else .17)}
     result=[]; work=0
     for _ in range(q):
         start,goal=rng.randrange(size*size),rng.randrange(size*size); blocked.discard(start);blocked.discard(goal)
@@ -49,13 +49,13 @@ def routing(seed, strategy, n, q):
         result.append(found)
     return result,work
 
-def visual_update(seed,strategy,n,q):
+def visual_update(seed,strategy,n,q,profile="standard"):
     rng=random.Random(seed); world=[rng.randrange(1000) for _ in range(n)]
     def geometry(value):return (value*2654435761 ^ (value>>3)) & 0xffffffff
     cached=[geometry(v) for v in world];work=n;observations=[]
     for _ in range(q):
         dirty=[]
-        for _ in range(max(1,n//32)):
+        for _ in range(max(1,int(n*(.65 if profile=="churn" else .005 if profile=="sparse" else 1/32)))):
             i=rng.randrange(n);world[i]=rng.randrange(1000);dirty.append(i)
         for i in (range(n) if strategy=='full' else sorted(set(dirty))):cached[i]=geometry(world[i]);work+=1
         observations.append(hashlib.sha256(json.dumps(cached).encode()).hexdigest())
@@ -65,8 +65,9 @@ def evaluate(task,proposal,seed):
     family=task['family']; strategy=proposal.get('strategy')
     if strategy not in CHOICES[family]:raise ValueError('Unknown strategy for '+family)
     kernel=globals()[family]; baseline=CHOICES[family][0]
-    expected,base_work=kernel(seed,baseline,task['n'],task['q'])
-    actual,work=kernel(seed,strategy,task['n'],task['q'])
+    profile=task.get("heldoutProfile","standard") if seed==task.get("heldoutSeed") else "standard"
+    expected,base_work=kernel(seed,baseline,task['n'],task['q'],profile)
+    actual,work=kernel(seed,strategy,task['n'],task['q'],profile)
     if actual!=expected:raise ValueError('Candidate changed workload results')
     return {'correct':True,'workUnits':work,'baselineWorkUnits':base_work,
             'gain':max(0.,1-work/base_work),'digest':hashlib.sha256(json.dumps(actual).encode()).hexdigest()}

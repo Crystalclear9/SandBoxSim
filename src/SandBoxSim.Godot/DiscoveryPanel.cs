@@ -22,6 +22,11 @@ public partial class DiscoveryPanel : VBoxContainer
     {
         var scroll = new ScrollContainer { SizeFlagsVertical = SizeFlags.ExpandFill, HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled }; AddChild(scroll);
         var body = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; body.AddThemeConstantOverride("separation", 12); scroll.AddChild(body);
+        VBoxContainer Card()
+        {
+            var panel=new PanelContainer();var box=HudStyle.Box(new Color("#cec9b8"),3,12,false);panel.AddThemeStyleboxOverride("panel",box);body.AddChild(panel);
+            var content=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};content.AddThemeConstantOverride("separation",8);panel.AddChild(content);return content;
+        }
         body.AddChild(HudStyle.Label("田野 · 随手记", 10, true));
         _place = HudStyle.Label("", 27); body.AddChild(_place);
         _phase = HudStyle.Label("", 12, true); _phase.AutowrapMode = TextServer.AutowrapMode.WordSmart; body.AddChild(_phase);
@@ -37,17 +42,17 @@ public partial class DiscoveryPanel : VBoxContainer
             if(parts.Length!=3 || !int.TryParse(parts[1],out int x) || !int.TryParse(parts[2],out int y))return;
             if(parts[0]=="forget") { Game.Wild.Forget(x,y); Refresh(); } else { Game.LookAtPlace(x,y); }
         };
-        body.AddChild(new HSeparator()); body.AddChild(HudStyle.Label("居民的故事", 15));
-        _pinText = HudStyle.Label("", 13, true); _pinText.AutowrapMode = TextServer.AutowrapMode.WordSmart; body.AddChild(_pinText);
-        _pinLink = new Godot.Button { Text = "查看关注的故事 →", Alignment = HorizontalAlignment.Left }; HudStyle.Button(_pinLink); _pinLink.Pressed += () => Game.FocusPinned(); body.AddChild(_pinLink);
-        body.AddChild(new HSeparator()); body.AddChild(HudStyle.Label("世界的回声", 15));
+        var residentCard=Card(); residentCard.AddChild(HudStyle.Label("居民的故事", 15));
+        _pinText = HudStyle.Label("", 13, true); _pinText.AutowrapMode = TextServer.AutowrapMode.WordSmart; residentCard.AddChild(_pinText);
+        _pinLink = new Godot.Button { Text = "查看关注的故事 →", Alignment = HorizontalAlignment.Left }; HudStyle.Button(_pinLink); _pinLink.Pressed += () => Game.FocusPinned(); residentCard.AddChild(_pinLink);
+        var storyCard=Card(); storyCard.AddChild(HudStyle.Label("世界的回声", 15));
         _stories = new RichTextLabel { BbcodeEnabled = true, FitContent = true, ScrollActive = false, SelectionEnabled = true, CustomMinimumSize = new Vector2(0, 80) };
         _stories.MetaClicked += meta =>
         {
             var fields = meta.AsString().Split(':');
             if (fields.Length == 3 && long.TryParse(fields[0], out long person) && int.TryParse(fields[1], out int x) && int.TryParse(fields[2], out int y)) { Game.FocusStory(person, x, y); }
         };
-        body.AddChild(_stories); Refresh();
+        storyCard.AddChild(_stories); Refresh();
     }
     public void Refresh()
     {

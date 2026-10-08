@@ -104,6 +104,15 @@ internal sealed partial class NatureModels
                     foreach(float side in new[]{-1f,1f})
                         Part(model,"box",new(side*(width/2+.026f),.18f+(row+.5f)*height/11,stoneZ),new(.07f,height/11-.012f,far-near-.012f),6);
                 }
+                // Recessed entrance canopy and carved corbels vary the cottage facade.
+                if(kind==BuildingKind.House && (variant==1 || variant==2 || variant==3))
+                {
+                    Part(model,"box",new(doorX,centerY+doorHeight/2+.20f,z+.23f),new(doorWidth+.38f,.065f,.48f),variant==2?6:0,new(.12f,0,0));
+                    foreach(float side in new[]{-1f,1f})
+                    {
+                        Timber(model,new(doorX+side*(doorWidth/2+.065f),centerY+doorHeight/2-.14f,z),new(doorX+side*(doorWidth/2+.065f),centerY+doorHeight/2+.15f,z+.36f),.045f);
+                    }
+                }
             if(kind==BuildingKind.House && _fineArchitecture)
             {
                 foreach(float side in new[]{-1f,1f})

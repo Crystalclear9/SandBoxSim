@@ -9,7 +9,7 @@ internal sealed partial class NatureModels
     {
         using var surface = new SurfaceTool(); surface.Begin(Mesh.PrimitiveType.Triangles); surface.SetSmoothGroup(0);
         float[] levels={-.50f,-.45f,-.35f,-.22f,-.06f,.10f,.22f,.34f,.43f,.49f,.50f};
-        float[] widths={.135f,.25f,.355f,.42f,.465f,.48f,.48f,.435f,.37f,.16f,.025f};
+        float[] widths={.145f,.275f,.38f,.435f,.465f,.47f,.465f,.435f,.37f,.16f,.025f};
         float[] depths={.22f,.31f,.375f,.425f,.46f,.47f,.465f,.425f,.35f,.16f,.025f};
         float Profile(float y,float[] values)
         {
@@ -41,14 +41,17 @@ internal sealed partial class NatureModels
             {
                 // A flatter facial plane, rounded chin, nasal bridge/tip and recessed eye sockets.
                 p.Z=Mathf.Lerp(p.Z,-depth*.94f,MathF.Pow(front,8)*.45f);
-                float bridge=MathF.Exp(-p.X*p.X*380-MathF.Pow(p.Y+.015f,2)*95);
-                float tip=MathF.Exp(-p.X*p.X*330-MathF.Pow(p.Y+.14f,2)*280);
+                float bridge=MathF.Exp(-p.X*p.X*640-MathF.Pow(p.Y+.015f,2)*72);
+                float tip=MathF.Exp(-p.X*p.X*530-MathF.Pow(p.Y+.14f,2)*430);
                 float socket=MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.19f,2)*250-MathF.Pow(p.Y-.045f,2)*380);
                 float lip=MathF.Exp(-p.X*p.X*120-MathF.Pow(p.Y+.275f,2)*300);
                 float cheek = MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.27f,2)*90-MathF.Pow(p.Y+.06f,2)*130);
                 float brow = MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.18f,2)*170-MathF.Pow(p.Y-.17f,2)*190);
                 float ala = MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.082f,2)*380-MathF.Pow(p.Y+.15f,2)*280);
-                p.Z-=bridge*.047f+tip*.048f+ala*.018f+lip*.014f+cheek*.017f+brow*.012f-socket*.015f;
+                float chin=MathF.Exp(-p.X*p.X*65-MathF.Pow(p.Y+.405f,2)*390);
+                float philtrum=MathF.Exp(-p.X*p.X*1200-MathF.Pow(p.Y+.225f,2)*850);
+                p.Z+=philtrum*.006f-chin*.018f;
+                p.Z-=bridge*.050f+tip*.064f+ala*.015f+lip*.026f+cheek*.022f+brow*.022f-socket*.036f;
             }
             return p;
         }

@@ -111,9 +111,13 @@ public partial class MainGame
 
         _journalPanel = Surface(overlay, new Vector2(1, 0), new Vector2(-372, 92), new Vector2(348, 600), 18);
         var journal = new VBoxContainer(); journal.AddThemeConstantOverride("separation", 12); _journalPanel.AddChild(journal);
-        var journalHeader = new HBoxContainer(); journal.AddChild(journalHeader);
+        var journalHeading = new PanelContainer(); journalHeading.SetMeta("journal_heading",true);
+        var headingBox=HudStyle.Box(new Color("#28332f"),2,12,false);journalHeading.AddThemeStyleboxOverride("panel",headingBox);journal.AddChild(journalHeading);
+        var headingBody=new VBoxContainer();headingBody.AddThemeConstantOverride("separation",5);journalHeading.AddChild(headingBody);
+        var journalHeader = new HBoxContainer(); headingBody.AddChild(journalHeader);
         var journalTitle = HudStyle.Heading("世界手记", 22); journalTitle.SizeFlagsHorizontal = SizeFlags.ExpandFill; journalHeader.AddChild(journalTitle);
         ActionButton(journalHeader, "关闭 ×", () => ShowJournal(false));
+        headingBody.AddChild(HudStyle.Label("观察 · 记录 · 回访",11,true));
         _drawer = new TabContainer { SizeFlagsVertical = SizeFlags.ExpandFill }; journal.AddChild(_drawer);
         _drawer.AddThemeStyleboxOverride("panel", HudStyle.Box(new Color(0, 0, 0, 0), 0, 0, false));
         _discovery = new DiscoveryPanel { Name = "现场", Game = this }; _drawer.AddChild(_discovery);
