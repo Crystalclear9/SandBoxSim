@@ -35,16 +35,18 @@ void fragment(){ALBEDO=dye.rgb;ROUGHNESS=0.76;SPECULAR=0.18;}"};
         rig.LidMaterial=new ShaderMaterial {Shader=_lidShader};rig.LidMaterial.SetShaderParameter("dye",new Color(skin));
         _eyeShader??=new Shader {Code=@"shader_type spatial;
 uniform vec2 gaze=vec2(0.0);
+uniform vec4 iris_tone:source_color=vec4(0.18,0.22,0.19,1.0);
 void fragment(){
 vec2 p=(UV-vec2(0.5)-gaze)*vec2(1.0,0.43);
 float iris=1.0-smoothstep(0.135,0.15,length(p));
 float pupil=1.0-smoothstep(0.054,0.068,length(p));
-vec3 color=mix(vec3(0.50,0.48,0.43),vec3(0.18,0.22,0.19),iris);
+vec3 color=mix(vec3(0.50,0.48,0.43),iris_tone.rgb,iris);
 color=mix(color,vec3(0.075,0.069,0.056),pupil);
 float glint=1.0-smoothstep(0.009,0.020,length(p-vec2(-0.035,0.027)));
 ALBEDO=mix(color,vec3(0.76,0.73,0.65),glint*iris*0.6);ROUGHNESS=0.62;SPECULAR=0.14;
 }"};
         rig.EyeMaterial=new ShaderMaterial {Shader=_eyeShader};
+        rig.EyeMaterial.SetShaderParameter("iris_tone",new Color(new[]{"#51483a","#59675a","#686e70","#706448"}[_faceVariant%4]));
         for(int eye=0;eye<2;eye++)
         {
             float side=eye==0?-1:1;
@@ -58,7 +60,7 @@ ALBEDO=mix(color,vec3(0.76,0.73,0.65),glint*iris*0.6);ROUGHNESS=0.62;SPECULAR=0.
     }
     private Mesh LipSurface(string skin)
     {
-        string key="lip-surface:"+skin;if(_meshes.TryGetValue(key,out var mesh))return mesh;
+        string key="lip-surface:"+skin+_faceVariant;if(_meshes.TryGetValue(key,out var mesh))return mesh;
         var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);
         surface.SetMaterial(new StandardMaterial3D {VertexColorUseAsAlbedo=true,Roughness=.83f,MetallicSpecular=.12f});
         float z=FaceDepth(0,-.058f);
@@ -67,7 +69,7 @@ ALBEDO=mix(color,vec3(0.76,0.73,0.65),glint*iris*0.6);ROUGHNESS=0.62;SPECULAR=0.
             float u=column/24f,v=row/8f,x=(u*2-1)*.020f,edge=MathF.Sqrt(MathF.Max(0,1-MathF.Pow(u*2-1,2)));
             float y=(.003f-.0065f*v)*edge+.0006f*MathF.Cos((u-.5f)*MathF.Tau*2)*edge;
             float crease=MathF.Exp(-MathF.Pow((v-.45f)*12,2));
-            var dye=new Color(skin).Darkened(edge*(.035f+.075f*crease));surface.SetColor(dye);
+            var dye=new Color(skin).Darkened(edge*(.035f+.075f*crease));dye.G*=1-edge*.075f;dye.B*=1-edge*.04f;surface.SetColor(dye);
             surface.SetNormal(Vector3.Forward);surface.SetUV(new(u,v));
             surface.AddVertex(new(x,y,FaceDepth(x,-.058f+y)-z-.0004f-.0011f*MathF.Sin(v*MathF.PI)*edge));
         }
@@ -77,7 +79,7 @@ ALBEDO=mix(color,vec3(0.76,0.73,0.65),glint*iris*0.6);ROUGHNESS=0.62;SPECULAR=0.
 
     private Mesh EyeSurface(int side,bool lid)
     {
-        string key="eye-surface:"+side+lid;if(_meshes.TryGetValue(key,out var mesh))return mesh;
+        string key="eye-surface:"+side+lid+_faceVariant;if(_meshes.TryGetValue(key,out var mesh))return mesh;
         var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);
         float cx=side==0?-.034f:.034f,cy=.010f,cz=FaceDepth(cx,cy);
         void Vertex(int col,int row)

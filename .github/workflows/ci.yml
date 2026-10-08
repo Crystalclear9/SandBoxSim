@@ -73,6 +73,7 @@ jobs:
         shell: pwsh
         run: |
           python -m unittest discover -s tools -p test_rsi_benchmark.py
+          python -m unittest discover -s tools -p test_rsi_code.py
           python tools/rsi_benchmark.py run benchmarks/rsi-meta-smoke.json --output runs/rsi-meta-ci
           python tools/rsi_benchmark.py verify runs/rsi-meta-ci
 

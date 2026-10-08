@@ -5,6 +5,7 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
+    private int _faceVariant;
     private Mesh SculptedHead(bool hair,int sides=80,int rings=32)
     {
         using var surface = new SurfaceTool(); surface.Begin(Mesh.PrimitiveType.Triangles); surface.SetSmoothGroup(0);
@@ -28,14 +29,18 @@ internal sealed partial class NatureModels
             float angle=col*MathF.Tau/sides,front=MathF.Max(0,-MathF.Sin(angle));
             float end=hair ? 1.67f+MathF.Max(0,MathF.Sin(angle))*.18f-front*(.51f+.12f*MathF.Cos(angle+.4f))+.028f*MathF.Sin(angle*5) : MathF.PI;
             float latitude=row*end/rings,y=MathF.Cos(latitude)*.5f;
-            float depth=Profile(y,depths);
-            var p=new Vector3(MathF.Cos(angle)*Profile(y,widths),y,MathF.Sin(angle)*depth);
+            float jaw=1+((_faceVariant%4)-1.5f)*.045f;
+            float browWidth=1+((_faceVariant/4)-.5f)*.075f;
+            float depth=Profile(y,depths)*(1+((_faceVariant%3)-1)*.045f);
+            float faceBlend=Math.Clamp((y+.35f)/.47f,0,1);faceBlend=faceBlend*faceBlend*(3-2*faceBlend);
+            var p=new Vector3(MathF.Cos(angle)*Profile(y,widths)*Mathf.Lerp(jaw,browWidth,faceBlend),y,MathF.Sin(angle)*depth);
             if(hair)
             {
                 float swept = angle + latitude*.65f;
                 float locks = .004f*MathF.Sin(swept*25) + .002f*MathF.Sin(swept*43);
                 p*=1.025f+locks*MathF.Sin(latitude); p.X+=.016f*MathF.Sin(latitude*2);
                 p.Y+=.015f*MathF.Sin(latitude)*MathF.Cos(angle+.6f);
+                p.X+=((_faceVariant%2)==0?1:-1)*.022f*MathF.Sin(latitude);
             }
             else if(p.Z<0)
             {
@@ -51,7 +56,7 @@ internal sealed partial class NatureModels
                 float chin=MathF.Exp(-p.X*p.X*65-MathF.Pow(p.Y+.405f,2)*390);
                 float philtrum=MathF.Exp(-p.X*p.X*1200-MathF.Pow(p.Y+.225f,2)*850);
                 p.Z+=philtrum*.006f-chin*.018f;
-                p.Z-=bridge*.050f+tip*.064f+ala*.015f+lip*.026f+cheek*.022f+brow*.022f-socket*.036f;
+                p.Z-=bridge*(.048f+(_faceVariant%3)*.009f)+tip*(.052f+(_faceVariant%4)*.009f)+ala*.015f+lip*.026f+cheek*.022f+brow*.022f-socket*.036f;
             }
             return p;
         }

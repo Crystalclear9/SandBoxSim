@@ -54,7 +54,7 @@ internal sealed partial class NatureModels
         {
             int variant=(int)(identity%5);
             float height=kind==BuildingKind.Storage ? 1.4f : variant==3 ? 2.6f : variant==0 ? 1.8f : 2.15f;
-            float z=depth/2+.1f, doorX=kind==BuildingKind.Storage ? 0 : variant%2==0 ? -.28f : .28f;
+            float z=depth/2+.1f, doorX=kind==BuildingKind.Storage ? 0 : variant is 0 or 4 ? -.28f : 0;
             float doorHeight=kind==BuildingKind.Storage ? 1.2f : 1.55f, centerY=kind==BuildingKind.Storage ? .6f : .95f;
             float doorWidth=kind==BuildingKind.Storage ? .85f : .62f;
             // Individual planks, lintel, jambs, iron straps and latch.

@@ -41,12 +41,12 @@ public partial class MainGame
             foreach(Node child in node.GetChildren())Apply(child);
         }
         Apply(_journalPanel);
-        var tabbar=_drawer.GetTabBar();tabbar.AddThemeConstantOverride("h_separation",12);
+        var tabbar=_drawer.GetTabBar();tabbar.AddThemeFontSizeOverride("font_size",14);tabbar.AddThemeConstantOverride("h_separation",12);
         var separator=HudStyle.Box(new Color("#c2baa6"),0,0,false);separator.ContentMarginTop=1;separator.ContentMarginBottom=1;
         void Separators(Node node){if(node is HSeparator line)line.AddThemeStyleboxOverride("separator",separator);foreach(Node child in node.GetChildren())Separators(child);}
         Separators(_journalPanel);
         _drawer.AddThemeColorOverride("font_selected_color",accent);_drawer.AddThemeColorOverride("font_unselected_color",muted);
-        var selected=HudStyle.Box(new Color(0,0,0,0),0,8,false);selected.BorderWidthBottom=2;selected.BorderColor=accent;
+        var selected=HudStyle.Box(new Color("#cbc5b4"),2,10,false);selected.BorderWidthBottom=2;selected.BorderColor=accent;
         _drawer.AddThemeStyleboxOverride("tab_selected",selected);
         _drawer.AddThemeStyleboxOverride("tab_hovered",HudStyle.Box(new Color("#c9c5b1"),2,8,false));
     }

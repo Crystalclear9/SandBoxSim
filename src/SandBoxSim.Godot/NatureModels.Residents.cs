@@ -51,7 +51,7 @@ internal sealed partial class NatureModels
         foreach (Node child in parent.GetChildren())
         {
             if (child is MeshInstance3D part) { if(part.MaterialOverride != null) parts.Add(part); }
-            else if (child is Node3D joint) { MergeResidentParts(joint, key + "/" + joint.Name); }
+            else if (child is Node3D joint) { MergeResidentParts(joint, key + "/" + joint.Name + (joint.Name=="Head" ? ":"+_faceVariant : "")); }
         }
         if (parts.Count < 2) { return; }
         if (!_meshes.TryGetValue(key, out Mesh? combined))
@@ -75,6 +75,7 @@ internal sealed partial class NatureModels
     public ResidentRig Resident(int identity, bool child, JobType job)
     {
         uint variation = unchecked((uint)identity * 2654435761u);
+        _faceVariant=(int)((variation>>8)%8);_facePoints=null;_faceIndices=null;
         string[] clothColors = { "#536d68", "#b4956a", "#866756", "#6e7881", "#798261", "#a8937d" };
         string[] skinColors = { "#aa8b78", "#8e705e", "#ba9d89", "#806653" };
         string cloth = clothColors[variation % clothColors.Length], skin = skinColors[(variation >> 4) % skinColors.Length];

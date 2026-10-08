@@ -9,11 +9,11 @@ internal sealed partial class NatureModels
     {
         identity %= 140;
         int variant = (int)(identity % 5);
-        var model = new Node3D { Scale = new Vector3(.82f, 1.02f + (identity % 7) * .025f, .82f) };
+        var model = new Node3D { Scale = new Vector3(.90f, .96f + (identity % 7) * .015f, .82f) };
         // The merged mesh already contains all static details; do not rebuild temporary parts on a cache hit.
         if(_meshes.TryGetValue($"architecture:{kind}:{complete}:{identity}:{_fineArchitecture}",out var cached))
         {model.AddChild(new MeshInstance3D {Mesh=cached});return model;}
-        float width = 1.85f + (identity % 4) * .12f, depth = 1.8f + ((identity / 7) % 4) * .13f;
+        float width = 2.35f + (identity % 4) * .16f, depth = 1.85f + ((identity / 7) % 4) * .18f;
         if (!complete)
         {
             Part(model, "box", new(0, .09f, 0), new(width, .18f, depth), 6);
@@ -60,6 +60,12 @@ internal sealed partial class NatureModels
         int walls = variant == 0 ? 1 : variant == 2 ? 6 : 3;
         Part(model, "box", new(0, .12f, 0), new(width + .1f, .24f, depth + .1f), 6);
         Part(model, "box", new(0, height / 2 + .18f, 0), new(width, height, depth), walls);
+        if(variant==1 || variant==3)
+        {
+            foreach(float x in new[]{-width*.28f,0f,width*.28f})
+                Part(model,"box",new(x,height/2+.18f,depth/2+.033f),new(.08f,height,.075f),0);
+            Part(model,"box",new(0,height*.66f+.18f,depth/2+.036f),new(width,.09f,.075f),0);
+        }
         if (variant == 4)
             Part(model, "box", new(0, height + .4f, 0), new(width + .4f, .16f, depth + .4f), 1, new(0, 0, .18f));
         else
@@ -67,10 +73,11 @@ internal sealed partial class NatureModels
             Gable(model, width, depth, height + .18f, variant == 0 ? 15 : 2);
             GableWalls(model, width, depth, height + .18f, walls);
         }
-        float doorX = variant % 2 == 0 ? -.28f : .28f;
+        float doorX = variant is 0 or 4 ? -.28f : 0;
         Part(model, "box", new(doorX, .95f, depth / 2 + .04f), new(.62f, 1.55f, .1f), 10);
         Part(model, "box", new(doorX, .13f, depth / 2 + .18f), new(.64f, .14f, .3f), 6);
-        Window(model, variant % 2 == 0 ? .57f : -.57f, 1.27f, depth / 2 + .07f);
+        Window(model, width*.30f, 1.27f, depth / 2 + .07f);
+        if(variant is 1 or 2 or 3)Window(model,-width*.30f,1.27f,depth/2+.07f);
         if (variant == 3) Window(model, 0, 2.12f, depth / 2 + .07f);
         foreach (float side in new[] { -1f, 1f })
             Part(model, "box", new(side * width / 2, height / 2 + .18f, depth / 2 + .04f), new(.09f, height, .08f), 0);

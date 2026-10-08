@@ -22,7 +22,7 @@ def terminate(process):
 class Runner:
     def __init__(self,output,budget,env_allowlist=()):
         self.output=output; self.budget=budget; self.calls=0;self.env_allowlist=env_allowlist
-        self.sources={str(ROOT/'tools'/name):sha(ROOT/'tools'/name) for name in ('rsi_benchmark.py','rsi_tasks.py','efficiency.py','online.py')}
+        self.sources={str(ROOT/'tools'/name):sha(ROOT/'tools'/name) for name in ('rsi_benchmark.py','rsi_tasks.py','rsi_code.py','rsi_code_worker.py','efficiency.py','online.py')}
     def invoke(self,agent,request,seconds=None):
         self.calls+=1; folder=self.output/'calls'/str(self.calls);folder.mkdir(parents=True)
         target=folder/'agent.py';shutil.copyfile(agent,target);source_hash=sha(agent)
@@ -68,7 +68,18 @@ def cohort(seed,count):
             'heldoutProfile':{'resource':('homogeneous','diverse'),'routing':('dense','open'),'visual_update':('churn','sparse')}[family][(i//3)%2], 'developmentSeed':rng.randrange(2**31),'heldoutSeed':rng.randrange(2**31)})
     return tasks
 
+def tasks_for(seed,count,backend):
+    tasks=cohort(seed,count)
+    if backend=='code':
+        for task in tasks:task['_backend']='code';task['n']*=4;task['q']*=2
+    return tasks
+
 def public_task(task):
+    if task.get('_backend')=='code':
+        return {k:task[k] for k in ('id','family','n','q')} | {'proposalFormat':{'source':'Python defining solve(problem)'},
+            'problemFormat':{'resource':'items=[x,y,kind]; queries=[x,y,kind]; return nearest item indices (Manhattan distance; smallest index breaks ties; -1 when absent)',
+                'routing':'size; blocked=indices; queries=[start,goal]; return shortest 4-neighbour distances or -1; start and goal unblocked per query',
+                'visual_update':'world=integers; updates=lists of [index,value]; return full geometry list after each update batch; geometry=(value*2654435761 ^ (value>>3)) & 0xffffffff'}[task['family']]}
     return {k:task[k] for k in ('id','family','n','q')} | {'strategies':CHOICES[task['family']]}
 
 def http_stages(config,source):
@@ -93,6 +104,9 @@ def http_stages(config,source):
     return stages
 
 def proposal_result(task,proposal,seed,http=False):
+    if task.get('_backend')=='code':
+        from rsi_code import evaluate
+        return evaluate(task,proposal,seed)
     if task['family']!='http':return kernel_evaluate(task,proposal,seed)
     # Actual game-kernel code optimization adapter; evaluator owns both development and held-out suites.
     from efficiency import evaluate
@@ -128,6 +142,7 @@ def probe(runner,agent,tasks,memory):
                 except (ValueError,KeyError,TypeError,OSError):pass
             checkpoints.append(heldout['gain'] if heldout and heldout['correct'] and cost<=runner.budget['taskSeconds'] else 0.)
             development.append(dev);heldouts.append(heldout)
+        if any(sha(path)!=expected for path,expected in runner.sources.items()):raise ValueError('Trusted evaluator files changed')
         results.append({'taskId':task['id'],'family':task['family'],'checkpoints':checkpoints,
             'searchCapability':sum(checkpoints)/len(checkpoints),'finalGain':checkpoints[-1],'success':checkpoints[-1]>=.15,
             'bestProposal':best,'developmentFeedback':feedback,'developmentResults':development,'heldoutResults':heldouts,'agentWallSeconds':cost,'calls':calls})
@@ -266,19 +281,19 @@ def run(config,source,output):
     runner=Runner(output,budget,config.get('envAllowlist',[]));parent=frozen;memory=[];records=[]
     seed=config.get('seed',random.SystemRandom().randrange(2**31))
     backend=config.get('backend','kernel')
-    if backend not in ('kernel','http'):raise ValueError('Unknown task backend')
+    if backend not in ('kernel','code','http'):raise ValueError('Unknown task backend')
     loaded=http_stages(config,source) if backend=='http' else None
     if loaded and len(loaded)!=stages:raise ValueError('HTTP stages must match stage count')
     try:
         for stage in range(stages):
             # Disjoint cohort per stage; training and fork experience never includes held-out feedback.
-            training=loaded[stage]['training'] if loaded else cohort(f'{seed}:train:{stage}',6)
+            training=loaded[stage]['training'] if loaded else tasks_for(f'{seed}:train:{stage}',6,backend)
             train=probe(runner,parent,training,memory)
             previous_memory=memory[:]
             memory=memory+[{'family':r['family'],'feedback':r['developmentFeedback']} for r in train]
             child,lineage=successor(runner,parent,memory,f'child-{stage}.py')
             reverted=revert_mechanism(parent,child,output/'agents'/f'mechanism-reverted-{stage}.py')
-            tasks=loaded[stage]['probes'] if loaded else cohort(f'{seed}:probe:{stage}',count)
+            tasks=loaded[stage]['probes'] if loaded else tasks_for(f'{seed}:probe:{stage}',count,backend)
             # Never pass arm labels or held-out results to an agent; rotate arm order across stages.
             definitions=[('parent',parent,previous_memory),('child',child,memory),('reverted_parent',parent,memory),('frozen',frozen,memory)]
             definitions=definitions[stage%4:]+definitions[:stage%4]
@@ -299,10 +314,10 @@ def run(config,source,output):
             record={'stage':stage,'lineage':lineage,'mechanismRevertedSha256':sha(reverted),'forks':forks,'cohort':tasks,'arms':arms,'analysis':result}
             save(output/f'stage-{stage}.json',record);records.append(record);parent=child
         result={'schemaVersion':2,'kind':'agent-improver-benchmark-v2','protocolValidated':True,'fixtureOnly':config.get('fixtureOnly',False),
-            'evaluatorSha256':sha(__file__),'taskBackendSha256':sha(ROOT/'tools/rsi_tasks.py'),'budget':budget,'seed':seed,
+            'trustedSourceSha256':{Path(k).name:v for k,v in runner.sources.items()},'evaluatorSha256':sha(__file__),'taskBackendSha256':sha(ROOT/'tools/rsi_tasks.py'),'budget':budget,'seed':seed,
             'stages':[r['analysis'] for r in records],'supportedRecursiveStages':sum(r['analysis']['recursiveEvidenceSupported'] for r in records),
-            'agentCalls':runner.calls,'forkReplicates':fork_count,'backend':backend,'measurementScope':'Optimizer-search and successor-production capability on unseen optimization problems; kernel backend is bounded algorithm selection, HTTP backend measures real service code; no general RSI proof',
-            'heldoutPolicy':'distribution-shift-v1' if backend=='kernel' else 'controller-owned-http-suites',
+            'agentCalls':runner.calls,'forkReplicates':fork_count,'backend':backend,'measurementScope':'Optimizer-search and successor-production capability on unseen optimization problems; kernel backend is bounded algorithm selection, code backend executes submitted Python with CPU/memory measurements; HTTP backend measures real service code; no general RSI proof',
+            'heldoutPolicy':'distribution-shift-v1' if backend!='http' else 'controller-owned-http-suites',
             'failedForks':sum(not f[k]['accepted'] for r in records for f in r['forks'] for k in ('parentFork','childFork','mechanismFork')),
             'securityScope':'Trusted local processes, not an OS sandbox; model identity/token usage not independently authenticated'}
         save(output/'result.json',result);save(output/'config.json',config);return result
@@ -312,6 +327,7 @@ def run(config,source,output):
 def verify(folder):
     folder=Path(folder);config=read(folder/'config.json');result=read(folder/'result.json')
     if result['evaluatorSha256']!=sha(__file__) or result['taskBackendSha256']!=sha(ROOT/'tools/rsi_tasks.py'):raise ValueError('Evaluator version changed')
+    if any(sha(ROOT/'tools'/path)!=expected for path,expected in result['trustedSourceSha256'].items()):raise ValueError('Trusted backend version changed')
     previous=sha(folder/'agents/frozen.py');analyses=[];failed_forks=0
     for i in range(config.get('stages',2)):
         stage=read(folder/f'stage-{i}.json');edge=stage['lineage']
@@ -337,7 +353,7 @@ def verify(folder):
             if request['mode']!='improve' or hashlib.sha256(request['source'].encode()).hexdigest()!=expected_parent:raise ValueError('Incorrect self-edit input source')
         check_edge(edge,f'child-{i}.py',previous)
         task_index={t['id']:t for t in stage['cohort']}
-        if config.get('backend','kernel')=='kernel' and stage['cohort']!=cohort(f"{result['seed']}:probe:{i}",config.get('probeTasks',12)):
+        if config.get('backend','kernel')!='http' and stage['cohort']!=tasks_for(f"{result['seed']}:probe:{i}",config.get('probeTasks',12),config.get('backend','kernel')):
             raise ValueError('Probe cohort changed')
         def check_probes(records,expected_identity):
             def check_http(value,suite):
@@ -359,10 +375,16 @@ def verify(folder):
                     wall+=call['wallSeconds'];dev=record['developmentResults'][attempt];held=record['heldoutResults'][attempt]
                     if dev is not None:
                         reply=read(directory/'stdout.txt');proposal=reply['proposal']
-                        if task['family']!='http' and proposal_result(task,proposal,task['developmentSeed'])!=dev:raise ValueError('Development score changed')
+                        if task['family']!='http' and task.get('_backend')!='code' and proposal_result(task,proposal,task['developmentSeed'])!=dev:raise ValueError('Development score changed')
+                        if task.get('_backend')=='code':
+                            from rsi_code import validate
+                            validate(task,proposal,task['developmentSeed'],dev)
                         if task['family']=='http':check_http(dev,task['developmentSuite'])
                         if dev['correct'] and dev['gain']>best_dev:best=proposal;best_dev=dev['gain']
-                    if held is not None and task['family']!='http' and proposal_result(task,best,task['heldoutSeed'])!=held:raise ValueError('Held-out score changed')
+                    if held is not None and task['family']!='http' and task.get('_backend')!='code' and proposal_result(task,best,task['heldoutSeed'])!=held:raise ValueError('Held-out score changed')
+                    if held is not None and task.get('_backend')=='code':
+                        from rsi_code import validate
+                        validate(task,best,task['heldoutSeed'],held)
                     if held is not None and task['family']=='http':check_http(held,task['heldoutSuite'])
                     recomputed.append(held['gain'] if held and held['correct'] and wall<=config['budget']['taskSeconds'] else 0.)
                 recomputed += [0.]*(config['budget']['attempts']-len(recomputed))
@@ -387,7 +409,7 @@ def verify(folder):
         calculated=analyze(stage['arms'],config.get('effectMargin',.02),stage['forks'],mechanism(parent_path)[0]!=mechanism(child_path)[0])
         if calculated!=stage['analysis']:raise ValueError('Meta score modified')
         analyses.append(calculated);previous=edge['childSha256']
-    if result['failedForks']!=failed_forks or result['heldoutPolicy']!=('distribution-shift-v1' if config.get('backend','kernel')=='kernel' else 'controller-owned-http-suites'):raise ValueError('Protocol summary changed')
+    if result['failedForks']!=failed_forks or result['heldoutPolicy']!=('distribution-shift-v1' if config.get('backend','kernel')!='http' else 'controller-owned-http-suites'):raise ValueError('Protocol summary changed')
     if analyses!=result['stages'] or result['supportedRecursiveStages']!=sum(a['recursiveEvidenceSupported'] for a in analyses):raise ValueError('Result summary mismatch')
     return {'protocolValidated':True,'supportedRecursiveStages':sum(a['recursiveEvidenceSupported'] for a in analyses),'fixtureOnly':result['fixtureOnly']}
 

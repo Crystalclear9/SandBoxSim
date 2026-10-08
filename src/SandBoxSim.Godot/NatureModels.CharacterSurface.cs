@@ -15,7 +15,7 @@ internal sealed partial class NatureModels
             Noise=new FastNoiseLite {Seed=937,Frequency=.24f},
             ColorRamp=new Gradient {Colors=new[]{new Color(.96f,.96f,.96f),Colors.White}}};
         var material=new StandardMaterial3D {AlbedoColor=new Color(color),VertexColorUseAsAlbedo=true,
-            Roughness=.81f,MetallicSpecular=.19f,RoughnessTexture=_skinGrain,Uv1Scale=new(16,16,1)};
+            Roughness=.81f,MetallicSpecular=.19f,RoughnessTexture=_skinGrain,AlbedoTexture=_skinGrain,Uv1Scale=new(16,16,1)};
         _residentMaterials[key]=material;return material;
     }
     private Material HairSurface(string color)

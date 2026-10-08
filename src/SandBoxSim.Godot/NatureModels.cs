@@ -40,7 +40,8 @@ internal sealed partial class NatureModels
     public Material Material(int id) => _materials[id];
     public Mesh Shape(string kind)
     {
-        if (_meshes.TryGetValue(kind, out Mesh? mesh)) { return mesh; }
+        string key=kind is "face" or "hair" ? kind+":"+_faceVariant : kind;
+        if (_meshes.TryGetValue(key, out Mesh? mesh)) { return mesh; }
         mesh = kind switch
         {
             "box" => new BoxMesh(),
@@ -64,7 +65,7 @@ internal sealed partial class NatureModels
             "rock" => IrregularSphere(.22f),
             _ => new SphereMesh { Radius = .5f, Height = 1, RadialSegments = 20, Rings = 12 }
         };
-        _meshes[kind] = mesh; return mesh;
+        _meshes[key] = mesh; return mesh;
     }
     private static ArrayMesh IrregularSphere(float irregularity)
     {
