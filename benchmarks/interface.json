@@ -22,7 +22,10 @@
     "rsiEfficiencyEvidenceValidation": true,
     "agentSelfEditExecution": true,
     "improverMechanismIntervention": true,
-    "offspringYieldEvaluation": true
+    "offspringYieldEvaluation": true,
+    "costSensitiveImproverAnalysis": true,
+    "retrospectiveBudgetCurves": true,
+    "codeDeploymentPaybackEstimate": true
   },
   "schemas": {
     "request": "request.schema.json",
@@ -78,6 +81,14 @@
       "sandbox-stream-v1"
     ],
     "retention": "sandbox-stream-v1 stages after the first re-probe every earlier curriculum phase with fresh private tasks; per-family non-regression gates recursive evidence",
-    "report": "verified self-contained HTML: tools/rsi_benchmark.py report <folder> --output <file>"
+    "report": "verified self-contained HTML: tools/rsi_benchmark.py report <folder> --output <file>",
+    "costStudy": {
+      "entry": "tools/rsi_efficiency_study.py",
+      "outputKind": "rsi-cost-study-v1",
+      "verifiedArchiveRequired": true,
+      "completeCostLedger": false,
+      "budgetAwarePolicyRerun": false,
+      "generalRsiProof": false
+    }
   }
 }

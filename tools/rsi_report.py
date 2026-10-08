@@ -22,6 +22,14 @@ def report(folder, output):
     sections = []
     for stage in records:
         analysis = stage['analysis']; index = stage['stage']
+        from rsi_efficiency_study import stage_study
+        efficiency = stage_study(stage,result['budget']['taskSeconds'])
+        curve_rows = ''.join(f'<tr><td>{r["fraction"]:.0%} / {r["agentSeconds"]:.2f} s</td><td>{number(r["parentGain"])}</td><td>{number(r["childGain"])}</td><td>{number(r["gainEffect"]["stratified95"][0])} … {number(r["gainEffect"]["stratified95"][1])}</td></tr>' for r in efficiency['anytime']['curves'])
+        rate_rows = ''.join(f'<tr><td>{label}</td><td>{number(efficiency["secondOrderEfficiency"][key]["meanEffect"])}</td><td>{number(efficiency["secondOrderEfficiency"][key]["hierarchical95"][0])} … {number(efficiency["secondOrderEfficiency"][key]["hierarchical95"][1])}</td></tr>' for key,label in (('parent','子改进器 − 父改进器'),('reverted','子改进器 − 撤销方法')))
+        payback_rows = ''.join(f'<tr><td>{escape(r["family"])}</td><td>{r["recordedInvestmentSeconds"]:.3f} s</td><td>{r["optimisticBreakEvenExecutions"] if r["optimisticBreakEvenExecutions"] is not None else "无法确认"}</td><td>{escape(r["reason"] or "七组直接对照通过；仅为乐观回收估计")}</td></tr>' for r in efficiency['deployment']['tasks'])
+        efficiency_html = f'''<h3>改进是否划算？</h3><p>成本敏感证据：{"通过" if efficiency["costSensitiveEvidenceSupported"] else "未通过"}。时间 AUC 效应 {number(efficiency['anytime']['timeAucEffect']['meanEffect'])}；父/子尚未达到收益阈值的任务 {efficiency['anytime']['parentCensored']} / {efficiency['anytime']['childCensored']}。阈值是收益 ≥ 0.15，未达到按预算终点计入，不能删除。</p>
+<details><summary>实际时间预算下的能力与改进器效率</summary><table><tr><th>预算比例 / 代理墙钟</th><th>同记忆父代理</th><th>子代理</th><th>差异 95% 区间</th></tr>{curve_rows}</table><p class="muted">按原始轨迹截断，完成调用后结果才可用；没有从私有答案中择优。预算感知策略须另行运行，五个预算点仅作探索。</p><table><tr><th>后代增量收益 / 已记录秒</th><th>效应</th><th>任务与分叉重采样区间</th></tr>{rate_rows}</table><p class="muted">成本包含后代生成、搜索调用和记录的 solve 耗时，失败仍有成本且计零收益。缺少训练、导入和完整评估开销，这不是 token、费用或完整系统效率。</p></details>
+<details><summary>部署多少次才能回收改进成本？</summary><p>{efficiency['deployment']['confirmedSavingTasks']} 个任务在七组直接父子对照中确认 CPU 与墙钟均改善。</p><table><tr><th>任务族</th><th>已记录投入</th><th>乐观回收次数</th><th>原因</th></tr>{payback_rows}</table><p class="muted">用七组最小观察节省量、子搜索成本及分摊的谱系生成成本估计；遗漏训练与评估开销，回收次数偏乐观。含分配追踪的微基准不等同于真实部署耗时。</p></details>'''
         signals = []
         for key, label in SIGNALS:
             value = analysis[key]; interval = value['stratified95']
@@ -59,6 +67,7 @@ def report(folder, output):
 <p class="diagnosis">{escape('需要进一步证据：'+'；'.join(reasons) if reasons else '各项操作性证据门槛通过；仍须考虑可信执行、模型身份和夹具边界。')}</p>
 <div class="columns"><div><h3>因果证据链</h3><table><tr><th>证据</th><th>效应</th><th>95% 区间</th><th>判定</th></tr>{''.join(signals)}</table><p class="muted">改进方法 AST 改变：{'是' if analysis['improverMechanismChanged'] else '否'}。区间与筛选线来自原实验。</p></div>
 <div><h3>旧能力保留</h3>{retention_html}</div></div>
+{efficiency_html}
 <details><summary>查看各控制组能力与代理成本</summary><table><tr><th>控制组</th><th>搜索 AUC</th><th>成功率</th><th>代理墙钟</th><th>输入 / 输出字节</th></tr>{arms}</table><p class="muted">字节数不是 token；代理墙钟不包含候选测量的全部成本。</p></details>
 <details><summary>后代接受率与失败记录</summary><table><tr><th>生成组</th><th>接受 / 尝试</th><th>墙钟</th></tr>{forks}</table>{failure_html}</details></section>''')
     height = 220

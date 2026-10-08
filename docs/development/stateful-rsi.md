@@ -39,6 +39,8 @@ python tools/rsi_benchmark.py report runs/evaluation/stateful-example --output r
 
 报告不会输出私有题目或答案，但包含留出汇总，实验结束前不要把它反馈给受测代理。它不重新测量硬件成本，也不把字节数换算成 token。
 
+成本、低预算搜索与部署回收的分析见 [改进器效率研究](rsi-efficiency.md)。报告现在同时展示这些研究结果，原协议的分数和实验归档保持原样。
+
 ## 接入自己的代理
 
 复制公开配置，改为自己的 `agent` 文件并设 `fixtureOnly: false`，保留 `backend: "code"`、`taskSuite: "sandbox-stream-v1"`。代理提供顶层 `propose(request)` 和 `improve(request)`，stdin/stdout 传 JSON；前者返回 `proposal.source`，后者返回实际下一代源码。单文件代理会复制到独立调用目录，应自包含或依赖已安装模块；所需密钥只通过 `envAllowlist` 传入。

@@ -75,10 +75,12 @@ jobs:
           python -m unittest discover -s tools -p test_rsi_benchmark.py
           python -m unittest discover -s tools -p test_rsi_code.py
           python -m unittest discover -s tools -p test_rsi_stateful.py
+          python -m unittest discover -s tools -p test_rsi_efficiency_study.py
           python tools/rsi_benchmark.py run benchmarks/rsi-meta-smoke.json --output runs/rsi-meta-ci
           python tools/rsi_benchmark.py verify runs/rsi-meta-ci
           python tools/rsi_benchmark.py run benchmarks/rsi-stateful-smoke.json --output runs/rsi-stateful-ci
           python tools/rsi_benchmark.py verify runs/rsi-stateful-ci
+          python tools/rsi_efficiency_study.py runs/rsi-stateful-ci --output runs/rsi-stateful-ci/cost-study.json
           python tools/rsi_benchmark.py report runs/rsi-stateful-ci --output runs/rsi-stateful-ci/report.html
 
       - name: Upload improver probe evidence

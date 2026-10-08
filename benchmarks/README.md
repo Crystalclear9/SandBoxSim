@@ -13,6 +13,7 @@
 | `efficiency-smoke.json` | 真实程序效率配对样例 | `tools/efficiency.py run` |
 | `rsi-rounds.schema.json` | 程序性能历史与父链清单，保留历史文件名 | `tools/efficiency.py experiment/rounds` |
 | `rsi-meta.schema.json`、`rsi-meta-smoke.json` | 代理自修改、留出迁移、分叉及方法撤销 | `tools/rsi_benchmark.py` |
+| `rsi-budget-smoke.json` | 多尝试短预算非 LLM 控制实验 | `tools/rsi_efficiency_study.py` 分析归档 |
 | `rsi-stateful-smoke.json` | 连续世界代码任务、两阶段课程与旧能力保留 | `tools/rsi_benchmark.py` 的 code 后端 |
 | `rsi-code-smoke.json` | 实际 Python 候选效率与改进控制 | `tools/rsi_benchmark.py` 的 code 后端 |
 | `agents/` | 策略和实际代码生成的非 LLM 集成夹具 | 代理协议示例 |
