@@ -5,6 +5,11 @@ using SandBoxSim.Core.Agents;
 namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
+    private Material CollarMaterial(string cloth)
+    {
+        string key="folded-collar:"+cloth;if(_residentMaterials.TryGetValue(key,out var cached))return cached;
+        var material=Fabric("#"+new Color(cloth).Darkened(.12f).ToHtml(false));_residentMaterials[key]=material;return material;
+    }
     private Mesh CollarLeaf(float side)
     {
         string key="fitted-collar:"+side;
@@ -13,9 +18,9 @@ internal sealed partial class NatureModels
         Vector3 Point(int row,int column)
         {
             float v=row/8f,u=column/8f;
-            float inner=Mathf.Lerp(.018f,.030f,v),outer=Mathf.Lerp(.083f,.047f,v);
-            float x=side*Mathf.Lerp(inner,outer,u),y=Mathf.Lerp(1.250f,1.208f,v)+u*.004f;
-            return TorsoSurface(x,y,false,.004f+.0015f*MathF.Sin(u*MathF.PI));
+            float inner=Mathf.Lerp(.017f,.028f,v),outer=Mathf.Lerp(.075f,.033f,v)+MathF.Sin(v*MathF.PI)*.012f;
+            float x=side*Mathf.Lerp(inner,outer,u),y=Mathf.Lerp(1.255f,1.185f,v)+u*.007f*(1-v);
+            return TorsoSurface(x,y,false,.003f+.0025f*MathF.Sin(u*MathF.PI)*MathF.Sin(v*MathF.PI));
         }
         for(int r=0;r<8;r++)for(int c=0;c<8;c++)
         {

@@ -97,7 +97,7 @@ internal sealed partial class NatureModels
         // Collar, placket and the hem distinguish tailored cloth from the body's silhouette.
         foreach (float side in new[] { -1f, 1f })
         {
-            Sculpt(rig.Torso,CollarLeaf(side),Vector3.Zero,ResidentMaterial("#a59c86"));
+            Sculpt(rig.Torso,CollarLeaf(side),Vector3.Zero,CollarMaterial(cloth));
             Detail(rig.Torso, "box", new Vector3(side * .145f, .67f, -.11f), new Vector3(.012f, .13f, .012f), cloth, new Vector3(0, 0, side * -.10f));
         }
         Detail(rig.Torso, "box", new Vector3(0, 1.11f, -.145f), new Vector3(.016f, .18f, .012f), "#b9b099");
@@ -107,7 +107,7 @@ internal sealed partial class NatureModels
         Detail(rig.Torso, "box", TorsoSurface(.015f, .76f, false, .009f), new Vector3(.055f, .045f, .013f), "#b8a17b");
         Detail(rig.Torso, "capsule", new Vector3(.23f, .7f, .075f), new Vector3(.075f, .065f, .055f), "#725b40");
         Sculpt(rig.Torso,Loft("resident-neck",new[]{new Vector4(0,0,.061f,.048f),new(.035f,-.006f,.045f,.041f),new(.080f,-.012f,.049f,.043f)}),new(0,1.265f,.016f),ResidentMaterial(skin),new(-MathF.PI/2,0,0));
-        rig.Head = new Node3D { Name = "Head", Position = new Vector3(0, 1.426f, 0) }; rig.Torso.AddChild(rig.Head);
+        rig.Head = new Node3D { Name = "Head", Position = new Vector3(0, 1.412f, 0) }; rig.Torso.AddChild(rig.Head);
         Detail(rig.Head, "face", Vector3.Zero, new Vector3(.177f, .220f, .195f), skin).MaterialOverride=FaceSurfaceMaterial(skin);
         Detail(rig.Head, "hair", new Vector3(0, .008f, .006f), new Vector3(.181f, .224f, .200f), hair);
         foreach (float side in new[] { -1f, 1f })

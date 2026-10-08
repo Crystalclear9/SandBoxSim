@@ -6,7 +6,7 @@ internal sealed partial class NatureModels
 {
     private void RoofCourses(Node3D model,float width,float depth,float height,int material)
     {
-        float half=(width+.4f)/2;const int courses=7,columns=12;
+        float half=(width+.4f)/2;int courses=_fineArchitecture?12:7,columns=_fineArchitecture?18:12;
         foreach(float side in new[]{-1f,1f})
         {
             for(int row=0;row<courses;row++) for(int col=0;col<columns;col++)
@@ -16,7 +16,7 @@ internal sealed partial class NatureModels
                 z+=row%2==0?0:step*.22f;
                 z=Mathf.Clamp(z,-(depth+.4f)/2+step*.44f,(depth+.4f)/2-step*.44f);
                 Part(model,(material==15?"thatch-course":"tile-course")+(_fineArchitecture?"":"-far"),new(side*x,height+half*.48f-x*.495f+.13f+(1-(row+.5f)/courses)*.048f,z),
-                    new(half/courses*1.20f,.032f,(depth+.4f)/columns*(.96f-((row+col)%3)*.008f)),material,new(0,0,-side*.46f));
+                    new(half/courses*1.20f,.024f,(depth+.4f)/columns*(.96f-((row+col)%3)*.008f)),material,new(0,0,-side*.46f));
             }
             foreach(float z in new[]{-(depth+.43f)/2,(depth+.43f)/2})
                 Part(model,"box",new(side*half/2,height+half*.25f,z),new(half*1.15f,.075f,.085f),0,new(0,0,-side*.46f));

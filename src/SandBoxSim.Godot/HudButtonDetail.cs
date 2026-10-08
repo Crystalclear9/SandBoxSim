@@ -34,7 +34,7 @@ internal partial class HudButtonDetail : Control
         bool selected = _button.ToggleMode && _button.ButtonPressed;
         float strength = selected ? .85f : _light * .55f;
         if (strength < .01f) { return; }
-        Color accent=_button.HasMeta("notebook") ? new Color("#806644") : HudStyle.Accent;
+        Color accent=_button.HasMeta("notebook") ? new Color("#bda984") : HudStyle.Accent;
         DrawRect(new Rect2(new Vector2(3,3),Size-new Vector2(6,6)),new Color(accent,selected?.16f:_light*.07f));
         float half = (Size.X - 16) * (selected ? .5f : .16f + .34f * _light);
         var center = new Vector2(Size.X / 2, Size.Y - 3);

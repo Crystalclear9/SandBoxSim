@@ -24,7 +24,7 @@ public partial class DiscoveryPanel : VBoxContainer
         var body = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; body.AddThemeConstantOverride("separation", 12); scroll.AddChild(body);
         VBoxContainer Card()
         {
-            var panel=new PanelContainer();var box=HudStyle.Box(new Color("#d0d0c2"),5,14,false);panel.AddThemeStyleboxOverride("panel",box);body.AddChild(panel);
+            var panel=new PanelContainer();var box=HudStyle.Box(new Color("#2f3b32"),5,14,false);panel.AddThemeStyleboxOverride("panel",box);body.AddChild(panel);
             var content=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};content.AddThemeConstantOverride("separation",8);panel.AddChild(content);return content;
         }
         body.AddChild(HudStyle.Label("田野 · 随手记", 10, true));
@@ -67,7 +67,7 @@ public partial class DiscoveryPanel : VBoxContainer
         _land.Text=local==null ? $"({Game.SelectedX}, {Game.SelectedY}) · 单击土地查看这里的水土与痕迹。" : Game.Wild.Describe(sim,local);
         var notes=new StringBuilder();
         foreach(var mark in Game.Wild.Marks)
-            notes.AppendLine($"[url=place:{mark.X}:{mark.Y}][color=#806644]{mark.Name.Replace("[","[lb]")}[/color][/url]  [url=forget:{mark.X}:{mark.Y}]×[/url]");
+            notes.AppendLine($"[url=place:{mark.X}:{mark.Y}][color=#c7b992]{mark.Name.Replace("[","[lb]")}[/color][/url]  [url=forget:{mark.X}:{mark.Y}]×[/url]");
         _marks.Text=notes.ToString();
         var pinned = sim.Society.Find(Game.PinnedPerson); _pinLink.Visible = pinned != null;
         _pinText.Text = pinned == null ? "尚未关注居民。"
@@ -76,11 +76,11 @@ public partial class DiscoveryPanel : VBoxContainer
         var text = new StringBuilder();
         foreach (var ev in sim.Society.History.Where(e => IsStory((WorldEventType)e.Type)).TakeLast(3).Reverse())
         {
-            text.AppendLine($"[color=#747866]第 {ev.Tick / sim.Config.Clock.TicksPerDay + 1} 天[/color]  " + ev.Description.Replace("[", "[lb]"));
-            if (ev.Actor != 0 || ev.X >= 0 && ev.Y >= 0) { text.AppendLine($"[url={ev.Actor}:{ev.X}:{ev.Y}][color=#806644]追踪故事 →[/color][/url]"); }
+            text.AppendLine($"[color=#a8b3a5]第 {ev.Tick / sim.Config.Clock.TicksPerDay + 1} 天[/color]  " + ev.Description.Replace("[", "[lb]"));
+            if (ev.Actor != 0 || ev.X >= 0 && ev.Y >= 0) { text.AppendLine($"[url={ev.Actor}:{ev.X}:{ev.Y}][color=#c7b992]追踪故事 →[/color][/url]"); }
             text.AppendLine();
         }
-        _stories.Text = text.Length == 0 ? "[color=#747866]居民的第一次选择，将成为这里的故事。[/color]" : text.ToString();
+        _stories.Text = text.Length == 0 ? "[color=#a8b3a5]居民的第一次选择，将成为这里的故事。[/color]" : text.ToString();
         _miniMap.QueueRedraw();
     }
     public void ValidateNavigation() => _miniMap.ValidateMapping();
