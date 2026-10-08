@@ -63,23 +63,43 @@ internal sealed partial class NatureModels
             "pine" => Crown(true),
             "trunk" => BentTrunk(),
             "rock" => IrregularSphere(.22f),
+            "grass" => MeadowTuft(),
             _ => new SphereMesh { Radius = .5f, Height = 1, RadialSegments = 20, Rings = 12 }
         };
         _meshes[key] = mesh; return mesh;
     }
     private static ArrayMesh IrregularSphere(float irregularity)
     {
-        const int rings = 16, sides = 24;
+        const int rings = 24, sides = 40;
         var verts = new List<Vector3>(); var normals = new List<Vector3>(); var uv = new List<Vector2>(); var indices = new List<int>();
         for (int row = 0; row <= rings; row++) for (int col = 0; col <= sides; col++)
         {
             float latitude = row * MathF.PI / rings, angle = col * MathF.Tau / sides;
             var normal = new Vector3(MathF.Sin(latitude) * MathF.Cos(angle), MathF.Cos(latitude), MathF.Sin(latitude) * MathF.Sin(angle));
             float noise = MathF.Sin(normal.X * 4 + normal.Y * 3) * MathF.Cos(normal.Z * 4 - normal.Y * 2) + .18f * MathF.Sin(normal.X * 9 - normal.Z * 7);
-            verts.Add(normal * (.5f + noise * irregularity * .5f)); normals.Add(normal); uv.Add(new Vector2(col / (float)sides, row / (float)rings));
+            // Rounded fracture planes give stone a broken silhouette rather than a soft sphere.
+            float radius=.5f+noise*irregularity*.32f;
+            var point=new Vector3(MathF.CopySign(MathF.Pow(MathF.Abs(normal.X),.78f),normal.X),
+                MathF.CopySign(MathF.Pow(MathF.Abs(normal.Y),.82f),normal.Y),
+                MathF.CopySign(MathF.Pow(MathF.Abs(normal.Z),.76f),normal.Z))*radius;
+            point.Y+=point.X*.11f-point.Z*.07f;
+            verts.Add(point); normals.Add(Vector3.Zero); uv.Add(new Vector2(col / (float)sides, row / (float)rings));
         }
         for (int row = 0; row < rings; row++) for (int col = 0; col < sides; col++)
         { int a = row * (sides + 1) + col, b = a + sides + 1; indices.AddRange(new[] { a, b, a + 1, a + 1, b, b + 1 }); }
+        // Derive shading normals from the deformed surface, including the wrapped seam.
+        for(int i=0;i<indices.Count;i+=3)
+        {
+            int a=indices[i],b=indices[i+1],c=indices[i+2];
+            var n=(verts[b]-verts[a]).Cross(verts[c]-verts[a]);
+            if(n.Dot(verts[a]+verts[b]+verts[c])<0)n=-n;
+            normals[a]+=n;normals[b]+=n;normals[c]+=n;
+        }
+        for(int row=0;row<=rings;row++)
+        {
+            int a=row*(sides+1),b=a+sides;var n=normals[a]+normals[b];normals[a]=n;normals[b]=n;
+        }
+        for(int i=0;i<normals.Count;i++)normals[i]=normals[i].LengthSquared()>1e-12f?normals[i].Normalized():Vector3.Up;
         var data = new Godot.Collections.Array(); data.Resize((int)Mesh.ArrayType.Max); data[(int)Mesh.ArrayType.Vertex] = verts.ToArray();
         data[(int)Mesh.ArrayType.Normal] = normals.ToArray(); data[(int)Mesh.ArrayType.TexUV] = uv.ToArray(); data[(int)Mesh.ArrayType.Index] = indices.ToArray();
         var mesh = new ArrayMesh(); mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, data); return mesh;
@@ -112,15 +132,15 @@ internal sealed partial class NatureModels
         for(int i=1;i<group.Count;i++)bounds=bounds.Merge(group[i]*meshBounds);
         return bounds.Grow(.01f);
     }
-    public void Batch(Node3D parent, string shape, int material, List<Transform3D> transforms)
+    public void Batch(Node3D parent, string shape, int material, List<Transform3D> transforms, Material? surface=null, float range=0)
     {
         // Each chunk has its own bounds: a visible patch no longer draws the whole forest.
         foreach(var group in PartitionInstances(transforms).Values)
         {
             var multi=new MultiMesh {TransformFormat=MultiMesh.TransformFormatEnum.Transform3D,Mesh=Shape(shape),InstanceCount=group.Count};
             for(int i=0;i<group.Count;i++)multi.SetInstanceTransform(i,group[i]);
-            multi.CustomAabb=InstanceBounds(group,multi.Mesh.GetAabb());
-            parent.AddChild(new MultiMeshInstance3D {Multimesh=multi,MaterialOverride=Material(material)});
+            multi.CustomAabb=InstanceBounds(group,multi.Mesh.GetAabb()).Grow(shape=="grass"?.03f:0);
+            parent.AddChild(new MultiMeshInstance3D {Multimesh=multi,MaterialOverride=surface??Material(material), VisibilityRangeEnd=range, CastShadow=shape=="grass"?GeometryInstance3D.ShadowCastingSetting.Off:GeometryInstance3D.ShadowCastingSetting.On});
         }
     }
 

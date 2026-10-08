@@ -58,6 +58,12 @@ internal sealed partial class NatureModels
             if(architecture && instances!=1) throw new InvalidOperationException("Static architecture was not consolidated");
             model.Free();
         }
+        var meadow=Shape("grass");var meadowData=meadow.SurfaceGetArrays(0);
+        var meadowPoints=meadowData[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var meadowNormals=meadowData[(int)Mesh.ArrayType.Normal].AsVector3Array();
+        if(meadowPoints.Length!=meadowNormals.Length)throw new InvalidOperationException("Meadow mesh lost normals");
+        foreach(var p in meadowPoints)if(!p.IsFinite()||p.Y<0)throw new InvalidOperationException("Meadow blade has invalid root or vertex");
+        foreach(var n in meadowNormals)if(!n.IsFinite())throw new InvalidOperationException("Meadow blade has invalid normal");
         foreach(var mesh in new[]{Shape("face"),Shape("hair"),Shape("rock"),Garment()})
         {
             var arrays=mesh.SurfaceGetArrays(0); var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array(); var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();

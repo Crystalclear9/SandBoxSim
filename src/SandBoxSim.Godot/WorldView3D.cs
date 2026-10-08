@@ -102,10 +102,10 @@ public partial class WorldView3D : MapView
         var sky = new ProceduralSkyMaterial { SkyTopColor = new Color("#779ca9"), SkyHorizonColor = new Color("#d4d4b8"), GroundHorizonColor = new Color("#b8c2a0"), GroundBottomColor = new Color("#465346") };
         _weatherEnvironment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Sky,
             Sky = new Sky { SkyMaterial = sky }, AmbientLightSource = Godot.Environment.AmbientSource.Sky,
-            AmbientLightEnergy = .42f, TonemapMode = Godot.Environment.ToneMapper.Aces, TonemapExposure = .72f,
+            AmbientLightEnergy = .34f, TonemapMode = Godot.Environment.ToneMapper.Aces, TonemapExposure = .88f,
             FogEnabled = true, FogDensity = .0017f, FogLightColor = new Color("#c2d1bd") };
         _scene.AddChild(new WorldEnvironment { Environment = _weatherEnvironment });
-        _sunlight = new DirectionalLight3D { RotationDegrees = new Vector3(-48, -35, 0), LightColor = new Color("#ffe8bc"),
+        _sunlight = new DirectionalLight3D { RotationDegrees = new Vector3(-48, -35, 0), LightColor = new Color("#f4eee0"),
             LightEnergy = .9f, ShadowEnabled = true, DirectionalShadowMode=DirectionalLight3D.ShadowMode.Parallel2Splits, DirectionalShadowMaxDistance = 160 };
         _scene.AddChild(_sunlight);
         _camera = new Camera3D { Current = true, Near = .15f, Far = 650, Fov = 52 }; _scene.AddChild(_camera);
@@ -328,7 +328,8 @@ public partial class WorldView3D : MapView
             wear=unchecked(wear*31+(int)(tile.FootTraffic*16));
             int flags=(decoration%5==0&&tile.Terrain==TerrainKind.Forest&&tile.Vegetation>.12f&&tile.Fire!=FireState.Burnt?1:0)
                 +(decoration%17==0&&tile.Resource.Kind==ResourceKind.Food&&tile.Resource.Amount>5?2:0)
-                +(decoration%9==0&&tile.Terrain==TerrainKind.Mountain&&tile.Resource.Kind==ResourceKind.Iron?4:0);
+                +(decoration%9==0&&tile.Terrain==TerrainKind.Mountain&&tile.Resource.Kind==ResourceKind.Iron?4:0)
+                +(HasMeadow(tile,decoration)?8:0);
             nature = unchecked(nature * 31 + flags);
             if (Overlay is 2 or 5) { signature = unchecked(signature * 31 + (int)tile.Resource.Kind * 1000 + (int)tile.Resource.Amount); }
             if (Overlay == 3) { signature = unchecked(signature * 31 + (int)(tile.Moisture * 100)); }
@@ -484,11 +485,12 @@ public partial class WorldView3D : MapView
             waterWeights[x,y]=sum/36f;
         }
         float Wet(int x,int y)=>waterWeights[Math.Clamp(x,0,width-1),Math.Clamp(y,0,height-1)];
-        float Blend(float t){t=Math.Clamp((t-.1f)/.8f,0,1);return t*t*(3-2*t);}
+        float Blend(float t)=>Math.Clamp(t,0,1);
         float WaterMask(float x,float y)
         {
             x-=.5f;y-=.5f;int ix=(int)MathF.Floor(x),iy=(int)MathF.Floor(y);float u=Blend(x-ix),v=Blend(y-iy);
-            return Mathf.Lerp(Mathf.Lerp(Wet(ix,iy),Wet(ix+1,iy),u),Mathf.Lerp(Wet(ix,iy+1),Wet(ix+1,iy+1),u),v);
+            float Row(int dy)=>Cubic(Wet(ix-1,iy+dy),Wet(ix,iy+dy),Wet(ix+1,iy+dy),Wet(ix+2,iy+dy),u);
+            return Math.Clamp(Cubic(Row(-1),Row(0),Row(1),Row(2),v),0,1);
         }
         for(int y=0;y<=ny;y++)for(int x=0;x<=nx;x++)
         {
@@ -537,25 +539,30 @@ uniform sampler2D atlas : source_color, filter_linear_mipmap;
 uniform sampler2D material_map : filter_nearest, repeat_disable;
 uniform vec2 map_size;
 varying vec3 world_position;
-void vertex(){VERTEX.y-=texture(material_map,clamp(VERTEX.xz*.5/map_size,vec2(0.0),vec2(1.0))).g*.024; world_position = (MODEL_MATRIX * vec4(VERTEX,1.0)).xyz; }
+varying float terrain_slope;
+void vertex(){terrain_slope=1.0-clamp(NORMAL.y,0.0,1.0); VERTEX.y-=texture(material_map,clamp(VERTEX.xz*.5/map_size,vec2(0.0),vec2(1.0))).g*.024; world_position = (MODEL_MATRIX * vec4(VERTEX,1.0)).xyz; }
 vec3 surface_at(vec2 tile, vec2 pattern){
     float index = floor(texture(material_map,(clamp(tile,vec2(0.0),map_size-vec2(1.0))+vec2(.5))/map_size).r*15.0+.5);
     vec2 cell = vec2(mod(index,4.0),floor(index/4.0));
     vec2 uv = (cell+mix(vec2(.03),vec2(.97),pattern))/4.0;
-    return mix(texture(atlas,uv,1.0).rgb,texture(atlas,uv,4.0).rgb,.55);
+    return mix(texture(atlas,uv).rgb,texture(atlas,(cell+mix(vec2(.03),vec2(.97),abs(fract(pattern*1.73+vec2(.23,.41))*2.0-1.0)))/4.0,2.0).rgb,.28);
 }
 void fragment(){
     vec2 grid=world_position.xz*.5-vec2(.5);
-    vec2 origin=floor(grid), blend=smoothstep(vec2(.1),vec2(.9),fract(grid));
-    vec2 rotated=mat2(vec2(.72,.69),vec2(-.69,.72))*world_position.xz*.14;
+    vec2 origin=floor(grid), blend=fract(grid);
+    vec2 rotated=mat2(vec2(.72,.69),vec2(-.69,.72))*world_position.xz*.34;
     vec2 pattern=abs(fract(rotated)*2.0-1.0);
     vec3 a=mix(surface_at(origin,pattern),surface_at(origin+vec2(1.0,0.0),pattern),blend.x);
     vec3 b=mix(surface_at(origin+vec2(0.0,1.0),pattern),surface_at(origin+vec2(1.0),pattern),blend.x);
-    vec3 c=mix(a,b,blend.y); float lum=dot(c,vec3(.2126,.7152,.0722));
-    float broad=sin(world_position.x*.041+cos(world_position.z*.029))*cos(world_position.z*.053)*.055;
+    vec3 c=mix(a,b,blend.y); c=vec3(.5)+(c-vec3(.5))*.42; float lum=dot(c,vec3(.2126,.7152,.0722));
+    float broad=sin(world_position.x*.041+cos(world_position.z*.029))*cos(world_position.z*.053)*.10;
+    float damp=texture(material_map,(clamp(grid,vec2(0.0),map_size-vec2(1.0))+vec2(.5))/map_size).b;
+    float slope=terrain_slope;
     float wear=texture(material_map,(clamp(grid,vec2(0.0),map_size-vec2(1.0))+vec2(.5))/map_size).g;
     vec3 earth=vec3(.23,.19,.13);
-    ALBEDO=mix(mix(vec3(lum),c,.42)*COLOR.rgb*vec3(.88,.92,.89)*(.88+broad),earth,wear*.72); ROUGHNESS=1.0;
+    vec3 meadow=mix(vec3(lum),c,.32)*COLOR.rgb*vec3(.94,.92,.83)*(.94+broad);
+    meadow=mix(meadow,vec3(.22,.205,.16),clamp(damp*.55+slope*.3,0.0,.55));
+    ALBEDO=mix(meadow,earth,wear*.72); ROUGHNESS=.96; SPECULAR=.12;
 }" };
         var material = new ShaderMaterial { Shader = groundShader };
         _groundMap=materialMap;_groundMapTexture=ImageTexture.CreateFromImage(materialMap);
@@ -567,7 +574,10 @@ void fragment(){
         {
             var wa = new Godot.Collections.Array(); wa.Resize((int)Mesh.ArrayType.Max); wa[(int)Mesh.ArrayType.Vertex] = waterV.ToArray(); wa[(int)Mesh.ArrayType.Index] = waterI.ToArray();
             var wm = new ArrayMesh(); wm.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, wa);
-            var shader = new Shader { Code = "shader_type spatial; render_mode cull_disabled; uniform sampler2D atlas : source_color, filter_linear_mipmap; uniform sampler2D material_map : filter_nearest, repeat_disable; uniform vec2 map_size; varying vec3 p; float wet(vec2 tile){return texture(material_map,(clamp(tile,vec2(0.0),map_size-vec2(1.0))+vec2(.5))/map_size).b;} void vertex(){ p = VERTEX; VERTEX.y += sin(VERTEX.x*1.6+TIME*.7)*.025 + cos(VERTEX.z*1.3+TIME*.9)*.02; NORMAL=vec3(0.0,1.0,0.0); } void fragment(){vec2 grid=p.xz*.5-vec2(.5),base=floor(grid),f=smoothstep(vec2(.1),vec2(.9),fract(grid));float bank=mix(mix(wet(base),wet(base+vec2(1.0,0.0)),f.x),mix(wet(base+vec2(0.0,1.0)),wet(base+vec2(1.0)),f.x),f.y);if(bank<.48)discard; float ripple = sin(p.x*2.4+TIME)*cos(p.z*1.8-TIME*.5); vec2 uv=(vec2(2.0,0.0)+clamp(fract(p.xz*.18+vec2(TIME*.003,0.0)),vec2(.02),vec2(.98)))/4.0; float fresnel=pow(1.0-clamp(dot(normalize(NORMAL),normalize(VIEW)),0.0,1.0),3.0); float fine=sin(p.x*9.0+TIME*1.2)*cos(p.z*7.0-TIME*.8); ALBEDO = mix(vec3(.075,.135,.125),vec3(.21,.28,.27),fresnel*.55) + vec3(ripple*.008+fine*.003); METALLIC=.16; ROUGHNESS=.24; NORMAL = normalize(NORMAL+vec3(ripple*.08,0.0,sin(p.z*3.0+TIME)*.06)); }" };
+            var shader = new Shader { Code = @"shader_type spatial; render_mode cull_disabled; uniform sampler2D atlas : source_color, filter_linear_mipmap; uniform sampler2D material_map : filter_nearest, repeat_disable; uniform vec2 map_size; varying vec3 p; float wet(vec2 tile){return texture(material_map,(clamp(tile,vec2(0.0),map_size-vec2(1.0))+vec2(.5))/map_size).b;} float cubic(float a,float b,float c,float d,float t){return .5*(2.0*b+(c-a)*t+(2.0*a-5.0*b+4.0*c-d)*t*t+(-a+3.0*b-3.0*c+d)*t*t*t);} float row(vec2 base,float y,float u){return cubic(wet(base+vec2(-1.0,y)),wet(base+vec2(0.0,y)),wet(base+vec2(1.0,y)),wet(base+vec2(2.0,y)),u);} void vertex(){ p = VERTEX; VERTEX.y += sin(VERTEX.x*.73+VERTEX.z*.41+TIME*.7)*.008 + cos(VERTEX.z*1.17-VERTEX.x*.29+TIME*.9)*.005; NORMAL=vec3(0.0,1.0,0.0); } void fragment(){vec2 grid=p.xz*.5-vec2(.5),base=floor(grid),f=fract(grid);float bank=clamp(cubic(row(base,-1.0,f.x),row(base,0.0,f.x),row(base,1.0,f.x),row(base,2.0,f.x),f.y),0.0,1.0);if(bank<.48)discard; float ripple = sin(p.x*2.4+TIME)*cos(p.z*1.8-TIME*.5); vec2 uv=(vec2(2.0,0.0)+clamp(fract(p.xz*.18+vec2(TIME*.003,0.0)),vec2(.02),vec2(.98)))/4.0; float fresnel=pow(1.0-clamp(dot(normalize(NORMAL),normalize(VIEW)),0.0,1.0),3.0); float fine=sin(p.x*9.0+TIME*1.2)*cos(p.z*7.0-TIME*.8); ALBEDO = mix(vec3(.075,.135,.125),vec3(.21,.28,.27),fresnel*.55) + vec3(ripple*.008+fine*.003); METALLIC=0.0; SPECULAR=.35; ROUGHNESS=.38;
+float w1=cos(p.x*1.73+p.z*1.19+TIME*.7),w2=cos(p.x*3.11-p.z*2.47-TIME*.93),w3=cos(p.x*5.37+p.z*4.19+TIME*1.13);
+vec3 surface_normal=normalize(vec3(w1*.010+w2*.006+w3*.003,1.0,w1*.007-w2*.005+w3*.002));
+NORMAL=normalize(mat3(VIEW_MATRIX)*surface_normal); }" };
             var waterMaterial = new ShaderMaterial { Shader = shader };waterMaterial.SetShaderParameter("material_map",_groundMapTexture);waterMaterial.SetShaderParameter("map_size",new Vector2(width,height)); if (_terrainAtlas != null) { waterMaterial.SetShaderParameter("atlas", _terrainAtlas); }
             _terrainRoot.AddChild(new MeshInstance3D { Mesh = wm, MaterialOverride = waterMaterial, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         }
@@ -584,15 +594,18 @@ void fragment(){
         if (Overlay == 6) { int count = _density[y * Game.Sim.World.Width + x]; return new Color(.5f + Math.Clamp(count / 20f, 0, .5f), .55f, .5f); }
         return new Color(.9f, .94f, .85f);
     }
+    private static bool HasMeadow(Tile tile,uint hash)=>hash%5==1 && tile.BuildingId==0 && tile.Fire!=FireState.Burnt
+        && tile.Vegetation>.2f && tile.Terrain is TerrainKind.Grass or TerrainKind.Forest;
     private void BuildNature()
     {
         using var profile=RenderProfile.Measure("BuildNature");
         var trunks = new List<Transform3D>(); var branches = new List<Transform3D>(); var leaves = new List<Transform3D>(); var pines = new List<Transform3D>();
-        var rocks = new List<Transform3D>(); var ores = new List<Transform3D>(); var bushes = new List<Transform3D>();
+        var grass = new List<Transform3D>(); var rocks = new List<Transform3D>(); var ores = new List<Transform3D>(); var bushes = new List<Transform3D>();
         for (int y = 0; y < Game.Sim.World.Height; y++) for (int x = 0; x < Game.Sim.World.Width; x++)
         {
             var tile = Game.Sim.World.TileAt(x, y); uint h = unchecked((uint)(x * 73856093 ^ y * 19349663));
             Vector3 p = PositionAt(x, y); float size = .8f + h % 7 * .07f;
+            if(HasMeadow(tile,h))grass.Add(NatureModels.Transform(p,new Vector3(size,.8f+(h%11)*.065f,size),new Vector3(0,h%31,0)));
             if (tile.Terrain == TerrainKind.Forest && tile.Vegetation > .12f && tile.Fire != FireState.Burnt && h % 5 == 0)
             {
                 trunks.Add(NatureModels.Transform(p + Vector3.Up * 1.7f * size, new Vector3(.42f, 3.4f, .42f) * size));
@@ -613,6 +626,24 @@ void fragment(){
             if (tile.Resource.Kind == ResourceKind.Food && tile.Resource.Amount > 5 && h % 17 == 0)
                 { bushes.Add(NatureModels.Transform(p + Vector3.Up * .28f, new Vector3(.9f, .7f, .9f) * size)); }
         }
+        var grassSurface=new ShaderMaterial {Shader=new Shader {Code=@"shader_type spatial;
+render_mode cull_disabled;
+uniform sampler2D soil : filter_nearest,repeat_disable;
+uniform vec2 map_size;
+varying float blade_height;
+varying float variation;
+void vertex(){
+    vec3 root=(MODEL_MATRIX*vec4(0.0,0.0,0.0,1.0)).xyz;
+    float wear=texture(soil,clamp(root.xz*.5/map_size,vec2(0.0),vec2(1.0))).g;
+    float distance_fade=1.0-smoothstep(24.0,32.0,distance(root,CAMERA_POSITION_WORLD));
+    blade_height=UV.y;variation=sin(root.x*.7+root.z*1.3)*.04;
+    VERTEX.y*=distance_fade*(1.0-wear*.85);
+    VERTEX.xz+=vec2(sin(TIME*1.1+root.x*.31+root.z*.19),cos(TIME*.8+root.z*.23))*.018*UV.y*UV.y*distance_fade;
+}
+void fragment(){ALBEDO=mix(vec3(.15,.19,.105),vec3(.35,.40,.22),blade_height)+variation;ROUGHNESS=.95;SPECULAR=.1;}"}};
+        grassSurface.SetShaderParameter("soil",_groundMapTexture);
+        grassSurface.SetShaderParameter("map_size",new Vector2(Game.Sim.World.Width,Game.Sim.World.Height));
+        _models.Batch(_props,"grass",5,grass,grassSurface,34);
         foreach (var place in Game.Wild.Places)
         {
             if (!Game.Sim.World.IsInBounds(place.X, place.Y) || !WildPlaces.IsLiving(Game.Sim, place)) continue;
