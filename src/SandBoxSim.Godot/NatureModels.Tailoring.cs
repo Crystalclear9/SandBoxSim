@@ -5,6 +5,25 @@ using SandBoxSim.Core.Agents;
 namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
+    private Mesh CollarLeaf(float side)
+    {
+        string key="fitted-collar:"+side;
+        if(_meshes.TryGetValue(key,out var cached))return cached;
+        using var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);surface.SetSmoothGroup(0);
+        Vector3 Point(int row,int column)
+        {
+            float v=row/8f,u=column/8f;
+            float inner=Mathf.Lerp(.018f,.030f,v),outer=Mathf.Lerp(.083f,.047f,v);
+            float x=side*Mathf.Lerp(inner,outer,u),y=Mathf.Lerp(1.250f,1.208f,v)+u*.004f;
+            return TorsoSurface(x,y,false,.004f+.0015f*MathF.Sin(u*MathF.PI));
+        }
+        for(int r=0;r<8;r++)for(int c=0;c<8;c++)
+        {
+            var a=Point(r,c);var b=Point(r,c+1);var d=Point(r+1,c);var e=Point(r+1,c+1);
+            EquipmentTriangle(surface,a,b,d,Vector3.Forward);EquipmentTriangle(surface,b,e,d,Vector3.Forward);
+        }
+        surface.GenerateNormals();surface.Index();var mesh=surface.Commit();_meshes[key]=mesh;return mesh;
+    }
     private void AddResidentTailoring(ResidentRig rig,string cloth,string skin,JobType job)
     {
         // Curved hem stitches follow the existing garment, with a back vent and belt fastening.

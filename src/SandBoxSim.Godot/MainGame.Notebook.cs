@@ -5,9 +5,9 @@ public partial class MainGame
 {
     private void StyleNotebook()
     {
-        Color paper=new("#d7cebc"),ink=new("#343a30"),muted=new("#565f4f"),accent=new("#755b3d");
+        Color paper=new("#e0d7c6"),ink=new("#2c332e"),muted=new("#535b50"),accent=new("#755b3d");
         _journalPanel.Material=null;
-        var surface=HudStyle.Box(paper,3,18);surface.BorderColor=new("#9e9f8c");
+        var surface=HudStyle.Box(paper,3,18);surface.BorderColor=new("#a08d6d");surface.BorderWidthLeft=3;surface.ShadowColor=new Color(0,0,0,.22f);surface.ShadowSize=18;
         _journalPanel.AddThemeStyleboxOverride("panel",surface);_journalPanel.GetChild<HudBevel>(0).Visible=false;
         void Apply(Node node)
         {

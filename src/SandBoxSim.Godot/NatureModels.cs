@@ -53,7 +53,7 @@ internal sealed partial class NatureModels
             "finger-low" => new SphereMesh { Radius=.5f,Height=1,RadialSegments=8,Rings=4 },
             "seed" => new SphereMesh { Radius=.5f,Height=1,RadialSegments=12,Rings=6 },
             "masonry" => SoftBlock(),
-            "face" => SculptedHead(false),
+            "face" => SculptedHead(false,96,56),
             "hair" => SculptedHead(true),
             "cone" => new CylinderMesh { TopRadius = 0, BottomRadius = .5f, Height = 1, RadialSegments = 16 },
             "cylinder" => new CylinderMesh { TopRadius = .5f, BottomRadius = .5f, Height = 1, RadialSegments = 16 },

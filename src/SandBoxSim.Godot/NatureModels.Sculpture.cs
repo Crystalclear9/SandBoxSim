@@ -41,14 +41,14 @@ internal sealed partial class NatureModels
             {
                 // A flatter facial plane, rounded chin, nasal bridge/tip and recessed eye sockets.
                 p.Z=Mathf.Lerp(p.Z,-depth*.94f,MathF.Pow(front,8)*.45f);
-                float bridge=MathF.Exp(-p.X*p.X*540-MathF.Pow(p.Y+.015f,2)*115);
-                float tip=MathF.Exp(-p.X*p.X*520-MathF.Pow(p.Y+.14f,2)*420);
+                float bridge=MathF.Exp(-p.X*p.X*380-MathF.Pow(p.Y+.015f,2)*95);
+                float tip=MathF.Exp(-p.X*p.X*330-MathF.Pow(p.Y+.14f,2)*280);
                 float socket=MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.19f,2)*250-MathF.Pow(p.Y-.045f,2)*380);
                 float lip=MathF.Exp(-p.X*p.X*120-MathF.Pow(p.Y+.275f,2)*300);
                 float cheek = MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.27f,2)*90-MathF.Pow(p.Y+.06f,2)*130);
                 float brow = MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.18f,2)*170-MathF.Pow(p.Y-.17f,2)*190);
                 float ala = MathF.Exp(-MathF.Pow(MathF.Abs(p.X)-.082f,2)*380-MathF.Pow(p.Y+.15f,2)*280);
-                p.Z-=bridge*.050f+tip*.062f+ala*.022f+lip*.015f+cheek*.014f+brow*.014f-socket*.018f;
+                p.Z-=bridge*.047f+tip*.048f+ala*.018f+lip*.014f+cheek*.017f+brow*.012f-socket*.015f;
             }
             return p;
         }
