@@ -5,16 +5,21 @@ using SandBoxSim.Core.Agents;
 namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
+    private Vector3[]? _garmentPoints;
+    private int[]? _garmentIndices;
     // Uses the garment's actual triangle surface, so folds and tapered shoulders are shared by clothing layers.
     private Vector3 TorsoSurface(float x, float y, bool back, float offset = .004f)
     {
-        var arrays = Garment().SurfaceGetArrays(0);
-        var vertices = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
-        var indices = arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+        if(_garmentPoints==null)
+        {
+            var arrays=Garment().SurfaceGetArrays(0);_garmentPoints=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();_garmentIndices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+        }
+        var vertices=_garmentPoints;var indices=_garmentIndices!;
         float z = back ? float.NegativeInfinity : float.PositiveInfinity;
         for (int i = 0; i < indices.Length; i += 3)
         {
             var a = vertices[indices[i]]; var b = vertices[indices[i+1]]; var c = vertices[indices[i+2]];
+            if(y<MathF.Min(a.Y,MathF.Min(b.Y,c.Y))-.00001f || y>MathF.Max(a.Y,MathF.Max(b.Y,c.Y))+.00001f)continue;
             float divisor = (b.Y-c.Y)*(a.X-c.X)+(c.X-b.X)*(a.Y-c.Y);
             if (MathF.Abs(divisor) < .0000001f) continue;
             float u = ((b.Y-c.Y)*(x-c.X)+(c.X-b.X)*(y-c.Y))/divisor;
@@ -23,7 +28,7 @@ internal sealed partial class NatureModels
             float hit = u*a.Z+v*b.Z+(1-u-v)*c.Z;
             z = back ? MathF.Max(z,hit) : MathF.Min(z,hit);
         }
-        if (!float.IsFinite(z)) throw new InvalidOperationException("Clothing layer outside garment surface");
+        if (!float.IsFinite(z)) throw new InvalidOperationException($"Clothing layer outside garment surface: {x}, {y}");
         return new Vector3(x,y,z+(back ? offset : -offset));
     }
     private static void EquipmentTriangle(SurfaceTool surface, Vector3 a, Vector3 b, Vector3 c, Vector3 outward)

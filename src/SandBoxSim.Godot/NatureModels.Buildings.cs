@@ -108,6 +108,11 @@ internal sealed partial class NatureModels
         {
             Part(model,"box",new(x+side*.19f,y,z+.06f),new(.045f,.46f,.09f),0);
             Part(model,"box",new(x+side*.27f,y,z+.06f),new(.105f,.39f,.04f),1,new(0,side*.18f,0));
+            if(_fineArchitecture)
+            {
+                for(int slat=0;slat<4;slat++)Part(model,"box",new(x+side*.27f,y-.145f+slat*.096f,z+.085f),new(.10f,.078f,.015f),0,new(0,side*.18f,0));
+                foreach(float hingeY in new[]{y-.13f,y+.13f})Part(model,"box",new(x+side*.27f,hingeY,z+.10f),new(.11f,.015f,.008f),11);
+            }
         }
         Part(model,"box",new(x,y-.23f,z+.095f),new(.48f,.055f,.16f),0);
         Part(model,"box",new(x,y+.23f,z+.04f),new(.44f,.055f,.10f),0);

@@ -24,7 +24,7 @@ public partial class DiscoveryPanel : VBoxContainer
         var body = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; body.AddThemeConstantOverride("separation", 12); scroll.AddChild(body);
         VBoxContainer Card()
         {
-            var panel=new PanelContainer();var box=HudStyle.Box(new Color("#cec9b8"),3,12,false);panel.AddThemeStyleboxOverride("panel",box);body.AddChild(panel);
+            var panel=new PanelContainer();var box=HudStyle.Box(new Color("#d0d0c2"),5,14,false);panel.AddThemeStyleboxOverride("panel",box);body.AddChild(panel);
             var content=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};content.AddThemeConstantOverride("separation",8);panel.AddChild(content);return content;
         }
         body.AddChild(HudStyle.Label("田野 · 随手记", 10, true));
@@ -42,10 +42,10 @@ public partial class DiscoveryPanel : VBoxContainer
             if(parts.Length!=3 || !int.TryParse(parts[1],out int x) || !int.TryParse(parts[2],out int y))return;
             if(parts[0]=="forget") { Game.Wild.Forget(x,y); Refresh(); } else { Game.LookAtPlace(x,y); }
         };
-        var residentCard=Card(); residentCard.AddChild(HudStyle.Label("居民的故事", 15));
+        var residentCard=Card(); residentCard.AddChild(HudStyle.Heading("居民的故事", 16));
         _pinText = HudStyle.Label("", 13, true); _pinText.AutowrapMode = TextServer.AutowrapMode.WordSmart; residentCard.AddChild(_pinText);
         _pinLink = new Godot.Button { Text = "查看关注的故事 →", Alignment = HorizontalAlignment.Left }; HudStyle.Button(_pinLink); _pinLink.Pressed += () => Game.FocusPinned(); residentCard.AddChild(_pinLink);
-        var storyCard=Card(); storyCard.AddChild(HudStyle.Label("世界的回声", 15));
+        var storyCard=Card(); storyCard.AddChild(HudStyle.Heading("世界的回声", 16));
         _stories = new RichTextLabel { BbcodeEnabled = true, FitContent = true, ScrollActive = false, SelectionEnabled = true, CustomMinimumSize = new Vector2(0, 80) };
         _stories.MetaClicked += meta =>
         {

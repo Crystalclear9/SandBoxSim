@@ -9,6 +9,7 @@ public partial class WorldMiniMap : Control
 {
     public MainGame Game { get; set; } = null!;
     private ImageTexture? _terrain;
+    private readonly StyleBoxFlat _mapFrame=HudStyle.Box(new Color("#c6cbb9"),3,4,false);
     private SandBoxSim.Core.Simulation? _world;
     private ulong _lastRefresh;
     private Int2? _hovered;
@@ -40,7 +41,7 @@ public partial class WorldMiniMap : Control
             }
             _terrain = ImageTexture.CreateFromImage(image);
         }
-        var rect = MapBounds; DrawStyleBox(HudStyle.Box(new Color("#c1c4ad"),2,4,false), new Rect2(Vector2.Zero, Size));
+        var rect = MapBounds; DrawStyleBox(_mapFrame, new Rect2(Vector2.Zero, Size));
         DrawTextureRect(_terrain, rect, false); DrawRect(rect, HudStyle.Border, false, 1);
         Vector2 Position(int x, int y) => rect.Position + new Vector2((x + .5f) / sim.World.Width * rect.Size.X, (y + .5f) / sim.World.Height * rect.Size.Y);
         foreach (int slot in sim.Agents.AliveSlots()) { DrawCircle(Position(sim.Agents.XOf(slot), sim.Agents.YOf(slot)), 1.5f, HudStyle.Surface); }

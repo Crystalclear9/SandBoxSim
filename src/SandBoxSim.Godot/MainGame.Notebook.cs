@@ -5,9 +5,9 @@ public partial class MainGame
 {
     private void StyleNotebook()
     {
-        Color paper=new("#dcd5c5"),ink=new("#30362f"),muted=new("#62675b"),accent=new("#755b3d");
+        Color paper=new("#ddd9ce"),ink=new("#30362f"),muted=new("#60685e"),accent=new("#536758");
         _journalPanel.Material=null;
-        var surface=HudStyle.Box(paper,3,18);surface.BorderColor=new("#a08d6d");surface.BorderWidthLeft=3;surface.ShadowColor=new Color(0,0,0,.22f);surface.ShadowSize=18;
+        var surface=HudStyle.Box(paper,3,18);surface.BorderColor=new("#aaa594");surface.BorderWidthLeft=1;surface.ShadowColor=new Color(0,0,0,.22f);surface.ShadowSize=12;
         _journalPanel.AddThemeStyleboxOverride("panel",surface);_journalPanel.GetChild<HudBevel>(0).Visible=false;
         void Apply(Node node)
         {
@@ -46,7 +46,7 @@ public partial class MainGame
         void Separators(Node node){if(node is HSeparator line)line.AddThemeStyleboxOverride("separator",separator);foreach(Node child in node.GetChildren())Separators(child);}
         Separators(_journalPanel);
         _drawer.AddThemeColorOverride("font_selected_color",accent);_drawer.AddThemeColorOverride("font_unselected_color",muted);
-        var selected=HudStyle.Box(new Color("#cbc5b4"),2,10,false);selected.BorderWidthBottom=2;selected.BorderColor=accent;
+        var selected=HudStyle.Box(new Color("#c7cebe"),2,10,false);selected.BorderWidthBottom=2;selected.BorderColor=accent;
         _drawer.AddThemeStyleboxOverride("tab_selected",selected);
         _drawer.AddThemeStyleboxOverride("tab_hovered",HudStyle.Box(new Color("#c9c5b1"),2,8,false));
     }

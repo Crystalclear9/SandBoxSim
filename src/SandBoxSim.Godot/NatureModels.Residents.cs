@@ -27,18 +27,29 @@ internal sealed partial class NatureModels
     private Mesh Garment()
     {
         if (_meshes.TryGetValue("tunic", out var existing)) { return existing; }
-        const int sides = 48;
+        const int sides = 64, rings=40;
         float[] height = { .60f, .65f, .73f, .82f, .97f, 1.10f, 1.19f, 1.24f, 1.28f };
-        float[] width = { .20f, .208f, .17f, .165f, .188f, .210f, .220f, .174f, .060f };
+        float[] width = { .20f, .208f, .174f, .172f, .188f, .210f, .220f, .174f, .060f };
         float[] depth = { .145f, .15f, .125f, .125f, .145f, .155f, .13f, .10f, .07f };
         var surface = new SurfaceTool(); surface.Begin(Mesh.PrimitiveType.Triangles); surface.SetSmoothGroup(0);
         Vector3 Point(int ring, int side)
         {
+            float y=Mathf.Lerp(height[0],height[^1],ring/(float)rings);
+            float Profile(float[] values)
+            {
+                int i=0;while(i<height.Length-2 && y>height[i+1])i++;
+                float t=(y-height[i])/(height[i+1]-height[i]);int a=Math.Max(0,i-1),b=Math.Min(height.Length-1,i+2);
+                float m0=(values[i+1]-values[a])/(height[i+1]-height[a])*(height[i+1]-height[i]);
+                float m1=(values[b]-values[i])/(height[b]-height[i])*(height[i+1]-height[i]);
+                float value=(2*t*t*t-3*t*t+1)*values[i]+(t*t*t-2*t*t+t)*m0+(-2*t*t*t+3*t*t)*values[i+1]+(t*t*t-t*t)*m1;
+                return value;
+            }
             float angle = side * MathF.Tau / sides;
-            float fold = 1 + .025f * MathF.Cos(angle * 10 + ring * .6f) * (ring is 2 or 8 ? .2f : 1);
-            return new Vector3(MathF.Cos(angle) * width[ring] * fold, height[ring], MathF.Sin(angle) * depth[ring] * fold);
+            float belt=1-MathF.Exp(-MathF.Pow((y-.765f)*22,2));
+            float fold=1+.020f*MathF.Cos(angle*12+(y-.6f)*5)*belt;
+            return new Vector3(MathF.Cos(angle)*Profile(width)*fold,y,MathF.Sin(angle)*Profile(depth)*fold);
         }
-        for (int ring = 0; ring < height.Length - 1; ring++) for (int side = 0; side < sides; side++)
+        for (int ring = 0; ring < rings; ring++) for (int side = 0; side < sides; side++)
         {
             Vector3 a = Point(ring, side), b = Point(ring, side + 1), c = Point(ring + 1, side), d = Point(ring + 1, side + 1);
             foreach (Vector3 vertex in new[] { a, b, c, b, d, c }) { surface.AddVertex(vertex); }

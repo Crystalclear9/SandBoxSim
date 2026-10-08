@@ -36,9 +36,11 @@ internal sealed partial class NatureModels
             var p=new Vector3(MathF.Cos(angle)*Profile(y,widths)*Mathf.Lerp(jaw,browWidth,faceBlend),y,MathF.Sin(angle)*depth);
             if(hair)
             {
-                float swept = angle + latitude*.65f;
+                float direction=_faceVariant%2==0?1:-1;
+                float swept = angle + direction*latitude*.85f;
                 float locks = .004f*MathF.Sin(swept*25) + .002f*MathF.Sin(swept*43);
-                p*=1.025f+locks*MathF.Sin(latitude); p.X+=.016f*MathF.Sin(latitude*2);
+                float part=MathF.Exp(-MathF.Pow((MathF.Cos(angle)-direction*.28f)*12,2))*MathF.Pow(front,3);
+                p*=1.028f+locks*MathF.Sin(latitude)-part*.018f; p.X+=.016f*MathF.Sin(latitude*2);
                 p.Y+=.015f*MathF.Sin(latitude)*MathF.Cos(angle+.6f);
                 p.X+=((_faceVariant%2)==0?1:-1)*.022f*MathF.Sin(latitude);
             }

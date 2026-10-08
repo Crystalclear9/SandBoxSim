@@ -7,7 +7,7 @@ internal static class HudStyle
 {
     public static bool MotionEnabled { get; set; } = true;
     public static readonly Color Ink = new("#1b201f"), Surface = new(.075f, .092f, .09f, .97f), Text = new("#e9e3d6"),
-        Muted = new("#b5b4a9"), Accent = new("#c2ae84"), Border = new("#53574e"), Wash = new("#30382f");
+        Muted = new("#b5b4a9"), Accent = new("#bda984"), Border = new("#48534e"), Wash = new("#30382f");
     private static Texture2D? _leather;
     private static ShaderMaterial? _frameMaterial;
     public static ShaderMaterial FrameMaterial => _frameMaterial ??= new ShaderMaterial { Shader = new Shader { Code =
@@ -31,7 +31,7 @@ internal static class HudStyle
         => new() { BgColor = color, BorderColor = Border, BorderWidthBottom = border ? 1 : 0, BorderWidthTop = border ? 1 : 0,
             BorderWidthLeft = border ? 1 : 0, BorderWidthRight = border ? 1 : 0, CornerRadiusBottomLeft = radius, CornerRadiusBottomRight = radius,
             CornerRadiusTopLeft = radius, CornerRadiusTopRight = radius, ContentMarginLeft = padding, ContentMarginRight = padding,
-            ContentMarginTop = padding, ContentMarginBottom = padding, ShadowColor = new Color(.05f, .10f, .07f, .22f), ShadowSize = border ? 14 : 0, ShadowOffset = new Vector2(0, 3) };
+            ContentMarginTop = padding, ContentMarginBottom = padding, ShadowColor = new Color(.05f, .10f, .07f, .22f), ShadowSize = border ? 10 : 0, ShadowOffset = new Vector2(0, 3) };
     public static Label Label(string text, int size = 15, bool muted = false)
     {
         var label = new Label { Text = text }; label.AddThemeFontSizeOverride("font_size", size);
