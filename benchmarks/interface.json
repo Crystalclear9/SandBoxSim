@@ -25,7 +25,12 @@
     "offspringYieldEvaluation": true,
     "costSensitiveImproverAnalysis": true,
     "retrospectiveBudgetCurves": true,
-    "codeDeploymentPaybackEstimate": true
+    "codeDeploymentPaybackEstimate": true,
+    "realSandboxSourceResearch": true,
+    "controllerBuildsAndTestsCandidates": true,
+    "automaticCandidateAdoption": false,
+    "frozenRealSourceResearchComparison": true,
+    "renderBuildSourceIdentity": true
   },
   "schemas": {
     "request": "request.schema.json",
@@ -90,5 +95,19 @@
       "budgetAwarePolicyRerun": false,
       "generalRsiProof": false
     }
+  },
+  "sourceResearch": {
+    "protocol": "real-sandbox-research-v1",
+    "entry": "tools/sandbox_research.py",
+    "commands": [
+      "run",
+      "verify"
+    ],
+    "report": "tools/sandbox_research_report.py",
+    "sourceScope": "Existing explicitly allowed Core C# files in independent snapshots",
+    "environment": "Python 3.10+, Git and .NET 8 SDK",
+    "automaticModelInvocation": false,
+    "recursiveEvidenceClaim": false,
+    "osIsolation": false
   }
 }

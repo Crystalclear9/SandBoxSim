@@ -20,9 +20,24 @@ Core、Console 与测试另支持 `-Channel csc`，适用于已有 .NET 运行�
 
 `-ParallelBuild` 开启并行构建；不传时使用串行模式。构建输出位于 `artifacts/<Configuration>` 和项目的 `bin/obj`；Godot 缓存位于客户端 `.godot` 目录，均不提交。
 
-`SandBoxSim.sln` 包含 Core、Console 和 Tests，图形工程单独通过 Godot 脚本构建。`godot.ps1` 的 run、editor、test 使用 Debug，因为编辑器加载 Debug 程序集；`-Mode build -Configuration Release` 单独生成 Release，不启动编辑器。
+`SandBoxSim.sln` 包含 Core、Console 和 Tests，图形工程单独通过 Godot 脚本构建。 `src/SandBoxSim.Godot/SandBoxSim.Godot.sln` 提供编辑器和原生导出的解决方案入口，包含图形客户端及 Core；自包含 ExportDebug/ExportRelease 配置允许恢复官方 NuGet 运行时包。`godot.ps1` 的 run、editor、test 使用 Debug，因为编辑器加载 Debug 程序集；`-Mode build -Configuration Release` 单独生成 Release，不启动编辑器。
 
 `tools/dev.ps1 -SkipRun` 是 Core/Console 的构建与测试流程；不包含图形启动。图形开发使用 `godot.ps1 -Mode editor`。
+
+## 独立游戏导出
+
+Windows 导出使用 Godot 4.7.2 .NET 的对应 Mono 导出模板。先在编辑器的“管理导出模板”中安装与编辑器一致的版本；模板是开发依赖，成品运行不需要它。
+
+```powershell
+./tools/godot.ps1 -Mode build -Configuration Release
+& $env:GODOT_EXE --headless --path src/SandBoxSim.Godot --export-release 'Windows Desktop' --quit
+```
+
+`GODOT_EXE` 应指向已安装的 .NET 编辑器。预设输出为 `artifacts/game/windows/SandBoxSim.exe`，所需自包含 .NET 运行时放在相邻的 `data_SandBoxSim.Godot_windows_x86_64/`。二者共同构成独立包，不能只复制 EXE。网格、贴图与素材署名由 PCK 嵌入 EXE；普通游玩不再依赖 SDK、编辑器或 Blender。导出前设置当前 SDK 可执行目录到进程 `PATH`，例如从安装脚本输出的 SDK 目录运行。
+
+Windows 的 `Play-3D.cmd` 优先启动独立包；修改源码后重新导出，否则它仍运行上一次的成品。开发与自检继续用 `tools/godot.ps1`。Linux 与 macOS 对应预设为 `Linux`、`macOS`；本机 Windows 导出验证不代表其他平台成品已实测。
+
+独立包可用 `SandBoxSim.exe --headless -- --self-test` 检查其实际打包资源和模型。GUI 可执行文件在 Windows Shell 中可能异步启动，自动化应等待进程退出并读取退出码。开发缓存与本机工具链的清理边界见 [存储维护](local-storage.md)。
 
 ## 命令行模拟
 

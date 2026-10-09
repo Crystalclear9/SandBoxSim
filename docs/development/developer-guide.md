@@ -31,6 +31,8 @@
 | 土壤压实与长期恢复 | `Core/World/World.cs`、`Core/Systems/ActionSystem.cs`、`Core/Simulation.cs` | `TerrainImpactTests`、存档字段覆盖与续跑 |
 | 在线控制与程序效率 | `Console/Online/`、`tools/online.py`、`tools/efficiency.py` | API 测试、真实服务配对、版本与幂等 |
 | 代理自修改与代码执行 | `tools/rsi_benchmark.py`、`rsi_code.py`、`rsi_code_worker.py` | 代理和代码后端回归，源码与失败证据验证 |
+| 真实沙盒源码研究 | `tools/sandbox_research.py`、`sandbox_research_report.py` | 修改范围、编译、语义检查、源码/程序集身份与开发/留出选择 |
+| 改进器成本分析 | `tools/rsi_efficiency_study.py`、`rsi_report.py` | 原归档验证、实际时间曲线、失败成本与拒绝不支持的回收推断 |
 | 3D 镜头和地表 | `Godot/WorldView3D.cs`、`WorldView3D.Atmosphere.cs` | 拖动、缩放、释放、图层与暂停 |
 | 居民动作与握持 | `Godot/ResidentRig.cs`、`ResidentRig.HandPose.cs`、`NatureModels.HandSkin.cs`、`NatureModels.Face.cs` | 工具取放、手部表面、肘腕范围、近远景与暂停 |
 | 建筑和人物外观 | `Godot/NatureModels*.cs`、`BuildingPortrait.cs`、`ResidentPortrait.cs` | 近远景、变体、动作与显示缓存 |
@@ -68,6 +70,14 @@
 ```
 
 自带测试运行器使用 `[Fact]`、`[Theory]` 和名称过滤。`dotnet test` 不是本项目测试入口，构建成功也不表示测试已执行。不要只比较 `CoreDigest` 来判断图形会话续跑：还要比较荒野地点、日界与关注人物的元数据，见 [存档与确定性](saving.md)。
+
+## 图形与研究工具维护
+
+UI 的配色、字体、圆角和基础状态样式集中在 `HudStyle.cs`，手记的组件覆盖在 `MainGame.Notebook.cs`；镜头与肖像输入分开。模型的形状、材质和 LOD 分别由 `NatureModels` 的分文件实现。更改面部采样后，检查八种脸型的几何与法线有限性；更改建筑后，检查近远景轮廓、缓存和实例是否仍正确。具体参数见 [模型说明](models.md)。
+
+固定场景可分别检查人物近景、建筑、动物和 UI。`ui-modern-observation.json` 先自由运行 14 日，再回放肖像构图与设置开关；`render-population.json` 检查 300 人负载。视觉场景通过表示产物和操作正常，不表示画面已经达到某种审美标准；性能应同时查看平均值和长帧，见 [采样口径](performance.md)。
+
+研究工具分为真实程序性能、代理改进实验与真实工程源码研究。新增控制器并不自动升级 RSI 证据：源码研究协议 v1 管理修改和真实世界验证，[冻结研究程序对照](sandbox-research-comparison.md) 在相同源码和配置下比较三组研究，代理协议 v2 管理自修改与二阶对照。选择、配置和失败保留方式见 [源码研究](sandbox-research.md)、[代理协议](rsi-improver.md) 和 [改进器效率](rsi-efficiency.md)。
 
 ## 保存运行资料
 

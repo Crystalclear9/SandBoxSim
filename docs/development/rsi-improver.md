@@ -112,7 +112,7 @@ python tools/rsi_benchmark.py verify runs/code-demo
 
 [代码夹具](../../benchmarks/agents/code_improver.py) 实际提交索引搜索、A* 和增量更新代码，供集成检查；它是非 LLM 夹具，不构成真实模型 RSI 证据。真实代理可以在相同入口提交自己编写的算法。
 
-`http` 接入真实 C# 内核优化。代理返回 `{"proposal":{"endpoint":"http://127.0.0.1:8767"}}`，评测器调用现有配对效率工具，核对完整状态、独立寻路判题与完整运行成本。候选必须事先通过代理/控制器构建并启动，生命周期由该控制器管理。
+`http` 接入真实 C# 内核优化。代理返回 `{"proposal":{"endpoint":"http://127.0.0.1:8767"}}`，评测器调用现有配对效率工具，核对完整状态、独立寻路判题与完整运行成本。候选必须事先通过代理/控制器构建并启动，生命周期由该控制器管理。[真实源码研究控制器](sandbox-research.md) 提供独立快照、代理修改、编译、语义检查、服务生命周期及开发/留出测量；其当前独立协议不直接替代 v2 的代理自修改与方法干预。
 
 HTTP 配置使用 `backend: "http"` 和 `httpStages`，每轮含 `training` 与至少 12 个 `probes`；每个问题指定 `id`、`reference`、`description`、`developmentSuite`、`heldoutSuite`，可提供 `workspace`。套件路径相对配置文件，所有开发/留出种子跨问题、跨轮次不得重复。套件定义见 [在线性能说明](online-efficiency.md)，配置结构见 [Schema](../../benchmarks/rsi-meta.schema.json)。留出套件的内容不会作为代理请求输入；真实研究还须由可信控制器隔离候选进程与这些文件。
 

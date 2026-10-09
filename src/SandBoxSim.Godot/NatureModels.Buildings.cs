@@ -26,13 +26,6 @@ internal sealed partial class NatureModels
         if (kind == BuildingKind.Farm)
         {
             Part(model, "box", new(0, .06f, 0), new(2.2f, .12f, 2.2f), 1);
-            for (int row = 0; row < 4; row++) for (int col = 0; col < 5; col++)
-            {
-                float h = .4f + ((identity + (uint)row + (uint)col) % 4) * .08f;
-                var p = new Vector3(-.8f + row * .5f, h / 2, -.8f + col * .4f);
-                Part(model, "cylinder", p, new(.025f, h, .025f), 15);
-                Part(model, "capsule", p + Vector3.Up * h / 2, new(.09f, .1f, .09f), 15);
-            }
             Part(model, "box", new(1.05f, .3f, 0), new(.06f, .06f, 2.2f), 0); return FinishArchitecture(model, kind, complete, identity, width, depth);
         }
         if (kind == BuildingKind.Mine)

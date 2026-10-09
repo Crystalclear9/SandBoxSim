@@ -584,6 +584,11 @@ public sealed class BuildingConfig
 
     /// <summary>干旱/洪涝时农田产量的惩罚系数（乘在天气因子上）。</summary>
     public float FarmBadWeatherFactor = 0.45f;
+    /// <summary>作物周期、地力反馈与地面食物腐损；关闭后保持传统日产出规则。</summary>
+    public bool LivingAgricultureEnabled = true;
+    public float FarmSoilUsePerDay = .012f;
+    public float FarmSoilRecoveryPerDay = .007f;
+    public float GroundFoodSpoilagePerDay = .025f;
 }
 
 /// <summary>

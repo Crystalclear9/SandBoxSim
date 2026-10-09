@@ -10,7 +10,8 @@ internal partial class ResidentPortrait : SubViewportContainer
     private enum Framing { Face, Hands, Body }
     private Framing _framing;
     private readonly System.Collections.Generic.Dictionary<Framing,Godot.Button> _frameButtons=new();
-    private float _pitch,_viewDistance=.85f;
+    private const float FaceDistance=.68f;
+    private float _pitch,_viewDistance=FaceDistance;
     private Vector3 _viewCenter;
     private bool _centerReady;
     public bool Compact { get; set; }
@@ -25,23 +26,23 @@ internal partial class ResidentPortrait : SubViewportContainer
     private bool _child, _drag, _fullBody, _worldPaused;
     private ActionKind _action;
     private ActionPhase _actionPhase;
-    private float _yaw = -.28f, _distance = .85f;
+    private float _yaw = -.28f, _distance = FaceDistance;
     public override void _Ready()
     {
-        Stretch = true; CustomMinimumSize = Compact ? new Vector2(0, 172) : new Vector2(270, 196);
+        Stretch = true; CustomMinimumSize = Compact ? new Vector2(0, 204) : new Vector2(270, 196);
         TooltipText = "拖动左右旋转与上下俯仰 · 滚轮缩放 · 双击复位";
         MouseFilter = MouseFilterEnum.Stop;
-        _viewport = new SubViewport { Size = Compact ? new Vector2I(624, 320) : new Vector2I(540, 392), OwnWorld3D = true, Msaa3D = Viewport.Msaa.Msaa4X,
+        _viewport = new SubViewport { Size = Compact ? new Vector2I(624, 408) : new Vector2I(540, 392), OwnWorld3D = true, Msaa3D = Viewport.Msaa.Msaa4X,
             RenderTargetUpdateMode = SubViewport.UpdateMode.WhenVisible, HandleInputLocally = false };
         AddChild(_viewport);
         _stage = new Node3D(); _viewport.AddChild(_stage);
         var environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color,
-            BackgroundColor = new Color("#454b40"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
-            AmbientLightColor = new Color("#becbbb"), AmbientLightEnergy = .38f, TonemapMode = Godot.Environment.ToneMapper.Aces };
+            BackgroundColor = new Color("#252d36"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
+            AmbientLightColor = new Color("#d6dce3"), AmbientLightEnergy = .32f, TonemapMode = Godot.Environment.ToneMapper.Aces };
         _stage.AddChild(new WorldEnvironment { Environment = environment });
         _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-35, -35, 0), LightColor = new Color("#f0f3ed"), LightEnergy = .78f });
-        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-15, 145, 0), LightColor = new Color("#c9ccc0"), LightEnergy = .36f });
-        _portraitGround=new MeshInstance3D { Mesh = new PlaneMesh { Size = new(20,20) }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new("#454b40"), Roughness = 1 },Visible=false };_stage.AddChild(_portraitGround);
+        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-15, 145, 0), LightColor = new Color("#b9cadd"), LightEnergy = .36f });
+        _portraitGround=new MeshInstance3D { Mesh = new PlaneMesh { Size = new(20,20) }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new("#252d36"), Roughness = 1 },Visible=false };_stage.AddChild(_portraitGround);
         _camera = new Camera3D { Current = true, Fov = 34 }; _stage.AddChild(_camera); Aim();
         var controls=new HBoxContainer();controls.SetAnchorsAndOffsetsPreset(LayoutPreset.TopLeft);controls.Position=new(8,8);controls.AddThemeConstantOverride("separation",2);AddChild(controls);
         foreach(var (mode,title) in new[]{(Framing.Face,"面部"),(Framing.Hands,"手部"),(Framing.Body,"全身")})
@@ -53,8 +54,8 @@ internal partial class ResidentPortrait : SubViewportContainer
         _frameButtons[Framing.Face].SetPressedNoSignal(true);
         var reset=new Godot.Button {Text="复位",CustomMinimumSize=new(44,28)};HudStyle.Button(reset);reset.AddThemeFontSizeOverride("font_size",13);reset.TooltipText="恢复当前构图 · 也可双击画面";
         reset.SetAnchorsAndOffsetsPreset(LayoutPreset.TopRight);reset.OffsetLeft=-52;reset.OffsetRight=-8;reset.OffsetTop=8;reset.OffsetBottom=36;reset.Pressed+=ResetView;AddChild(reset);
-        var caption = HudStyle.Label(Compact ? "拖动旋转 / 俯仰 · 滚轮缩放" : "拖动旋转与俯仰 · 滚轮缩放 · 双击复位", 10);
-        caption.AddThemeColorOverride("font_color", new Color("#b2aa97")); caption.MouseFilter = MouseFilterEnum.Ignore;
+        var caption = HudStyle.Label("拖动旋转与俯仰 · 滚轮缩放 · 双击复位", 10); caption.Visible=!Compact;
+        caption.AddThemeColorOverride("font_color", new Color("#aab2bc")); caption.MouseFilter = MouseFilterEnum.Ignore;
         caption.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide); caption.OffsetTop = -22; caption.OffsetLeft = 10; AddChild(caption);
     }
     public void ShowResident(long identity, int slot, bool child, JobType job)
@@ -74,7 +75,7 @@ internal partial class ResidentPortrait : SubViewportContainer
     private void SetFraming(Framing mode)
     {
         _framing=mode;_fullBody=mode==Framing.Body;_portraitGround.Visible=_fullBody;
-        _distance=mode==Framing.Body?3.5f:mode==Framing.Hands?.68f:.85f;
+        _distance=mode==Framing.Body?3.5f:mode==Framing.Hands?.68f:FaceDistance;
         foreach(var pair in _frameButtons)pair.Value.SetPressedNoSignal(pair.Key==mode);
         if(!HudStyle.MotionEnabled)_viewDistance=_distance;
     }
@@ -136,15 +137,16 @@ internal partial class ResidentPortrait : SubViewportContainer
         _Input(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = false });
         _GuiInput(new InputEventMouseMotion { Relative = new Vector2(20, 0) });
         if (_yaw != turned) { throw new InvalidOperationException("Portrait drag continued after global release"); }
+        float beforeZoom=_distance;
         _GuiInput(new InputEventMouseButton { ButtonIndex = MouseButton.WheelUp, Pressed = true });
-        if (_distance >= .85f) { throw new InvalidOperationException("Portrait zoom failed"); }
+        if (_distance >= beforeZoom) { throw new InvalidOperationException("Portrait zoom failed"); }
         _GuiInput(new InputEventMouseButton {ButtonIndex=MouseButton.Left,Pressed=true});
         _GuiInput(new InputEventMouseMotion {Relative=new(0,30)});
         if(_pitch<=0)throw new InvalidOperationException("Portrait pitch failed");
         SetFraming(Framing.Hands);if(_fullBody||_distance>=.85f)throw new InvalidOperationException("Hand framing failed");
         _GuiInput(new InputEventMouseButton {ButtonIndex=MouseButton.Left,Pressed=true,DoubleClick=true});
         if(_pitch!=0||_drag)throw new InvalidOperationException("Portrait reset did not release orbit");
-        SetFraming(Framing.Face);_viewDistance=.85f;
-        _distance = .85f; _yaw = -.28f; _resident.Rotation = new Vector3(0, _yaw, 0); Aim();
+        SetFraming(Framing.Face);_viewDistance=FaceDistance;
+        _distance = FaceDistance; _yaw = -.28f; _resident.Rotation = new Vector3(0, _yaw, 0); Aim();
     }
 }

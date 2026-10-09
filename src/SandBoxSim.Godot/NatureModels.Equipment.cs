@@ -7,12 +7,22 @@ internal sealed partial class NatureModels
 {
     private Vector3[]? _garmentPoints;
     private int[]? _garmentIndices;
+    private readonly System.Collections.Generic.Dictionary<int,(Vector3[] Points,int[] Indices)> _garmentProjections=new();
+    private readonly System.Collections.Generic.Dictionary<(int Cut,float X,float Y,bool Back,float Offset),Vector3> _garmentSamples=new();
     // Uses the garment's actual triangle surface, so folds and tapered shoulders are shared by clothing layers.
     private Vector3 TorsoSurface(float x, float y, bool back, float offset = .004f)
     {
+        var sampleKey=(_garmentCut,x,y,back,offset);
+        if(_garmentSamples.TryGetValue(sampleKey,out var sampled))return sampled;
         if(_garmentPoints==null)
         {
-            var arrays=Garment().SurfaceGetArrays(0);_garmentPoints=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();_garmentIndices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+            if(!_garmentProjections.TryGetValue(_garmentCut,out var projection))
+            {
+                var arrays=Garment().SurfaceGetArrays(0);
+                projection=(arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array(),arrays[(int)Mesh.ArrayType.Index].AsInt32Array());
+                _garmentProjections[_garmentCut]=projection;
+            }
+            _garmentPoints=projection.Points;_garmentIndices=projection.Indices;
         }
         var vertices=_garmentPoints;var indices=_garmentIndices!;
         float z = back ? float.NegativeInfinity : float.PositiveInfinity;
@@ -29,7 +39,7 @@ internal sealed partial class NatureModels
             z = back ? MathF.Max(z,hit) : MathF.Min(z,hit);
         }
         if (!float.IsFinite(z)) throw new InvalidOperationException($"Clothing layer outside garment surface: {x}, {y}");
-        return new Vector3(x,y,z+(back ? offset : -offset));
+        var result=new Vector3(x,y,z+(back ? offset : -offset));_garmentSamples[sampleKey]=result;return result;
     }
     private static void EquipmentTriangle(SurfaceTool surface, Vector3 a, Vector3 b, Vector3 c, Vector3 outward)
     {
@@ -39,7 +49,7 @@ internal sealed partial class NatureModels
     }
     private Mesh FittedRibbon(string key,float bottom,float top,bool back=false)
     {
-        string cache="fitted:"+key;
+        string cache="fitted:"+key+":"+_garmentCut;
         if (_meshes.TryGetValue(cache,out var mesh)) return mesh;
         var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);surface.SetSmoothGroup(0);
         if(key=="belt")
@@ -55,13 +65,13 @@ internal sealed partial class NatureModels
         }
         else
         {
-            bool apron=key=="apron" || key=="armor";
-            int columns=apron?12:1, rows=24;
+            bool apron=key=="apron" || key=="armor",placket=key=="placket";
+            int columns=apron?12:placket?2:1, rows=24;
             Vector3 Point(int row,int column)
             {
                 float t=(float)row/rows,y=Mathf.Lerp(bottom,top,t);
                 float width=key=="armor" ? .14f : apron ? Mathf.Lerp(.135f,.088f,t) : .009f;
-                float center=apron?0:Mathf.Lerp(.14f,-.145f,t);
+                float center=apron||placket?0:Mathf.Lerp(.14f,-.145f,t);
                 return TorsoSurface(center+Mathf.Lerp(-width,width,(float)column/columns),y,back,apron?.006f:.004f);
             }
             for(int row=0;row<rows;row++)for(int col=0;col<columns;col++)

@@ -22,12 +22,16 @@
 | HTTP 固定步进 | `SandBoxSim.Console/Online/StepApi.cs`、`HttpService.cs` |
 | 图形会话与自由工具 | `SandBoxSim.Godot/MainGame.Play.cs`、`MainGame.Interface.cs` |
 | 世界手记与观察 | `SandBoxSim.Godot/MainGame.Notebook.cs`、`MainGame.Operations.cs` |
+| UI 配色、字体与状态反馈 | `SandBoxSim.Godot/HudStyle.cs`、`HudButtonDetail.cs`、`HudBevel.cs` |
 | 镜头、地表和天气 | `SandBoxSim.Godot/WorldView3D.cs`、`WorldView3D.Atmosphere.cs` |
 | 建筑增量同步 | `SandBoxSim.Godot/WorldView3D.Buildings.cs` |
 | 人物姿态与握持 | `SandBoxSim.Godot/ResidentRig.cs`、`ResidentRig.HandPose.cs` |
 | 网格、材质和草丛 | `SandBoxSim.Godot/NatureModels*.cs` |
+| 面部与人物肖像 | `SandBoxSim.Godot/NatureModels.Face.cs`、`NatureModels.CharacterSurface.cs`、`ResidentPortrait.cs` |
 | 固定场景评测 | `SandBoxSim.Godot/MainGame.Evaluation.cs` |
 
 `ProjectCatalog`、`LandProjects`、`SettlementBlueprint`、`WorldTrial` 等保留历史 SDK 能力；正常图形游戏不加载或推进其任务流程。修改自由探索体验从当前 `MainGame` 与 `WildPlaces` 入口进入。
+
+研究控制器在工程外的 `tools/`，公开场景和代理示例在 `benchmarks/`。`sandbox_research.py` 将 Core、Console、Tests 和配置复制到独立实验目录，在候选快照上应用修改和编译；不会自动改变这里的主源码。研究入口见 [源码研究](../docs/development/sandbox-research.md) 和 [工具索引](../tools/README.md)。
 
 工程规则见 [项目架构](../docs/development/architecture.md)，日常操作见 [开发指南](../docs/development/developer-guide.md)，文件提交范围见 [目录管理](../docs/development/repository-layout.md)。

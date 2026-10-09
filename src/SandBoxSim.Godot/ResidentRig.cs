@@ -29,6 +29,7 @@ internal partial class ResidentRig : Node3D
     public readonly Node3D[] Eyes=new Node3D[2];
     public Node3D Mouth=null!;
     public Vector3 MouthRest;
+    public bool HasAnatomicalEyes;
     public ShaderMaterial EyeMaterial=null!;
     public ShaderMaterial LidMaterial=null!;
     private bool _detailedHead=true,_returning;
@@ -41,6 +42,27 @@ internal partial class ResidentRig : Node3D
         for(int i=0;i<2;i++){Eyes[i].Visible=detailed;Eyelids[i].Visible=detailed;}
     }
     private bool _detailedHands=true;
+    private readonly List<(MeshInstance3D Node,Mesh Near,Mesh Far)> _distanceMeshes=new();
+    public void RegisterDistanceMeshes(Node parent)
+    {
+        foreach(Node child in parent.GetChildren())
+        {
+            if(child is MeshInstance3D mesh&&mesh!=BodySkin&&mesh!=HeadSkin&&mesh.HasMeta("DistantMesh"))
+                _distanceMeshes.Add((mesh,mesh.Mesh,(Mesh)mesh.GetMeta("DistantMesh").AsGodotObject()));
+            RegisterDistanceMeshes(child);
+        }
+    }
+    public void ValidateDistanceMeshes()
+    {
+        if(_distanceMeshes.Count==0)throw new InvalidOperationException("Resident has no distance surfaces");
+        SetHandDetail(false);
+        foreach(var part in _distanceMeshes)
+            if(part.Node.Mesh!=part.Far||part.Far.GetSurfaceCount()!=1)throw new InvalidOperationException("Distant resident did not consolidate materials");
+        if(BodySkin.Mesh.GetSurfaceCount()!=1)throw new InvalidOperationException("Distant torso retains multiple draw surfaces");
+        SetHandDetail(true);
+        foreach(var part in _distanceMeshes)
+            if(part.Node.Mesh!=part.Near)throw new InvalidOperationException("Near resident lost original detail mesh");
+    }
     private readonly float[] _handCurl=new float[2],_skinnedCurl={float.NaN,float.NaN};
     private readonly Quaternion[] _wristSkinRotation=new Quaternion[2];
     public MeshInstance3D CargoMesh=null!;
@@ -136,7 +158,7 @@ internal partial class ResidentRig : Node3D
             float blinkPhase=(_faceTime+1.1f+identityPhase*2.3f)%4.7f;
             float blink=blinkPhase<.28f?MathF.Sin(blinkPhase/.28f*MathF.PI):0;
             LidMaterial.SetShaderParameter("blink",blink);
-            for(int eye=0;eye<2;eye++){Eyes[eye].Scale=new(1,MathF.Max(.02f,1-blink),1);Eyes[eye].Rotation=Vector3.Zero;}
+            for(int eye=0;eye<2;eye++){Eyes[eye].Scale=HasAnatomicalEyes?Vector3.One:new(1,MathF.Max(.02f,1-blink),1);Eyes[eye].Rotation=Vector3.Zero;}
             EyeMaterial.SetShaderParameter("gaze",new Vector2(MathF.Sin(_faceTime*.7f+identityPhase)*.035f,0));
             float speech=executing&&action is ActionKind.Eat or ActionKind.Drink or ActionKind.Socialize ? MathF.Abs(MathF.Sin(_faceTime*5)) : 0;
             Mouth.Position=MouthRest+new Vector3(0,-speech*.0007f,0);Mouth.Scale=new(1,1+speech*.35f,1);
@@ -238,6 +260,7 @@ internal partial class ResidentRig : Node3D
     public void SetHandDetail(bool detailed)
     {
         if(_detailedHands==detailed)return;_detailedHands=detailed;
+        foreach(var part in _distanceMeshes)part.Node.Mesh=detailed?part.Near:part.Far;
         BodySkin.Mesh=detailed?DetailedBodyMesh:DistantBodyMesh;BodySkin.Skin=detailed?DetailedBodySkin:null!;BodySkin.Skeleton=new NodePath(detailed?"../ShoulderSkeleton":"");
         ShoulderSkeleton.ProcessMode=detailed?ProcessModeEnum.Inherit:ProcessModeEnum.Disabled;
         if(detailed)for(int side=0;side<2;side++)ShoulderSkeleton.SetBonePoseRotation(side+1,Arms[side].Basis.GetRotationQuaternion());

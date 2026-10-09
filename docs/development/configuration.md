@@ -36,6 +36,8 @@
 
 本机界面动态偏好保存为 `user://interface.cfg`，不进入核心摘要；API 令牌通过环境变量提供，也不写入配置或评测产物。配置文件位置见 [config](../../config/README.md)。
 
+农业默认启用三类作物周期、地力反馈和地面食物腐损，参数集中在 `Buildings.LivingAgricultureEnabled`、`FarmSoilUsePerDay`、`FarmSoilRecoveryPerDay`、`GroundFoodSpoilagePerDay`。周期和规则见 [农业与食物流动](../guides/living-economy.md)；关闭总开关可使用传统农业规则，生产统计仍按实际接收的库存计数。
+
 ---
 
 [文档导航](../README.md) · [项目首页](../../README.md)

@@ -25,7 +25,7 @@ internal sealed partial class NatureModels
         rig.ShoulderGeometry=JoinedShoulders();
         rig.DistantBodyMesh=DistantBody(rig.BodySkin.Mesh);rig.DetailedBodyMesh=SkinnedBody(rig.BodySkin.Mesh,material);rig.DetailedBodySkin=_shoulderSkin;
         rig.BodySkin.Mesh=rig.DetailedBodyMesh;rig.BodySkin.Skin=_shoulderSkin;rig.BodySkin.Skeleton=new NodePath("../ShoulderSkeleton");rig.ShoulderBridge=rig.BodySkin;
-        for(int side=0;side<2;side++)rig.ShoulderFlesh[side]=Detail(rig.Arms[side],"sphere",Vector3.Zero,new(.082f,.082f,.074f),skin);
+        for(int side=0;side<2;side++)rig.ShoulderFlesh[side]=Detail(rig.Arms[side],"sphere",Vector3.Zero,new(.068f,.068f,.060f),skin);
     }
     private Mesh DistantBody(Mesh body)
     {
@@ -40,10 +40,10 @@ internal sealed partial class NatureModels
                 for(int i=0;i<indices.Length;i++){int v=indices[i];surface.SetNormal((normalBasis*normals[v]).Normalized());surface.SetUV(uv[v]);surface.AddVertex(transform*points[v]);}
             }
             Append(body,s,Transform3D.Identity);
-            if(s==0)foreach(float side in new[]{-1f,1f})Append(Shape("finger-low"),0,new Transform3D(Basis.Identity.Scaled(new(.13f,.14f,.124f)),new(side*.218f,1.18f,0)));
+            if(s==0)foreach(float side in new[]{-1f,1f})Append(Shape("finger-low"),0,new Transform3D(Basis.Identity.Scaled(new(.13f,.14f,.124f)),new(side*.202f,1.18f,0)));
             surface.Index();surface.Commit(result);
         }
-        mesh=result;_meshes[key]=mesh;return mesh;
+        mesh=DistantColors(result);_meshes[key]=mesh;return mesh;
     }
     private Mesh SkinnedBody(Mesh body,Material cloth)
     {
@@ -64,7 +64,7 @@ internal sealed partial class NatureModels
             Append(body.SurfaceGetArrays(s),false);if(s==0)Append(JoinedShoulders().SurfaceGetArrays(0),true);
             surface.Index();surface.Commit(result);
         }
-        mesh=result;_meshes[key]=mesh;return mesh;
+        mesh=WithScreenLods(result);_meshes[key]=mesh;return mesh;
     }
     private Mesh JoinedShoulders()
     {
@@ -74,7 +74,7 @@ internal sealed partial class NatureModels
         {
             var arrays=ShoulderBridge(side==0?-1:1).SurfaceGetArrays(0);
             var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();var colors=arrays[(int)Mesh.ArrayType.Color].AsColorArray();var uv=arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
-            for(int i=0;i<indices.Length;i++){int index=indices[i];surface.SetBones(new[]{0,side+1,0,0});surface.SetWeights(new[]{1-colors[index].R,colors[index].R,0f,0f});surface.SetColor(new(colors[index].R,side,0,1));surface.SetNormal(normals[index]);surface.SetUV(uv[index]);surface.AddVertex(points[index]+new Vector3(side==0?-.218f:.218f,1.18f,0));}
+            for(int i=0;i<indices.Length;i++){int index=indices[i];surface.SetBones(new[]{0,side+1,0,0});surface.SetWeights(new[]{1-colors[index].R,colors[index].R,0f,0f});surface.SetColor(new(colors[index].R,side,0,1));surface.SetNormal(normals[index]);surface.SetUV(uv[index]);surface.AddVertex(points[index]+new Vector3(side==0?-.202f:.202f,1.18f,0));}
         }
         surface.Index();mesh=surface.Commit();_meshes["joined-shoulders"]=mesh;return mesh;
     }
@@ -86,13 +86,13 @@ internal sealed partial class NatureModels
         Vector3 Point(int ring,int column)
         {
             float t=(float)ring/rings,a=column*MathF.Tau/sides;
-            var center=new Vector3(side*-.060f*(1-t)*(1-t),.04f*MathF.Sin(MathF.PI*t)-.077f*t*t,0);
+            var center=new Vector3(side*-.048f*(1-t)*(1-t),.010f*MathF.Sin(MathF.PI*t)-.077f*t*t,0);
             var basis=new Basis(Quaternion.Identity.Slerp(new Quaternion(new Vector3(side,0,0),Vector3.Down),t));
-            var radial=new Vector3(0,MathF.Cos(a)*Mathf.Lerp(.064f,.066f,t),MathF.Sin(a)*Mathf.Lerp(.061f,.061f,t));
+            var radial=new Vector3(0,MathF.Cos(a)*Mathf.Lerp(.055f,.058f,t),MathF.Sin(a)*.053f);
             return center+basis*radial;
         }
         void Vertex(Vector3 point,int ring,int column){float t=(float)ring/rings;surface.SetColor(new Color(t,t,t,1));surface.SetUV(new((float)column/sides,t));surface.AddVertex(point);}
-        Vector3 Center(int ring){float t=(float)ring/rings;return new(side*-.060f*(1-t)*(1-t),.04f*MathF.Sin(MathF.PI*t)-.077f*t*t,0);}
+        Vector3 Center(int ring){float t=(float)ring/rings;return new(side*-.048f*(1-t)*(1-t),.010f*MathF.Sin(MathF.PI*t)-.077f*t*t,0);}
         void Triangle(int ra,int ca,int rb,int cb,int rc,int cc)
         {
             var a=Point(ra,ca);var b=Point(rb,cb);var c=Point(rc,cc);

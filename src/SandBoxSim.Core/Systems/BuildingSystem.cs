@@ -240,6 +240,7 @@ public sealed class BuildingSystem
         CompletedThisTick = 0;
         WorkThisTick = 0;
         FoodProducedThisDay = 0f;
+        FoodSpoiledThisDay = 0f;
         DemolishedThisDay = 0;
         TotalFoodProduced = 0f;
         TotalDemolished = 0;
@@ -276,8 +277,11 @@ public sealed class BuildingSystem
         DemolishedThisDay = 0;
 
         TickDecay(tick);
+        FoodSpoiledThisDay=LivingAgriculture.SpoilGroundFood(_sim,_organicSlots);
         ProduceFarmYield(tick);
     }
+    private readonly System.Collections.Generic.List<int> _organicSlots=new();
+    public float FoodSpoiledThisDay {get;private set;}
 
     /// <summary>
     /// 农田产出（M4）。
@@ -329,16 +333,22 @@ public sealed class BuildingSystem
             float fertility = SimMath.Clamp01(tile.Fertility);
             float moisture = SimMath.Clamp01(tile.Moisture);
             float weather = WeatherFactor();
+            int phase=LivingAgriculture.Phase(System.Math.Max(0,tick-1),_sim.World.Calendar.TicksPerDay);
+            var crop=LivingAgriculture.CropAt(_sim.World.Seed,position.X,position.Y);
+            bool living=_sim.Config.Buildings.LivingAgricultureEnabled;
+            if(living&&crop==CropKind.Roots&&_sim.World.Weather.Kind==WeatherKind.Drought)weather=(weather+1)/2;
+            float cycle=living?LivingAgriculture.YieldFactor(crop,phase):1;
 
             // 地力与湿度都取 [0.25, 1] 区间：农田不该因为"这格地力 0.05"而颗粒无收 ——
             // 那会让玩家看到一块田却永远没有产出，无法从界面上理解原因。
             float soil = 0.25f + (0.75f * fertility);
             float water = 0.25f + (0.75f * moisture);
 
-            float yield = baseYield * soil * water * weather * laborFactor * _sim.Civilizations.ProductionMultiplier(position.X, position.Y);
+            float yield = baseYield * soil * water * weather * laborFactor * cycle * _sim.Civilizations.ProductionMultiplier(position.X, position.Y);
+            LivingAgriculture.UpdateSoil(_sim,index,labor,phase,crop);
             if (yield <= 0f) { _store.ClearLabor(index); continue; }
 
-            DepositYield(position, yield);
+            yield=DepositYield(position, yield);
             FoodProducedThisDay += yield;
             TotalFoodProduced += yield;
 
@@ -371,15 +381,16 @@ public sealed class BuildingSystem
     /// 这个降级顺序是刻意的：它让"还没盖仓库"的早期聚落也能靠农业活下去，
     /// 同时让"盖了仓库"立刻带来好处（不再有堆料损耗与距离成本）。
     /// </summary>
-    private void DepositYield(Int2 position, float amount)
+    private float DepositYield(Int2 position, float amount)
     {
+        float accepted=0;
         int storage = FindStorageNear(position.X, position.Y);
         if (storage >= 0 && _sim.Storage.CapacityOf(storage) > 0f)
         {
-            amount -= _sim.Storage.Deposit(storage, ResourceKind.Food, amount);
+            accepted=_sim.Storage.Deposit(storage, ResourceKind.Food, amount);amount-=accepted;
         }
 
-        _sim.GroundStocks.Deposit(position.X, position.Y, ResourceKind.Food, amount, _sim.Config.GroundStocks);
+        return accepted+_sim.GroundStocks.Deposit(position.X, position.Y, ResourceKind.Food, amount, _sim.Config.GroundStocks);
     }
 
     private int FindStorageNear(int x, int y)

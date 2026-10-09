@@ -21,7 +21,9 @@ internal sealed partial class NatureModels
             {
                 var parent=rig.ToolMesh.GetParent();
                 rig.PoseAction(1f/60,action,frame<190?ActionPhase.Executing:ActionPhase.Idle,false,0);
-                if(rig.Eyes[0].Scale.Y<.08f)blinked=true;
+                if(rig.LidMaterial.GetShaderParameter("blink").AsSingle()>.92f)blinked=true;
+                if(rig.HasAnatomicalEyes&&(rig.Eyes[0].Scale!=Vector3.One||rig.Eyes[1].Scale!=Vector3.One))
+                    throw new InvalidOperationException("Anatomical eyeballs were flattened during blink");
                 for(int side=0;side<2;side++)if(MathF.Abs(rig.ShoulderSkeleton.GetBonePoseRotation(side+1).Dot(rig.Arms[side].Basis.GetRotationQuaternion()))<.999f)throw new InvalidOperationException("Sleeve bone does not follow shoulder");
                 if(rig.ToolMesh.GetParent()!=parent)
                 {

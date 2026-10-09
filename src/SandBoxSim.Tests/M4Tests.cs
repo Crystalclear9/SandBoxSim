@@ -299,11 +299,14 @@ public sealed class M4Tests
     // 验收 5：农业真的产出
     // ---------------------------------------------------------------------
 
-    [Fact("验收5：有农田的世界食物增速高于无农田的对照组")]
+    [Fact("农业生产开启/关闭对照：食物产出来自真实农田")]
     public void FarmsProduceFood()
     {
         Simulation noFarm = MakeHabitable(7005, houses: 10, agents: 12, stockFood: false);
         Simulation withFarm = MakeHabitable(7005, houses: 10, agents: 12, stockFood: false);
+        // Hold the control's production off even if autonomous residents later build farms.
+        // Initial farm counts alone are not a controlled comparison under living crop/soil feedback.
+        noFarm.Config.Buildings.FarmBaseYieldPerDay = 0;
 
         // 农田配方带 `requiresWaterAccess`，因此必须放在**靠水的草地**上 ——
         // 在内陆草地上直接 `Place` 会返回 -1（第一版测试就踩了这个：
@@ -335,11 +338,7 @@ public sealed class M4Tests
             "有农田的世界累计农业产出必须为正（实测 "
             + withFarm.BuildingSystem.TotalFoodProduced.ToString("0.##") + "）—— "
             + "这正是 docs/archive/12-Milestones.md 验收项 5「有农田时食物存量增速高于无农田对照组」的直接证据");
-        // 注意这里**不**断言"对照组产出恰好为 0"。
-        // 原先那样写是错的：它隐含假设"AI 永远不会自己盖农田"，
-        // 而 M6 把社会动作加进注册表之后，效用格局变了、对照组也开始盖田（实测 269.7）。
-        // 那暴露的是断言的脆弱，不是产品的问题 —— 对照组有没有自己盖田，
-        // 不该影响"农田会产出食物"这条判据。
+        Assert.Near(0f,noFarm.BuildingSystem.TotalFoodProduced);
         Assert.True(withFarm.BuildingSystem.TotalFoodProduced > noFarm.BuildingSystem.TotalFoodProduced,
             "有农田组的累计产出必须高于对照组（" + withFarm.BuildingSystem.TotalFoodProduced.ToString("0.##")
             + " vs " + noFarm.BuildingSystem.TotalFoodProduced.ToString("0.##") + "）");

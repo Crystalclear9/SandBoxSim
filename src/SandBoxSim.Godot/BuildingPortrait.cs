@@ -25,10 +25,10 @@ internal partial class BuildingPortrait : SubViewportContainer
         stage.AddChild(new WorldEnvironment { Environment = new Godot.Environment {
             BackgroundMode = Godot.Environment.BGMode.Color, BackgroundColor = new Color(0, 0, 0, 0),
             AmbientLightSource = Godot.Environment.AmbientSource.Color,
-            AmbientLightColor = new Color("#c2c9bd"), AmbientLightEnergy = .55f,
+            AmbientLightColor = new Color("#c2c9bd"), AmbientLightEnergy = .38f,
             TonemapMode = Godot.Environment.ToneMapper.Aces } });
         stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-45, -35, 0),
-            LightColor = new Color("#ffe8ca"), LightEnergy = 1.1f });
+            LightColor = new Color("#f3eee5"), LightEnergy = .95f });
         stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-25, 145, 0),
             LightColor = new Color("#a8b5c3"), LightEnergy = .5f });
         Rebuild();

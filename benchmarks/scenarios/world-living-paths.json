@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "world-living-paths",
+  "seed": 839102,
+  "agents": 80,
+  "previewDays": 14,
+  "panel": "trails",
+  "warmupFrames": 60,
+  "measuredFrames": 120,
+  "ticksPerFrame": 0,
+  "minimumFps": 0,
+  "captureFrames": [
+    90
+  ],
+  "outputDirectory": "runs/evaluation/world-living-paths"
+}

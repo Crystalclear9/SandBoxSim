@@ -1,0 +1,32 @@
+Environment model derivatives from Poly Haven
+License: CC0 1.0 Universal
+https://creativecommons.org/publicdomain/zero/1.0/
+https://polyhaven.com/license
+
+tree_small_02
+Source: https://polyhaven.com/a/tree_small_02
+Authors: {"Rico Cilliers": "All"}
+Original Blender SHA-256: af3fef6da3eb97057d9d4d3c4281c5944696b8d518715deddd8500482d30b1bd
+
+fir_sapling
+Source: https://polyhaven.com/a/fir_sapling
+Authors: {"Rob Tuytel": "photography", "Rico Cilliers": "modeling"}
+Original Blender SHA-256: 2888cbb7d7d0accc5efdb68e940dffde1c26c40f88984138f3b89444e4ffca42
+
+fern_02
+Source: https://polyhaven.com/a/fern_02
+Authors: {"Rob Tuytel": "scanning", "Rico Cilliers": "modeling"}
+Original Blender SHA-256: 1bfb6e12d805cc97035c8cbd051187ca6db650e3157fd8884afcf66a6c4e78eb
+
+grass_medium_01
+Source: https://polyhaven.com/a/grass_medium_01
+Authors: {"Rob Tuytel": "Photography", "Rico Cilliers": "Modeling"}
+Original Blender SHA-256: 5bbeaf7161508c1de66f137e7fcaec6fdea9c4ac0faa134c384c89c97271bec2
+
+Modifications: selected one source variation, normalized origin/height, reduced tree geometry, converted axes and triangle winding, exported per-material meshes. Texture data is redistributed unchanged; runtime materials use diffuse, normal, roughness and separate alpha masks. See manifest.json for texture source URLs and hashes.
+
+Shrub Sorrel 01: https://polyhaven.com/a/shrub_sorrel_01
+Authors: {"Rico Cilliers": "All"}
+Source SHA-256: 908b1de7b23c12548b9c81facf4dc19113ddd4bbbb880bcd2656a02096ed2259
+Forest Ground 04 material: https://polyhaven.com/a/forest_ground_04
+Both assets are CC0. Texture files remain unchanged.

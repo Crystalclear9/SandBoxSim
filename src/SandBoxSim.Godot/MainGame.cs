@@ -96,7 +96,7 @@ public partial class MainGame : Control
         NewWorld(_evaluation?.Seed??839102);
         if (_previewDays > 0) { AdvanceWorld(_previewDays * Sim.Config.Clock.TicksPerDay); }
         BuildInterface();
-        if (_previewPanel is "architecture" or "characters" or "naturemodels" or "faces" or "equipment" or "actions" or "motion" or "grip" or "hands")
+        if (_previewPanel is "architecture" or "characters" or "naturemodels" or "faces" or "equipment" or "actions" or "motion" or "grip" or "hands" or "model-details" or "ecology-details" or "wardrobe")
         { SetSpeed(0); AddChild(new ModelGallery { Collection = _previewPanel == "naturemodels" ? "nature" : _previewPanel }); }
 
         if (_selfTest) { RunSelfTest(); }
@@ -323,6 +323,29 @@ public partial class MainGame : Control
             if (_previewPanel == "village") { _map.Focus(43, 50, 38); SetSpeed(0); }
             if (_previewPanel=="terrain") { SetCategory("地貌");ShowTools(true); }
             if (_previewPanel == "field") { ShowJournal(true); _drawer.CurrentTab = 0; }
+            if (_previewPanel == "homes")
+            {
+                int best=-1;for(int i=0;i<Sim.Buildings.LiveCount;i++)
+                {
+                    int slot=Sim.Buildings.LiveAt(i);if(Sim.Buildings.KindOf(slot)!=BuildingKind.House||Sim.Buildings.StateOf(slot)!=BuildingState.Complete)continue;
+                    if(best<0||Sim.Buildings.OccupiedBedsOf(slot)>Sim.Buildings.OccupiedBedsOf(best))best=slot;
+                }
+                if(best>=0){var p=Sim.Buildings.PositionOf(best);ClickTile(p.X,p.Y);_map.Focus(p.X,p.Y,48);if(_map is WorldView3D view)view.FocusHome(best);}
+                ShowJournal(true);_drawer.CurrentTab=0;SetSpeed(0);
+            }
+            if (_previewPanel == "trails")
+            {
+                int index=0;for(int i=1;i<Sim.World.Tiles.Length;i++)if(Sim.World.Tiles[i].FootTraffic>Sim.World.Tiles[index].FootTraffic)index=i;
+                var point=Sim.World.PositionOf(index);ClickTile(point.X,point.Y);_map.Focus(point.X,point.Y,48);
+                ShowJournal(true);_drawer.CurrentTab=0;SetSpeed(0);
+            }
+            if(_previewPanel=="farms")
+            {
+                int farm=Sim.Buildings.AliveIndices().FirstOrDefault(slot=>Sim.Buildings.KindOf(slot)==BuildingKind.Farm&&Sim.Buildings.StateOf(slot)==BuildingState.Complete,-1);
+                if(farm<0)throw new InvalidOperationException("Evolved world has no complete farm to observe");
+                var p=Sim.Buildings.PositionOf(farm);ClickTile(p.X,p.Y);FocusSelectedFarm();
+                ShowJournal(true);_drawer.CurrentTab=0;SetSpeed(0);
+            }
             if (_previewPanel == "tools") { SetCategory("地貌"); ShowTools(true); }
             if (_previewPanel == "brush") { SetCategory("地貌"); SelectTool(PlayerTool.River); }
             if (_previewPanel is "person" or "person-hands")
@@ -344,7 +367,7 @@ public partial class MainGame : Control
         }
         _refresh += delta;
         _map.QueueRedraw();
-        if (_refresh >= 0.2) { _refresh = 0; RefreshPanels(); RefreshOperations(); SyncControls(); _chart.QueueRedraw(); _discovery.Refresh(); }
+        if (_refresh >= 0.2) { _refresh = 0; RefreshPanels(); RefreshOperations(); SyncControls(); if(_chart.IsVisibleInTree())_chart.QueueRedraw(); if(_discovery.IsVisibleInTree())_discovery.Refresh(); }
         _captureElapsed += delta;
         if(_captureFrames.Length>0&&_captureFrame<56&&_captureElapsed>=.25+_captureFrame/8.0)CaptureFrame(_captureFrame++);
         if (_capture.Length > 0 && !_captureRequested && _captureElapsed >= .7) { _captureRequested = true; Capture(); }
@@ -401,6 +424,24 @@ public partial class MainGame : Control
             }
         }
     }
+    public void FocusSelectedHome()
+    {
+        int slot=Sim.World.TileAt(_selectedX,_selectedY).BuildingId-1;
+        if(slot<0||!Sim.Buildings.IsAlive(slot)||Sim.Buildings.KindOf(slot)!=BuildingKind.House)return;
+        if(_map is WorldView3D view)view.FocusHome(slot);
+    }
+    public void FocusSelectedFarm()
+    {
+        int slot=Sim.World.TileAt(_selectedX,_selectedY).BuildingId-1;
+        if(slot>=0&&Sim.Buildings.IsAlive(slot)&&Sim.Buildings.KindOf(slot)==BuildingKind.Farm&&_map is WorldView3D view)view.FocusHome(slot);
+    }
+    internal void ValidateHomeNavigation(int slot)
+    {
+        SelectTool(PlayerTool.Inspect);var p=Sim.Buildings.PositionOf(slot);ClickTile(p.X,p.Y);
+        if(_drawer.CurrentTab!=0||_selectedPersonId!=0)throw new InvalidOperationException("Home click selected nearby resident");
+        string digest=StateHash.ComputeDigest(Sim);_discovery.ValidateHomeInteraction(slot);
+        if(digest!=StateHash.ComputeDigest(Sim))throw new InvalidOperationException("Home navigation changed simulation");
+    }
     public void ClickTile(int x, int y)
     {
         if (!Sim.World.IsInBounds(x, y)) { return; }
@@ -416,7 +457,9 @@ public partial class MainGame : Control
         {
             _selected = -1; _selectedAnimal = -1; _selectedWolf = -1;
             var localPlace = Wild.At(x,y);
-            int best = localPlace != null && (localPlace.X-x)*(localPlace.X-x)+(localPlace.Y-y)*(localPlace.Y-y) <= 4 ? 0 : 10;
+            int building=Sim.World.TileAt(x,y).BuildingId-1;
+            bool landSelection=building>=0&&Sim.Buildings.IsAlive(building)||Sim.GroundStocks.FindAt(x,y)>=0;
+            int best = landSelection||localPlace != null && (localPlace.X-x)*(localPlace.X-x)+(localPlace.Y-y)*(localPlace.Y-y) <= 4 ? 0 : 10;
             foreach (int slot in Sim.Agents.AliveSlots())
             {
                 int distance = Int2.SquaredDistance(new Int2(x, y), Sim.Agents.PositionOf(slot));
@@ -434,7 +477,7 @@ public partial class MainGame : Control
             }
             if (_selected >= 0) { _selectedGeneration = Sim.Agents.GenerationOf(_selected); }
             _selectedPersonId = _selected >= 0 ? Sim.Society.Identity(_selected) : 0;
-            ShowJournal(true); _drawer.CurrentTab = 1;
+            ShowJournal(true); _drawer.CurrentTab = landSelection?0:1;
         }
         RefreshPanels();
     }
@@ -447,11 +490,12 @@ public partial class MainGame : Control
     private void RefreshPanels()
     {
         if (_summary == null) { return; }
-        var sample = Sim.Observe();
+        using var profile=RenderProfile.Measure("HudPanels");
         _summary.Text = $"第 {Sim.World.Calendar.Day} 天  ·  {Sim.Agents.LiveCount} 位居民  ·  {WeatherInfo.NameOf(Sim.World.Weather.Kind)}\n{Sim.Settlements.ActiveCount} 个聚落  ·  {Sim.Buildings.TotalCompleted} 栋建筑  ·  出生 {Sim.Stats.TotalBirths} / 死亡 {Sim.Stats.TotalDeaths}";
         _dayLabel.Text = "第 " + Sim.World.Calendar.Day + " 天 · " + WildPlaces.PhaseName(Sim.Clock / Sim.Config.Clock.TicksPerDay);
         UpdateMetric(_foodLabel, CollectedStock(ResourceKind.Food).ToString("0")); UpdateMetric(_woodLabel, CollectedStock(ResourceKind.Wood).ToString("0")); UpdateMetric(_stoneLabel, CollectedStock(ResourceKind.Stone).ToString("0"));
         UpdateMetric(_populationLabel, Sim.Agents.LiveCount.ToString()); UpdateMetric(_settlementLabel, Sim.Settlements.ActiveCount.ToString()); UpdateMetric(_buildingLabel, Sim.Buildings.TotalCompleted.ToString());
+        if(!_journalPanel.Visible&&!_selfTest)return;
         var text = new StringBuilder();
         var archive = Sim.Society.Find(_selectedPersonId);
         var wolfView = Sim.Predators.Wolves.FirstOrDefault(w => w.Id == _selectedWolf);
@@ -485,7 +529,7 @@ public partial class MainGame : Control
             text.AppendLine("\n身体与需求");
             text.AppendLine($"生命 {a.HealthOf(slot):P0}   饥饿 {a.HungerOf(slot):P0}   干渴 {a.ThirstOf(slot):P0}");
             text.AppendLine($"精力 {1 - a.FatigueOf(slot):P0}   位置 {a.PositionOf(slot)}");
-            text.AppendLine(a.HasTarget(slot) ? "目的地 " + a.TargetOf(slot) : "原地活动");
+            text.AppendLine(a.HasTarget(slot)&&Sim.World.IsInBounds(a.TargetOf(slot)) ? "目的地 " + a.TargetOf(slot) : "原地活动");
             text.AppendLine($"正在{ActionRegistry.DisplayNameOf(a.ActionOf(slot))} · {PhaseName(a.PhaseOf(slot))}");
             text.AppendLine("\n随身物资");
             text.AppendLine($"食物 {a.InventoryOf(slot, ResourceKind.Food):F1}  木材 {a.InventoryOf(slot, ResourceKind.Wood):F1}");
@@ -573,6 +617,8 @@ public partial class MainGame : Control
             string before = StateHash.ComputeDigest(Sim); RefreshPanels();
             ((WorldView3D)_map).ValidateViewControls();
             ((WorldView3D)_map).ValidateObservationLayers();
+            ((WorldView3D)_map).ValidateGroundWear();
+            ((WorldView3D)_map).ValidateLivingDetails();
             int observed = Sim.Agents.AliveSlots().FirstOrDefault(-1);
             if (observed >= 0) { var position = Sim.Agents.PositionOf(observed); FocusStory(Sim.Society.Identity(observed), position.X, position.Y); }
             ValidateHudLayout();

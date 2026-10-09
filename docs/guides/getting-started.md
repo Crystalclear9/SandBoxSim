@@ -2,6 +2,8 @@
 
 ## 环境
 
+Windows 独立导出包可以直接运行 `artifacts/game/windows/SandBoxSim.exe`，或双击仓库根目录的 `Play-3D.cmd`。启动器优先使用本机导出包；完整包包含旁边的 `data_SandBoxSim.Godot_windows_x86_64/`，移动游戏时一起移动。这个包自带所需运行时，游玩不需要安装 SDK、Godot 编辑器或 Blender。源码仓库不包含发行二进制，独立包需要先按 [构建与运行](../development/build.md) 导出。
+
 图形客户端使用 PowerShell 7、.NET 8 SDK 与 Godot 4.7.2 .NET。Godot 普通版不包含 C# 支持，应使用 .NET 版。项目的图形渲染器为 GL Compatibility。
 
 从仓库根目录执行：
@@ -14,7 +16,7 @@
 
 安装脚本把 SDK 与引擎放在仓库外的用户工具目录中，不把安装文件提交到 Git。`setup-godot.ps1` 根据操作系统与架构选择引擎，并输出可执行文件位置。
 
-Windows 配置完成后，双击 `Play-3D.cmd`。脚本使用 PowerShell 启动图形客户端；首次启动会构建 C# 程序并导入资源。
+Windows 没有独立包时，双击 `Play-3D.cmd` 会使用 PowerShell 启动源码客户端；首次启动会构建 C# 程序并导入资源。修改源码后需要重新导出才能更新独立包；开发时直接运行 `tools/godot.ps1`，避免误看旧包。
 
 ## 指定已有工具链
 

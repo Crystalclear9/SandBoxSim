@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "world-living-homes",
+  "seed": 839102,
+  "agents": 80,
+  "previewDays": 14,
+  "panel": "homes",
+  "warmupFrames": 60,
+  "measuredFrames": 120,
+  "ticksPerFrame": 0,
+  "minimumFps": 0,
+  "captureFrames": [
+    90,
+    120,
+    160
+  ],
+  "outputDirectory": "runs/evaluation/world-living-homes",
+  "commands": [
+    {
+      "frame": 100,
+      "command": "home.focus",
+      "value": ""
+    },
+    {
+      "frame": 140,
+      "command": "home.resident",
+      "value": ""
+    }
+  ]
+}

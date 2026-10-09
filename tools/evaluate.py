@@ -14,6 +14,27 @@ def write(path, value):
 def digest(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
+
+def compiled_source_hashes(root):
+    files=[]
+    for project in ('SandBoxSim.Core','SandBoxSim.Godot'):
+        files.extend(p for p in (root/'src'/project).rglob('*') if p.is_file() and p.suffix in ('.cs','.csproj')
+                     and not any(part in ('bin','obj','.godot') for part in p.relative_to(root/'src'/project).parts))
+    files.extend(root/name for name in ('Directory.Build.props','global.json','NuGet.Config') if (root/name).is_file())
+    return {p.relative_to(root).as_posix():digest(p) for p in files}
+
+
+def validate_build(root, assembly):
+    stamp=assembly.with_name('build-source.json')
+    if not stamp.is_file():raise ValueError('Build identity missing; run tools/godot.ps1 -Mode build before evaluation')
+    value=read(stamp)
+    if (value.get('schemaVersion')!=1 or value.get('configuration')!='Debug'
+        or value.get('sourceFiles')!=compiled_source_hashes(root)
+        or value.get('assemblySha256')!=digest(assembly)
+        or value.get('coreSha256')!=digest(assembly.with_name('SandBoxSim.Core.dll'))):
+        raise ValueError('C# source or binary differs from build identity; rebuild before evaluation')
+    return value
+
 def git(*args):
     result = subprocess.run(["git", *args], cwd=ROOT, text=True, encoding="utf-8", capture_output=True, check=True)
     return result.stdout.strip()
@@ -182,6 +203,7 @@ def run(args):
     executable = engine_path(args.engine or os.environ.get("GODOT_EXE"))
     assembly = ROOT / "src/SandBoxSim.Godot/.godot/mono/temp/bin/Debug/SandBoxSim.Godot.dll"
     if not assembly.is_file(): raise ValueError("Debug client assembly missing; run tools/godot.ps1 -Mode build first")
+    build_identity=validate_build(ROOT,assembly)
     env = os.environ.copy(); dotnet = Path.home() / ".sandboxsim-tool" / "net8"
     if dotnet.exists(): env["PATH"] = str(dotnet) + os.pathsep + env.get("PATH", "")
     assert_dotnet_engine(executable, env)
@@ -196,6 +218,7 @@ def run(args):
                   "runnerSha256": digest(__file__), "scenarioSha256": digest(args.scenario), "engineSha256": digest(executable),
                   "sourceFiles": source_hashes(), "assemblySha256": digest(assembly), "execution": {"maxFps": args.max_fps, "resolution": args.resolution, "disableVsync": True, "audioDriver": args.audio_driver or "system-default"}, "candidateLabel": args.label, "python": platform.python_version(), "command": command, "startedUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     started = time.monotonic()
+    provenance['buildIdentity']=build_identity
     process = subprocess.Popen(command, cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
                                start_new_session=os.name != "nt")
@@ -212,6 +235,7 @@ def run(args):
     provenance.update(engineExitCode=native_code,exitCode=code, wallSeconds=time.monotonic() - started, sourceChangedDuringRun=source_hashes() != provenance["sourceFiles"])
     if provenance["sourceChangedDuringRun"] and code == 0: code = 2
     try:
+        if validate_build(ROOT,assembly)!=build_identity:raise ValueError('Build identity changed during evaluation')
         result = validate_artifacts(output)
         if code != 124 and (native_code not in (0,1) or (native_code == 0) != (result["status"] == "completed")):
             raise ValueError("Engine exit disagrees with result status")

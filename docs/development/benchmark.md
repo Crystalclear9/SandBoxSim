@@ -17,6 +17,8 @@ python tools/evaluate.py run benchmarks/scenarios/render-population.json --label
 
 通过 `--engine` 或 `GODOT_EXE` 指定引擎，macOS 也可传入 `.app` 目录；明确指定的无效路径直接拒绝，不悄悄换用另一个引擎。启动前核对 4.7.2 .NET 版本。运行器优先查找安装脚本的本机目录，再查找 PATH；支持 Windows 控制台 EXE、Linux 可执行文件与 macOS 包内二进制。`--output` 指定独立输出目录，已有目录会被拒绝，保留以前的样本。默认窗口请求为 `1440x900`、关闭 VSync、`--max-fps 0`，实际物理/逻辑尺寸与 VSync 状态写入结果；驱动可能仍限制帧率。`--max-fps 60` 可用于有上限的交互采样，但必须保持对照一致。`--audio-driver Dummy` 可在无声卡的 CI 中关闭音频设备依赖，执行参数写入溯源并参与比较。默认子进程超时为 180 秒，超时终止本次启动的进程树，`--timeout` 可调整。
 
+构建脚本保存 `build-source.json`，绑定 Core/Godot C# 文件、工程/根构建配置与两个程序集的 SHA-256。运行前与结束后核对该清单；修改 C# 后未重新构建、替换 DLL 或缺少清单会拒绝采样。直接 `dotnet build` 不生成此清单，使用上述项目脚本。历史归档没有该字段时仍可检查原产物完整性，不能补写为具有新的构建校验。
+
 | 文件 | 用途 |
 |---|---|
 | `request.json` | 引擎实际消费的规范化配置 |
@@ -38,7 +40,7 @@ python tools/evaluate.py run benchmarks/scenarios/render-population.json --label
 |---|---|
 | `id`, `seed` | 实验名称（1–64 位字母/数字/点/下划线/短横线，首位为字母或数字）与世界种子 |
 | `agents`, `previewDays` | 人口 0–2000，初始预演 0–30 天 |
-| `panel` | `field`, `person`, `person-hands`, `architecture`, `characters`, `faces`, `equipment`, `actions`, `hands`, `naturemodels` |
+| `panel` | `field`, `trails`, `homes`, `farms`, `person`, `person-hands`, `architecture`, `characters`, `model-details`, `ecology-details`, `wardrobe`, `faces`, `equipment`, `actions`, `hands`, `naturemodels` |
 | `warmupFrames`, `measuredFrames` | 预热 3–3600 帧，采样 2–36000 帧 |
 | `ticksPerFrame` | 每个逻辑帧推进 0–20 个模拟 tick，与本机快慢无关 |
 | `captureFrames` | 从 0 开始的逻辑帧索引；至少第 3 帧，最多 32 个，无重复，不能超过运行末帧 |
@@ -49,6 +51,8 @@ python tools/evaluate.py run benchmarks/scenarios/render-population.json --label
 表现层 `_Process` 使用固定 1/60 秒，包括世界角色、肖像和图册。这不意味着每秒实际渲染 60 帧；状态推进与采样帧独立于渲染速度。字体、驱动、着色器时间及浮点光照可能使像素有差异，不要求 PNG 跨机器逐字节一致。模拟摘要可用于相同配置下的确定性检查。状态还记录 `worldVisuals` 的图形刷新欠账和 `ai` 的决策、目标选择失败、动作失败及寻路次数；这些是进程诊断数据，不是通用智能分数。AI 规则改变后，旧版本与新版本的摘要可能不同；比较器会拒绝把这种差异当作纯性能优化。
 
 命令白名单是 `journal.open`, `settings.open`, `escape`, `portrait.face`, `portrait.hands`, `portrait.body`, `portrait.drag`, `portrait.zoom`, `portrait.reset`, `world.view`。人物命令需要人物面板；拖动固定水平 20 像素，`value` 是垂直位移；缩放正值为向内一步、负值或 0 为向外一步；镜头预设为 `near`, `top`, `oblique`。所有命令都记录执行前后状态与模拟摘要是否保持一致。
+
+住房回放另提供 `home.focus` 和 `home.resident`，仅接受 `homes` 面板与空 `value`。前者触发实际住房卡的近景按钮，后者触发第一位实际住户的档案链接；没有选中住房或没有住户时运行失败，不植入虚构居民。`world-living-homes` 场景保存交互前后截图和不变的模拟摘要。
 
 这是供实验控制器调用的**语义接口**，直接走游戏处理函数，不等同于鼠标命中、OCR、操作系统输入或自主探索能力测量。受测模型可以生成配置 JSON；此渲染运行器不直接调用模型服务或执行模型输出代码。需要在线控制模拟状态时使用独立 HTTP 服务。
 

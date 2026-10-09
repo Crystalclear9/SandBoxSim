@@ -42,12 +42,13 @@ internal sealed class EvaluationSpec
     public void Validate()
     {
         if(SchemaVersion!=1||(Id==null||!System.Text.RegularExpressions.Regex.IsMatch(Id,"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"))||Agents<0||Agents>2000||PreviewDays<0||PreviewDays>30||WarmupFrames<3||WarmupFrames>3600||MeasuredFrames<2||MeasuredFrames>36000||TicksPerFrame<0||TicksPerFrame>20||!double.IsFinite(MinimumFps)||MinimumFps<0||MinimumFps>10000||string.IsNullOrWhiteSpace(OutputDirectory))throw new ArgumentException("Invalid evaluation limits");
-        if(!new[]{"field","person","person-hands","architecture","characters","faces","equipment","actions","hands","naturemodels"}.Contains(Panel))throw new ArgumentException("Unknown evaluation panel");
+        if(!new[]{"field","trails","homes","farms","person","person-hands","architecture","characters","faces","equipment","actions","hands","naturemodels","model-details","ecology-details","wardrobe"}.Contains(Panel))throw new ArgumentException("Unknown evaluation panel");
         if(CaptureFrames==null||Commands==null||Commands.Length>4096||CaptureFrames.Length>32||CaptureFrames.Distinct().Count()!=CaptureFrames.Length||CaptureFrames.Any(f=>f<3||f>=WarmupFrames+MeasuredFrames))throw new ArgumentException("Invalid capture schedule");
         if((Panel is "person" or "person-hands")&&Agents==0)throw new ArgumentException("Resident panel requires a population");
         foreach(var e in Commands)
         {
-            if(e==null||e.Value==null||e.Frame<3||e.Frame>=WarmupFrames+MeasuredFrames||!new[]{"journal.open","settings.open","escape","portrait.face","portrait.hands","portrait.body","portrait.drag","portrait.zoom","portrait.reset","world.view"}.Contains(e.Command))throw new ArgumentException("Unknown evaluation command");
+            if(e==null||e.Value==null||e.Frame<3||e.Frame>=WarmupFrames+MeasuredFrames||!new[]{"journal.open","settings.open","escape","portrait.face","portrait.hands","portrait.body","portrait.drag","portrait.zoom","portrait.reset","world.view","home.focus","home.resident"}.Contains(e.Command))throw new ArgumentException("Unknown evaluation command");
+            if(e.Command.StartsWith("home.")&&(Panel!="homes"||e.Value!=""))throw new ArgumentException("Home command requires the homes panel and empty value");
             if(e.Command=="world.view"&&!new[]{"near","top","oblique"}.Contains(e.Value))throw new ArgumentException("Unknown camera preset");
             if(e.Command.StartsWith("portrait.")&&Panel is not ("person" or "person-hands"))throw new ArgumentException("Portrait command requires a resident panel");
             if((e.Command=="portrait.drag"||e.Command=="portrait.zoom")&&(!float.TryParse(e.Value,System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out float v)||!float.IsFinite(v)||Math.Abs(v)>120))throw new ArgumentException("Invalid portrait input");
@@ -78,6 +79,7 @@ public partial class MainGame
         var before=EvaluationState();string digest=StateHash.ComputeDigest(Sim);
         switch(e.Command)
         {
+            case "home.focus":case "home.resident":_discovery.EvaluationHomeCommand(e.Command);break;
             case "journal.open":ShowJournal(true);break;
             case "settings.open":ShowSettings(true);break;
             case "escape":_UnhandledKeyInput(new InputEventKey {Keycode=Key.Escape,Pressed=true});break;
@@ -129,7 +131,7 @@ public partial class MainGame
                 string id=$"f{frame:D5}-r{region.Index}",cropName=id+".png";
                 var crop=image.GetRegion(new Rect2I((int)clipped.Position.X,(int)clipped.Position.Y,(int)clipped.Size.X,(int)clipped.Size.Y));
                 if(crop.SavePng(Path.Combine(_evaluation.OutputDirectory,cropName))!=Error.Ok)throw new IOException("Crop write failed");
-                _evaluationQuestions.Add(new {id,image=cropName,sha256=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(_evaluation.OutputDirectory,cropName)))).ToLowerInvariant(),prompt="Which object is shown?",choices=new[]{"house","storage","resident","deer","wolf","tree","farm","mine","ruins","grove"}});
+                _evaluationQuestions.Add(new {id,image=cropName,sha256=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(_evaluation.OutputDirectory,cropName)))).ToLowerInvariant(),prompt="Which object is shown?",choices=new[]{"house","storage","resident","deer","wolf","tree","farm","mine","ruins","grove","fern","grass","rock","shrub"}});
                 _evaluationAnswers.Add(new {id,label=region.Label,frame,region=new[]{clipped.Position.X,clipped.Position.Y,clipped.Size.X,clipped.Size.Y}});
             }
         }

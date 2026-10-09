@@ -11,16 +11,19 @@ public partial class WorldView3D
     {
         public required Node3D Root;
         public required MeshInstance3D Surface;
-        public required Mesh Near,Far;
+        public Mesh? Near;
+        public required Mesh Far;
         public required int Generation;
         public required uint Identity;
         public required BuildingKind Kind;
         public required bool Complete;
-        public bool Detailed=true;
+        public bool Detailed;
+        public Node3D? Life;public int LifeKey=-1;
     }
     private readonly Dictionary<int,BuildingVisual> _buildingVisuals=new();
     private readonly Dictionary<int,Label3D> _settlementLabels=new();
     private Node3D? _buildings;
+    private ulong _detailBuildFrame=ulong.MaxValue;
     private void ResetBuildingVisuals()
     {
         if(_buildings!=null&&GodotObject.IsInstanceValid(_buildings))
@@ -33,10 +36,20 @@ public partial class WorldView3D
     }
     private void UpdateBuildingDetail()
     {
+        foreach(var pair in _buildingVisuals)
+        {UpdateHouseLife(pair.Value,pair.Key);UpdateFarmLife(pair.Value,pair.Key);}
         foreach(var visual in _buildingVisuals.Values)
         {
             float distance=_camera.Position.DistanceSquaredTo(visual.Root.Position);
             bool detailed=visual.Detailed?distance<32*32:distance<24*24;
+            if(detailed&&visual.Near==null)
+            {
+                ulong frame=Engine.GetProcessFrames();if(_detailBuildFrame==frame)continue;
+                _detailBuildFrame=frame;
+                using var profile=RenderProfile.Measure("CreateBuildingDetail");
+                var model=_models.Building(visual.Kind,visual.Complete,visual.Identity);
+                visual.Near=model.GetChild<MeshInstance3D>(0).Mesh;model.Free();
+            }
             if(detailed==visual.Detailed)continue;
             visual.Detailed=detailed;visual.Surface.Mesh=detailed?visual.Near:visual.Far;
         }
@@ -57,9 +70,9 @@ public partial class WorldView3D
                 if(creations>=maxCreations){remaining=true;continue;}creations++;
                 using var creation=RenderProfile.Measure("CreateBuilding");
                 if(visual!=null)RemoveBuilding(slot);
-                var node=_models.Building(kind,complete,identity);_buildings.AddChild(node);
+                var node=_models.DistantBuildingNode(kind,complete,identity);_buildings.AddChild(node);
                 var surface=node.GetChild<MeshInstance3D>(0);
-                visual=new BuildingVisual {Root=node,Surface=surface,Near=surface.Mesh,Far=_models.DistantBuilding(kind,complete,identity),Generation=generation,Identity=identity,Kind=kind,Complete=complete};
+                visual=new BuildingVisual {Root=node,Surface=surface,Far=surface.Mesh,Generation=generation,Identity=identity,Kind=kind,Complete=complete};
                 _buildingVisuals[slot]=visual;
             }
             visual.Root.Position=PositionAt(x,y);

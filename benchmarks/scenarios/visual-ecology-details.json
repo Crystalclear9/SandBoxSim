@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "visual-ecology-details",
+  "seed": 839102,
+  "agents": 40,
+  "previewDays": 0,
+  "panel": "ecology-details",
+  "warmupFrames": 60,
+  "measuredFrames": 120,
+  "ticksPerFrame": 0,
+  "minimumFps": 0,
+  "captureFrames": [
+    90
+  ],
+  "outputDirectory": "runs/evaluation/visual-ecology-details"
+}

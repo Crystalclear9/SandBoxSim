@@ -8,50 +8,50 @@ internal sealed partial class NatureModels
     {
         string key=pine ? "pine-sprays" : "leaf-crown";
         if(_meshes.TryGetValue(key,out var cached)) return cached;
-        using var tool=new SurfaceTool(); tool.Begin(Mesh.PrimitiveType.Triangles);
-        void Triangle(Vector3 a,Vector3 b,Vector3 c)
-        {
-            var normal=(c-a).Cross(b-a).Normalized();
-            foreach(var p in new[]{a,b,c}) { tool.SetNormal(normal); tool.SetUV(new(p.X+.5f,p.Z+.5f)); tool.AddVertex(p); }
-            foreach(var p in new[]{c,b,a}) { tool.SetNormal(-normal); tool.SetUV(new(p.X+.5f,p.Z+.5f)); tool.AddVertex(p); }
-        }
-        void Spray(Vector3 center,Vector3 along,Vector3 across,float fold)
-        {
-            var ridge=center+Vector3.Up*fold;
-            for(int edge=0;edge<6;edge++)
-            {
-                float a=edge*MathF.Tau/6,b=(edge+1)*MathF.Tau/6;
-                Triangle(center+along*MathF.Cos(a)+across*MathF.Sin(a),ridge,center+along*MathF.Cos(b)+across*MathF.Sin(b));
-            }
-        }
+        using var tool=new SurfaceTool();tool.Begin(Mesh.PrimitiveType.Triangles);
         if(pine)
         {
-            for(int layer=0;layer<9;layer++) for(int branch=0;branch<11;branch++)
+            for(int stem=0;stem<4;stem++)BotanicalStem(tool,new(0,-.46f+stem*.25f,0),new(0,-.46f+(stem+1)*.25f,0),.025f*MathF.Pow(.5f,stem));
+            for(int layer=0;layer<10;layer++)for(int branch=0;branch<11;branch++)
             {
-                float t=layer/9f,a=branch*MathF.Tau/11+layer*.37f,r=.48f*MathF.Pow(1-t,.8f);
-                var forward=new Vector3(MathF.Cos(a),0,MathF.Sin(a)); var side=new Vector3(-forward.Z,0,forward.X);
-                var start=new Vector3(0,t-.44f,0); var tip=start+forward*r+Vector3.Down*.08f;
-                for(int twig=0;twig<3;twig++)
+                float t=layer/10f,a=branch*MathF.Tau/11+layer*.61f,r=.49f*MathF.Pow(1-t,.78f);
+                var forward=new Vector3(MathF.Cos(a),-.12f,MathF.Sin(a)).Normalized();
+                var across=new Vector3(-forward.Z,0,forward.X).Normalized();
+                var root=new Vector3(0,t-.46f,0);
+                BotanicalStem(tool,root,root+forward*r,.008f*(1-t)+.002f);
+                for(int twig=0;twig<4;twig++)for(int side=-1;side<=1;side+=2)
                 {
-                    float progress=(twig+.6f)/3;
-                    var center=start+forward*r*progress+Vector3.Down*.065f*progress;
-                    Spray(center,forward*r*.30f,side*r*(.22f-.10f*progress),.014f);
+                    float u=(twig+.45f)/4;
+                    var stem=root+forward*r*u;
+                    var axis=(forward*.5f+across*side*.8f+Vector3.Up*.15f).Normalized();
+                    BotanicalStem(tool,stem,stem+axis*r*.10f,.002f);
+                    BotanicalLeaf(tool,stem,axis,across,r*(.32f-.09f*u),r*.069f,.003f,.80f+.12f*MathF.Sin(branch*3+twig));
                 }
+                BotanicalLeaf(tool,root+forward*r*.82f,forward,across,r*.24f,r*.04f,.007f,.90f);
             }
         }
         else
         {
-            // Solid small leaf sprays overlap into an irregular crown; silhouette contains no sphere hull.
-            for(int i=0;i<110;i++)
+            // Small curved leaves on distinct sprigs replace broad hexagonal plates.
+            for(int i=0;i<144;i++)
             {
-                float a=i*2.399963f, y=1-2*(i+.5f)/110, r=MathF.Sqrt(1-y*y);
-                var center=new Vector3(MathF.Cos(a)*r,y*.85f,MathF.Sin(a)*r)*(.39f+.035f*MathF.Sin(i*1.7f));
-                var along=new Vector3(MathF.Cos(a+.7f),MathF.Sin(i*.83f)*.72f,MathF.Sin(a+.7f)).Normalized()*.108f;
-                var across=along.Cross(Vector3.Up).Normalized()*.055f;
-                Spray(center,along,across,.026f);
+                float a=i*2.399963f,y=1-2*(i+.5f)/144,r=MathF.Sqrt(1-y*y);
+                var center=new Vector3(MathF.Cos(a)*r,y*.85f,MathF.Sin(a)*r)*(.37f+.045f*MathF.Sin(i*1.7f));
+                var forward=new Vector3(MathF.Cos(a+.7f),MathF.Sin(i*.83f)*.45f,MathF.Sin(a+.7f)).Normalized();
+                var across=forward.Cross(Vector3.Up).Normalized();
+                BotanicalStem(tool,Vector3.Zero,center,.0035f);
+                BotanicalStem(tool,center,center+forward*.065f,.002f);
+                for(int leaf=0;leaf<4;leaf++)
+                {
+                    float sign=leaf%2==0?-1:1;
+                    var axis=(forward*.65f+across*sign*.75f+Vector3.Up*.20f).Normalized();
+                    var root=center+forward*(leaf/2)*.035f;
+                    BotanicalLeaf(tool,root,axis,axis.Cross(Vector3.Up).Normalized(),.082f+(i%5)*.004f,.027f,.004f,.78f+(i%7)*.055f);
+                }
+                BotanicalLeaf(tool,center+forward*.065f,forward,across,.086f,.028f,.004f,1.02f);
             }
         }
-        tool.Index(); var mesh=tool.Commit(); _meshes[key]=mesh; return mesh;
+        tool.GenerateNormals();tool.Index();var mesh=WithScreenLods(tool.Commit());_meshes[key]=mesh;return mesh;
     }
     private Mesh BentTrunk()
     {
@@ -63,14 +63,6 @@ internal sealed partial class NatureModels
     }
     public Node3D Tree(bool pine)
     {
-        var model=new Node3D(); Part(model,"trunk",new(0,1.7f,0),new(.34f,3.4f,.34f),0);
-        if(pine) Part(model,"pine",new(0,3.2f,0),new(3.2f,4.4f,3.2f),5);
-        else for(int i=0;i<5;i++)
-        {
-            float a=i*MathF.Tau/5; var end=new Vector3(MathF.Cos(a),3.1f+(i%2)*.5f,MathF.Sin(a));
-            Timber(model,new(0,2.0f,0),end,.095f);
-            Part(model,"foliage",end,new(2.1f,1.9f,2.1f),4);
-        }
-        MergeResidentParts(model,pine ? "tree-pine" : "tree-broadleaf"); return model;
+        var model=new Node3D();model.AddChild(new MeshInstance3D {Mesh=Shape(pine?"conifer-tree":"broad-tree")});return model;
     }
 }
