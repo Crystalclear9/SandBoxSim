@@ -76,9 +76,9 @@ git diff --check
 
 [src](../../src/README.md)、[tools](../../tools/README.md)、[config](../../config/README.md)、[benchmarks](../../benchmarks/README.md) 各自提供职责与入口；[文档图](../images/README.md) 区分现行界面和专题记录。完整素材生成提示独立放在 `docs/archive/asset-generation.md`，当前美术说明专注实际资源、导入与扩展。
 
-`runs/` 根目录只保留说明与占位文件。散落历史日志归入 `logs/legacy/`，独立请求归入 `requests/legacy/`，旧报告和预测归入 `reports/legacy/`，临时文本备份归入 `backups/`。维护检查日志按 `logs/maintenance/<日期>/` 保存；清点与移动记录放在 `maintenance/<日期>/inventory/`，研究与配图记录分别放在 `research/` 和 `visual/`，帮助输出放在 `tool-output/`，过去的 GitHub 操作文本放在 `github/`。日期目录中的 `file-moves.json` 提供旧路径到现路径的映射。
+`runs/` 根目录只保留说明与占位文件，继续使用的世界存档集中在 `saves/`。日常清理不长期保留审计清单、帮助输出、旧 GitHub 操作文本、开发截图、重复试验压缩包和临时 Git bundle，也不为清理新增一轮报告。运行工具按需要重新创建日志与实验输出目录。
 
-完整实验不拆分；存储维护时可先整体压缩并核对内容，再移除已归档的原目录。临时查看截图在明确的清理范围内删除；玩家存档、已有备份与 Git bundle 保留。清单与帮助输出记录各自生成时的状态，不改写为最新能力描述；当前接口以 `benchmarks/interface.json` 与对应文档为准。这些本机文件不推送到远程。独立包、工具链和缓存的边界见 [本机存储维护](local-storage.md)。
+明确需要用于研究或复现的实验保持完整，归档属于可选维护方式；不再使用的开发试验可整体清理。玩家存档和个人备份保留，已冗余的开发备份可以移除。当前接口以 `benchmarks/interface.json` 与对应文档为准，本机输出不推送到远程。独立包、工具链和缓存的边界见 [本机存储维护](local-storage.md)。
 
 不为整理目录搬迁 C# 工程、Godot 资源或公共工具脚本；它们有工程编译、`res://`、CI 或外部调用契约。新增文件按职责落位，移除文件先检查用途和引用。
 
