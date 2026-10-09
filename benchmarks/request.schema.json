@@ -40,11 +40,17 @@
         "person-hands",
         "architecture",
         "characters",
+        "model-details",
+        "ecology-details",
+        "wardrobe",
         "faces",
         "equipment",
         "actions",
         "hands",
-        "naturemodels"
+        "naturemodels",
+        "trails",
+        "homes",
+        "farms"
       ],
       "default": "field"
     },
@@ -112,7 +118,9 @@
               "portrait.drag",
               "portrait.zoom",
               "portrait.reset",
-              "world.view"
+              "world.view",
+              "home.focus",
+              "home.resident"
             ]
           },
           "value": {

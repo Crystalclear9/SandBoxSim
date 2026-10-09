@@ -36,6 +36,7 @@ internal sealed partial class NatureModels
             for (int i = 0; i < 16; i++) { _materials[i] = new StandardMaterial3D { AlbedoColor = new Color(colors[i]), Roughness = .9f }; }
         }
         InstallCraftMaterials();
+        InstallVegetationMaterials();
     }
     public Material Material(int id) => _materials[id];
     public Mesh Shape(string kind)
@@ -54,16 +55,19 @@ internal sealed partial class NatureModels
             "finger-low" => new SphereMesh { Radius=.5f,Height=1,RadialSegments=8,Rings=4 },
             "seed" => new SphereMesh { Radius=.5f,Height=1,RadialSegments=12,Rings=6 },
             "masonry" => SoftBlock(),
-            "face" => SculptedHead(false,96,56),
+            "face" => HumanMesh("head"),
             "hair" => SculptedHead(true),
             "cone" => new CylinderMesh { TopRadius = 0, BottomRadius = .5f, Height = 1, RadialSegments = 16 },
             "cylinder" => new CylinderMesh { TopRadius = .5f, BottomRadius = .5f, Height = 1, RadialSegments = 16 },
             "capsule" => new CapsuleMesh { Radius = .5f, Height = 2, RadialSegments = 12, Rings = 6 },
-            "foliage" => Crown(false),
+            "foliage" => SourceEnvironment("shrub_sorrel_01"),
             "pine" => Crown(true),
             "trunk" => BentTrunk(),
             "rock" => IrregularSphere(.22f),
-            "grass" => MeadowTuft(),
+            "grass" => SourceEnvironment("grass_medium_01"),
+            "fern" => SourceEnvironment("fern_02"),
+            "broad-tree" => SourceEnvironment("tree_small_02"),
+            "conifer-tree" => SourceEnvironment("fir_sapling"),
             _ => new SphereMesh { Radius = .5f, Height = 1, RadialSegments = 20, Rings = 12 }
         };
         _meshes[key] = mesh; return mesh;
@@ -72,17 +76,21 @@ internal sealed partial class NatureModels
     {
         const int rings = 24, sides = 40;
         var verts = new List<Vector3>(); var normals = new List<Vector3>(); var uv = new List<Vector2>(); var indices = new List<int>();
+        var planes=new[]{new Vector3(1,.15f,.08f),new(-1,.09f,-.13f),new(.16f,1,-.10f),new(-.11f,-1,.06f),
+                new(.13f,.08f,1),new(-.14f,-.10f,-1),new(.72f,.68f,.5f),new(-.64f,.71f,.58f),new(.7f,.5f,-.6f),new(-.62f,.56f,-.7f)};
         for (int row = 0; row <= rings; row++) for (int col = 0; col <= sides; col++)
         {
             float latitude = row * MathF.PI / rings, angle = col * MathF.Tau / sides;
             var normal = new Vector3(MathF.Sin(latitude) * MathF.Cos(angle), MathF.Cos(latitude), MathF.Sin(latitude) * MathF.Sin(angle));
-            float noise = MathF.Sin(normal.X * 4 + normal.Y * 3) * MathF.Cos(normal.Z * 4 - normal.Y * 2) + .18f * MathF.Sin(normal.X * 9 - normal.Z * 7);
-            // Rounded fracture planes give stone a broken silhouette rather than a soft sphere.
-            float radius=.5f+noise*irregularity*.32f;
-            var point=new Vector3(MathF.CopySign(MathF.Pow(MathF.Abs(normal.X),.78f),normal.X),
-                MathF.CopySign(MathF.Pow(MathF.Abs(normal.Y),.82f),normal.Y),
-                MathF.CopySign(MathF.Pow(MathF.Abs(normal.Z),.76f),normal.Z))*radius;
-            point.Y+=point.X*.11f-point.Z*.07f;
+            // Intersect the radial sample with an uneven convex set of fracture planes.
+            float radius=.62f;
+            for(int plane=0;plane<planes.Length;plane++)
+            {
+                float facing=normal.Dot(planes[plane].Normalized());
+                if(facing>0)radius=MathF.Min(radius,(.365f+(plane%3)*.032f)/facing);
+            }
+            radius+=irregularity*.027f*MathF.Sin(normal.X*13+normal.Z*7)*MathF.Sin(normal.Y*11-normal.X*5);
+            var point=normal*radius;point.Y+=point.X*.08f-point.Z*.055f;
             verts.Add(point); normals.Add(Vector3.Zero); uv.Add(new Vector2(col / (float)sides, row / (float)rings));
         }
         for (int row = 0; row < rings; row++) for (int col = 0; col < sides; col++)
@@ -107,7 +115,7 @@ internal sealed partial class NatureModels
     public MeshInstance3D Part(Node3D parent, string shape, Vector3 position, Vector3 scale, int material, Vector3? rotation = null)
     {
         if(!_fineArchitecture)shape=shape switch {"sphere"=>"finger-low","cylinder"=>"cylinder-low","capsule"=>"capsule-low",_=>shape};
-        var part = new MeshInstance3D { Mesh = Shape(shape == "box" && _fineArchitecture && material is 0 or 1 or 2 or 6 ? "masonry" : shape), Position = position, Scale = scale, MaterialOverride = Material(material),
+        var part = new MeshInstance3D { Mesh = Shape(shape == "box" && _fineArchitecture && material is 0 or 1 or 2 or 6 ? "masonry" : shape), Position = position, Scale = scale, MaterialOverride = shape=="foliage"?null:Material(material),
             CastShadow = GeometryInstance3D.ShadowCastingSetting.On };
         if (rotation.HasValue) { part.Rotation = rotation.Value; }
         parent.AddChild(part); return part;
@@ -132,7 +140,7 @@ internal sealed partial class NatureModels
         for(int i=1;i<group.Count;i++)bounds=bounds.Merge(group[i]*meshBounds);
         return bounds.Grow(.01f);
     }
-    public void Batch(Node3D parent, string shape, int material, List<Transform3D> transforms, Material? surface=null, float range=0)
+    public void Batch(Node3D parent, string shape, int material, List<Transform3D> transforms, Material? surface=null, float range=0,bool preserveMaterials=false)
     {
         // Each chunk has its own bounds: a visible patch no longer draws the whole forest.
         foreach(var group in PartitionInstances(transforms).Values)
@@ -140,16 +148,20 @@ internal sealed partial class NatureModels
             var multi=new MultiMesh {TransformFormat=MultiMesh.TransformFormatEnum.Transform3D,Mesh=Shape(shape),InstanceCount=group.Count};
             for(int i=0;i<group.Count;i++)multi.SetInstanceTransform(i,group[i]);
             multi.CustomAabb=InstanceBounds(group,multi.Mesh.GetAabb()).Grow(shape=="grass"?.03f:0);
-            parent.AddChild(new MultiMeshInstance3D {Multimesh=multi,MaterialOverride=surface??Material(material), VisibilityRangeEnd=range, CastShadow=shape=="grass"?GeometryInstance3D.ShadowCastingSetting.Off:GeometryInstance3D.ShadowCastingSetting.On});
+            parent.AddChild(new MultiMeshInstance3D {Multimesh=multi,MaterialOverride=preserveMaterials?null:surface??Material(material), VisibilityRangeEnd=range, CastShadow=shape=="grass"?GeometryInstance3D.ShadowCastingSetting.Off:GeometryInstance3D.ShadowCastingSetting.On});
         }
     }
 
     public Node3D Building(BuildingKind kind, bool complete, uint identity = 0) => Architecture(kind, complete, identity);
-    public Mesh DistantBuilding(BuildingKind kind,bool complete,uint identity)
+    public Node3D DistantBuildingNode(BuildingKind kind,bool complete,uint identity)
     {
         _fineArchitecture=false;
-        try{var node=Architecture(kind,complete,identity);var mesh=node.GetChild<MeshInstance3D>(0).Mesh;node.Free();return mesh;}
+        try{return Architecture(kind,complete,identity);}
         finally{_fineArchitecture=true;}
+    }
+    public Mesh DistantBuilding(BuildingKind kind,bool complete,uint identity)
+    {
+        var node=DistantBuildingNode(kind,complete,identity);var mesh=node.GetChild<MeshInstance3D>(0).Mesh;node.Free();return mesh;
     }
     public Node3D Human(int slot, bool child, JobType job) => Resident(slot, child, job);
     public Node3D Animal(bool wolf) => DetailedAnimal(wolf);

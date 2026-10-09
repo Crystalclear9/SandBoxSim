@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "agents": {
+    "parent": "agents/sandbox_research_fixture.py",
+    "child": "agents/sandbox_research_fixture.py",
+    "reverted": "agents/sandbox_research_fixture.py"
+  },
+  "order": [
+    "parent",
+    "reverted",
+    "child"
+  ],
+  "research": {
+    "schemaVersion": 1,
+    "fixtureOnly": true,
+    "editableFiles": [
+      "src/SandBoxSim.Core/Pathing/AStarPathfinder.cs"
+    ],
+    "attempts": 2,
+    "agentSeconds": 5,
+    "commandSeconds": 120,
+    "repeats": 3,
+    "testFilters": [
+      "AgentTests",
+      "ResponsivenessTests"
+    ],
+    "developmentSuite": {
+      "schemaVersion": 1,
+      "split": "development",
+      "cases": [
+        {
+          "seed": 17,
+          "width": 32,
+          "height": 32,
+          "agents": 12,
+          "pathQueries": 8,
+          "batches": 2,
+          "ticksPerBatch": 20
+        },
+        {
+          "seed": 839102,
+          "width": 48,
+          "height": 32,
+          "agents": 24,
+          "pathQueries": 8,
+          "batches": 2,
+          "ticksPerBatch": 30
+        },
+        {
+          "seed": 907,
+          "width": 48,
+          "height": 48,
+          "agents": 36,
+          "pathQueries": 8,
+          "batches": 2,
+          "ticksPerBatch": 40
+        }
+      ]
+    },
+    "heldoutSuite": {
+      "schemaVersion": 1,
+      "split": "heldout",
+      "cases": [
+        {
+          "seed": 4242,
+          "width": 32,
+          "height": 32,
+          "agents": 16,
+          "pathQueries": 12,
+          "batches": 2,
+          "ticksPerBatch": 30
+        },
+        {
+          "seed": 5567,
+          "width": 48,
+          "height": 32,
+          "agents": 30,
+          "pathQueries": 16,
+          "batches": 2,
+          "ticksPerBatch": 40
+        },
+        {
+          "seed": 8191,
+          "width": 48,
+          "height": 48,
+          "agents": 40,
+          "pathQueries": 20,
+          "batches": 2,
+          "ticksPerBatch": 50
+        }
+      ]
+    }
+  }
+}

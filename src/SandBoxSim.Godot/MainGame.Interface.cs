@@ -112,7 +112,7 @@ public partial class MainGame
         _journalPanel = Surface(overlay, new Vector2(1, 0), new Vector2(-372, 92), new Vector2(348, 600), 18);
         var journal = new VBoxContainer(); journal.AddThemeConstantOverride("separation", 12); _journalPanel.AddChild(journal);
         var journalHeading = new PanelContainer(); journalHeading.SetMeta("journal_heading",true);
-        var headingBox=HudStyle.Box(new Color("#28332f"),2,12,false);journalHeading.AddThemeStyleboxOverride("panel",headingBox);journal.AddChild(journalHeading);
+        var headingBox=HudStyle.Box(new Color("#242c36"),8,14,false);journalHeading.AddThemeStyleboxOverride("panel",headingBox);journal.AddChild(journalHeading);
         var headingBody=new VBoxContainer();headingBody.AddThemeConstantOverride("separation",5);journalHeading.AddChild(headingBody);
         var journalHeader = new HBoxContainer(); headingBody.AddChild(journalHeader);
         var journalTitle = HudStyle.Heading("世界手记", 22); journalTitle.SizeFlagsHorizontal = SizeFlags.ExpandFill; journalHeader.AddChild(journalTitle);
@@ -275,7 +275,7 @@ public partial class MainGame
     }
     private static PanelContainer Surface(Control parent, Vector2 anchor, Vector2 offset, Vector2 size, int padding = 16)
     {
-        var panel = new PanelContainer { Material = HudStyle.FrameMaterial }; panel.AddThemeStyleboxOverride("panel", HudStyle.Frame(padding));
+        var panel = new PanelContainer(); panel.AddThemeStyleboxOverride("panel", HudStyle.Frame(padding));
         HudStyle.Float(panel, anchor, offset, size); parent.AddChild(panel); panel.AddChild(new HudBevel { Margin = padding }); return panel;
     }
     private static void ClearSurface(PanelContainer panel)
@@ -288,7 +288,7 @@ public partial class MainGame
         var identity = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; identity.AddThemeConstantOverride("separation", 3); _residentVitals.AddChild(identity);
         identity.AddChild(_residentTitle); identity.AddChild(_residentSubtitle);
         _residentTitle.AutowrapMode = TextServer.AutowrapMode.WordSmart; _residentSubtitle.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        var activity = new PanelContainer(); var activityStyle=HudStyle.Box(new Color("#c8c0ab"),2,8,false);activityStyle.BorderWidthLeft=2;activityStyle.BorderColor=new("#877657");activity.AddThemeStyleboxOverride("panel",activityStyle);_residentVitals.AddChild(activity);
+        var activity = new PanelContainer(); var activityStyle=HudStyle.Box(HudStyle.Wash,6,10,false);activityStyle.BorderWidthLeft=2;activityStyle.BorderColor=HudStyle.Accent;activity.AddThemeStyleboxOverride("panel",activityStyle);_residentVitals.AddChild(activity);
         var activityBody=new VBoxContainer();activityBody.AddThemeConstantOverride("separation",2);activity.AddChild(activityBody);
         _residentAction=HudStyle.Label("",13);_residentActionPhase=HudStyle.Label("",11,true);activityBody.AddChild(_residentAction);activityBody.AddChild(_residentActionPhase);
         var grid = new GridContainer { Columns = 2 }; grid.AddThemeConstantOverride("h_separation", 12); grid.AddThemeConstantOverride("v_separation", 8); _residentVitals.AddChild(grid);

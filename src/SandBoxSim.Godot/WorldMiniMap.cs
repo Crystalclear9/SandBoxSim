@@ -9,7 +9,7 @@ public partial class WorldMiniMap : Control
 {
     public MainGame Game { get; set; } = null!;
     private ImageTexture? _terrain;
-    private readonly StyleBoxFlat _mapFrame=HudStyle.Box(new Color("#c6cbb9"),3,4,false);
+    private readonly StyleBoxFlat _mapFrame=HudStyle.Box(HudStyle.Wash,8,4,false);
     private SandBoxSim.Core.Simulation? _world;
     private ulong _lastRefresh;
     private Int2? _hovered;
@@ -37,6 +37,7 @@ public partial class WorldMiniMap : Control
                     TerrainKind.Mountain => new Color("#888a7b"), TerrainKind.Road => new Color("#baa98a"), TerrainKind.Desert or TerrainKind.Sand => new Color("#a99563"),
                     TerrainKind.Farmland => new Color("#77844a"), _ => new Color("#6e8157") };
                 if (tile.Fire == FireState.Burnt) { color = new Color("#403f36"); }
+                color=color.Lerp(new Color("#a48c69"),Math.Clamp(tile.FootTraffic*1.5f,0,.75f));
                 image.SetPixel(x, y, color);
             }
             _terrain = ImageTexture.CreateFromImage(image);
@@ -54,10 +55,10 @@ public partial class WorldMiniMap : Control
         if (person?.Alive == true) { DrawCircle(Position(sim.Agents.XOf(person.Slot), sim.Agents.YOf(person.Slot)), 4, HudStyle.Accent, false, 1.5f); }
         var font = GetThemeDefaultFont(); float left = rect.End.X + 15;
         void Text(string value, float y, Color color, int size = 12) => DrawString(font, new Vector2(left, y), value, HorizontalAlignment.Left, -1, size, color);
-        Text("N ↑   区域地图",24,new Color("#68745e"), 11);
-        Text("居民  " + sim.Agents.LiveCount, 54,new Color("#37402f"), 15);
-        Text("聚落  " + sim.Settlements.ActiveCount, 78,new Color("#68745e"));
-        Text(_hovered.HasValue?$"坐标  {_hovered.Value.X}, {_hovered.Value.Y}":"单击地图回访",113,new Color("#68745e"),11);
+        Text("N ↑   区域地图",24,HudStyle.Muted, 11);
+        Text("居民  " + sim.Agents.LiveCount, 54,HudStyle.Text, 15);
+        Text("聚落  " + sim.Settlements.ActiveCount, 78,HudStyle.Muted);
+        Text(_hovered.HasValue?$"坐标  {_hovered.Value.X}, {_hovered.Value.Y}":"单击地图回访",113,HudStyle.Muted,11);
     }
     public Int2? TileAt(Vector2 point)
     {

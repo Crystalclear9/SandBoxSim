@@ -69,6 +69,12 @@ internal static class FarmAction
         // 田里还没人干活的紧迫度：劳动量越低越该去
         if (canWork)
         {
+            if(cfg.LivingAgricultureEnabled)
+            {
+                var p=ctx.Buildings!.PositionOf(farmIndex);
+                float cycle=LivingAgriculture.YieldFactor(LivingAgriculture.CropAt(ctx.World.Seed,p.X,p.Y),LivingAgriculture.Phase(ctx.World.Tick,ctx.World.Calendar.TicksPerDay));
+                builder.Consider("当前作物产能",SimMath.Clamp01(cycle/1.65f),UtilityCurve.Linear,.6f);
+            }
             float labor = ctx.Buildings?.LaborOf(farmIndex) ?? 0f;
             float idle = 1f - SimMath.Clamp01(labor / System.Math.Max(0.01f, cfg.FarmLaborPerDayCap));
             builder.Consider("田里缺人手", idle, UtilityCurve.Survival, 1.4f);
@@ -109,6 +115,7 @@ internal static class FarmAction
     {
         index = -1;
         distance = float.MaxValue;
+        float bestCost=float.MaxValue;
 
         BuildingStore? buildings = ctx.Buildings;
         if (buildings == null) { return false; }
@@ -128,7 +135,9 @@ internal static class FarmAction
             float dy = buildings.YOf(candidate) - ctx.Y;
             float d = (float)System.Math.Sqrt((dx * dx) + (dy * dy));
             if (d > radius) { continue; }
-            if (d < distance) { distance = d; index = candidate; }
+            float cycle=ctx.Config.Buildings.LivingAgricultureEnabled?LivingAgriculture.YieldFactor(LivingAgriculture.CropAt(ctx.World.Seed,buildings.XOf(candidate),buildings.YOf(candidate)),LivingAgriculture.Phase(ctx.World.Tick,ctx.World.Calendar.TicksPerDay)):1;
+            float cost=d/System.Math.Max(.15f,cycle);
+            if (cost < bestCost) { bestCost=cost;distance = d; index = candidate; }
         }
 
         return index >= 0;

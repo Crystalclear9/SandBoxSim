@@ -6,7 +6,7 @@ internal sealed partial class NatureModels
     private Material? _distantHeadMaterial;
     private Mesh DistantHead(string skin,string hair)
     {
-        string key="head-lod:"+skin+hair;if(_meshes.TryGetValue(key,out var mesh))return mesh;
+        string key="head-lod:"+skin+hair+":"+_faceVariant;if(_meshes.TryGetValue(key,out var mesh))return mesh;
         _distantHeadMaterial??=new ShaderMaterial {Shader=new Shader {Code="shader_type spatial; void fragment(){ ALBEDO=pow(COLOR.rgb,vec3(2.2)); ROUGHNESS=0.88; SPECULAR=0.22; }"}};
         var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);surface.SetMaterial(_distantHeadMaterial);
         void Append(Mesh part,Vector3 position,Vector3 scale,string tint)
@@ -19,7 +19,7 @@ internal sealed partial class NatureModels
             }
         }
         Append(SculptedHead(false,20,12),Vector3.Zero,new(.177f,.220f,.195f),skin);
-        Append(SculptedHead(true,20,12),new(0,.008f,.006f),new(.181f,.224f,.200f),hair);
+        Append(SculptedHead(true,20,12),new(0,.008f,0),new(.181f,.224f,.200f),hair);
         foreach(float side in new[]{-1f,1f})
         {
             Append(Shape("finger-low"),new(side*.087f,-.005f,0),new(.024f,.043f,.026f),skin);

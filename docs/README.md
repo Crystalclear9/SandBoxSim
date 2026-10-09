@@ -10,13 +10,16 @@
 | 自由探索 | [荒野探索](guides/exploration.md) → [世界系统](guides/world-systems.md) → [地形与活动痕迹](guides/terrain-and-traces.md) |
 | 理解居民与生态 | [聚落与居民](guides/settlements.md)、[天气与生态](guides/ecology.md) |
 | 开发模拟和客户端 | [开发指南](development/developer-guide.md) → [项目架构](development/architecture.md) → [扩展指南](development/extending.md) |
-| 修改模型和材质 | [模型系统](development/models.md)、[美术资源](development/assets.md)、[正式配图](images/README.md) |
+| 修改模型和材质 | [模型系统](development/models.md)、[人物素材转换](development/human-assets.md)、[美术资源](development/assets.md)、[正式配图](images/README.md) |
 | 构建、配置和存档 | [构建与运行](development/build.md)、[配置](development/configuration.md)、[存档与确定性](development/saving.md) |
 | 性能和视觉实验 | [性能维护](development/performance.md)、[渲染与视觉评测](development/benchmark.md) |
 | 在线控制和程序效率 | [HTTP 服务与效率实验](development/online-efficiency.md) |
+| 在真实工程上研究代码 | [真实沙盒源码研究](development/sandbox-research.md) |
+| 理解农业与长期土地变化 | [农业、地力与食物流动](guides/living-economy.md) |
+| 比较重复研究效果与退步 | [真实源码研究的重复对照](development/sandbox-research-series.md) |
 | 代理自我改进实验 | [代理改进协议与三种后端](development/rsi-improver.md)、[连续世界课程与实验报告](development/stateful-rsi.md)、[改进器效率与成本回收](development/rsi-efficiency.md) |
 | 更新和排错 | [版本更新](guides/updating.md)、[故障排查](guides/troubleshooting.md) |
-| 管理文件和贡献 | [目录与文件管理](development/repository-layout.md)、[贡献指南](../CONTRIBUTING.md) |
+| 管理文件和贡献 | [目录与文件管理](development/repository-layout.md)、[本机存储维护](development/local-storage.md)、[贡献指南](../CONTRIBUTING.md) |
 
 ## 运行入口
 
@@ -28,6 +31,11 @@
 | `tools/evaluate.py` | Python、Godot .NET 客户端 | 图像、界面回放、渲染墙钟采样 |
 | `tools/efficiency.py` | Python、两份在线服务 | 正确性约束下的程序性能对照 |
 | `tools/rsi_benchmark.py` | Python，HTTP 后端另需在线服务 | 代理自修改、迁移、后代分叉和方法撤销 |
+| `tools/rsi_efficiency_study.py` | Python、已完成的代理实验归档 | 实际时间预算、后代收益率与乐观成本回收分析 |
+| `tools/sandbox_research_compare.py` | Python、三个真实源码研究归档或 .NET SDK | [冻结父/子/撤销程序对照](development/sandbox-research-comparison.md) |
+| `tools/sandbox_research.py` | Python、Git、.NET 8 SDK | 源码调查、候选编译与语义检查、真实开发/留出世界 |
+
+客户端的炭灰配色、肖像构图与材质说明见 [观察与界面](guides/gameplay-observation.md) 和 [模型系统](development/models.md)。正式图片来自实际 Godot 渲染；当前界面与旧专题记录的范围见 [配图说明](images/README.md)。
 
 HTTP 服务不输出实时 3D 图像；Console 和 HTTP 不执行图形会话的额外荒野日界作用。游戏没有研究任务流程。程序加速、视觉识别与代理改进是不同实验，协议及证据不能混用。
 

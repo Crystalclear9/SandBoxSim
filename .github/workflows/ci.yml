@@ -98,6 +98,25 @@ jobs:
         shell: pwsh
         run: ./tools/build.ps1 -Mode build -Configuration $env:CONFIGURATION -Channel sdk -ParallelBuild
 
+      - name: Real sandbox source research regression
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tools -p test_sandbox_research.py
+          python -m unittest discover -s tools -p test_sandbox_research_compare.py
+          python -m unittest discover -s tools -p test_sandbox_research_series.py
+          python tools/sandbox_research.py run benchmarks/sandbox-research-smoke.json --output runs/real-sandbox-ci
+          python tools/sandbox_research.py verify runs/real-sandbox-ci
+          python tools/sandbox_research_report.py runs/real-sandbox-ci --output runs/real-sandbox-ci/report.html
+
+      - name: Upload real source research evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-source-research-${{ matrix.os }}
+          path: runs/real-sandbox-ci
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Online HTTP and efficiency evidence regression
         shell: pwsh
         run: |

@@ -7,7 +7,7 @@ internal sealed partial class NatureModels
 {
     private Shader? _hairShader;
     private NoiseTexture2D? _skinGrain;
-    private Material SkinSurface(string color)=>new StandardMaterial3D {AlbedoColor=new Color(color),Roughness=.81f,MetallicSpecular=.19f};
+    private Material SkinSurface(string color)=>new StandardMaterial3D {AlbedoColor=new Color(color),Roughness=.64f,MetallicSpecular=.26f};
     private Material FaceSurfaceMaterial(string color)
     {
         string key="face-surface:"+color;if(_residentMaterials.TryGetValue(key,out var cached))return cached;
@@ -15,7 +15,7 @@ internal sealed partial class NatureModels
             Noise=new FastNoiseLite {Seed=937,Frequency=.24f},
             ColorRamp=new Gradient {Colors=new[]{new Color(.96f,.96f,.96f),Colors.White}}};
         var material=new StandardMaterial3D {AlbedoColor=new Color(color),VertexColorUseAsAlbedo=true,
-            Roughness=.81f,MetallicSpecular=.19f,RoughnessTexture=_skinGrain,AlbedoTexture=_skinGrain,Uv1Scale=new(16,16,1)};
+            Roughness=.64f,MetallicSpecular=.26f,RoughnessTexture=_skinGrain,AlbedoTexture=_skinGrain,Uv1Scale=new(12,12,1)};
         _residentMaterials[key]=material;return material;
     }
     private Material HairSurface(string color)
@@ -27,8 +27,9 @@ void fragment(){
 float angle=atan(hair_point.x,hair_point.z);
 float line=angle*57.0+hair_point.y*100.0+sin(angle*2.0)*hair_point.y*75.0;
 float strand=sin(line)/(1.0+fwidth(line)*fwidth(line));
-float lock=sin(angle*12.0+hair_point.y*18.0)*0.024;
-ALBEDO=tone.rgb*(0.96+strand*0.045+lock);ROUGHNESS=0.84;SPECULAR=0.16;
+float lock=sin(angle*12.0+hair_point.y*18.0+sin(angle*3.0)*.6)*0.024;
+float breakup=sin(angle*31.0+hair_point.y*71.0)*sin(hair_point.y*93.0+angle*7.0)*.012;
+ALBEDO=tone.rgb*(0.96+strand*0.032+lock+breakup);ROUGHNESS=0.76;SPECULAR=0.22;
 }"};
         var material=new ShaderMaterial {Shader=_hairShader};material.SetShaderParameter("tone",new Color(color));return material;
     }
@@ -39,8 +40,10 @@ ALBEDO=tone.rgb*(0.96+strand*0.045+lock);ROUGHNESS=0.84;SPECULAR=0.16;
         Vector3 Point(int row,int col)
         {
             float r=row/(float)rings,a=col*MathF.Tau/columns;
-            float helix=.001f+.007f*MathF.Exp(-MathF.Pow((r-.72f)/.24f,2));
-            return new(side*helix,MathF.Cos(a)*r*.023f,MathF.Sin(a)*r*.013f);
+            float helix=.004f+.005f*MathF.Exp(-MathF.Pow((r-.84f)/.13f,2));
+            float antihelix=.003f*MathF.Exp(-MathF.Pow((r-.49f)/.14f,2))*(.6f+.4f*MathF.Sin(a+.4f));
+            float concha=.005f*MathF.Exp(-MathF.Pow(r/.35f,2));
+            return new(side*(helix+antihelix-concha),MathF.Cos(a)*r*.023f,MathF.Sin(a)*r*(.010f+.002f*MathF.Cos(a)));
         }
         void Vertex(int row,int col)
         {

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "world-living-farms",
+  "seed": 839102,
+  "agents": 150,
+  "previewDays": 14,
+  "panel": "farms",
+  "warmupFrames": 60,
+  "measuredFrames": 120,
+  "ticksPerFrame": 0,
+  "minimumFps": 0,
+  "captureFrames": [90],
+  "outputDirectory": "runs/evaluation/world-living-farms"
+}

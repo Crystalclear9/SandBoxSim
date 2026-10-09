@@ -25,6 +25,11 @@
   </PropertyGroup>
 
   <!-- 模拟内核：绝对不允许依赖时钟、环境或平台 API（见 docs/development/saving.md） -->
+  <!-- Godot 自包含导出需要平台运行时包；普通内核构建保持无外部包源。 -->
+  <PropertyGroup Condition="'$(Configuration)' == 'ExportDebug' Or '$(Configuration)' == 'ExportRelease'">
+    <RestoreAdditionalProjectSources>$(RestoreAdditionalProjectSources);https://api.nuget.org/v3/index.json</RestoreAdditionalProjectSources>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'SandBoxSim.Core'">
     <RootNamespace>SandBoxSim.Core</RootNamespace>
     <AssemblyName>SandBoxSim.Core</AssemblyName>

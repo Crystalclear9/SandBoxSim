@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "seed": 839102,
+  "agents": 40,
+  "previewDays": 14,
+  "warmupFrames": 60,
+  "measuredFrames": 180,
+  "ticksPerFrame": 0,
+  "minimumFps": 0,
+  "id": "ui-modern-observation",
+  "panel": "person",
+  "outputDirectory": "runs/evaluation/ui-modern-observation",
+  "captureFrames": [
+    90,
+    150,
+    210
+  ],
+  "commands": [
+    {
+      "frame": 100,
+      "command": "portrait.hands",
+      "value": ""
+    },
+    {
+      "frame": 110,
+      "command": "portrait.drag",
+      "value": "15"
+    },
+    {
+      "frame": 160,
+      "command": "portrait.body",
+      "value": ""
+    },
+    {
+      "frame": 180,
+      "command": "portrait.reset",
+      "value": ""
+    },
+    {
+      "frame": 200,
+      "command": "settings.open",
+      "value": ""
+    },
+    {
+      "frame": 225,
+      "command": "escape",
+      "value": ""
+    }
+  ]
+}

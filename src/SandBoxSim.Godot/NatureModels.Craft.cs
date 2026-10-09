@@ -9,11 +9,13 @@ internal sealed partial class NatureModels
     {
         if (_meshes.TryGetValue(key, out var cached)) return cached;
         if (profiles[0].X > profiles[^1].X) Array.Reverse(profiles);
+        bool animal=key.StartsWith("wolf",StringComparison.Ordinal)||key.StartsWith("deer",StringComparison.Ordinal)||key.StartsWith("animal",StringComparison.Ordinal);
+        int subdivisions=animal?6:key is "tailored-sleeve" or "resident-trouser" or "resident-boot"?8:4;if(animal)sides=Math.Max(sides,40);
         // Smooth profile interpolation avoids a string of visibly separate barrel sections.
-        var dense = new Vector4[(profiles.Length - 1) * 4 + 1];
+        var dense = new Vector4[(profiles.Length - 1) * subdivisions + 1];
         for (int r=0;r<dense.Length;r++)
         {
-            int i=Math.Min(r/4,profiles.Length-2); float t=(r-i*4)/4f;
+            int i=Math.Min(r/subdivisions,profiles.Length-2); float t=(r-i*subdivisions)/(float)subdivisions;
             var a=profiles[Math.Max(0,i-1)]; var b=profiles[i]; var c=profiles[i+1]; var d=profiles[Math.Min(profiles.Length-1,i+2)];
             var v=(b*2+(c-a)*t+(a*2-b*5+c*4-d)*t*t+(-a+b*3-c*3+d)*t*t*t)*.5f;
             v.Z=MathF.Max(.002f,v.Z); v.W=MathF.Max(.002f,v.W); dense[r]=v;
@@ -23,7 +25,15 @@ internal sealed partial class NatureModels
         Vector3 Point(int ring, int side)
         {
             float angle = side * MathF.Tau / sides; var p = profiles[ring];
-            return new Vector3(MathF.Cos(angle) * p.Z, p.Y + MathF.Sin(angle) * p.W, p.X);
+            float crease=0;
+            if(key=="tailored-sleeve")crease=.0025f*MathF.Sin(p.X*125+MathF.Sin(angle)*2)*MathF.Exp(-MathF.Pow((p.X-.23f)*18,2));
+            else if(key=="resident-trouser")crease=.002f*MathF.Sin(p.X*115+MathF.Cos(angle)*3)*MathF.Exp(-MathF.Pow((p.X-.28f)*17,2));
+            else if(key=="resident-boot")crease=.0015f*MathF.Sin(p.X*150+MathF.Cos(angle)*2)*MathF.Exp(-MathF.Pow((p.X-.23f)*20,2));
+            float sole=p.Y+MathF.Sin(angle)*(p.W+crease);
+            if(key is "animal-paw" or "animal-hoof")sole=MathF.Max(.003f,sole);
+            if(key=="animal-paw"&&MathF.Sin(angle)>0&&p.X<-.035f)
+                sole-=.0018f*MathF.Exp(-MathF.Pow((p.X+.074f)*18,2))*MathF.Pow(MathF.Cos(MathF.Cos(angle)*p.Z*95),8);
+            return new Vector3(MathF.Cos(angle) * (p.Z+crease),sole,p.X);
         }
         void Vertex(int ring, int side)
         { tool.SetUV(new Vector2(side / (float)sides, ring / (float)(profiles.Length - 1))); tool.AddVertex(Point(ring, side)); }

@@ -7,12 +7,19 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
+    private int _garmentCut;
+    private float GarmentBottom=>_garmentCut==1?.63f:_garmentCut==2?.535f:.60f;
+    private void SelectGarmentCut(int cut)
+    {
+        if(_garmentCut==cut)return;
+        _garmentCut=cut;_garmentPoints=null;_garmentIndices=null;
+    }
     private readonly Dictionary<string, Material> _residentMaterials = new();
     private Material ResidentMaterial(string color, float roughness = .88f)
     {
         if (!_residentMaterials.TryGetValue(color, out var material))
         {
-            bool fabric = color is "#536d68" or "#b4956a" or "#866756" or "#6e7881" or "#798261" or "#a8937d" or "#75654f" or "#645e53" or "#a59c86";
+            bool fabric = color is "#637471" or "#8c8978" or "#806f65" or "#6a7680" or "#717961" or "#9a9080" or "#75654f" or "#645e53" or "#a59c86" or "#a8937d";
             material = color is "#aa8b78" or "#8e705e" or "#ba9d89" or "#806653" ? SkinSurface(color) : color is "#42352c" or "#695344" ? HairSurface(color) : fabric ? Fabric(color) : new StandardMaterial3D { AlbedoColor = new Color(color), Roughness = roughness, MetallicSpecular = .22f };
             _residentMaterials[color] = material;
         }
@@ -26,11 +33,12 @@ internal sealed partial class NatureModels
     }
     private Mesh Garment()
     {
-        if (_meshes.TryGetValue("tunic", out var existing)) { return existing; }
+        string key="tunic:"+_garmentCut;
+        if (_meshes.TryGetValue(key, out var existing)) { return existing; }
         const int sides = 64, rings=40;
-        float[] height = { .60f, .65f, .73f, .82f, .97f, 1.10f, 1.19f, 1.24f, 1.28f };
-        float[] width = { .20f, .208f, .174f, .172f, .188f, .210f, .220f, .174f, .060f };
-        float[] depth = { .145f, .15f, .125f, .125f, .145f, .155f, .13f, .10f, .07f };
+        float[] height = { GarmentBottom, GarmentBottom+.035f, .73f, .82f, .97f, 1.10f, 1.19f, 1.24f, 1.28f };
+        float[] width = { _garmentCut==1?.185f:.20f, _garmentCut==1?.190f:.208f, .174f, .172f, .180f, .196f, .204f, .166f, .060f };
+        float[] depth = { _garmentCut==2?.165f:.145f, _garmentCut==2?.165f:.15f, .125f, .125f, .140f, .145f, .125f, .10f, .07f };
         var surface = new SurfaceTool(); surface.Begin(Mesh.PrimitiveType.Triangles); surface.SetSmoothGroup(0);
         Vector3 Point(int ring, int side)
         {
@@ -46,15 +54,38 @@ internal sealed partial class NatureModels
             }
             float angle = side * MathF.Tau / sides;
             float belt=1-MathF.Exp(-MathF.Pow((y-.765f)*22,2));
-            float fold=1+.020f*MathF.Cos(angle*12+(y-.6f)*5)*belt;
-            return new Vector3(MathF.Cos(angle)*Profile(width)*fold,y,MathF.Sin(angle)*Profile(depth)*fold);
+            float hem=Math.Clamp((.80f-y)/(.80f-GarmentBottom),0,1);
+            float front=MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),4);
+            float tension=MathF.Exp(-MathF.Pow((y-.82f)/.08f,2));
+            float fold=1+(.012f+.035f*hem)*MathF.Cos(angle*11+(y-.6f)*7)*belt;
+            // Cloth gathers below the belt; diagonal compression folds radiate from it.
+            fold+=front*tension*.018f*MathF.Sin((y-.76f)*92+MathF.Abs(MathF.Cos(angle))*11);
+            fold+=MathF.Exp(-MathF.Pow((y-1.10f)/.12f,2))*.012f*MathF.Sin(angle*7+y*29);
+            float vent=_garmentCut==2?hem*(.075f*MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),16)+.040f*MathF.Pow(MathF.Max(0,MathF.Sin(angle)),16)):0;
+            return new Vector3(MathF.Cos(angle)*Profile(width)*fold,y+vent,MathF.Sin(angle)*Profile(depth)*fold);
         }
         for (int ring = 0; ring < rings; ring++) for (int side = 0; side < sides; side++)
         {
             Vector3 a = Point(ring, side), b = Point(ring, side + 1), c = Point(ring + 1, side), d = Point(ring + 1, side + 1);
-            foreach (Vector3 vertex in new[] { a, b, c, b, d, c }) { surface.AddVertex(vertex); }
+            foreach (Vector3 vertex in new[] { a, b, c, b, d, c })
+            {
+                surface.SetUV(new(MathF.Atan2(vertex.Z,vertex.X)/MathF.Tau+.5f,(vertex.Y-GarmentBottom)/(1.28f-GarmentBottom)));
+                surface.AddVertex(vertex);
+            }
         }
-        surface.GenerateNormals(); surface.Index(); var mesh = surface.Commit(); _meshes["tunic"] = mesh; return mesh;
+        // Turn the fabric under at the hem. This is an open garment with a sewn
+        // inner facing, not a solid cap spanning through the wearer's legs.
+        surface.SetSmoothGroup(1);
+        for(int side=0;side<sides;side++)
+        {
+            var a=Point(0,side);var b=Point(0,side+1);
+            var c=new Vector3(a.X*.984f,a.Y+.003f,a.Z*.984f);var d=new Vector3(b.X*.984f,b.Y+.003f,b.Z*.984f);
+            EquipmentTriangle(surface,a,b,c,Vector3.Down);EquipmentTriangle(surface,b,d,c,Vector3.Down);
+            var e=c+Vector3.Up*.010f;var f=d+Vector3.Up*.010f;
+            var inward=-new Vector3(c.X,0,c.Z).Normalized();
+            EquipmentTriangle(surface,c,d,e,inward);EquipmentTriangle(surface,d,f,e,inward);
+        }
+        surface.GenerateNormals(); surface.Index(); var mesh = surface.Commit(); _meshes[key] = mesh; return mesh;
     }
     private void MergeResidentParts(Node3D parent, string key)
     {
@@ -78,16 +109,18 @@ internal sealed partial class NatureModels
             {
                 AppendMergedSurface(mesh,group.Key,group.Value);
             }
-            combined = mesh; _meshes[key] = mesh;
+            combined = key.StartsWith("resident:") || key.StartsWith("crafted-wolf") || key.StartsWith("crafted-deer") ? WithScreenLods(mesh) : mesh; _meshes[key] = combined;
         }
         foreach (var part in parts) { part.Free(); }
-        parent.AddChild(new MeshInstance3D { Mesh = combined });
+        var instance=new MeshInstance3D {Mesh=combined};parent.AddChild(instance);
+        if(key.StartsWith("resident:"))instance.SetMeta("DistantMesh",DistantColors(combined));
     }
     public ResidentRig Resident(int identity, bool child, JobType job)
     {
         uint variation = unchecked((uint)identity * 2654435761u);
+        SelectGarmentCut(child?0:job==JobType.Trader?2:job is JobType.Gatherer or JobType.Hunter or JobType.Soldier?1:0);
         _faceVariant=(int)((variation>>8)%8);_facePoints=null;_faceIndices=null;
-        string[] clothColors = { "#536d68", "#b4956a", "#866756", "#6e7881", "#798261", "#a8937d" };
+        string[] clothColors = { "#637471", "#8c8978", "#806f65", "#6a7680", "#717961", "#9a9080" };
         string[] skinColors = { "#aa8b78", "#8e705e", "#ba9d89", "#806653" };
         string cloth = clothColors[variation % clothColors.Length], skin = skinColors[(variation >> 4) % skinColors.Length];
         string hair = (variation & 1) == 0 ? "#42352c" : "#695344";
@@ -95,35 +128,41 @@ internal sealed partial class NatureModels
         rig.Torso = new Node3D { Name = "Torso" }; rig.AddChild(rig.Torso);
         rig.Torso.AddChild(new MeshInstance3D { Mesh = Garment(), MaterialOverride = ResidentMaterial(cloth) });
         // Collar, placket and the hem distinguish tailored cloth from the body's silhouette.
-        foreach (float side in new[] { -1f, 1f })
-        {
+        Sculpt(rig.Torso,TurnedNeckline(),Vector3.Zero,CollarMaterial(cloth));
+        if(_garmentCut==2)foreach(float side in new[]{-1f,1f})
             Sculpt(rig.Torso,CollarLeaf(side),Vector3.Zero,CollarMaterial(cloth));
-            Detail(rig.Torso, "box", new Vector3(side * .145f, .67f, -.11f), new Vector3(.012f, .13f, .012f), cloth, new Vector3(0, 0, side * -.10f));
-        }
-        Detail(rig.Torso, "box", new Vector3(0, 1.11f, -.145f), new Vector3(.016f, .18f, .012f), "#b9b099");
+        Sculpt(rig.Torso,FittedRibbon("placket",1.03f,1.205f),Vector3.Zero,CollarMaterial(cloth));
         for (int button = 0; button < 3; button++)
-        { Detail(rig.Torso, "sphere", new Vector3(.012f, 1.17f - button * .055f, -.154f), Vector3.One * .015f, "#514237"); }
+        { Detail(rig.Torso, "sphere", TorsoSurface(.006f,1.17f-button*.055f,false,.006f), Vector3.One * .011f, "#514237"); }
         Sculpt(rig.Torso, FittedRibbon("belt", .748f, .775f), Vector3.Zero, ResidentMaterial("#514237"));
-        Detail(rig.Torso, "box", TorsoSurface(.015f, .76f, false, .009f), new Vector3(.055f, .045f, .013f), "#b8a17b");
+        var buckle=TorsoSurface(.015f,.7615f,false,.009f);
+        var buckleCorners=new[]{buckle+new Vector3(-.0205f,-.0155f,0),buckle+new Vector3(.0205f,-.0155f,0),buckle+new Vector3(.0205f,.0155f,0),buckle+new Vector3(-.0205f,.0155f,0)};
+        for(int edge=0;edge<4;edge++)FineBeam(rig.Torso,buckleCorners[edge],buckleCorners[(edge+1)%4],.004f,"#b8a17b");
+        FineBeam(rig.Torso,buckle+new Vector3(-.006f,0,-.002f),buckle+new Vector3(.0205f,0,-.002f),.003f,"#b8a17b");
         Detail(rig.Torso, "capsule", new Vector3(.23f, .7f, .075f), new Vector3(.075f, .065f, .055f), "#725b40");
-        Sculpt(rig.Torso,Loft("resident-neck",new[]{new Vector4(0,0,.061f,.048f),new(.035f,-.006f,.045f,.041f),new(.080f,-.012f,.049f,.043f)}),new(0,1.265f,.016f),ResidentMaterial(skin),new(-MathF.PI/2,0,0));
-        rig.Head = new Node3D { Name = "Head", Position = new Vector3(0, 1.412f, 0) }; rig.Torso.AddChild(rig.Head);
+        Sculpt(rig.Torso,Loft("resident-neck",new[]{new Vector4(0,0,.039f,.039f),new(.035f,-.006f,.038f,.037f),new(.080f,-.012f,.039f,.038f)}),new(0,1.265f,-.004f),ResidentMaterial(skin),new(-MathF.PI/2,0,0));
+        rig.Head = new Node3D { Name = "Head", Position = new Vector3(0, 1.382f, 0) }; rig.Torso.AddChild(rig.Head);
         Detail(rig.Head, "face", Vector3.Zero, new Vector3(.177f, .220f, .195f), skin).MaterialOverride=FaceSurfaceMaterial(skin);
-        Detail(rig.Head, "hair", new Vector3(0, .008f, .006f), new Vector3(.181f, .224f, .200f), hair);
-        foreach (float side in new[] { -1f, 1f })
-        {
-            Sculpt(rig.Head,EarSurface((int)side),new(side*.084f,-.003f,.001f),FaceSurfaceMaterial(skin));
-            Detail(rig.Head,"seed",new(side*.034f,.027f,FaceDepth(side*.034f,.027f)-.0015f),new(.031f,.0025f,.0025f),hair,new(0,0,side*.08f));
-        }
+        Detail(rig.Head, "hair", new Vector3(0, .008f, 0), new Vector3(.181f, .224f, .200f), hair);
+        rig.Head.AddChild(new MeshInstance3D {Name="Brows",Mesh=Brows(),MaterialOverride=ResidentMaterial(hair)});
+
+        // The short cut exposes the trouser waist. A continuous pelvis connects
+        // the two articulated legs instead of leaving a gap beneath the tunic.
+        Sculpt(rig,Loft("trouser-pelvis",new[]{new Vector4(.565f,0,.020f,.020f),new(.61f,0,.132f,.072f),
+            new(.66f,0,.159f,.082f),new(.70f,0,.166f,.088f),new(.73f,0,.150f,.090f)}),Vector3.Zero,
+            ResidentMaterial("#645e53"),new(-MathF.PI/2,0,0));
+        FineBeam(rig,new(0,.648f,-.082f),new(0,.699f,-.090f),.0025f,"#645e53");
 
         for (int i = 0; i < 2; i++)
         {
             float side = i == 0 ? -1 : 1;
-            var arm = rig.Arms[i] = new Node3D { Name = i == 0 ? "LeftArm" : "RightArm", Position = new Vector3(side * .218f, 1.18f, 0) }; rig.Torso.AddChild(arm);
-            Sculpt(arm,Loft("tailored-sleeve",new[]{new Vector4(0,0,.053f,.048f),new(.06f,0,.059f,.054f),new(.17f,0,.057f,.053f),new(.27f,0,.047f,.044f),new(.29f,0,.043f,.042f)}),Vector3.Zero,ResidentMaterial(cloth),new(MathF.PI/2,0,0));
+            var arm = rig.Arms[i] = new Node3D { Name = i == 0 ? "LeftArm" : "RightArm", Position = new Vector3(side * .202f, 1.18f, 0) }; rig.Torso.AddChild(arm);
+            // Bury the sleeve end inside the deforming shoulder instead of placing
+            // a flat cap at the shoulder pivot, where it creates a visible ledge.
+            Sculpt(arm,Loft("tailored-sleeve",new[]{new Vector4(.040f,0,.045f,.040f),new(.085f,0,.056f,.051f),new(.17f,0,.053f,.049f),new(.24f,0,.047f,.044f),new(.263f,0,.043f,.042f)}),Vector3.Zero,ResidentMaterial(cloth),new(MathF.PI/2,0,0));
             var elbow = rig.Elbows[i] = new Node3D { Name = "Elbow", Position = new Vector3(0, -.28f, 0) }; arm.AddChild(elbow);
-            Detail(elbow,"sphere",Vector3.Zero,new(.078f,.073f,.074f),skin);
-            Sculpt(elbow,Loft("resident-forearm",new[]{new Vector4(-.015f,0,.039f,.037f),new(.06f,0,.042f,.040f),new(.14f,0,.034f,.033f),new(.24f,0,.029f,.028f)}),Vector3.Zero,ResidentMaterial(skin),new(MathF.PI/2,0,0));
+            Detail(elbow,"sphere",Vector3.Zero,new(.070f,.067f,.067f),skin);
+            Sculpt(elbow,Loft("resident-forearm",new[]{new Vector4(-.015f,0,.036f,.034f),new(.045f,-.003f,.039f,.035f),new(.10f,-.004f,.036f,.031f),new(.17f,-.003f,.029f,.026f),new(.24f,0,.028f,.026f)}),Vector3.Zero,ResidentMaterial(skin),new(MathF.PI/2,0,0));
             var hand = rig.Hands[i] = new Node3D { Name = "Hand", Position = new(0,-.255f,-.01f) }; elbow.AddChild(hand);
             rig.HandSkins[i]=Sculpt(hand,HandPalm((int)side),Vector3.Zero,ResidentMaterial(skin));
             for(int digit=0;digit<4;digit++)
@@ -138,22 +177,26 @@ internal sealed partial class NatureModels
             var thumbTip=rig.ThumbTips[i]=new Node3D {Name="ThumbTip",Position=new(0,-.018f,0)};thumb.AddChild(thumbTip);
             rig.HandOpen[i]=FingerProxy(skin,false);rig.HandClosed[i]=FingerProxy(skin,true);
             rig.HandProxies[i]=new MeshInstance3D {Name="DistantFingers",Mesh=rig.HandOpen[i],Visible=false};hand.AddChild(rig.HandProxies[i]);
-            Detail(arm,"cylinder",new(0,-.252f,0),new(.102f,.025f,.098f),"#b9b099");
-            foreach(float seam in new[]{-1f,1f})
-                FineBeam(arm,new(seam*.052f,-.05f,-.025f),new(seam*.048f,-.23f,-.025f),.006f,"#b9b099");
+            Sculpt(arm,RolledCuff(),Vector3.Zero,CollarMaterial(cloth));
             var leg = rig.Legs[i] = new Node3D { Name = i == 0 ? "LeftLeg" : "RightLeg", Position = new Vector3(side * .10f, .67f, 0) }; rig.AddChild(leg);
             Sculpt(leg,Loft("resident-trouser",new[]{new Vector4(-.01f,0,.065f,.058f),new(.08f,0,.077f,.073f),new(.20f,0,.070f,.060f),new(.33f,0,.051f,.05f)}),Vector3.Zero,ResidentMaterial("#645e53"),new(MathF.PI/2,0,0));
             var knee = rig.Knees[i] = new Node3D { Name = "Knee", Position = new Vector3(0, -.31f, 0) }; leg.AddChild(knee);
-            Sculpt(knee,Loft("resident-boot",new[]{new Vector4(0,0,.055f,.052f),new(.07f,0,.060f,.058f),new(.19f,0,.05f,.048f),new(.28f,-.012f,.052f,.051f)}),Vector3.Zero,ResidentMaterial("#514237"),new(MathF.PI/2,0,0));
-            Detail(knee,"cylinder",new(0,-.04f,0),new(.122f,.019f,.118f),"#a48d6d");
+            Sculpt(knee,Loft("resident-boot",new[]{new Vector4(0,0,.055f,.052f),new(.07f,0,.060f,.058f),new(.19f,0,.05f,.048f),new(.28f,-.012f,.052f,.051f)}),Vector3.Zero,LeatherSurface("#514237"),new(MathF.PI/2,0,0));
+            Sculpt(knee,TurnedBootRim(),Vector3.Zero,LeatherSurface("#514237"));
             var foot=rig.Feet[i]=new Node3D {Name="Foot",Position=new(0,-.295f,-.04f)};knee.AddChild(foot);
-            Detail(foot,"sphere",Vector3.Zero,new(.14f,.085f,.24f),"#423a32");
-            Detail(foot,"sphere",new(0,-.031f,-.004f),new(.145f,.025f,.235f),"#302e28");
-            for(int lace=0;lace<3;lace++)FineBeam(foot,new(-.032f,.035f,-lace*.023f),new(.032f,.035f,-.014f-lace*.023f),.005f,"#a48d6d");
+            Sculpt(foot,BootLast(false),Vector3.Zero,LeatherSurface("#423a32"));
+            Sculpt(foot,BootLast(true),Vector3.Zero,LeatherSurface("#302e28"));
+            for(int lace=0;lace<4;lace++)
+            {
+                float z=.006f-lace*.021f,y=.048f-lace*.005f;
+                FineBeam(foot,new(-.025f,y,z),new(.025f,y-.004f,z-.018f),.003f,"#a48d6d");
+                FineBeam(foot,new(.025f,y,z),new(-.025f,y-.004f,z-.018f),.003f,"#a48d6d");
+            }
         }
         AddResidentEquipment(rig, job);
         AddResidentTailoring(rig, cloth, skin, job);
-        MergeResidentParts(rig, "resident:" + cloth + skin + hair + job);
+        MergeResidentParts(rig.Head,"resident:head:"+skin+hair+job+":"+_faceVariant);
+        MergeResidentParts(rig, "resident:" + cloth + skin + hair + job+":"+_garmentCut);
         rig.BodySkin=rig.Torso.GetChild<MeshInstance3D>(rig.Torso.GetChildCount()-1);
         AddShoulderBridges(rig,cloth,skin);
         rig.HeadSkin=rig.Head.GetChild<MeshInstance3D>(rig.Head.GetChildCount()-1);
@@ -163,14 +206,14 @@ internal sealed partial class NatureModels
         rig.Head.Scale=new Vector3(.96f+((variation>>15)%4)*.025f,.98f+((variation>>18)%3)*.025f,1);
         if (child) { rig.Scale = new Vector3(.72f, .65f, .72f); rig.Head.Scale = Vector3.One * 1.15f; }
         else { rig.Scale = new Vector3(1 + ((variation >> 8) % 5 - 2f) * .025f, 1.055f + ((variation >> 12) % 5) * .015f, 1); }
-        return rig;
+        rig.RegisterDistanceMeshes(rig);return rig;
     }
     public void ValidateResidentMeshes()
     {
-        foreach (var key in new[]{"belt","apron","armor","shoulder-front","shoulder-back"})
+        foreach (var key in new[]{"belt","apron","armor","placket","shoulder-front","shoulder-back"})
         {
             bool back=key=="shoulder-back";
-            var mesh=FittedRibbon(key,key=="belt"?.748f:key=="armor"?.91f:key=="apron"?.79f:.81f,key=="belt"?.775f:key=="armor"||key=="apron"?1.17f:1.20f,back);
+            var mesh=FittedRibbon(key,key=="belt"?.748f:key=="armor"?.91f:key=="apron"?.79f:key=="placket"?1.03f:.81f,key=="belt"?.775f:key=="armor"||key=="apron"?1.17f:key=="placket"?1.205f:1.20f,back);
             var arrays=mesh.SurfaceGetArrays(0);var vertices=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
             var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
             for(int i=0;i<vertices.Length;i++)
@@ -184,6 +227,7 @@ internal sealed partial class NatureModels
         foreach (JobType job in Enum.GetValues<JobType>()) foreach (bool child in new[] { false, true })
         {
             var resident = Resident(42, child, job);
+            resident.ValidateDistanceMeshes();
             var body = resident.BodySkin.Mesh;
             // Losing the non-indexed garment leaves only collar/fold strips in the cloth surface.
             if (body.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array().Length < 50)

@@ -69,6 +69,15 @@ internal sealed partial class NatureModels
                 Part(model,"cylinder",new(doorX-doorWidth*.44f,hingeY,z+.057f),new(.026f,.085f,.026f),11);
                 foreach(float boltX in new[]{-.25f,.25f})Part(model,"sphere",new(doorX+doorWidth*boltX,hingeY,z+.053f),new(.012f,.012f,.008f),11);
             }
+            if(_fineArchitecture)
+            {
+                // Recessed frame joints, a stone threshold and iron stud ends remain in the static batch.
+                foreach(float side in new[]{-1f,1f})
+                    Part(model,"box",new(doorX+side*(doorWidth/2+.035f),centerY+doorHeight/2-.025f,z+.052f),new(.037f,.026f,.013f),1);
+                Part(model,"box",new(doorX,centerY-doorHeight/2+.016f,z+.025f),new(doorWidth+.11f,.045f,.18f),6);
+                for(int stud=0;stud<4;stud++)
+                    Part(model,"sphere",new(doorX-doorWidth*.31f+stud*doorWidth*.20f,centerY-doorHeight*.39f,z+.043f),new(.009f,.009f,.006f),11);
+            }
             Timber(model,new(doorX-doorWidth*.38f,centerY-doorHeight*.36f,z+.031f),new(doorX+doorWidth*.38f,centerY+doorHeight*.36f,z+.031f),.033f);
 
             // Foundation masonry has visible joints; side framing supplies depth from every orbit angle.
@@ -76,7 +85,7 @@ internal sealed partial class NatureModels
             {
                 float x=-width/2+(i+.5f)*width/6;
                 foreach(float side in new[]{-1f,1f})
-                    Part(model,"box",new(x,.045f+row*.095f,side*(depth/2+.015f)),new(width/6-.014f,.084f,.075f),6);
+                    Part(model,_fineArchitecture?"masonry":"box",new(x,.045f+row*.095f,side*(depth/2+.015f)),new(width/6-.014f,.084f,.075f),6);
             }
             foreach(float side in new[]{-1f,1f})
             {
@@ -99,10 +108,10 @@ internal sealed partial class NatureModels
                     if(right-left<.02f || far-near<.02f)continue;
                     float x=(left+right)/2;
                     foreach(float side in new[]{-1f,1f})
-                        Part(model,"box",new(x,.18f+(row+.5f)*height/11,side*(depth/2+.026f)),new(right-left-.012f,height/11-.012f,.07f),6);
+                        Part(model,_fineArchitecture?"masonry":"box",new(x,.18f+(row+.5f)*height/11,side*(depth/2+.026f)),new(right-left-.012f,height/11-.012f,.07f),6);
                     float stoneZ=(near+far)/2;
                     foreach(float side in new[]{-1f,1f})
-                        Part(model,"box",new(side*(width/2+.026f),.18f+(row+.5f)*height/11,stoneZ),new(.07f,height/11-.012f,far-near-.012f),6);
+                        Part(model,_fineArchitecture?"masonry":"box",new(side*(width/2+.026f),.18f+(row+.5f)*height/11,stoneZ),new(.07f,height/11-.012f,far-near-.012f),6);
                 }
                 // Recessed entrance canopy and carved corbels vary the cottage facade.
                 if(kind==BuildingKind.House && (variant==1 || variant==2 || variant==3))
@@ -129,7 +138,30 @@ internal sealed partial class NatureModels
             if(variant==4 && kind==BuildingKind.House) LeanToDetail(model,width,depth,height);
             // Stacked firewood, a braced barrel and rain-darkened chimney cap.
             for(int i=0;i<5;i++) Part(model,"cylinder",new(width/2+.12f,.16f+(i/3)*.12f,-depth/2+.28f+(i%3)*.11f),new(.09f,.40f,.09f),0,new(0,0,Godot.Mathf.Pi/2));
-            foreach(float y in new[]{.10f,.30f}) Part(model,"cylinder",new(width/2-.13f,y,-depth/2-.07f),new(.266f,.024f,.266f),11);
+            var barrelPosition=new Vector3(width/2+.14f,0,-depth/2+.20f);
+            if(_fineArchitecture)StavedBarrel(model,barrelPosition);
+            else
+            {
+                Part(model,"cylinder",barrelPosition+Vector3.Up*.20f,new(.27f,.40f,.27f),0);
+                foreach(float y in new[]{.07f,.33f})Part(model,"cylinder",barrelPosition+Vector3.Up*y,new(.28f,.024f,.28f),11);
+            }
+            if(_fineArchitecture&&kind==BuildingKind.House&&variant is 1 or 2 or 3)
+            {
+                float windowX=width*.30f;
+                Part(model,"box",new(windowX,.94f,z+.19f),new(.56f,.095f,.21f),0);
+                Part(model,"box",new(windowX,.99f,z+.19f),new(.48f,.025f,.14f),10);
+                foreach(float side in new[]{-1f,1f})
+                {
+                    Timber(model,new(windowX+side*.19f,.81f,z+.015f),new(windowX+side*.19f,.93f,z+.23f),.026f);
+                    Part(model,"box",new(windowX+side*.25f,1.01f,z+.19f),new(.035f,.10f,.21f),1);
+                }
+                for(int sprig=0;sprig<5;sprig++)
+                {
+                    float x=windowX-.19f+sprig*.095f;
+                    Part(model,"sphere",new(x,1.025f+(sprig%2)*.02f,z+.20f),new(.11f,.075f,.105f),4);
+                    if((identity+sprig)%3==0)Part(model,"sphere",new(x,1.075f,z+.21f),new(.025f,.025f,.025f),8);
+                }
+            }
             if((variant==1 || variant==3) && kind==BuildingKind.House)
             {
                 for(int i=0;i<5;i++) Part(model,"box",new(-.5f,height+.2f+i*.12f,-.4f),new(.29f,.025f,.31f),7);
@@ -143,12 +175,6 @@ internal sealed partial class NatureModels
             {
                 for(int i=0;i<5;i++) Part(model,"box",new(side*1.05f,.28f,-1+i*.5f),new(.045f,.52f,.045f),0);
                 Part(model,"box",new(side*1.05f,.45f,0),new(.045f,.045f,2.15f),0);
-            }
-            for(int row=0;row<4;row++) for(int col=0;col<5;col++)
-            {
-                var root=new Vector3(-.8f+row*.5f,.30f,-.8f+col*.4f);
-                foreach(float side in new[]{-1f,1f})
-                    Part(model,"sphere",root+new Vector3(side*.065f,-.06f,0),new(.18f,.018f,.05f),4,new(0,0,side*.5f));
             }
         }
         else if(kind==BuildingKind.Mine)

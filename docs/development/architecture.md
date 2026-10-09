@@ -32,7 +32,7 @@ Core 中 `Foundation` 提供配置、数学、随机数和基础数据；`World`
 |---|---|
 | `MainGame.cs` / `MainGame.Play.cs` | 会话创建、时间推进、存档、干预与自由探索 |
 | `MainGame.Interface.cs` | 主界面、布局和人物信息 |
-| `HudStyle.cs` / `HudBevel.cs` | 材质、配色、描边和交互样式 |
+| `HudStyle.cs` / `HudBevel.cs` / `HudButtonDetail.cs` | 炭灰配色、字体、面板边线与状态过渡；不读取材质图集作为 UI 背景 |
 | `ResidentRig.cs` / `ResidentRig.HandPose.cs` | 真实动作的表现状态、工具收纳、肘腕求解与连续手部蒙皮驱动 |
 | `ResidentPortrait.cs` | 独立 3D 肖像与旋转、缩放输入 |
 | `BuildingPortrait.cs`、`HudSymbols.cs` | 独立建筑展示、悬停转向与概览/操作符号；静止预览缓存 |
@@ -57,6 +57,8 @@ Core 中 `Foundation` 提供配置、数学、随机数和基础数据；`World`
 `Tile.FootTraffic` 是持久化内核状态：实际移动与作业通过世界入口记录接触，小时恢复，资源与植被系统读取压实。存档 v4 和状态摘要包含该值。`WorldView3D` 的共享顶点、河岸曲线、材质贴图与草丛是只读表现，显示细分不会增加模拟格子。
 
 `evaluate.py` 管理 Godot 渲染产物；`efficiency.py` 比较真实 HTTP 程序成本；`rsi_benchmark.py` 管理代理自修改、后代与撤销对照。`rsi_code.py` 和 `rsi_code_worker.py` 执行实际 Python 候选。它们在 Console/Core 之外组织实验，不改变正常游戏的操作流程，也不提供对不可信候选的安全隔离。
+
+`sandbox_research.py` 管理独立源码快照、开发世界剖析、候选编译与语义检查，再调用真实服务配对；`sandbox_research_report.py` 展示假设、源码差异与世界观察。`rsi_efficiency_study.py` 对完成的代理归档做成本分析。实验目录保存候选和构建产物，主工程不会自动采用它们；[源码研究协议](sandbox-research.md) 与 [代理自修改协议](rsi-improver.md) 各自维护版本和证据。
 
 ## 状态与观察边界
 

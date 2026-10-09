@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "visual-model-details",
+  "seed": 839102,
+  "agents": 40,
+  "previewDays": 0,
+  "panel": "model-details",
+  "warmupFrames": 60,
+  "measuredFrames": 120,
+  "ticksPerFrame": 0,
+  "minimumFps": 0,
+  "captureFrames": [90]
+}

@@ -1,0 +1,18 @@
+Realistic Human Base mesh derivative
+
+Creator/provider: Julien Kaspar / Blender Studio
+Source: https://studio.blender.org/training/realistic-human-research/use-of-base-meshes/
+Original download: https://studio.blender.org/download-source/files/eb/ebd2128a8f2d5c7e625f6ed6ffb32ebf/ebd2128a8f2d5c7e625f6ed6ffb32ebf.blend
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+License terms: https://creativecommons.org/licenses/by/4.0/
+Original source SHA-256: 1d9d2a6070acd6a3d0d9b676af816001310fb0f6128d07a3ab3e0318c7fdd981
+
+SandBoxSim modifications: evaluated one multiresolution subdivision, extracted
+head/neck, lip and eye geometry, cropped and retargeted the neck, converted axes
+and scale, split lip movement, generated scalp lookup samples, added vertex
+tint regions, and exported compact mesh data. Runtime variants reshape width
+and depth and reuse the game's own rig, blink, gaze and lip movement.
+
+human-head.mesh.json is a derivative of this CC BY 4.0 asset. The project's
+general software license does not replace this asset's license. Retain this
+attribution and indicate further modifications when redistributing it.

@@ -59,6 +59,18 @@ class EvaluationTests(unittest.TestCase):
         with self.assertRaises(ValueError): evaluate.validate_artifacts(self.folder)
     def test_explicit_missing_engine_does_not_fall_back(self):
         with self.assertRaises(ValueError): evaluate.engine_path(str(self.folder / "does-not-exist"))
+    def test_build_identity_rejects_stale_source_and_replaced_binary(self):
+        root=self.folder/'project';source=root/'src/SandBoxSim.Godot/game.cs';source.parent.mkdir(parents=True)
+        source.write_text('source',encoding='utf-8');assembly=root/'binary/SandBoxSim.Godot.dll';assembly.parent.mkdir()
+        assembly.write_bytes(b'game');assembly.with_name('SandBoxSim.Core.dll').write_bytes(b'core')
+        with self.assertRaises(ValueError):evaluate.validate_build(root,assembly)
+        stamp={'schemaVersion':1,'configuration':'Debug','sourceFiles':evaluate.compiled_source_hashes(root),
+               'assemblySha256':evaluate.digest(assembly),'coreSha256':evaluate.digest(assembly.with_name('SandBoxSim.Core.dll'))}
+        evaluate.write(assembly.with_name('build-source.json'),stamp);evaluate.validate_build(root,assembly)
+        source.write_text('changed',encoding='utf-8')
+        with self.assertRaises(ValueError):evaluate.validate_build(root,assembly)
+        source.write_text('source',encoding='utf-8');assembly.write_bytes(b'replaced')
+        with self.assertRaises(ValueError):evaluate.validate_build(root,assembly)
     def test_private_engine_layouts_for_all_platforms(self):
         files = {"win32": self.folder / "win/Godot_console.exe", "darwin": self.folder / "mac/Godot.app/Contents/MacOS/Godot", "linux": self.folder / "linux/Godot_v4.7.2-stable_mono_linux.x86_64"}
         for path in files.values(): path.parent.mkdir(parents=True); path.write_bytes(b"fixture"); path.chmod(0o700)

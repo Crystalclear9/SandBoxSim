@@ -10,13 +10,24 @@ internal sealed partial class NatureModels
         foreach (WildPlaceKind kind in System.Enum.GetValues<WildPlaceKind>())
         {
             var node = WildPlace(kind, 0, true);
-            var mesh = node.GetChild<MeshInstance3D>(0).Mesh;
-            for (int surface = 0; surface < mesh.GetSurfaceCount(); surface++)
+            int meshCount=0;
+            void Inspect(Node current)
             {
-                var arrays = mesh.SurfaceGetArrays(surface);
-                if (arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array().Length != arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array().Length)
-                    throw new System.InvalidOperationException("Merged wild place lost texture coordinates: " + kind);
+                if(current is MeshInstance3D instance)
+                {
+                    meshCount++;
+                    for(int surface=0;surface<instance.Mesh.GetSurfaceCount();surface++)
+                    {
+                        var data=instance.Mesh.SurfaceGetArrays(surface);var points=data[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                        var uv=data[(int)Mesh.ArrayType.TexUV].AsVector2Array();var normals=data[(int)Mesh.ArrayType.Normal].AsVector3Array();
+                        if(points.Length!=uv.Length||points.Length!=normals.Length)throw new System.InvalidOperationException("Wild place lost surface attributes: "+kind);
+                        foreach(var point in points)if(!point.IsFinite())throw new System.InvalidOperationException("Wild place has invalid geometry");
+                        foreach(var normal in normals)if(!normal.IsFinite())throw new System.InvalidOperationException("Wild place has invalid normals");
+                    }
+                }
+                foreach(Node child in current.GetChildren())Inspect(child);
             }
+            Inspect(node);if(meshCount==0)throw new System.InvalidOperationException("Wild place has no rendered geometry");
             node.Free();
         }
     }
@@ -39,12 +50,10 @@ internal sealed partial class NatureModels
                 }
                 break;
             case WildPlaceKind.OldGrove:
-                Part(node,"trunk",new Vector3(0,3.4f,0),new Vector3(1.1f,6.8f,1.1f),0);
+                var oldTree=Tree(false);oldTree.Scale=new(1.55f,1.55f,1.55f);node.AddChild(oldTree);
                 for(int i=0;i<7;i++)
                 {
                     float a=i*Mathf.Tau/7;
-                    Part(node,"cylinder",new Vector3(Mathf.Cos(a)*1.1f,4.8f,Mathf.Sin(a)*1.1f),new Vector3(.3f,3.4f,.3f),0,new Vector3(Mathf.Sin(a)*.8f,0,-Mathf.Cos(a)*.8f));
-                    Part(node,"foliage",new Vector3(Mathf.Cos(a)*2.3f,6.4f+(i%2),Mathf.Sin(a)*2.3f),new Vector3(4.2f,2.8f,3.8f),phase==2?15:4);
                     Part(node,"cylinder",new Vector3(Mathf.Cos(a)*.7f,.16f,Mathf.Sin(a)*.7f),new Vector3(.25f,2,.25f),0,new Vector3(Mathf.Sin(a)*1.4f,0,-Mathf.Cos(a)*1.4f));
                 }
                 break;
