@@ -1,6 +1,6 @@
-# 项目文档
+# SandBoxSim 项目文档
 
-文档描述河山当前的游戏、在线控制和研究工具。所有命令默认从仓库根目录运行：PowerShell 入口使用 PowerShell 7，Python 工具使用 Python 3.10+。历史设计单独保存在 [归档](archive/README.md)。
+文档描述 SandBoxSim 当前的游戏、在线控制和研究工具。所有命令默认从仓库根目录运行：PowerShell 入口使用 PowerShell 7，Python 工具使用 Python 3.10+。历史设计单独保存在 [归档](archive/README.md)。
 
 ## 按用途阅读
 
@@ -10,7 +10,7 @@
 | 自由探索 | [荒野探索](guides/exploration.md) → [世界系统](guides/world-systems.md) → [地形与活动痕迹](guides/terrain-and-traces.md) |
 | 理解居民与生态 | [聚落与居民](guides/settlements.md)、[天气与生态](guides/ecology.md) |
 | 开发模拟和客户端 | [开发指南](development/developer-guide.md) → [项目架构](development/architecture.md) → [扩展指南](development/extending.md) |
-| 修改模型和材质 | [模型系统](development/models.md)、[人物素材转换](development/human-assets.md)、[美术资源](development/assets.md)、[正式配图](images/README.md) |
+| 修改模型和材质 | [模型系统](development/models.md)、[人物素材转换](development/human-assets.md)、[环境素材转换](development/environment-assets.md)、[美术资源](development/assets.md)、[正式配图](images/README.md) |
 | 构建、配置和存档 | [构建与运行](development/build.md)、[配置](development/configuration.md)、[存档与确定性](development/saving.md) |
 | 性能和视觉实验 | [性能维护](development/performance.md)、[渲染与视觉评测](development/benchmark.md) |
 | 在线控制和程序效率 | [HTTP 服务与效率实验](development/online-efficiency.md) |
@@ -25,6 +25,7 @@
 
 | 入口 | 所需环境 | 作用 |
 |---|---|---|
+| `Play-3D.cmd` | Windows，已有完整独立游戏包 | 优先启动 `artifacts/game/windows/` 的成品；没有成品时使用源码工具链 |
 | `tools/godot.ps1 -Mode run` | PowerShell 7、.NET 8 SDK、Godot 4.7.2 .NET | 3D 自由沙盒与客户端荒野作用 |
 | `tools/run.ps1` | PowerShell 7、.NET 8 工具链 | 独立内核 TUI、无人干预运行和摘要 |
 | `tools/online.py` | Python、已构建的 .NET 8 Console | 调用者控制的 loopback HTTP 会话 |

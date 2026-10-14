@@ -29,10 +29,10 @@
 | [18-CurrentDefectRepairs.md](18-CurrentDefectRepairs.md) | 当前缺陷修复交付 · 2026-10-04 |
 | [19-OriginalRequirements.md](19-OriginalRequirements.md) | 沙盒模拟游戏完整设计与开发任务书 |
 | [20-FullDeliveryChecklist.md](20-FullDeliveryChecklist.md) | 完整任务书交付清单 |
-| [21-VisualInterface.md](21-VisualInterface.md) | 河山：3D 界面与视觉验收 |
+| [21-VisualInterface.md](21-VisualInterface.md) | SandBoxSim：3D 界面与视觉验收 |
 | [22-ArtAssets.md](22-ArtAssets.md) | 原创美术素材来源与导入 |
 | [23-GameplayTrials.md](23-GameplayTrials.md) | 23 — 世界试炼与主动干预 |
-| [24-PlayerHandbook.md](24-PlayerHandbook.md) | 河山 · 玩家手册 |
+| [24-PlayerHandbook.md](24-PlayerHandbook.md) | SandBoxSim · 玩家手册 |
 | [25-DeveloperGuide.md](25-DeveloperGuide.md) | 开发架构与扩展指南 |
 | [26-WorldGuide.md](26-WorldGuide.md) | 世界如何运转 |
 | [27-InterfaceIteration.md](27-InterfaceIteration.md) | 界面与交互设计 |
