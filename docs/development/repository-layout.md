@@ -16,8 +16,7 @@
 | `docs/guides/` | 安装、游玩、排错与更新 | 当前使用文档 |
 | `docs/development/` | 架构、扩展、文件管理与维护 | 当前开发文档 |
 | `docs/images/` | 当前玩法、界面与模型文档使用的正式实机配图 | 保留并提交 |
-| `docs/archive/images/` | 历史界面与设计记录的正式配图 | 保留出处并提交 |
-| `docs/archive/` | 原始任务、设计、历史记录与配图 | 保留出处；不代替当前说明 |
+| `docs/archive/` | 原始任务书与素材生成来源 | 保留出处；不代替当前说明 |
 | `runs/` | 本机模拟输出、日志、临时截图 | 除 `README.md` 与 `.gitkeep` 外忽略 |
 | `runs/archives/` | 完整实验与小型维护记录的压缩归档 | 忽略提交；恢复到原相对路径后检查 |
 | `artifacts/`、`bin/`、`obj/`、`.godot/` | 构建与导入缓存 | 忽略提交 |
@@ -29,8 +28,6 @@
 - `assets/models/environment/`：CC0 环境衍生网格、原始 PBR 贴图、许可与来源清单，普通运行直接读取。
 - `assets/models/human/`：授权头脸衍生数据与署名，普通运行直接读取；原始 `.blend` 和 Blender 工具放在本机维护目录。
 - `assets/textures/`：地形、对象与自然材质图集。
-- `assets/illustrations/`：历史工程插画，当前客户端不使用。
-- `assets/gameplay/`：可验证的 JSON 配方。
 
 资源 PNG 和相应 `.import` 描述文件一起提交；Godot 自动生成的 `.godot/` 缓存不提交。模型代码文件与 `.uid` 一起维护，避免移动源码后出现失效脚本引用。来源和导入细节见 [美术资源](assets.md)。
 
@@ -50,7 +47,7 @@
 | 维护检查日志 | `runs/logs/maintenance/<日期>/` | 与文件清单分开保存 |
 | 清点与移动记录 | `runs/maintenance/<日期>/` | 按清单、研究、配图和历史操作分组 |
 | 玩家存档 | 文件对话框所选位置 | 更新或截图清理时保留 |
-| 正式文档配图 | `docs/images/`、`docs/archive/images/` | 随文档保留 |
+| 正式文档配图 | `docs/images/` | 随文档保留 |
 | 游戏纹理与插画 | `src/SandBoxSim.Godot/assets/` | 随游戏保留 |
 
 目录被 Git 忽略并不代表可以整体删除。`runs/` 中可能包含存档、实验和诊断数据。清理临时截图不会删除文档图或游戏素材，也不使用针对整个仓库的 PNG 通配删除。
@@ -70,7 +67,7 @@ git diff --check
 
 ## 文档维护
 
-`README.md` 是项目概览，`docs/README.md` 是阅读导航，`CHANGELOG.md` 是用户和维护者的更新记录。功能行为写入对应指南；配置和存档变化写入开发文档。旧界面配图和仅供历史记录引用的图片归入 `docs/archive/images/`，同时更新归档文档链接；保留文件内容，不用旧流程配图介绍当前玩法。历史计划留在 `docs/archive/`，不在当前主页重复放置阶段验收说明。
+`README.md` 是项目概览，`docs/README.md` 是阅读导航，`CHANGELOG.md` 是用户和维护者的更新记录。功能行为写入对应指南；配置和存档变化写入开发文档。正式配图保留在 `docs/images/`；旧验收记录、重复指南与不再使用的旧界面配图移除。`docs/archive/` 只保留原始任务书与素材来源，不在当前主页重复放置阶段验收说明。
 
 ## 目录说明与本机整理
 

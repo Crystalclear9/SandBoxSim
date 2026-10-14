@@ -11,8 +11,6 @@
 | `textures/natural-terrain.png` | 4×4 地形图集，按模拟地形混合采样 |
 | `textures/natural-materials.png` | 4×4 对象材质图集，结合木纹、石层、布料及肤发表面 |
 | `textures/natural-objects.png` | 保留的早期对象图集；当前 3D 人物与建筑使用网格 |
-| `illustrations/ecology-projects-v1.png` | 历史生态工程插画，当前客户端不加载 |
-| `gameplay/projects.json` | 历史 SDK 工程配方，当前客户端不加载或推进 |
 
 原生成文件标识、完整提示和用途演变保存在 [素材生成来源](../archive/asset-generation.md)。这些提示是来源记录，其中的写实要求不代表现有程序化模型已达到写实品质。人物头脸新增 Blender Studio 的 CC BY 4.0 基础网格衍生数据，转换、来源与再分发规则见 [人物头脸素材](human-assets.md)。软件许可不替代该素材许可。
 
@@ -32,7 +30,7 @@
 
 资源文件与相应 `.import` 描述一起提交，Godot 自动导入缓存 `.godot/` 不提交。修改图集布局需要同步格子索引、UV、材质和导入设置；文件路径区分大小写，移动后同步 `res://` 引用。模型源码移动时保留对应 `.uid`。非 Godot 资源类型的模型 JSON 和许可 TXT 必须进入导出预设的 `include_filter`，普通运行直接读取导出数据，不需要 Blender。
 
-原素材、来源记录和正式文档配图分别保存。调试截图属于 `runs/`，不能当成游戏资源替换材质。正式配图见 [图片索引](../images/README.md)，历史配图见 [归档](../archive/README.md)。
+原素材、来源记录和正式文档配图分别保存。调试截图属于 `runs/`，不能当成游戏资源替换材质。正式配图见 [图片索引](../images/README.md)，原始要求与素材来源见 [来源资料](../archive/README.md)。不再加载的生态工程插画和旧配方已从运行资源中移除。
 
 ## 检查
 

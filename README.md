@@ -57,7 +57,7 @@ UI 使用统一炭灰面板、无衬线标题、浅色文字与暖沙色状态�
 - **维护项目**：[目录与文件管理](docs/development/repository-layout.md)、[构建与运行](docs/development/build.md)、[配置](docs/development/configuration.md)、[存档](docs/development/saving.md)。
 - **查看更新**：[更新记录](CHANGELOG.md)、[版本更新与兼容](docs/guides/updating.md)。
 
-源码入口见 [src](src/README.md)，工具入口见 [tools](tools/README.md)，公开实验与协议见 [benchmarks](benchmarks/README.md)。所有主题见 [文档导航](docs/README.md)。历史设计与阶段记录独立保存在 `docs/archive/`。
+源码入口见 [src](src/README.md)，工具入口见 [tools](tools/README.md)，公开实验与协议见 [benchmarks](benchmarks/README.md)。所有主题见 [文档导航](docs/README.md)。原始任务书与素材来源保存在 `docs/archive/`。
 
 ## 开发入口
 
@@ -87,7 +87,7 @@ SandBoxSim/
 │  ├─ guides/           安装、游玩、排错和版本更新
 │  ├─ development/      架构、扩展、构建、配置、存档与素材
 │  ├─ images/           正式文档配图，保留并提交
-│  └─ archive/          原始要求、设计与历史记录
+│  └─ archive/          原始任务书与素材生成来源
 ├─ .github/workflows/   核心与图形持续集成
 ├─ artifacts/           本机构建输出，忽略提交
 └─ runs/                日志、模拟数据和临时截图，忽略提交

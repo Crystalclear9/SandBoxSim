@@ -25,6 +25,6 @@
 
 上述名称仅记录历史采样来源。本机临时实验目录、日志和旧压缩包已清理，不能据此声称完整实验归档仍可访问。需要重新验证时，按 [评测接口](../development/benchmark.md) 运行公开场景；新结果使用自己的版本与采样身份。
 
-旧版工程、蓝图与任务流程界面在 [历史配图](../archive/images)，不作为当前玩法说明。更新配图前先检查实际客户端，保留真实渲染结果并同步正文。
+旧版工程、蓝图与任务流程界面的配图已清理。更新正式配图前先检查实际客户端，保留真实渲染结果并同步正文。
 
 [模型说明](../development/models.md) · [美术资源](../development/assets.md) · [人物素材](../development/human-assets.md) · [环境素材](../development/environment-assets.md) · [目录职责](../development/repository-layout.md)

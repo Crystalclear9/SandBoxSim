@@ -12,7 +12,7 @@ namespace SandBoxSim.Tests;
 ///
 /// # 这一组测试的写法原则
 ///
-/// 每一条都对应 docs/archive/12-Milestones.md §M4 里的一个**验收判据**，并在用例名里写清楚判据原话。
+/// 每一条覆盖资源、人口与农业系统的回归判据，并在用例名里写清楚验证行为。
 /// 凡是"方向性"的判据（例如"饥荒期出生率下降"）都用**对照世界**来断言，
 /// 而不是断言某个绝对数字 —— 后者会在每次调参后变成噪声。
 ///
@@ -337,7 +337,7 @@ public sealed class M4Tests
         Assert.True(withFarm.BuildingSystem.TotalFoodProduced > 0f,
             "有农田的世界累计农业产出必须为正（实测 "
             + withFarm.BuildingSystem.TotalFoodProduced.ToString("0.##") + "）—— "
-            + "这正是 docs/archive/12-Milestones.md 验收项 5「有农田时食物存量增速高于无农田对照组」的直接证据");
+            + "该断言检查有农田的世界是否实际产生食物");
         Assert.Near(0f,noFarm.BuildingSystem.TotalFoodProduced);
         Assert.True(withFarm.BuildingSystem.TotalFoodProduced > noFarm.BuildingSystem.TotalFoodProduced,
             "有农田组的累计产出必须高于对照组（" + withFarm.BuildingSystem.TotalFoodProduced.ToString("0.##")

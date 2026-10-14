@@ -9,6 +9,6 @@
 ./tools/run.ps1 -Mode digest -Seed 839102 -Days 30 -Agents 40
 ```
 
-正式文档配图位于 `docs/images/` 与 `docs/archive/images/`，游戏素材位于客户端 `assets/`，可运行成品位于 `artifacts/game/`，这些不属于临时记录。个人存档由保存对话框决定位置，清理时保留原档。
+正式文档配图位于 `docs/images/`，游戏素材位于客户端 `assets/`，可运行成品位于 `artifacts/game/`，这些不属于临时记录。个人存档由保存对话框决定位置，清理时保留原档。
 
 [构建与运行](../docs/development/build.md) · [目录职责](../docs/development/repository-layout.md)

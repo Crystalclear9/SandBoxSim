@@ -1,6 +1,6 @@
 # SandBoxSim 项目文档
 
-文档描述 SandBoxSim 当前的游戏、在线控制和研究工具。所有命令默认从仓库根目录运行：PowerShell 入口使用 PowerShell 7，Python 工具使用 Python 3.10+。历史设计单独保存在 [归档](archive/README.md)。
+文档描述 SandBoxSim 当前的游戏、在线控制和研究工具。所有命令默认从仓库根目录运行：PowerShell 入口使用 PowerShell 7，Python 工具使用 Python 3.10+。原始任务书和素材来源单独保存在 [来源资料](archive/README.md)。
 
 ## 按用途阅读
 
@@ -42,6 +42,6 @@ HTTP 服务不输出实时 3D 图像；Console 和 HTTP 不执行图形会话的
 
 ## 文件位置与维护
 
-`guides/` 是使用说明，`development/` 是开发与协议说明，`images/` 是正式配图，`archive/` 是有历史身份标识的原始资料。脚本索引见 [tools](../tools/README.md)，源码入口见 [src](../src/README.md)，默认配置见 [config](../config/README.md)，公开实验样例见 [benchmarks](../benchmarks/README.md)，本机输出见 [runs](../runs/README.md)。
+`guides/` 是使用说明，`development/` 是开发与协议说明，`images/` 是正式配图，`archive/` 只保留原始任务书与素材生成来源。脚本索引见 [tools](../tools/README.md)，源码入口见 [src](../src/README.md)，默认配置见 [config](../config/README.md)，公开实验样例见 [benchmarks](../benchmarks/README.md)，本机输出见 [runs](../runs/README.md)。
 
 修改文档后执行 `./tools/check-docs.ps1` 和 `git diff --check`。检查器核对本地文件链接和大小写；外部网址、页内锚点及命令语义需要另外核对。历史说明保留当时的事实，不改写为当前功能；新增功能进入对应现行主题与 [更新记录](../CHANGELOG.md)。

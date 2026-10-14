@@ -28,7 +28,7 @@
 
 ## 历史数据
 
-`assets/gameplay/projects.json` 与旧工程插画保留来源记录，当前客户端不加载这些数据。自由世界的自然地点规则在 `Core/Systems/WildPlaces.cs`，扩展方式见 [世界内容扩展](extending.md)。
+不再加载的旧配方与工程插画已从运行资源中移除，素材来源仍保留在来源资料中。自由世界的自然地点规则在 `Core/Systems/WildPlaces.cs`，扩展方式见 [世界内容扩展](extending.md)。
 
 ## 状态值与固定表现参数
 

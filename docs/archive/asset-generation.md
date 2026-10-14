@@ -2,13 +2,13 @@
 
 # 原创美术素材来源与导入
 
-资源位于 `src/SandBoxSim.Godot/assets/`，按用途分类：
+当前图集位于 `src/SandBoxSim.Godot/assets/textures/`。以下同时记录早期素材的用途，已移除的历史目录不属于现行运行资源：
 
 | 目录 | 内容 |
 |---|---|
 | `textures/` | 自然地形、建筑材质与对象图集 |
-| `illustrations/` | 历史插画 `ecology-projects-v1.png`，当前客户端不使用 |
-| `gameplay/` | 历史配方 `projects.json`，当前客户端不加载 |
+| 原 `illustrations/` | 历史插画 `ecology-projects-v1.png`，已从运行资源中移除 |
+| 原 `gameplay/` | 历史配方 `projects.json`，已从运行资源中移除 |
 
 三张自然图集与工程插画由内置 ImageGen 根据下列提示生成；未采用外部素材站图片。自然图集请求尺寸 1024×1024，实际输出均为 1254×1254，使用 4×4 图集，区域坐标按实际尺寸计算。对象图集保留 RGBA 透明通道。3D 地面与模型材质使用 mipmap 降低远景闪烁；建筑、植被和部分环境细节由 `NatureModels.cs` 构造，干预工具符号由 `ToolGlyphs.cs` 生成；概览、操作与盾形标记由 `HudSymbols.cs` 的原创 SVG 路径生成。
 
@@ -72,7 +72,7 @@ Use case: stylized-concept. Asset type: high quality realistic PBR-like albedo m
 
 用途：生态工坊图册和落点预览的主题插画。使用内置 imagegen 工具生成，没有参考输入图；不使用 CLI。
 
-项目文件：src/SandBoxSim.Godot/assets/illustrations/ecology-projects-v1.png。1536 × 1024，按中心切分四个 768 × 512 区域，由 Godot AtlasTexture 读取；没有修改原图。素材展示主题，地图和结果来自真实模拟。
+原项目文件：src/SandBoxSim.Godot/assets/illustrations/ecology-projects-v1.png。1536 × 1024，早期按中心切分四个 768 × 512 区域，由 Godot AtlasTexture 读取；没有修改原图。该插画已从当前运行资源中移除，以下保留原始生成来源。
 
 原生成文件：exec-c77de940-6f1d-41aa-9a9f-52c63deee27b.png，位于生成图片目录 01a101f9-d25d-7aa2-98a5-ad6b27e23013。左上粮地、右上走廊、左下湿地、右下森林。迁徙通道复用走廊插画，林粮镶嵌复用粮地插画。
 
