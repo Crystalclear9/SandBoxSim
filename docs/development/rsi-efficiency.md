@@ -62,7 +62,7 @@ python tools/rsi_efficiency_study.py runs/evaluation/budget-example --output run
 
 ## 本机控制实验观察
 
-2026-10-08 的 `rsi-budget-smoke.json` 实际执行 992 次代理调用，两个完整阶段、零个失败生成分叉。配置允许每题三次尝试、0.6 秒代理时间，执行次数受实际时间限制，因此不是每题一定用完三次。完整归档在本机 `runs/evaluation/rsi-budget-20261008`，JSON 和 HTML 在 `runs/reports/`；这些输出不随源码提交。
+2026-10-08 的 `rsi-budget-smoke.json` 历史样本实际执行 992 次代理调用，两个完整阶段、零个失败生成分叉。配置允许每题三次尝试、0.6 秒代理时间，执行次数受实际时间限制，因此不是每题一定用完三次。该样本原本输出到 `runs/evaluation/rsi-budget-20261008` 和 `runs/reports/`，本机记录现已清理。下表保留历史观察，不表示归档仍可访问；复核需要重新运行公开配置，不能用历史数值替代新构建的测量。
 
 | 对照 | 阶段 1 | 阶段 2 |
 |---|---|---|
