@@ -24,6 +24,7 @@
 | 需求 | 先读或修改 | 配套检查 |
 |---|---|---|
 | 需求增长、居民决策与劳动 | `Core/Systems/NeedsSystem.cs`、`AiSystem.cs`、`ActionSystem.cs` | 生存行为、同种子重放与续跑 |
+| 居民取货与仓库可达性 | `Core/Systems/Actions/SurvivalActions.cs`、`ActionSystem.cs` | 地面堆/仓库来源选择、路径可达性、目标失效和库存守恒 |
 | 施工、材料和建筑类型 | `Core/World/BuildingStore.cs`、`Core/Systems/BuildingSystem.cs`、`ConstructionOrders.cs` | 扣料、拒绝落点、床位/生产与存档 |
 | 自然地点与日界作用 | `Core/Systems/WildPlaces.cs`、`Godot/MainGame.Play.cs` | 地理生成、生态条件、有限资源与恢复 |
 | 新建图形世界的起始条件 | `Core/Systems/SandboxScenarios.cs`、`Godot/MainGame.cs` | 新世界与旧存档分开检查 |

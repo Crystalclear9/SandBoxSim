@@ -179,13 +179,13 @@ internal static class TakeAction
             ResourceKind resource = (ResourceKind)kind;
             if (ctx.Store.InventoryOf(ctx.Slot, resource) >= stock.TakeAmount) { continue; }
 
-            if (!TryFindSource(in ctx, resource, out Int2 position))
+            // 不能只拿“最近来源”：最近的仓库可能被水域/山体隔开，
+            // 这时必须继续尝试同半径内其它可达仓库或地面堆。
+            if (!TryFindReachableSource(in ctx, resource, pathfinder, out Int2 position))
             {
                 continue;
             }
-
-            PathResult result = pathfinder.FindNextStep(ctx.X, ctx.Y, position.X, position.Y, out Int2 _);
-            if (result.Success) { return position; }
+            return position;
         }
 
         return null;
@@ -219,6 +219,58 @@ internal static class TakeAction
             }
         }
         return distance != int.MaxValue;
+    }
+
+    private static bool TryFindReachableSource(
+        in ActionContext ctx, ResourceKind kind, AStarPathfinder pathfinder, out Int2 position)
+    {
+        position = default;
+        int bestDistance = int.MaxValue;
+        int bestOrder = int.MaxValue;
+
+        // 地面堆和仓库都逐一验证可达性，再按距离和稳定的槽位序号择优。
+        // 这样最近但封死的来源不会遮蔽另一座真正能走到的仓库。
+        if (ctx.GroundStocks != null)
+        {
+            for (int pile = 0; pile < ctx.GroundStocks.Capacity; pile++)
+            {
+                if (!ctx.GroundStocks.IsAlive(pile)) { continue; }
+                if (ctx.GroundStocks.AmountOf(pile, kind) <= 0.01f) { continue; }
+                Int2 site = ctx.GroundStocks.PositionOf(pile);
+                int distance = System.Math.Max(System.Math.Abs(site.X - ctx.X), System.Math.Abs(site.Y - ctx.Y));
+                if (distance > ctx.Config.GroundStocks.SearchRadius
+                    || distance > bestDistance
+                    || (distance == bestDistance && pile >= bestOrder)) { continue; }
+                pathfinder.MarkOrigin(AStarPathfinder.SearchOrigin.Targeting);
+                if (!pathfinder.FindNextStep(ctx.X, ctx.Y, site.X, site.Y, out Int2 _).Success) { continue; }
+                bestDistance = distance;
+                bestOrder = pile;
+                position = site;
+            }
+        }
+
+        if (ctx.Buildings != null && ctx.Storage != null)
+        {
+            for (int k = 0; k < ctx.Buildings.LiveCount; k++)
+            {
+                int index = ctx.Buildings.LiveAt(k);
+                if (ctx.Buildings.KindOf(index) != BuildingKind.Storage
+                    || ctx.Buildings.StateOf(index) != BuildingState.Complete
+                    || ctx.Storage.AmountOf(index, kind) <= 0f) { continue; }
+                Int2 site = ctx.Buildings.PositionOf(index);
+                int distance = System.Math.Max(System.Math.Abs(site.X - ctx.X), System.Math.Abs(site.Y - ctx.Y));
+                if (distance > ctx.Config.Buildings.StorageSearchRadius
+                    || distance > bestDistance
+                    || (distance == bestDistance && index >= bestOrder)) { continue; }
+                pathfinder.MarkOrigin(AStarPathfinder.SearchOrigin.Targeting);
+                if (!pathfinder.FindNextStep(ctx.X, ctx.Y, site.X, site.Y, out Int2 _).Success) { continue; }
+                bestDistance = distance;
+                bestOrder = index;
+                position = site;
+            }
+        }
+
+        return bestDistance != int.MaxValue;
     }
 }
 
