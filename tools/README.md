@@ -6,8 +6,9 @@
 
 | 文件 | 用途 |
 |---|---|
-| `install-sdk.ps1` | 安装 .NET 8 SDK 到仓库外的用户工具目录 |
-| `setup-godot.ps1` | 按平台安装并校验 Godot 4.7.2 .NET 编辑器 |
+| `install-sdk.ps1` | 安装 .NET 8 SDK 到 `.tools/net8/`，下载临时文件也留在 `.tools/` |
+| `setup-godot.ps1` | 按平台安装并校验 Godot 4.7.2 .NET 编辑器到 `.tools/`，启用便携模式 |
+| `local_environment.py` | Python 启动器共用的项目内依赖、CLI 状态与临时路径 |
 | `build.ps1` / `build-lib.ps1` | Core、Console、Tests 的 SDK/csc 构建与执行 |
 | `godot.ps1` / `godot-lib.ps1` | Godot 独立构建、导入、运行、编辑器与自检 |
 | `run.ps1` | TUI、headless、digest、snapshot 和 batch 模式 |

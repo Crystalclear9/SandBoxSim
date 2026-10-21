@@ -1,4 +1,4 @@
-﻿<# Script regression tests. Requires .NET 8 SDK; no Pester or NuGet dependencies. #>
+<# Script regression tests. Requires .NET 8 SDK; no Pester or NuGet dependencies. #>
 [CmdletBinding()]
 param()
 
@@ -33,8 +33,22 @@ try {
     Assert-Build (Test-Path -LiteralPath $sdk.Exe -PathType Leaf) 'Resolved SDK host exists'
     $env:SANDBOXSIM_DOTNET_ROOT = $null
     Assert-Build ([IO.Path]::IsPathRooted((Get-DefaultSdkRoot))) 'Default SDK directory is absolute'
+    Assert-Build ((Get-DefaultSdkRoot) -eq (Join-Path $script:RepoRoot '.tools/net8')) 'Default SDK stays inside this repository'
+    Assert-Build ($env:NUGET_PACKAGES -eq (Join-Path $script:RepoRoot '.tools/nuget-packages')) 'NuGet downloads stay inside this repository'
 }
 finally { $env:SANDBOXSIM_DOTNET_ROOT = $previousRoot }
+
+# Installation must reject outside targets before creating files or using the network.
+$outsideTarget = Join-Path (Split-Path -Parent $script:RepoRoot) ('sandboxsim-no-install-' + [guid]::NewGuid().ToString('N'))
+foreach ($installer in @('install-sdk.ps1', 'setup-godot.ps1')) {
+    try {
+        if ($installer -eq 'install-sdk.ps1') { & (Join-Path $PSScriptRoot $installer) -InstallDir $outsideTarget }
+        else { & (Join-Path $PSScriptRoot $installer) -InstallRoot $outsideTarget }
+        throw 'Installer accepted an outside target'
+    }
+    catch { Assert-Build ($_.Exception.Message -like '*must stay inside this project*') "$installer rejects outside installation" }
+}
+Assert-Build (-not (Test-Path -LiteralPath $outsideTarget)) 'Rejected installation creates no outside files'
 
 # Mixed SDK installations must select .NET 8 ref packs and compiler together.
 $fixture = Join-Path ([IO.Path]::GetTempPath()) ('sandboxsim-build-test-' + [guid]::NewGuid().ToString('N'))

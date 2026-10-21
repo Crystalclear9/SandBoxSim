@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
     [ValidateSet('build', 'run', 'test', 'editor')]
     [string]$Mode = 'run',
@@ -17,7 +17,7 @@ $project = Join-Path $gameRoot 'SandBoxSim.Godot.csproj'
 if ($Mode -ne 'build') { $Configuration = 'Debug' } # The editor loads Debug assemblies, including headless runs.
 . (Join-Path $PSScriptRoot 'godot-build-manifest.ps1')
 $sourceBefore = Get-GodotSourceHashes $repositoryRoot
-& $runtime build $project -c $Configuration
+& $runtime build $project -c $Configuration --disable-build-servers
 if ($LASTEXITCODE -ne 0) { throw "Godot C# build failed ($LASTEXITCODE)" }
 $sourceAfter = Get-GodotSourceHashes $repositoryRoot
 if (($sourceBefore | ConvertTo-Json -Compress) -cne ($sourceAfter | ConvertTo-Json -Compress)) { throw 'C# source changed during build; rebuild before evaluation.' }
@@ -29,15 +29,16 @@ $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $binar
 if ($Mode -eq 'build') { exit 0 }
 . (Join-Path $PSScriptRoot 'godot-lib.ps1')
 $GodotPath = Resolve-GodotExecutable -Explicit $GodotPath
+$engineLog = Join-Path $repositoryRoot '.tools/godot-runtime.log'
 $engineVersion = & $GodotPath --headless --version
 if ($LASTEXITCODE -ne 0 -or $engineVersion -notmatch "4\.7\.2.*mono") { throw "Godot 4.7.2 .NET executable required: $GodotPath" }
-& $GodotPath --headless --path $gameRoot --editor --import --quit
+& $GodotPath --log-file $engineLog --headless --path $gameRoot --editor --import --quit
 if ($LASTEXITCODE -ne 0) { throw "Godot asset import failed ($LASTEXITCODE)" }
 if ($Mode -eq 'editor') {
-    & $GodotPath --path $gameRoot --editor
+    & $GodotPath --log-file $engineLog --path $gameRoot --editor
 } elseif ($Mode -eq 'test') {
-    & $GodotPath --headless --path $gameRoot -- --self-test
+    & $GodotPath --log-file $engineLog --headless --path $gameRoot -- --self-test
 } else {
-    & $GodotPath --path $gameRoot
+    & $GodotPath --log-file $engineLog --path $gameRoot
 }
 if ($LASTEXITCODE -ne 0) { throw "Godot failed ($LASTEXITCODE)" }

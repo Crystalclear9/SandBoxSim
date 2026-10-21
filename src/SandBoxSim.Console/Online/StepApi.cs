@@ -21,17 +21,19 @@ public sealed class StepApi
     private sealed class Session
     {
         public Simulation Sim;
-        public long Revision;
+        public long Revision, Epoch;
         public long Calls, Steps, Actions;
         public bool Faulted;
         public object? CachedObservation, CachedMap;
         public readonly Dictionary<string, byte[]> EncodedReads = new(StringComparer.Ordinal);
-        public readonly Dictionary<string, (string input, object output)> Replies = new(StringComparer.Ordinal);
+        public readonly Dictionary<string, (string operation, string input, object output)> Replies = new(StringComparer.Ordinal);
         public Session(Simulation sim) { Sim = sim; }
     }
     private readonly Dictionary<string, Session> _sessions = new(StringComparer.Ordinal);
     public const int MaxSessions = 8;
     public const int MaxTicks = 1000;
+    public const int MaxInspectItems = 128;
+    public const int ReplayWindow = 64;
 
     public byte[] Encode(string method,string path,JsonElement body)
     {
@@ -71,12 +73,13 @@ public sealed class StepApi
         if (parts.Length != 4 || method != "POST") { throw new ApiError(404, "Unknown endpoint"); }
         if (s.Faulted && parts[3] != "reset") { throw new ApiError(409, "Session faulted; reset required"); }
         if (parts[3] == "path") { return Paths(s, body); }
+        if (parts[3] == "inspect") { return Inspect(s, body); }
         if (parts[3] != "step" && parts[3] != "reset") { throw new ApiError(404, "Unknown endpoint"); }
         string idempotency = Text(body, "requestId", 1, 64);
         string input = body.GetRawText();
         if (s.Replies.TryGetValue(idempotency, out var reply))
         {
-            if (input != reply.input) { throw new ApiError(409, "requestId reused with different input"); }
+            if (parts[3] != reply.operation || input != reply.input) { throw new ApiError(409, "requestId reused with different operation or input"); }
             return reply.output;
         }
         Revision(s, body);
@@ -84,7 +87,7 @@ public sealed class StepApi
         if (parts[3] == "reset")
         {
             Fields(body, "requestId", "expectedRevision", "seed", "width", "height", "agents");
-            var sim = Create(body, false); s.Sim = sim; s.Revision++; s.Steps = s.Actions = s.Calls = 0; s.Faulted = false;
+            var sim = Create(body, false); s.Sim = sim; s.Revision++; s.Epoch++; s.Steps = s.Actions = s.Calls = 0; s.Faulted = false;
             s.CachedObservation = s.CachedMap = null;
             s.EncodedReads.Clear();
             result = Observe(s);
@@ -117,8 +120,8 @@ public sealed class StepApi
             s.Revision++; s.Calls++; s.Steps += ticks; s.Actions += operations.Count;
             result = new { schemaVersion = 1, observation = Observe(s), metrics = new { executionMs = watch.Elapsed.TotalMilliseconds, allocatedBytes = allocated, ticks, actions = operations.Count } };
         }
-        if (s.Replies.Count >= 64) { s.Replies.Remove(s.Replies.Keys.First()); }
-        s.Replies.Add(idempotency, (input, result));
+        if (s.Replies.Count >= ReplayWindow) { s.Replies.Remove(s.Replies.Keys.First()); }
+        s.Replies.Add(idempotency, (parts[3], input, result));
         return result;
     }
 
@@ -141,7 +144,52 @@ public sealed class StepApi
         var sample = s.Sim.Observe();
         return s.CachedObservation = new { schemaVersion = 1, revision = s.Revision, tick = s.Sim.Clock, digest = s.Sim.StateDigestString(), faulted = s.Faulted,
             population = sample.Population, food = sample.Food, wood = sample.Wood, stone = sample.Stone, buildings = sample.BuildingCount,
-            episode = new { stepCalls = s.Calls, ticks = s.Steps, actions = s.Actions } };
+            episode = new { epoch = s.Epoch, stepCalls = s.Calls, ticks = s.Steps, actions = s.Actions } };
+    }
+
+    private static object Inspect(Session s, JsonElement body)
+    {
+        Fields(body, "expectedRevision", "kind", "offset", "limit");
+        Revision(s, body);
+        string kind = Text(body, "kind", 1, 16);
+        if (kind is not ("agents" or "buildings")) { throw new ApiError(400, "kind must be agents or buildings"); }
+        int offset = OptionalInt(body, "offset", 0, int.MaxValue, 0);
+        int limit = OptionalInt(body, "limit", 1, MaxInspectItems, 32);
+        int total = kind == "agents" ? s.Sim.Agents.LiveCount : s.Sim.Buildings.LiveCount;
+        if (offset > total) { throw new ApiError(400, "offset exceeds entity count"); }
+        int end = offset + Math.Min(limit, total - offset);
+        var items = new List<object>(end - offset);
+        if (kind == "agents")
+        {
+            var agents = s.Sim.Agents;
+            var slots = agents.LiveSlotsRaw(out _);
+            for (int i = offset; i < end; i++)
+            {
+                int slot = slots[i], generation = agents.GenerationOf(slot);
+                items.Add(new { entityId = $"{s.Epoch}:agent:{slot}:{generation}", slot, generation,
+                    x = agents.XOf(slot), y = agents.YOf(slot), ageDays = agents.AgeDaysOf(slot),
+                    lifeStage = agents.LifeStageOf(slot).ToString(), job = agents.JobOf(slot).ToString(),
+                    state = agents.StateOf(slot).ToString(), action = agents.ActionOf(slot).ToString(), phase = agents.PhaseOf(slot).ToString(),
+                    health = agents.HealthOf(slot), hunger = agents.HungerOf(slot), thirst = agents.ThirstOf(slot),
+                    fatigue = agents.FatigueOf(slot), food = agents.InventoryOf(slot, ResourceKind.Food) });
+            }
+        }
+        else
+        {
+            var buildings = s.Sim.Buildings;
+            var slots = Enumerable.Range(0, total).Select(buildings.LiveAt).OrderBy(slot => slot).ToArray();
+            for (int i = offset; i < end; i++)
+            {
+                int slot = slots[i], generation = buildings.GenerationOf(slot);
+                items.Add(new { entityId = $"{s.Epoch}:building:{slot}:{generation}", slot, generation,
+                    x = buildings.XOf(slot), y = buildings.YOf(slot), kind = buildings.KindOf(slot).ToString(),
+                    state = buildings.StateOf(slot).ToString(), progress = buildings.ProgressOf(slot), condition = buildings.DecayOf(slot),
+                    occupiedBeds = buildings.OccupiedBedsOf(slot) });
+            }
+        }
+        return new { schemaVersion = 1, revision = s.Revision, epoch = s.Epoch, tick = s.Sim.Clock,
+            digest = s.Sim.StateDigestString(), kind, offset, limit, total,
+            nextOffset = end < total ? (int?)end : null, items };
     }
 
     private static void Revision(Session s, JsonElement body)

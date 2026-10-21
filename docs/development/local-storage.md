@@ -15,7 +15,7 @@ Windows 独立游戏放在 `artifacts/game/windows/`，保留 EXE 和相邻的�
 | 源码、配置、工具脚本、Git 历史 | 保留并随项目维护 |
 | 正式文档、配图、网格、贴图和署名 | 保留；不能作为临时截图或下载副本删除 |
 | 独立游戏 EXE 和数据目录 | 保留完整可运行包 |
-| 私有工具目录 `.sandboxsim-tool/` | 仅移除本项目安装、且已确认没有其他使用者的版本；不卸载系统软件 |
+| 项目本地工具目录 `.tools/` | 保留当前开发使用的 SDK、Godot、可选 Blender 和依赖缓存；不提交 Git。不再使用的版本可按明确目录清理 |
 | 下载的安装器、原始 `.blend`、转换试验 PCK | 当前成品已包含必要资源后，可移除本次下载副本；来源、许可和校验清单保留 |
 | `bin/`、`obj/`、客户端 `.godot/`、Python `__pycache__/` | 关闭相关构建后可重建的缓存；使用明确路径清理 |
 | `runs/screenshots/` | 运行过程中查看的临时截帧；正式配图位于 `docs/images/` |
@@ -29,7 +29,7 @@ Windows 独立游戏放在 `artifacts/game/windows/`，保留 EXE 和相邻的�
 
 日常清理无需生成新的审计报告或维护归档。删除前确认具体路径与用途，拒绝越界路径、符号链接和 junction；存档保持原内容。源码、正式资源和独立包按各自目录职责保留。
 
-不要使用 `git clean -fdx` 或全盘 PNG/ZIP 通配删除。被 Git 忽略的目录可能包含个人存档、历史实验和恢复备份。原来就存在的 Godot 用户目录、系统 Python/PowerShell、共享 NuGet 缓存和其他应用保持原状。
+不要使用 `git clean -fdx` 或全盘 PNG/ZIP 通配删除。被 Git 忽略的目录可能包含个人存档、历史实验和恢复备份。原来就存在的 Godot 用户目录、系统 Python/PowerShell、其他项目的共享 NuGet 缓存和其他应用保持原状。已确认由本项目下载的包版本迁入 `.tools/nuget-packages/` 后，可删除用户目录中的同版本副本。
 
 ---
 

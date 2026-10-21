@@ -9,7 +9,7 @@
 | `scenarios/` | 固定人口渲染、建筑、人物、面部、手部和界面回放 | `tools/evaluate.py` |
 | `request.schema.json`、`predictions.schema.json`、`result.schema.json` | Godot 渲染请求、视觉预测和结果协议 v1 | `tools/evaluate.py describe` |
 | `interface.json` | 可查询的能力与运行边界 | 渲染接口能力清单 |
-| `online.openapi.json` | loopback HTTP 固定步进和只读查询 | `tools/online.py` |
+| `online.openapi.json` | loopback HTTP 固定步进、路径查询与版本化实体分页观察 | `tools/online.py` |
 | `efficiency-smoke.json` | 真实程序效率配对样例 | `tools/efficiency.py run` |
 | `rsi-rounds.schema.json` | 程序性能历史与父链清单，保留历史文件名 | `tools/efficiency.py experiment/rounds` |
 | `rsi-meta.schema.json`、`rsi-meta-smoke.json` | 代理自修改、留出迁移、分叉及方法撤销 | `tools/rsi_benchmark.py` |

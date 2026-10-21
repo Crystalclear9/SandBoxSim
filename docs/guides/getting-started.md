@@ -14,7 +14,7 @@ Windows 独立导出包可以直接运行 `artifacts/game/windows/SandBoxSim.exe
 ./tools/godot.ps1 -Mode run
 ```
 
-安装脚本把 SDK 与引擎放在仓库外的用户工具目录中，不把安装文件提交到 Git。`setup-godot.ps1` 根据操作系统与架构选择引擎，并输出可执行文件位置。
+安装脚本把 SDK 与引擎放在当前仓库的 `.tools/net8/` 和 `.tools/godot-4.7.2/`，NuGet 包与 CLI 缓存也保留在 `.tools/`。该目录由 Git 忽略，不修改系统 PATH 或用户级 NuGet 配置。Godot 使用便携模式，将编辑器设置留在引擎目录。`setup-godot.ps1` 根据操作系统与架构选择引擎，并输出可执行文件位置。
 
 Windows 没有独立包时，双击 `Play-3D.cmd` 会使用 PowerShell 启动源码客户端；首次启动会构建 C# 程序并导入资源。修改源码后需要重新导出才能更新独立包；开发时直接运行 `tools/godot.ps1`，避免误看旧包。
 

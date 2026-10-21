@@ -92,6 +92,7 @@ internal sealed partial class NatureModels
         string key="human-asset:"+kind+":"+side+":"+_faceVariant;
         if(_meshes.TryGetValue(key,out var cached))return cached;
         var asset=HumanData();var source=kind=="head"?asset.Head:kind=="mouth"?asset.Lips:asset.Eyes[side];
+        var colors=(Color[])source.Colors.Clone();
         var points=new Vector3[source.Points.Length];var normals=new Vector3[points.Length];var uv=(Vector2[])source.Uv.Clone();
         var origin=kind=="eye"?HumanEyeCenter(side):kind=="mouth"?HumanMouthCenter:Vector3.Zero;
         for(int i=0;i<points.Length;i++)
@@ -100,6 +101,11 @@ internal sealed partial class NatureModels
             if(kind=="head")
             {
                 points[i]=new(p.X/.177f,p.Y/.220f,p.Z/.195f);
+                float front=Math.Clamp((-p.Z-.025f)/.045f,0,1);
+                float cheeks=MathF.Exp(-MathF.Pow((MathF.Abs(p.X)-.044f)/.023f,2)-MathF.Pow((p.Y+.018f)/.024f,2));
+                float nose=MathF.Exp(-MathF.Pow(p.X/.014f,2)-MathF.Pow((p.Y+.020f)/.025f,2));
+                float warmth=front*(.045f*cheeks+.025f*nose);
+                colors[i]=new Color(colors[i].R,colors[i].G*(1-warmth),colors[i].B*(1-warmth*1.2f),colors[i].A);
                 normals[i]=new Vector3(n.X*.177f,n.Y*.220f,n.Z*.195f).Normalized();
             }
             else
@@ -110,7 +116,7 @@ internal sealed partial class NatureModels
         }
         var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);
         arrays[(int)Mesh.ArrayType.Vertex]=points;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.TexUV]=uv;
-        arrays[(int)Mesh.ArrayType.Color]=source.Colors;arrays[(int)Mesh.ArrayType.Index]=source.Indices;
+        arrays[(int)Mesh.ArrayType.Color]=colors;arrays[(int)Mesh.ArrayType.Index]=source.Indices;
         var mesh=new ArrayMesh();mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);_meshes[key]=mesh;return mesh;
     }
     private Vector3 WrapHumanHair(Vector3 p,float angle,bool center=false)
@@ -127,7 +133,12 @@ internal sealed partial class NatureModels
         float crown=MathF.Sqrt(Math.Clamp((asset.High+.004f-worldY)/.008f,0,1));
         radius*=crown;
         float swept=angle+(_faceVariant%2==0?1:-1)*(worldY+.02f)*6;
-        float lift=.0032f+.0010f*MathF.Sin(swept*19)*crown;
+        float direction=_faceVariant%2==0?1:-1;
+        float part=MathF.Atan2(MathF.Sin(angle-direction*.55f),MathF.Cos(angle-direction*.55f));
+        float locks=.5f+.5f*MathF.Sin(swept*11+MathF.Sin(angle*3)*.65f);
+        float lift=.0026f+crown*(.0018f*locks+.0010f*MathF.Sin(swept*23));
+        lift-=.0008f*MathF.Exp(-MathF.Pow(part/.13f,2))*crown;
+        lift=MathF.Max(.0018f,lift);
         return new(MathF.Cos(angle)*(radius+lift)*HumanWidth(worldY,out _)/.181f,p.Y,
             (zCenter+MathF.Sin(angle)*(radius+lift)*HumanDepth)/.200f);
     }

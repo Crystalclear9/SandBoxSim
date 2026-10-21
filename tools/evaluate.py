@@ -2,6 +2,7 @@
 from __future__ import annotations
 import argparse, hashlib, json, os, platform, re, shutil, signal, struct, zlib, subprocess, sys, time
 from pathlib import Path
+from local_environment import tool_environment, dotnet_executable
 ROOT = Path(__file__).resolve().parents[1]
 
 def read(path):
@@ -47,7 +48,7 @@ def engine_path(value):
         found = shutil.which(value)
         if found: return found
         raise ValueError("Explicit Godot executable does not exist: " + str(value))
-    home = Path.home() / ".sandboxsim-tool" / "godot-4.7.2"
+    home = ROOT / ".tools" / "godot-4.7.2"
     matches = installed_engines(home, sys.platform)
     if matches: return str(matches[0])
     for name in ("godot-mono", "godot", "godot4"):
@@ -204,15 +205,17 @@ def run(args):
     assembly = ROOT / "src/SandBoxSim.Godot/.godot/mono/temp/bin/Debug/SandBoxSim.Godot.dll"
     if not assembly.is_file(): raise ValueError("Debug client assembly missing; run tools/godot.ps1 -Mode build first")
     build_identity=validate_build(ROOT,assembly)
-    env = os.environ.copy(); dotnet = Path.home() / ".sandboxsim-tool" / "net8"
-    if dotnet.exists(): env["PATH"] = str(dotnet) + os.pathsep + env.get("PATH", "")
+    env = tool_environment(); dotnet = dotnet_executable()
+    if dotnet: env["PATH"] = str(Path(dotnet).parent) + os.pathsep + env.get("PATH", "")
     assert_dotnet_engine(executable, env)
     output.mkdir(parents=True, exist_ok=False)
     # Engine refuses nonempty outputs. Stage the immutable input beside this output.
     staging = output.parent / (output.name + ".request.json")
     if staging.exists(): raise ValueError("Request staging path already exists")
     spec["outputDirectory"] = str(output); write(staging, spec)
-    command = [executable, "--path", str(ROOT / "src/SandBoxSim.Godot"), "--resolution", args.resolution, "--max-fps", str(args.max_fps), "--disable-vsync", "--", "--evaluation=" + str(staging)]
+    native_log = output.parent / (output.name + ".native.log")
+    if native_log.exists(): raise ValueError("Native log staging path already exists")
+    command = [executable, "--log-file", str(native_log), "--path", str(ROOT / "src/SandBoxSim.Godot"), "--resolution", args.resolution, "--max-fps", str(args.max_fps), "--disable-vsync", "--", "--evaluation=" + str(staging)]
     if args.audio_driver: command[command.index("--"):command.index("--")] = ["--audio-driver", args.audio_driver]
     provenance = {"schemaVersion": 1, "sourceCommit": git("rev-parse", "HEAD"), "sourceDirty": bool(git("status", "--porcelain")),
                   "runnerSha256": digest(__file__), "scenarioSha256": digest(args.scenario), "engineSha256": digest(executable),
@@ -231,6 +234,7 @@ def run(args):
             try: os.killpg(process.pid, signal.SIGKILL)
             except ProcessLookupError: pass
         stdout, stderr = process.communicate(); native_code = process.returncode; code = 124; logs = stdout + stderr
+    native_log.unlink(missing_ok=True)
     (output / "engine.log").write_bytes(logs)
     provenance.update(engineExitCode=native_code,exitCode=code, wallSeconds=time.monotonic() - started, sourceChangedDuringRun=source_hashes() != provenance["sourceFiles"])
     if provenance["sourceChangedDuringRun"] and code == 0: code = 2

@@ -11,6 +11,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path, PurePosixPath
+from local_environment import tool_environment, dotnet_executable
 from rsi_benchmark import Runner, read, save, sha, terminate
 from online import Client, launch, ready
 from efficiency import evaluate, validate_report, episode
@@ -63,7 +64,7 @@ def apply_edits(workspace, edits, allowed):
 def command(argv, cwd, folder, timeout):
     started=time.perf_counter();log=folder/'command.log'
     with log.open('wb') as handle:
-        process=subprocess.Popen(argv,cwd=cwd,stdout=handle,stderr=subprocess.STDOUT,
+        process=subprocess.Popen(argv,cwd=cwd,env=tool_environment(),stdout=handle,stderr=subprocess.STDOUT,
                                  start_new_session=os.name!='nt',creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
         try:process.wait(timeout=timeout)
         except subprocess.TimeoutExpired:terminate(process)
@@ -272,12 +273,12 @@ def verify(folder):
 def main():
     parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='command',required=True)
     run_args=sub.add_parser('run');run_args.add_argument('config',type=Path);run_args.add_argument('--output',type=Path,required=True)
-    private=Path.home()/'.sandboxsim-tool/net8'/('dotnet.exe' if os.name=='nt' else 'dotnet')
-    run_args.add_argument('--dotnet',default=str(private) if private.is_file() else shutil.which('dotnet'))
+    run_args.add_argument('--dotnet')
     check=sub.add_parser('verify');check.add_argument('folder',type=Path)
     args=parser.parse_args()
     try:
         if args.command=='verify':print(json.dumps(verify(args.folder)));return 0
+        args.dotnet=args.dotnet or dotnet_executable()
         if not args.dotnet:raise ValueError('Install .NET 8 SDK or supply --dotnet')
         result=run(read(args.config),args.config.resolve().parent,args.output,args.dotnet)
         print(json.dumps({k:result[k] for k in ('selectedAttempt','agentCalls','heldoutCorrect','heldoutImprovementDetected','recursiveEvidenceSupported')}));return 0

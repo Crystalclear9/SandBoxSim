@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "SandBoxSim online fixed-tick API",
-    "version": "1.0.0",
-    "description": "Loopback only, no renderer. Origin headers rejected. Step validation is atomic; engine failures fault the session. Retries require identical JSON payloads."
+    "version": "1.1.0",
+    "description": "Loopback only, no renderer. Origin headers rejected. Step validation is atomic; engine failures fault the session. Retries require identical JSON payloads. Request bodies must be valid UTF-8; query parameters are rejected. Retry IDs are bound to the operation and exact JSON payload within a 64-reply window."
   },
   "servers": [
     {
@@ -362,6 +362,54 @@
           }
         }
       }
+    },
+    "/v1/sessions/{sessionId}/inspect": {
+      "post": {
+        "summary": "Inspect a revision-checked page of residents or buildings without advancing the world",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntityPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Structured error (400/401/403/404/408/409/413/429/500)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Inspect"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -693,7 +741,31 @@
             "type": "integer"
           },
           "episode": {
-            "type": "object"
+            "type": "object",
+            "required": [
+              "epoch",
+              "stepCalls",
+              "ticks",
+              "actions"
+            ],
+            "properties": {
+              "epoch": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "stepCalls": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "ticks": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "actions": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
           }
         }
       },
@@ -723,6 +795,246 @@
             }
           }
         }
+      },
+      "Inspect": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "expectedRevision",
+          "kind"
+        ],
+        "properties": {
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "agents",
+              "buildings"
+            ]
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "default": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 128,
+            "default": 32
+          }
+        }
+      },
+      "EntityPage": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "revision",
+          "epoch",
+          "tick",
+          "digest",
+          "kind",
+          "offset",
+          "limit",
+          "total",
+          "nextOffset",
+          "items"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "epoch": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tick": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "digest": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "agents",
+              "buildings"
+            ]
+          },
+          "nextOffset": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/AgentEntity"
+                },
+                {
+                  "$ref": "#/components/schemas/BuildingEntity"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "AgentEntity": {
+        "type": "object",
+        "properties": {
+          "entityId": {
+            "type": "string",
+            "description": "Session-scoped epoch:kind:slot:generation. Reset changes epoch; slot reuse changes generation."
+          },
+          "slot": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "generation": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "x": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "y": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "lifeStage": {
+            "type": "string"
+          },
+          "job": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "ageDays": {
+            "type": "number"
+          },
+          "health": {
+            "type": "number"
+          },
+          "hunger": {
+            "type": "number"
+          },
+          "thirst": {
+            "type": "number"
+          },
+          "fatigue": {
+            "type": "number"
+          },
+          "food": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "entityId",
+          "slot",
+          "generation",
+          "x",
+          "y",
+          "ageDays",
+          "lifeStage",
+          "job",
+          "state",
+          "action",
+          "phase",
+          "health",
+          "hunger",
+          "thirst",
+          "fatigue",
+          "food"
+        ]
+      },
+      "BuildingEntity": {
+        "type": "object",
+        "properties": {
+          "entityId": {
+            "type": "string",
+            "description": "Session-scoped epoch:kind:slot:generation. Reset changes epoch; slot reuse changes generation."
+          },
+          "slot": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "generation": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "x": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "y": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "kind": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "progress": {
+            "type": "number"
+          },
+          "condition": {
+            "type": "number",
+            "description": "Structural integrity, 1 healthy and 0 destroyed."
+          },
+          "occupiedBeds": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "entityId",
+          "slot",
+          "generation",
+          "x",
+          "y",
+          "kind",
+          "state",
+          "progress",
+          "condition",
+          "occupiedBeds"
+        ]
       }
     }
   }

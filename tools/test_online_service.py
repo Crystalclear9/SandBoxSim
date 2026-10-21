@@ -1,4 +1,5 @@
 """Real HTTP/service smoke including authentication, concurrency, retry and paired evaluation."""
+import http.client
 import argparse, concurrent.futures, json, secrets, socket, tempfile, urllib.error
 from pathlib import Path
 from online import Client, launch, ready, ROOT
@@ -26,10 +27,32 @@ def smoke(assembly, output):
         client=clients[0]; created=client.request('POST','/v1/sessions',{'seed':17,'width':24,'height':24,'agents':4})
         path='/v1/sessions/'+created['sessionId']; before=created['observation']
         assert client.request('GET',path)==before
+        assert client.request('GET','/v1/capabilities')['entityInspection']
+        page=client.request('POST',path+'/inspect',{'expectedRevision':0,'kind':'agents','limit':2})
+        assert page['total']==4 and len(page['items'])==2 and page['nextOffset']==2
+        assert page['digest']==before['digest'] and client.request('GET',path)==before
+        try:
+            client.request('GET','/v1/health?ignored=value')
+            raise AssertionError('Query parameters were silently ignored')
+        except urllib.error.HTTPError as e: assert e.code==400
+        connection=http.client.HTTPConnection('127.0.0.1',ports[0],timeout=10)
+        try:
+            raw=b'{"requestId":"bad\xff","expectedRevision":0,"ticks":0}'
+            connection.request('POST',path+'/step',raw,{'Authorization':'Bearer '+token,'Content-Type':'application/json'})
+            response=connection.getresponse(); response.read(); assert response.status==400
+        finally: connection.close()
+        assert client.request('GET',path)==before
+
         payload={'requestId':'duplicate','expectedRevision':0,'ticks':8}
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
             replies=list(pool.map(lambda _:client.request('POST',path+'/step',payload),range(2)))
         assert replies[0]==replies[1] and client.request('GET',path)['tick']==8
+        try:
+            client.request('POST',path+'/reset',payload)
+            raise AssertionError('Step reply was replayed through reset')
+        except urllib.error.HTTPError as e: assert e.code==409
+        assert client.request('GET',path)['tick']==8
+
         try:
             client.request('POST',path+'/step',{'requestId':'stale','expectedRevision':0,'ticks':1})
             raise AssertionError('Missing stale-revision rejection')

@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     SandBoxSim 双通道构建脚本。
 
@@ -19,7 +19,7 @@
     .\tools\build.ps1 -Mode snapshot -SnapshotDays 100
 #>
 
-# 本文件是**函数库**：只有函数定义与模块级常量，没有任何 param() 块。
+# 本文件是函数库：定义函数、常量和项目内的进程环境，不执行构建 CLI，也没有 param() 块。
 # 为什么特意拆出 tools/build.ps1 作为 CLI：
 #   包装脚本（run.ps1/test.ps1/dev.ps1）需要 dot-source 本文件来复用这些函数。
 #   如果本文件自己带 param()，点源时它的参数默认值会覆盖调用方同名变量
@@ -37,6 +37,20 @@ $ErrorActionPreference = 'Stop'
 $script:RepoRoot = Split-Path -Parent $PSScriptRoot
 $script:BuildRoot = Join-Path $script:RepoRoot 'artifacts'
 $script:FrameworkMajorMinor = '8.0'
+
+# CLI 首次运行状态、NuGet 包与下载缓存均留在项目内；不改用户级配置。
+$env:DOTNET_CLI_HOME = Join-Path $script:RepoRoot '.tools/dotnet-home'
+$env:NUGET_PACKAGES = Join-Path $script:RepoRoot '.tools/nuget-packages'
+$env:NUGET_HTTP_CACHE_PATH = Join-Path $script:RepoRoot '.tools/nuget-http-cache'
+$env:NUGET_SCRATCH = Join-Path $script:RepoRoot '.tools/nuget-scratch'
+$toolTemp = Join-Path $script:RepoRoot '.tools/tmp'
+[IO.Directory]::CreateDirectory($toolTemp) | Out-Null
+$env:TEMP = $toolTemp
+$env:TMP = $toolTemp
+$env:TMPDIR = $toolTemp
+$env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH = '0'
+$env:DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE = 'true'
+
 
 # ---------------------------------------------------------------------------
 # 平台适配（CI 在 windows / ubuntu / macos 三个 runner 上都跑同一套脚本）
@@ -61,25 +75,9 @@ function Get-DotnetExeName {
     return 'dotnet'
 }
 
-# 本项目私有 SDK 的默认安装位置（由 tools/install-sdk.ps1 使用）。
-#
-# 三平台统一放在**用户主目录**下的 .sandboxsim-tool/net8。
-# 为什么用主目录而不是 LOCALAPPDATA / Application Support：三个平台都有 HOME，
-# 一条规则就够；而且它必须与 install-sdk.ps1 的实际安装位置一致 ——
-# 实测踩过：本机 SDK 装在 ~/.sandboxsim-tool/net8，而探测逻辑找的是
-# %LOCALAPPDATA%\sandboxsim-tool\net8，于是"明明装了 SDK 却退回通道 B"，
-# 而且**没有任何报错**（只是悄悄降级），非常难发现。
-#
-# **绝不硬编码盘符**：一旦出现 'C:\...' 这种字面量，非 Windows 平台上
-# 连 Join-Path 都会抛异常（Join-Path 会去访问那个盘符）。
+# 本项目私有 SDK 默认放在仓库 .tools/ 下，不依赖用户主目录或盘符。
 function Get-DefaultSdkRoot {
-    $homeDir = $null
-    if ($env:HOME) { $homeDir = $env:HOME }
-    elseif ($env:USERPROFILE) { $homeDir = $env:USERPROFILE }
-    else { $homeDir = [System.Environment]::GetFolderPath('UserProfile') }
-    if (-not $homeDir) { $homeDir = [System.IO.Path]::GetTempPath() }
-
-    return (Join-Path $homeDir '.sandboxsim-tool/net8')
+    return (Join-Path $script:RepoRoot '.tools/net8')
 }
 
 # 系统级 dotnet 安装根目录（只用于"兜底探测"）。
@@ -339,7 +337,7 @@ function Invoke-SdkBuild {
     # 里静默失败 —— 输出是"生成失败 / 0 个错误"，连一行错误都没有，极难排查。
     # 串行构建牺牲一点速度（本项目 3 个工程全量约 20 秒，增量几乎瞬时），换来"在哪都能构建"。
     # 环境允许命名管道时可以加 -ParallelBuild 找回并行速度。
-    $buildArgs = @('build', $sln, '-c', $Configuration, '-nologo', '-v', 'minimal')
+    $buildArgs = @('build', $sln, '-c', $Configuration, '-nologo', '-v', 'minimal', '--disable-build-servers')
     if ($Configuration -eq 'Release') { $buildArgs += '-p:DebugType=none' }
     if (-not $ParallelBuild) { $buildArgs += @('-nodeReuse:false', '-maxCpuCount:1') }
 

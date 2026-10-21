@@ -1,6 +1,6 @@
-﻿# Shared Godot executable discovery; no build or network side effects.
+# Shared Godot executable discovery; no build or network side effects.
 function Resolve-GodotExecutable {
-    param([string]$Explicit, [string]$InstallRoot = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.sandboxsim-tool/godot-4.7.2'),
+    param([string]$Explicit, [string]$InstallRoot = (Join-Path (Split-Path -Parent $PSScriptRoot) '.tools/godot-4.7.2'),
         [ValidateSet('windows','linux','macos')][string]$Platform = $(if ($IsWindows) {'windows'} elseif ($IsMacOS) {'macos'} else {'linux'}))
     if ($Explicit) {
         $target = $Explicit

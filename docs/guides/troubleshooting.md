@@ -44,6 +44,14 @@ SDK 路径应指向含 `sdk/` 与 dotnet 主机的根目录。引擎路径应指
 
 相关规则见 [存档与确定性](../development/saving.md) 与 [版本更新](updating.md)。
 
+## 本机服务与渲染评测
+
+Windows HTTP 服务依赖系统 HTTP 监听能力。若启动报 `HttpListenerException`，先保留原始错误，在正常用户终端用相同命令确认监听权限与系统 HTTP 服务状态。不要为运行实验自动修改系统服务、URL ACL 或证书库。该错误不代表会话测试或实际 HTTP 冒烟已经通过。
+
+若项目私有主机无法启动 HTTP 服务，而已有系统 .NET 8 主机可以，可在本次终端设置 `SANDBOXSIM_DOTNET_ROOT` 指向该已有主机所在目录，再运行 `tools/online.py`。该设置不安装软件或修改系统配置；记录实际运行时身份后重新测试，不能沿用另一运行时的性能结论。
+
+Godot 若报 `Failed to read the root certificate store`，属于本机引擎读取证书库失败；即使画面已生成，渲染评测器仍会拒绝把含引擎错误的记录标为通过。运行日志使用项目内路径，避免与玩家目录的日志轮转冲突。不要把人工看过截图当成完整 benchmark 验证。
+
 ## 提供可复现的信息
 
 记录操作系统、PowerShell、SDK、Godot 版本与 Git 提交，再说明种子、初始人数、场景、速度、工具和落点。列出预期结果与实际结果，附必要日志、存档副本或临时截图。截图放在 `runs/screenshots/`，不要为了排查替换正式文档配图。

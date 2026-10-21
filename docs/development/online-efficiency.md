@@ -14,6 +14,8 @@ python tools/online.py --port 8765
 
 Linux/macOS 使用 `export SANDBOXSIM_API_TOKEN=...` 设置至少 16 字符的随机令牌。第二个终端使用同一令牌。直接启动也可执行 `dotnet artifacts/Release/SandBoxSim.Console.dll --serve --port 8765`。令牌只放环境变量和 Authorization 请求头，不写入评测产物。服务仅绑定 `127.0.0.1`；外部模型的控制器在本机调用，无需把模型本身部署在本机。没有公网绑定、CORS、任意代码执行或文件读写接口。
 
+Python 启动器默认选择项目 `.tools/net8/` 中的主机。可以用 `SANDBOXSIM_DOTNET_ROOT` 显式选择已有 .NET 主机，项目内主机不存在时才从 `PATH` 查找系统运行时；显式路径失效会报错，不悄悄改用其他主机。安装器仍只向当前项目目录下载。配对实验会记录实际运行时版本，版本不一致不能直接比较。
+
 Python 调用示例（在仓库根目录执行）：
 
 ```python
@@ -46,13 +48,29 @@ HTTP 协议见 [OpenAPI](../../benchmarks/online.openapi.json)，能力清单见
 | `/v1/sessions/{id}/step` | POST | 先执行环境动作，再推进精确 tick 数 |
 | `/v1/sessions/{id}/reset` | POST | 重建同一会话，状态版本继续递增 |
 | `/v1/sessions/{id}/map` | GET | 行优先网格、通行性、代价、海拔、压实、植被与旧高度代理 |
+| `/v1/sessions/{id}/inspect` | POST | 按版本分页读取居民或建筑，不推进世界 |
 | `/v1/sessions/{id}/path` | POST | 查询路径、代价与展开节点数，不推进世界 |
 
-`step`/`reset` 必须传 `requestId` 和 `expectedRevision`。版本不匹配返回 409，防止旧观察或并发操作推进错误世界。同一 requestId 和相同 JSON 请求返回缓存的原结果，不重复执行；字段顺序或内容改变会拒绝。保留最近 64 个回复；缓存淘汰后，旧版本请求仍不能再次执行。`path` 也核对版本。
+`step`/`reset` 必须传 `requestId` 和 `expectedRevision`。版本不匹配返回 409，防止旧观察或并发操作推进错误世界。同一操作路径、requestId 和相同 JSON 请求返回缓存的原结果，不重复执行；字段顺序或内容改变会拒绝。保留最近 64 个回复；缓存淘汰后，旧版本请求仍不能再次执行。`path` 与 `inspect` 也核对版本。请求体必须是有效 UTF-8；所有路径拒绝查询参数，参数使用文档规定的 JSON 字段。
 
 动作支持 `terrain`（枚举名称）、`resource`（Food/Wood/Stone/Iron，amount 0–10000）、`fertility`（radius 0–8，delta −1–1）。每次最多 64 个动作、0–1000 tick；每个 episode 最多一百万 tick。地图 16–128 格、初始人口 0–200、会话最多 8 个，请求体最大 32 KiB。未知/重复字段、越界和非法枚举拒绝；全部动作先验证，输入错误不会造成部分执行。意外内核错误可能发生在执行中，此时会话标为 faulted，必须重置，不能假装事务已回滚。
 
 观察包含版本、tick、摘要、人口、资源、建筑和累计 step 调用/动作/tick 数。读取不改变模拟摘要。Python 客户端另外记录所有调用次数、端到端耗时与响应字节数，包括失败调用的次数与耗时。`step.metrics` 是执行与不变量检查区段的墙钟时间及当前线程托管分配；不是 GPU 时间、峰值内存或模型推理成本。HTTP 当前返回状态，不返回 3D 实时画面；视觉评测继续使用 [渲染接口](benchmark.md)。
+
+## 居民与建筑观察
+
+`POST /v1/sessions/{id}/inspect` 接收 `expectedRevision`、`kind`（`agents` 或 `buildings`）、可选 `offset`（默认 0）与 `limit`（默认 32，上限 128）。回复包含 `items`、`total`、`nextOffset`、版本与世界摘要。读取不推进时间，不计作环境动作；后续页使用同一版本，若世界已改变则返回 409，需要重新分页。
+
+居民页包含位置、年龄与生命阶段、职业、行为/阶段、健康、饥渴、疲劳和携带食物；建筑页包含类别、状态、进度、完整度与床位占用。`condition` 为结构完整度，1 完好、0 损毁。这些是内核状态，不包含渲染网格或客户端姿态。`entityId` 仅在所属会话中有意义，由 `epoch:kind:slot:generation` 组成：重置递增 epoch，槽位复用改变 generation。不能把不同会话中的同名实体视为同一人。
+
+```python
+page = client.request('POST', path + '/inspect', {
+    'expectedRevision': result['observation']['revision'],
+    'kind': 'agents', 'offset': 0, 'limit': 32
+})
+for resident in page['items']:
+    print(resident['entityId'], resident['job'], resident['action'])
+```
 
 ## 代码效率 benchmark
 

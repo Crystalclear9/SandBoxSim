@@ -84,14 +84,14 @@ public partial class MainGame
         var header = Surface(overlay, Vector2.Zero, new Vector2(16, 16), new Vector2(1264, 60), 0);
         header.AnchorRight = 1; header.OffsetRight = -16;
         header.Visible = false;
-        var worldCard = Surface(overlay, new Vector2(0, 0), new Vector2(28, 19), new Vector2(270, 54), 4);
+        var worldCard = Surface(overlay, new Vector2(0, 0), new Vector2(28, 19), new Vector2(318, 54), 4);
 
         var worldRow = new HBoxContainer(); worldRow.AddThemeConstantOverride("separation", 12); worldCard.AddChild(worldRow);
         worldRow.AddChild(new TextureRect { Texture = HudSymbols.For("crest"), CustomMinimumSize = new Vector2(28, 38), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered });
-        var wordmark = HudStyle.Heading("河山", 26); worldRow.AddChild(wordmark);
+        var wordmark = HudStyle.Heading("SandBoxSim", 18); worldRow.AddChild(wordmark);
         var worldInfo = new VBoxContainer(); worldInfo.AddThemeConstantOverride("separation", 0); worldRow.AddChild(worldInfo);
         worldInfo.AddChild(HudStyle.Label("自然 · 聚落 · 众生", 10, true));
-        var scenario = new OptionButton { Flat = true, CustomMinimumSize = new Vector2(137, 31) }; _scenarioPicker = scenario; HudStyle.Button(scenario);
+        var scenario = new OptionButton { Flat = true, CustomMinimumSize = new Vector2(113, 31) }; _scenarioPicker = scenario; HudStyle.Button(scenario);
         foreach (string name in SandboxScenarios.Names) { scenario.AddItem(name); } worldInfo.AddChild(scenario);
         scenario.ItemSelected += index => { Scenario = (int)index; NewWorld((int)_seed.Value); _map.Focus(43, 50, 16); _checkpoint = ""; _discovery.Refresh(); };
 

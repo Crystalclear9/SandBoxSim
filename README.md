@@ -24,6 +24,8 @@ Windows 本机已有独立导出包时，双击 [Play-3D.cmd](Play-3D.cmd) 即�
 ./tools/godot.ps1 -Mode run
 ```
 
+工具默认安装在当前项目 `.tools/` 内，SDK、引擎、NuGet 缓存及可选 Blender 均不提交到 Git；不修改系统安装。
+
 Windows 配置完成后可以双击 [Play-3D.cmd](Play-3D.cmd)。Linux/macOS 根据安装脚本输出设置 `GODOT_EXE`，再运行启动脚本。已有环境、工具链路径和常见问题见 [安装与启动](docs/guides/getting-started.md)。
 
 世界没有必须完成的目标，可以自由移动镜头、查看居民或改变土地。**左键拖动平移、右键拖动旋转与俯仰、滚轮缩放**；单击选择或确认落点。底部“生命”“地貌”“气候”直接展开自由工具；没有委托、工程流程、目标或干预额度。完整操作见 [玩家指南](docs/guides/player-guide.md)。

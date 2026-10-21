@@ -10,11 +10,39 @@ internal sealed partial class NatureModels
         if(node==torso)return Transform3D.Identity;
         return InTorso((Node3D)node.GetParent(),torso)*node.Transform;
     }
+    private static void ValidateHandSurface(Mesh mesh)
+    {
+        var arrays=mesh.SurfaceGetArrays(0);
+        var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
+        var uv=arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();
+        var seam=new System.Collections.Generic.Dictionary<Vector3,Vector3>();
+        for(int i=0;i<points.Length;i++)if(uv[i].X==0)seam[points[i]]=normals[i];
+        int matches=0;
+        for(int i=0;i<points.Length;i++)
+        {
+            if(!normals[i].IsFinite()||normals[i].LengthSquared()<.99f)throw new InvalidOperationException("Invalid hand surface normal");
+            if(uv[i].X==1&&seam.TryGetValue(points[i],out var normal))
+            {
+                if(normal.Dot(normals[i])<.9999f)throw new InvalidOperationException("Hand UV seam changes the surface normal");
+                matches++;
+            }
+        }
+        if(matches<120)throw new InvalidOperationException("Finger seam coverage missing");
+        var nailPoints=mesh.SurfaceGetArrays(1)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        foreach(var nail in nailPoints)
+        {
+            float nearest=float.MaxValue;
+            foreach(var point in points)nearest=MathF.Min(nearest,nail.DistanceSquaredTo(point));
+            if(nearest>.002f*.002f)throw new InvalidOperationException("Nail floats away from the finger surface");
+        }
+    }
     private void ValidateHandling()
     {
         foreach(var action in new[]{ActionKind.GatherWood,ActionKind.GatherIron,ActionKind.Farm,ActionKind.BuildHouse})
         {
             var rig=Resident(17,false,JobType.Gatherer);
+            if(action==ActionKind.GatherWood)foreach(var hand in rig.HandSkins)ValidateHandSurface(hand.Mesh);
             int transfers=0;float travel=0;Vector3 previous=Vector3.Zero;bool blinked=false;
             var bridgeArrays=rig.ShoulderGeometry.SurfaceGetArrays(0);var bridgeVertices=bridgeArrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var bridgeWeights=bridgeArrays[(int)Mesh.ArrayType.Color].AsColorArray();
             for(int frame=0;frame<270;frame++)

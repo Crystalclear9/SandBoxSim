@@ -13,6 +13,7 @@ namespace SandBoxSim.ConsoleApp.Online;
 /// <summary>BCL-only loopback HTTP transport. No arbitrary code, paths or remote binds.</summary>
 public static class HttpService
 {
+    private static readonly UTF8Encoding StrictUtf8 = new(false, true);
     public static int Run(int port) => RunAsync(port).GetAwaiter().GetResult();
 
     private static async Task<int> RunAsync(int port)
@@ -36,7 +37,8 @@ public static class HttpService
             machineId = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(System.Environment.MachineName))).ToLowerInvariant(),
             os = RuntimeInformation.OSDescription, architecture = RuntimeInformation.ProcessArchitecture.ToString(), framework = RuntimeInformation.FrameworkDescription,
             processorCount = System.Environment.ProcessorCount, maxSessions = StepApi.MaxSessions, maxTicksPerCall = StepApi.MaxTicks,
-            actions = new[] { "terrain", "resource", "fertility" }, visualObservation = false };
+            actions = new[] { "terrain", "resource", "fertility" }, visualObservation = false,
+            entityInspection = true, maxInspectItems = StepApi.MaxInspectItems, replayWindow = StepApi.ReplayWindow };
         System.Console.WriteLine(JsonSerializer.Serialize(new { listening = $"http://127.0.0.1:{port}/", protocol = "sandboxsim-step-v1" }));
         try
         {
@@ -65,6 +67,7 @@ public static class HttpService
                 byte[] actual = Encoding.UTF8.GetBytes(context.Request.Headers["Authorization"] ?? "");
                 if (!CryptographicOperations.FixedTimeEquals(expected, actual)) { throw new ApiError(401, "Bearer token required"); }
                 string method = context.Request.HttpMethod, path = context.Request.Url!.AbsolutePath;
+                if (context.Request.Url.Query.Length != 0) { throw new ApiError(400, "Query parameters are not supported; use the documented JSON body"); }
                 // Reject browser-origin requests; this endpoint is for explicit model/controller clients.
                 if (context.Request.Headers["Origin"] != null) { throw new ApiError(403, "Browser origins are not supported"); }
                 object result;
@@ -80,13 +83,18 @@ public static class HttpService
                         input.Write(buffer, 0, count);
                         if (input.Length > 32768) { throw new ApiError(413, "Body exceeds 32 KiB"); }
                     }
-                    using var json = JsonDocument.Parse(input.Length == 0 ? "{}" : Encoding.UTF8.GetString(input.ToArray()), new JsonDocumentOptions { MaxDepth = 16 });
+                    // Parse UTF-8 bytes directly: decoding with replacement first would silently
+                    // accept malformed bytes inside strings and change request identity.
+                    byte[] raw = input.Length == 0 ? Encoding.UTF8.GetBytes("{}") : input.ToArray();
+                    StrictUtf8.GetCharCount(raw);
+                    using var json = JsonDocument.Parse(raw, new JsonDocumentOptions { MaxDepth = 16 });
                     lock (gate) { result = api.Encode(method, path, json.RootElement); }
                 }
                 await Reply(context, 200, result);
             }
             catch (ApiError e) { await Error(e.Status, e.Message); }
             catch (JsonException) { await Error(400, "Malformed JSON"); }
+            catch (DecoderFallbackException) { await Error(400, "Body must be valid UTF-8"); }
             catch (OperationCanceledException) { await Error(408, "Request read timed out"); }
             catch (Exception e) { System.Console.Error.WriteLine(e); await Error(500, "Engine error; discard or reset the session"); }
             finally { context.Response.Close(); slots.Release(); }

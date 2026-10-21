@@ -104,7 +104,7 @@ $samplePath = Join-Path (Get-Location).Path 'runs/render-sample.json'
 
 在线控制 CI 在三个平台启动两份真实 .NET HTTP 服务，检查鉴权、并发幂等、版本冲突、独立寻路判题、配对效率及两轮证据驱动器，保留 JSON/日志 artifact。服务无需 Godot；详情见 [在线控制与效率实验](online-efficiency.md)。CI 检查协议正确性，不跨机器比较速度，也不代表真实模型已产生 RSI。
 
-引擎启动默认目录为用户主目录的 `.sandboxsim-tool/godot-4.7.2`，可用 `GODOT_EXE` 或 `-GodotPath` 覆盖；显式路径无效会报错。SDK 的 Windows 旧路径仍由 `test-build.ps1` 验证不会导致非 Windows 的盘符崩溃。CI 运行与当前代码版本应对照同一个提交 SHA，不能把旧版通过记录当成新提交的验证结果。
+引擎启动默认目录为当前仓库的 `.tools/godot-4.7.2`，可用 `GODOT_EXE` 或 `-GodotPath` 覆盖；显式路径无效会报错。SDK 的 Windows 旧路径仍由 `test-build.ps1` 验证不会导致非 Windows 的盘符崩溃。CI 运行与当前代码版本应对照同一个提交 SHA，不能把旧版通过记录当成新提交的验证结果。
 
 ## 文档整理的检查范围
 

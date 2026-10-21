@@ -36,7 +36,7 @@ jobs:
       - name: Install verified Godot .NET editor
         shell: pwsh
         run: |
-          $editor = ./tools/setup-godot.ps1 -InstallRoot (Join-Path $env:RUNNER_TEMP 'sandboxsim-godot')
+          $editor = ./tools/setup-godot.ps1
           "GODOT_EXE=$editor" >> $env:GITHUB_ENV
       - name: Build release client
         shell: pwsh

@@ -8,11 +8,11 @@
 
 源码校验原始 `.blend` 的 SHA-256，运行时校验导出数据的 SHA-256。生成脚本是 [export_human_head.py](../../tools/export_human_head.py)，运行时读取、变体和头发贴合位于 [NatureModels.HumanAsset.cs](../../src/SandBoxSim.Godot/NatureModels.HumanAsset.cs)。普通构建、运行和评测直接使用仓库中的导出数据，无须 Blender 或在线下载。
 
-转换保留原作者的面部拓扑，提取头颈和耳部；唇部独立用于原有交谈与进食表现，左右眼球保留体积并由眼睑闭合实现眨眼。颈根经过坐标转换与收束以接入游戏衣身。运行时八种结构调整下颌到上脸的宽度与面部纵深，头发按实际头颅表面查找表贴合；年龄沿用原有缩放。当前没有独立女性基础网格或年龄专用雕刻。
+转换保留原作者的面部拓扑，提取头颈和耳部；唇部独立用于原有交谈与进食表现，左右眼球保留体积并由眼睑闭合实现眨眼。颈根经过坐标转换与收束以接入游戏衣身。运行时八种结构调整下颌到上脸的宽度与面部纵深，头发按实际头颅表面查找表贴合；年龄沿用原有缩放。运行时在保留原始唇色的基础上对面颊、鼻部增加浅暖色，发束和分缝仍受头皮包围检查约束。当前没有独立女性基础网格或年龄专用雕刻。
 
 ## 重新导出
 
-当前数据由 Blender 4.5.14 LTS 转换。将原始 `.blend` 保存到本机维护目录，SHA-256 必须为：
+当前数据由 Blender 4.5.14 LTS 转换。将便携 Blender 与原始 `.blend` 保存到项目 `.tools/` 下的版本目录和素材来源目录，SHA-256 必须为：
 
 ```text
 1d9d2a6070acd6a3d0d9b676af816001310fb0f6128d07a3ab3e0318c7fdd981
@@ -21,8 +21,8 @@
 从仓库根目录执行，路径按本机安装位置填写：
 
 ```powershell
-$headBlender = 'C:/path/to/blender.exe'
-$headSource = 'C:/path/to/realistic_human_base.blend'
+$headBlender = './.tools/blender-4.5.14/blender.exe'
+$headSource = './.tools/sources/realistic_human_base.blend'
 & $headBlender --background --disable-autoexec $headSource --python tools/export_human_head.py -- --output src/SandBoxSim.Godot/assets/models/human
 ```
 

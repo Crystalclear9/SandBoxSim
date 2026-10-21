@@ -30,7 +30,8 @@
     "controllerBuildsAndTestsCandidates": true,
     "automaticCandidateAdoption": false,
     "frozenRealSourceResearchComparison": true,
-    "renderBuildSourceIdentity": true
+    "renderBuildSourceIdentity": true,
+    "entityInspection": true
   },
   "schemas": {
     "request": "request.schema.json",
@@ -65,7 +66,12 @@
     "launcher": "tools/online.py",
     "benchmark": "tools/efficiency.py",
     "visualObservation": false,
-    "rsiValidationScope": "Agent capability transfer, executed self-edit lineage, paired offspring yields and improve-method reversion; runtime acceleration remains separately measured."
+    "rsiValidationScope": "Agent capability transfer, executed self-edit lineage, paired offspring yields and improve-method reversion; runtime acceleration remains separately measured.",
+    "inspection": "POST /v1/sessions/{sessionId}/inspect",
+    "maxInspectItems": 128,
+    "replayWindow": 64,
+    "retryIdentity": "operation-and-exact-JSON",
+    "entityIdentity": "session-scoped epoch:kind:slot:generation"
   },
   "metaBenchmark": {
     "entry": "tools/rsi_benchmark.py",

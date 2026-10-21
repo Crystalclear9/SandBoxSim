@@ -2,6 +2,7 @@
 from __future__ import annotations
 import argparse, http.client, io, json, os, shutil, subprocess, sys, threading, time, urllib.error, urllib.parse
 from pathlib import Path
+from local_environment import tool_environment, dotnet_executable
 ROOT = Path(__file__).resolve().parents[1]
 
 class Client:
@@ -44,10 +45,9 @@ class Client:
         if connection is not None:connection.close();self._transport.connection=None
 
 def launch(assembly, port, token, log):
-    private = Path.home() / '.sandboxsim-tool/net8' / ('dotnet.exe' if os.name == 'nt' else 'dotnet')
-    dotnet = str(private) if private.is_file() else shutil.which('dotnet')
+    dotnet = dotnet_executable()
     if not dotnet or not Path(assembly).is_file(): raise ValueError('Build the console assembly with tools/build.ps1 first')
-    env = os.environ.copy(); env['SANDBOXSIM_API_TOKEN'] = token
+    env = tool_environment(); env['SANDBOXSIM_API_TOKEN'] = token
     return subprocess.Popen([dotnet, str(Path(assembly).resolve()), '--serve', '--port', str(port)], env=env,
         stdout=log, stderr=subprocess.STDOUT, creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
 
@@ -56,6 +56,9 @@ def ready(client, process, timeout=30):
     while time.monotonic() < deadline:
         if process.poll() is not None: raise ValueError('Service exited during startup; inspect its log')
         try: return client.request('GET', '/v1/health')
+        except urllib.error.HTTPError as error:
+            if error.code < 500: raise
+            time.sleep(.1)
         except (OSError, urllib.error.URLError): time.sleep(.1)
     raise ValueError('Service startup timed out')
 

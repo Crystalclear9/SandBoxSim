@@ -57,12 +57,14 @@ internal sealed partial class NatureModels
             float hem=Math.Clamp((.80f-y)/(.80f-GarmentBottom),0,1);
             float front=MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),4);
             float tension=MathF.Exp(-MathF.Pow((y-.82f)/.08f,2));
-            float fold=1+(.012f+.035f*hem)*MathF.Cos(angle*11+(y-.6f)*7)*belt;
+            float fold=1+(.012f+.035f*hem)*MathF.Cos(angle*11+(y-.6f)*7+.30f*MathF.Sin(angle*3))*belt;
             // Cloth gathers below the belt; diagonal compression folds radiate from it.
             fold+=front*tension*.018f*MathF.Sin((y-.76f)*92+MathF.Abs(MathF.Cos(angle))*11);
             fold+=MathF.Exp(-MathF.Pow((y-1.10f)/.12f,2))*.012f*MathF.Sin(angle*7+y*29);
             float vent=_garmentCut==2?hem*(.075f*MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),16)+.040f*MathF.Pow(MathF.Max(0,MathF.Sin(angle)),16)):0;
-            return new Vector3(MathF.Cos(angle)*Profile(width)*fold,y+vent,MathF.Sin(angle)*Profile(depth)*fold);
+            float chest=MathF.Exp(-MathF.Pow((y-1.10f)/.10f,2));
+            float volume=chest*(front*.004f+MathF.Pow(MathF.Max(0,MathF.Sin(angle)),4)*.002f);
+            return new Vector3(MathF.Cos(angle)*Profile(width)*fold,y+vent,MathF.Sin(angle)*(Profile(depth)*fold+volume));
         }
         for (int ring = 0; ring < rings; ring++) for (int side = 0; side < sides; side++)
         {

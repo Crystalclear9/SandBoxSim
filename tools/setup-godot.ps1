@@ -1,7 +1,7 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
     [string]$Version = '4.7.2',
-    [string]$InstallRoot = (Join-Path ([Environment]::GetFolderPath('UserProfile')) '.sandboxsim-tool/godot-4.7.2')
+    [string]$InstallRoot = (Join-Path (Split-Path -Parent $PSScriptRoot) '.tools/godot-4.7.2')
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -11,7 +11,23 @@ elseif ($IsMacOS) { $platform = 'macos.universal'; $pattern = 'Godot' }
 elseif ($IsLinux) { $platform = if ($architecture -eq 'arm64') { 'linux_arm64' } else { 'linux_x86_64' }; $pattern = 'Godot*' }
 else { throw 'Unsupported operating system' }
 $InstallRoot = [IO.Path]::GetFullPath($InstallRoot)
+$installBoundary = (Split-Path -Parent $PSScriptRoot).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+if (-not $InstallRoot.StartsWith($installBoundary, $(if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }))) {
+    throw 'Downloaded Godot must stay inside this project; use .tools/godot-4.7.2.'
+}
 $editorRoot = Join-Path $InstallRoot 'editor'
+# Reuse the verified local installation without retaining or downloading a second ZIP.
+if (Test-Path -LiteralPath $editorRoot) {
+    $existingEditor = Get-ChildItem -LiteralPath $editorRoot -Recurse -File -Filter $pattern |
+        Where-Object { if ($IsLinux) { $_.Name -match '^Godot.*(x86_64|arm64)$' } else { $true } } | Select-Object -First 1
+    if ($existingEditor) {
+        $existingVersion = & $existingEditor.FullName --headless --version
+        if ($LASTEXITCODE -ne 0 -or $existingVersion -notmatch ([regex]::Escape($Version) + '.*mono')) { throw 'Existing editor version mismatch' }
+        New-Item -ItemType File -Path (Join-Path $existingEditor.DirectoryName '_sc_') -Force | Out-Null
+        Write-Output $existingEditor.FullName
+        exit 0
+    }
+}
 $asset = "Godot_v$Version-stable`_mono_$platform.zip"
 $baseUrl = "https://github.com/godotengine/godot-builds/releases/download/$Version-stable"
 New-Item -ItemType Directory -Path $InstallRoot -Force | Out-Null
@@ -31,6 +47,8 @@ $executable = Get-ChildItem -LiteralPath $editorRoot -Recurse -File -Filter $pat
     Where-Object { if ($IsLinux) { $_.Name -match '^Godot.*(x86_64|arm64)$' } else { $true } } | Select-Object -First 1
 if (-not $executable) { throw "Editor executable missing in $editorRoot" }
 if (-not $IsWindows) { & chmod +x $executable.FullName; if ($LASTEXITCODE -ne 0) { throw 'Cannot enable editor execution' } }
+# Portable editor mode: editor settings/templates stay beside this executable.
+New-Item -ItemType File -Path (Join-Path $executable.DirectoryName '_sc_') -Force | Out-Null
 $versionOutput = & $executable.FullName --headless --version
 if ($LASTEXITCODE -ne 0 -or $versionOutput -notmatch ([regex]::Escape($Version) + '.*mono')) { throw 'Installed Godot version does not match the .NET project' }
 Write-Output $executable.FullName

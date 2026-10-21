@@ -8,14 +8,16 @@ internal sealed partial class NatureModels
     private Mesh HandPalm(int side)
     {
         string key="hand-palm:"+side;if(_meshes.TryGetValue(key,out var cached))return cached;
-        var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);
-        const int rows=20,columns=32;
+        var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);surface.SetSmoothGroup(0);
+        const int rows=24,columns=40;
         Vector3 Point(int row,int col)
         {
             float t=row/(float)rows,y=.045f-t*.093f,a=col*MathF.Tau/columns;
             float width=.027f+.007f*MathF.Sin(t*MathF.PI*.85f),depth=.024f-.010f*t;
             float thumb=.008f*MathF.Exp(-MathF.Pow((y+.016f)/.025f,2))*MathF.Pow(MathF.Max(0,side*MathF.Cos(a)),4);
-            return new(MathF.Cos(a)*(width+thumb),y,MathF.Sin(a)*depth+.010f*MathF.Pow(1-t,3));
+            float dorsal=MathF.Pow(MathF.Max(0,MathF.Sin(a)),6);
+            float tendons=.00045f*dorsal*MathF.Sin(a*13+t*2)*MathF.Sin(t*MathF.PI);
+            return new(MathF.Cos(a)*(width+thumb),y,MathF.Sin(a)*(depth+tendons)+.010f*MathF.Pow(1-t,3));
         }
         for(int row=0;row<rows;row++)for(int col=0;col<columns;col++)
         {
@@ -57,31 +59,46 @@ internal sealed partial class NatureModels
         var result=new ArrayMesh();var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);surface.SetMaterial(FaceSurfaceMaterial(skin));
         var arrays=palm.SurfaceGetArrays(0);var vertices=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
         foreach(int index in indices){float wrist=Math.Clamp((vertices[index].Y-.005f)/.040f,0,1);surface.SetBones(new[]{0,15,0,0});surface.SetWeights(new[]{1-wrist,wrist,0f,0f});surface.SetNormal(normals[index]);surface.SetUV(new Vector2(.5f+vertices[index].X*10,.5f+vertices[index].Y*10));surface.AddVertex(vertices[index]);}
+        Vector3 DigitPoint(float distance,float angle,float scale,bool thumb)
+        {
+            float total=(thumb?.034f:.058f)*scale,taper=distance/total;
+            float radius=(thumb?.0072f:.006f)*(1-.23f*taper);
+            float tipLength=.005f*scale;
+            if(distance>total-tipLength)radius*=MathF.Sqrt(MathF.Max(.000001f,1-MathF.Pow((distance-total+tipLength)/tipLength,2)));
+            float first=(thumb?.018f:.026f)*scale,second=.044f*scale;
+            radius*=1+.065f*MathF.Exp(-MathF.Pow((distance-first)/(.0045f*scale),2))+(thumb?0:.05f*MathF.Exp(-MathF.Pow((distance-second)/(.0035f*scale),2)));
+            // Oval phalanges with a slightly fuller pad; joint centres and grip solver stay aligned.
+            float pad=.92f+.04f*MathF.Max(0,-MathF.Sin(angle));
+            return new(MathF.Cos(angle)*radius,-distance,MathF.Sin(angle)*radius*pad);
+        }
+        Vector3 DigitNormal(float distance,float angle,float scale,bool thumb)
+        {
+            float total=(thumb?.034f:.058f)*scale,epsilon=.00002f;
+            var along=DigitPoint(MathF.Min(total,distance+epsilon),angle,scale,thumb)-DigitPoint(MathF.Max(0,distance-epsilon),angle,scale,thumb);
+            var around=DigitPoint(distance,angle+.001f,scale,thumb)-DigitPoint(distance,angle-.001f,scale,thumb);
+            return around.Cross(along).Normalized();
+        }
         void Digit(int baseBone,Vector3 origin,float scale,bool thumb)
         {
-            const int rings=20,sides=16;float total=(thumb?.034f:.058f)*scale;
+            const int rings=24,sides=20;float total=(thumb?.034f:.058f)*scale;
             void Vertex(int row,int column)
             {
-                float distance=row/(float)rings*total,a=column*MathF.Tau/sides;
-                float taper=distance/total;float radius=(thumb?.0072f:.006f)*(1-.23f*taper);
-                float tip=1;
-                if(distance>total-.005f){tip=MathF.Sqrt(MathF.Max(.000001f,1-MathF.Pow((distance-total+.005f)/.005f,2)));radius*=tip;}
+                // Wrap the seam exactly so both copies have identical normals.
+                float distance=row/(float)rings*total,a=(column%sides)*MathF.Tau/sides;
                 int bone=baseBone;float weight=0;
                 float first=(thumb?.018f:.026f)*scale,second=.044f*scale;
-                // Small knuckle volumes break the uniform tube silhouette without moving the rig.
-                radius*=1+.065f*MathF.Exp(-MathF.Pow((distance-first)/(.0045f*scale),2))+(thumb?0:.05f*MathF.Exp(-MathF.Pow((distance-second)/(.0035f*scale),2)));
-                if(distance>first-.006f*scale){weight=Math.Clamp((distance-first+.006f*scale)/(.012f*scale),0,1);}
+                if(distance>first-.006f*scale)weight=Math.Clamp((distance-first+.006f*scale)/(.012f*scale),0,1);
                 if(!thumb&&distance>second-.004f*scale){bone++;weight=Math.Clamp((distance-second+.004f*scale)/(.008f*scale),0,1);}
                 surface.SetBones(new[]{bone,bone+1,0,0});surface.SetWeights(new[]{1-weight,weight,0f,0f});
-                surface.SetNormal(new Vector3(MathF.Cos(a)*tip,-(1-tip),MathF.Sin(a)*tip).Normalized());surface.SetUV(new(column/(float)sides,taper));
-                surface.AddVertex(origin+new Vector3(MathF.Cos(a)*radius,-distance,MathF.Sin(a)*radius));
+                surface.SetNormal(DigitNormal(distance,a,scale,thumb));surface.SetUV(new(column/(float)sides,distance/total));
+                surface.AddVertex(origin+DigitPoint(distance,a,scale,thumb));
             }
             for(int row=0;row<rings;row++)for(int col=0;col<sides;col++)
             {Vertex(row,col);Vertex(row+1,col);Vertex(row,col+1);Vertex(row,col+1);Vertex(row+1,col);Vertex(row+1,col+1);}
         }
         for(int d=0;d<4;d++)Digit(1+d*3,new(-.022f+d*.014f,-.04f,-.005f),d==0?.92f:d==1?1:d==2?.96f:.86f,false);
         Digit(13,new(side==0?-.034f:.034f,-.021f,.001f),1,true);
-        surface.GenerateNormals();surface.Index();surface.Commit(result);
+        surface.Index();surface.Commit(result);
         var nails=new SurfaceTool();nails.Begin(Mesh.PrimitiveType.Triangles);
         nails.SetMaterial(new StandardMaterial3D {AlbedoColor=new Color(skin).Lightened(.12f),Roughness=.63f,MetallicSpecular=.14f});
         for(int digit=0;digit<5;digit++)
@@ -90,9 +107,14 @@ internal sealed partial class NatureModels
             void Vertex(int column,int row)
             {
                 float u=column/8f*2-1,v=row/8f*2-1;
-                float arc=MathF.Sqrt(MathF.Max(0,1-v*v));
-                nails.SetBones(new[]{thumb?14:3+digit*3,0,0,0});nails.SetWeights(new[]{1f,0f,0f,0f});nails.SetNormal(Vector3.Back);nails.SetUV(new(column/8f,row/8f));
-                nails.AddVertex(new((thumb?(side==0?-.034f:.034f):-.022f+digit*.014f)+u*(thumb?.0038f:.0035f)*arc,(thumb?-.047f:-.04f-.051f*scale)+v*.005f*scale,(thumb?.0067f:-.00005f)+.00018f*MathF.Sqrt(MathF.Max(0,1-u*u))*arc));
+                float arc=MathF.Sqrt(MathF.Max(0,1-MathF.Pow(v,4)));
+                float distance=((thumb?.026f:.0495f)+v*(thumb?.004f:.0045f))*scale;
+                float angle=MathF.PI*.5f-u*.70f*arc;
+                var origin=new Vector3(thumb?(side==0?-.034f:.034f):-.022f+digit*.014f,thumb?-.021f:-.04f,thumb?.001f:-.005f);
+                var normal=DigitNormal(distance,angle,scale,thumb);
+                nails.SetBones(new[]{thumb?14:3+digit*3,0,0,0});nails.SetWeights(new[]{1f,0f,0f,0f});nails.SetNormal(normal);nails.SetUV(new(column/8f,row/8f));
+                // Fit the nail to the same rounded distal surface, with a 0.12 mm raised edge.
+                nails.AddVertex(origin+DigitPoint(distance,angle,scale,thumb)+normal*.00012f);
             }
             for(int row=0;row<8;row++)for(int col=0;col<8;col++){Vertex(col,row);Vertex(col,row+1);Vertex(col+1,row);Vertex(col+1,row);Vertex(col,row+1);Vertex(col+1,row+1);}
         }

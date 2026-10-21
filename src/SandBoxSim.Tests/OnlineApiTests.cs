@@ -87,4 +87,66 @@ public sealed class OnlineApiTests
         using var observation=JsonDocument.Parse(api.Encode("GET",path,json.RootElement));
         Assert.Equal(1L,observation.RootElement.GetProperty("tick").GetInt64());
     }
+
+    [Fact("Idempotent replies cannot be replayed through another operation")]
+    public void OperationBoundRetries()
+    {
+        var api=new StepApi();string path="/v1/sessions/"+Create(api);
+        string step="{\"requestId\":\"one\",\"expectedRevision\":0,\"ticks\":2}";
+        Call(api,"POST",path+"/step",step);
+        Fails(api,path+"/reset",step,409);
+        Assert.Equal(2L,Call(api,"GET",path).GetProperty("tick").GetInt64());
+        string reset="{\"requestId\":\"reset\",\"expectedRevision\":1,\"seed\":17,\"width\":24,\"height\":24,\"agents\":4}";
+        var result=Call(api,"POST",path+"/reset",reset);
+        Assert.Equal(result.GetRawText(),Call(api,"POST",path+"/reset",reset).GetRawText());
+        Fails(api,path+"/step",reset,409);
+        Assert.Equal(1L,result.GetProperty("episode").GetProperty("epoch").GetInt64());
+    }
+
+    [Fact("Entity inspection is paginated, repeatable and does not mutate the world")]
+    public void InspectEntities()
+    {
+        var api=new StepApi();string path="/v1/sessions/"+Create(api);
+        var before=Call(api,"GET",path);
+        string query="{\"expectedRevision\":0,\"kind\":\"agents\",\"limit\":2}";
+        var first=Call(api,"POST",path+"/inspect",query);
+        Assert.Equal(4,first.GetProperty("total").GetInt32());
+        Assert.Equal(2,first.GetProperty("items").GetArrayLength());
+        Assert.Equal(2,first.GetProperty("nextOffset").GetInt32());
+        Assert.Equal(first.GetRawText(),Call(api,"POST",path+"/inspect",query).GetRawText());
+        var second=Call(api,"POST",path+"/inspect","{\"expectedRevision\":0,\"kind\":\"agents\",\"offset\":2,\"limit\":2}");
+        Assert.Equal(JsonValueKind.Null,second.GetProperty("nextOffset").ValueKind);
+        var ids=new System.Collections.Generic.HashSet<string>();
+        foreach(var page in new[]{first,second})foreach(var item in page.GetProperty("items").EnumerateArray())
+        {
+            Assert.True(ids.Add(item.GetProperty("entityId").GetString()!));
+            Assert.True(item.GetProperty("generation").GetInt32()>=0);
+            Assert.True(item.GetProperty("x").GetInt32()>=0);
+        }
+        Assert.Equal(4,ids.Count);
+        var empty=Call(api,"POST",path+"/inspect","{\"expectedRevision\":0,\"kind\":\"buildings\"}");
+        Assert.Equal(0,empty.GetProperty("items").GetArrayLength());
+        Assert.Equal(JsonValueKind.Null,empty.GetProperty("nextOffset").ValueKind);
+        Assert.Equal(before.GetRawText(),Call(api,"GET",path).GetRawText());
+    }
+
+    [Fact("Inspection rejects stale pages and reset epochs prevent entity identity aliasing")]
+    public void InspectVersionsAndLimits()
+    {
+        var api=new StepApi();string path="/v1/sessions/"+Create(api);
+        string query="{\"expectedRevision\":0,\"kind\":\"agents\"}";
+        string oldId=Call(api,"POST",path+"/inspect",query).GetProperty("items")[0].GetProperty("entityId").GetString()!;
+        foreach(string invalid in new[]{
+            "{\"expectedRevision\":0,\"kind\":\"agents\",\"limit\":129}",
+            "{\"expectedRevision\":0,\"kind\":\"agents\",\"limit\":0}",
+            "{\"expectedRevision\":0,\"kind\":\"agents\",\"offset\":5}",
+            "{\"expectedRevision\":0,\"kind\":\"other\"}",
+            "{\"expectedRevision\":0,\"expectedRevision\":0,\"kind\":\"agents\"}"})
+            Fails(api,path+"/inspect",invalid,400);
+        Call(api,"POST",path+"/reset","{\"requestId\":\"reset\",\"expectedRevision\":0,\"seed\":17,\"width\":24,\"height\":24,\"agents\":4}");
+        Fails(api,path+"/inspect",query,409);
+        var page=Call(api,"POST",path+"/inspect","{\"expectedRevision\":1,\"kind\":\"agents\"}");
+        Assert.Equal(1L,page.GetProperty("epoch").GetInt64());
+        Assert.False(oldId==page.GetProperty("items")[0].GetProperty("entityId").GetString());
+    }
 }

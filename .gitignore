@@ -8,7 +8,7 @@ bin/
 obj/
 artifacts/
 
-# 本地工具链（.NET SDK 等，绝不入库）
+# 项目本地工具链、SDK、Godot/Blender、NuGet 包与下载缓存（绝不入库）
 .tools/
 *.nupkg
 

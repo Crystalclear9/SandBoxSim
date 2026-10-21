@@ -7,7 +7,7 @@ internal sealed partial class NatureModels
 {
     private Shader? _hairShader;
     private NoiseTexture2D? _skinGrain;
-    private Material SkinSurface(string color)=>new StandardMaterial3D {AlbedoColor=new Color(color),Roughness=.64f,MetallicSpecular=.26f};
+    private Material SkinSurface(string color)=>FaceSurfaceMaterial(color);
     private Material FaceSurfaceMaterial(string color)
     {
         string key="face-surface:"+color;if(_residentMaterials.TryGetValue(key,out var cached))return cached;

@@ -1,10 +1,10 @@
-﻿<#
+<#
 .SYNOPSIS
-    安装 .NET 8 SDK 到仓库外的工具目录（幂等，三平台可用）。
+    安装 .NET 8 SDK 到仓库内 .tools/net8 工具目录（幂等，三平台可用）。
 
 .DESCRIPTION
-    为什么不在仓库内安装：仓库可能处于只读沙箱策略下，仓库外的工具目录更稳；
-    同时避免把几百 MB 的二进制带进 git 历史（见 .gitignore 的 .tools/ 规则）。
+    工具、安装脚本和下载缓存留在仓库 .tools/ 下；该目录由 .gitignore 忽略。
+    不修改系统 PATH，不安装到用户主目录。
 
     为什么用 curl 而不是 Invoke-WebRequest：本机 PowerShell 5.1 的 Schannel 在部分
     受限环境下会报 SEC_E_NO_CREDENTIALS，而 curl 走自己的 TLS 栈，实测可用。
@@ -17,7 +17,7 @@
 
 .EXAMPLE
     .\tools\install-sdk.ps1
-    .\tools\install-sdk.ps1 -Channel 8.0 -InstallDir D:\tools\net8
+    .\tools\install-sdk.ps1 -Channel 8.0 -InstallDir .tools/net8
 #>
 [CmdletBinding()]
 param(
@@ -35,7 +35,12 @@ Write-Host '=== SandBoxSim: install .NET SDK ===' -ForegroundColor Cyan
 . (Join-Path $PSScriptRoot 'build-lib.ps1')
 
 if (-not $InstallDir) {
-    $InstallDir = if ($env:SANDBOXSIM_DOTNET_ROOT) { $env:SANDBOXSIM_DOTNET_ROOT } else { Get-DefaultSdkRoot }
+    $InstallDir = Get-DefaultSdkRoot
+}
+$InstallDir = [IO.Path]::GetFullPath($InstallDir)
+$installBoundary = $script:RepoRoot.TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+if (-not $InstallDir.StartsWith($installBoundary, $(if ($script:SandBoxSimIsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }))) {
+    throw 'Downloaded SDK must stay inside this project; use .tools/net8.'
 }
 $exeName = Get-DotnetExeName
 $dotnetExe = Join-Path $InstallDir $exeName
@@ -72,6 +77,15 @@ function Invoke-Curl {
     return $LASTEXITCODE
 }
 
+$downloadTemp = Join-Path $toolRoot 'tmp'
+New-Item -ItemType Directory -Path $downloadTemp -Force | Out-Null
+$previousTemp = $env:TEMP
+$previousTmp = $env:TMP
+$previousTmpDir = $env:TMPDIR
+try {
+$env:TEMP = $downloadTemp
+$env:TMP = $downloadTemp
+$env:TMPDIR = $downloadTemp
 if ($installOnWindows) {
     $scriptPath = Join-Path $toolRoot 'dotnet-install.ps1'
     if (-not (Test-Path $scriptPath)) {
@@ -84,7 +98,7 @@ if ($installOnWindows) {
     }
 
     Write-Host "Installing SDK (channel $Channel) into $InstallDir ..."
-    & $scriptPath -Channel $Channel -InstallDir $InstallDir -NoPath -SkipNonVersionedFiles
+    & $scriptPath -Channel $Channel -InstallDir $InstallDir -NoPath -SkipNonVersionedFiles -ZipPath (Join-Path $toolRoot 'sdk-download.zip')
     if ($LASTEXITCODE -ne 0) { throw "dotnet-install FAILED (exit code $LASTEXITCODE)" }
 }
 else {
@@ -101,6 +115,13 @@ else {
     Write-Host "Installing SDK (channel $Channel) into $InstallDir ..."
     & bash $scriptPath --channel $Channel --install-dir $InstallDir --no-path
     if ($LASTEXITCODE -ne 0) { throw "dotnet-install FAILED (exit code $LASTEXITCODE)" }
+}
+
+}
+finally {
+    $env:TEMP = $previousTemp
+    $env:TMP = $previousTmp
+    $env:TMPDIR = $previousTmpDir
 }
 
 $sdks = & $dotnetExe --list-sdks
