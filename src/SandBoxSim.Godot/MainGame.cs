@@ -22,7 +22,8 @@ public partial class MainGame : Control
     public int SelectedX => _selectedX;
     public int SelectedY => _selectedY;
     public long PinnedPerson { get; private set; }
-    public int Radius => (int)_radius.Value;
+    private static bool IsEcosystemTool(PlayerTool tool)=>tool is PlayerTool.MeadowSeeds or PlayerTool.BerrySeeds or PlayerTool.WetlandGarden or PlayerTool.Deadwood;
+    public int Radius => IsEcosystemTool(Tool)?3:(int)_radius.Value;
     public float Strength => (float)_strength.Value;
     public int SelectedSlot => _selected >= 0 && Sim.Agents.IsSlotAlive(_selected)
         && Sim.Agents.GenerationOf(_selected) == _selectedGeneration ? _selected : -1;
@@ -47,6 +48,7 @@ public partial class MainGame : Control
     private bool _selfTest;
     private int _frames;
     private string _capture = "", _captureFrames = "";
+    private double _captureDelay=.7;
     private int _captureFrame;
     private double _captureElapsed;
     private bool _captureRequested;
@@ -63,11 +65,12 @@ public partial class MainGame : Control
         "观察 / 选择", "创造人类", "创造食草动物", "生长森林", "添加食物", "添加木材", "添加石料", "添加铁矿",
         "草地", "水域", "山脉", "沙地", "农田", "道路", "雪地", "沼泽", "沙漠", "熔岩",
         "升高地形", "降低地形", "河流画笔", "移除水域", "肥力祝福", "生育祝福", "治愈祝福", "生产祝福",
-        "火灾", "闪电", "洪水", "干旱", "瘟疫", "陨石", "创造狼", "局部降雨"
+        "火灾", "闪电", "洪水", "干旱", "瘟疫", "陨石", "创造狼", "局部降雨", "播撒花种", "栽植野果", "恢复苇泽", "腐木育土"
     };
 
     public override void _Ready()
     {
+        GetWindow().Title="SandBoxSim";
         Theme = new Theme { DefaultFontSize = 16, DefaultFont = new SystemFont
             { FontNames = new[] { "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "WenQuanYi Zen Hei", "sans-serif" } } };
         var preferences = new ConfigFile();
@@ -77,6 +80,7 @@ public partial class MainGame : Control
         {
             if (arg == "--self-test") { _selfTest = true; }
             if(arg.StartsWith("--capture-frames=",StringComparison.Ordinal)){_captureFrames=arg.Substring(17);System.IO.Directory.CreateDirectory(_captureFrames);}
+            if(arg.StartsWith("--capture-delay=",StringComparison.Ordinal)&&double.TryParse(arg.Substring(16),System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out double captureDelay)&&double.IsFinite(captureDelay))_captureDelay=Math.Clamp(captureDelay,.1,60);
             if (arg.StartsWith("--capture=", StringComparison.Ordinal)) { _capture = arg.Substring(10); }
             if (arg.StartsWith("--agents=", StringComparison.Ordinal) && int.TryParse(arg.Substring(9), out int population))
                 { _initialPopulation = Math.Clamp(population, 0, 2000); }
@@ -86,6 +90,14 @@ public partial class MainGame : Control
             if (arg.StartsWith("--demo-days=", StringComparison.Ordinal)) { int.TryParse(arg.Substring(12), out _previewDays); _previewDays = Math.Clamp(_previewDays, 0, 30); }
             if (arg.StartsWith("--view=", StringComparison.Ordinal)) { _previewView = arg.Substring(7); }
             if (arg.StartsWith("--panel=", StringComparison.Ordinal)) { _previewPanel = arg.Substring(8); }
+        }
+        string? animalExport=OS.GetCmdlineUserArgs().FirstOrDefault(a=>a.StartsWith("--export-animal-sources=",StringComparison.Ordinal));
+        if(animalExport!=null)
+        {
+            SetProcess(false);
+            try{new NatureModels().ExportAnimalSources(animalExport.Substring("--export-animal-sources=".Length));GetTree().Quit();}
+            catch(Exception exception){GD.PrintErr("ANIMAL_EXPORT_ERROR "+exception.Message);GetTree().Quit(2);}
+            return;
         }
         string? evaluationPath=OS.GetCmdlineUserArgs().FirstOrDefault(a=>a.StartsWith("--evaluation=",StringComparison.Ordinal));
         if(evaluationPath!=null)
@@ -99,6 +111,7 @@ public partial class MainGame : Control
         if (_previewPanel is "architecture" or "characters" or "naturemodels" or "faces" or "equipment" or "actions" or "motion" or "grip" or "hands" or "model-details" or "ecology-details" or "wardrobe")
         { SetSpeed(0); AddChild(new ModelGallery { Collection = _previewPanel == "naturemodels" ? "nature" : _previewPanel }); }
 
+        if(_previewPanel=="ecology")ShowCategory("生态");
         if (_selfTest) { RunSelfTest(); }
     }
     private void NewWorld(int seed)
@@ -142,6 +155,10 @@ public partial class MainGame : Control
             PlayerTool.Wolf => "加入捕食者，观察鹿群与植被的连锁变化。",
             PlayerTool.Fire => "火会蔓延；水源、天气与燃料决定后果。",
             PlayerTool.Food => "增加本地粮食，观察生存、出生与贸易需求。",
+            PlayerTool.MeadowSeeds => "播撒花种，温润肥沃时约八天成形；干旱和踩踏使恢复变慢，邻近野果地受花甸授粉。",
+            PlayerTool.BerrySeeds => "栽植野果地，随季节结果；可以与花甸、湿地和动物共同组成食物网络。",
+            PlayerTool.WetlandGarden => "恢复一片苇泽，涵养周围土壤；道路、建筑与已有高低地形保留。",
+            PlayerTool.Deadwood => "放置有限腐木；留下育土或让居民采走，由你观察它的去向。",
             PlayerTool.Rain => "增加局部土壤湿度；强度至少 25 时扑灭范围内的火，保留未烧尽的植被。",
             PlayerTool.Grass or PlayerTool.Road => "改变通行条件，让分隔的居民有机会相遇。",
             PlayerTool.Inspect => "点击人物、动物或聚落，追踪他们的故事。",
@@ -370,7 +387,7 @@ public partial class MainGame : Control
         if (_refresh >= 0.2) { _refresh = 0; RefreshPanels(); RefreshOperations(); SyncControls(); if(_chart.IsVisibleInTree())_chart.QueueRedraw(); if(_discovery.IsVisibleInTree())_discovery.Refresh(); }
         _captureElapsed += delta;
         if(_captureFrames.Length>0&&_captureFrame<56&&_captureElapsed>=.25+_captureFrame/8.0)CaptureFrame(_captureFrame++);
-        if (_capture.Length > 0 && !_captureRequested && _captureElapsed >= .7) { _captureRequested = true; Capture(); }
+        if (_capture.Length > 0 && !_captureRequested && _captureElapsed >= _captureDelay) { _captureRequested = true; Capture(); }
         if (_selfTest && _frames >= 15) { GetTree().Quit(0); }
         StepEvaluation();
         if (_benchmarkSeconds > 0)
@@ -449,7 +466,15 @@ public partial class MainGame : Control
         if (Tool != PlayerTool.Inspect)
         {
             int before = Sim.Agents.LiveCount;
-            PlayerTools.Apply(Sim, Tool, x, y, Radius, Strength); _map.QueueRedraw();
+            bool planted=true;
+            if(Tool is PlayerTool.MeadowSeeds or PlayerTool.BerrySeeds or PlayerTool.WetlandGarden or PlayerTool.Deadwood)
+            {
+                var kind=Tool switch {PlayerTool.MeadowSeeds=>WildPlaceKind.Meadow,PlayerTool.BerrySeeds=>WildPlaceKind.Berries,PlayerTool.WetlandGarden=>WildPlaceKind.Wetland,_=>WildPlaceKind.FallenWood};
+                planted=Wild.Cultivate(Sim,kind,x,y);
+            }
+            else PlayerTools.Apply(Sim, Tool, x, y, Radius, Strength);
+            _map.QueueRedraw();
+            if(!planted){_status.Text="这里已有同类生态，或地面不适合栽植；道路与建筑会保留。";return;}
             _map.Effect(x, y, Tool >= PlayerTool.Fire && Tool <= PlayerTool.Meteor ? new Color("#e59970") : new Color("#c5dda0"), ToolNames[(int)Tool]);
             _status.Text = $"{ToolNames[(int)Tool]} · ({x}, {y}) · 半径 {Radius}" + (Tool == PlayerTool.Human ? $" · 新增 {Sim.Agents.LiveCount - before} 人" : " · 观察接下来的变化");
         }

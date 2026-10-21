@@ -12,8 +12,11 @@ public partial class MainGame
 {
     private TabContainer _drawer = null!;
     private PanelContainer _settingsPanel = null!, _journalPanel = null!, _brushPanel = null!;
+    private PanelContainer _worldPanel=null!,_statsPanel=null!;
     private PanelContainer _timePanel = null!, _cameraPanel = null!, _dockPanel = null!;
     private Label _toolBadge = null!, _dayLabel = null!, _populationLabel = null!, _settlementLabel = null!, _buildingLabel = null!;
+    private VBoxContainer _brushParameters=null!;
+    private Label _ecologyFootprint=null!;
     private Label _brushTitle = null!, _brushHint = null!;
     private bool _settingsOpen;
     private OptionButton _scenarioPicker = null!;
@@ -86,17 +89,19 @@ public partial class MainGame
         header.Visible = false;
         var worldCard = Surface(overlay, new Vector2(0, 0), new Vector2(28, 19), new Vector2(318, 54), 4);
 
+        _worldPanel=worldCard;
         var worldRow = new HBoxContainer(); worldRow.AddThemeConstantOverride("separation", 12); worldCard.AddChild(worldRow);
         worldRow.AddChild(new TextureRect { Texture = HudSymbols.For("crest"), CustomMinimumSize = new Vector2(28, 38), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered });
         var wordmark = HudStyle.Heading("SandBoxSim", 18); worldRow.AddChild(wordmark);
         var worldInfo = new VBoxContainer(); worldInfo.AddThemeConstantOverride("separation", 0); worldRow.AddChild(worldInfo);
-        worldInfo.AddChild(HudStyle.Label("自然 · 聚落 · 众生", 10, true));
+        worldInfo.AddChild(HudStyle.Label("自由演化 · 田野纪事", 10, true));
         var scenario = new OptionButton { Flat = true, CustomMinimumSize = new Vector2(113, 31) }; _scenarioPicker = scenario; HudStyle.Button(scenario);
         foreach (string name in SandboxScenarios.Names) { scenario.AddItem(name); } worldInfo.AddChild(scenario);
         scenario.ItemSelected += index => { Scenario = (int)index; NewWorld((int)_seed.Value); _map.Focus(43, 50, 16); _checkpoint = ""; _discovery.Refresh(); };
 
         var stats = Surface(overlay, new Vector2(.5f, 0), new Vector2(-310, 20), new Vector2(620, 52), 4);
 
+        _statsPanel=stats;
         var statsRow = new HBoxContainer(); statsRow.AddThemeConstantOverride("separation", 12); stats.AddChild(statsRow);
         _populationLabel = Metric(statsRow, "居民", "40", 20); _settlementLabel = Metric(statsRow, "聚落", "0", 20); _buildingLabel = Metric(statsRow, "建筑", "0", 20);
         _foodLabel = Metric(statsRow, "食物储备", "0", 20); _woodLabel = Metric(statsRow, "木材储备", "0", 20); _stoneLabel = Metric(statsRow, "石料储备", "0", 20);
@@ -112,7 +117,7 @@ public partial class MainGame
         _journalPanel = Surface(overlay, new Vector2(1, 0), new Vector2(-372, 92), new Vector2(348, 600), 18);
         var journal = new VBoxContainer(); journal.AddThemeConstantOverride("separation", 12); _journalPanel.AddChild(journal);
         var journalHeading = new PanelContainer(); journalHeading.SetMeta("journal_heading",true);
-        var headingBox=HudStyle.Box(new Color("#242c36"),8,14,false);journalHeading.AddThemeStyleboxOverride("panel",headingBox);journal.AddChild(journalHeading);
+        var headingBox=HudStyle.Box(HudStyle.Wash,8,14,false);journalHeading.AddThemeStyleboxOverride("panel",headingBox);journal.AddChild(journalHeading);
         var headingBody=new VBoxContainer();headingBody.AddThemeConstantOverride("separation",5);journalHeading.AddChild(headingBody);
         var journalHeader = new HBoxContainer(); headingBody.AddChild(journalHeader);
         var journalTitle = HudStyle.Heading("世界手记", 22); journalTitle.SizeFlagsHorizontal = SizeFlags.ExpandFill; journalHeader.AddChild(journalTitle);
@@ -140,7 +145,9 @@ public partial class MainGame
         var brush = new VBoxContainer(); brush.AddThemeConstantOverride("separation", 10); _brushPanel.AddChild(brush);
         _brushTitle = HudStyle.Label("自由观察", 21); brush.AddChild(_brushTitle);
         _brushHint = HudStyle.Label("靠近一个人，看看他为什么\n做出自己的选择。", 14, true); _brushHint.AutowrapMode = TextServer.AutowrapMode.WordSmart; brush.AddChild(_brushHint);
-        _radius = Spin(brush, "作用范围", 0, 20, 2); _strength = Spin(brush, "数量 / 强度", 1, 100, 10);
+        _brushParameters=new VBoxContainer();brush.AddChild(_brushParameters);
+        _radius = Spin(_brushParameters, "作用范围", 0, 20, 2); _strength = Spin(_brushParameters, "数量 / 强度", 1, 100, 10);
+        _ecologyFootprint=HudStyle.Label("生态地块 · 周围 3 格\n可连续栽植，水土决定后续生长。",12,true);brush.AddChild(_ecologyFootprint);_ecologyFootprint.Visible=false;
         _brushPanel.Visible = false;
 
         _settingsPanel = Surface(overlay, new Vector2(0, 0), new Vector2(24, 104), new Vector2(300, 640), 18); _settingsPanel.Visible = false;
@@ -185,35 +192,37 @@ public partial class MainGame
         var footer = Surface(overlay, new Vector2(0, 1), new Vector2(16, -100), new Vector2(1264, 84), 0);
         footer.AnchorRight = 1; footer.OffsetRight = -16;
         footer.Visible = false;
-        var dock = Surface(overlay, new Vector2(.5f, 1), new Vector2(-250, -306), new Vector2(500, 208), 6); _dockPanel = dock;
+        var dock = Surface(overlay, new Vector2(.5f, 1), new Vector2(-260, -294), new Vector2(520, 202), 6); _dockPanel = dock;
         var dockContents = new VBoxContainer(); dockContents.AddThemeConstantOverride("separation", 4); dock.AddChild(dockContents);
         var categories = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center }; categories.AddThemeConstantOverride("separation", 6); dockContents.AddChild(categories);
-        foreach (string category in new[] { "生命", "地貌", "资源", "灾害", "祝福" })
+        foreach (string category in new[] { "生命", "生态", "地貌", "资源", "灾害", "祝福" })
         { string chosen = category; var button = ActionButton(categories, category, () => SetCategory(chosen)); button.ToggleMode = true; _categoryButtons[category] = button; }
-        _paletteRow = new GridContainer { Columns = 7 }; _paletteRow.AddThemeConstantOverride("separation", 6); dockContents.AddChild(_paletteRow); SetCategory("生命");
+        _paletteRow = new GridContainer { Columns = 7,SizeFlagsHorizontal=SizeFlags.ExpandFill }; _paletteRow.AddThemeConstantOverride("separation", 6); dockContents.AddChild(_paletteRow); SetCategory("生命");
         _dockPanel.Visible = false;
-        _commandPanel = Surface(overlay, new Vector2(.5f, 1), new Vector2(-250, -98), new Vector2(500, 80), 6);
+        _commandPanel = Surface(overlay, new Vector2(.5f, 1), new Vector2(-270, -88), new Vector2(540, 70), 6);
 
         var commands = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center }; commands.AddThemeConstantOverride("separation", 6); _commandPanel.AddChild(commands);
         ActionButton(commands, "观察", () => { SelectTool(PlayerTool.Inspect); ShowTools(false); });
         _toolsMenuButton = ActionButton(commands,"生命",()=>ShowCategory("生命"));_toolsMenuButton.ToggleMode=true;_primaryCategories["生命"]=_toolsMenuButton;
+        var ecologyButton=ActionButton(commands,"生态",()=>ShowCategory("生态"));ecologyButton.ToggleMode=true;_primaryCategories["生态"]=ecologyButton;
         var terrainButton=ActionButton(commands,"地貌",()=>ShowCategory("地貌"));terrainButton.ToggleMode=true;_primaryCategories["地貌"]=terrainButton;
         var climateButton=ActionButton(commands,"气候",()=>ShowCategory("祝福"));climateButton.ToggleMode=true;_primaryCategories["祝福"]=climateButton;
         ActionButton(commands, "手记", () => ShowJournal(!_journalPanel.Visible));
         foreach (Godot.Button command in commands.GetChildren())
         {
-            command.Icon = command.Text switch { "生命"=>ToolGlyphs.For(PlayerTool.Human),"地貌"=>ToolGlyphs.For(PlayerTool.Mountain),"气候"=>ToolGlyphs.For(PlayerTool.Rain),_=>HudSymbols.For(command.Text) }; command.ExpandIcon = true;
-            command.AddThemeFontSizeOverride("font_size",14); command.AddThemeConstantOverride("icon_max_width", 25); command.AddThemeConstantOverride("h_separation", 8);
-            command.CustomMinimumSize = new Vector2(88, 60);
+            command.Icon = command.Text switch { "生命"=>ToolGlyphs.For(PlayerTool.Human),"生态"=>ToolGlyphs.For(PlayerTool.MeadowSeeds),"地貌"=>ToolGlyphs.For(PlayerTool.Mountain),"气候"=>ToolGlyphs.For(PlayerTool.Rain),_=>HudSymbols.For(command.Text) }; command.ExpandIcon = true;
+            command.IconAlignment=HorizontalAlignment.Center;command.VerticalIconAlignment=VerticalAlignment.Top;
+            command.AddThemeFontSizeOverride("font_size",13); command.AddThemeConstantOverride("icon_max_width", 25); command.AddThemeConstantOverride("h_separation", 8);
+            command.CustomMinimumSize = new Vector2(80, 54);
         }
 
-        var timePanel = Surface(overlay, new Vector2(0, 1), new Vector2(24, -90), new Vector2(320, 68), 8); _timePanel = timePanel;
+        var timePanel = Surface(overlay, new Vector2(0, 1), new Vector2(24, -86), new Vector2(272, 64), 8); _timePanel = timePanel;
 
         var timeBox = new VBoxContainer(); timeBox.AddThemeConstantOverride("separation", 4); timePanel.AddChild(timeBox); _dayLabel = HudStyle.Label("第 1 天", 14); timeBox.AddChild(_dayLabel);
         var timeRow = new HBoxContainer(); timeBox.AddChild(timeRow);
         foreach (int speed in new[] { 0, 1, 4, 8, 16, 32 })
         { int chosen = speed; var button = ActionButton(timeRow, speed == 0 ? "暂停" : speed + "×", () => SetSpeed(chosen)); button.ToggleMode = true; _speedButtons[speed] = button; } SetSpeed(_speed);
-        var cameraPanel = Surface(overlay, new Vector2(1, 1), new Vector2(-320, -90), new Vector2(296, 68), 8); _cameraPanel = cameraPanel;
+        var cameraPanel = Surface(overlay, new Vector2(1, 1), new Vector2(-288, -86), new Vector2(264, 64), 8); _cameraPanel = cameraPanel;
 
         var cameraBox = new VBoxContainer(); cameraBox.AddThemeConstantOverride("separation", 4); cameraPanel.AddChild(cameraBox);
         var cameraHeading = new HBoxContainer(); cameraBox.AddChild(cameraHeading);
@@ -241,8 +250,10 @@ public partial class MainGame
     private void FitHud() => FitHudFor(Size);
     private void FitHudFor(Vector2 size)
     {
-        HudStyle.Float(_timePanel, new Vector2(0, 1), new Vector2(24, -90), new Vector2(320, 68));
-        HudStyle.Float(_cameraPanel, new Vector2(1, 1), new Vector2(-320, -90), new Vector2(296, 68));
+        HudStyle.Float(_timePanel, new Vector2(0, 1), new Vector2(24, -86), new Vector2(272, 64));
+        HudStyle.Float(_cameraPanel, new Vector2(1, 1), new Vector2(-288, -86), new Vector2(264, 64));
+        float statsWidth=Math.Clamp(size.X-760,480,620);
+        HudStyle.Float(_statsPanel,new Vector2(.5f,0),new Vector2(-statsWidth/2,20),new Vector2(statsWidth,52));
         float journalWidth=Math.Clamp(size.X*.26f,348,448);
         _journalPanel.OffsetLeft=-journalWidth-24;_journalPanel.OffsetRight=-24;
         _journalPanel.OffsetBottom = 92 + Math.Min(740, size.Y - 220);
@@ -260,7 +271,8 @@ public partial class MainGame
                 Rect2 Bounds(Control c) => new(new Vector2(size.X * c.AnchorLeft + c.OffsetLeft, size.Y * c.AnchorTop + c.OffsetTop),
                     new Vector2(c.OffsetRight - c.OffsetLeft, c.OffsetBottom - c.OffsetTop));
                 Rect2 dock = Bounds(_dockPanel), time = Bounds(_timePanel), camera = Bounds(_cameraPanel);
-                if (dock.Intersects(time) || dock.Intersects(camera) || time.Intersects(camera)) { throw new InvalidOperationException("HUD controls overlap at " + size); }
+                if(Bounds(_worldPanel).Intersects(Bounds(_statsPanel)))throw new InvalidOperationException("Top world and resource panels overlap at "+size);
+                if (dock.Intersects(time) || dock.Intersects(camera) || time.Intersects(camera) || Bounds(_commandPanel).Intersects(time) || Bounds(_commandPanel).Intersects(camera)) { throw new InvalidOperationException("HUD controls overlap at " + size); }
                 foreach (var auxiliary in new[] { _brushPanel, _settingsPanel })
                     if (Bounds(auxiliary).Intersects(dock)) { throw new InvalidOperationException("Tool rail obscures an auxiliary panel at " + size); }
                 foreach (var panel in new[] { _dockPanel, _commandPanel, _timePanel, _cameraPanel, _journalPanel, _settingsPanel })
@@ -465,6 +477,7 @@ public partial class MainGame
         foreach (Node child in _paletteRow.GetChildren()) { _paletteRow.RemoveChild(child); child.QueueFree(); } _toolButtons.Clear();
         PlayerTool[] tools = category switch
         {
+            "生态" => new[] { PlayerTool.MeadowSeeds, PlayerTool.BerrySeeds, PlayerTool.WetlandGarden, PlayerTool.Deadwood, PlayerTool.Forest, PlayerTool.Rain },
             "地貌" => new[] { PlayerTool.Grass, PlayerTool.River, PlayerTool.Mountain, PlayerTool.Sand, PlayerTool.Raise, PlayerTool.Lower, PlayerTool.RemoveWater, PlayerTool.Swamp, PlayerTool.Snow, PlayerTool.Desert, PlayerTool.Lava, PlayerTool.Farmland, PlayerTool.Road },
             "资源" => new[] { PlayerTool.Forest, PlayerTool.Food, PlayerTool.Wood, PlayerTool.Stone, PlayerTool.Iron, PlayerTool.Fertility },
             "灾害" => new[] { PlayerTool.Fire, PlayerTool.Lightning, PlayerTool.Flood, PlayerTool.Drought, PlayerTool.Plague, PlayerTool.Meteor },
@@ -472,11 +485,14 @@ public partial class MainGame
             _ => new[] { PlayerTool.Inspect, PlayerTool.Human, PlayerTool.Animal, PlayerTool.Wolf, PlayerTool.Forest, PlayerTool.Food }
         };
 
+        _paletteRow.Columns=Math.Min(7,tools.Length);
+        float paletteHeight=52+76*((tools.Length+6)/7);
+        _dockPanel.OffsetTop=-92-paletteHeight;_dockPanel.OffsetBottom=-92;
         foreach (PlayerTool tool in tools)
         {
-            var stack = new VBoxContainer(); stack.AddThemeConstantOverride("separation", 4); _paletteRow.AddChild(stack);
-            var button = new Godot.Button { CustomMinimumSize = new Vector2(54, 42), ExpandIcon = true, ToggleMode = true, TooltipText = ToolNames[(int)tool] };
-            button.AddThemeConstantOverride("icon_max_width", 26);
+            var stack = new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill}; stack.AddThemeConstantOverride("separation", 4); _paletteRow.AddChild(stack);
+            var button = new Godot.Button { CustomMinimumSize = new Vector2(60, 50), ExpandIcon = true, ToggleMode = true, TooltipText = ToolNames[(int)tool] };
+            button.AddThemeConstantOverride("icon_max_width", 30);
             HudStyle.Button(button);
             button.Icon = ToolGlyphs.For(tool);
             button.AddThemeColorOverride("icon_pressed_color", HudStyle.Accent);
@@ -489,6 +505,8 @@ public partial class MainGame
     {
         foreach (var pair in _toolButtons) { pair.Value.SetPressedNoSignal(pair.Key == Tool); }
         _brushTitle.Text = ToolNames[(int)Tool]; _brushHint.Text = hint;
+        bool ecology=IsEcosystemTool(Tool);_brushParameters.Visible=!ecology;_ecologyFootprint.Visible=ecology;
+        _brushPanel.OffsetBottom=_brushPanel.OffsetTop+(ecology?190:230);
         _brushPanel.Visible = Tool != PlayerTool.Inspect && !_settingsOpen;
         if (Tool == PlayerTool.Inspect && _toolsMenuButton != null) { ShowTools(false); }
     }

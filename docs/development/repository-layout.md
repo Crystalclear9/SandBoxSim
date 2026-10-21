@@ -12,7 +12,7 @@
 | `src/SandBoxSim.Tests/` | 自带测试框架与规则回归 | 测试源码与工程文件 |
 | `config/` | 模拟默认参数 | 可移植配置，避免本机路径 |
 | `benchmarks/` | 渲染/效率场景、Schema 与在线 OpenAPI | 公开配置与接口说明；结果保存在 `runs/evaluation/` |
-| `tools/` | 安装、构建、运行、评测、测试与文档检查 | 脚本，PowerShell 使用 UTF-8 BOM |
+| `tools/` | 安装、构建、运行、评测、测试与文档检查 | 脚本，使用 UTF-8 和 PowerShell 7 |
 | `docs/guides/` | 安装、游玩、排错与更新 | 当前使用文档 |
 | `docs/development/` | 架构、扩展、文件管理与维护 | 当前开发文档 |
 | `docs/images/` | 当前玩法、界面与模型文档使用的正式实机配图 | 保留并提交 |

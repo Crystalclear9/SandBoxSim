@@ -54,7 +54,12 @@ void fragment(){
 vec2 p=(UV-vec2(0.5)-gaze)*vec2(1.0,0.39);
 float iris=1.0-smoothstep(0.19,0.21,length(p));
 float pupil=1.0-smoothstep(0.07,0.085,length(p));
-vec3 color=mix(vec3(0.72,0.70,0.65),iris_tone.rgb,iris);
+float angle=atan(p.y,p.x),radius=length(p);
+float fiber=sin(angle*63.0+sin(angle*9.0)*1.4+radius*37.0);
+fiber/=1.0+pow(fwidth(angle*63.0),2.0);
+float rim=smoothstep(0.155,0.195,radius);
+vec3 iris_color=iris_tone.rgb*(0.94+fiber*.065)*(1.0-rim*.38);
+vec3 color=mix(vec3(0.76,0.77,0.73),iris_color,iris);
 color=mix(color,vec3(0.075,0.069,0.056),pupil);
 float glint=1.0-smoothstep(0.009,0.020,length(p-vec2(-0.035,0.027)));
 ALBEDO=mix(color,vec3(0.85,0.87,0.87),glint*iris*0.45);ROUGHNESS=0.19;SPECULAR=0.40;
@@ -134,7 +139,7 @@ ALBEDO=mix(color,vec3(0.85,0.87,0.87),glint*iris*0.45);ROUGHNESS=0.19;SPECULAR=0
             void Vertex(int col,int row)
             {
                 float u=col/24f,x=side*(.017f+u*.035f),taper=MathF.Pow(MathF.Max(0,MathF.Sin(u*MathF.PI)),.45f);
-                float y=.026f+MathF.Sin(u*MathF.PI)*.0018f-row*.0015f*taper-u*.0005f;
+                float y=.026f+MathF.Sin(u*MathF.PI*.95f)*.0045f-row*.0016f*taper-u*.0020f;
                 surface.SetUV(new(u,row));surface.AddVertex(new(x,y,FaceDepth(x,y)-.0010f));
             }
             for(int col=0;col<24;col++)

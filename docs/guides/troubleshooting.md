@@ -50,7 +50,7 @@ Windows HTTP 服务依赖系统 HTTP 监听能力。若启动报 `HttpListenerEx
 
 若项目私有主机无法启动 HTTP 服务，而已有系统 .NET 8 主机可以，可在本次终端设置 `SANDBOXSIM_DOTNET_ROOT` 指向该已有主机所在目录，再运行 `tools/online.py`。该设置不安装软件或修改系统配置；记录实际运行时身份后重新测试，不能沿用另一运行时的性能结论。
 
-Godot 若报 `Failed to read the root certificate store`，属于本机引擎读取证书库失败；即使画面已生成，渲染评测器仍会拒绝把含引擎错误的记录标为通过。运行日志使用项目内路径，避免与玩家目录的日志轮转冲突。不要把人工看过截图当成完整 benchmark 验证。
+Godot 若报 `Failed to read the root certificate store`，属于本机引擎读取证书库失败；即使画面已生成，渲染评测器仍会拒绝把含引擎错误的记录标为通过。运行日志使用项目内路径，避免与玩家目录的日志轮转冲突。不要把人工看过截图当成完整 benchmark 验证。 本机兼容渲染还可能出现 GLES3 `_save_to_cache` / `f.is_null()` 着色器缓存写入错误；画面可生成并不等于无错误评测通过。应保留引擎日志定位可写缓存路径，不自动修改玩家目录或系统配置。
 
 ## 提供可复现的信息
 

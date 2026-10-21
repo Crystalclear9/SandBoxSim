@@ -37,12 +37,12 @@ internal partial class ResidentPortrait : SubViewportContainer
         AddChild(_viewport);
         _stage = new Node3D(); _viewport.AddChild(_stage);
         var environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color,
-            BackgroundColor = new Color("#252d36"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
+            BackgroundColor = new Color("#252e29"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
             AmbientLightColor = new Color("#d6dce3"), AmbientLightEnergy = .32f, TonemapMode = Godot.Environment.ToneMapper.Aces };
         _stage.AddChild(new WorldEnvironment { Environment = environment });
         _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-35, -35, 0), LightColor = new Color("#f0f3ed"), LightEnergy = .78f });
         _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-15, 145, 0), LightColor = new Color("#b9cadd"), LightEnergy = .36f });
-        _portraitGround=new MeshInstance3D { Mesh = new PlaneMesh { Size = new(20,20) }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new("#252d36"), Roughness = 1 },Visible=false };_stage.AddChild(_portraitGround);
+        _portraitGround=new MeshInstance3D { Mesh = new PlaneMesh { Size = new(20,20) }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new("#252e29"), Roughness = 1 },Visible=false };_stage.AddChild(_portraitGround);
         _camera = new Camera3D { Current = true, Fov = 34 }; _stage.AddChild(_camera); Aim();
         var controls=new HBoxContainer();controls.SetAnchorsAndOffsetsPreset(LayoutPreset.TopLeft);controls.Position=new(8,8);controls.AddThemeConstantOverride("separation",2);AddChild(controls);
         foreach(var (mode,title) in new[]{(Framing.Face,"面部"),(Framing.Hands,"手部"),(Framing.Body,"全身")})

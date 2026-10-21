@@ -16,26 +16,38 @@ internal sealed partial class NatureModels
         var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
         var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
         var uv=arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();
-        var seam=new System.Collections.Generic.Dictionary<Vector3,Vector3>();
-        for(int i=0;i<points.Length;i++)if(uv[i].X==0)seam[points[i]]=normals[i];
-        int matches=0;
+        if(points.Length<6000)throw new InvalidOperationException("Anatomical hand detail missing");
+        for(int i=0;i<points.Length;i++)
+            if(!points[i].IsFinite()||!normals[i].IsFinite()||normals[i].LengthSquared()<.98f)throw new InvalidOperationException("Invalid anatomical hand vertex or normal");
+        var weights=arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();var bones=arrays[(int)Mesh.ArrayType.Bones].AsInt32Array();
         for(int i=0;i<points.Length;i++)
         {
-            if(!normals[i].IsFinite()||normals[i].LengthSquared()<.99f)throw new InvalidOperationException("Invalid hand surface normal");
-            if(uv[i].X==1&&seam.TryGetValue(points[i],out var normal))
-            {
-                if(normal.Dot(normals[i])<.9999f)throw new InvalidOperationException("Hand UV seam changes the surface normal");
-                matches++;
-            }
+            float sum=0;for(int b=0;b<4;b++){sum+=weights[i*4+b];if(bones[i*4+b]<0||bones[i*4+b]>15)throw new InvalidOperationException("Hand binding outside bone palette");}
+            if(MathF.Abs(sum-1)>4f/65535f)throw new InvalidOperationException("Hand weights do not sum to one");
         }
-        if(matches<120)throw new InvalidOperationException("Finger seam coverage missing");
         var nailPoints=mesh.SurfaceGetArrays(1)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
-        foreach(var nail in nailPoints)
+        var nailIndices=mesh.SurfaceGetArrays(1)[(int)Mesh.ArrayType.Index].AsInt32Array();
+        var sourceLookup=new System.Collections.Generic.Dictionary<Vector3,int>();
+        for(int i=0;i<points.Length;i++)sourceLookup[points[i]]=i;
+        var combined=new System.Collections.Generic.List<int>(arrays[(int)Mesh.ArrayType.Index].AsInt32Array());
+        foreach(int nailIndex in nailIndices)
         {
-            float nearest=float.MaxValue;
-            foreach(var point in points)nearest=MathF.Min(nearest,nail.DistanceSquaredTo(point));
-            if(nearest>.002f*.002f)throw new InvalidOperationException("Nail floats away from the finger surface");
+            if(!sourceLookup.TryGetValue(nailPoints[nailIndex],out int source))throw new InvalidOperationException("Nail does not share the anatomical skin surface");
+            combined.Add(source);
         }
+        var triangles=combined.ToArray();var edges=new System.Collections.Generic.Dictionary<long,int>();
+        for(int i=0;i<triangles.Length;i+=3)for(int j=0;j<3;j++)
+        {
+            int a=triangles[i+j],b=triangles[i+(j+1)%3];if(a>b)(a,b)=(b,a);long edge=((long)a<<32)|(uint)b;
+            edges[edge]=edges.TryGetValue(edge,out int count)?count+1:1;
+        }
+        foreach(var pair in edges)
+        {
+            if(pair.Value>2)throw new InvalidOperationException("Anatomical hand has non-manifold edges");
+            if(pair.Value==1&&(points[(int)(pair.Key>>32)].Y<.0449f||points[(int)(pair.Key&uint.MaxValue)].Y<.0449f))
+                throw new InvalidOperationException("Anatomical hand has an exposed cut away from the buried wrist ring");
+        }
+
     }
     private void ValidateHandling()
     {

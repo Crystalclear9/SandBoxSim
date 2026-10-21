@@ -16,3 +16,11 @@ and depth and reuse the game's own rig, blink, gaze and lip movement.
 human-head.mesh.json is a derivative of this CC BY 4.0 asset. The project's
 general software license does not replace this asset's license. Retain this
 attribution and indicate further modifications when redistributing it.
+
+Additional hand derivative (human-hand.mesh.json): extracted the authored palm,
+finger and web topology; retargeted MCP/phalange positions with a smooth
+coordinate field, fitted the wrist boundary to the game forearm, mirrored left
+and right anatomy, recomputed normals, and generated 16-bone skin weights.
+The nail surface is selected from the dorsal finger surface and shares its
+skin weights. Exporter: tools/export_human_hands.py. The hand derivative is
+also CC BY 4.0, with the same creator, source and attribution above.

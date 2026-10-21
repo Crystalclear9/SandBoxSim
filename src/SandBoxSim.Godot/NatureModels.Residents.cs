@@ -166,10 +166,10 @@ internal sealed partial class NatureModels
             Detail(elbow,"sphere",Vector3.Zero,new(.070f,.067f,.067f),skin);
             Sculpt(elbow,Loft("resident-forearm",new[]{new Vector4(-.015f,0,.036f,.034f),new(.045f,-.003f,.039f,.035f),new(.10f,-.004f,.036f,.031f),new(.17f,-.003f,.029f,.026f),new(.24f,0,.028f,.026f)}),Vector3.Zero,ResidentMaterial(skin),new(MathF.PI/2,0,0));
             var hand = rig.Hands[i] = new Node3D { Name = "Hand", Position = new(0,-.255f,-.01f) }; elbow.AddChild(hand);
-            rig.HandSkins[i]=Sculpt(hand,HandPalm((int)side),Vector3.Zero,ResidentMaterial(skin));
+            rig.HandSkins[i]=new MeshInstance3D {Name="AnatomicalHand"};hand.AddChild(rig.HandSkins[i]);
             for(int digit=0;digit<4;digit++)
             {
-                var finger=rig.Fingers[i,digit]=new Node3D {Name="Finger"+digit,Position=new(-.022f+digit*.014f,-.04f,-.005f)}; hand.AddChild(finger);
+                var finger=rig.Fingers[i,digit]=new Node3D {Name="Finger"+digit,Position=new((i==0?1:-1)*(-.022f+digit*.014f),-.04f,-.005f)}; hand.AddChild(finger);
                 float lengthScale=digit==0?.92f:digit==1?1:digit==2?.96f:.86f;
                 float proximal=.026f*lengthScale,middle=.018f*lengthScale,distal=.014f*lengthScale;
                 var mid=rig.FingerMiddles[i,digit]=new Node3D {Name="Middle",Position=new(0,-proximal,0)};finger.AddChild(mid);

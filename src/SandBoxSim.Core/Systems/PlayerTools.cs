@@ -10,7 +10,7 @@ public enum PlayerTool
     Inspect, Human, Animal, Forest, Food, Wood, Stone, Iron,
     Grass, Water, Mountain, Sand, Farmland, Road, Snow, Swamp, Desert, Lava,
     Raise, Lower, River, RemoveWater, Fertility, BirthBlessing, Heal, Production,
-    Fire, Lightning, Flood, Drought, Plague, Meteor, Wolf, Rain
+    Fire, Lightning, Flood, Drought, Plague, Meteor, Wolf, Rain, MeadowSeeds, BerrySeeds, WetlandGarden, Deadwood
 }
 /// <summary>UI 与自动验收共用的干预入口。玩家改变条件，不能直接创建社会结果。</summary>
 public static class PlayerTools
@@ -18,6 +18,7 @@ public static class PlayerTools
     public static void Apply(Simulation sim, PlayerTool tool, int x, int y, int radius = 2, float strength = 10)
     {
         if (!sim.World.IsInBounds(x, y) || tool == PlayerTool.Inspect) { return; }
+        if(tool>=PlayerTool.MeadowSeeds)throw new System.ArgumentException("Use WildPlaces.Cultivate for persistent ecosystem planting", nameof(tool));
         radius = System.Math.Clamp(radius, 0, 20);
         strength = SimMath.Clamp(strength, 0, 100);
         if (tool == PlayerTool.Human) { sim.InterveneSpawnHumans(x, y, System.Math.Max(1, (int)strength), radius); return; }

@@ -140,9 +140,30 @@ internal sealed partial class NatureModels
         foreach(bool wolf in new[]{false,true})
         {
             var animal=(AnimalRig)Animal(wolf); animal.Pose(.2f,true,false);
+            if(animal.FurSkeleton==null||animal.FurSkin==null||animal.FurSkeleton.GetBoneCount()!=12)throw new InvalidOperationException("Animal lacks a continuous skeletal surface");
+            var coat=animal.FurSkin.Mesh.SurfaceGetArrays(0);var coatPoints=coat[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            var coatIndices=coat[(int)Mesh.ArrayType.Index].AsInt32Array();var coatBones=coat[(int)Mesh.ArrayType.Bones].AsInt32Array();var coatWeights=coat[(int)Mesh.ArrayType.Weights].AsFloat32Array();
+            var coatEdges=new System.Collections.Generic.Dictionary<long,int>();var parent=new int[coatPoints.Length];for(int i=0;i<parent.Length;i++)parent[i]=i;
+            int Root(int vertex){while(parent[vertex]!=vertex){parent[vertex]=parent[parent[vertex]];vertex=parent[vertex];}return vertex;}
+            for(int i=0;i<coatIndices.Length;i+=3)for(int j=0;j<3;j++)
+            {
+                int a=coatIndices[i+j],b=coatIndices[i+(j+1)%3];parent[Root(a)]=Root(b);if(a>b)(a,b)=(b,a);long edge=((long)a<<32)|(uint)b;
+                coatEdges[edge]=coatEdges.TryGetValue(edge,out int count)?count+1:1;
+            }
+            foreach(int count in coatEdges.Values)if(count!=2)throw new InvalidOperationException("Animal coat is not a closed manifold");
+            for(int i=0;i<coatPoints.Length;i++)
+            {
+                if(Root(i)!=Root(0))throw new InvalidOperationException("Animal coat contains a detached component");
+                float sum=0;for(int b=0;b<4;b++){int bone=coatBones[i*4+b];if(bone<0||bone>=12)throw new InvalidOperationException("Animal bone outside skin palette");sum+=coatWeights[i*4+b];}
+                if(MathF.Abs(sum-1)>4f/65535f)throw new InvalidOperationException("Animal skin weights lose normalization");
+            }
+            for(int i=0;i<4;i++)if(MathF.Abs(animal.FurSkeleton.GetBonePoseRotation(3+i*2).Dot(animal.Legs[i].Basis.GetRotationQuaternion()))<.999f)throw new InvalidOperationException("Animal skin does not follow limb articulation");
             if(animal.Legs[0].Rotation.LengthSquared()<.0001f) throw new InvalidOperationException("Animal gait does not articulate legs");
             var pose=animal.Legs[0].Transform;var earPose=animal.Ears[0].Transform; animal.Pose(1,true,true);
             if(animal.Legs[0].Transform!=pose||animal.Ears[0].Transform!=earPose) throw new InvalidOperationException("Paused animal moved");
+            animal.Pose(2,false,false,true);
+            if(!wolf&&animal.Neck.Rotation.X>-.8f)throw new InvalidOperationException("Grazing does not bend the continuous neck");
+            var neckPose=animal.Neck.Transform;animal.Pose(1,false,true,true);if(animal.Neck.Transform!=neckPose)throw new InvalidOperationException("Paused grazing moved the neck");
             ValidateAnimalRoots(animal,wolf);
             Validate(animal,false);
         }

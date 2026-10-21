@@ -28,7 +28,7 @@ internal partial class ResidentRig
                 float knuckle=digit==0?.891f:digit==1?.880f:digit==2?.885f:.905f;
                 float middle=digit==0?.837f:digit==1?1.055f:digit==2?.950f:.651f;
                 float tip=digit==0?.857f:digit==1?.694f:digit==2?.773f:.995f;
-                Fingers[side,digit].Rotation=new(curl*knuckle,0,(digit-1.5f)*.025f*(1-curl));
+                Fingers[side,digit].Rotation=new(curl*knuckle,0,(side==0?1:-1)*(digit-1.5f)*.025f*(1-curl));
                 FingerMiddles[side,digit].Rotation=new(curl*middle,0,0);
                 Fingertips[side,digit].Rotation=new(curl*tip,0,0);
                 HandSkeletons[side].SetBonePoseRotation(1+digit*3,Fingers[side,digit].Basis.GetRotationQuaternion());

@@ -11,17 +11,18 @@ internal sealed partial class NatureModels
         if (_residentMaterials.TryGetValue(key, out var cached)) return cached;
         _furShader ??= new Shader { Code = @"shader_type spatial;
 uniform vec4 coat : source_color;
-uniform vec4 pale : source_color;
+uniform vec4 pale : source_color;uniform float predator=0.0;
 varying vec3 local;
 varying vec3 coat_normal;
 void vertex(){ local=VERTEX;coat_normal=NORMAL; }
 float coat_noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);vec2 q=vec2(127.1,311.7);return mix(mix(fract(sin(dot(i,q))*43758.5453),fract(sin(dot(i+vec2(1,0),q))*43758.5453),f.x),mix(fract(sin(dot(i+vec2(0,1),q))*43758.5453),fract(sin(dot(i+vec2(1,1),q))*43758.5453),f.x),f.y);}
 void fragment(){
-float guard=sin(local.x*270.0+local.z*91.0)*sin(local.y*310.0);
+float fiber_phase=local.x*390.0+local.z*230.0+sin(local.y*29.0)*1.7;
+float guard=sin(fiber_phase)*(0.45+coat_noise(local.zy*93.0)*.55);
 float footprint=max(length(dFdx(local)),length(dFdy(local)))*300.0;
 guard/=1.0+footprint*footprint;
 float belly=smoothstep(0.20,0.85,-coat_normal.y);
-float saddle=smoothstep(0.25,0.90,coat_normal.y)*0.055;
+float saddle=smoothstep(.68,.95,local.y)*(1.0-smoothstep(.08,.22,abs(local.x)))*predator*.24;
 float locks=0.0;
 float agouti=coat_noise(vec2(local.x+local.z*.71,local.y)*75.0)-.5;
 agouti/=1.0+footprint*footprint*.04;
@@ -29,16 +30,19 @@ float flank=(coat_noise(vec2(local.z,local.y)*3.1)-.5)*.025;
 vec3 dx=dFdx(VERTEX),dy=dFdy(VERTEX);
 vec3 across=cross(dy,NORMAL),along=cross(NORMAL,dx);
 float determinant=dot(dx,across);
-float fiber_height=guard*0.00006;
+float fiber_height=guard*0.00030;
 if(abs(determinant)>0.0000000001){
 NORMAL=normalize(abs(determinant)*NORMAL-sign(determinant)*(dFdx(fiber_height)*across+dFdy(fiber_height)*along));
 }
-ALBEDO=mix(coat.rgb,pale.rgb,belly*0.42)*(0.97+guard*0.045+agouti*.025+locks+flank-saddle);
+float face_pale=smoothstep(.78,.96,-local.z)*(1.0-smoothstep(.97,1.10,local.y))*predator*.40;
+float muzzle_shade=smoothstep(.99,1.13,-local.z)*predator*.10;
+ALBEDO=mix(coat.rgb,pale.rgb,clamp(belly*.55+face_pale,0.0,.75))*(0.97+guard*.065+agouti*.14+locks+flank-saddle-muzzle_shade);
 ROUGHNESS=0.81+guard*0.025; SPECULAR=0.20;
 }" };
         var material = new ShaderMaterial { Shader = _furShader };
-        material.SetShaderParameter("coat", new Color(wolf ? "#747b7b" : "#8c6445"));
-        material.SetShaderParameter("pale", new Color(wolf ? "#c1c4bb" : "#d7c6ad"));
+        material.SetShaderParameter("coat", new Color(wolf ? "#7d8074" : "#8c6445"));
+        material.SetShaderParameter("pale", new Color(wolf ? "#d7d2bd" : "#d7c6ad"));
+        material.SetShaderParameter("predator",wolf?1f:0f);
         _residentMaterials[key] = material; return material;
     }
     private Mesh AnimalFoot(bool wolf)=>Loft(wolf?"animal-paw":"animal-hoof",wolf?new[]{
@@ -50,7 +54,7 @@ ROUGHNESS=0.81+guard*0.025; SPECULAR=0.20;
     },32);
     private AnimalRig DetailedAnimal(bool wolf)
     {
-        var rig = new AnimalRig(); rig.Body = new Node3D { Name = "Body" }; rig.AddChild(rig.Body);
+        var rig = new AnimalRig {Predator=wolf}; rig.Body = new Node3D { Name = "Body" }; rig.AddChild(rig.Body);
         var fur = Fur(wolf);
         float back = wolf ? .72f : 1.03f;
         // One continuous chest/neck/back surface avoids exposed end caps and the
@@ -108,6 +112,9 @@ ROUGHNESS=0.81+guard*0.025; SPECULAR=0.20;
         }
         rig.Tail=new Node3D { Name="Tail",Position=new(0,back,.55f) }; rig.Body.AddChild(rig.Tail);
         Sculpt(rig.Tail,Loft("animal-tail:"+wolf,wolf?new[]{new Vector4(0,0,.065f,.07f),new(.09f,-.05f,.080f,.095f),new(.20f,-.15f,.085f,.11f),new(.32f,-.27f,.062f,.09f),new(.39f,-.34f,.005f,.009f)}:new[]{new Vector4(0,0,.040f,.045f),new(.07f,.02f,.054f,.060f),new(.14f,.00f,.040f,.045f),new(.19f,-.025f,.003f,.006f)}),Vector3.Zero,fur);
+        rig.Neck=new Node3D {Name="Neck",Position=new(0,back+.025f,-.42f)};rig.Body.AddChild(rig.Neck);
+        rig.Body.RemoveChild(rig.Head);rig.Neck.AddChild(rig.Head);rig.Head.Position-=rig.Neck.Position;
+        if(!_exportingAnimals)InstallAnimalSurface(rig,wolf);
         MergeResidentParts(rig,wolf ? "crafted-wolf" : "crafted-deer"); return rig;
     }
 }

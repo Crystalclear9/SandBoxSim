@@ -6,13 +6,13 @@ namespace SandBoxSim.Client;
 internal static class HudStyle
 {
     public static bool MotionEnabled { get; set; } = true;
-    public static readonly Color Ink = new("#171b20"), Surface = new(.095f, .111f, .132f, .97f), Text = new("#f0f1f2"),
-        Muted = new("#aab2bc"), Accent = new("#d4b995"), Border = new("#414a55"), Wash = new("#2d3540");
+    public static readonly Color Ink = new("#151c18"), Surface = new(.073f, .102f, .087f, .95f), Text = new("#eceee6"),
+        Muted = new("#a8b5aa"), Accent = new("#bdd0b0"), Border = new("#45594b"), Wash = new("#293a30");
     public static StyleBox Frame(int padding)
     {
-        var surface = Box(Surface, 10, padding);
-        surface.BorderColor = new Color(Border, .72f);
-        surface.ShadowSize = 16; surface.ShadowOffset = new(0, 5);
+        var surface = Box(Surface, 7, padding);
+        surface.BorderColor = new Color(Border, .48f);
+        surface.ShadowSize = 8; surface.ShadowOffset = new(0, 3);
         return surface;
     }
     private static readonly SystemFont DisplayFont = new() { FontNames = new[] { "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "sans-serif" } };
@@ -40,7 +40,7 @@ internal static class HudStyle
         button.AddThemeColorOverride("icon_pressed_color", Ink);
         button.AddThemeStyleboxOverride("normal", Box(prominent ? Accent : new Color(0, 0, 0, 0), 6, 9, false));
         button.AddThemeStyleboxOverride("hover", Box(prominent ? Accent.Lightened(.08f) : Wash, 6, 9, false));
-        var pressed = Box(new Color("#3c4652"), 6, 9, false);
+        var pressed = Box(new Color("#344b3b"), 6, 9, false);
         button.AddThemeStyleboxOverride("pressed", pressed);
         button.AddThemeColorOverride("font_pressed_color", Accent); button.AddThemeColorOverride("icon_pressed_color", Accent);
         var focus = Box(new Color(0, 0, 0, 0), 4, 2); focus.BorderColor = Accent; button.AddThemeStyleboxOverride("focus", focus);

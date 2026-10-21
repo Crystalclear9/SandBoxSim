@@ -14,6 +14,7 @@ internal partial class ModelGallery : PanelContainer
         for(int i=0;i<_evaluationRegions.Count;i++)yield return(i,_evaluationRegions[i].Label,_evaluationRegions[i].View.GetGlobalRect());
     }
     private readonly List<(ResidentRig Rig,ActionKind Action)> _animated=new();
+    private readonly List<AnimalRig> _animals=new();
     private float _elapsed;
     private readonly List<(ResidentRig Rig,Camera3D Camera)> _handViews=new();
     private Label? _handlingLabel;
@@ -22,7 +23,7 @@ internal partial class ModelGallery : PanelContainer
     {
         SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         OffsetLeft=20; OffsetRight=-20; OffsetTop=90; OffsetBottom=-110;
-        AddThemeStyleboxOverride("panel",HudStyle.Box(new Color("#1b2521"),3,16));
+        AddThemeStyleboxOverride("panel",HudStyle.Box(HudStyle.Surface,7,16));
         var body=new VBoxContainer(); body.AddThemeConstantOverride("separation",12); AddChild(body);
         body.AddChild(HudStyle.Heading(Collection=="hands" ? "手掌与握柄 · 实际指节与接触" : Collection is "actions" or "motion" or "grip" ? "居民动作 · 取出、握持、使用与收回" : Collection=="equipment" ? "配件与衣装 · 实际挂点与姿态" : Collection=="architecture" ? "木作与砌筑 · 实际建筑模型" : Collection is "characters" or "faces" ? Collection=="faces" ? "面部与衣领 · 实际人物模型" : "人物与动物 · 实际角色模型" : "地表与植被 · 实际场景模型",22));
         var grid=new GridContainer { Columns=3,SizeFlagsVertical=SizeFlags.ExpandFill };
@@ -134,6 +135,7 @@ internal partial class ModelGallery : PanelContainer
         delta=EvaluationClock.Delta(delta);
         _elapsed+=(float)delta;
         float cycle=_elapsed%6.8f;
+        foreach(var animal in _animals)animal.Pose((float)delta,((int)(_elapsed/3)%3)!=0,false,((int)(_elapsed/3)%3)==0);
         foreach(var (rig,action) in _animated)rig.PoseAction((float)delta,action,cycle>.65f&&cycle<4.5f?ActionPhase.Executing:ActionPhase.Idle,false,0);
         foreach(var (rig,camera) in _handViews)
         {
@@ -193,10 +195,11 @@ internal partial class ModelGallery : PanelContainer
         _evaluationRegions.Add((view,semanticLabel));
         var viewport=new SubViewport { OwnWorld3D=true,Size=new(420,280),Msaa3D=Viewport.Msaa.Msaa4X,RenderTargetUpdateMode=SubViewport.UpdateMode.Once }; view.AddChild(viewport);
         var stage=new Node3D(); viewport.AddChild(stage);
-        stage.AddChild(new WorldEnvironment { Environment=new Godot.Environment { BackgroundMode=Godot.Environment.BGMode.Color,BackgroundColor=new("#252d36"),AmbientLightSource=Godot.Environment.AmbientSource.Color,AmbientLightColor=new("#d3dbe4"),AmbientLightEnergy=.36f,TonemapMode=Godot.Environment.ToneMapper.Aces } });
+        stage.AddChild(new WorldEnvironment { Environment=new Godot.Environment { BackgroundMode=Godot.Environment.BGMode.Color,BackgroundColor=new("#252e29"),AmbientLightSource=Godot.Environment.AmbientSource.Color,AmbientLightColor=new("#d3dbe4"),AmbientLightEnergy=.36f,TonemapMode=Godot.Environment.ToneMapper.Aces } });
         stage.AddChild(new DirectionalLight3D { RotationDegrees=new(-40,-35,0),LightColor=new("#f2eee5"),LightEnergy=.95f,ShadowEnabled=true });
         stage.AddChild(new DirectionalLight3D { RotationDegrees=new(-20,140,0),LightColor=new("#bacbd1"),LightEnergy=.32f });
-        stage.AddChild(new MeshInstance3D { Mesh=new PlaneMesh { Size=new(40,40) },MaterialOverride=new StandardMaterial3D { AlbedoColor=new("#39434d"),Roughness=1 } });
+        stage.AddChild(new MeshInstance3D { Mesh=new PlaneMesh { Size=new(40,40) },MaterialOverride=new StandardMaterial3D { AlbedoColor=new("#3b4840"),Roughness=1 } });
+        if(model is AnimalRig creature){_animals.Add(creature);viewport.RenderTargetUpdateMode=SubViewport.UpdateMode.WhenVisible;}
         stage.AddChild(model); model.Rotation=new(0,(animal ? Mathf.Pi : 0)-.60f,0);
         var camera=new Camera3D { Current=true,Projection=Camera3D.ProjectionType.Orthogonal,Size=size,Position=new(0,size*(animal ? .90f : 1.4f),size*2) }; stage.AddChild(camera);
         camera.LookAt(new Vector3(0,size*.42f,0));

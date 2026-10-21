@@ -1,4 +1,4 @@
-# 人物头脸素材与转换
+# 人物解剖素材与转换
 
 近景头脸使用 Blender Studio 的 **Realistic Human Base** 衍生网格，来源为 Julien Kaspar / Blender Studio，许可为 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)。原始来源与下载见 [Use of Base Meshes](https://studio.blender.org/training/realistic-human-research/use-of-base-meshes/)。它是人工制作的写实基础网格，当前客户端使用自己的肤色、材质和动作表现。
 
@@ -9,6 +9,14 @@
 源码校验原始 `.blend` 的 SHA-256，运行时校验导出数据的 SHA-256。生成脚本是 [export_human_head.py](../../tools/export_human_head.py)，运行时读取、变体和头发贴合位于 [NatureModels.HumanAsset.cs](../../src/SandBoxSim.Godot/NatureModels.HumanAsset.cs)。普通构建、运行和评测直接使用仓库中的导出数据，无须 Blender 或在线下载。
 
 转换保留原作者的面部拓扑，提取头颈和耳部；唇部独立用于原有交谈与进食表现，左右眼球保留体积并由眼睑闭合实现眨眼。颈根经过坐标转换与收束以接入游戏衣身。运行时八种结构调整下颌到上脸的宽度与面部纵深，头发按实际头颅表面查找表贴合；年龄沿用原有缩放。运行时在保留原始唇色的基础上对面颊、鼻部增加浅暖色，发束和分缝仍受头皮包围检查约束。当前没有独立女性基础网格或年龄专用雕刻。
+
+## 解剖手部
+
+[human-hand.mesh.json](../../src/SandBoxSim.Godot/assets/models/human/human-hand.mesh.json) 从同一授权人体提取手掌、指缝与五指。完整手部表面有 7,255 个顶点、14,464 个三角面；甲面从实际指背曲面提取，运行时仅上传甲面引用的顶点。
+
+手部使用平滑位移场接入掌指骨，左右手镜像骨骼位置与展开方向；腕口统一成埋入前臂的截面，避免斜切源网格露出尖角。掌根在相邻指骨间平滑分配权重，手指保留近节、中节与末节。每手 16 骨，与原有握持、取用和收纳动作共用。指甲与皮肤使用同一表面分区、共享权重，随手指一起变形，避免叠面闪烁。
+
+手部导出由 [export_human_hands.py](../../tools/export_human_hands.py) 完成，运行时位于 [NatureModels.HandSkin.cs](../../src/SandBoxSim.Godot/NatureModels.HandSkin.cs)。检查覆盖非流形边、腕口边界、权重、握持全过程和变形表面的手柄间距。
 
 ## 重新导出
 
@@ -21,12 +29,20 @@
 从仓库根目录执行，路径按本机安装位置填写：
 
 ```powershell
-$headBlender = './.tools/blender-4.5.14/blender.exe'
+$headBlender = './.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 $headSource = './.tools/sources/realistic_human_base.blend'
 & $headBlender --background --disable-autoexec $headSource --python tools/export_human_head.py -- --output src/SandBoxSim.Godot/assets/models/human
 ```
 
 脚本使用明确的对象名和雕刻区域，评估多重细分、拆分头脸与眼唇、重定位颈部、转换坐标并生成头发表面查找表。原文件中的脚本保持关闭。导出后计算数据 SHA-256，更新运行时代码的 `HumanAssetHash`，运行 `./tools/godot.ps1 -Mode test` 并查看 `visual-faces`、`visual-wardrobe` 和动作场景。
+
+人物手部与动物外皮可一起重新生成：
+
+```powershell
+./tools/bake-models.ps1
+```
+
+脚本默认查找 `.tools/blender-4.5.14/` 下的 Blender 和 `.tools/sources/realistic_human_base.blend`。可以显式传入 `-BlenderPath`、`-HumanSource` 使用已有文件；下载、缓存与临时数据保持在项目内。输出会打印派生模型哈希，修改生成逻辑后需审查并同步运行时代码中的哈希，再运行客户端自检。普通游玩和构建直接使用已提交的网格，不依赖 Blender。
 
 ## 发布与署名
 

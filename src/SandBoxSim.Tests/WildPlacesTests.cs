@@ -16,6 +16,56 @@ public sealed class WildPlacesTests
         for(int y=0;y<80;y++)for(int x=0;x<80;x++) { sim.World.SetTerrain(x,y,TerrainKind.Grass);sim.World.ApplyDefaultResource(x,y); }
         return sim;
     }
+    [Fact("Drought stalls planted growth while irrigated fertile ground matures")]
+    public void PlantGrowthDependsOnSoil()
+    {
+        var sim=World();var wild=new WildPlaces();wild.Cultivate(sim,WildPlaceKind.Meadow,10,10);wild.Cultivate(sim,WildPlaceKind.Meadow,30,30);
+        sim.World.SetMoisture(10,10,0);sim.World.SetFertility(10,10,1);sim.World.SetMoisture(30,30,1);sim.World.SetFertility(30,30,1);
+        sim.World.RestoreTick(sim.Config.Clock.TicksPerDay*8);wild.Advance(sim);
+        Assert.Equal(0f,wild.Places[0].Growth);Assert.Equal(1f,wild.Places[1].Growth);
+    }
+    [Fact("Player-planted ecosystems preserve terrain relief, grow gradually, and persist beyond the old 15-site limit")]
+    public void PlantedSitesGrowAndPersist()
+    {
+        var sim=World();var wild=new WildPlaces();
+        sim.World.Tiles[4*80+4].Height=.61f;
+        for(int i=0;i<20;i++)Assert.True(wild.Cultivate(sim,WildPlaceKind.Meadow,4+(i%5)*12,4+(i/5)*12));
+        sim.World.SetMoisture(4,4,1);sim.World.SetFertility(4,4,1);
+        Assert.Equal(.61f,sim.World.TileAt(4,4).Height);
+        Assert.Equal(20,wild.Places.Count);Assert.Equal(0f,WildPlaces.Maturity(sim,wild.Places[0]));
+        var restored=WildPlaces.Decode(wild.Encode());Assert.Equal(wild.Encode().ToJson(),restored.Encode().ToJson());
+        sim.World.RestoreTick(sim.Config.Clock.TicksPerDay*4);wild.Advance(sim);restored.Advance(sim);
+        Assert.Equal(.5f,WildPlaces.Maturity(sim,wild.Places[0]));
+        Assert.Equal(wild.Encode().ToJson(),restored.Encode().ToJson());
+    }
+    [Fact("Planting preserves roads and buildings and does not refill existing deadwood")]
+    public void PlantingIsBoundedAndDoesNotRefill()
+    {
+        var sim=World();var wild=new WildPlaces();sim.World.SetTerrain(2,2,TerrainKind.Road);
+        string before=StateHash.ComputeDigest(sim);Assert.False(wild.Cultivate(sim,WildPlaceKind.Wetland,2,2));Assert.Equal(before,StateHash.ComputeDigest(sim));
+        Assert.True(wild.Cultivate(sim,WildPlaceKind.Meadow,0,0));
+        Assert.True(wild.Cultivate(sim,WildPlaceKind.FallenWood,30,30));
+        Assert.Equal(24f,sim.GroundStocks.Withdraw(30,30,ResourceKind.Wood,100));
+        Assert.False(wild.Cultivate(sim,WildPlaceKind.FallenWood,30,30));Assert.Equal(0f,sim.GroundStocks.Withdraw(30,30,ResourceKind.Wood,100));
+        Assert.Throws<System.ArgumentException>(()=>PlayerTools.Apply(sim,PlayerTool.MeadowSeeds,20,20));
+    }
+    [Fact("Mature neighboring flower meadows increase berry yield and destruction ends that interaction")]
+    public void MeadowPollinationIsEnvironmental()
+    {
+        var a=World();var b=World();var wa=new WildPlaces();var wb=new WildPlaces();
+        Assert.True(wa.Cultivate(a,WildPlaceKind.Berries,30,30));Assert.True(wb.Cultivate(b,WildPlaceKind.Berries,30,30));
+        Assert.True(wa.Cultivate(a,WildPlaceKind.Meadow,38,30));a.World.SetMoisture(38,30,1);a.World.SetFertility(38,30,1);
+        foreach(var sim in new[]{a,b})for(int y=27;y<=33;y++)for(int x=27;x<=33;x++)
+        {
+            sim.World.SetMoisture(x,y,.8f);sim.World.SetFertility(x,y,.8f);sim.World.SetVegetation(x,y,.5f);
+            sim.World.SetResource(x,y,new ResourceNode {Kind=ResourceKind.Food,Amount=0,Capacity=100,RegenerationRate=0});
+        }
+        a.World.RestoreTick(a.Config.Clock.TicksPerDay*8);b.World.RestoreTick(b.Config.Clock.TicksPerDay*8);wa.Advance(a);wb.Advance(b);
+        float aa=a.World.TileAt(30,30).Resource.Amount,bb=b.World.TileAt(30,30).Resource.Amount;Assert.Greater(aa,bb);
+        a.World.SetTerrain(38,30,TerrainKind.Mountain);
+        a.World.RestoreTick(a.Config.Clock.TicksPerDay*9);b.World.RestoreTick(b.Config.Clock.TicksPerDay*9);wa.Advance(a);wb.Advance(b);
+        Assert.Near(a.World.TileAt(30,30).Resource.Amount-aa,b.World.TileAt(30,30).Resource.Amount-bb,.0001f);
+    }
     [Fact("荒野地点由种子确定，包含不同生态与有限矿产")]
     public void DeterministicGeography()
     {

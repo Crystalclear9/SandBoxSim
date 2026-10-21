@@ -364,6 +364,7 @@ public partial class WorldView3D : MapView
         nature = unchecked(nature * 31 + WildPlaces.Phase(Game.Sim.Clock / Game.Sim.Config.Clock.TicksPerDay));
         foreach (var place in Game.Wild.Places)
         {
+            nature = unchecked(nature * 31 + (int)place.Kind*97+place.X*503+place.Y*997+(int)(WildPlaces.Maturity(Game.Sim,place)*8));
             nature = unchecked(nature * 31 + (WildPlaces.IsLiving(Game.Sim, place) ? 1 : 0));
             int pile = Game.Sim.GroundStocks.FindAt(place.X, place.Y);
             nature = unchecked(nature * 31 + (pile >= 0 ? 1 : 0));
@@ -710,7 +711,7 @@ NORMAL=normalize(mat3(VIEW_MATRIX)*surface_normal); }" };
         {
             if (!Game.Sim.World.IsInBounds(place.X, place.Y) || !WildPlaces.IsLiving(Game.Sim, place)) continue;
             var model = _models.WildPlace(place.Kind, WildPlaces.Phase(Game.Sim.Clock / Game.Sim.Config.Clock.TicksPerDay), Game.Sim.GroundStocks.FindAt(place.X, place.Y) >= 0);
-            model.Position = PositionAt(place.X, place.Y); _props.AddChild(model);
+            model.Position = PositionAt(place.X, place.Y); if(place.Kind is WildPlaceKind.Meadow or WildPlaceKind.Berries or WildPlaceKind.Wetland)model.Scale=Vector3.One*(.30f+.70f*WildPlaces.Maturity(Game.Sim,place)); _props.AddChild(model);
         }
         _models.Batch(_props,"broad-tree",4,leaves,preserveMaterials:true);
         _models.Batch(_props,"conifer-tree",5,pines,preserveMaterials:true); _models.Batch(_props, "rock", 6, rocks); _models.Batch(_props, "rock", 7, ores); _models.Batch(_props,"foliage",4,bushes,preserveMaterials:true);
@@ -793,13 +794,14 @@ NORMAL=normalize(mat3(VIEW_MATRIX)*surface_normal); }" };
             rig.PresentAction(delta*stride,sim.Agents.ActionOf(slot),sim.Agents.PhaseOf(slot),Game.VisualPaused,slot);
         }
         foreach (var pair in _deer)
-        { int slot = (int)(pair.Key & uint.MaxValue); if (sim.Wildlife.IsAlive(slot)) { MoveAnimal(pair.Value, PositionAt(sim.Wildlife.XOf(slot), sim.Wildlife.YOf(slot)), delta); } }
+        { int slot = (int)(pair.Key & uint.MaxValue); if (sim.Wildlife.IsAlive(slot)) { MoveAnimal(pair.Value, PositionAt(sim.Wildlife.XOf(slot), sim.Wildlife.YOf(slot)), delta,sim.Wildlife.ActionOf(slot)==ActionKind.Eat); } }
         foreach (var wolf in sim.Predators.Wolves) if (_wolves.TryGetValue(wolf.Id, out Node3D? node)) { MoveAnimal(node, PositionAt(wolf.X, wolf.Y), delta); }
     }
-    private void MoveAnimal(Node3D node, Vector3 target, float delta)
+    private void MoveAnimal(Node3D node, Vector3 target, float delta,bool grazing=false)
     {
+        if(Game.VisualPaused)return;
         Vector3 direction = target - node.Position;
-        ((AnimalRig)node).Pose(delta, direction.LengthSquared() > .02f, Game.VisualPaused);
+        ((AnimalRig)node).Pose(delta, direction.LengthSquared() > .02f, Game.VisualPaused,grazing);
         node.Position = node.Position.Lerp(target, MathF.Min(1, delta * 8));
         if (direction.LengthSquared() > .02f) { node.Rotation = new Vector3(0, MathF.Atan2(direction.X, direction.Z) + MathF.PI, 0); }
     }
