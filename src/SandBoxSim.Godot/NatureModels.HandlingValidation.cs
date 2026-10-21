@@ -74,6 +74,23 @@ internal sealed partial class NatureModels
         }
         CheckMirroredMesh(rig.HandSkins[0].Mesh,rig.HandSkins[1].Mesh,true);
         CheckMirroredMesh(rig.HandOpen[0],rig.HandOpen[1],false);CheckMirroredMesh(rig.HandClosed[0],rig.HandClosed[1],false);
+        var lod=AnatomicalHandMesh(0,"#aa8b78",true).SurfaceGetArrays(0);
+        var lodBones=lod[(int)Mesh.ArrayType.Bones].AsInt32Array();
+        foreach(var proxy in new[]{rig.HandOpen[0],rig.HandClosed[0]})
+        {
+            var arrays=proxy.SurfaceGetArrays(0);var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var n=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
+            int triangles=arrays[(int)Mesh.ArrayType.Index].AsInt32Array().Length/3;
+            if(triangles<1000||triangles>1600||p.Length>=1000)throw new InvalidOperationException("Anatomical hand LOD exceeds its distance budget or loses detail");
+            for(int i=0;i<p.Length;i++)
+            {
+                if(!p[i].IsFinite()||!n[i].IsFinite()||MathF.Abs(n[i].LengthSquared()-1)>.002f)throw new InvalidOperationException("Invalid baked hand LOD");
+                if(proxy==rig.HandClosed[0]&&lodBones[i*4] is >0 and <15)
+                {
+                    float gap=(p[i]-rig.Grip!.Position).Cross(rig.Grip.Basis.Y).Length();
+                    if(gap<.0105f)throw new InvalidOperationException("Distant hand penetrates the tool shaft: "+gap);
+                }
+            }
+        }
         var leftBounds=rig.HandOpen[0].GetAabb();var rightBounds=rig.HandOpen[1].GetAabb();
         if(-leftBounds.Position.X<leftBounds.End.X+.006f||rightBounds.End.X<-rightBounds.Position.X+.006f)
             throw new InvalidOperationException("Distant thumb is hidden inside the palm or has the wrong silhouette");
@@ -112,7 +129,7 @@ internal sealed partial class NatureModels
                 if(!rig.Hands[side].Transform.IsFinite()||rig.Hands[side].Basis.GetRotationQuaternion().GetAngle()>.56f)
                     throw new InvalidOperationException("Conversation wrist exceeds its anatomical limit");
                 var elbow=InTorso(rig.Elbows[side],rig.Torso).Origin;
-                if(elbow.Y>1.20f||(side==0?elbow.X>-.08f:elbow.X<.08f))throw new InvalidOperationException("Conversation folds the elbow across the chest or above the shoulder");
+                if(elbow.Y>rig.Arms[side].Position.Y+.02f||(side==0?elbow.X>-.08f:elbow.X<.08f))throw new InvalidOperationException("Conversation folds the elbow across the chest or above the shoulder");
                 if(rig.Arms[side].Position.DistanceTo(elbow)>.281f)
                     throw new InvalidOperationException("Conversation detached the upper arm");
             }
@@ -217,7 +234,7 @@ internal sealed partial class NatureModels
                     if(weights[i].R==0)
                     {
                         if(deformed.DistanceTo(p)>.001f)throw new InvalidOperationException("Shoulder root leaves torso");
-                        float front=frame==0?TorsoSurface(p.X,p.Y,false,0).Z:p.Z,back=frame==0?TorsoSurface(p.X,p.Y,true,0).Z:p.Z;
+                        float front=frame==0?TorsoSurface(p.X,ResidentRig.SourceBodyY(p.Y),false,0).Z:p.Z,back=frame==0?TorsoSurface(p.X,ResidentRig.SourceBodyY(p.Y),true,0).Z:p.Z;
                         if(p.Z<front-.003f||p.Z>back+.003f)throw new InvalidOperationException("Sleeve root is outside shirt");
                     }
                     if(weights[i].R==1)

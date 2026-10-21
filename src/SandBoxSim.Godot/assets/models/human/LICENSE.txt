@@ -24,3 +24,8 @@ and right anatomy, recomputed normals, and generated 16-bone skin weights.
 The nail surface is selected from the dorsal finger surface and shares its
 skin weights. Exporter: tools/export_human_hands.py. The hand derivative is
 also CC BY 4.0, with the same creator, source and attribution above.
+
+Distance hand derivative (human-hand-lod.mesh.json): reduced from the above
+licensed hand to 1,400 triangles using tools/export_hand_lod.py, with triangle
+barycentric transfer of normals, UVs and skin weights. Runtime static open/grip
+poses use the same articulation as the close hand. CC BY 4.0, same attribution.

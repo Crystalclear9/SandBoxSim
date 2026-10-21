@@ -18,6 +18,10 @@
 
 近景、远景、指根和拇指骨骼共用 `ResidentRig.HandMirror` 的左右约定。远景张手与握拳网格按左右独立缓存，镜像时同步反转法线、切线手性和三角面朝向；拇指轮廓位于食指一侧并露出掌缘，避免默认视距把两只手显示成同一侧。`--panel=handedness` 可并排查看同一角色的左右掌心、手背以及远景简模。自检覆盖镜像拓扑、拇指方向、骨骼张合、LOD 切换，以及主手和支撑手的实际蒙皮与工具轴间距。
 
+远景手部使用 [human-hand-lod.mesh.json](../../src/SandBoxSim.Godot/assets/models/human/human-hand-lod.mesh.json)：由同一解剖手部减面得到 708 个顶点、1,400 个三角面，保留指缝、不同指长与拇指掌根。转换按最近源三角面的重心坐标转移 UV、法线和四权重；运行时沿用近景指节角度，缓存张手与握柄两种静态姿势。远景不更新手部骨架，也不再使用独立椭球拼成的手型；远景省略独立甲面材质。左右仍分别缓存并校验镜像朝向，握柄简模也检查实际手柄间距。
+
+LOD 由 [export_hand_lod.py](../../tools/export_hand_lod.py) 生成，读取仓库中的高精度手部，校验源哈希；普通运行直接加载导出 JSON。减面后的皱褶与甲面不具备近景精度，八视图图册用于比较形状连续性。
+
 手部导出由 [export_human_hands.py](../../tools/export_human_hands.py) 完成，运行时位于 [NatureModels.HandSkin.cs](../../src/SandBoxSim.Godot/NatureModels.HandSkin.cs)。检查覆盖非流形边、腕口边界、权重、握持全过程和变形表面的手柄间距。
 
 ## 重新导出
@@ -43,6 +47,8 @@ $headSource = './.tools/sources/realistic_human_base.blend'
 ```powershell
 ./tools/bake-models.ps1
 ```
+
+`bake-models.ps1` 依次生成高精度手部、手部 LOD 和动物外皮。
 
 脚本默认查找 `.tools/blender-4.5.14/` 下的 Blender 和 `.tools/sources/realistic_human_base.blend`。可以显式传入 `-BlenderPath`、`-HumanSource` 使用已有文件；下载、缓存与临时数据保持在项目内。输出会打印派生模型哈希，修改生成逻辑后需审查并同步运行时代码中的哈希，再运行客户端自检。普通游玩和构建直接使用已提交的网格，不依赖 Blender。
 

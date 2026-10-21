@@ -197,6 +197,7 @@ internal sealed partial class NatureModels
         }
         AddResidentEquipment(rig, job);
         AddResidentTailoring(rig, cloth, skin, job);
+        ApplyResidentProportions(rig);
         MergeResidentParts(rig.Head,"resident:head:"+skin+hair+job+":"+_faceVariant);
         MergeResidentParts(rig, "resident:" + cloth + skin + hair + job+":"+_garmentCut);
         rig.BodySkin=rig.Torso.GetChild<MeshInstance3D>(rig.Torso.GetChildCount()-1);
@@ -207,7 +208,7 @@ internal sealed partial class NatureModels
         AddHandSkin(rig,skin);
         rig.Head.Scale=new Vector3(.96f+((variation>>15)%4)*.025f,.98f+((variation>>18)%3)*.025f,1);
         if (child) { rig.Scale = new Vector3(.72f, .65f, .72f); rig.Head.Scale = Vector3.One * 1.15f; }
-        else { rig.Scale = new Vector3(1 + ((variation >> 8) % 5 - 2f) * .025f, 1.055f + ((variation >> 12) % 5) * .015f, 1); }
+        else { rig.Scale = new Vector3(1 + ((variation >> 8) % 5 - 2f) * .025f, 1.005f + ((variation >> 12) % 5) * .012f, 1); }
         rig.RegisterDistanceMeshes(rig);return rig;
     }
     public void ValidateResidentMeshes()
@@ -229,6 +230,12 @@ internal sealed partial class NatureModels
         foreach (JobType job in Enum.GetValues<JobType>()) foreach (bool child in new[] { false, true })
         {
             var resident = Resident(42, child, job);
+            // The boot stays grounded while the pelvis is raised; arms retain
+            // their original segment lengths and the shoulder bind follows them.
+            if(MathF.Abs(resident.Legs[0].Position.Y+resident.Knees[0].Position.Y+resident.Feet[0].Position.Y-.065f)>.001f
+                ||resident.Head.Position.Y-resident.Arms[0].Position.Y<.19f
+                ||resident.Legs[0].Position.Y<resident.Head.Position.Y*.55f)
+                throw new InvalidOperationException("Resident proportions detach feet, neck or pelvis");
             resident.ValidateDistanceMeshes();
             var body = resident.BodySkin.Mesh;
             // Losing the non-indexed garment leaves only collar/fold strips in the cloth surface.

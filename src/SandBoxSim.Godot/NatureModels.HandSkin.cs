@@ -35,12 +35,12 @@ internal sealed partial class NatureModels
             rig.HandSkins[side].MaterialOverride=null;rig.HandSkins[side].Mesh=mesh;rig.HandSkins[side].Skin=binds;rig.HandSkins[side].Skeleton=new NodePath("../HandSkeleton");
         }
     }
-    private Mesh AnatomicalHandMesh(int side,string skin)
+    private Mesh AnatomicalHandMesh(int side,string skin,bool lowDetail=false)
     {
-        string key="anatomical-hand:"+side+skin;if(_meshes.TryGetValue(key,out var cached))return cached;
-        string raw=FileAccess.GetFileAsString("res://assets/models/human/human-hand.mesh.json");
+        string key="anatomical-hand:"+side+skin+lowDetail;if(_meshes.TryGetValue(key,out var cached))return cached;
+        string raw=FileAccess.GetFileAsString("res://assets/models/human/"+(lowDetail?"human-hand-lod.mesh.json":"human-hand.mesh.json"));
         string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
-        if(hash!="e4ef3512eb34385e380517f79c8b76f2af3d62beea868949fc1db9cc2da821a6")throw new InvalidOperationException("Anatomical hand source mismatch");
+        if(hash!=(lowDetail?"96b9cd41a55bea6466d19966a2a98ebb78a11ff9d5a596ad80e1ad83faa0928e":"e4ef3512eb34385e380517f79c8b76f2af3d62beea868949fc1db9cc2da821a6"))throw new InvalidOperationException("Anatomical hand source mismatch");
         using var document=System.Text.Json.JsonDocument.Parse(raw);var root=document.RootElement;
         float[] Floats(string name){var e=root.GetProperty(name);var f=new float[e.GetArrayLength()];int i=0;foreach(var item in e.EnumerateArray())f[i++]=item.GetSingle();return f;}
         int[] Integers(string name){var e=root.GetProperty(name);var f=new int[e.GetArrayLength()];int i=0;foreach(var item in e.EnumerateArray())f[i++]=item.GetInt32();return f;}
@@ -51,6 +51,7 @@ internal sealed partial class NatureModels
         void Surface(string indicesName,Material material,bool nail)
         {
             var indices=Integers(indicesName);
+            if(indices.Length==0)return;
             if(!nail)
             {
                 // A material partition of the same surface, never an overlapping decal.

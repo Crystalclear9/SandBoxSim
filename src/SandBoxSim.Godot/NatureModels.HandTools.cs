@@ -65,12 +65,46 @@ internal sealed partial class NatureModels
             }
             _meshes[key]=mirrored;return mirrored;
         }
-        var root=new Node3D();
-        Sculpt(root,Loft("resident-palm",new[]{new Vector4(-.035f,0,.026f,.022f),new(-.010f,0,.031f,.020f),new(.025f,0,.035f,.018f),new(.043f,0,.030f,.014f),new(.049f,0,.018f,.012f)}),Vector3.Zero,ResidentMaterial(skin),new(MathF.PI/2,0,0));
-        for(int digit=0;digit<4;digit++)Detail(root,"seed",new(-.022f+digit*.014f,closed?-.063f:-.070f,closed?-.030f:-.005f),new(.010f,closed?.030f:.062f,.010f),skin,new(closed?1.1f:0,0,0));
-        Detail(root,"seed",new(closed?-.034f:-.038f,-.038f,closed?-.026f:.001f),new(.016f,.042f,.018f),skin,new(closed?.5f:0,0,closed?.5f:-.5f));
-        MergeResidentParts(root,key);mesh=root.GetChild<MeshInstance3D>(0).Mesh;_meshes[key]=mesh;root.Free();return mesh;
+        // A static bake of the same anatomy and joint poses as the close-up hand.
+        // No per-frame skeleton work is required for distant residents.
+        var source=AnatomicalHandMesh(0,skin,true);var result=new ArrayMesh();
+        var rest=new Transform3D[16];var posed=new Transform3D[16];
+        rest[0]=posed[0]=rest[15]=posed[15]=Transform3D.Identity;
+        float curl=closed?1:0;
+        for(int digit=0;digit<4;digit++)
+        {
+            float length=digit==0?.92f:digit==1?1:digit==2?.96f:.86f;
+            var bends=ResidentRig.FingerBends(digit,curl);
+            for(int joint=0;joint<3;joint++)
+            {
+                int bone=1+digit*3+joint,parent=joint==0?0:bone-1;
+                var origin=joint==0?ResidentRig.FingerRoot(0,digit):new Vector3(0,-(joint==1?.026f:.018f)*length,0);
+                var rotation=joint==0?new Vector3(bends.X,0,(digit-1.5f)*.025f*(1-curl)):new Vector3(joint==1?bends.Y:bends.Z,0,0);
+                rest[bone]=rest[parent]*new Transform3D(Basis.Identity,origin);
+                posed[bone]=posed[parent]*new Transform3D(Basis.FromEuler(rotation),origin);
+            }
+        }
+        rest[13]=new(Basis.Identity,ResidentRig.ThumbRoot(0));rest[14]=rest[13]*new Transform3D(Basis.Identity,new(0,-.018f,0));
+        posed[13]=new(Basis.FromEuler(new(curl*.25f,0,.15f+curl*.65f)),ResidentRig.ThumbRoot(0));
+        posed[14]=posed[13]*new Transform3D(Basis.FromEuler(new(curl*.55f,0,0)),new(0,-.018f,0));
+        var palette=new Transform3D[16];for(int i=0;i<16;i++)palette[i]=posed[i]*rest[i].AffineInverse();
+        for(int surface=0;surface<source.GetSurfaceCount();surface++)
+        {
+            var arrays=source.SurfaceGetArrays(surface);var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
+            var bones=arrays[(int)Mesh.ArrayType.Bones].AsInt32Array();var weights=arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();
+            for(int i=0;i<points.Length;i++)
+            {
+                Vector3 point=Vector3.Zero,normal=Vector3.Zero;
+                for(int j=0;j<4;j++){var transform=palette[bones[i*4+j]];point+=(transform*points[i])*weights[i*4+j];normal+=(transform.Basis*normals[i])*weights[i*4+j];}
+                points[i]=point;normals[i]=normal.Normalized();
+            }
+            arrays[(int)Mesh.ArrayType.Vertex]=points;arrays[(int)Mesh.ArrayType.Normal]=normals;
+            arrays[(int)Mesh.ArrayType.Bones]=default(Variant);arrays[(int)Mesh.ArrayType.Weights]=default(Variant);
+            result.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);result.SurfaceSetMaterial(surface,source.SurfaceGetMaterial(surface));
+        }
+        _meshes[key]=result;return result;
     }
+
     private Mesh HandTool(ResidentTool kind)
     {
         string key="hand-tool:"+kind;

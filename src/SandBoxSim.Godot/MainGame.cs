@@ -123,6 +123,7 @@ public partial class MainGame : Control
         SubscribeVisualEvents();
         _pending = 0; _selected = -1; _selectedPersonId = 0; _selectedAnimal = -1; _selectedWolf = -1;
         SyncControls();
+        ResetMetricHistory();
     }
     private static SpinBox Spin(VBoxContainer parent, string label, double min, double max, double value, double step = 1)
     {

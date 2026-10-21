@@ -12,7 +12,7 @@
 | `build.ps1` / `build-lib.ps1` | Core、Console、Tests 的 SDK/csc 构建与执行 |
 | `godot.ps1` / `godot-lib.ps1` | Godot 独立构建、导入、运行、编辑器与自检 |
 | `bake-models.ps1` | 在项目本地 Blender 中重建人体解剖手部和动物连续蒙皮 |
-| `export_human_hands.py` / `bake_animal_surfaces.py` | 掌指重定向、腕口贴合、动物体素缝合与蒙皮转移；由 Blender 执行 |
+| `export_human_hands.py` / `export_hand_lod.py` / `bake_animal_surfaces.py` | 掌指重定向、同源手部减面、腕口贴合、动物体素缝合与蒙皮转移；由 Blender 执行 |
 | `run.ps1` | TUI、headless、digest、snapshot 和 batch 模式 |
 | `test.ps1` | 自带测试运行器与名称过滤 |
 | `dev.ps1` | 内核构建、测试与可选 TUI 开发流程 |

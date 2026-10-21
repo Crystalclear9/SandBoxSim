@@ -11,6 +11,8 @@ internal partial class ResidentRig
     internal static float HandMirror(int side)=>side switch {0=>1,1=>-1,_=>throw new ArgumentOutOfRangeException(nameof(side))};
     internal static Vector3 FingerRoot(int side,int digit)=>new(HandMirror(side)*(-.022f+digit*.014f),-.04f,-.005f);
     internal static Vector3 ThumbRoot(int side)=>new(HandMirror(side)*-.034f,-.021f,.001f);
+    internal static Vector3 FingerBends(int digit,float curl)=>curl*(digit switch
+    {0=>new Vector3(.891f,.837f,.857f),1=>new(.880f,1.055f,.694f),2=>new(.885f,.950f,.773f),_=>new(.905f,.651f,.995f)});
     internal void PoseHandReference(float curl)
     {
         for(int side=0;side<2;side++)
@@ -38,12 +40,10 @@ internal partial class ResidentRig
             _skinnedCurl[side]=curl;
             for(int digit=0;digit<4;digit++)
             {
-                float knuckle=digit==0?.891f:digit==1?.880f:digit==2?.885f:.905f;
-                float middle=digit==0?.837f:digit==1?1.055f:digit==2?.950f:.651f;
-                float tip=digit==0?.857f:digit==1?.694f:digit==2?.773f:.995f;
-                Fingers[side,digit].Rotation=new(curl*knuckle,0,HandMirror(side)*(digit-1.5f)*.025f*(1-curl));
-                FingerMiddles[side,digit].Rotation=new(curl*middle,0,0);
-                Fingertips[side,digit].Rotation=new(curl*tip,0,0);
+                var bends=FingerBends(digit,curl);
+                Fingers[side,digit].Rotation=new(bends.X,0,HandMirror(side)*(digit-1.5f)*.025f*(1-curl));
+                FingerMiddles[side,digit].Rotation=new(bends.Y,0,0);
+                Fingertips[side,digit].Rotation=new(bends.Z,0,0);
                 HandSkeletons[side].SetBonePoseRotation(1+digit*3,Fingers[side,digit].Basis.GetRotationQuaternion());
                 HandSkeletons[side].SetBonePoseRotation(2+digit*3,FingerMiddles[side,digit].Basis.GetRotationQuaternion());
                 HandSkeletons[side].SetBonePoseRotation(3+digit*3,Fingertips[side,digit].Basis.GetRotationQuaternion());

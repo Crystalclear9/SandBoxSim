@@ -40,7 +40,7 @@ internal sealed partial class NatureModels
                 for(int i=0;i<indices.Length;i++){int v=indices[i];surface.SetNormal((normalBasis*normals[v]).Normalized());surface.SetUV(uv[v]);surface.AddVertex(transform*points[v]);}
             }
             Append(body,s,Transform3D.Identity);
-            if(s==0)foreach(float side in new[]{-1f,1f})Append(Shape("finger-low"),0,new Transform3D(Basis.Identity.Scaled(new(.13f,.14f,.124f)),new(side*.202f,1.18f,0)));
+            if(s==0)foreach(float side in new[]{-1f,1f})Append(Shape("finger-low"),0,new Transform3D(Basis.Identity.Scaled(new(.13f,.14f,.124f)),new(side*.202f,ResidentRig.BodyY(1.18f),0)));
             surface.Index();surface.Commit(result);
         }
         mesh=DistantColors(result);_meshes[key]=mesh;return mesh;
@@ -74,7 +74,7 @@ internal sealed partial class NatureModels
         {
             var arrays=ShoulderBridge(side==0?-1:1).SurfaceGetArrays(0);
             var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();var colors=arrays[(int)Mesh.ArrayType.Color].AsColorArray();var uv=arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
-            for(int i=0;i<indices.Length;i++){int index=indices[i];surface.SetBones(new[]{0,side+1,0,0});surface.SetWeights(new[]{1-colors[index].R,colors[index].R,0f,0f});surface.SetColor(new(colors[index].R,side,0,1));surface.SetNormal(normals[index]);surface.SetUV(uv[index]);surface.AddVertex(points[index]+new Vector3(side==0?-.202f:.202f,1.18f,0));}
+            for(int i=0;i<indices.Length;i++){int index=indices[i];surface.SetBones(new[]{0,side+1,0,0});surface.SetWeights(new[]{1-colors[index].R,colors[index].R,0f,0f});surface.SetColor(new(colors[index].R,side,0,1));surface.SetNormal(normals[index]);surface.SetUV(uv[index]);var point=points[index]+new Vector3(side==0?-.202f:.202f,1.18f,0);point.Y=Mathf.Lerp(ResidentRig.BodyY(point.Y),point.Y+.05f,colors[index].R);surface.AddVertex(point);}
         }
         surface.Index();mesh=surface.Commit();_meshes["joined-shoulders"]=mesh;return mesh;
     }

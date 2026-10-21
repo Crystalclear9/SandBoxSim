@@ -25,6 +25,8 @@ $sourceRoot=Join-Path $repositoryRoot '.tools/animal-sources'
 if($LASTEXITCODE -ne 0){throw 'Animal source export failed'}
 & $BlenderPath --background --disable-autoexec $HumanSource --python (Join-Path $PSScriptRoot 'export_human_hands.py') -- --output (Join-Path $repositoryRoot 'src/SandBoxSim.Godot/assets/models/human')
 if($LASTEXITCODE -ne 0){throw 'Anatomical hand export failed'}
+& $BlenderPath --background --factory-startup --python (Join-Path $PSScriptRoot 'export_hand_lod.py') -- --source (Join-Path $repositoryRoot 'src/SandBoxSim.Godot/assets/models/human/human-hand.mesh.json') --output (Join-Path $repositoryRoot 'src/SandBoxSim.Godot/assets/models/human/human-hand-lod.mesh.json')
+if($LASTEXITCODE -ne 0){throw 'Anatomical hand LOD export failed'}
 & $BlenderPath --background --factory-startup --python (Join-Path $PSScriptRoot 'bake_animal_surfaces.py') -- --source $sourceRoot --output (Join-Path $repositoryRoot 'src/SandBoxSim.Godot/assets/models/animals')
 if($LASTEXITCODE -ne 0){throw 'Animal surface bake failed'}
 Write-Host 'Bakes finished. Review printed hashes against the runtime constants, then run tools/godot.ps1 -Mode test.'

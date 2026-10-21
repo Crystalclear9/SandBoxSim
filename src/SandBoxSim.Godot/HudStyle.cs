@@ -6,16 +6,17 @@ namespace SandBoxSim.Client;
 internal static class HudStyle
 {
     public static bool MotionEnabled { get; set; } = true;
-    public static readonly Color Ink = new("#151c18"), Surface = new(.073f, .102f, .087f, .95f), Text = new("#eceee6"),
-        Muted = new("#a8b5aa"), Accent = new("#bdd0b0"), Border = new("#45594b"), Wash = new("#293a30");
+    public static readonly Color Ink = new("#171b22"), Surface = new(.065f, .078f, .098f, .96f), Text = new("#f2eee6"),
+        Muted = new("#a4abb6"), Accent = new("#dec496"), Border = new("#46505e"), Wash = new("#28323e");
     public static StyleBox Frame(int padding)
     {
-        var surface = Box(Surface, 7, padding);
-        surface.BorderColor = new Color(Border, .48f);
-        surface.ShadowSize = 8; surface.ShadowOffset = new(0, 3);
+        var surface = Box(Surface, 12, padding);
+        surface.BorderColor = new Color(Border, .65f);
+        surface.ShadowSize = 16; surface.ShadowOffset = new(0, 6);
         return surface;
     }
     private static readonly SystemFont DisplayFont = new() { FontNames = new[] { "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "sans-serif" } };
+    internal static readonly SystemFont NumericFont=new() {FontNames=new[]{"Bahnschrift","Inter","Segoe UI","sans-serif"}};
     public static Label Heading(string text, int size)
     { var label = Label(text, size); label.AddThemeFontOverride("font", DisplayFont); return label; }
     public static StyleBoxFlat Box(Color color, int radius = 12, int padding = 16, bool border = true)
@@ -38,11 +39,13 @@ internal static class HudStyle
         button.AddThemeColorOverride("icon_normal_color", Text);
         button.AddThemeColorOverride("icon_hover_color", Accent);
         button.AddThemeColorOverride("icon_pressed_color", Ink);
-        button.AddThemeStyleboxOverride("normal", Box(prominent ? Accent : new Color(0, 0, 0, 0), 6, 9, false));
-        button.AddThemeStyleboxOverride("hover", Box(prominent ? Accent.Lightened(.08f) : Wash, 6, 9, false));
-        var pressed = Box(new Color("#344b3b"), 6, 9, false);
+        button.AddThemeStyleboxOverride("normal", Box(prominent ? Accent : new Color(0, 0, 0, 0), 9, 9, false));
+        button.AddThemeStyleboxOverride("hover", Box(prominent ? Accent.Lightened(.08f) : Wash, 9, 9, false));
+        var pressed = Box(Accent, 9, 9, false);
         button.AddThemeStyleboxOverride("pressed", pressed);
-        button.AddThemeColorOverride("font_pressed_color", Accent); button.AddThemeColorOverride("icon_pressed_color", Accent);
+        button.AddThemeStyleboxOverride("hover_pressed",Box(Accent.Lightened(.05f),9,9,false));
+        button.AddThemeStyleboxOverride("disabled",Box(new Color(Wash,.25f),9,9,false));
+        button.AddThemeColorOverride("font_pressed_color", Ink); button.AddThemeColorOverride("icon_pressed_color", Ink);
         var focus = Box(new Color(0, 0, 0, 0), 4, 2); focus.BorderColor = Accent; button.AddThemeStyleboxOverride("focus", focus);
         Tween? feedback = null;
         void Feedback(float value) { if (!button.IsInsideTree() || button.Disabled) { return; } feedback?.Kill(); feedback = button.CreateTween(); feedback.TweenProperty(button, "modulate", new Color(value, value, value), MotionEnabled ? .12 : 0).SetTrans(Tween.TransitionType.Sine); }

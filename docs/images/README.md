@@ -21,6 +21,8 @@
 
 ## 来源与版本
 
+`character-detail.png`、`resident-handedness.png`、`free-world-ui.png` 与 `ui-detail-refined.png` 已更新为 2026-10-21 的 1440×900 原生渲染，分别使用 `characters`、`handedness`、`ecology` 与 `person` 预览入口、2.5 秒采样；展示新的身体比例、同源远景手型和卡片式工具界面。以下旧来源说明仅适用于未被此次替换的配图。
+
 面部、人物动物、衣装和表面近景分别来自 `proportion-final-{faces,characters,wardrobe,details}-20261009` 的第 90 帧。植物图册、建筑图册和现代地表图来自 `modern-environment-delivery-{ecology,architecture,terrain}-20261009` 的第 90 帧。
 
 界面图来自 `world-life-delivery-ui-20261008`；住房图来自 `detail-series-homes-20261008`；农业图来自 `living-economy-managed-farms-20261008`；小径图来自 `world-life-paths-20261008`。这些配图保留原始像素，没有修图替换模型。动作 GIF 和其他专题图保留各自早期表现，不用于展示最新头脸素材。

@@ -143,14 +143,14 @@ internal partial class ResidentRig : Node3D
         float desiredLean=resting?-.16f:pickup?-.58f:usingTool?-.10f-effort:.025f*_activity;
         _lean=Mathf.Lerp(_lean,desiredLean,1-MathF.Exp(-delta*12));
         var torsoBasis=Basis.FromEuler(new Vector3(_lean,usingTool?effort*.3f:0,wave*.018f*_activity));
-        var hip=new Vector3(0,.67f,0);Torso.Transform=new(torsoBasis,hip-torsoBasis*hip+Vector3.Up*vertical+Vector3.Right*(resting||pickup||usingTool?0:MathF.Sin(_phase*.33f+identityPhase)*.008f*(1-_activity)));
+        var hip=new Vector3(0,HipHeight,0);Torso.Transform=new(torsoBasis,hip-torsoBasis*hip+Vector3.Up*vertical+Vector3.Right*(resting||pickup||usingTool?0:MathF.Sin(_phase*.33f+identityPhase)*.008f*(1-_activity)));
         _socialBlend=Mathf.Lerp(_socialBlend,executing&&action==ActionKind.Socialize?1:0,1-MathF.Exp(-delta*7));
         _attentionYaw=Mathf.Lerp(_attentionYaw,_wantedAttention,1-MathF.Exp(-delta*6));
         Head.Rotation=new(pickup?.15f:usingTool?-.045f-effort*.4f:breath*.018f+MathF.Sin(_workTime*2.3f+identityPhase)*.035f*_socialBlend,MathF.Sin(_phase*.32f+identityPhase)*.045f+_attentionYaw,MathF.Sin(_workTime*1.1f+identityPhase)*.02f*_socialBlend);
         for(int i=0;i<2;i++)
         {
             float stride=wave*(i==0?1:-1)*_activity;
-            Legs[i].Position=new(i==0?-.10f:.10f,.67f+(pickup?-.094f:0),0);
+            Legs[i].Position=new(i==0?-.10f:.10f,HipHeight+(pickup?-.094f:0),0);
             Legs[i].Rotation=new(pickup?.55f:stride*.44f,0,0);
             Knees[i].Rotation=new(pickup?-1.1f:-MathF.Max(0,-stride)*.65f,0,0);
             Feet[i].Rotation=new(-(Legs[i].Rotation.X+Knees[i].Rotation.X),0,0);
@@ -183,6 +183,7 @@ internal partial class ResidentRig : Node3D
             }
             if(wantCurrent)_returning=false;
             var (target,basis)=_returning?(_returnPosition,_returnBasis):WorkPose(CurrentTool,executing?_workTime:0);
+            if(!_returning)target=BodyPoint(target);
             SolveHand(1,Holster.Position.Lerp(target,Smooth(_draw)),new Basis(Holster.Basis.GetRotationQuaternion().Slerp(basis.GetRotationQuaternion(),Smooth(_draw)))*Grip!.Basis.Inverse());
             CurlHand(1,1);
             if(CurrentTool is ResidentTool.Axe or ResidentTool.Pick or ResidentTool.Hoe or ResidentTool.Spear)
@@ -227,18 +228,18 @@ internal partial class ResidentRig : Node3D
         CargoMesh.Visible=_hasCargo&&!usingTool&&!ToolHeld&&!resting&&!pickup&&_reach==0;
         if(_hasCargo&&!usingTool&&!ToolHeld&&!resting&&!pickup&&_reach==0)
         {
-            for(int i=0;i<2;i++){SolveBareHand(i,new(i==0?-.12f:.12f,.90f,-.29f),Basis.FromEuler(new Vector3(MathF.PI/2,0,0)));CurlHand(i,.75f);}
+            for(int i=0;i<2;i++){SolveBareHand(i,BodyPoint(new(i==0?-.12f:.12f,.90f,-.29f)),Basis.FromEuler(new Vector3(MathF.PI/2,0,0)));CurlHand(i,.75f);}
         }
         if(executing&&!usingTool&&!ToolHeld&&_reach==0)
         {
             float cycle=(_workTime%1.6f)/1.6f;
             float reach=MathF.Sin(cycle*MathF.PI);
             if(pickup)
-                SolveBareHand(1,new(.16f,Mathf.Lerp(1.00f,.76f,reach),Mathf.Lerp(-.20f,-.26f,reach)),Basis.FromEuler(new Vector3(.7f,0,0)));
+                SolveBareHand(1,BodyPoint(new(.16f,Mathf.Lerp(1.00f,.76f,reach),Mathf.Lerp(-.20f,-.26f,reach))),Basis.FromEuler(new Vector3(.7f,0,0)));
             else if(action is ActionKind.Deposit or ActionKind.StoreInBuilding or ActionKind.ShareFood or ActionKind.Trade)
-                for(int i=0;i<2;i++)SolveBareHand(i,new(i==0?-.12f:.12f,Mathf.Lerp(.85f,.97f,reach),-.30f),Basis.FromEuler(new Vector3(MathF.PI/2,0,0)));
+                for(int i=0;i<2;i++)SolveBareHand(i,BodyPoint(new(i==0?-.12f:.12f,Mathf.Lerp(.85f,.97f,reach),-.30f)),Basis.FromEuler(new Vector3(MathF.PI/2,0,0)));
             else if(action is ActionKind.Eat or ActionKind.Drink)
-                SolveBareHand(1,new(.03f,1.31f,-.19f),Basis.FromEuler(new Vector3(.6f,0,.35f)));
+                SolveBareHand(1,BodyPoint(new(.03f,1.31f,-.19f)),Basis.FromEuler(new Vector3(.6f,0,.35f)));
             CurlHand(1,pickup?Math.Clamp((cycle-.3f)*3,0,.8f):.3f);
         }
         if(_socialBlend>.001f&&!usingTool&&!ToolHeld&&_reach==0&&!_hasCargo)
@@ -251,7 +252,7 @@ internal partial class ResidentRig : Node3D
                 var target=new Vector3(side==0?-.23f:.23f,1.00f+emphasis,-.22f-emphasis);
                 var restBasis=Arms[side].Basis*Elbows[side].Basis*Hands[side].Basis;
                 var open=Basis.FromEuler(new Vector3(.6f,side==0?.3f:-.3f,side==0?-.35f:.35f));
-                SolveBareHand(side,rest.Lerp(target,_socialBlend),new Basis(restBasis.GetRotationQuaternion().Slerp(open.GetRotationQuaternion(),_socialBlend)));
+                SolveBareHand(side,rest.Lerp(BodyPoint(target),_socialBlend),new Basis(restBasis.GetRotationQuaternion().Slerp(open.GetRotationQuaternion(),_socialBlend)));
                 CurlHand(side,(.16f+emphasis)*_socialBlend);
             }
         }
