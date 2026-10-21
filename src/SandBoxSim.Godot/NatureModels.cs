@@ -64,6 +64,8 @@ internal sealed partial class NatureModels
             "pine" => Crown(true),
             "trunk" => BentTrunk(),
             "rock" => IrregularSphere(.22f),
+            "pebble" => IrregularSphere(.40f,8,12),
+            "boulder" => SourceEnvironment("boulder_01"),
             "grass" => SourceEnvironment("grass_medium_01"),
             "fern" => SourceEnvironment("fern_02"),
             "broad-tree" => SourceEnvironment("tree_small_02"),
@@ -72,9 +74,8 @@ internal sealed partial class NatureModels
         };
         _meshes[key] = mesh; return mesh;
     }
-    private static ArrayMesh IrregularSphere(float irregularity)
+    private static ArrayMesh IrregularSphere(float irregularity,int rings=24,int sides=40)
     {
-        const int rings = 24, sides = 40;
         var verts = new List<Vector3>(); var normals = new List<Vector3>(); var uv = new List<Vector2>(); var indices = new List<int>();
         var planes=new[]{new Vector3(1,.15f,.08f),new(-1,.09f,-.13f),new(.16f,1,-.10f),new(-.11f,-1,.06f),
                 new(.13f,.08f,1),new(-.14f,-.10f,-1),new(.72f,.68f,.5f),new(-.64f,.71f,.58f),new(.7f,.5f,-.6f),new(-.62f,.56f,-.7f)};
@@ -115,7 +116,7 @@ internal sealed partial class NatureModels
     public MeshInstance3D Part(Node3D parent, string shape, Vector3 position, Vector3 scale, int material, Vector3? rotation = null)
     {
         if(!_fineArchitecture)shape=shape switch {"sphere"=>"finger-low","cylinder"=>"cylinder-low","capsule"=>"capsule-low",_=>shape};
-        var part = new MeshInstance3D { Mesh = Shape(shape == "box" && _fineArchitecture && material is 0 or 1 or 2 or 6 ? "masonry" : shape), Position = position, Scale = scale, MaterialOverride = shape=="foliage"?null:Material(material),
+        var part = new MeshInstance3D { Mesh = Shape(shape == "box" && _fineArchitecture && material is 0 or 1 or 2 or 6 ? "masonry" : shape), Position = position, Scale = scale, MaterialOverride = shape=="foliage"?null:shape=="rock"?RockSurface(material==7):Material(material),
             CastShadow = GeometryInstance3D.ShadowCastingSetting.On };
         if (rotation.HasValue) { part.Rotation = rotation.Value; }
         parent.AddChild(part); return part;

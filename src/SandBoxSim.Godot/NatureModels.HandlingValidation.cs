@@ -49,8 +49,34 @@ internal sealed partial class NatureModels
         }
 
     }
+    private void ValidateSocialGesture()
+    {
+        var rig=Resident(42,false,JobType.Gatherer);Vector3 first=Vector3.Zero;float travel=0;
+        for(int frame=0;frame<240;frame++)
+        {
+            rig.Attend(new Vector3(.2f,0,-1));rig.PoseAction(1f/60,ActionKind.Socialize,ActionPhase.Executing,false,.37f);
+            var hand=InTorso(rig.Hands[1],rig.Torso).Origin;
+            if(frame>60)travel+=hand.DistanceTo(first);first=hand;
+            for(int side=0;side<2;side++)
+            {
+                if(!rig.Hands[side].Transform.IsFinite()||rig.Hands[side].Basis.GetRotationQuaternion().GetAngle()>.56f)
+                    throw new InvalidOperationException("Conversation wrist exceeds its anatomical limit");
+                var elbow=InTorso(rig.Elbows[side],rig.Torso).Origin;
+                if(elbow.Y>1.20f||(side==0?elbow.X>-.08f:elbow.X<.08f))throw new InvalidOperationException("Conversation folds the elbow across the chest or above the shoulder");
+                if(rig.Arms[side].Position.DistanceTo(elbow)>.281f)
+                    throw new InvalidOperationException("Conversation detached the upper arm");
+            }
+            if(rig.ToolHeld||MathF.Abs(rig.Head.Rotation.Y)>.46f)throw new InvalidOperationException("Conversation draws a tool or over-rotates the head");
+        }
+        if(travel<.05f)throw new InvalidOperationException("Conversation has no hand articulation");
+        var wrist=rig.Hands[1].Transform;var head=rig.Head.Transform;
+        rig.PoseAction(.1f,ActionKind.Socialize,ActionPhase.Executing,true,.37f);
+        if(wrist!=rig.Hands[1].Transform||head!=rig.Head.Transform)throw new InvalidOperationException("Paused conversation continues animating");
+        rig.Free();GD.Print("SOCIAL_PRESENTATION_PASS: open-hand emphasis, attention, attached limbs, bounded wrists, no tool and pause");
+    }
     private void ValidateHandling()
     {
+        ValidateSocialGesture();
         foreach(var action in new[]{ActionKind.GatherWood,ActionKind.GatherIron,ActionKind.Farm,ActionKind.BuildHouse})
         {
             var rig=Resident(17,false,JobType.Gatherer);

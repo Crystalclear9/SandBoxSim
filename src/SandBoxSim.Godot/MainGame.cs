@@ -108,7 +108,7 @@ public partial class MainGame : Control
         NewWorld(_evaluation?.Seed??839102);
         if (_previewDays > 0) { AdvanceWorld(_previewDays * Sim.Config.Clock.TicksPerDay); }
         BuildInterface();
-        if (_previewPanel is "architecture" or "characters" or "naturemodels" or "faces" or "equipment" or "actions" or "motion" or "grip" or "hands" or "model-details" or "ecology-details" or "wardrobe")
+        if (_previewPanel is "architecture" or "characters" or "naturemodels" or "faces" or "equipment" or "actions" or "motion" or "grip" or "hands" or "model-details" or "ecology-details" or "wardrobe" or "social")
         { SetSpeed(0); AddChild(new ModelGallery { Collection = _previewPanel == "naturemodels" ? "nature" : _previewPanel }); }
 
         if(_previewPanel=="ecology")ShowCategory("生态");
@@ -459,7 +459,7 @@ public partial class MainGame : Control
         string digest=StateHash.ComputeDigest(Sim);_discovery.ValidateHomeInteraction(slot);
         if(digest!=StateHash.ComputeDigest(Sim))throw new InvalidOperationException("Home navigation changed simulation");
     }
-    public void ClickTile(int x, int y)
+    public void ClickTile(int x, int y,bool directLand=false,bool quiet=false)
     {
         if (!Sim.World.IsInBounds(x, y)) { return; }
         _selectedX = x; _selectedY = y;
@@ -473,6 +473,7 @@ public partial class MainGame : Control
                 planted=Wild.Cultivate(Sim,kind,x,y);
             }
             else PlayerTools.Apply(Sim, Tool, x, y, Radius, Strength);
+            if(quiet)return;
             _map.QueueRedraw();
             if(!planted){_status.Text="这里已有同类生态，或地面不适合栽植；道路与建筑会保留。";return;}
             _map.Effect(x, y, Tool >= PlayerTool.Fire && Tool <= PlayerTool.Meteor ? new Color("#e59970") : new Color("#c5dda0"), ToolNames[(int)Tool]);
@@ -484,7 +485,7 @@ public partial class MainGame : Control
             var localPlace = Wild.At(x,y);
             int building=Sim.World.TileAt(x,y).BuildingId-1;
             bool landSelection=building>=0&&Sim.Buildings.IsAlive(building)||Sim.GroundStocks.FindAt(x,y)>=0;
-            int best = landSelection||localPlace != null && (localPlace.X-x)*(localPlace.X-x)+(localPlace.Y-y)*(localPlace.Y-y) <= 4 ? 0 : 10;
+            int best = directLand||landSelection||localPlace != null && (localPlace.X-x)*(localPlace.X-x)+(localPlace.Y-y)*(localPlace.Y-y) <= 4 ? 0 : 10;
             foreach (int slot in Sim.Agents.AliveSlots())
             {
                 int distance = Int2.SquaredDistance(new Int2(x, y), Sim.Agents.PositionOf(slot));
@@ -505,6 +506,15 @@ public partial class MainGame : Control
             ShowJournal(true); _drawer.CurrentTab = landSelection?0:1;
         }
         RefreshPanels();
+    }
+    internal void InspectActor(int slot,int animal=-1,int wolf=-1)
+    {
+        if(slot>=0&&!Sim.Agents.IsSlotAlive(slot)||animal>=0&&!Sim.Wildlife.IsAlive(animal)||wolf>=0&&!Sim.Predators.Wolves.Any(w=>w.Id==wolf))return;
+        _selected=slot;_selectedAnimal=animal;_selectedWolf=wolf;
+        if(slot>=0){_selectedGeneration=Sim.Agents.GenerationOf(slot);_selectedX=Sim.Agents.XOf(slot);_selectedY=Sim.Agents.YOf(slot);}
+        if(animal>=0){_selectedAnimalGeneration=Sim.Wildlife.GenerationOf(animal);_selectedX=Sim.Wildlife.XOf(animal);_selectedY=Sim.Wildlife.YOf(animal);}
+        if(wolf>=0){var predator=Sim.Predators.Wolves.First(w=>w.Id==wolf);_selectedX=predator.X;_selectedY=predator.Y;}
+        _selectedPersonId=slot>=0?Sim.Society.Identity(slot):0;ShowJournal(true);_drawer.CurrentTab=1;RefreshPanels();
     }
     private float CollectedStock(ResourceKind kind)
     {
@@ -641,6 +651,7 @@ public partial class MainGame : Control
             Sim.Tick(1);
             string before = StateHash.ComputeDigest(Sim); RefreshPanels();
             ((WorldView3D)_map).ValidateViewControls();
+            int inputSpeed=_speed;try{SetSpeed(0);((WorldView3D)_map).ValidateInteractionContinuity();}finally{SetSpeed(inputSpeed);}
             ((WorldView3D)_map).ValidateObservationLayers();
             ((WorldView3D)_map).ValidateGroundWear();
             ((WorldView3D)_map).ValidateLivingDetails();

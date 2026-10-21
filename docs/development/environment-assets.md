@@ -11,8 +11,11 @@
 | `fern_02` | 2,384 | 1,590 |
 | `grass_medium_01` | 403 | 444 |
 | `shrub_sorrel_01` | 990 | 852 |
+| `boulder_01` | 6,000 | 4,403 |
 
-[Tree Small 02](https://polyhaven.com/a/tree_small_02) 由 Rico Cilliers 制作。[Fir Sapling](https://polyhaven.com/a/fir_sapling)、[Fern 02](https://polyhaven.com/a/fern_02) 和 [Grass Medium 01](https://polyhaven.com/a/grass_medium_01) 的作者和摄影/扫描分工，以及 [Shrub Sorrel 01](https://polyhaven.com/a/shrub_sorrel_01) 的作者均记录在清单中。[Forest Ground 04](https://polyhaven.com/a/forest_ground_04) 为地面提供颜色、法线和粗糙度。全套运行贴图使用 1K，32 个文件保留原始字节，并记录官方 URL 和 SHA-256。
+[Tree Small 02](https://polyhaven.com/a/tree_small_02) 由 Rico Cilliers 制作。[Fir Sapling](https://polyhaven.com/a/fir_sapling)、[Fern 02](https://polyhaven.com/a/fern_02) 和 [Grass Medium 01](https://polyhaven.com/a/grass_medium_01) 的作者和摄影/扫描分工，以及 [Shrub Sorrel 01](https://polyhaven.com/a/shrub_sorrel_01) 的作者均记录在清单中。[Forest Ground 04](https://polyhaven.com/a/forest_ground_04) 为地面提供颜色、法线和粗糙度。全套运行贴图使用 1K，35 个文件保留原始字节，并记录官方 URL 和 SHA-256。
+
+[Boulder 01](https://polyhaven.com/a/boulder_01) 由 Rico Cilliers 制作，使用扫描几何与原始颜色、OpenGL 法线和粗糙度贴图。运行网格取 LOD2 简化为 6,000 三角面、高度 0.9 米，保留裂隙和矿物色斑；石块材质禁用植物风动。世界中的普通山石与图册共用它，矿石与小碎石仍使用项目程序网格。
 
 树木高度分别归一化到 5.5 和 5.4 米；针叶树衍生自幼树素材，不代表增加新的成熟树种模拟。蕨类、草丛分别归一化为 0.43 和 0.34 米，灌木为 0.8 米。树、蕨类和草丛以地面根部为原点，灌木以几何中心为原点，以兼容现有灌木和特殊地点的放置方式。
 
@@ -23,11 +26,11 @@
 原始 `.blend` 放在本机维护目录，来源 SHA-256 在清单和导出数据内。使用 Blender 4.5.14 LTS，关闭源文件脚本：
 
 ```powershell
-$environmentBlender = 'C:/path/to/blender.exe'
-& $environmentBlender --background --factory-startup --disable-autoexec --python tools/export_environment_models.py -- --source-root runs/maintenance/natural-assets-20261009 --output-root src/SandBoxSim.Godot/assets/models/environment
+$environmentBlender = './.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
+& $environmentBlender --background --factory-startup --disable-autoexec --python tools/export_environment_models.py -- --source-root .tools/sources --output-root src/SandBoxSim.Godot/assets/models/environment
 ```
 
-源目录应包含五个素材子目录，各自放置对应的 `<素材名>_1k.blend`。从官方页面下载原文件并核对清单中的来源哈希。贴图保持独立，重新导出模型后更新清单及 `NatureModels.ScannedEnvironment.cs` 的数据哈希；不将原始 Blender 文件或便携工具链提交为运行资源。
+源目录应包含六个素材子目录，各自放置对应的 `<素材名>_1k.blend`。从官方页面下载原文件并核对清单中的来源哈希。只更新岩石时追加 `--asset boulder_01`，其他素材保持原数据。贴图保持独立，重新导出模型后更新清单及 `NatureModels.ScannedEnvironment.cs` 的数据哈希；不将原始 Blender 文件或便携工具链提交为运行资源。
 
 ## 运行与绘制
 
@@ -37,7 +40,7 @@ $environmentBlender = 'C:/path/to/blender.exe'
 
 阔叶树和针叶树的顶点预算分别为 220,000 和 190,000，其余环境模型为 150,000；纹理/法线接缝会分裂导出顶点。提高树冠密度需要重新采样实际性能，不能仅以几何检查替代帧率记录。
 
-`ENVIRONMENT_SOURCES_PASS` 检查五种素材的数据哈希、材质资源、有限顶点/法线、属性长度、缓存和预算；植物几何与暂停、地面观察纯度由其他自检覆盖。近景回放见 [visual-ecology-details.json](../../benchmarks/scenarios/visual-ecology-details.json)，大规模采样说明见 [性能说明](performance.md)。
+`ENVIRONMENT_SOURCES_PASS` 检查六种素材的数据哈希、材质资源、有限顶点/法线、属性长度、缓存和预算；植物几何与暂停、地面观察纯度由其他自检覆盖。近景回放见 [visual-ecology-details.json](../../benchmarks/scenarios/visual-ecology-details.json)，大规模采样说明见 [性能说明](performance.md)。
 
 ## 目录与发布
 

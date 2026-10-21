@@ -4,11 +4,15 @@ from pathlib import Path
 import bpy,bmesh
 from mathutils import Vector
 
-args=argparse.ArgumentParser();args.add_argument('--source-root',type=Path,required=True);args.add_argument('--output-root',type=Path,required=True)
+args=argparse.ArgumentParser();args.add_argument('--source-root',type=Path,required=True);args.add_argument('--output-root',type=Path,required=True);args.add_argument('--asset',default='')
 opts=args.parse_args(sys.argv[sys.argv.index('--')+1:])
-assets=[('tree_small_02','tree_small_02_LOD1',5.5,28000),('fir_sapling','fir_sapling_b',5.4,18000),('fern_02','fern_02_b',.43,0),('grass_medium_01','grass_medium_01_small_b_LOD1',.34,0),('shrub_sorrel_01','shrub_sorrel_01_d',.8,0)]
+assets=[('tree_small_02','tree_small_02_LOD1',5.5,28000),('fir_sapling','fir_sapling_b',5.4,18000),('fern_02','fern_02_b',.43,0),('grass_medium_01','grass_medium_01_small_b_LOD1',.34,0),('shrub_sorrel_01','shrub_sorrel_01_d',.8,0),('boulder_01','boulder_01_LOD2',.9,6000)]
+if opts.asset:
+ assets=[a for a in assets if a[0]==opts.asset]
+ if not assets:raise ValueError('Unknown environment asset')
 for asset,name,height,budget in assets:
  source=opts.source_root/asset/(asset+'_1k.blend');sha=hashlib.sha256(source.read_bytes()).hexdigest()
+ if asset=='boulder_01' and sha!='8f8004fb52ebd00c4702a50873ac799e7bd7a0bea3415f2d8bc9986e1c58e371':raise ValueError('Boulder source hash mismatch')
  bpy.ops.wm.open_mainfile(filepath=str(source),load_ui=False,use_scripts=False)
  obj=bpy.data.objects.get(name)
  if obj is None or obj.type!='MESH':raise ValueError('Required source object missing: '+name)
@@ -51,7 +55,7 @@ for asset,name,height,budget in assets:
    copy.data.normals_split_custom_set([(0,0,0)]*len(copy.data.loops))
    copy.data.update()
   copy.data.calc_loop_triangles();before=len(copy.data.loop_triangles)
-  target=3000 if 'branches' in material else 1500
+  target=budget if asset=='boulder_01' else 3000 if 'branches' in material else 1500
   if budget and not leaf and before>target:
    modifier=copy.modifiers.new('SandBoxSim wood budget','DECIMATE');modifier.ratio=target/before;modifier.use_collapse_triangulate=True
   evaluated=copy.evaluated_get(bpy.context.evaluated_depsgraph_get());mesh=evaluated.to_mesh();mesh.calc_loop_triangles()

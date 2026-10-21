@@ -31,7 +31,14 @@ internal partial class ModelGallery : PanelContainer
         if(Collection=="wardrobe")body.GetChild<Label>(0).Text="衣装剪裁 · 实际职业模型的正面与背面";
         grid.AddThemeConstantOverride("h_separation",12); grid.AddThemeConstantOverride("v_separation",12); body.AddChild(grid);
         var models=new NatureModels();
-        if(Collection=="wardrobe")
+        if(Collection=="social")
+        {
+            body.GetChild<Label>(0).Text="居民生活 · 注视、交谈与分享";
+            ActionCard(grid,models.Resident(17,false,JobType.Gatherer),ActionKind.Socialize,"交谈 · 眼神、点头与张手表达");
+            ActionCard(grid,models.Resident(19,false,JobType.Trader),ActionKind.ShareFood,"分享 · 双手递送");
+            ActionCard(grid,models.Resident(42,false,JobType.Farmer),ActionKind.Eat,"进食 · 手口配合");
+        }
+        else if(Collection=="wardrobe")
         {
             var jobs=new[]{JobType.Farmer,JobType.Gatherer,JobType.Trader};
             var names=new[]{"工作长衫 · 农夫","短上衣 · 采集者","较长外衣 · 商人"};
@@ -47,8 +54,8 @@ internal partial class ModelGallery : PanelContainer
             Closeup(grid,"林下蕨类 · 扫描叶片与弯曲叶轴",fern,.72f,new(0,.17f,0),new(.8f,.4f,2),false);
             var grass=new Node3D();grass.AddChild(new MeshInstance3D {Mesh=models.Shape("grass")});
             Closeup(grid,"草叶 · 自然叶形与色泽层次",grass,.52f,new(0,.15f,0),new(.4f,.2f,2),false);
-            var rock=new Node3D();models.Part(rock,"rock",new(0,.38f,0),Vector3.One,6);
-            Closeup(grid,"岩石 · 断裂平面与风化表面",rock,1.15f,new(0,.38f,0),new(.9f,.5f,2),false);
+            var rock=new Node3D();rock.AddChild(new MeshInstance3D {Mesh=models.Shape("boulder")});
+            Closeup(grid,"扫描岩石 · 裂隙、苔斑与风化表面",rock,1.45f,new(0,.42f,0),new(.9f,.5f,2),false);
             var shrub=new Node3D();models.Part(shrub,"foliage",new(0,.28f,0),new(.9f,.7f,.9f),4);
             Closeup(grid,"灌木 · 枝叶与花瓣细节",shrub,1.0f,new(0,.27f,0),new(.9f,.4f,2),false);
         }

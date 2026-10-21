@@ -9,6 +9,7 @@ internal sealed partial class NatureModels
     private const string EnvironmentRoot="res://assets/models/environment/";
     private static readonly Dictionary<string,string> EnvironmentHashes=new()
     {
+        ["boulder_01"]="89f557df1679c47fa342b07f36dcdc623483bffb45e2420cd4c3dbc3dafbfa65",
         ["tree_small_02"]="3db6ca4ad0da789ebdc0558ba3133f5746ec8ad04218e4306de803d10da051fd",
         ["fir_sapling"]="2a5e64f8a29838b3e1155c73b293bc6f322a518deeb76d89d39df327236ab5da",
         ["fern_02"]="36c4a69a1d8031ec026428a483fdf8c2931bf304578db8dc208d53b8ee3a670b",
@@ -28,14 +29,14 @@ uniform sampler2D normal_map:hint_normal,filter_linear_mipmap_anisotropic,repeat
 uniform sampler2D roughness_map:filter_linear_mipmap,repeat_enable;
 uniform sampler2D alpha_map:filter_linear_mipmap,repeat_enable;
 uniform vec2 uv_scale=vec2(1.0);uniform vec2 uv_offset=vec2(0.0);
-uniform bool cutout=false;uniform float plant_height=1.0;uniform bool grass=false;
+uniform bool wind=true;uniform bool cutout=false;uniform float plant_height=1.0;uniform bool grass=false;
 uniform bool soil_bound=false;uniform sampler2D soil:filter_nearest,repeat_disable;uniform vec2 map_size=vec2(1.0);
 void vertex(){
 vec3 root=(MODEL_MATRIX*vec4(0,0,0,1)).xyz;float t=clamp(VERTEX.y/plant_height,0.0,1.0);
 float fade=grass?1.0-smoothstep(24.0,32.0,distance(root,CAMERA_POSITION_WORLD)):1.0;
 float wear=grass&&soil_bound?texture(soil,clamp(root.xz*.5/map_size,vec2(0),vec2(1))).g:0.0;
 VERTEX.y*=fade*(1.0-wear*.85);
-VERTEX.x+=sin(TIME*.85+root.x*.31+root.z*.23+VERTEX.y*2.0)*.016*t*t*fade;
+if(wind)VERTEX.x+=sin(TIME*.85+root.x*.31+root.z*.23+VERTEX.y*2.0)*.016*t*t*fade;
 }
 void fragment(){
 if(!FRONT_FACING){NORMAL=-NORMAL;}
@@ -55,6 +56,7 @@ ALPHA=cutout?texture(alpha_map,tex_uv).r:1.0;ALPHA_SCISSOR_THRESHOLD=mix(.45,.18
         }
         material.SetShaderParameter("cutout",maps.TryGetProperty("alpha",out _));
         if(name=="tree_small_02_branches"){material.SetShaderParameter("uv_scale",new Vector2(3,.6f));material.SetShaderParameter("uv_offset",new Vector2(0,.4f));}
+        material.SetShaderParameter("wind",asset!="boulder_01");
         material.SetShaderParameter("plant_height",height);material.SetShaderParameter("grass",asset=="grass_medium_01");
         _sourceVegetationMaterials[key]=material;return material;
     }
@@ -107,7 +109,7 @@ ALPHA=cutout?texture(alpha_map,tex_uv).r:1.0;ALPHA_SCISSOR_THRESHOLD=mix(.45,.18
             int vertexBudget=asset=="tree_small_02"?220000:asset=="fir_sapling"?190000:150000;
             if(count>vertexBudget||count<30)throw new InvalidOperationException("Source environment mesh is outside budget");
         }
-        GD.Print("ENVIRONMENT_SOURCES_PASS: five licensed meshes, source hashes, PBR/alpha resources, finite attributes, material/cache preservation and budgets");
+        GD.Print("ENVIRONMENT_SOURCES_PASS: six licensed meshes, source hashes, PBR/alpha resources, finite attributes, material/cache preservation and budgets");
     }
     internal void BindEnvironmentGround(Texture2D soil,Vector2 size)
     {

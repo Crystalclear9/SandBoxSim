@@ -120,6 +120,27 @@
         }
       },
       "sha256": "793aaddbe1890cf4b25ba4204beb797539931fd107a3e649e7d35365a34d178e"
+    },
+    "boulder_01": {
+      "sha256": "89f557df1679c47fa342b07f36dcdc623483bffb45e2420cd4c3dbc3dafbfa65",
+      "source": {
+        "url": "https://polyhaven.com/a/boulder_01",
+        "license": "CC0-1.0",
+        "sha256": "8f8004fb52ebd00c4702a50873ac799e7bd7a0bea3415f2d8bc9986e1c58e371",
+        "object": "boulder_01_LOD2"
+      },
+      "height": 0.9,
+      "triangles": 6000,
+      "materials": {
+        "boulder_01": {
+          "diffuse": "textures/boulder_01_diff_1k.jpg",
+          "normal": "textures/boulder_01_nor_gl_1k.jpg",
+          "roughness": "textures/boulder_01_rough_1k.jpg"
+        }
+      },
+      "authors": {
+        "Rico Cilliers": "author"
+      }
     }
   },
   "textures": [
@@ -282,6 +303,21 @@
       "path": "forest_ground_04/textures/forest_ground_04_rough_1k.jpg",
       "source": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forest_ground_04/forest_ground_04_rough_1k.jpg",
       "sha256": "89d4d50395eb92824a64132c4bc8a5a09009071e0b325ab66dc3104c7a3090ed"
+    },
+    {
+      "path": "boulder_01/textures/boulder_01_diff_1k.jpg",
+      "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/boulder_01/boulder_01_diff_1k.jpg",
+      "sha256": "c38f0e918f6dc16b8d386ba3cdd89805c78320c119a1ceec85856f82b09a65b8"
+    },
+    {
+      "path": "boulder_01/textures/boulder_01_nor_gl_1k.jpg",
+      "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/boulder_01/boulder_01_nor_gl_1k.jpg",
+      "sha256": "0810cf6e89d89bb6eb065b4d2e2855288f5dcbd2c15c6e40ab90d462021b50aa"
+    },
+    {
+      "path": "boulder_01/textures/boulder_01_rough_1k.jpg",
+      "source": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/boulder_01/boulder_01_rough_1k.jpg",
+      "sha256": "56163a3d947b03c94651d8dfad0d926961ab56f2cdbdc5bef6be52dfbcbd5bbf"
     }
   ]
 }

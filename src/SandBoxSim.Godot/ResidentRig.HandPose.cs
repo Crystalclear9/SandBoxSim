@@ -51,7 +51,7 @@ internal partial class ResidentRig
         // Let the wrist follow the forearm rather than rotating it to a world-space identity.
         for(int pass=0;pass<3;pass++)
         {
-            SolveHand(side,target,desired);
+            SolveHand(side,target,desired,true);
             var forearm=Arms[side].Basis*Elbows[side].Basis;
             var relative=(forearm.Inverse()*desired).GetRotationQuaternion();
             float angle=relative.GetAngle();
@@ -59,7 +59,7 @@ internal partial class ResidentRig
             desired=forearm*new Basis(Quaternion.Identity.Slerp(relative,.55f/angle));
         }
     }
-    private void SolveHand(int side,Vector3 gripTarget,Basis handBasis)
+    private void SolveHand(int side,Vector3 gripTarget,Basis handBasis,bool bare=false)
     {
         Vector3 gripOffset=side==1?Grip!.Position:new(0,-.035f,-.0286f);
         Vector3 wrist=gripTarget-handBasis*gripOffset,shoulder=Arms[side].Position;
@@ -68,7 +68,8 @@ internal partial class ResidentRig
         wrist=shoulder+direction*distance;
         float along=(upper*upper-lower*lower+distance*distance)/(2*distance);
         // The elbow pole follows the palm, instead of forcing both forearms behind the body.
-        var bend=handBasis.Y-direction*handBasis.Y.Dot(direction);
+        var pole=bare?new Vector3(side==0?-.75f:.75f,-.45f,.15f):handBasis.Y;
+        var bend=pole-direction*pole.Dot(direction);
         if(bend.LengthSquared()<.0001f){var hint=new Vector3(side==0?-1:1,.2f,.1f);bend=hint-direction*hint.Dot(direction);}
         bend=bend.Normalized();
         Vector3 elbow=shoulder+direction*along+bend*MathF.Sqrt(MathF.Max(0,upper*upper-along*along));

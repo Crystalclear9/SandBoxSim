@@ -30,3 +30,11 @@ Authors: {"Rico Cilliers": "All"}
 Source SHA-256: 908b1de7b23c12548b9c81facf4dc19113ddd4bbbb880bcd2656a02096ed2259
 Forest Ground 04 material: https://polyhaven.com/a/forest_ground_04
 Both assets are CC0. Texture files remain unchanged.
+
+Boulder 01 by Rico Cilliers / Poly Haven
+Source: https://polyhaven.com/a/boulder_01
+License: CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/)
+Source blend SHA-256: 8f8004fb52ebd00c4702a50873ac799e7bd7a0bea3415f2d8bc9986e1c58e371
+Changes: LOD2 mesh reduced to 6,000 triangles, recentered and rescaled to
+0.9 m height, coordinate and UV axes converted; authored normals and PBR
+textures retained. Original 1K diffuse, OpenGL normal and roughness included.

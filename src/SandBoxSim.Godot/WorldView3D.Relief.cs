@@ -1,4 +1,6 @@
 using System;
+using Godot;
+using SandBoxSim.Core.Environment;
 namespace SandBoxSim.Client;
 public partial class WorldView3D
 {
@@ -14,6 +16,86 @@ public partial class WorldView3D
         return (At(ix,iy)*(1-u)+At(ix+1,iy)*u)*(1-v)+(At(ix,iy+1)*(1-u)+At(ix+1,iy+1)*u)*v;
     }
     private static float NaturalRelief(float x,float y,int seed)
-        =>(TerrainNoise(x*.71f,y*.71f,seed)-.5f)*.046f
-          +(TerrainNoise(x*1.83f+17,y*1.83f-9,seed)-.5f)*.019f;
+        =>(TerrainNoise(x*.19f,y*.19f,seed)-.5f)*.25f
+          +(TerrainNoise(x*.71f,y*.71f,seed)-.5f)*.065f
+          +(TerrainNoise(x*1.83f+17,y*1.83f-9,seed)-.5f)*.017f;
+    private float GroundVertex(int x,int y)
+    {
+        int tx=Math.Clamp(x/GroundDetail,0,Game.Sim.World.Width-1),ty=Math.Clamp(y/GroundDetail,0,Game.Sim.World.Height-1);
+        return _groundHeights![x,y]-Game.Sim.World.TileAt(tx,ty).FootTraffic*.024f;
+    }
+    private float GroundHeight(float x,float z)
+    {
+        if(_groundHeights==null)return 0;
+        float gx=Math.Clamp(x*GroundDetail*.5f,0,_groundHeights.GetLength(0)-1.00001f);
+        float gz=Math.Clamp(z*GroundDetail*.5f,0,_groundHeights.GetLength(1)-1.00001f);
+        int ix=(int)gx,iz=(int)gz;float u=gx-ix,v=gz-iz;
+        float a=GroundVertex(ix,iz),b=GroundVertex(ix+1,iz),c=GroundVertex(ix,iz+1),d=GroundVertex(ix+1,iz+1);
+        return u+v<=1?a+(b-a)*u+(c-a)*v:d+(c-d)*(1-u)+(b-d)*(1-v);
+    }
+    private Vector2I? Pick(Vector2 screen)
+    {
+        var hit=SurfaceHit(screen);if(!hit.HasValue)return null;
+        return new Vector2I(Math.Clamp((int)(hit.Value.X*.5f),0,Game.Sim.World.Width-1),Math.Clamp((int)(hit.Value.Z*.5f),0,Game.Sim.World.Height-1));
+    }
+    private Vector3? SurfaceHit(Vector2 screen)
+    {
+        if(_groundHeights==null)return null;
+        Vector3 origin=_camera.ProjectRayOrigin(screen),ray=_camera.ProjectRayNormal(screen);
+        float enter=0,exit=_camera.Far;
+        bool Slab(float o,float d,float maximum)
+        {
+            if(MathF.Abs(d)<.000001f)return o>=0&&o<=maximum;
+            float a=-o/d,b=(maximum-o)/d;if(a>b)(a,b)=(b,a);enter=MathF.Max(enter,a);exit=MathF.Min(exit,b);return enter<=exit;
+        }
+        if(!Slab(origin.X,ray.X,Game.Sim.World.Width*2)||!Slab(origin.Z,ray.Z,Game.Sim.World.Height*2))return null;
+        int nx=_groundHeights.GetLength(0)-1,nz=_groundHeights.GetLength(1)-1;
+        float cell=2f/GroundDetail;var start=origin+ray*(enter+.00001f);
+        int x=Math.Clamp((int)MathF.Floor(start.X/cell),0,nx-1),z=Math.Clamp((int)MathF.Floor(start.Z/cell),0,nz-1);
+        int sx=ray.X>=0?1:-1,sz=ray.Z>=0?1:-1;
+        float stepX=MathF.Abs(ray.X)<.000001f?float.PositiveInfinity:cell/MathF.Abs(ray.X);
+        float stepZ=MathF.Abs(ray.Z)<.000001f?float.PositiveInfinity:cell/MathF.Abs(ray.Z);
+        float nextX=float.IsInfinity(stepX)?stepX:((x+(sx>0?1:0))*cell-origin.X)/ray.X;
+        float nextZ=float.IsInfinity(stepZ)?stepZ:((z+(sz>0?1:0))*cell-origin.Z)/ray.Z;
+        float Triangle(Vector3 a,Vector3 b,Vector3 c)
+        {
+            var e=b-a;var f=c-a;var cross=ray.Cross(f);float det=e.Dot(cross);
+            if(MathF.Abs(det)<.0000001f)return float.PositiveInfinity;
+            var offset=origin-a;float u=offset.Dot(cross)/det;if(u<-.00001f||u>1.00001f)return float.PositiveInfinity;
+            var q=offset.Cross(e);float v=ray.Dot(q)/det;if(v<-.00001f||u+v>1.00001f)return float.PositiveInfinity;
+            float t=f.Dot(q)/det;return t>=enter-.0001f&&t<=exit+.0001f?t:float.PositiveInfinity;
+        }
+        float water=float.PositiveInfinity;
+        if(ray.Y<-.00001f)
+        {
+            float t=(.02f-origin.Y)/ray.Y;var w=origin+ray*t;
+            if(t>=enter&&t<=exit&&Game.Sim.World.IsInBounds((int)MathF.Floor(w.X*.5f),(int)MathF.Floor(w.Z*.5f))
+                &&Game.Sim.World.TerrainAt((int)(w.X*.5f),(int)(w.Z*.5f))==TerrainKind.Water)water=t;
+        }
+        for(int guard=0;guard<=nx+nz;guard++)
+        {
+            var a=new Vector3(x*cell,GroundVertex(x,z),z*cell);var b=new Vector3((x+1)*cell,GroundVertex(x+1,z),z*cell);
+            var c=new Vector3(x*cell,GroundVertex(x,z+1),(z+1)*cell);var d=new Vector3((x+1)*cell,GroundVertex(x+1,z+1),(z+1)*cell);
+            float t=MathF.Min(Triangle(a,b,c),Triangle(b,d,c));
+            if(float.IsFinite(t))return origin+ray*MathF.Min(t,water);
+            if(nextX<nextZ){if(nextX>exit)break;x+=sx;nextX+=stepX;}else{if(nextZ>exit)break;z+=sz;nextZ+=stepZ;}
+            if(x<0||z<0||x>=nx||z>=nz)break;
+        }
+        return float.IsFinite(water)?origin+ray*water:null;
+    }
+    private void ConformFeet(ResidentRig rig)
+    {
+        for(int side=0;side<2;side++)
+        {
+            var foot=rig.Feet[side];var point=foot.GlobalPosition;
+            float center=GroundHeight(point.X,point.Z),left=GroundHeight(point.X-.12f,point.Z),right=GroundHeight(point.X+.12f,point.Z);
+            float front=GroundHeight(point.X,point.Z-.14f),back=GroundHeight(point.X,point.Z+.14f);
+            // Small corrections preserve the authored leg pose; large ledges are
+            // represented by locomotion, not stretched disconnected limbs.
+            var leg=rig.Legs[side].Position;leg.Y+=Math.Clamp(center-rig.GlobalPosition.Y,-.07f,.07f)/MathF.Max(.01f,rig.GlobalBasis.Y.Length());rig.Legs[side].Position=leg;
+            var normal=new Vector3((left-right)/.24f,1,(front-back)/.28f).Normalized();
+            var local=rig.GlobalBasis.Transposed()*normal;
+            var rotation=foot.Rotation;rotation.X+=Math.Clamp(MathF.Atan2(local.Z,local.Y),-.24f,.24f);rotation.Z=Math.Clamp(-MathF.Atan2(local.X,local.Y),-.24f,.24f);foot.Rotation=rotation;
+        }
+    }
 }

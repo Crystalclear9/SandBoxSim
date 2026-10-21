@@ -11,6 +11,7 @@
 | `ecology-detail.png` | 树木、蕨类、草丛、灌木和岩石图册 |
 | `architecture-detail.png` | 五种住房与仓库模型 |
 | `resident-face-detail.png`、`character-detail.png` | 面部、居民和动物模型 |
+| `resident-social.png` | 交谈、分享和进食的实际模型动作 |
 | `wardrobe-detail.png` | 三种衣装剪裁的正背面 |
 | `model-surface-detail.png` | 衣料、靴子、动物与建筑近景 |
 | `living-homes.png`、`living-farms.png`、`living-paths.png` | 住房生活、农业与逐渐累积的土地痕迹 |
