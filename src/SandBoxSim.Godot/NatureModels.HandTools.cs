@@ -42,15 +42,33 @@ internal sealed partial class NatureModels
         }
         MergeResidentParts(root,key);mesh=root.GetChild<MeshInstance3D>(0).Mesh;_meshes[key]=mesh;root.Free();return mesh;
     }
-    private Mesh FingerProxy(string skin,bool closed)
+    private Mesh FingerProxy(string skin,bool closed,int side)
     {
-        string key="finger-proxy:"+skin+closed;
+        string key="finger-proxy:"+skin+closed+":"+side;
         if(_meshes.TryGetValue(key,out var mesh))return mesh;
+        if(ResidentRig.HandMirror(side)<0)
+        {
+            var canonical=FingerProxy(skin,closed,0);var mirrored=new ArrayMesh();
+            for(int surface=0;surface<canonical.GetSurfaceCount();surface++)
+            {
+                var arrays=canonical.SurfaceGetArrays(surface);
+                var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
+                for(int i=0;i<points.Length;i++){points[i].X=-points[i].X;normals[i].X=-normals[i].X;}
+                var tangents=arrays[(int)Mesh.ArrayType.Tangent].AsFloat32Array();
+                for(int i=0;i<tangents.Length;i+=4){tangents[i]=-tangents[i];tangents[i+3]=-tangents[i+3];}
+                var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+                if(indices.Length==0){indices=new int[points.Length];for(int i=0;i<indices.Length;i++)indices[i]=i;}
+                for(int i=0;i<indices.Length;i+=3)(indices[i+1],indices[i+2])=(indices[i+2],indices[i+1]);
+                arrays[(int)Mesh.ArrayType.Vertex]=points;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.Index]=indices;
+                if(tangents.Length>0)arrays[(int)Mesh.ArrayType.Tangent]=tangents;
+                mirrored.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);mirrored.SurfaceSetMaterial(surface,canonical.SurfaceGetMaterial(surface));
+            }
+            _meshes[key]=mirrored;return mirrored;
+        }
         var root=new Node3D();
         Sculpt(root,Loft("resident-palm",new[]{new Vector4(-.035f,0,.026f,.022f),new(-.010f,0,.031f,.020f),new(.025f,0,.035f,.018f),new(.043f,0,.030f,.014f),new(.049f,0,.018f,.012f)}),Vector3.Zero,ResidentMaterial(skin),new(MathF.PI/2,0,0));
-        Detail(root,"finger-low",new(0,.01f,0),new(.057f,.048f,.052f),skin);
-        for(int digit=0;digit<4;digit++)Detail(root,"finger-low",new(-.022f+digit*.014f,closed?-.063f:-.070f,closed?-.030f:-.005f),new(.010f,closed?.030f:.062f,.010f),skin,new(closed?1.1f:0,0,0));
-        Detail(root,"finger-low",new(.025f,-.035f,closed?-.026f:-.021f),new(.013f,.026f,.013f),skin,new(0,0,-.6f));
+        for(int digit=0;digit<4;digit++)Detail(root,"seed",new(-.022f+digit*.014f,closed?-.063f:-.070f,closed?-.030f:-.005f),new(.010f,closed?.030f:.062f,.010f),skin,new(closed?1.1f:0,0,0));
+        Detail(root,"seed",new(closed?-.034f:-.038f,-.038f,closed?-.026f:.001f),new(.016f,.042f,.018f),skin,new(closed?.5f:0,0,closed?.5f:-.5f));
         MergeResidentParts(root,key);mesh=root.GetChild<MeshInstance3D>(0).Mesh;_meshes[key]=mesh;root.Free();return mesh;
     }
     private Mesh HandTool(ResidentTool kind)

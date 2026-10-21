@@ -6,6 +6,19 @@ namespace SandBoxSim.Client;
 /// <summary>Hand anatomy, two-bone reach and tool-specific grip orientations.</summary>
 internal partial class ResidentRig
 {
+    // Canonical hand is left: mirrored geometry, bind roots and articulation
+    // must use the same convention at every detail level.
+    internal static float HandMirror(int side)=>side switch {0=>1,1=>-1,_=>throw new ArgumentOutOfRangeException(nameof(side))};
+    internal static Vector3 FingerRoot(int side,int digit)=>new(HandMirror(side)*(-.022f+digit*.014f),-.04f,-.005f);
+    internal static Vector3 ThumbRoot(int side)=>new(HandMirror(side)*-.034f,-.021f,.001f);
+    internal void PoseHandReference(float curl)
+    {
+        for(int side=0;side<2;side++)
+        {
+            Hands[side].Rotation=Vector3.Zero;CurlHand(side,curl);UpdateHandBones(side);
+            HandProxies[side].Mesh=curl>.5f?HandClosed[side]:HandOpen[side];
+        }
+    }
     private static (Vector3,Basis) WorkPose(ResidentTool kind,float time)
     {
         float period=kind==ResidentTool.Hoe?1.55f:kind==ResidentTool.Pick?1.35f:kind==ResidentTool.Axe?1.25f:1.05f;
@@ -28,14 +41,14 @@ internal partial class ResidentRig
                 float knuckle=digit==0?.891f:digit==1?.880f:digit==2?.885f:.905f;
                 float middle=digit==0?.837f:digit==1?1.055f:digit==2?.950f:.651f;
                 float tip=digit==0?.857f:digit==1?.694f:digit==2?.773f:.995f;
-                Fingers[side,digit].Rotation=new(curl*knuckle,0,(side==0?1:-1)*(digit-1.5f)*.025f*(1-curl));
+                Fingers[side,digit].Rotation=new(curl*knuckle,0,HandMirror(side)*(digit-1.5f)*.025f*(1-curl));
                 FingerMiddles[side,digit].Rotation=new(curl*middle,0,0);
                 Fingertips[side,digit].Rotation=new(curl*tip,0,0);
                 HandSkeletons[side].SetBonePoseRotation(1+digit*3,Fingers[side,digit].Basis.GetRotationQuaternion());
                 HandSkeletons[side].SetBonePoseRotation(2+digit*3,FingerMiddles[side,digit].Basis.GetRotationQuaternion());
                 HandSkeletons[side].SetBonePoseRotation(3+digit*3,Fingertips[side,digit].Basis.GetRotationQuaternion());
             }
-            Thumbs[side].Rotation=new(curl*.25f,0,(side==0?1:-1)*(.15f+curl*.65f));ThumbTips[side].Rotation=new(curl*.55f,0,0);
+            Thumbs[side].Rotation=new(curl*.25f,0,HandMirror(side)*(.15f+curl*.65f));ThumbTips[side].Rotation=new(curl*.55f,0,0);
             HandSkeletons[side].SetBonePoseRotation(13,Thumbs[side].Basis.GetRotationQuaternion());
             HandSkeletons[side].SetBonePoseRotation(14,ThumbTips[side].Basis.GetRotationQuaternion());
         }

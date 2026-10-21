@@ -49,6 +49,56 @@ internal sealed partial class NatureModels
         }
 
     }
+    private static Vector3 ReflectHand(Vector3 point)=>new(-point.X,point.Y,point.Z);
+    private void ValidateHandLaterality()
+    {
+        var rig=Resident(17,false,JobType.Gatherer);
+        void CheckMirroredMesh(Mesh left,Mesh right,bool skinned)
+        {
+            if(left==right)throw new InvalidOperationException("Both hands share the same unmirrored mesh");
+            var l=left.SurfaceGetArrays(0);var r=right.SurfaceGetArrays(0);
+            var lp=l[(int)Mesh.ArrayType.Vertex].AsVector3Array();var rp=r[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            var ln=l[(int)Mesh.ArrayType.Normal].AsVector3Array();var rn=r[(int)Mesh.ArrayType.Normal].AsVector3Array();
+            var li=l[(int)Mesh.ArrayType.Index].AsInt32Array();var ri=r[(int)Mesh.ArrayType.Index].AsInt32Array();
+            if(lp.Length!=rp.Length||li.Length!=ri.Length)throw new InvalidOperationException("Left/right topology does not correspond");
+            for(int i=0;i<lp.Length;i++)
+                if(ReflectHand(lp[i]).DistanceTo(rp[i])>.00001f||ReflectHand(ln[i]).DistanceTo(rn[i])>.002f)throw new InvalidOperationException("Hand contour or normal is not mirrored");
+            for(int i=0;i<li.Length;i+=3)
+                if(li[i]!=ri[i]||li[i+1]!=ri[i+2]||li[i+2]!=ri[i+1])throw new InvalidOperationException("Mirrored hand winding is inverted");
+            if(skinned)
+            {
+                var lb=l[(int)Mesh.ArrayType.Bones].AsInt32Array();var rb=r[(int)Mesh.ArrayType.Bones].AsInt32Array();
+                var lw=l[(int)Mesh.ArrayType.Weights].AsFloat32Array();var rw=r[(int)Mesh.ArrayType.Weights].AsFloat32Array();
+                for(int i=0;i<lb.Length;i++)if(lb[i]!=rb[i]||MathF.Abs(lw[i]-rw[i])>.0001f)throw new InvalidOperationException("Mirrored skin changed finger identity");
+            }
+        }
+        CheckMirroredMesh(rig.HandSkins[0].Mesh,rig.HandSkins[1].Mesh,true);
+        CheckMirroredMesh(rig.HandOpen[0],rig.HandOpen[1],false);CheckMirroredMesh(rig.HandClosed[0],rig.HandClosed[1],false);
+        var leftBounds=rig.HandOpen[0].GetAabb();var rightBounds=rig.HandOpen[1].GetAabb();
+        if(-leftBounds.Position.X<leftBounds.End.X+.006f||rightBounds.End.X<-rightBounds.Position.X+.006f)
+            throw new InvalidOperationException("Distant thumb is hidden inside the palm or has the wrong silhouette");
+        for(int side=0;side<2;side++)
+        {
+            var index=rig.Fingers[side,0].Position;var little=rig.Fingers[side,3].Position;var thumb=rig.Thumbs[side].Position;
+            if((thumb.X-index.X)*(little.X-index.X)>=0||thumb.X*ResidentRig.HandMirror(side)>=0)
+                throw new InvalidOperationException("Thumb is on the little-finger side or the wrong hand");
+        }
+        foreach(float curl in new[]{0f,.35f,1f})
+        {
+            rig.PoseHandReference(curl);
+            for(int bone=0;bone<16;bone++)
+            {
+                var left=rig.HandSkeletons[0].GetBoneGlobalPose(bone);var right=rig.HandSkeletons[1].GetBoneGlobalPose(bone);
+                if(ReflectHand(left.Origin).DistanceTo(right.Origin)>.00001f||(-ReflectHand(left.Basis.X)).DistanceTo(right.Basis.X)>.00001f||ReflectHand(left.Basis.Y).DistanceTo(right.Basis.Y)>.00001f||ReflectHand(left.Basis.Z).DistanceTo(right.Basis.Z)>.00001f)
+                    throw new InvalidOperationException("Left and right articulation are not anatomical mirrors: bone "+bone);
+            }
+            rig.SetHandDetail(false);rig.PoseHandReference(curl);
+            if(rig.HandProxies[0].Mesh==rig.HandProxies[1].Mesh||rig.HandProxies[0].Mesh!=(curl>.5f?rig.HandClosed[0]:rig.HandOpen[0])||rig.HandProxies[1].Mesh!=(curl>.5f?rig.HandClosed[1]:rig.HandOpen[1]))
+                throw new InvalidOperationException("Distance switch replaces both hands with a right hand");
+            rig.SetHandDetail(true);
+        }
+        rig.Free();GD.Print("HAND_LATERALITY_PASS: distinct left/right near/far hands, thumb side, normals/winding, finger identity, open/closed binding and LOD switching");
+    }
     private void ValidateSocialGesture()
     {
         var rig=Resident(42,false,JobType.Gatherer);Vector3 first=Vector3.Zero;float travel=0;
@@ -76,7 +126,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateHandling()
     {
-        ValidateSocialGesture();
+        ValidateHandLaterality();ValidateSocialGesture();
         foreach(var action in new[]{ActionKind.GatherWood,ActionKind.GatherIron,ActionKind.Farm,ActionKind.BuildHouse})
         {
             var rig=Resident(17,false,JobType.Gatherer);
@@ -137,19 +187,24 @@ internal sealed partial class NatureModels
                 }
                 if(rig.ToolHeld&&frame is 90 or 120 or 150)
                 {
-                    var mesh=rig.HandSkins[1].Mesh.SurfaceGetArrays(0);
-                    var points=mesh[(int)Mesh.ArrayType.Vertex].AsVector3Array();
-                    var bones=mesh[(int)Mesh.ArrayType.Bones].AsInt32Array();
-                    var skinWeights=mesh[(int)Mesh.ArrayType.Weights].AsFloat32Array();
-                    var palette=new Transform3D[16];
-                    for(int b=0;b<16;b++)palette[b]=rig.HandSkeletons[1].GetBoneGlobalPose(b)*rig.HandSkeletons[1].GetBoneGlobalRest(b).AffineInverse();
-                    for(int v=0;v<points.Length;v++)
+                    for(int hand=action==ActionKind.BuildHouse?1:0;hand<2;hand++)
                     {
-                        if(bones[v*4]==0)continue;
-                        var point=Vector3.Zero;
-                        for(int b=0;b<4;b++)point+=(palette[bones[v*4+b]]*points[v])*skinWeights[v*4+b];
-                        if(!point.IsFinite()||(point-rig.Grip!.Position).Cross(rig.Grip.Basis.Y).Length()<.0105f)
-                            throw new InvalidOperationException("Rendered hand skin penetrates shaft");
+                        var mesh=rig.HandSkins[hand].Mesh.SurfaceGetArrays(0);
+                        var points=mesh[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                        var bones=mesh[(int)Mesh.ArrayType.Bones].AsInt32Array();
+                        var skinWeights=mesh[(int)Mesh.ArrayType.Weights].AsFloat32Array();
+                        var palette=new Transform3D[16];
+                        for(int b=0;b<16;b++)palette[b]=rig.HandSkeletons[hand].GetBoneGlobalPose(b)*rig.HandSkeletons[hand].GetBoneGlobalRest(b).AffineInverse();
+                        var handTransform=InTorso(rig.Hands[hand],rig.Torso);var toolTransform=InTorso(rig.ToolMesh,rig.Torso);var axis=toolTransform.Basis.Y.Normalized();
+                        for(int v=0;v<points.Length;v++)
+                        {
+                            if(bones[v*4]==0)continue;
+                            var point=Vector3.Zero;
+                            for(int b=0;b<4;b++)point+=(palette[bones[v*4+b]]*points[v])*skinWeights[v*4+b];
+                            float gap=(handTransform*point-toolTransform.Origin).Cross(axis).Length();
+                            if(!point.IsFinite()||gap<.0105f)
+                                throw new InvalidOperationException("Rendered hand skin penetrates shaft: hand="+hand+" action="+action+" gap="+gap);
+                        }
                     }
                 }
                 var vertices=bridgeVertices;var weights=bridgeWeights;

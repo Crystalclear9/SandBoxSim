@@ -31,7 +31,13 @@ internal partial class ModelGallery : PanelContainer
         if(Collection=="wardrobe")body.GetChild<Label>(0).Text="衣装剪裁 · 实际职业模型的正面与背面";
         grid.AddThemeConstantOverride("h_separation",12); grid.AddThemeConstantOverride("v_separation",12); body.AddChild(grid);
         var models=new NatureModels();
-        if(Collection=="social")
+        if(Collection=="handedness")
+        {
+            grid.Columns=4;body.GetChild<Label>(0).Text="左右手 · 同一角色的近景与远景模型";
+            for(int detail=0;detail<2;detail++)for(int view=0;view<2;view++)for(int side=0;side<2;side++)
+                Closeup(grid,(detail==0?"近景":"远景")+" · "+(side==0?"左手":"右手")+" · "+(view==0?"掌心":"手背"),models.HandStudy(side,detail==1),.20f,new(0,.105f,0),new(0,0,view==0?-2:2),false);
+        }
+        else if(Collection=="social")
         {
             body.GetChild<Label>(0).Text="居民生活 · 注视、交谈与分享";
             ActionCard(grid,models.Resident(17,false,JobType.Gatherer),ActionKind.Socialize,"交谈 · 眼神、点头与张手表达");

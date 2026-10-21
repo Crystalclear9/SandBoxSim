@@ -169,15 +169,15 @@ internal sealed partial class NatureModels
             rig.HandSkins[i]=new MeshInstance3D {Name="AnatomicalHand"};hand.AddChild(rig.HandSkins[i]);
             for(int digit=0;digit<4;digit++)
             {
-                var finger=rig.Fingers[i,digit]=new Node3D {Name="Finger"+digit,Position=new((i==0?1:-1)*(-.022f+digit*.014f),-.04f,-.005f)}; hand.AddChild(finger);
+                var finger=rig.Fingers[i,digit]=new Node3D {Name="Finger"+digit,Position=ResidentRig.FingerRoot(i,digit)}; hand.AddChild(finger);
                 float lengthScale=digit==0?.92f:digit==1?1:digit==2?.96f:.86f;
                 float proximal=.026f*lengthScale,middle=.018f*lengthScale,distal=.014f*lengthScale;
                 var mid=rig.FingerMiddles[i,digit]=new Node3D {Name="Middle",Position=new(0,-proximal,0)};finger.AddChild(mid);
                 var tip=rig.Fingertips[i,digit]=new Node3D {Name="Tip",Position=new(0,-middle,0)};mid.AddChild(tip);
             }
-            var thumb=rig.Thumbs[i]=new Node3D {Name="Thumb",Position=new(side*.034f,-.021f,.001f)};hand.AddChild(thumb);
+            var thumb=rig.Thumbs[i]=new Node3D {Name="Thumb",Position=ResidentRig.ThumbRoot(i)};hand.AddChild(thumb);
             var thumbTip=rig.ThumbTips[i]=new Node3D {Name="ThumbTip",Position=new(0,-.018f,0)};thumb.AddChild(thumbTip);
-            rig.HandOpen[i]=FingerProxy(skin,false);rig.HandClosed[i]=FingerProxy(skin,true);
+            rig.HandOpen[i]=FingerProxy(skin,false,i);rig.HandClosed[i]=FingerProxy(skin,true,i);
             rig.HandProxies[i]=new MeshInstance3D {Name="DistantFingers",Mesh=rig.HandOpen[i],Visible=false};hand.AddChild(rig.HandProxies[i]);
             Sculpt(arm,RolledCuff(),Vector3.Zero,CollarMaterial(cloth));
             var leg = rig.Legs[i] = new Node3D { Name = i == 0 ? "LeftLeg" : "RightLeg", Position = new Vector3(side * .10f, .67f, 0) }; rig.AddChild(leg);
