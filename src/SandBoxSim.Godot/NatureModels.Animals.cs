@@ -38,15 +38,20 @@ NORMAL=normalize(abs(determinant)*NORMAL-sign(determinant)*(dFdx(fiber_height)*a
 float face_pale=smoothstep(.78,.98,-local.z)*(1.0-smoothstep(.97,1.10,local.y))*predator*.42;
 float brow_mask=exp(-pow((abs(local.x)-.092)*21.0,2.0)-pow((local.y-1.035)*22.0,2.0)-pow((local.z+.87)*12.0,2.0))*predator*.20;
 float muzzle_shade=smoothstep(.99,1.13,-local.z)*predator*.10;
-ALBEDO=mix(coat.rgb,pale.rgb,clamp(belly*.46+face_pale,0.0,.75))*(0.97+guard*.034+agouti*.10+locks+flank-saddle-dorsal-muzzle_shade-brow_mask);
-ROUGHNESS=0.81+guard*0.025; SPECULAR=0.20;
+float throat=(1.0-smoothstep(-.62,-.30,local.z))*(1.0-smoothstep(1.04,1.20,local.y))*predator*.34;
+float cheek=exp(-pow((local.z+.90)*6.0,2.0)-pow((local.y-.99)*12.0,2.0))*predator*.18;
+ALBEDO=mix(coat.rgb,pale.rgb,clamp(belly*.62+face_pale+throat+cheek,0.0,.82))*(0.97+guard*.034+agouti*.10+locks+flank-saddle-dorsal-muzzle_shade-brow_mask);
+ROUGHNESS=0.94+guard*0.025; SPECULAR=0.10;
 }" };
         var material = new ShaderMaterial { Shader = _furShader };
-        material.SetShaderParameter("coat", new Color(wolf ? "#7d8074" : "#8c6445"));
-        material.SetShaderParameter("pale", new Color(wolf ? "#d7d2bd" : "#d7c6ad"));
+        material.SetShaderParameter("coat", new Color(wolf ? "#827d72" : "#886047"));
+        material.SetShaderParameter("pale", new Color(wolf ? "#d3c9b5" : "#d8c7ab"));
         material.SetShaderParameter("predator",wolf?1f:0f);
         _residentMaterials[key] = material; return material;
     }
+    private StandardMaterial3D? _animalEyeMaterial;
+    private Material AnimalEyeMaterial()=>_animalEyeMaterial??=new StandardMaterial3D {
+        AlbedoColor=new Color("#111917"),Roughness=.22f,MetallicSpecular=.48f};
     private Mesh AnimalFoot(bool wolf)=>Loft(wolf?"animal-paw":"animal-hoof",wolf?new[]{
         new Vector4(-.125f,.021f,.004f,.005f),new(-.105f,.030f,.034f,.020f),new(-.071f,.032f,.055f,.025f),
         new(-.025f,.035f,.048f,.032f),new(.027f,.040f,.037f,.037f),new(.061f,.038f,.028f,.030f),new(.073f,.025f,.004f,.005f)
@@ -73,28 +78,37 @@ ROUGHNESS=0.81+guard*0.025; SPECULAR=0.20;
         Sculpt(rig.Head, Loft(wolf ? "wolf-head" : "deer-head", new[] {
             new Vector4(.15f,0,.008f,.015f), new(.06f,.025f,wolf?.127f:.108f,wolf?.119f:.119f), new(-.055f,.030f,wolf?.124f:.100f,.109f), new(-.12f,.002f,wolf?.103f:.080f,wolf?.079f:.077f),
             new(-.23f,-.031f,wolf?.084f:.057f,wolf?.059f:.050f), new(-.36f,-.04f,wolf?.060f:.043f,.040f), new(-.40f,-.04f,.006f,.012f) }), Vector3.Zero, fur);
-        Sculpt(rig.Head,Loft("animal-nose:"+wolf,new[]{new Vector4(-.415f,-.039f,.008f,.008f),new(-.410f,-.039f,.035f,.023f),new(-.391f,-.038f,.046f,.030f),new(-.376f,-.040f,.037f,.025f)},24),Vector3.Zero,LeatherSurface("#292e2c"));
+        Sculpt(rig.Head,Loft("animal-nose:"+wolf,new[]{new Vector4(-.415f,-.039f,.008f,.008f),new(-.410f,-.039f,wolf?.028f:.021f,.018f),new(-.391f,-.038f,wolf?.036f:.028f,.023f),new(-.376f,-.040f,wolf?.031f:.025f,.021f)},24),Vector3.Zero,LeatherSurface("#292e2c"));
         Sculpt(rig.Head,Loft("animal-jaw-"+wolf,new[]{new Vector4(-.04f,-.075f,.078f,.034f),new(-.16f,-.080f,.068f,.033f),new(-.29f,-.072f,.048f,.022f),new(-.36f,-.059f,.021f,.010f)}),Vector3.Zero,fur);
         // The mouth crease follows the lower muzzle; nostrils are inset into the nose.
         foreach(float side in new[]{-1f,1f})
         {
             FineBeam(rig.Head,new(side*.055f,-.061f,-.31f),new(side*.072f,-.058f,-.19f),.003f,"#51493d");
-            Detail(rig.Head,"sphere",new(side*.026f,-.037f,-.415f),new(.012f,.007f,.004f),"#181e1a");
+            Detail(rig.Head,"sphere",new(side*(wolf?.021f:.016f),-.037f,-.411f),new(.008f,.005f,.003f),"#181e1a");
         }
         foreach (float side in new[] {-1f,1f})
         {
             Detail(rig.Head,"sphere",new(side*(wolf?.109f:.100f),.037f,-.102f),new(.009f,.025f,.036f),wolf?"#696d69":"#8b725d");
             Detail(rig.Head,"sphere",new(side*(wolf?.112f:.103f),.038f,-.105f),new(.008f,.017f,.026f),wolf?"#8b825d":"#473a2c");
-            Detail(rig.Head,"sphere",new(side*(wolf?.116f:.107f),.038f,-.106f),new(.005f,.014f,.012f),"#111917");
+            Detail(rig.Head,"sphere",new(side*(wolf?.116f:.107f),.038f,-.106f),new(.005f,wolf?.012f:.0045f,wolf?.012f:.020f),"#111917").MaterialOverride=AnimalEyeMaterial();
             Detail(rig.Head,"sphere",new(side*(wolf?.119f:.110f),.042f,-.110f),Vector3.One*.0025f,"#e7ebe5");
             var ear=rig.Ears[side<0?0:1]=new Node3D {Name=side<0?"LeftEar":"RightEar",Position=new(side*.098f,.095f,.045f)};rig.Head.AddChild(ear);
             ear.Rotation=new(0,side*.25f,-side*(wolf?.18f:.65f));rig.EarRest[side<0?0:1]=ear.Rotation;
             Sculpt(ear,AnimalEar(wolf),Vector3.Zero,_earMaterial);
             if (!wolf)
             {
-                Sculpt(rig.Head,AntlerBranch("antler-main:"+side,new[]{new Vector3(side*.073f,.10f,.07f),new(side*.14f,.27f,.12f),new(side*.22f,.47f,.16f),new(side*.29f,.64f,.10f)},.023f),Vector3.Zero,ResidentMaterial("#8e7c63"));
-                for(int i=0;i<3;i++)
-                    Sculpt(rig.Head,AntlerBranch("antler-tine:"+side+":"+i,new[]{new Vector3(side*(.12f+i*.047f),.24f+i*.12f,.10f),new(side*(.13f+i*.06f),.34f+i*.12f,.025f),new(side*(.15f+i*.07f),.44f+i*.12f,-.06f)},.012f-i*.002f),Vector3.Zero,ResidentMaterial("#8e7c63"));
+                // Swept main beam and unequal tines grow from its actual
+                // control points, instead of parallel disconnected twig rows.
+                var beam=new[]{new Vector3(side*.073f,.10f,.07f),new(side*.105f,.22f,.105f),
+                    new(side*.18f,.39f,.18f),new(side*.255f,.55f,.17f),new(side*.27f,.67f,.08f)};
+                Sculpt(rig.Head,AntlerBranch("antler-main:"+side,beam,.022f),Vector3.Zero,ResidentMaterial("#8e7c63"));
+                var forks=new[]{
+                    new[]{beam[1],new Vector3(side*.080f,.30f,.015f),new(side*.060f,.40f,-.065f)},
+                    new[]{beam[2],new Vector3(side*.135f,.47f,.105f),new(side*.120f,.58f,.025f)},
+                    new[]{beam[3],new Vector3(side*.215f,.62f,.115f),new(side*.200f,.72f,.065f)}};
+                for(int tine=0;tine<forks.Length;tine++)
+                    Sculpt(rig.Head,AntlerBranch("antler-tine:"+side+":"+tine,forks[tine],.011f-tine*.0018f),Vector3.Zero,ResidentMaterial("#8e7c63"));
+
             }
         }
         for(int i=0;i<4;i++)

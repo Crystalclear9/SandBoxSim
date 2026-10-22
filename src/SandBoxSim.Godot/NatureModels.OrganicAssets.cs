@@ -67,6 +67,10 @@ internal sealed partial class NatureModels
             var local=i==0?Transform3D.Identity:nodes[i].Transform;skeleton.SetBoneRest(i,local);rest[i]=InTorso(nodes[i],rig.Body);skin.AddBind(i,rest[i].AffineInverse());
         }
         skeleton.ResetBonePoses();rig.FurSkin=new MeshInstance3D {Name="ContinuousCoat",Mesh=mesh,Skin=skin,Skeleton=new NodePath("../FurSkeleton")};rig.Body.AddChild(rig.FurSkin);
+        var groom=new MeshInstance3D {Name="GuardHairCoat",Mesh=GroomAnimalCoat(mesh,wolf),Skin=skin,
+            Skeleton=new NodePath("../FurSkeleton"),VisibilityRangeEnd=18,VisibilityRangeEndMargin=3};
+        rig.Body.AddChild(groom);
+
     }
     private static Node3D[] AnimalBones(AnimalRig rig)=>new[]{rig.Body,rig.Head,rig.Tail,rig.Legs[0],rig.Knees[0],rig.Legs[1],rig.Knees[1],rig.Legs[2],rig.Knees[2],rig.Legs[3],rig.Knees[3],rig.Neck};
 }

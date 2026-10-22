@@ -24,7 +24,7 @@
 
 `terrain-modern.png`、`terrain-closeup.png` 更新为 2026-10-22 肩袖/动物造型修改后的 1600×1000 原生渲染。它们使用公开 `visual-landscape` 场景的第 40、80 帧，种子 839102、40 人、零步进，第二张切换近景，展示交叉草地采样和斑块岸色。冻结场景用于比较画面，不代表流畅度测试。
 
-`resident-face-detail.png`、`character-detail.png`、`model-surface-detail.png`、`resident-garment-actions.png` 和 `wardrobe-detail.png` 为同日的共顶点衣片/统一头脸比例版本，分别使用 `faces`、`characters`、`model-details`、`actions`、`wardrobe` 入口，1600×1000、`--capture-delay=2.4 --max-fps 30 --quit-after 140`。图片保留实际渲染像素，展示三种衣片拓扑、近景弧面发束、头脸比例及现有动物；动物、建筑和地形没有在这轮人物改动中重做。解剖近景保持动物头部可见，综合图册仍演示进食。
+`resident-face-detail.png`、`resident-garment-actions.png` 和 `wardrobe-detail.png` 为同日的共顶点衣片/统一头脸比例版本，使用 `faces`、`actions`、`wardrobe` 入口。`character-detail.png` 和 `model-surface-detail.png` 更新为后续动物短毛束、鹿角侧枝及眼鼻调整版本，使用 `characters`、`model-details`。这些图片均为 1600×1000 原生渲染，参数为 `--capture-delay=2.4 --max-fps 30 --quit-after 140`，没有重绘。人物、建筑与地形没有在动物细节修改中重做；解剖近景保持动物头部可见，综合图册仍演示进食。
 
 `architecture-detail.png` 为同日之前的入口尺度与扫描茅草屋面版本。
 

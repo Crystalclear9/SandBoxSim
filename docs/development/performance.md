@@ -58,6 +58,8 @@ python tools/evaluate.py compare runs/evaluation/baseline-1 runs/evaluation/cand
 
 近景上衣加载缝片生成的三种蒙皮，每种 6,784–6,840 三角面；网格和成品哈希校验按剪裁缓存，创建带配色的实例时复用同一几何。袖子骨骼数组只读取一次，不能在逐顶点循环中反复从 Godot 导出。近景移除原分件上袖，远景恢复轻量分件与原有动作。连续茅草坡面按近远景采样不同密度。它们属于模型质量改动，没有当前版本的配对帧率结论。
 
+近景动物短毛束按种类缓存：狼增加 13,200 三角面，鹿增加 7,200 三角面，各增加一个绘制表面；共用原有骨骼更新。毛束层在 18 米外隐藏，范围余量 3 米。该改动增加近景成本，尚无配对帧率结论。
+
 ## CPU 区段
 
 `result.json` 的 `cpuScopes` 在预热结束时清空，通过 [RenderProfile.cs](../../src/SandBoxSim.Godot/RenderProfile.cs) 记录主线程工作：

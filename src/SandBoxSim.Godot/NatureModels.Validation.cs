@@ -141,6 +141,28 @@ internal sealed partial class NatureModels
         {
             var animal=(AnimalRig)Animal(wolf); animal.Pose(.2f,true,false);
             if(animal.FurSkeleton==null||animal.FurSkin==null||animal.FurSkeleton.GetBoneCount()!=12)throw new InvalidOperationException("Animal lacks a continuous skeletal surface");
+            var grooming=animal.Body.GetNode<MeshInstance3D>("GuardHairCoat");
+            if(grooming.Skin!=animal.FurSkin.Skin||grooming.Skeleton!=animal.FurSkin.Skeleton||grooming.VisibilityRangeEnd!=18)
+                throw new InvalidOperationException("Animal grooming loses shared articulation or distance limit");
+            var groom=grooming.Mesh.SurfaceGetArrays(0);var groomPoints=groom[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            var groomBones=groom[(int)Mesh.ArrayType.Bones].AsInt32Array();var groomWeights=groom[(int)Mesh.ArrayType.Weights].AsFloat32Array();
+            if(groom[(int)Mesh.ArrayType.Index].AsInt32Array().Length!=(wolf?2200:1200)*18)
+                throw new InvalidOperationException("Animal grooming exceeds fixed strand budget");
+            if(GroomAnimalCoat(animal.FurSkin.Mesh,wolf)!=grooming.Mesh)
+                throw new InvalidOperationException("Animal grooming cache not reused");
+            for(int v=0;v<groomPoints.Length;v++)
+            {
+                float sum=0;
+                for(int j=0;j<4;j++)
+                {
+                    int k=v*4+j;
+                    if(groomBones[k]<0||groomBones[k]>=12||groomWeights[k]<0||!float.IsFinite(groomWeights[k]))
+                        throw new InvalidOperationException("Invalid animal grooming binding");
+                    sum+=groomWeights[k];
+                }
+                if(!groomPoints[v].IsFinite()||MathF.Abs(sum-1)>.0001f)
+                    throw new InvalidOperationException("Animal grooming has invalid geometry/weights");
+            }
             var coat=animal.FurSkin.Mesh.SurfaceGetArrays(0);var coatPoints=coat[(int)Mesh.ArrayType.Vertex].AsVector3Array();
             var coatIndices=coat[(int)Mesh.ArrayType.Index].AsInt32Array();var coatBones=coat[(int)Mesh.ArrayType.Bones].AsInt32Array();var coatWeights=coat[(int)Mesh.ArrayType.Weights].AsFloat32Array();
             var coatEdges=new System.Collections.Generic.Dictionary<long,int>();var parent=new int[coatPoints.Length];for(int i=0;i<parent.Length;i++)parent[i]=i;
@@ -169,6 +191,6 @@ internal sealed partial class NatureModels
         }
         // The textured broadleaf includes duplicated UV/normal seam vertices.
         Validate(Tree(false),false,220000); Validate(Tree(true),false,190000);
-        GD.Print("CRAFTED_MODELS_PASS: 80 architecture LOD variants/states, deer/wolf gait, pause and embedded thigh roots, vegetation, finite geometry/normals/UV and consolidation budgets");
+        GD.Print("CRAFTED_MODELS_PASS: 80 architecture LOD variants/states, deer/wolf groomed coat binding/cache/budget, gait, pause and embedded thigh roots, vegetation, finite geometry/normals/UV and consolidation budgets");
     }
 }

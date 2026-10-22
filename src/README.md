@@ -29,6 +29,7 @@
 | 人物姿态与握持 | `SandBoxSim.Godot/ResidentRig.cs`、`ResidentRig.HandPose.cs` |
 | 网格、材质和草丛 | `SandBoxSim.Godot/NatureModels*.cs` |
 | 连续上衣与草束屋面 | `SandBoxSim.Godot/NatureModels.GarmentSkin.cs`、`NatureModels.Thatch.cs`、`assets/models/garments/` |
+| 动物近景毛束 | `SandBoxSim.Godot/NatureModels.Coat.cs`、`NatureModels.OrganicAssets.cs`、`AnimalRig.cs` |
 | 面部与人物肖像 | `SandBoxSim.Godot/NatureModels.Face.cs`、`NatureModels.CharacterSurface.cs`、`ResidentPortrait.cs` |
 | 固定场景评测 | `SandBoxSim.Godot/MainGame.Evaluation.cs` |
 
