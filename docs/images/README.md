@@ -21,7 +21,9 @@
 
 ## 来源与版本
 
-`character-detail.png`、`resident-handedness.png`、`free-world-ui.png` 与 `ui-detail-refined.png` 已更新为 2026-10-21 的 1440×900 原生渲染，分别使用 `characters`、`handedness`、`ecology` 与 `person` 预览入口、2.5 秒采样；展示新的身体比例、同源远景手型和卡片式工具界面。以下旧来源说明仅适用于未被此次替换的配图。
+`resident-face-detail.png`、`character-detail.png` 与 `model-surface-detail.png` 已更新为 2026-10-22 的 1600×1000 原生渲染，分别使用 `faces`、`characters`、`model-details` 入口及 `--capture-delay=.2 --max-fps 30 --quit-after 30`。它们展示本次面部/发型、衣身、鞋楦和重新烘焙的动物表面；均为实际游戏网格，没有图像重绘。解剖近景保持动物头部可见，综合图册仍演示进食。
+
+`resident-handedness.png`、`free-world-ui.png` 与 `ui-detail-refined.png` 为 2026-10-21 的 1440×900 原生渲染，分别使用 `handedness`、`ecology` 与 `person` 预览入口、2.5 秒采样；展示同源远景手型和卡片式工具界面。以下旧来源说明仅适用于未被此次替换的配图。
 
 面部、人物动物、衣装和表面近景分别来自 `proportion-final-{faces,characters,wardrobe,details}-20261009` 的第 90 帧。植物图册、建筑图册和现代地表图来自 `modern-environment-delivery-{ecology,architecture,terrain}-20261009` 的第 90 帧。
 

@@ -22,9 +22,15 @@ internal sealed partial class NatureModels
             float arch=.018f*MathF.Exp(-MathF.Pow((t-.64f)*6,2));
             float bottom=-.034f+arch;
             float top=.016f+.050f*MathF.Exp(-MathF.Pow((t-.66f)*4,2));
-            if(sole){bottom-=.012f;top=bottom+.012f;width+=.002f*taper;}
-            float height=(top-bottom)*.5f*taper;
-            return new(MathF.Cos(a)*width,(top+bottom)*.5f+MathF.Sin(a)*height,z);
+            if(sole)
+            {
+                width+=.0015f*taper;
+                return new(MathF.Cos(a)*width,bottom+.001f-.012f*MathF.Pow(MathF.Max(0,-MathF.Sin(a)),.4f),z);
+            }
+            // The lower half sits on the same last as the outsole. An ellipse
+            // shrinks upward at the toe/heel and used to leave a visible gap.
+            float upper=bottom+(top-bottom)*taper*MathF.Pow(MathF.Max(0,MathF.Sin(a)),.70f);
+            return new(MathF.Cos(a)*width,upper,z);
         }
         void Vertex(int r,int c){tool.SetUV(new(c/(float)sides,r/(float)rings));tool.AddVertex(Point(r,c));}
         for(int r=0;r<rings;r++)for(int c=0;c<sides;c++)
@@ -132,6 +138,28 @@ ALBEDO=dye.rgb*(0.97+pores*0.025+wear);ROUGHNESS=0.69+pores*0.035;SPECULAR=0.26;
             for(int i=0;i<points.Length;i++)facing+=points[i].X*normals[i].X;
             if(facing<=0)throw new InvalidOperationException("Shoe last faces inward");
         }
+        float HeightAt(Mesh mesh,float x,float z,bool highest)
+        {
+            var arrays=mesh.SurfaceGetArrays(0);var vertices=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();float result=highest?float.NegativeInfinity:float.PositiveInfinity;
+            for(int i=0;i<indices.Length;i+=3)
+            {
+                var a=vertices[indices[i]];var b=vertices[indices[i+1]];var c=vertices[indices[i+2]];
+                float det=(b.Z-c.Z)*(a.X-c.X)+(c.X-b.X)*(a.Z-c.Z);if(MathF.Abs(det)<1e-10f)continue;
+                float u=((b.Z-c.Z)*(x-c.X)+(c.X-b.X)*(z-c.Z))/det;
+                float v=((c.Z-a.Z)*(x-c.X)+(a.X-c.X)*(z-c.Z))/det;
+                if(u<-.00001f||v<-.00001f||u+v>1.00001f)continue;
+                float y=u*a.Y+v*b.Y+(1-u-v)*c.Y;result=highest?MathF.Max(result,y):MathF.Min(result,y);
+            }
+            return result;
+        }
+        foreach(float z in new[]{-.115f,-.085f,-.045f,0f,.04f,.065f})foreach(float x in new[]{-.025f,0f,.025f})
+        {
+            float upperBottom=HeightAt(BootLast(false),x,z,false),soleTop=HeightAt(BootLast(true),x,z,true);
+            if(!float.IsFinite(upperBottom)||!float.IsFinite(soleTop)||upperBottom-soleTop>.0015f||soleTop-upperBottom>.003f)
+                throw new InvalidOperationException("Shoe upper separates from outsole at toe, waist or heel");
+        }
+        GD.Print("FOOTWEAR_CONTACT_PASS: actual upper/outsole triangle contact across toe, waist and heel");
         GD.Print("ORGANIC_DETAILS_PASS: shoe lasts, soles, cupped ears, tapered antlers, finite geometry and shared meshes");
     }
 }

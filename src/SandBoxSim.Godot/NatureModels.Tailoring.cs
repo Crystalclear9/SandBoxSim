@@ -14,7 +14,8 @@ internal sealed partial class NatureModels
         Vector3 Point(int row,int column)
         {
             var p=profile[row%profile.Length];float a=column*MathF.Tau/sides;
-            return new(MathF.Cos(a)*p.X,p.Y,MathF.Sin(a)*p.Z);
+            float neckline=key=="turned-neckline"?.009f*MathF.Pow(MathF.Max(0,-MathF.Sin(a)),4):0;
+            return new(MathF.Cos(a)*p.X,p.Y-neckline,MathF.Sin(a)*p.Z);
         }
         void Triangle(int ra,int ca,int rb,int cb,int rc,int cc)
         {
@@ -80,8 +81,8 @@ internal sealed partial class NatureModels
         foreach(float side in new[]{-1f,1f})
         {
             var middle=TorsoSurface(side*.015f,1.19f,false,.005f);
-            FineBeam(rig.Torso,TorsoSurface(side*.011f,1.225f,false,.005f),middle,.0035f,"#c2b69c");
-            FineBeam(rig.Torso,middle,TorsoSurface(side*.018f,1.16f,false,.005f),.0035f,"#c2b69c");
+            FineBeam(rig.Torso,TorsoSurface(side*.011f,1.225f,false,.005f),middle,.0016f,"#a09380");
+            FineBeam(rig.Torso,middle,TorsoSurface(side*.018f,1.16f,false,.005f),.0016f,"#a09380");
         }
         if(job is JobType.Gatherer or JobType.Hunter or JobType.Trader)
         {

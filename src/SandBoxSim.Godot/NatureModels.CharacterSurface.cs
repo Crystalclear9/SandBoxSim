@@ -15,7 +15,7 @@ internal sealed partial class NatureModels
             Noise=new FastNoiseLite {Seed=937,Frequency=.24f},
             ColorRamp=new Gradient {Colors=new[]{new Color(.96f,.96f,.96f),Colors.White}}};
         var material=new StandardMaterial3D {AlbedoColor=new Color(color),VertexColorUseAsAlbedo=true,
-            Roughness=.64f,MetallicSpecular=.26f,RoughnessTexture=_skinGrain,AlbedoTexture=_skinGrain,Uv1Scale=new(12,12,1)};
+            Roughness=.76f,MetallicSpecular=.20f,RoughnessTexture=_skinGrain,AlbedoTexture=_skinGrain,Uv1Scale=new(12,12,1)};
         _residentMaterials[key]=material;return material;
     }
     private Material HairSurface(string color)
@@ -25,11 +25,11 @@ uniform vec4 tone:source_color;varying vec3 hair_point;
 void vertex(){hair_point=VERTEX;}
 void fragment(){
 float angle=atan(hair_point.x,hair_point.z);
-float line=angle*57.0+hair_point.y*100.0+sin(angle*2.0)*hair_point.y*75.0;
+float line=angle*157.0+hair_point.y*180.0+sin(angle*2.0)*hair_point.y*110.0;
 float strand=sin(line)/(1.0+fwidth(line)*fwidth(line));
-float lock=sin(angle*12.0+hair_point.y*18.0+sin(angle*3.0)*.6)*0.024;
+float lock=sin(angle*8.0+hair_point.y*10.0+sin(angle*3.0)*.6)*0.040;
 float breakup=sin(angle*31.0+hair_point.y*71.0)*sin(hair_point.y*93.0+angle*7.0)*.012;
-ALBEDO=tone.rgb*(0.96+strand*0.032+lock+breakup);ROUGHNESS=0.76;SPECULAR=0.22;
+ALBEDO=tone.rgb*(0.94+strand*0.045+lock+breakup);ROUGHNESS=0.72;SPECULAR=0.24;
 }"};
         var material=new ShaderMaterial {Shader=_hairShader};material.SetShaderParameter("tone",new Color(color));return material;
     }

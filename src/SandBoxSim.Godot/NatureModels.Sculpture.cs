@@ -8,6 +8,7 @@ internal sealed partial class NatureModels
     private int _faceVariant;
     private Mesh SculptedHead(bool hair,int sides=80,int rings=32)
     {
+        if(hair)return GroomedHair(sides,rings);
         using var surface = new SurfaceTool(); surface.Begin(Mesh.PrimitiveType.Triangles); surface.SetSmoothGroup(0);
         float[] levels={-.50f,-.45f,-.35f,-.22f,-.06f,.10f,.22f,.34f,.43f,.49f,.50f};
         float[] widths={.075f,.24f,.355f,.405f,.445f,.455f,.445f,.405f,.31f,.13f,.010f};
@@ -98,12 +99,13 @@ uniform vec4 dye : source_color;
 varying vec3 cloth_position;
 void vertex(){ cloth_position = VERTEX; }
 void fragment(){
-float warp = sin(cloth_position.y * 620.0) * sin((cloth_position.x + cloth_position.z) * 610.0);
-float footprint = max(length(dFdx(cloth_position)), length(dFdy(cloth_position))) * 620.0;
-warp /= 1.0 + footprint * footprint;
-float folds = sin(cloth_position.y * 37.0 + cloth_position.x * 13.0) * 0.025;
-ALBEDO = dye.rgb * (0.97 + warp * 0.016 + folds);
-ROUGHNESS = 0.86; SPECULAR = 0.22;
+vec2 weave=vec2(cloth_position.x+cloth_position.z,cloth_position.y)*920.0;
+float footprint=max(length(dFdx(weave)),length(dFdy(weave)));
+float yarn=(sin(weave.x)+sin(weave.y+sin(weave.x)*.22))/(2.0+footprint*footprint);
+float twill=sin((weave.x-weave.y)*.25)/(1.0+footprint*footprint*.15);
+float slub=sin(cloth_position.y*91.0+sin(cloth_position.x*23.0)*2.0)*.008;
+ALBEDO=dye.rgb*(.985+yarn*.012+twill*.004+slub);
+ROUGHNESS = 0.94; SPECULAR = 0.16;
 }" };
         var material = new ShaderMaterial { Shader = _fabricShader }; material.SetShaderParameter("dye", new Color(color)); return material;
     }

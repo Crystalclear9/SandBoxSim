@@ -148,7 +148,7 @@ internal partial class ModelGallery : PanelContainer
         delta=EvaluationClock.Delta(delta);
         _elapsed+=(float)delta;
         float cycle=_elapsed%6.8f;
-        foreach(var animal in _animals)animal.Pose((float)delta,((int)(_elapsed/3)%3)!=0,false,((int)(_elapsed/3)%3)==0);
+        foreach(var animal in _animals)animal.Pose((float)delta,Collection!="model-details"&&((int)(_elapsed/3)%3)!=0,false,Collection!="model-details"&&((int)(_elapsed/3)%3)==0);
         foreach(var (rig,action) in _animated)rig.PoseAction((float)delta,action,cycle>.65f&&cycle<4.5f?ActionPhase.Executing:ActionPhase.Idle,false,0);
         foreach(var (rig,camera) in _handViews)
         {
@@ -165,7 +165,7 @@ internal partial class ModelGallery : PanelContainer
         var stage=view.GetChild<Node3D>(0);var camera=stage.GetChild<Camera3D>(stage.GetChildCount()-1);
         var target=new Vector3(0,.92f,0);camera.Position=target+new Vector3(.03f,.08f,4);camera.LookAt(target);
         if(action==ActionKind.StoreInBuilding)rig.ShowCargo(true,ResourceKind.Wood);
-        _animated.Add((rig,action));
+        Animate(rig,action);
     }
     private void Closeup(GridContainer grid,string title,Node3D model,float size,Vector3 target,Vector3 direction,bool faceFront)
     {
@@ -196,7 +196,7 @@ internal partial class ModelGallery : PanelContainer
         var camera=stage.GetChild<Camera3D>(stage.GetChildCount()-1);
         model.Rotation=new Vector3(0,Mathf.Pi+yaw,0);
         var target=((ResidentRig)model).Head.GlobalPosition;camera.Size=hat ? .64f : .46f;camera.Position=target+new Vector3(.03f,.02f,2);camera.LookAt(target);
-        view.RenderTargetUpdateMode=SubViewport.UpdateMode.WhenVisible;_animated.Add(((ResidentRig)model,ActionKind.None));
+        view.RenderTargetUpdateMode=SubViewport.UpdateMode.WhenVisible;Animate((ResidentRig)model,ActionKind.None);
     }
     private void Card(GridContainer grid,string title,Node3D model,float size,bool animal)
     {
@@ -213,9 +213,18 @@ internal partial class ModelGallery : PanelContainer
         stage.AddChild(new DirectionalLight3D { RotationDegrees=new(-20,140,0),LightColor=new("#bacbd1"),LightEnergy=.32f });
         stage.AddChild(new MeshInstance3D { Mesh=new PlaneMesh { Size=new(40,40) },MaterialOverride=new StandardMaterial3D { AlbedoColor=new("#3b4840"),Roughness=1 } });
         if(model is AnimalRig creature){_animals.Add(creature);viewport.RenderTargetUpdateMode=SubViewport.UpdateMode.WhenVisible;}
+        if(model is ResidentRig resident&&Collection!="equipment")
+        {
+            Animate(resident,ActionKind.None);viewport.RenderTargetUpdateMode=SubViewport.UpdateMode.WhenVisible;
+        }
         stage.AddChild(model); model.Rotation=new(0,(animal ? Mathf.Pi : 0)-.60f,0);
         var camera=new Camera3D { Current=true,Projection=Camera3D.ProjectionType.Orthogonal,Size=size,Position=new(0,size*(animal ? .90f : 1.4f),size*2) }; stage.AddChild(camera);
         camera.LookAt(new Vector3(0,size*.42f,0));
         var label=HudStyle.Label(title,13); label.HorizontalAlignment=HorizontalAlignment.Center; card.AddChild(label);
+    }
+    private void Animate(ResidentRig rig,ActionKind action)
+    {
+        int index=_animated.FindIndex(item=>item.Rig==rig);
+        if(index<0)_animated.Add((rig,action));else _animated[index]=(rig,action);
     }
 }

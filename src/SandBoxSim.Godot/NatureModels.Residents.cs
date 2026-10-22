@@ -37,8 +37,8 @@ internal sealed partial class NatureModels
         if (_meshes.TryGetValue(key, out var existing)) { return existing; }
         const int sides = 64, rings=40;
         float[] height = { GarmentBottom, GarmentBottom+.035f, .73f, .82f, .97f, 1.10f, 1.19f, 1.24f, 1.28f };
-        float[] width = { _garmentCut==1?.185f:.20f, _garmentCut==1?.190f:.208f, .174f, .172f, .180f, .196f, .204f, .166f, .060f };
-        float[] depth = { _garmentCut==2?.165f:.145f, _garmentCut==2?.165f:.15f, .125f, .125f, .140f, .145f, .125f, .10f, .07f };
+        float[] width = { _garmentCut==1?.185f:.20f, _garmentCut==1?.190f:.205f, .174f, .166f, .174f, .184f, .193f, .155f, .060f };
+        float[] depth = { _garmentCut==2?.153f:.137f, _garmentCut==2?.156f:.143f, .123f, .116f, .123f, .127f, .111f, .086f, .067f };
         var surface = new SurfaceTool(); surface.Begin(Mesh.PrimitiveType.Triangles); surface.SetSmoothGroup(0);
         Vector3 Point(int ring, int side)
         {
@@ -57,14 +57,18 @@ internal sealed partial class NatureModels
             float hem=Math.Clamp((.80f-y)/(.80f-GarmentBottom),0,1);
             float front=MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),4);
             float tension=MathF.Exp(-MathF.Pow((y-.82f)/.08f,2));
-            float fold=1+(.012f+.035f*hem)*MathF.Cos(angle*11+(y-.6f)*7+.30f*MathF.Sin(angle*3))*belt;
+            float fold=1+(.006f+.022f*hem)*MathF.Cos(angle*9+(y-.6f)*4+.7f*MathF.Sin(angle*3))*belt;
             // Cloth gathers below the belt; diagonal compression folds radiate from it.
-            fold+=front*tension*.018f*MathF.Sin((y-.76f)*92+MathF.Abs(MathF.Cos(angle))*11);
-            fold+=MathF.Exp(-MathF.Pow((y-1.10f)/.12f,2))*.012f*MathF.Sin(angle*7+y*29);
+            fold+=front*tension*.025f*MathF.Sin((y-.76f)*70+MathF.Abs(MathF.Cos(angle))*10);
+            // Tension follows the two armholes and belt, rather than forming
+            // evenly spaced ribs over the entire chest.
+            float armhole=MathF.Exp(-MathF.Pow((y-1.145f)/.10f,2))*MathF.Pow(MathF.Abs(MathF.Cos(angle)),3);
+            fold+=armhole*.022f*MathF.Sin(y*65+MathF.Sin(angle)*5);
             float vent=_garmentCut==2?hem*(.075f*MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),16)+.040f*MathF.Pow(MathF.Max(0,MathF.Sin(angle)),16)):0;
             float chest=MathF.Exp(-MathF.Pow((y-1.10f)/.10f,2));
             float volume=chest*(front*.004f+MathF.Pow(MathF.Max(0,MathF.Sin(angle)),4)*.002f);
-            return new Vector3(MathF.Cos(angle)*Profile(width)*fold,y+vent,MathF.Sin(angle)*(Profile(depth)*fold+volume));
+            float neckline=MathF.Exp(-MathF.Pow((y-1.28f)/.022f,2))*front*.009f;
+            return new Vector3(MathF.Cos(angle)*Profile(width)*fold,y+vent-neckline,MathF.Sin(angle)*(Profile(depth)*fold+volume));
         }
         for (int ring = 0; ring < rings; ring++) for (int side = 0; side < sides; side++)
         {
@@ -142,7 +146,8 @@ internal sealed partial class NatureModels
         for(int edge=0;edge<4;edge++)FineBeam(rig.Torso,buckleCorners[edge],buckleCorners[(edge+1)%4],.004f,"#b8a17b");
         FineBeam(rig.Torso,buckle+new Vector3(-.006f,0,-.002f),buckle+new Vector3(.0205f,0,-.002f),.003f,"#b8a17b");
         Detail(rig.Torso, "capsule", new Vector3(.23f, .7f, .075f), new Vector3(.075f, .065f, .055f), "#725b40");
-        Sculpt(rig.Torso,Loft("resident-neck",new[]{new Vector4(0,0,.039f,.039f),new(.035f,-.006f,.038f,.037f),new(.080f,-.012f,.039f,.038f)}),new(0,1.265f,-.004f),ResidentMaterial(skin),new(-MathF.PI/2,0,0));
+        // The attributed head already includes a continuous anatomical neck.
+        // A second torso-mounted neck intersects it when the head turns.
         rig.Head = new Node3D { Name = "Head", Position = new Vector3(0, 1.382f, 0) }; rig.Torso.AddChild(rig.Head);
         Detail(rig.Head, "face", Vector3.Zero, new Vector3(.177f, .220f, .195f), skin).MaterialOverride=FaceSurfaceMaterial(skin);
         Detail(rig.Head, "hair", new Vector3(0, .008f, 0), new Vector3(.181f, .224f, .200f), hair);
@@ -191,8 +196,8 @@ internal sealed partial class NatureModels
             for(int lace=0;lace<4;lace++)
             {
                 float z=.006f-lace*.021f,y=.048f-lace*.005f;
-                FineBeam(foot,new(-.025f,y,z),new(.025f,y-.004f,z-.018f),.003f,"#a48d6d");
-                FineBeam(foot,new(.025f,y,z),new(-.025f,y-.004f,z-.018f),.003f,"#a48d6d");
+                FineBeam(foot,new(-.025f,y,z),new(.025f,y-.004f,z-.018f),.0018f,"#8c7b66");
+                FineBeam(foot,new(.025f,y,z),new(-.025f,y-.004f,z-.018f),.0018f,"#8c7b66");
             }
         }
         AddResidentEquipment(rig, job);

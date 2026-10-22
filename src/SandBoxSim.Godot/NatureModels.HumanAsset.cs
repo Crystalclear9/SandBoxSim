@@ -51,11 +51,26 @@ internal sealed partial class NatureModels
         return Mathf.Lerp(low,high,t*t*(3-2*t));
     }
     private float HumanDepth=>1+((_faceVariant%3)-1)*.025f;
-    private Vector3 HumanPoint(Vector3 p)=>new(p.X*HumanWidth(p.Y,out _),p.Y,p.Z*HumanDepth);
+    private Vector3 HumanPoint(Vector3 p)
+    {
+        float front=Math.Clamp((-p.Z-.012f)/.035f,0,1);
+        float jaw=MathF.Exp(-MathF.Pow((p.Y+.062f)/.032f,2));
+        float cheek=MathF.Exp(-MathF.Pow((MathF.Abs(p.X)-.047f)/.022f,2)-MathF.Pow((p.Y+.023f)/.026f,2));
+        float brow=MathF.Exp(-MathF.Pow((MathF.Abs(p.X)-.027f)/.023f,2)-MathF.Pow((p.Y-.025f)/.015f,2));
+        float mouth=MathF.Exp(-MathF.Pow((p.Y+.051f)/.012f,2))*Math.Clamp(MathF.Abs(p.X)/.025f,0,1);
+        float nose=MathF.Exp(-MathF.Pow(p.X/.015f,2)-MathF.Pow((p.Y+.021f)/.025f,2));
+        return new(p.X*HumanWidth(p.Y,out _)*(1-.055f*jaw*front),
+            p.Y+.0017f*mouth*front,p.Z*HumanDepth+front*(.002f*brow-.0015f*cheek+.0025f*nose));
+    }
     private Vector3 HumanNormal(Vector3 p,Vector3 n)
     {
-        float width=HumanWidth(p.Y,out float slope);
-        return new Vector3(n.X/width,n.Y-p.X*slope*n.X/width,n.Z/HumanDepth).Normalized();
+        // All facial parts and landmarks share the same deformation. Use its
+        // local Jacobian for normals; retaining the old normals darkens seams.
+        const float e=.0001f;
+        var dx=(HumanPoint(p+Vector3.Right*e)-HumanPoint(p-Vector3.Right*e))/(2*e);
+        var dy=(HumanPoint(p+Vector3.Up*e)-HumanPoint(p-Vector3.Up*e))/(2*e);
+        var dz=(HumanPoint(p+Vector3.Back*e)-HumanPoint(p-Vector3.Back*e))/(2*e);
+        return (new Basis(dx,dy,dz).Inverse().Transposed()*n).Normalized();
     }
     private Vector3 HumanEyeCenter(int side)
     {
