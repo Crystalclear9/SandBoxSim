@@ -17,6 +17,7 @@
 | `docs/development/` | 架构、扩展、文件管理与维护 | 当前开发文档 |
 | `docs/images/` | 当前玩法、界面与模型文档使用的正式实机配图 | 保留并提交 |
 | `docs/archive/` | 原始任务书与素材生成来源 | 保留出处；不代替当前说明 |
+| `.tools/` | 当前项目的 SDK、Godot、可选 Blender、依赖及原始素材缓存 | 忽略提交；临时试版不混入正式资源 |
 | `runs/` | 本机模拟输出、日志、临时截图 | 除 `README.md` 与 `.gitkeep` 外忽略 |
 | `runs/archives/` | 完整实验与小型维护记录的压缩归档 | 忽略提交；恢复到原相对路径后检查 |
 | `artifacts/`、`bin/`、`obj/`、`.godot/` | 构建与导入缓存 | 忽略提交 |
@@ -27,13 +28,16 @@
 
 - `assets/models/environment/`：CC0 环境衍生网格、原始 PBR 贴图、许可与来源清单，普通运行直接读取。
 - `assets/models/human/`：授权头脸衍生数据与署名，普通运行直接读取；原始 `.blend` 和 Blender 工具放在本机维护目录。
-- `assets/textures/`：地形、对象与自然材质图集。
+- `assets/materials/scanned/`：可平铺扫描表面、原始贴图、许可与哈希清单；通过 `tools/fetch-surface-materials.py --verify` 离线核对。
+- `assets/textures/`：自然材质及早期地形/对象图集；3D 地表使用扫描表面，二维地图仍保留图集入口。
 
-资源 PNG 和相应 `.import` 描述文件一起提交；Godot 自动生成的 `.godot/` 缓存不提交。模型代码文件与 `.uid` 一起维护，避免移动源码后出现失效脚本引用。来源和导入细节见 [美术资源](assets.md)。
+资源 PNG/JPG 和相应 `.import` 描述文件一起提交；Godot 自动生成的 `.godot/` 缓存不提交。模型代码文件与 `.uid` 一起维护，避免移动源码后出现失效脚本引用。来源和导入细节见 [美术资源](assets.md)。
 
 人物表现按职责分在 `ResidentRig.cs`（行为状态）、`ResidentRig.HandPose.cs`（肘腕和指节）、`NatureModels.HandSkin.cs`（手部蒙皮）、`NatureModels.Proportions.cs`（整体比例与静态配件映射）、`NatureModels.Articulation.cs`（肩部蒙皮）与 `NatureModels.Face.cs`（眼睑与面部表现）、`NatureModels.HumanAsset.cs`（授权网格与变体）。这些文件共用人物节点与网格缓存，地图与肖像读取同一套模型，不维护额外的展示替身。入口见 [模型系统](models.md)。
 
 建筑表现同步分在 `WorldView3D.Buildings.cs`，CPU 网格合并分在 `NatureModels.MeshBatching.cs`，评测区段采样分在 `RenderProfile.cs`。性能操作与缓存边界见 [性能采样与渲染维护](performance.md)。
+
+地表与水面材质在 `WorldView3D.Surface.cs`，建筑扫描表面在 `NatureModels.ScannedCraft.cs`，原始纹理读取与法线/粗糙度打包共用 `ScannedSurfaces.cs`。素材下载只写入 `.tools/sources/surface-materials/` 与验证后的正式资源目录，普通运行不读取原始下载缓存。
 
 ## 运行资料与截图
 
@@ -44,13 +48,13 @@
 | 独立模拟实验 | `runs/experiments/<实验名>/` | 已有历史目录沿用原路径，保留存档、统计和对照数据 |
 | 完整评测与源码研究 | `runs/evaluation/<实验名>/` | 明确选择保留时，整体保留请求、候选、源码、日志和判分；不再使用的开发试验可整体清理 |
 | 独立 HTML / JSON 报告 | `runs/reports/<实验名>/` | 保留来源说明；不代替完整实验 |
-| 维护检查日志 | `runs/logs/maintenance/<日期>/` | 与文件清单分开保存 |
-| 清点与移动记录 | `runs/maintenance/<日期>/` | 按清单、研究、配图和历史操作分组 |
 | 玩家存档 | 文件对话框所选位置 | 更新或截图清理时保留 |
 | 正式文档配图 | `docs/images/` | 随文档保留 |
 | 游戏纹理与插画 | `src/SandBoxSim.Godot/assets/` | 随游戏保留 |
 
 目录被 Git 忽略并不代表可以整体删除。`runs/` 中可能包含存档、实验和诊断数据。清理临时截图不会删除文档图或游戏素材，也不使用针对整个仓库的 PNG 通配删除。
+
+开发过程中已有的 `.tools/` 临时截图、试版素材与检查日志属于本机输出，可在确认用途后清理；它们不是长期文档，也不为一次整理新建审计报告。下载来源与可重建脚本保留在正式清单和工具目录中。
 
 ## 移动和新增文件
 

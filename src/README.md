@@ -23,8 +23,9 @@
 | 图形会话与自由工具 | `SandBoxSim.Godot/MainGame.Play.cs`、`MainGame.Interface.cs` |
 | 世界手记与观察 | `SandBoxSim.Godot/MainGame.Notebook.cs`、`MainGame.Operations.cs` |
 | UI 配色、字体与状态反馈 | `SandBoxSim.Godot/HudStyle.cs`、`HudButtonDetail.cs`、`HudBevel.cs` |
-| 镜头、地表和天气 | `SandBoxSim.Godot/WorldView3D.cs`、`WorldView3D.Atmosphere.cs` |
-| 建筑增量同步 | `SandBoxSim.Godot/WorldView3D.Buildings.cs` |
+| 镜头、地表和天气 | `SandBoxSim.Godot/WorldView3D.cs`、`WorldView3D.Surface.cs`、`WorldView3D.Relief.cs`、`WorldView3D.Atmosphere.cs` |
+| 建筑增量同步与贴地石基 | `SandBoxSim.Godot/WorldView3D.Buildings.cs` |
+| 扫描表面与建筑材质 | `SandBoxSim.Godot/ScannedSurfaces.cs`、`NatureModels.ScannedCraft.cs`、`assets/materials/scanned/` |
 | 人物姿态与握持 | `SandBoxSim.Godot/ResidentRig.cs`、`ResidentRig.HandPose.cs` |
 | 网格、材质和草丛 | `SandBoxSim.Godot/NatureModels*.cs` |
 | 面部与人物肖像 | `SandBoxSim.Godot/NatureModels.Face.cs`、`NatureModels.CharacterSurface.cs`、`ResidentPortrait.cs` |

@@ -67,6 +67,7 @@ EXE 与相邻 `data_SandBoxSim.Godot_windows_x86_64/` 共同构成自包含游�
 ./tools/test.ps1 -Filter WildPlaces -Configuration Release
 ./tools/godot.ps1 -Mode test
 ./tools/test-build.ps1
+python tools/fetch-surface-materials.py --verify
 ./tools/check-docs.ps1
 git diff --check
 ```
@@ -101,7 +102,7 @@ $samplePath = Join-Path (Get-Location).Path 'runs/render-sample.json'
 
 内核 CI 在 Windows、Ubuntu 和 macOS 运行构建、脚本回归、完整测试与文档路径大小写检查。Godot CI 在同三平台下载校验过的 .NET 编辑器，执行 Release 构建、资源导入和 headless 客户端自检；它验证初始化与交互状态，不等于三平台显卡下的像素或性能一致。
 
-外部评测的 Python 测试和 PowerShell 引擎路径测试也在三个平台运行，覆盖 `.exe`、Linux 二进制和 macOS `.app/Contents/MacOS/Godot`。Ubuntu 额外使用 Xvfb/Mesa 软件显示执行原生截图、问题生成和产物验证；这是接口冒烟，不设硬件 FPS 门槛。Windows/macOS 的原生显示、不同 GPU/驱动及 ARM64 设备的实机表现仍需分别运行；x64 通过不能推导所有架构都已实测。
+外部评测的 Python 测试、PowerShell 引擎路径测试和扫描表面原始文件的离线大小/SHA-256 校验也在三个平台运行，覆盖 `.exe`、Linux 二进制和 macOS `.app/Contents/MacOS/Godot`。Ubuntu 额外使用 Xvfb/Mesa 软件显示执行原生截图、问题生成和产物验证；这是接口冒烟，不设硬件 FPS 门槛。Windows/macOS 的原生显示、不同 GPU/驱动及 ARM64 设备的实机表现仍需分别运行；x64 通过不能推导所有架构都已实测。
 
 在线控制 CI 在三个平台启动两份真实 .NET HTTP 服务，检查鉴权、并发幂等、版本冲突、独立寻路判题、配对效率及两轮证据驱动器，保留 JSON/日志 artifact。服务无需 Godot；详情见 [在线控制与效率实验](online-efficiency.md)。CI 检查协议正确性，不跨机器比较速度，也不代表真实模型已产生 RSI。
 

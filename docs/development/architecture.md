@@ -56,6 +56,8 @@ Core 中 `Foundation` 提供配置、数学、随机数和基础数据；`World`
 
 `Tile.FootTraffic` 是持久化内核状态：实际移动与作业通过世界入口记录接触，小时恢复，资源与植被系统读取压实。存档 v4 和状态摘要包含该值。`WorldView3D` 的共享顶点、河岸曲线、材质贴图与草丛是只读表现，显示细分不会增加模拟格子。
 
+`WorldView3D.Surface.cs` 根据地形、湿度、岸线和踩踏混合扫描表面，并把实际河床高度传给水面材质。`ScannedSurfaces.cs` 缓存纹理及打包法线/粗糙度，`NatureModels.ScannedCraft.cs` 复用这些资源绘制建筑。`WorldView3D.Buildings.cs` 的坡地石基属于显示几何，不会整平内核土地或改变通行。
+
 `evaluate.py` 管理 Godot 渲染产物；`efficiency.py` 比较真实 HTTP 程序成本；`rsi_benchmark.py` 管理代理自修改、后代与撤销对照。`rsi_code.py` 和 `rsi_code_worker.py` 执行实际 Python 候选。它们在 Console/Core 之外组织实验，不改变正常游戏的操作流程，也不提供对不可信候选的安全隔离。
 
 `sandbox_research.py` 管理独立源码快照、开发世界剖析、候选编译与语义检查，再调用真实服务配对；`sandbox_research_report.py` 展示假设、源码差异与世界观察。`rsi_efficiency_study.py` 对完成的代理归档做成本分析。实验目录保存候选和构建产物，主工程不会自动采用它们；[源码研究协议](sandbox-research.md) 与 [代理自修改协议](rsi-improver.md) 各自维护版本和证据。

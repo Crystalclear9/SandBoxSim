@@ -34,7 +34,8 @@
 | 代理自修改与代码执行 | `tools/rsi_benchmark.py`、`rsi_code.py`、`rsi_code_worker.py` | 代理和代码后端回归，源码与失败证据验证 |
 | 真实沙盒源码研究 | `tools/sandbox_research.py`、`sandbox_research_report.py` | 修改范围、编译、语义检查、源码/程序集身份与开发/留出选择 |
 | 改进器成本分析 | `tools/rsi_efficiency_study.py`、`rsi_report.py` | 原归档验证、实际时间曲线、失败成本与拒绝不支持的回收推断 |
-| 3D 镜头和地表 | `Godot/WorldView3D.cs`、`WorldView3D.Atmosphere.cs` | 拖动、缩放、释放、图层与暂停 |
+| 3D 镜头和地表 | `Godot/WorldView3D.cs`、`WorldView3D.Surface.cs`、`WorldView3D.Relief.cs`、`WorldView3D.Atmosphere.cs` | 拖动、缩放、释放、图层、贴地与暂停 |
+| 扫描表面与建筑材质 | `Godot/ScannedSurfaces.cs`、`NatureModels.ScannedCraft.cs`、`tools/fetch-surface-materials.py` | 离线素材校验、导入、近远景与署名 |
 | 居民动作与握持 | `Godot/ResidentRig.cs`、`ResidentRig.HandPose.cs`、`NatureModels.HandSkin.cs`、`NatureModels.Face.cs` | 工具取放、手部表面、肘腕范围、近远景与暂停 |
 | 建筑和人物外观 | `Godot/NatureModels*.cs`、`BuildingPortrait.cs`、`ResidentPortrait.cs` | 近远景、变体、动作与显示缓存 |
 | 自由探索界面 | `Godot/MainGame.Interface.cs`、`MainGame.Notebook.cs` | 阅读层次、直接工具与无目标导航 |
@@ -61,6 +62,7 @@
 | 荒野自然作用与会话 | `WildPlaces` 检查，加 Godot 自检与存读档 |
 | 构建脚本 | `./tools/test-build.ps1`，加受影响的 SDK/csc 构建 |
 | 文档或文件位置 | `./tools/check-docs.ps1`、`git diff --check`；资源移动另做 Godot 导入 |
+| 扫描表面素材 | `python tools/fetch-surface-materials.py --verify`；更改贴图或导入设置后执行 Godot 自检及实际窗口检查 |
 
 例如：
 

@@ -9,9 +9,9 @@
 | `models/environment/` | Poly Haven CC0 环境网格、PBR 贴图、清单与来源记录 |
 | `models/human/human-head.mesh.json`、`models/human/LICENSE.txt` | Blender Studio 头脸衍生数据与 CC BY 4.0 署名 |
 | `materials/scanned/` | 六种扫描表面、16 张 1K 原始贴图、哈希清单与许可 |
-| `textures/natural-terrain.png` | 保留的早期地形图集，当前 3D 地表不再加载 |
+| `textures/natural-terrain.png` | 早期地形图集，保留二维地图入口；当前 3D 地表不使用 |
 | `textures/natural-materials.png` | 4×4 对象材质图集，结合木纹、石层、布料及肤发表面 |
-| `textures/natural-objects.png` | 保留的早期对象图集；当前 3D 人物与建筑使用网格 |
+| `textures/natural-objects.png` | 早期对象图集，保留二维地图入口；当前 3D 人物与建筑使用网格 |
 
 原生成文件标识、完整提示和用途演变保存在 [素材生成来源](../archive/asset-generation.md)。这些提示是来源记录，其中的写实要求不代表现有程序化模型已达到写实品质。人物头脸新增 Blender Studio 的 CC BY 4.0 基础网格衍生数据，转换、来源与再分发规则见 [人物头脸素材](human-assets.md)。软件许可不替代该素材许可。
 

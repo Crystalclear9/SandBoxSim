@@ -12,6 +12,8 @@
 
 网格及材质入口见 [3D 模型系统](models.md)。主界面在 `MainGame.Interface.cs`，世界手记的阅读样式在 `MainGame.Notebook.cs`。使用非交互装饰层、统一字体间距与实际状态；新工具直接改变世界，不引入积分或工程流程。
 
+新增扫描表面先补齐 [环境素材](environment-assets.md) 的官方来源、许可、贴图类型、尺寸和哈希清单，再接入 `ScannedSurfaces.cs` 与相应地表或建筑材质。颜色图启用 mipmap，原始法线与粗糙度由共享加载器打包；对象专用 UV 图不能直接作为可平铺地表。正式资源、`.import` 与许可一起提交，下载、便携工具和试版保持在项目 `.tools/`，普通运行不依赖这些缓存。
+
 ## 持久化地表状态
 
 新增地表状态须同步 `Tile`、世界正式修改入口、`SaveFile`、`SaveLoader`、`CoreStateHash` 和不变量检查。压实可以作为例子：实际脚步与作业写入状态，小时恢复，生态读取压实，显示通过共享贴图更新；装饰草丛和风摆保持只读。相关契约见 [地形与活动痕迹](../guides/terrain-and-traces.md) 和 [存档](saving.md)。

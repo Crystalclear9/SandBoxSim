@@ -179,6 +179,10 @@
 | `NatureModels.Botanical.cs` | 程序植物辅助结构、材料与植物几何检查 |
 | `NatureModels.ScannedEnvironment.cs` | 专业环境素材读取、哈希、多材质与地面绑定 |
 | `WorldView3D.Relief.cs` | 地形的稳定噪声起伏 |
+| `WorldView3D.Surface.cs` | 扫描地表混合、坡面投影与读取河床深度的水面 |
+| `WorldView3D.Buildings.cs` | 地图建筑增量同步、路向、近远景切换与贴地石基 |
+| `ScannedSurfaces.cs` | 扫描纹理共享加载与法线/粗糙度打包缓存 |
+| `NatureModels.ScannedCraft.cs` | 建筑木材、灰泥和石作扫描表面 |
 | `NatureModels.Vegetation.cs` | 树冠、针叶枝层与树干 |
 | `NatureModels.Craft.cs` | 平滑截面、倒角石块与连接构件 |
 | `NatureModels.Surface.cs` | 木纹、灰泥、石材、屋面和植被的表面处理 |

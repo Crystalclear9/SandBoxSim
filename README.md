@@ -10,7 +10,7 @@ SandBoxSim 是一款以自然生态与居民自主行为为核心的 3D 沙盒�
 
 [重复真实研究对照](docs/development/sandbox-research-series.md) 轮换父/子/撤销组顺序，以完整研究运行作为不确定性单位，并检查每个世界的退步和全部失败成本。
 
-![自由探索与实际游戏画面](docs/images/free-world-ui.png)
+![当前地形与实际游戏画面](docs/images/terrain-modern.png)
 
 ## 安装与开始游玩
 
@@ -45,6 +45,8 @@ Windows 配置完成后可以双击 [Play-3D.cmd](Play-3D.cmd)。Linux/macOS 根
 人物页可旋转、俯仰和缩放肖像，并切换面部、手部与全身；握持、拿取、交谈和搬运跟随居民实际行为，世界角色平滑转向并对脚下坡面作小幅补偿。人物使用连续手部蒙皮、独立指节和贴合面部的眼睑，模型与配件说明见 [3D 模型系统](docs/development/models.md)。
 
 UI 使用统一炭灰面板、无衬线标题、浅色文字与暖沙色状态反馈，人物肖像保留较大的近景观察区域。建筑、人物与动物共享可复用几何和材质，近景提供更多细节，远景使用 LOD；当前表现与操作说明见 [观察与界面](docs/guides/gameplay-observation.md)。
+
+地形使用连续细分曲面，扫描草地、泥土、林地与岩面按坡度、水分和踩踏混合；河水按实际河床深度变化。树木在格内错位分布，住房与仓库的石基随坡地贴合。来源、许可及离线素材校验见 [环境素材](docs/development/environment-assets.md)，地表状态与显示规则见 [地形与活动痕迹](docs/guides/terrain-and-traces.md)。当前人物、动物与房屋仍包含程序构造和风格化结构，扫描表面不代表全部模型已经写实。
 
 顶部食物、木材与石料表示已采集储备，包括居民背包、地面物资堆和仓库。地表节点仍需要采集；库存总量也不保证每位居民都能到达物资。
 
@@ -92,10 +94,11 @@ SandBoxSim/
 │  ├─ images/           正式文档配图，保留并提交
 │  └─ archive/          原始任务书与素材生成来源
 ├─ .github/workflows/   核心与图形持续集成
+├─ .tools/              本机工具链、依赖、原始素材和下载缓存，忽略提交
 ├─ artifacts/           本机构建输出，忽略提交
 └─ runs/                日志、模拟数据和临时截图，忽略提交
 ```
 
-游戏纹理、插画和配方分别位于 `src/SandBoxSim.Godot/assets/textures/`、`illustrations/`、`gameplay/`。开发期间的临时截图放在 `runs/screenshots/`；清理临时截图时保留文档配图、游戏素材和存档。详细约定见 [文件管理](docs/development/repository-layout.md)。
+游戏资源位于 `src/SandBoxSim.Godot/assets/`：`models/` 保存衍生网格与对应贴图，`materials/scanned/` 保存扫描表面及来源清单，`textures/` 保存仍需保留的材质与地图图集。旧插画、配方目录已移除。开发期间的临时截图放在 `runs/screenshots/`；清理时保留正式文档配图、游戏素材和存档。详细约定见 [文件管理](docs/development/repository-layout.md)。
 
 贡献约定见 [CONTRIBUTING.md](CONTRIBUTING.md)，代码授权见 [LICENSE](LICENSE)。

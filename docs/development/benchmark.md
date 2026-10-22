@@ -17,6 +17,8 @@ python tools/evaluate.py run benchmarks/scenarios/render-population.json --label
 
 通过 `--engine` 或 `GODOT_EXE` 指定引擎，macOS 也可传入 `.app` 目录；明确指定的无效路径直接拒绝，不悄悄换用另一个引擎。启动前核对 4.7.2 .NET 版本。运行器优先查找安装脚本的本机目录，再查找 PATH；支持 Windows 控制台 EXE、Linux 可执行文件与 macOS 包内二进制。`--output` 指定独立输出目录，已有目录会被拒绝，保留以前的样本。默认窗口请求为 `1440x900`、关闭 VSync、`--max-fps 0`，实际物理/逻辑尺寸与 VSync 状态写入结果；驱动可能仍限制帧率。`--max-fps 60` 可用于有上限的交互采样，但必须保持对照一致。`--audio-driver Dummy` 可在无声卡的 CI 中关闭音频设备依赖，执行参数写入溯源并参与比较。默认子进程超时为 180 秒，超时终止本次启动的进程树，`--timeout` 可调整。
 
+地形外观可使用 `benchmarks/scenarios/visual-landscape.json`：固定种子 839102、40 位居民、零模拟步进，第 40 帧记录远景，第 60 帧切换近景，第 80 帧再次截图。该场景不设 FPS 门槛，用于检查扫描表面、岸线和贴地关系，不能当作动态聚落性能或模型审美分数。
+
 构建脚本保存 `build-source.json`，绑定 Core/Godot C# 文件、工程/根构建配置与两个程序集的 SHA-256。运行前与结束后核对该清单；修改 C# 后未重新构建、替换 DLL 或缺少清单会拒绝采样。直接 `dotnet build` 不生成此清单，使用上述项目脚本。历史归档没有该字段时仍可检查原产物完整性，不能补写为具有新的构建校验。
 
 | 文件 | 用途 |

@@ -2,7 +2,7 @@
 
 # 原创美术素材来源与导入
 
-当前图集位于 `src/SandBoxSim.Godot/assets/textures/`。以下同时记录早期素材的用途，已移除的历史目录不属于现行运行资源：
+原始生成图集保留在 `src/SandBoxSim.Godot/assets/textures/`。下文的模型、材质和界面说明记录早期用途，不表示当前仍采用这些实现；当前扫描表面与授权网格见 [美术资源](../development/assets.md)。已移除的历史目录不属于现行运行资源：
 
 | 目录 | 内容 |
 |---|---|

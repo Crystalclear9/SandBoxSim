@@ -24,7 +24,7 @@
 
 [`project.godot`](../../src/SandBoxSim.Godot/project.godot) 定义主场景、窗口、C# 程序集与 GL Compatibility 渲染器。镜头与界面读取模拟状态；视觉比例、材质和动画不改变经济或人口规则。
 
-引擎位置使用 `GODOT_EXE` 或脚本的 `-GodotPath`；SDK 位置使用 `SANDBOXSIM_DOTNET_ROOT`。安装文件放在仓库外，详见 [安装与启动](../guides/getting-started.md)。
+引擎位置使用 `GODOT_EXE` 或脚本的 `-GodotPath`；SDK 位置使用 `SANDBOXSIM_DOTNET_ROOT`。默认安装、下载和依赖缓存均位于当前仓库 `.tools/`，由 Git 忽略；也可显式使用本机已有工具。详见 [安装与启动](../guides/getting-started.md)。
 
 ## 历史数据
 
