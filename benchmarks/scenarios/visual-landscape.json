@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "visual-landscape",
+  "seed": 839102,
+  "agents": 40,
+  "previewDays": 0,
+  "panel": "field",
+  "warmupFrames": 30,
+  "measuredFrames": 60,
+  "ticksPerFrame": 0,
+  "minimumFps": 0,
+  "captureFrames": [40, 80],
+  "commands": [
+    {"frame": 4, "command": "escape", "value": ""},
+    {"frame": 60, "command": "world.view", "value": "near"}
+  ]
+}

@@ -8,7 +8,8 @@
 |---|---|
 | `models/environment/` | Poly Haven CC0 环境网格、PBR 贴图、清单与来源记录 |
 | `models/human/human-head.mesh.json`、`models/human/LICENSE.txt` | Blender Studio 头脸衍生数据与 CC BY 4.0 署名 |
-| `textures/natural-terrain.png` | 4×4 地形图集，按模拟地形混合采样 |
+| `materials/scanned/` | 六种扫描表面、16 张 1K 原始贴图、哈希清单与许可 |
+| `textures/natural-terrain.png` | 保留的早期地形图集，当前 3D 地表不再加载 |
 | `textures/natural-materials.png` | 4×4 对象材质图集，结合木纹、石层、布料及肤发表面 |
 | `textures/natural-objects.png` | 保留的早期对象图集；当前 3D 人物与建筑使用网格 |
 
@@ -24,7 +25,7 @@
 
 `NatureModels.ScannedEnvironment.cs` 管理专业环境网格、透明叶片遮罩、法线与粗糙度材质，来源和转换见 [环境素材](environment-assets.md)。世界与图册共享这些网格和屏幕 LOD。`NatureModels.Botanical.cs` 保留程序植物辅助结构及几何检查。`WorldView3D.Relief.cs` 为地面提供稳定的小尺度噪声起伏。
 
-`WorldView3D` 混合地形纹理、临水色差与压实，河床和水面共享连续岸线采样。`NatureModels.Meadow.cs` 提供近景弯曲草叶，读取共享压实贴图伏低并随距离缩退。CPU 网格缓存和空间批次的维护见 [性能说明](performance.md)。
+`WorldView3D.Surface.cs` 混合扫描地形、临水色差与压实，水色读取实际河床深度，河床和水面共享连续岸线采样。`ScannedSurfaces.cs` 缓存贴图及打包法线/粗糙度，`NatureModels.ScannedCraft.cs` 管理建筑扫描表面。近景使用授权草丛网格，读取共享压实贴图伏低并随距离缩退；`NatureModels.Meadow.cs` 保留程序构造器。CPU 网格缓存和空间批次的维护见 [性能说明](performance.md)。
 
 ## 新增与移动资源
 

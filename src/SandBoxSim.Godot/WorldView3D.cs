@@ -41,7 +41,6 @@ public partial class WorldView3D : MapView
     private Godot.Environment _weatherEnvironment = null!;
     private DirectionalLight3D _sunlight = null!;
     private Label _cameraHint = null!;
-    private Texture2D? _terrainAtlas;
     private MeshInstance3D _routes = null!;
     private SandBoxSim.Core.Pathing.AStarPathfinder _observerPaths = null!;
     private Int2[] _observedRoute = Array.Empty<Int2>();
@@ -103,7 +102,6 @@ public partial class WorldView3D : MapView
         _actors = new Node3D(); _scene.AddChild(_actors);
         _models = new NatureModels();
         BuildHazardVisuals();
-        if (ResourceLoader.Exists("res://assets/textures/natural-terrain.png")) { _terrainAtlas = GD.Load<Texture2D>("res://assets/textures/natural-terrain.png"); }
         var sky = new ProceduralSkyMaterial { SkyTopColor = new Color("#779ca9"), SkyHorizonColor = new Color("#d4d4b8"), GroundHorizonColor = new Color("#b8c2a0"), GroundBottomColor = new Color("#465346") };
         _weatherEnvironment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Sky,
             Sky = new Sky { SkyMaterial = sky }, AmbientLightSource = Godot.Environment.AmbientSource.Sky,
@@ -238,7 +236,7 @@ public partial class WorldView3D : MapView
     private float HeightAt(int x, int y)
     {
         var tile = Game.Sim.World.TileAtClamped(x, y);
-        return tile.Terrain == TerrainKind.Water ? -.25f : (tile.Height+.006f*tile.FootTraffic - .25f) * 4;
+        return tile.Terrain == TerrainKind.Water ? -.25f : (tile.Height+.006f*tile.FootTraffic - .25f) * 12;
     }
     private float VertexHeight(int x, int y)
     { return (HeightAt(x, y) + HeightAt(x - 1, y) + HeightAt(x, y - 1) + HeightAt(x - 1, y - 1)) * .25f; }
@@ -312,6 +310,8 @@ public partial class WorldView3D : MapView
                 +(decoration%17==0&&tile.Resource.Kind==ResourceKind.Food&&tile.Resource.Amount>5?2:0)
                 +(decoration%9==0&&tile.Terrain==TerrainKind.Mountain&&tile.Resource.Kind==ResourceKind.Iron?4:0)
                 +(HasMeadow(tile,decoration)?8:0);
+            if(tile.BuildingId>0)flags|=128;
+            if(decoration%13==0&&tile.Terrain==TerrainKind.Forest&&tile.Vegetation>.35f&&tile.Moisture>.2f&&tile.Fire!=FireState.Burnt)flags|=16;
             nature = unchecked(nature * 31 + flags);
             if (Overlay is 2 or 5) { appearance = unchecked(appearance * 31 + (int)tile.Resource.Kind * 1000 + (int)tile.Resource.Amount); }
             if (Overlay == 3) { appearance = unchecked(appearance * 31 + (int)(tile.Moisture * 100)); }
@@ -550,99 +550,17 @@ public partial class WorldView3D : MapView
         arrays[(int)Mesh.ArrayType.Vertex]=vertices;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.TexUV]=_groundUvs;
         arrays[(int)Mesh.ArrayType.Index]=_groundIndices;
         var terrain = new ArrayMesh(); terrain.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
-        var groundShader = new Shader { Code = @"
-shader_type spatial;
-render_mode cull_disabled;
-uniform sampler2D atlas : source_color, filter_linear_mipmap;
-uniform sampler2D material_map : filter_nearest, repeat_disable;
-uniform sampler2D tint_map : filter_linear, repeat_disable;
-uniform sampler2D hydrology_map : filter_linear, repeat_disable;
-uniform sampler2D forest_diffuse:source_color,filter_linear_mipmap_anisotropic,repeat_enable;
-uniform sampler2D forest_normal:hint_normal,filter_linear_mipmap_anisotropic,repeat_enable;
-uniform sampler2D forest_roughness:filter_linear_mipmap,repeat_enable;
-uniform vec2 map_size;
-uniform float forest_index;
-varying vec3 world_position;
-varying float terrain_slope;
-void vertex(){terrain_slope=1.0-clamp(NORMAL.y,0.0,1.0); VERTEX.y-=texture(material_map,clamp(VERTEX.xz*.5/map_size,vec2(0.0),vec2(1.0))).g*.024; world_position = (MODEL_MATRIX * vec4(VERTEX,1.0)).xyz; }
-float soil_noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);vec2 q=vec2(127.1,311.7);return mix(mix(fract(sin(dot(i,q))*43758.5453),fract(sin(dot(i+vec2(1,0),q))*43758.5453),f.x),mix(fract(sin(dot(i+vec2(0,1),q))*43758.5453),fract(sin(dot(i+vec2(1,1),q))*43758.5453),f.x),f.y);}
-vec3 surface_at(vec2 tile, vec2 pattern){
-    float index = floor(texture(material_map,(clamp(tile,vec2(0.0),map_size-vec2(1.0))+vec2(.5))/map_size).r*15.0+.5);
-    vec2 cell = vec2(mod(index,4.0),floor(index/4.0));
-    vec2 uv = (cell+mix(vec2(.03),vec2(.97),pattern))/4.0;
-    return mix(texture(atlas,uv).rgb,texture(atlas,(cell+mix(vec2(.03),vec2(.97),abs(fract(pattern*1.73+vec2(.23,.41))*2.0-1.0)))/4.0,2.0).rgb,.28);
-}
-float forest_at(vec2 tile){return 1.0-step(.5,abs(texture(material_map,(clamp(tile,vec2(0),map_size-vec2(1))+vec2(.5))/map_size).r*15.0-forest_index));}
-float traffic(vec2 tile){return texture(material_map,(clamp(tile,vec2(0.0),map_size-vec2(1.0))+vec2(.5))/map_size).g;}
-float trail(vec2 grid){
-    vec2 tile=floor(grid+vec2(.5)),offset=grid-tile;
-    float center=traffic(tile);if(center<=.015)return 0.0;
-    float strength=smoothstep(.015,.45,center);
-    float path=(1.0-smoothstep(.10,.35,length(offset)))*strength;
-    for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){
-        if(x==0&&y==0)continue;
-        vec2 direction=vec2(float(x),float(y));
-        float joint=smoothstep(.015,.45,min(center,traffic(tile+direction)));
-        float t=clamp(dot(offset,direction)/dot(direction,direction),0.0,.5);
-        float shoulder=1.0-smoothstep(.10,.29,length(offset-direction*t));
-        path=max(path,shoulder*joint);
-    }
-    return path;
-}
-void fragment(){
-    vec2 grid=world_position.xz*.5-vec2(.5);
-    vec2 origin=floor(grid), blend=fract(grid);
-    vec2 rotated=mat2(vec2(.72,.69),vec2(-.69,.72))*world_position.xz*.34;
-    vec2 pattern=abs(fract(rotated)*2.0-1.0);
-    vec3 a=mix(surface_at(origin,pattern),surface_at(origin+vec2(1.0,0.0),pattern),blend.x);
-    vec3 b=mix(surface_at(origin+vec2(0.0,1.0),pattern),surface_at(origin+vec2(1.0),pattern),blend.x);
-    vec3 c=mix(a,b,blend.y); c=vec3(.5)+(c-vec3(.5))*.42; float lum=dot(c,vec3(.2126,.7152,.0722));
-    float broad=(soil_noise(world_position.xz*.067)-.5)*.16;
-    float grit=soil_noise(world_position.xz*5.7)-.5;
-    float footprint=max(length(dFdx(world_position)),length(dFdy(world_position)));grit/=1.0+footprint*footprint*32.0;
-    float damp=texture(hydrology_map,world_position.xz*.5/map_size).b;
-    float slope=terrain_slope;
-    float wear=texture(material_map,(clamp(grid,vec2(0.0),map_size-vec2(1.0))+vec2(.5))/map_size).g;
-    vec3 earth=vec3(.205,.169,.125);
-    float moisture=texture(hydrology_map,world_position.xz*.5/map_size).a;
-    vec3 meadow=mix(vec3(lum),c,.60)*texture(tint_map,world_position.xz*.5/map_size).rgb*vec3(.94,1.0,.87)*(.94+broad+grit*.075);
-    meadow*=mix(vec3(1.09,.99,.80),vec3(.91,1.01,.94),smoothstep(.15,.75,moisture));
-    float woodland=mix(mix(forest_at(origin),forest_at(origin+vec2(1,0)),blend.x),mix(forest_at(origin+vec2(0,1)),forest_at(origin+vec2(1)),blend.x),blend.y);
-    vec3 litter=texture(forest_diffuse,world_position.xz*.22).rgb;
-    meadow=mix(meadow,mix(litter,meadow,.25),clamp(woodland*.60+damp*.22+slope*.55,0.0,.75));
-    float shore=smoothstep(.05,.32,damp)*(1.0-smoothstep(.45,.65,damp));
-    meadow=mix(meadow,vec3(.24,.213,.158)*(1.0+grit*.12),shore*.30);
-    float strata=sin(world_position.y*22.0+soil_noise(world_position.xz*.6)*2.0);
-    strata/=1.0+pow(fwidth(world_position.y*22.0),2.0);
-    vec3 exposed=vec3(.30,.29,.25)*(1.0+strata*.055+grit*.06);
-    meadow=mix(meadow,exposed,smoothstep(.14,.43,slope)*.72);
-    ALBEDO=mix(meadow,earth,clamp(trail(grid)*.82+wear*.12,0.0,.94)); ROUGHNESS=mix(.95,texture(forest_roughness,world_position.xz*.22).r,.32); SPECULAR=.18;
-    vec3 scanned_normal=texture(forest_normal,world_position.xz*.22).rgb*2.0-1.0;
-    vec3 scanned_world=normalize(vec3(scanned_normal.x*.25,max(.3,scanned_normal.z),scanned_normal.y*.25));
-    NORMAL=normalize(mix(NORMAL,mat3(VIEW_MATRIX)*scanned_world,.24*(1.0-slope)));
-    vec3 dx=dFdx(VERTEX),dy=dFdy(VERTEX),tx=cross(dy,NORMAL),ty=cross(NORMAL,dx);float determinant=dot(dx,tx);
-    float height=grit*.0035;if(abs(determinant)>.0000000001)NORMAL=normalize(abs(determinant)*NORMAL-sign(determinant)*(dFdx(height)*tx+dFdy(height)*ty));
-}" };
-        var material = new ShaderMaterial { Shader = groundShader };
-        string forestRoot="res://assets/models/environment/forest_ground_04/textures/";
-        foreach(var map in new[]{("forest_diffuse","forest_ground_04_diff_1k.jpg"),("forest_normal","forest_ground_04_nor_gl_1k.jpg"),("forest_roughness","forest_ground_04_rough_1k.jpg")})
-        {if(!ResourceLoader.Exists(forestRoot+map.Item2))throw new InvalidOperationException("Missing CC0 forest material");material.SetShaderParameter(map.Item1,GD.Load<Texture2D>(forestRoot+map.Item2));}
+        var material=CreateGroundMaterial();
         _groundMap=materialMap;_groundMapBytes=materialMap.GetData();_groundMapTexture=ImageTexture.CreateFromImage(materialMap);
         material.SetShaderParameter("material_map", _groundMapTexture);material.SetShaderParameter("hydrology_map",_groundMapTexture);
         _groundTintTexture=ImageTexture.CreateFromImage(GroundTintImage());material.SetShaderParameter("tint_map",_groundTintTexture);
         material.SetShaderParameter("map_size", new Vector2(width, Game.Sim.World.Height));
-        material.SetShaderParameter("forest_index",(float)TerrainKind.Forest);
-        if (_terrainAtlas != null) { material.SetShaderParameter("atlas", _terrainAtlas); }
         _terrainRoot.AddChild(new MeshInstance3D { Mesh = terrain, MaterialOverride = material });
         if (waterV.Count > 0)
         {
             var wa = new Godot.Collections.Array(); wa.Resize((int)Mesh.ArrayType.Max); wa[(int)Mesh.ArrayType.Vertex] = waterV.ToArray(); wa[(int)Mesh.ArrayType.Index] = waterI.ToArray();
             var wm = new ArrayMesh(); wm.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, wa);
-            var shader = new Shader { Code = @"shader_type spatial; render_mode cull_disabled; uniform sampler2D atlas : source_color, filter_linear_mipmap; uniform sampler2D material_map : filter_nearest, repeat_disable; uniform vec2 map_size; varying vec3 p; float wet(vec2 tile){return texture(material_map,(clamp(tile,vec2(0.0),map_size-vec2(1.0))+vec2(.5))/map_size).b;} float cubic(float a,float b,float c,float d,float t){return .5*(2.0*b+(c-a)*t+(2.0*a-5.0*b+4.0*c-d)*t*t+(-a+3.0*b-3.0*c+d)*t*t*t);} float row(vec2 base,float y,float u){return cubic(wet(base+vec2(-1.0,y)),wet(base+vec2(0.0,y)),wet(base+vec2(1.0,y)),wet(base+vec2(2.0,y)),u);} void vertex(){ p = VERTEX; VERTEX.y += sin(VERTEX.x*.73+VERTEX.z*.41+TIME*.7)*.008 + cos(VERTEX.z*1.17-VERTEX.x*.29+TIME*.9)*.005; NORMAL=vec3(0.0,1.0,0.0); } void fragment(){vec2 grid=p.xz*.5-vec2(.5),base=floor(grid),f=fract(grid);float bank=clamp(cubic(row(base,-1.0,f.x),row(base,0.0,f.x),row(base,1.0,f.x),row(base,2.0,f.x),f.y),0.0,1.0);if(bank<.48)discard; float ripple = sin(p.x*2.4+TIME)*cos(p.z*1.8-TIME*.5); vec2 uv=(vec2(2.0,0.0)+clamp(fract(p.xz*.18+vec2(TIME*.003,0.0)),vec2(.02),vec2(.98)))/4.0; float fresnel=pow(1.0-clamp(dot(normalize(NORMAL),normalize(VIEW)),0.0,1.0),3.0); float fine=sin(p.x*9.0+TIME*1.2)*cos(p.z*7.0-TIME*.8); ALBEDO = mix(vec3(.075,.145,.145),vec3(.24,.32,.35),fresnel*.70) + vec3(ripple*.008+fine*.003); ALBEDO=mix(ALBEDO,vec3(.19,.24,.18),(1.0-smoothstep(.49,.80,bank))*.22); METALLIC=0.0; SPECULAR=.50; ROUGHNESS=.23;
-float w1=cos(p.x*1.73+p.z*1.19+TIME*.7),w2=cos(p.x*3.11-p.z*2.47-TIME*.93),w3=cos(p.x*5.37+p.z*4.19+TIME*1.13);
-vec3 surface_normal=normalize(vec3(w1*.010+w2*.006+w3*.003,1.0,w1*.007-w2*.005+w3*.002));
-NORMAL=normalize(mat3(VIEW_MATRIX)*surface_normal); }" };
-            var waterMaterial = new ShaderMaterial { Shader = shader };waterMaterial.SetShaderParameter("material_map",_groundMapTexture);waterMaterial.SetShaderParameter("map_size",new Vector2(width,height)); if (_terrainAtlas != null) { waterMaterial.SetShaderParameter("atlas", _terrainAtlas); }
+            var waterMaterial=CreateWaterMaterial(vertices,nx,ny,width,height);
             _terrainRoot.AddChild(new MeshInstance3D { Mesh = wm, MaterialOverride = waterMaterial, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         }
         // A physical diorama edge makes the terrain volume visible from low camera angles.
@@ -680,16 +598,23 @@ NORMAL=normalize(mat3(VIEW_MATRIX)*surface_normal); }" };
                     pebbles.Add(NatureModels.Transform(new(px,GroundHeight(px,pz)+scale*.18f,pz),new(scale,scale*.65f,scale*1.3f),new(.1f,i*1.7f+h%13,.12f)));
                 }
             }
-            if(tile.Terrain==TerrainKind.Forest&&tile.Vegetation>.35f&&tile.Moisture>.2f&&tile.Fire!=FireState.Burnt&&h%13==0)ferns.Add(NatureModels.Transform(p,new Vector3(size,size,size),new Vector3(0,h%19,0)));
-            if(HasMeadow(tile,h))grass.Add(NatureModels.Transform(p,new Vector3(size,.8f+(h%11)*.065f,size),new Vector3(0,h%31,0)));
-            if (tile.Terrain == TerrainKind.Forest && tile.Vegetation > .12f && tile.Fire != FireState.Burnt && h % 5 == 0)
+            if(tile.BuildingId==0&&tile.Terrain==TerrainKind.Forest&&tile.Vegetation>.35f&&tile.Moisture>.2f&&tile.Fire!=FireState.Burnt&&h%13==0)ferns.Add(NatureModels.Transform(p,new Vector3(size,size,size),new Vector3(0,h%19,0)));
+            if(HasMeadow(tile,h))for(int tuft=0;tuft<3;tuft++)
             {
-                var tree=NatureModels.Transform(p,Vector3.One*size,new Vector3(0,h%17,0));
+                float px=p.X+MathF.Sin(h%719+tuft*2.399f)*(.30f+tuft*.19f);
+                float pz=p.Z+MathF.Cos(h%431+tuft*2.399f)*(.30f+tuft*.19f);
+                float variation=.72f+((h>>(tuft*4))%11)*.045f;
+                grass.Add(NatureModels.Transform(new(px,GroundHeight(px,pz),pz),new Vector3(size,variation,size),new Vector3(0,h%31+tuft*1.7f,0)));
+            }
+            if (tile.BuildingId==0&&tile.Terrain == TerrainKind.Forest && tile.Vegetation > .12f && tile.Fire != FireState.Burnt && h % 5 == 0)
+            {
+                float px=p.X+((h>>7)%101/100f-.5f)*1.35f,pz=p.Z+((h>>17)%101/100f-.5f)*1.35f;
+                var tree=NatureModels.Transform(new(px,GroundHeight(px,pz),pz),Vector3.One*(.76f+(h%17)*.035f),new Vector3(0,h%17,0));
                 if(h%3==0)pines.Add(tree);else leaves.Add(tree);
             }
-            if (tile.Terrain == TerrainKind.Mountain && h % 9 == 0)
+            if (tile.BuildingId==0&&tile.Terrain == TerrainKind.Mountain && h % 9 == 0)
             { var t = NatureModels.Transform(p + Vector3.Up * .4f, new Vector3(1.6f, 1.2f, 1.7f) * size, new Vector3(.2f, h % 7, .4f)); if (tile.Resource.Kind == ResourceKind.Iron) { ores.Add(t); } else { t.Origin=p-Vector3.Up*.08f;rocks.Add(t); } }
-            if (tile.Resource.Kind == ResourceKind.Food && tile.Resource.Amount > 5 && h % 17 == 0)
+            if (tile.BuildingId==0&&tile.Resource.Kind == ResourceKind.Food && tile.Resource.Amount > 5 && h % 17 == 0)
                 { bushes.Add(NatureModels.Transform(p + Vector3.Up * .28f, new Vector3(.9f, .7f, .9f) * size)); }
         }
         if(_groundMapTexture!=null)_models.BindEnvironmentGround(_groundMapTexture,new Vector2(Game.Sim.World.Width,Game.Sim.World.Height));

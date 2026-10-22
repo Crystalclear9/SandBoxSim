@@ -19,7 +19,33 @@
 
 树木高度分别归一化到 5.5 和 5.4 米；针叶树衍生自幼树素材，不代表增加新的成熟树种模拟。蕨类、草丛分别归一化为 0.43 和 0.34 米，灌木为 0.8 米。树、蕨类和草丛以地面根部为原点，灌木以几何中心为原点，以兼容现有灌木和特殊地点的放置方式。
 
-## 转换方式
+## 扫描表面材质
+
+地表与建筑使用独立的可平铺扫描表面，清单在 [materials/scanned/manifest.json](../../src/SandBoxSim.Godot/assets/materials/scanned/manifest.json)，署名在 [LICENSE.txt](../../src/SandBoxSim.Godot/assets/materials/scanned/LICENSE.txt)。六种素材均来自 Poly Haven、采用 CC0，保留 16 张 1K 原始贴图的官方 URL、尺寸、文件大小及 SHA-256：
+
+| 素材 | 用途 | 原始覆盖宽度 |
+|---|---|---:|
+| `grass_ground` | 草地颜色、法线、粗糙度 | 2.51 米 |
+| `brown_mud_leaves_01` | 土壤、湿岸与踩踏区域 | 1.3 米 |
+| `rock_face_03` | 裸坡与石作表面 | 2.7 米 |
+| `wood_planks_grey` | 木墙与梁柱 | 1.5 米 |
+| `plastered_wall_03` | 灰泥墙 | 4 米 |
+| `coast_sand_01` | 沙地颜色 | 15 米 |
+
+沙地只引入颜色图，沿用通用地表微法线；覆盖宽度是来源记录，显示混合可另行缩放。林地继续使用已有的 `forest_ground_04`。`boulder_01` 的贴图对应岩石自身 UV，不能拿来平铺山坡或墙面。
+
+`ScannedSurfaces.cs` 共享加载缓存，并把法线 XY 与粗糙度打包为一张带 mipmap 的运行纹理；原始贴图字节不改动。`WorldView3D.Surface.cs` 的地表材质使用 12 个采样器，按坡度、湿度、岸线和压实混合，陡坡岩面采用三向投影。`NatureModels.ScannedCraft.cs` 为建筑应用木、石、灰泥表面，屋瓦保留独立材质。纹理不会新增真实几何位移或室内结构。
+
+运行不访问网络。重取来源与离线核对分别执行：
+
+```powershell
+python tools/fetch-surface-materials.py
+python tools/fetch-surface-materials.py --verify
+```
+
+下载及元数据缓存仅在 `.tools/sources/surface-materials/`；核对大小及官方 MD5 后才复制到运行目录，清单再记录 SHA-256。CI 只运行 `--verify`，不重新下载。
+
+## 网格转换方式
 
 [export_environment_models.py](../../tools/export_environment_models.py) 在 Blender 后台执行，固定选择源对象和版本。阔叶树先按同位置顶点连接 UV/法线接缝，再按完整叶片单元进行稳定抽样；针叶树保留全部枝叶。木质部分独立简化，叶片连接和法线单独维护；古树林使用同一阔叶树的放大实例与根部结构，避免将草本植物误作高树冠。不会将全部叶片一起塌缩成细小残片。脚本转换坐标、三角面朝向和 UV，保留分材质表面；退化面省略，缺失角点法线从实际三角面重建。
 

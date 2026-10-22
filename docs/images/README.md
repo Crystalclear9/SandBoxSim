@@ -21,6 +21,8 @@
 
 ## 来源与版本
 
+`terrain-modern.png`、`terrain-closeup.png` 和 `architecture-detail.png` 更新为 2026-10-22 的 1600×1000 原生渲染。地形图使用公开 `visual-landscape` 场景的第 40、80 帧，种子 839102、40 人、零步进，第二张切换近景；建筑图使用 `--panel=architecture --capture-delay=.2 --max-fps 30 --quit-after 24`。这些配图展示扫描地表和木石灰泥表面，没有重绘或合成；冻结场景用于比较画面，不代表流畅度测试。
+
 `resident-face-detail.png`、`character-detail.png` 与 `model-surface-detail.png` 已更新为 2026-10-22 的 1600×1000 原生渲染，分别使用 `faces`、`characters`、`model-details` 入口及 `--capture-delay=.2 --max-fps 30 --quit-after 30`。它们展示本次面部/发型、衣身、鞋楦和重新烘焙的动物表面；均为实际游戏网格，没有图像重绘。解剖近景保持动物头部可见，综合图册仍演示进食。
 
 `resident-handedness.png`、`free-world-ui.png` 与 `ui-detail-refined.png` 为 2026-10-21 的 1440×900 原生渲染，分别使用 `handedness`、`ecology` 与 `person` 预览入口、2.5 秒采样；展示同源远景手型和卡片式工具界面。以下旧来源说明仅适用于未被此次替换的配图。

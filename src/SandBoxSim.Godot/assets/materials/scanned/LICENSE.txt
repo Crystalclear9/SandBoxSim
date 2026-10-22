@@ -1,0 +1,10 @@
+Poly Haven scanned surface materials — CC0 1.0
+License: https://polyhaven.com/license
+Original map bytes retained. Godot applies mipmaps/compression at import.
+
+grass_ground — Charlotte Baglioni — https://polyhaven.com/a/grass_ground
+brown_mud_leaves_01 — Rob Tuytel — https://polyhaven.com/a/brown_mud_leaves_01
+wood_planks_grey — Rob Tuytel — https://polyhaven.com/a/wood_planks_grey
+plastered_wall_03 — Rob Tuytel — https://polyhaven.com/a/plastered_wall_03
+coast_sand_01 — Rob Tuytel — https://polyhaven.com/a/coast_sand_01
+rock_face_03 — Dario Barresi, Rico Cilliers — https://polyhaven.com/a/rock_face_03

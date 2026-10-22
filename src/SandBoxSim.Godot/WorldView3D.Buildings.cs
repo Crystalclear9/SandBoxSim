@@ -19,6 +19,8 @@ public partial class WorldView3D
         public required bool Complete;
         public bool Detailed;
         public Node3D? Life;public int LifeKey=-1;
+        public MeshInstance3D? Foundation;
+        public Vector4 FoundationDepths;
     }
     private readonly Dictionary<int,BuildingVisual> _buildingVisuals=new();
     private readonly Dictionary<int,Label3D> _settlementLabels=new();
@@ -87,6 +89,7 @@ public partial class WorldView3D
                 if(score>best){best=score;facing=direction;}
             }
             visual.Root.RotationDegrees=new(0,facing*90,0);
+            UpdateFoundation(visual);
         }
         var liveSettlements=new HashSet<int>();
         for(int i=0;i<sim.Settlements.EntityCount;i++)
@@ -104,19 +107,62 @@ public partial class WorldView3D
         {var label=_settlementLabels[id];_buildings.RemoveChild(label);label.QueueFree();_settlementLabels.Remove(id);}
         UpdateBuildingDetail();return remaining;
     }
+    private void UpdateFoundation(BuildingVisual visual)
+    {
+        if(visual.Kind is not (BuildingKind.House or BuildingKind.Storage))return;
+        uint identity=visual.Identity%140;
+        float halfWidth=(2.45f+(identity%4)*.16f)*.5f,halfDepth=(1.95f+((identity/7)%4)*.18f)*.5f;
+        var corners=new[]{new Vector3(-halfWidth,0,-halfDepth),new(halfWidth,0,-halfDepth),
+            new Vector3(halfWidth,0,halfDepth),new(-halfWidth,0,halfDepth)};
+        var depths=Vector4.Zero;
+        for(int i=0;i<4;i++)
+        {
+            var world=visual.Root.Transform*corners[i];
+            depths[i]=MathF.Min(-.08f,(GroundHeight(world.X,world.Z)-visual.Root.Position.Y)/visual.Root.Scale.Y-.035f);
+        }
+        if(visual.Foundation!=null&&visual.FoundationDepths==depths)return;
+        visual.FoundationDepths=depths;
+        if(visual.Foundation==null)
+        {
+            visual.Foundation=new MeshInstance3D {Name="TerrainFittedFoundation",MaterialOverride=_models.Material(6)};
+            visual.Root.AddChild(visual.Foundation);
+        }
+        using var tool=new SurfaceTool();tool.Begin(Mesh.PrimitiveType.Triangles);
+        for(int side=0;side<4;side++)
+        {
+            int next=(side+1)%4;var a=corners[side]+Vector3.Up*.035f;var b=corners[next]+Vector3.Up*.035f;
+            var c=corners[side]+Vector3.Up*depths[side];var d=corners[next]+Vector3.Up*depths[next];
+            var normal=(a+b)*.5f;normal.Y=0;normal=normal.Normalized();
+            void Triangle(Vector3 x,Vector3 y,Vector3 z)
+            {
+                if((y-x).Cross(z-x).Dot(normal)>0)(y,z)=(z,y);
+                foreach(var point in new[]{x,y,z}){tool.SetNormal(normal);tool.SetUV(new(point.X+point.Z,point.Y));tool.AddVertex(point);}
+            }
+            Triangle(a,b,c);Triangle(b,d,c);
+        }
+        tool.Index();visual.Foundation.Mesh=tool.Commit();
+    }
     public void ValidateIncrementalBuildings()
     {
         var sim=Game.Sim;var world=sim.World;
         for(int y=4;y<=12;y++)for(int x=4;x<=12;x++)world.SetTerrain(x,y,TerrainKind.Grass);
         int first=sim.Buildings.Place(world,BuildingKind.House,6,6,10),second=sim.Buildings.Place(world,BuildingKind.House,10,10,10);
         if(first<0||second<0)throw new Exception("Building cache fixture failed");
-        BuildBuildings();var retained=_buildingVisuals[first].Root;var changed=_buildingVisuals[second].Root;
+        CheckTerrain();BuildBuildings();var retained=_buildingVisuals[first].Root;var changed=_buildingVisuals[second].Root;
+        var foundation=_buildingVisuals[first].Foundation!.Mesh;
         string before=StateHash.ComputeDigest(sim);BuildBuildings();
-        if(before!=StateHash.ComputeDigest(sim)||_buildingVisuals[first].Root!=retained)throw new Exception("Unchanged building regenerated or observation mutated world");
-        world.SetTerrain(7,6,TerrainKind.Road);BuildBuildings();
+        if(before!=StateHash.ComputeDigest(sim)||_buildingVisuals[first].Root!=retained||_buildingVisuals[first].Foundation!.Mesh!=foundation)throw new Exception("Unchanged building regenerated or observation mutated world");
+        world.SetTerrain(7,6,TerrainKind.Road);CheckTerrain();BuildBuildings();
         if(_buildingVisuals[first].Root!=retained||Math.Abs(retained.RotationDegrees.Y-90)>.01f)throw new Exception("Road-facing update regenerated geometry or did not rotate");
-        world.Tiles[6*world.Width+6].Height+=.2f;BuildBuildings();
+        world.Tiles[6*world.Width+6].Height+=.2f;CheckTerrain();BuildBuildings();
         if(_buildingVisuals[first].Root!=retained||retained.Position.DistanceTo(PositionAt(6,6))>.001f)throw new Exception("Ground height update lost building identity");
+        var skirt=_buildingVisuals[first].Foundation!.Mesh.SurfaceGetArrays(0);
+        foreach(var point in skirt[(int)Mesh.ArrayType.Vertex].AsVector3Array())if(point.Y<-.035f)
+        {
+            var fitted=retained.Transform*point;
+            if(!fitted.IsFinite()||fitted.Y>GroundHeight(fitted.X,fitted.Z)+.005f)throw new Exception("Building foundation floats above hillside");
+        }
+        GD.Print("BUILDING_FOUNDATION_PASS: terrain rebuild, road-facing rotation, cached skirt and actual hillside contact");
         sim.Buildings.MarkComplete(second,sim.Clock);BuildBuildings();
         if(_buildingVisuals[first].Root!=retained||_buildingVisuals[second].Root==changed)throw new Exception("Completion replaced unrelated building");
         sim.Buildings.Demolish(world,second);BuildBuildings();

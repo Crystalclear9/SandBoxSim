@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "license": "CC0-1.0",
+  "licenseUrl": "https://polyhaven.com/license",
+  "assets": {
+    "grass_ground": {
+      "url": "https://polyhaven.com/a/grass_ground",
+      "authors": {
+        "Charlotte Baglioni": "All"
+      },
+      "dimensionsMillimeters": [
+        2509.999990463257,
+        2509.999990463257
+      ],
+      "maps": {
+        "diffuse": {
+          "path": "grass_ground/grass_ground_diff_1k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/grass_ground/grass_ground_diff_1k.jpg",
+          "sha256": "a79cc5ed65af0f80261b39a383b64a8c5272c5144d724deb43dbc29f0e4cd19b",
+          "bytes": 876584
+        },
+        "normal": {
+          "path": "grass_ground/grass_ground_nor_gl_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/grass_ground/grass_ground_nor_gl_1k.png",
+          "sha256": "27b4902c4cf5d70c35045f1855ff2bd2eda015037fb5c36187fa69de0077d689",
+          "bytes": 6072059
+        },
+        "roughness": {
+          "path": "grass_ground/grass_ground_rough_1k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/grass_ground/grass_ground_rough_1k.jpg",
+          "sha256": "111341f948b7e073edf7ac6add8777e1bf10df8959400df3863243e89bbc8c08",
+          "bytes": 328190
+        }
+      }
+    },
+    "brown_mud_leaves_01": {
+      "url": "https://polyhaven.com/a/brown_mud_leaves_01",
+      "authors": {
+        "Rob Tuytel": "All"
+      },
+      "dimensionsMillimeters": [
+        1299.9998331069946,
+        1299.9998331069946
+      ],
+      "maps": {
+        "diffuse": {
+          "path": "brown_mud_leaves_01/brown_mud_leaves_01_diff_1k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_mud_leaves_01/brown_mud_leaves_01_diff_1k.jpg",
+          "sha256": "c598c555f13cd5328409fd5e2a45496a26e319e52299e3959042f1449c2f1b06",
+          "bytes": 1206953
+        },
+        "normal": {
+          "path": "brown_mud_leaves_01/brown_mud_leaves_01_nor_gl_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/brown_mud_leaves_01/brown_mud_leaves_01_nor_gl_1k.png",
+          "sha256": "0c5c37348830b6a36024a114359e26aaf2f48bf2b435a5ef2d6999bcd4b530b7",
+          "bytes": 6109028
+        },
+        "roughness": {
+          "path": "brown_mud_leaves_01/brown_mud_leaves_01_rough_1k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_mud_leaves_01/brown_mud_leaves_01_rough_1k.jpg",
+          "sha256": "9f84b7e7b5fdd2ff9798645fdec243b994fced05e543692761994b793211b5d0",
+          "bytes": 644332
+        }
+      }
+    },
+    "wood_planks_grey": {
+      "url": "https://polyhaven.com/a/wood_planks_grey",
+      "authors": {
+        "Rob Tuytel": "All"
+      },
+      "dimensionsMillimeters": [
+        1500,
+        1500.0001192092896
+      ],
+      "maps": {
+        "diffuse": {
+          "path": "wood_planks_grey/wood_planks_grey_diff_1k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_planks_grey/wood_planks_grey_diff_1k.jpg",
+          "sha256": "d758be23e8fe7bfbd73bc4ab257cfd59406e1835f6557c12a67cd4fdb15de0d8",
+          "bytes": 228279
+        },
+        "normal": {
+          "path": "wood_planks_grey/wood_planks_grey_nor_gl_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/wood_planks_grey/wood_planks_grey_nor_gl_1k.png",
+          "sha256": "a9f2ad602eca2d59e84f203b1087e819e62ae517532bb25f7eb02a13c826e08b",
+          "bytes": 5350344
+        },
+        "roughness": {
+          "path": "wood_planks_grey/wood_planks_grey_rough_1k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_planks_grey/wood_planks_grey_rough_1k.jpg",
+          "sha256": "ef640502cec94bd2b6500e252891a778a7a721be16b5536d4efc9fe4d99b12aa",
+          "bytes": 186804
+        }
+      }
+    },
+    "plastered_wall_03": {
+      "url": "https://polyhaven.com/a/plastered_wall_03",
+      "authors": {
+        "Rob Tuytel": "All"
+      },
+      "dimensionsMillimeters": [
+        4000,
+        4000
+      ],
+      "maps": {
+        "diffuse": {
+          "path": "plastered_wall_03/plastered_wall_03_diff_1k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/plastered_wall_03/plastered_wall_03_diff_1k.jpg",
+          "sha256": "3d60687bae1d9cd2c14a46c4b2673e0fe753cf4b5eb82c22cc399271e16d8d5b",
+          "bytes": 555233
+        },
+        "normal": {
+          "path": "plastered_wall_03/plastered_wall_03_nor_gl_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/plastered_wall_03/plastered_wall_03_nor_gl_1k.png",
+          "sha256": "6e4f4213595833a6956b890114e06ef6b4a009592d48f5acfcfce1d816aa9743",
+          "bytes": 5046300
+        },
+        "roughness": {
+          "path": "plastered_wall_03/plastered_wall_03_rough_1k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/plastered_wall_03/plastered_wall_03_rough_1k.jpg",
+          "sha256": "0f005efa43089f10d40cc0f96c6739beb8d1d5813ddb1acb51a0fdda75ee62ba",
+          "bytes": 301836
+        }
+      }
+    },
+    "coast_sand_01": {
+      "url": "https://polyhaven.com/a/coast_sand_01",
+      "authors": {
+        "Rob Tuytel": "All"
+      },
+      "dimensionsMillimeters": [
+        15000,
+        15000
+      ],
+      "maps": {
+        "diffuse": {
+          "path": "coast_sand_01/coast_sand_01_diff_1k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/coast_sand_01/coast_sand_01_diff_1k.jpg",
+          "sha256": "58af2e40100f7f405703a86d593af64379f822c4786850def23ecfc921450d54",
+          "bytes": 960614
+        }
+      }
+    },
+    "rock_face_03": {
+      "url": "https://polyhaven.com/a/rock_face_03",
+      "authors": {
+        "Dario Barresi": "Photography",
+        "Rico Cilliers": "Processing"
+      },
+      "dimensionsMillimeters": [
+        2699.9995708465576,
+        2699.9995708465576
+      ],
+      "maps": {
+        "diffuse": {
+          "path": "rock_face_03/rock_face_03_diff_1k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rock_face_03/rock_face_03_diff_1k.jpg",
+          "sha256": "ea48e0e47ad42c8bd312476178b1248ec66f0eb19156a26a1c222f2a40caaf2d",
+          "bytes": 927082
+        },
+        "normal": {
+          "path": "rock_face_03/rock_face_03_nor_gl_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rock_face_03/rock_face_03_nor_gl_1k.png",
+          "sha256": "69cb133b4c6e7d046820bf5d1642dde3bbbaa56e5d4c889992ba251db8cf5218",
+          "bytes": 5841646
+        },
+        "roughness": {
+          "path": "rock_face_03/rock_face_03_rough_1k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rock_face_03/rock_face_03_rough_1k.jpg",
+          "sha256": "9e3d9a2fd75244892e7acb6bab2eaed1279299510a7970672c0ee27ff1c19fea",
+          "bytes": 638904
+        }
+      }
+    }
+  }
+}

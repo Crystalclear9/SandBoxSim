@@ -27,6 +27,7 @@
 | `visual-architecture` | 五种住房与仓库的无标题裁切图与对象识别题 |
 | `visual-characters` | 成人、儿童、鹿和狼的对象识别 |
 | `visual-faces` | 面部近景，供人工表面检查 |
+| `visual-landscape` | 种子 839102、40 人、冻结模拟的地表远近景；第 40/80 帧截图，无 FPS 门槛，用于人工检查材质与岸线 |
 | `visual-hands` | 锤、斧、锄的两次握持姿态 |
 | `ui-modern-observation` | 自由运行 14 日后的新 UI、面部/手部/全身构图与设置交互 |
 | `world-living-paths` | 自由运行 14 日，聚焦实际踩踏最多的土地；不预画道路 |
