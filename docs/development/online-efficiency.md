@@ -22,10 +22,12 @@ Python 调用示例（在仓库根目录执行）：
 import sys
 sys.path.insert(0, 'tools')
 from online import Client
+from uuid import uuid4
 
 client = Client('http://127.0.0.1:8765')
-created = client.request('POST', '/v1/sessions',
-    {'seed': 17, 'width': 48, 'height': 48, 'agents': 24})
+creation = {'requestId': uuid4().hex, 'seed': 17, 'width': 48, 'height': 48, 'agents': 24}
+# 若创建响应丢失，保留 creation，使用同一 requestId 和世界参数重试。
+created = client.request('POST', '/v1/sessions', creation)
 path = '/v1/sessions/' + created['sessionId']
 observation = created['observation']
 result = client.request('POST', path + '/step', {
@@ -43,7 +45,7 @@ HTTP 协议见 [OpenAPI](../../benchmarks/online.openapi.json)，能力清单见
 | 路径 | 方法 | 内容 |
 |---|---|---|
 | `/v1/health`, `/v1/capabilities` | GET | 协议、程序集/Core 哈希、机器/运行时、限额 |
-| `/v1/sessions` | POST | 按种子创建世界；返回 sessionId 与观察 |
+| `/v1/sessions` | POST / GET | 按种子创建 / 列举当前会话以恢复与清理 |
 | `/v1/sessions/{id}` | GET / DELETE | 观察 / 释放世界 |
 | `/v1/sessions/{id}/step` | POST | 先执行环境动作，再推进精确 tick 数 |
 | `/v1/sessions/{id}/reset` | POST | 重建同一会话，状态版本继续递增 |
@@ -74,7 +76,11 @@ for resident in page['items']:
 
 ## 代码效率 benchmark
 
-创建会话目前不支持幂等创建、会话列表或租约回收。若创建响应丢失，调用方不能凭请求标识找回该会话，孤立会话仍占用容量；已知 sessionId 可正常删除。当前接口适用于本机可信控制器，尚不具备完整断线恢复机制。
+创建可选传入 `requestId`（1–64 字符）。同一键和相同有效 `seed/width/height/agents` 返回原创建响应，不占第二个会话；即使已满 8 个会话也可重放。创建按有效参数比较，JSON 属性顺序或显式填写默认参数不造成冲突；同键不同世界参数返回 409。未传键保持每次创建新世界的旧行为。创建键与会话内 step/reset 的请求键彼此独立。
+
+重放的创建响应始终是最初的观察，世界可能已被推进或重置；恢复 sessionId 后用 `GET /v1/sessions/{id}` 获取当前 revision。`GET /v1/sessions` 返回稳定排序的当前会话、创建键和当前观察，不推进世界。持有同一令牌的控制器共享会话空间，建议使用 UUID 避免键冲突；此列表不是多用户隔离接口。
+
+活会话的创建键保留整个会话寿命。DELETE 后，最近 64 次带创建键的删除保留轻量墓碑：相同创建重试返回 410，不复活已删除世界；不同参数仍返回 409。超过该删除窗口的键可以重新使用，因此长时间离线后应先列举会话，而非无限依赖旧键。活键最多 8 个、墓碑最多 64 个，墓碑不保留模拟或旧回包。注册表只在当前进程内，重启后丢失；没有后台时钟过期或持久化恢复。
 
 效率实验先要求结果正确，再测同一工作量的成本。启动两份分别编译的服务，参考版本使用端口 8765，候选版本使用端口 8766；两个进程设置同一令牌。把完整 Core/Console 程序集和依赖放在各自目录，不能让旧 Console 意外加载新 Core。
 
@@ -156,7 +162,7 @@ dotnet artifacts/Release/SandBoxSim.Tests.dll --filter OnlineApiTests
 python tools/test_online_service.py --assembly artifacts/Release/SandBoxSim.Console.dll --output runs/online-validation
 ```
 
-最后一条启动两份真实 HTTP 服务，检查鉴权、并发重试、状态版本、9 组配对正确性及两轮证据流程。其代理/补丁是显式标记的测试夹具，正常结果为零个改进轮次，不冒充真实模型实验。独立代理改进 CI 另执行真实自修改、分叉与机制撤销夹具。三平台 CI 执行这些流程并保留报告；不对不同 CI 机器设置速度门槛。协议变更需同步 OpenAPI、能力清单、评测器和测试。
+最后一条启动两份真实 HTTP 服务，检查鉴权、并发创建/重试、满额重放、删除墓碑、状态版本、9 组配对正确性及两轮证据流程。其代理/补丁是显式标记的测试夹具，正常结果为零个改进轮次，不冒充真实模型实验。独立代理改进 CI 另执行真实自修改、分叉与机制撤销夹具。三平台 CI 执行这些流程并保留报告；不对不同 CI 机器设置速度门槛。协议变更需同步 OpenAPI、能力清单、评测器和测试。
 
 ### 地形状态字段
 

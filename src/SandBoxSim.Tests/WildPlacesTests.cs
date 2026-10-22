@@ -10,6 +10,14 @@ namespace SandBoxSim.Tests;
 
 public sealed class WildPlacesTests
 {
+    [Fact("按地图尺寸载入地点时丢弃越界地点与手记，保留有效坐标")]
+    public void ClientPlacesRespectRestoredWorldBounds()
+    {
+        var root=JsonParser.Parse("{\"places\":[{\"kind\":5,\"x\":8,\"y\":9},{\"kind\":5,\"x\":50,\"y\":50},{\"kind\":5,\"x\":-1,\"y\":3}],\"marks\":[{\"x\":8,\"y\":9,\"name\":\"有效\"},{\"x\":50,\"y\":50,\"name\":\"越界\"}]}");
+        var places=WildPlaces.Decode(root,24,20);
+        Assert.Equal(1,places.Places.Count);Assert.Equal(8,places.Places[0].X);
+        Assert.Equal(1,places.Marks.Count);Assert.Equal("有效",places.Marks[0].Name);
+    }
     private static Simulation World(int seed=839102)
     {
         var sim=new Simulation(new SimConfig(),80,80,seed);

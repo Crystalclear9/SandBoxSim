@@ -192,15 +192,20 @@ public sealed class WildPlaces
         var marks=JsonValue.Array();foreach(var m in _marks)marks.Add(JsonValue.Object().Set("x",JsonValue.From(m.X)).Set("y",JsonValue.From(m.Y)).Set("name",JsonValue.From(m.Name)));
         return JsonValue.Object().Set("lastDay",JsonValue.From(LastDay)).Set("places",array).Set("marks",marks);
     }
-    public static WildPlaces Decode(JsonValue root)
+    public static WildPlaces Decode(JsonValue root,int width=int.MaxValue,int height=int.MaxValue)
     {
         var result=new WildPlaces { LastDay=Math.Max(0,root.GetLong("lastDay")) };
         foreach(var v in root.Get("places").Items.Take(65536))
         {
             int kind=v.GetInt("kind",-1);if(kind<0 || kind>7)continue;
+            int x=v.GetInt("x"),y=v.GetInt("y");if(x<0||y<0||x>=width||y>=height)continue;
             result._places.Add(new WildPlace { Kind=(WildPlaceKind)kind,X=v.GetInt("x"),Y=v.GetInt("y"),Name=v.GetString("name", "荒野"),EstablishedDay=Math.Max(-8,v.GetLong("establishedDay",-8)),Growth=Math.Clamp(v.GetFloat("growth",1),0,1) });
         }
-        foreach(var v in root.Get("marks").Items.Take(32))result.Remember(v.GetInt("x",-1),v.GetInt("y",-1),v.GetString("name"));
+        foreach(var v in root.Get("marks").Items.Take(32))
+        {
+            int x=v.GetInt("x",-1),y=v.GetInt("y",-1);
+            if(x>=0&&y>=0&&x<width&&y<height)result.Remember(x,y,v.GetString("name"));
+        }
         return result;
     }
 }

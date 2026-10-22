@@ -31,7 +31,9 @@
     "automaticCandidateAdoption": false,
     "frozenRealSourceResearchComparison": true,
     "renderBuildSourceIdentity": true,
-    "entityInspection": true
+    "entityInspection": true,
+    "creationIdempotency": true,
+    "sessionListing": true
   },
   "schemas": {
     "request": "request.schema.json",
@@ -71,7 +73,12 @@
     "maxInspectItems": 128,
     "replayWindow": 64,
     "retryIdentity": "operation-and-exact-JSON",
-    "entityIdentity": "session-scoped epoch:kind:slot:generation"
+    "entityIdentity": "session-scoped epoch:kind:slot:generation",
+    "creationRetryIdentity": "effective-seed-width-height-agents",
+    "creationReplayLifetime": "active-session-and-last-64-keyed-deletions",
+    "creationTombstoneWindow": 64,
+    "sessionListing": "GET /v1/sessions",
+    "sessionPersistence": "process-local-only"
   },
   "metaBenchmark": {
     "entry": "tools/rsi_benchmark.py",

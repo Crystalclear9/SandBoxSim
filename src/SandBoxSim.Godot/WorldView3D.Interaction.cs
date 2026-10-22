@@ -245,6 +245,7 @@ public partial class WorldView3D
     }
     public void ValidateInteractionContinuity()
     {
+        ValidatePoseScheduling();
         var target=_target;float distance=_distance,yaw=_yaw,pitch=_pitch;var mouse=_mouse;
         string state=Game.Sim.StateDigestString();
         try

@@ -25,7 +25,13 @@ public partial class MainGame
     }
     public void LookAtPlace(int x,int y)
     {
+        if(!Sim.World.IsInBounds(x,y))return;
         SelectTool(SandBoxSim.Core.Systems.PlayerTool.Inspect);
         _selectedX=x; _selectedY=y; FocusLocation(x,y); _discovery.Refresh();
+    }
+    private void FitSelectionToWorld()
+    {
+        _selectedX=System.Math.Clamp(_selectedX,0,Sim.World.Width-1);
+        _selectedY=System.Math.Clamp(_selectedY,0,Sim.World.Height-1);
     }
 }

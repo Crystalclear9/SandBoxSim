@@ -1081,6 +1081,11 @@ public sealed class Simulation
     /// </summary>
     public void ValidateInvariants()
     {
+        if (!Wildlife.TryValidateStructure(out string wildlifeError))
+        {
+            Fail("Wildlife: " + wildlifeError);
+            return;
+        }
         Tile[] tiles = World.Tiles;
         for (int i = 0; i < tiles.Length; i++)
         {

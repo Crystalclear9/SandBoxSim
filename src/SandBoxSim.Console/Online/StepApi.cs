@@ -24,16 +24,30 @@ public sealed class StepApi
         public long Revision, Epoch;
         public long Calls, Steps, Actions;
         public bool Faulted;
+        public string? CreationRequestId;
         public object? CachedObservation, CachedMap;
         public readonly Dictionary<string, byte[]> EncodedReads = new(StringComparer.Ordinal);
         public readonly Dictionary<string, (string operation, string input, object output)> Replies = new(StringComparer.Ordinal);
         public Session(Simulation sim) { Sim = sim; }
     }
     private readonly Dictionary<string, Session> _sessions = new(StringComparer.Ordinal);
+    private readonly record struct CreationInput(int Seed,int Width,int Height,int Agents);
+    private sealed class CreationReply
+    {
+        public readonly CreationInput Input;
+        public readonly string SessionId;
+        public object? Output;
+        public CreationReply(CreationInput input,string sessionId,object output){Input=input;SessionId=sessionId;Output=output;}
+    }
+    // Active creation keys remain recoverable for the session's lifetime.
+    // Deleted keys retain only bounded tombstones, never simulation references.
+    private readonly Dictionary<string,CreationReply> _creations=new(StringComparer.Ordinal);
+    private readonly Queue<string> _creationTombstones=new();
     public const int MaxSessions = 8;
     public const int MaxTicks = 1000;
     public const int MaxInspectItems = 128;
     public const int ReplayWindow = 64;
+    public const int CreationTombstoneWindow = 64;
 
     public byte[] Encode(string method,string path,JsonElement body)
     {
@@ -51,17 +65,43 @@ public sealed class StepApi
     public object Dispatch(string method, string path, JsonElement body)
     {
         var parts = path.Trim('/').Split('/');
+        if(method=="GET"&&path.TrimEnd('/')=="/v1/sessions")
+        {
+            Fields(body);
+            return new {schemaVersion=1,maxSessions=MaxSessions,sessions=_sessions.OrderBy(p=>p.Key,StringComparer.Ordinal)
+                .Select(p=>new {sessionId=p.Key,requestId=p.Value.CreationRequestId,observation=Observe(p.Value)}).ToArray()};
+        }
         if (method == "POST" && path == "/v1/sessions")
         {
+            var creationInput=ParseCreation(body);
+            string? requestId=body.TryGetProperty("requestId",out _)?Text(body,"requestId",1,64):null;
+            if(requestId!=null&&_creations.TryGetValue(requestId,out var previous))
+            {
+                if(creationInput!=previous.Input)throw new ApiError(409,"Creation requestId reused with different effective world parameters");
+                if(previous.Output==null)throw new ApiError(410,"Creation session was deleted; use a new requestId");
+                return previous.Output;
+            }
             if (_sessions.Count >= MaxSessions) { throw new ApiError(429, "Session limit reached; delete an old session"); }
-            var sim = Create(body);
+            var sim = Create(creationInput);
             string id = Guid.NewGuid().ToString("N");
-            var session = new Session(sim); _sessions.Add(id, session);
-            return new { schemaVersion = 1, sessionId = id, observation = Observe(session) };
+            var session = new Session(sim) {CreationRequestId=requestId};
+            var output=new { schemaVersion = 1, sessionId = id, observation = Observe(session) };
+            _sessions.Add(id,session);
+            if(requestId!=null)_creations.Add(requestId,new CreationReply(creationInput,id,output));
+            return output;
         }
         if (parts.Length < 3 || parts[0] != "v1" || parts[1] != "sessions" || !_sessions.TryGetValue(parts[2], out var s))
             throw new ApiError(404, "Unknown endpoint or session");
-        if (parts.Length == 3 && method == "DELETE") { _sessions.Remove(parts[2]); return new { deleted = true }; }
+        if (parts.Length == 3 && method == "DELETE")
+        {
+            _sessions.Remove(parts[2]);
+            if(s.CreationRequestId is string requestId&&_creations.TryGetValue(requestId,out var creation)&&creation.SessionId==parts[2])
+            {
+                creation.Output=null;_creationTombstones.Enqueue(requestId);
+                while(_creationTombstones.Count>CreationTombstoneWindow)_creations.Remove(_creationTombstones.Dequeue());
+            }
+            return new { deleted = true };
+        }
         if (parts.Length == 3 && method == "GET") { return Observe(s); }
         if (parts.Length == 4 && parts[3] == "map" && method == "GET")
         {
@@ -127,10 +167,19 @@ public sealed class StepApi
 
     private static Simulation Create(JsonElement body, bool checkFields = true)
     {
-        if (checkFields) { Fields(body, "seed", "width", "height", "agents"); }
+        return Create(ParseCreation(body,checkFields));
+    }
+    private static CreationInput ParseCreation(JsonElement body,bool checkFields=true)
+    {
+        if (checkFields) { Fields(body, "seed", "width", "height", "agents", "requestId"); }
         int seed = Int(body, "seed", int.MinValue, int.MaxValue);
         int width = OptionalInt(body, "width", 16, 128, 48), height = OptionalInt(body, "height", 16, 128, 48);
         int agents = OptionalInt(body, "agents", 0, 200, 24);
+        return new(seed,width,height,agents);
+    }
+    private static Simulation Create(CreationInput input)
+    {
+        int seed=input.Seed,width=input.Width,height=input.Height,agents=input.Agents;
         var config = new SimConfig(); config.World.Width = width; config.World.Height = height; config.WorldGen.Seed = seed;
         config.Debug.AssertInvariants = true;
         var sim = new Simulation(config, width, height, seed);

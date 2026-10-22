@@ -75,6 +75,20 @@ class EvaluationTests(unittest.TestCase):
         files = {"win32": self.folder / "win/Godot_console.exe", "darwin": self.folder / "mac/Godot.app/Contents/MacOS/Godot", "linux": self.folder / "linux/Godot_v4.7.2-stable_mono_linux.x86_64"}
         for path in files.values(): path.parent.mkdir(parents=True); path.write_bytes(b"fixture"); path.chmod(0o700)
         for platform, path in files.items(): self.assertEqual(evaluate.installed_engines(self.folder, platform), [path])
+    def test_package_configuration_is_part_of_canonical_build_identity(self):
+        root=self.folder/'configured-project';root.mkdir()
+        package_config=root/'NuGet.config';package_config.write_text('<clear/>',encoding='utf-8')
+        assembly=root/'SandBoxSim.Godot.dll';assembly.write_bytes(b'game')
+        assembly.with_name('SandBoxSim.Core.dll').write_bytes(b'core')
+        sources=evaluate.compiled_source_hashes(root)
+        self.assertIn('NuGet.config',sources)
+        self.assertNotIn('NuGet.Config',sources)
+        evaluate.write(assembly.with_name('build-source.json'),{
+            'schemaVersion':1,'configuration':'Debug','sourceFiles':sources,
+            'assemblySha256':evaluate.digest(assembly),'coreSha256':evaluate.digest(assembly.with_name('SandBoxSim.Core.dll'))})
+        evaluate.validate_build(root,assembly)
+        package_config.write_text('<changed-source/>',encoding='utf-8')
+        with self.assertRaisesRegex(ValueError,'build identity'):evaluate.validate_build(root,assembly)
     def test_json_cli_errors_and_malformed_predictions(self):
         import subprocess,sys
         predictions = self.folder / "bad.json"; evaluate.write(predictions, [dict(id=[],label="house")])

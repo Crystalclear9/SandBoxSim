@@ -38,7 +38,9 @@ public static class HttpService
             os = RuntimeInformation.OSDescription, architecture = RuntimeInformation.ProcessArchitecture.ToString(), framework = RuntimeInformation.FrameworkDescription,
             processorCount = System.Environment.ProcessorCount, maxSessions = StepApi.MaxSessions, maxTicksPerCall = StepApi.MaxTicks,
             actions = new[] { "terrain", "resource", "fertility" }, visualObservation = false,
-            entityInspection = true, maxInspectItems = StepApi.MaxInspectItems, replayWindow = StepApi.ReplayWindow };
+            entityInspection = true, maxInspectItems = StepApi.MaxInspectItems, replayWindow = StepApi.ReplayWindow,
+            creationIdempotency = true, sessionListing = true, creationTombstoneWindow = StepApi.CreationTombstoneWindow,
+            creationRetryIdentity = "effective-seed-width-height-agents", creationReplayLifetime = "active-session-and-last-64-keyed-deletions" };
         System.Console.WriteLine(JsonSerializer.Serialize(new { listening = $"http://127.0.0.1:{port}/", protocol = "sandboxsim-step-v1" }));
         try
         {

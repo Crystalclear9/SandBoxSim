@@ -11,6 +11,7 @@
 | `local_environment.py` | Python 启动器共用的项目内依赖、CLI 状态与临时路径 |
 | `build.ps1` / `build-lib.ps1` | Core、Console、Tests 的 SDK/csc 构建与执行 |
 | `godot.ps1` / `godot-lib.ps1` | Godot 独立构建、导入、运行、编辑器与自检 |
+| `test-godot-manifest.ps1` | 检查 NuGet.config 规范大小写与包源配置变化对构建身份的影响 |
 | `export-game.ps1` / `test-godot-export.ps1` | Windows 项目本地模板导出、零退出码错误防护、成品自检后更新与日志判定回归 |
 | `bake-models.ps1` | 在项目本地 Blender 中重建人体解剖手部和动物连续蒙皮 |
 | `export_human_hands.py` / `export_hand_lod.py` / `bake_animal_surfaces.py` | 掌指重定向、同源手部减面、腕口贴合、动物体素缝合与蒙皮转移；由 Blender 执行 |

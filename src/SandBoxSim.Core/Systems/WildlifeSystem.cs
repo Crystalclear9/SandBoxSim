@@ -22,6 +22,7 @@ public sealed class WildlifeSystem
     private readonly Simulation _sim;
     private readonly WildlifeStore _store;
     private readonly WildlifeConfig _config;
+    private readonly System.Collections.Generic.List<int> _dayPopulation = new();
 
     /// <summary>本 tick 的繁殖与死亡数（统计与调试用）。</summary>
     public int BirthsThisTick { get; private set; }
@@ -280,11 +281,13 @@ public sealed class WildlifeSystem
         float birthChance = _config.ReproductionChancePerDay * SimMath.Clamp01(1f - crowding);
         float deathChance = _config.NaturalDeathChancePerDay;
 
-        // 同样遍历"存活列表"而不是整个容量数组。
-        // 注意末尾交换删除的影响：Kill 之后 k 要回退一格，否则会跳过一个个体。
-        for (int k = 0; k < _store.LiveCount; k++)
+        // Capture the starting cohort. Births append to the live order while
+        // deaths swap-remove entries; iterating its changing Count can age and
+        // reproduce a newborn immediately, or process it in a dead adult's place.
+        _dayPopulation.Clear();
+        for (int k = 0; k < _store.LiveCount; k++) { _dayPopulation.Add(_store.LiveAt(k)); }
+        foreach (int index in _dayPopulation)
         {
-            int index = _store.LiveAt(k);
             if (!_store.IsAlive(index)) { continue; }
 
             int age = _store.AgeDaysOf(index) + 1;
@@ -296,13 +299,12 @@ public sealed class WildlifeSystem
             {
                 _store.Kill(index, hunted: false);
                 DeathsThisTick++;
-                k--;
                 continue;
             }
 
             // 繁殖：能量要够（有存粮才生），且未超容量。
-            // Add 只占用空闲槽位、不移动已有元素，因此新增个体不会打乱本次遍历
-            // （它会落在 LiveCount 之后，明天才参与更新）。
+            // Newborn slots are absent from the captured cohort and start at
+            // age zero. They participate in the next day's update.
             if (population + BirthsThisTick >= EnvironmentCapacity) { continue; }
             if (_store.EnergyOf(index) < 0.55f) { continue; }
             if (!rng.Chance(birthChance)) { continue; }

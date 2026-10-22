@@ -15,6 +15,56 @@ public sealed class OnlineApiTests
         try {Call(api,"POST",path,body);Assert.True(false,"Request should fail");}
         catch(ApiError e){Assert.Equal(status,e.Status);}
     }
+    [Fact("Creation retries normalize defaults and property order, retain initial replies and work at capacity")]
+    public void RecoverCreationAtCapacity()
+    {
+        var api=new StepApi();
+        var created=Call(api,"POST","/v1/sessions","{\"requestId\":\"create-one\",\"seed\":17}");
+        string path="/v1/sessions/"+created.GetProperty("sessionId").GetString();
+        Call(api,"POST",path+"/step","{\"requestId\":\"step\",\"expectedRevision\":0,\"ticks\":1}");
+        string reordered="{\"height\":48,\"agents\":24,\"width\":48,\"seed\":17,\"requestId\":\"create-one\"}";
+        for(int i=1;i<StepApi.MaxSessions;i++)Create(api);
+        Assert.Equal(created.GetRawText(),Call(api,"POST","/v1/sessions",reordered).GetRawText());
+        Assert.Equal(1L,Call(api,"GET",path).GetProperty("tick").GetInt64());
+        var listing=Call(api,"GET","/v1/sessions");
+        Assert.Equal(StepApi.MaxSessions,listing.GetProperty("sessions").GetArrayLength());
+        bool found=false;
+        foreach(var entry in listing.GetProperty("sessions").EnumerateArray())
+            if(entry.GetProperty("requestId").GetString()=="create-one")
+            {found=true;Assert.Equal(1L,entry.GetProperty("observation").GetProperty("tick").GetInt64());}
+        Assert.True(found);
+        Fails(api,"/v1/sessions","{\"requestId\":\"create-one\",\"seed\":18}",409);
+        Fails(api,"/v1/sessions","{\"requestId\":\"different\",\"seed\":17}",429);
+    }
+    [Fact("Deleted keyed sessions are tombstoned and bounded retirement never evicts a live creation key")]
+    public void CreationTombstonesAreBounded()
+    {
+        var api=new StepApi();
+        string active="{\"requestId\":\"active\",\"seed\":17,\"width\":16,\"height\":16,\"agents\":0}";
+        var persistent=Call(api,"POST","/v1/sessions",active);
+        string? firstId=null;
+        for(int i=0;i<=StepApi.CreationTombstoneWindow;i++)
+        {
+            string request="{\"requestId\":\"retired-"+i+"\",\"seed\":17,\"width\":16,\"height\":16,\"agents\":0}";
+            var created=Call(api,"POST","/v1/sessions",request);string id=created.GetProperty("sessionId").GetString()!;
+            if(i==0)firstId=id;
+            Call(api,"DELETE","/v1/sessions/"+id);
+            Fails(api,"/v1/sessions",request,410);
+        }
+        Assert.Equal(persistent.GetRawText(),Call(api,"POST","/v1/sessions",active).GetRawText());
+        Assert.Equal(1,Call(api,"GET","/v1/sessions").GetProperty("sessions").GetArrayLength());
+        var reused=Call(api,"POST","/v1/sessions","{\"requestId\":\"retired-0\",\"seed\":17,\"width\":16,\"height\":16,\"agents\":0}");
+        Assert.NotEqual(firstId,reused.GetProperty("sessionId").GetString());
+        Assert.Equal(0L,reused.GetProperty("observation").GetProperty("tick").GetInt64());
+    }
+    [Fact("Invalid creation IDs and duplicate fields cannot allocate sessions")]
+    public void ValidateCreationBeforeAllocation()
+    {
+        var api=new StepApi();
+        foreach(string body in new[]{"{\"requestId\":\"\",\"seed\":17}","{\"requestId\":null,\"seed\":17}","{\"requestId\":\"x\",\"requestId\":\"x\",\"seed\":17}","{\"requestId\":\"x\",\"seed\":17,\"width\":1}"})
+            Fails(api,"/v1/sessions",body,400);
+        Assert.Equal(0,Call(api,"GET","/v1/sessions").GetProperty("sessions").GetArrayLength());
+    }
     [Fact("Online steps are deterministic across independent sessions and observation is pure")]
     public void DeterministicStep()
     {

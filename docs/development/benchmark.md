@@ -112,6 +112,8 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 选定的实机配图可以复制到 `docs/images/`，完整实验样本继续保留在 `runs/evaluation/`；复制出的图片只用于说明，不替代原样本的哈希、状态、成本或答案记录。所有公开样例和协议入口集中在 [benchmarks](../../benchmarks/README.md)。
 
+构建身份记录与 Python 校验器共同使用仓库实际文件名 `NuGet.config`；改变包源配置会使旧构建身份失效，需要重新构建。PowerShell 与 Python 各有规范路径回归，避免 Windows 路径大小写宽容掩盖 Linux 上遗漏配置的差异。
+
 ---
 
 [文档导航](../README.md) · [项目首页](../../README.md)

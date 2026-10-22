@@ -9,7 +9,7 @@ function Get-GodotSourceHashes([string]$Root) {
                 $result[$relative] = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
             }
     }
-    foreach ($name in @('Directory.Build.props', 'global.json', 'NuGet.Config')) {
+    foreach ($name in @('Directory.Build.props', 'global.json', 'NuGet.config')) {
         $path = Join-Path $Root $name
         if (Test-Path -LiteralPath $path) { $result[$name] = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() }
     }

@@ -128,6 +128,7 @@ public partial class MainGame : Control
     private void NewWorld(int seed)
     {
         Sim = SandboxScenarios.Create(Scenario, seed, _initialPopulation);
+        FitSelectionToWorld();
         Sim.Config.Buildings.OrganicHousing = true;
         Wild = WildPlaces.Create(Sim);
         PinnedPerson = 0;
@@ -220,8 +221,9 @@ public partial class MainGame : Control
             if (!result.Success || !result.DigestMatches) { throw new InvalidOperationException(result.Error); }
             RestoreClientContext(root);
             Sim = restored; SubscribeVisualEvents(); _pending = 0; _selected = -1; _selectedPersonId = 0; _selectedAnimal = -1; _selectedWolf = -1;
+            FitSelectionToWorld();
             ResetMetricHistory();
-            _map.Focus(46, 50, 13); SyncControls(); _status.Text = "回到 " + _experimentLabel + "；试试另一种选择"; RefreshPanels(); _discovery.Refresh();
+            _map.Focus(_selectedX, _selectedY, 13); SyncControls(); _status.Text = "回到 " + _experimentLabel + "；试试另一种选择"; RefreshPanels(); _discovery.Refresh();
         }
         catch (Exception ex) { _status.Text = "回溯失败：" + ex.Message; GD.PushError(ex.ToString()); }
     }
@@ -312,6 +314,7 @@ public partial class MainGame : Control
             if (!result.Success || !result.DigestMatches) { throw new InvalidOperationException(result.Error + " " + result.SegmentDifference); }
             RestoreClientContext(root, true);
             Sim = restored; SubscribeVisualEvents(); _selected = -1; _selectedPersonId = 0; _selectedAnimal = -1; _selectedWolf = -1; _pending = 0; _map.Center(); SyncControls();
+            FitSelectionToWorld();
             ResetMetricHistory();
             _status.Text = "已恢复第 " + result.Day + " 天"; RefreshPanels(); _discovery.Refresh();
         }
@@ -327,7 +330,7 @@ public partial class MainGame : Control
     private void RestoreClientContext(JsonValue root, bool restoreCheckpoint = false)
     {
         Scenario = Math.Clamp(root.Get("client").GetInt("scenario", Scenario), 0, SandboxScenarios.Names.Length - 1);
-        Wild = WildPlaces.Decode(root.Get("client").Get("wild"));
+        Wild = WildPlaces.Decode(root.Get("client").Get("wild"),root.GetInt("width",Sim.World.Width),root.GetInt("height",Sim.World.Height));
         long.TryParse(root.Get("client").GetString("pin"), out long pin); PinnedPerson = pin;
         if (restoreCheckpoint)
         {
@@ -457,12 +460,14 @@ public partial class MainGame : Control
     }
     public void FocusSelectedHome()
     {
+        if(!Sim.World.IsInBounds(_selectedX,_selectedY))return;
         int slot=Sim.World.TileAt(_selectedX,_selectedY).BuildingId-1;
         if(slot<0||!Sim.Buildings.IsAlive(slot)||Sim.Buildings.KindOf(slot)!=BuildingKind.House)return;
         if(_map is WorldView3D view)view.FocusHome(slot);
     }
     public void FocusSelectedFarm()
     {
+        if(!Sim.World.IsInBounds(_selectedX,_selectedY))return;
         int slot=Sim.World.TileAt(_selectedX,_selectedY).BuildingId-1;
         if(slot>=0&&Sim.Buildings.IsAlive(slot)&&Sim.Buildings.KindOf(slot)==BuildingKind.Farm&&_map is WorldView3D view)view.FocusHome(slot);
     }
@@ -720,6 +725,7 @@ public partial class MainGame : Control
             if(!freeClient.Get("trial").IsNull || !freeClient.Get("projects").IsNull || !freeClient.Get("blueprint").IsNull || _drawer.GetTabCount()!=4)
                 throw new Exception("Legacy objectives survived in free exploration client");
             ValidateMetricWorldReplacement();
+            ValidateSmallWorldRestore();
             PlayerTools.Apply(Sim,PlayerTool.Forest,20,20,1,10); Sim.Fire.Ignite(20,20,Sim.Clock,"火情自检");
             string hazardBefore=StateHash.ComputeDigest(Sim); ((WorldView3D)_map).ValidateHazardVisuals();
             if(hazardBefore!=StateHash.ComputeDigest(Sim)) throw new Exception("Hazards observation mutated world");

@@ -56,6 +56,35 @@ public sealed class WildlifeStore : ISimEntitySet
     public int EntityCount => _liveCount;
     public int LiveCount => _liveCount;
 
+    /// <summary>Validate the live-order bijection without allocating scratch state.</summary>
+    public bool TryValidateStructure(out string error)
+    {
+        error = string.Empty;
+        if (_liveCount < 0 || _liveCount > _alive.Length)
+        { error = "Live count exceeds slot capacity"; return false; }
+        int aliveCount = 0;
+        for (int slot = 0; slot < _alive.Length; slot++)
+        {
+            int reverse = _liveIndexOfSlot[slot];
+            if (!_alive[slot])
+            {
+                if (reverse != -1) { error = "Dead slot remains in live order: " + slot; return false; }
+                continue;
+            }
+            aliveCount++;
+            if (reverse < 0 || reverse >= _liveCount || _live[reverse] != slot)
+            { error = "Live slot has invalid reverse index: " + slot; return false; }
+        }
+        if (aliveCount != _liveCount) { error = "Live count differs from alive slots"; return false; }
+        for (int i = 0; i < _liveCount; i++)
+        {
+            int slot = _live[i];
+            if (slot < 0 || slot >= _alive.Length || !_alive[slot] || _liveIndexOfSlot[slot] != i)
+            { error = "Live order contains a dead, duplicate or invalid slot at " + i; return false; }
+        }
+        return true;
+    }
+
     public WildlifeStore(int capacity = 256)
     {
         Resize(capacity > 0 ? capacity : 256);
@@ -64,6 +93,7 @@ public sealed class WildlifeStore : ISimEntitySet
     private void Resize(int capacity)
     {
         if (capacity < 1) { capacity = 1; }
+        int previousCapacity = _alive.Length;
         System.Array.Resize(ref _alive, capacity);
         System.Array.Resize(ref _x, capacity);
         System.Array.Resize(ref _y, capacity);
@@ -74,7 +104,9 @@ public sealed class WildlifeStore : ISimEntitySet
         System.Array.Resize(ref _generation, capacity);
         System.Array.Resize(ref _live, capacity);
         System.Array.Resize(ref _liveIndexOfSlot, capacity);
-        for (int i = 0; i < capacity; i++) { _liveIndexOfSlot[i] = -1; }
+        // Existing reverse indices describe the current live order. Resetting
+        // them on growth leaves dead slots in that order after the next Kill.
+        for (int i = previousCapacity; i < capacity; i++) { _liveIndexOfSlot[i] = -1; }
     }
 
     public void EnsureCapacity(int required)
@@ -104,17 +136,13 @@ public sealed class WildlifeStore : ISimEntitySet
     /// </summary>
     public int Add(Environment.World world, int preferredX, int preferredY, int searchRadius, DeterministicRandom rng)
     {
+        // A failed placement must not allocate a live slot, advance its
+        // generation or consume the caller's random stream.
+        if (!TryFindWalkable(world, preferredX, preferredY, searchRadius, out int x, out int y)) { return -1; }
         EnsureCapacity(_liveCount + 1);
 
         int slot = AllocateSlot();
         if (slot < 0) { return -1; }
-
-        if (!TryFindWalkable(world, preferredX, preferredY, searchRadius, out int x, out int y))
-        {
-            _alive[slot] = false;
-            _generation[slot]++;
-            return -1;
-        }
 
         _x[slot] = x;
         _y[slot] = y;

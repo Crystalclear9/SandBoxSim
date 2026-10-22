@@ -24,10 +24,18 @@ def smoke(assembly, output):
             Client(clients[0].url,'incorrect-token-value').request('GET','/v1/health')
             raise AssertionError('Missing authentication rejection')
         except urllib.error.HTTPError as e: assert e.code==401
-        client=clients[0]; created=client.request('POST','/v1/sessions',{'seed':17,'width':24,'height':24,'agents':4})
+        client=clients[0]; creation={'requestId':'create-smoke','seed':17,'width':24,'height':24,'agents':4}
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+            created_replies=list(pool.map(lambda _:client.request('POST','/v1/sessions',creation),range(2)))
+        assert created_replies[0]==created_replies[1]
+        created=created_replies[0]
         path='/v1/sessions/'+created['sessionId']; before=created['observation']
         assert client.request('GET',path)==before
-        assert client.request('GET','/v1/capabilities')['entityInspection']
+        capabilities=client.request('GET','/v1/capabilities')
+        assert capabilities['entityInspection'] and capabilities['creationIdempotency'] and capabilities['sessionListing']
+        assert capabilities['creationTombstoneWindow']==64
+        listing=client.request('GET','/v1/sessions')['sessions']
+        assert len(listing)==1 and listing[0]['sessionId']==created['sessionId'] and listing[0]['requestId']=='create-smoke'
         page=client.request('POST',path+'/inspect',{'expectedRevision':0,'kind':'agents','limit':2})
         assert page['total']==4 and len(page['items'])==2 and page['nextOffset']==2
         assert page['digest']==before['digest'] and client.request('GET',path)==before
@@ -47,6 +55,12 @@ def smoke(assembly, output):
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
             replies=list(pool.map(lambda _:client.request('POST',path+'/step',payload),range(2)))
         assert replies[0]==replies[1] and client.request('GET',path)['tick']==8
+        assert client.request('POST','/v1/sessions',dict(reversed(list(creation.items()))))==created
+        assert client.request('GET','/v1/sessions')['sessions'][0]['observation']['tick']==8
+        try:
+            client.request('POST','/v1/sessions',{**creation,'seed':18})
+            raise AssertionError('Conflicting creation retry allocated a world')
+        except urllib.error.HTTPError as e: assert e.code==409
         try:
             client.request('POST',path+'/reset',payload)
             raise AssertionError('Step reply was replayed through reset')
@@ -57,7 +71,21 @@ def smoke(assembly, output):
             client.request('POST',path+'/step',{'requestId':'stale','expectedRevision':0,'ticks':1})
             raise AssertionError('Missing stale-revision rejection')
         except urllib.error.HTTPError as e: assert e.code==409
+        extra=[]
+        for _ in range(capabilities['maxSessions']-1):
+            extra.append(client.request('POST','/v1/sessions',{'seed':17,'width':16,'height':16,'agents':0})['sessionId'])
+        assert client.request('POST','/v1/sessions',creation)==created
+        try:
+            client.request('POST','/v1/sessions',{'requestId':'over-capacity','seed':17})
+            raise AssertionError('Session capacity was exceeded')
+        except urllib.error.HTTPError as e: assert e.code==429
+        for session in extra: client.request('DELETE','/v1/sessions/'+session)
         client.request('DELETE',path)
+        try:
+            client.request('POST','/v1/sessions',creation)
+            raise AssertionError('Deleted creation retry resurrected a world')
+        except urllib.error.HTTPError as e: assert e.code==410
+        assert client.request('GET','/v1/sessions')['sessions']==[]
         report=evaluate(clients[0],clients[1],read(ROOT/'benchmarks/efficiency-smoke.json'),3)
         write(output/'paired.json',report)
         if not report['correct']: raise AssertionError(json.dumps(report['failures']))

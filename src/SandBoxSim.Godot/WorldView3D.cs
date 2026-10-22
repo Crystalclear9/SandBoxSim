@@ -292,7 +292,7 @@ public partial class WorldView3D : MapView
         _observerPaths = new SandBoxSim.Core.Pathing.AStarPathfinder(Game.Sim.World);
         _observedRoute = new Int2[Game.Sim.World.Tiles.Length]; _density = new int[Game.Sim.World.Tiles.Length];
         _routes.Mesh = null; _natureSignature = 0;
-        foreach (var e in _effects) { e.Node.QueueFree(); } _effects.Clear(); _people.Clear(); _deer.Clear(); _wolves.Clear(); _personModels.Clear();
+        foreach (var e in _effects) { e.Node.QueueFree(); } _effects.Clear(); _people.Clear(); _deer.Clear(); _wolves.Clear(); _personModels.Clear();_poseSchedule.Clear();
         ResetLivingDetails(); ResetBuildingVisuals(); BuildTerrain(); BuildNature(); BuildBuildings(); SyncEntities(); SyncHazards();
     }
     private void CheckTerrain(bool deferred=false)
@@ -713,14 +713,14 @@ NORMAL=normalize(mat3(VIEW_MATRIX)*surface_normal); }" };
         {
             long id = sim.Society.Identity(slot); live.Add(id);
             bool child = sim.Agents.LifeStageOf(slot) == LifeStage.Child; JobType job = sim.Agents.JobOf(slot);
-            if (_people.TryGetValue(id, out Node3D? old) && _personModels[id] != (child, job)) { old.QueueFree(); _people.Remove(id); }
+            if (_people.TryGetValue(id, out Node3D? old) && _personModels[id] != (child, job)) { old.QueueFree(); _people.Remove(id);_poseSchedule.Forget(id); }
             if (!_people.ContainsKey(id))
             {
                 var person = _models.Human(slot, child, job); _actors.AddChild(person); person.Position = PositionAt(sim.Agents.XOf(slot), sim.Agents.YOf(slot));
                 _people[id] = person; _personModels[id] = (child, job);
             }
         }
-        foreach (long id in _people.Keys.Where(k => !live.Contains(k)).ToArray()) { _people[id].QueueFree(); _people.Remove(id); _personModels.Remove(id); }
+        foreach (long id in _people.Keys.Where(k => !live.Contains(k)).ToArray()) { _people[id].QueueFree(); _people.Remove(id); _personModels.Remove(id);_poseSchedule.Forget(id); }
         live.Clear();
         foreach (int i in sim.Wildlife.AliveIndices())
         {
@@ -754,7 +754,7 @@ NORMAL=normalize(mat3(VIEW_MATRIX)*surface_normal); }" };
         var cameraPosition=_camera.Position;
         foreach (var pair in _people)
         {
-            int slot = (int)(pair.Key & uint.MaxValue); if (!sim.Agents.IsSlotAlive(slot) || sim.Society.Identity(slot) != pair.Key) { continue; }
+            int slot = (int)(pair.Key & uint.MaxValue); if (!sim.Agents.IsSlotAlive(slot) || sim.Society.Identity(slot) != pair.Key) { _poseSchedule.Forget(pair.Key);continue; }
             var node = pair.Value; Vector3 target = PositionAt(sim.Agents.XOf(slot), sim.Agents.YOf(slot));
             var current=node.Position;Vector3 direction = target-current;
             bool moving = sim.Agents.PhaseOf(slot) == ActionPhase.Moving;
@@ -763,6 +763,7 @@ NORMAL=normalize(mat3(VIEW_MATRIX)*surface_normal); }" };
             if(direction.LengthSquared()>.000001f)node.Position=rendered;
             bool visible=ActorInView(rendered+Vector3.Up*.9f,frustum);
             if(node.Visible!=visible)node.Visible=visible;
+            _poseSchedule.Accumulate(pair.Key,delta,visible&&!Game.VisualPaused);
             if(!visible)continue;
             if (!Game.VisualPaused && direction.X*direction.X+direction.Z*direction.Z > .002f) { node.Rotation = new Vector3(0, Mathf.LerpAngle(node.Rotation.Y,MathF.Atan2(direction.X, direction.Z) + MathF.PI,1-MathF.Exp(-delta*12)), 0); }
             if(!Game.VisualPaused&&sim.Agents.PhaseOf(slot)==ActionPhase.Executing)
@@ -783,7 +784,7 @@ NORMAL=normalize(mat3(VIEW_MATRIX)*surface_normal); }" };
             var interest=sim.Agents.TargetOf(slot);
             var attention=sim.Agents.HasTarget(slot)&&sim.World.IsInBounds(interest)?PositionAt(interest.X,interest.Y)-rendered:Vector3.Zero;
             rig.Attend(node.Basis.Inverse()*attention);
-            rig.PresentAction(delta*stride,sim.Agents.ActionOf(slot),sim.Agents.PhaseOf(slot),Game.VisualPaused,slot);
+            rig.PresentAction(_poseSchedule.Consume(pair.Key),sim.Agents.ActionOf(slot),sim.Agents.PhaseOf(slot),Game.VisualPaused,slot);
             if(distanceSquared<18*18&&!Game.VisualPaused)ConformFeet(rig);
         }
         foreach (var pair in _deer)

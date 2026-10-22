@@ -21,7 +21,7 @@ def compiled_source_hashes(root):
     for project in ('SandBoxSim.Core','SandBoxSim.Godot'):
         files.extend(p for p in (root/'src'/project).rglob('*') if p.is_file() and p.suffix in ('.cs','.csproj')
                      and not any(part in ('bin','obj','.godot') for part in p.relative_to(root/'src'/project).parts))
-    files.extend(root/name for name in ('Directory.Build.props','global.json','NuGet.Config') if (root/name).is_file())
+    files.extend(root/name for name in ('Directory.Build.props','global.json','NuGet.config') if (root/name).is_file())
     return {p.relative_to(root).as_posix():digest(p) for p in files}
 
 
