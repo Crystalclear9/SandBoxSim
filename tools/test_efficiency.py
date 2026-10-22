@@ -25,32 +25,61 @@ class EfficiencyTests(unittest.TestCase):
         self.assertFalse(e.report_summary([{'referenceMs':2,'candidateMs':1}]*9,identity,identity)['improvementDetected'])
 
     def report(self):
-        suite={'schemaVersion':1,'split':'heldout','cases':[{'seed':i} for i in range(3)]}
-        value={'digests':['a','b'],'mapSha256':'grid','queries':[],'stepMs':[1.],'pathMs':1.}
-        samples=[{'case':i,'repeat':r,'referenceMs':2.,'candidateMs':2.,'reference':copy.deepcopy(value),'candidate':copy.deepcopy(value)} for i in range(3) for r in range(3)]
-        return {'schemaVersion':1,'kind':'paired-efficiency-v1','correct':True,'failures':[],'samples':samples,'summary':e.paired_summary(samples),'suite':suite,
+        suite={'schemaVersion':1,'split':'heldout','cases':[{'seed':i,'width':16,'height':16,'agents':4,'pathQueries':1,'batches':1,'ticksPerBatch':10} for i in range(3)]}
+        value={'digests':['a','b'],'mapSha256':'grid','queries':[{'x':0,'y':0,'goalX':1,'goalY':1}],
+               'stepMs':[1.],'pathMs':1.,'setupAndReleaseMs':0.,'wallMs':2.,'measuredTicks':10,
+               'finalObservation':{'tick':15,'revision':2,'digest':'b','faulted':False}}
+        cold=[{key:copy.deepcopy(value) for key in ('reference','candidate')} for _ in range(3)]
+        samples=[{'case':i,'repeat':r,'reference':copy.deepcopy(value),'candidate':copy.deepcopy(value)} for i in range(3) for r in range(3)]
+        report={'schemaVersion':e.REPORT_SCHEMA,'kind':e.REPORT_KIND,'correct':True,'failures':[],'samples':samples,'suite':suite,'coldEpisodes':cold,
                 'suiteSha256':e.hashlib.sha256(json.dumps(suite,sort_keys=True).encode()).hexdigest(),'evaluatorSha256':e.sha(e.__file__),
                 'clientSha256':e.sha(Path(e.__file__).with_name('online.py')),'referenceIdentity':{'coreSha256':'baseline'},'candidateIdentity':{'coreSha256':'candidate'},'repeats':3}
+        self.retime(report);return report
+
+    def retime(self,report):
+        for pair in report['coldEpisodes']+report['samples']:
+            for key in ('reference','candidate'):
+                value=pair[key];value['wallMs']=sum(value['stepMs'])+value['pathMs']+value['setupAndReleaseMs']
+        for sample in report['samples']:
+            for key in ('reference','candidate'):
+                sample[key+'Ms']=sample[key]['wallMs']+report['coldEpisodes'][sample['case']][key]['wallMs']/report['repeats']
+        report['summary']=e.report_summary(report['samples'],report['referenceIdentity'],report['candidateIdentity'])
+
     def test_report_cannot_hide_bad_state_or_forge_score(self):
         report=self.report(); e.validate_report(report)
         report['samples'][0]['candidate']['digests']=['different']
         with self.assertRaises(ValueError): e.validate_report(report)
 
     def test_cold_and_setup_work_cannot_be_hidden(self):
-        report=self.report(); report['coldEpisodes']=[]
-        for _ in range(3):
-            cold={k:copy.deepcopy(report['samples'][0][k]) for k in ('reference','candidate')}
-            for v in cold.values(): v.update(setupAndReleaseMs=1.,wallMs=3.)
-            report['coldEpisodes'].append(cold)
-        for s in report['samples']:
-            s['referenceMs']+=1.; s['candidateMs']+=1.
-        report['summary']=e.paired_summary(report['samples']); e.validate_report(report)
+        report=self.report()
+        for pair in report['coldEpisodes']+report['samples']:
+            for key in ('reference','candidate'):pair[key]['setupAndReleaseMs']=1000.
+        self.retime(report);e.validate_report(report)
         report['coldEpisodes'][0]['candidate']['wallMs']=.001
         with self.assertRaises(ValueError): e.validate_report(report)
-        report=self.report(); report['summary']['medianSpeedup']=100
+        for operation in ('remove','empty','incomplete'):
+            report=self.report()
+            if operation=='remove':report.pop('coldEpisodes')
+            elif operation=='empty':report['coldEpisodes']=[]
+            else:report['coldEpisodes'].pop()
+            with self.subTest(operation=operation),self.assertRaises(ValueError):e.validate_report(report)
+        for group in ('samples','coldEpisodes'):
+            report=self.report();report[group][0]['candidate'].pop('setupAndReleaseMs')
+            with self.subTest(group=group),self.assertRaises(ValueError):e.validate_report(report)
+        report=self.report();report['summary']['medianSpeedup']=100
         with self.assertRaises(ValueError): e.validate_report(report)
-        report=self.report(); report['samples'].pop()
+        report=self.report();report['samples'].pop()
         with self.assertRaises(ValueError): e.validate_report(report)
+
+    def test_legacy_report_requires_explicit_rerun(self):
+        report=self.report();report.update(schemaVersion=1,kind='paired-efficiency-v1')
+        with self.assertRaisesRegex(ValueError,'rerun legacy'):e.validate_report(report)
+
+    def test_full_cost_ledger_rejects_missing_work_even_when_totals_match(self):
+        for field,value in [('stepMs',[]),('digests',['b']),('queries',[]),('measuredTicks',0),
+                            ('finalObservation',{'tick':15,'revision':2,'digest':'b','faulted':True})]:
+            report=self.report();report['samples'][0]['candidate'][field]=value;self.retime(report)
+            with self.subTest(field=field),self.assertRaises(ValueError):e.validate_report(report)
 
     def test_round_lineage_budget_and_control(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -73,7 +102,7 @@ class EfficiencyTests(unittest.TestCase):
                 for sample in report['samples']:
                     sample['reference']['stepMs']=[2.]; sample['reference']['pathMs']=2.; sample['referenceMs']=4.
                     sample['candidate']['stepMs']=[.5/(2**index)]; sample['candidate']['pathMs']=.5/(2**index); sample['candidateMs']=1./(2**index)
-                report['summary']=e.paired_summary(report['samples'])
+                self.retime(report)
                 name='report'+str(index)+'.json'; (root/name).write_text(json.dumps(report)); manifest['rounds'][index]['reportSha256']=e.sha(root/name)
             evidence=e.rounds(manifest,root)
             self.assertEqual(2,evidence['improvingRounds']); self.assertEqual(1,evidence['sequentialRuntimeImprovingRounds']); self.assertFalse(evidence['rsiClaim'])

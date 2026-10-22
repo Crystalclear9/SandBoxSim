@@ -9,6 +9,7 @@ internal partial class HudMetricTrail : Control
 {
     private readonly Queue<double> _values=new();
     private float _pulse;
+    internal int SampleCount=>_values.Count;
     public HudMetricTrail()
     {
         CustomMinimumSize=new(30,7);MouseFilter=MouseFilterEnum.Ignore;

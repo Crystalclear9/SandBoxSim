@@ -1,4 +1,13 @@
 # Shared Godot executable discovery; no build or network side effects.
+function Assert-GodotExportLog {
+    param([int]$ExitCode, [string]$Log)
+    # Some editor failures return zero and still write an executable containing
+    # an old assembly. The process status alone is not an export contract.
+    if ($ExitCode -ne 0 -or $Log -match '(?im)^\s*ERROR:(?! Failed to read the root certificate store\.)' -or
+        $Log -match '(?i)failed to build project|project export .*completed with warnings') {
+        throw 'Godot export failed; inspect the project-local export log. Previous game package was preserved.'
+    }
+}
 function Resolve-GodotExecutable {
     param([string]$Explicit, [string]$InstallRoot = (Join-Path (Split-Path -Parent $PSScriptRoot) '.tools/godot-4.7.2'),
         [ValidateSet('windows','linux','macos')][string]$Platform = $(if ($IsWindows) {'windows'} elseif ($IsMacOS) {'macos'} else {'linux'}))

@@ -26,18 +26,19 @@ Core、Console 与测试另支持 `-Channel csc`，适用于已有 .NET 运行�
 
 ## 独立游戏导出
 
-Windows 导出使用 Godot 4.7.2 .NET 的对应 Mono 导出模板。先在编辑器的“管理导出模板”中安装与编辑器一致的版本；模板是开发依赖，成品运行不需要它。
+Windows 导出使用与 Godot 4.7.2 .NET 编辑器匹配的 Mono 模板。将模板解压在项目 `.tools/godot-4.7.2/templates/`，其中应包含 `windows_release_x86_64.exe`；已有模板可通过 `-TemplatePath` 指定。模板和 SDK 属于项目本地开发依赖，不提交 Git。
 
 ```powershell
-./tools/godot.ps1 -Mode build -Configuration Release
-& $env:GODOT_EXE --headless --path src/SandBoxSim.Godot --export-release 'Windows Desktop' --quit
+./tools/export-game.ps1
+# 可选：指定已有的编辑器与对应 Mono Windows 模板
+./tools/export-game.ps1 -GodotPath $env:GODOT_EXE -TemplatePath './.tools/godot-4.7.2/templates/windows_release_x86_64.exe'
 ```
 
-`GODOT_EXE` 应指向已安装的 .NET 编辑器。预设输出为 `artifacts/game/windows/SandBoxSim.exe`，所需自包含 .NET 运行时放在相邻的 `data_SandBoxSim.Godot_windows_x86_64/`。二者共同构成独立包，不能只复制 EXE。网格、贴图与素材署名由 PCK 嵌入 EXE；普通游玩不再依赖 SDK、编辑器或 Blender。导出前设置当前 SDK 可执行目录到进程 `PATH`，例如从安装脚本输出的 SDK 目录运行。
+脚本解析 SDK 并设置子进程的 `PATH`/`DOTNET_ROOT`，在项目内的新暂存目录导出；结束后原样恢复导出预设。Godot 有时退出 0 但报告程序集构建失败，因此同时检查日志、完整数据目录和导出包的实际 `--self-test`。首次导出会解析并建立游戏自身的用户配置目录与编辑器快照子目录，不移动已有配置；编辑器进程有可配置的超时上限，避免包装进程退出后仍一直等待。只有通过后才复制到 `artifacts/game/windows/`，失败的导出不会替换现有游戏包，暂存目录随后清理。已知本机证书库诊断单独保留，其他导出错误和带警告的失败导出均拒绝发布。日志位于 `.tools/game-export*.log`。
 
-Windows 的 `Play-3D.cmd` 优先启动独立包；修改源码后重新导出，否则它仍运行上一次的成品。开发与自检继续用 `tools/godot.ps1`。Linux 与 macOS 对应预设为 `Linux`、`macOS`；本机 Windows 导出验证不代表其他平台成品已实测。
+EXE 与相邻 `data_SandBoxSim.Godot_windows_x86_64/` 共同构成自包含游戏，不能只复制 EXE。网格、贴图与素材署名嵌入 PCK；普通游玩不依赖 SDK、编辑器或 Blender。`Play-3D.cmd` 优先启动该包；源码修改后需重新导出。
 
-独立包可用 `SandBoxSim.exe --headless -- --self-test` 检查其实际打包资源和模型。GUI 可执行文件在 Windows Shell 中可能异步启动，自动化应等待进程退出并读取退出码。开发缓存与本机工具链的清理边界见 [存储维护](local-storage.md)。
+当前自动导出入口在 Windows 上导出并运行 Windows 成品自检。Linux/macOS 仍使用相应 Godot 预设，需在各自系统独立导出和启动验证；三平台源码 CI 不等于三平台发行包都已验证。导出日志判定回归可独立运行 `./tools/test-godot-export.ps1`。
 
 ## 命令行模拟
 

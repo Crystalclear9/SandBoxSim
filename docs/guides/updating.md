@@ -40,6 +40,10 @@ git pull --ff-only origin main
 
 开发者还应运行 [开发指南](../development/developer-guide.md) 中对应的检查。发生问题时记录提交、环境、存档版本和操作步骤，见 [故障排查](troubleshooting.md)。
 
+狼的探索、睡眠与寻水规则修复不改变存档格式，但含狼世界之后的行动与摘要可能不同。续跑确定性应在同一代码版本内比较，不能要求规则修复后仍复刻旧行为。
+
+Godot 项目显示名统一为 SandBoxSim。默认用户目录随项目名改变；新目录还没有 `interface.cfg` 时，客户端会只读旧名称目录中的动效偏好，设置后写入新目录，不移动或删除旧文件。旧目录中保存的其他文件继续保留，必要时从载入对话框选择原路径。
+
 ## 文档与资源位置
 
 使用文档位于 `docs/guides/`，开发资料位于 `docs/development/`，正式配图位于 `docs/images/`；不再使用的旧界面配图已移除，临时截图使用 `runs/screenshots/`。文档移动不改变游戏存档或资源路径，移动文档与配图时需同步所有引用，维护方法见 [目录与文件管理](../development/repository-layout.md)。

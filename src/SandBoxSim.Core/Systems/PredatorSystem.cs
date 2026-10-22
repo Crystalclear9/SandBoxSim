@@ -18,6 +18,10 @@ public sealed class PredatorSystem : ISimEntitySet
     }
     private readonly Simulation _sim;
     private readonly List<Predator> _wolves = new();
+    // Scratch search state is rebuilt for each decision and is not simulation state.
+    private readonly Queue<(Int2 Position, Int2 First, int Depth)> _drinkSearch = new();
+    private readonly HashSet<Int2> _drinkVisited = new();
+    private static readonly Int2[] Directions = { Int2.Right, Int2.Left, Int2.Down, Int2.Up };
     private int _nextId = 1;
     public int TotalKills { get; private set; }
     public IReadOnlyList<Predator> Wolves => _wolves;
@@ -69,9 +73,16 @@ public sealed class PredatorSystem : ISimEntitySet
                 dx = Math.Sign(wolf.X - _sim.Agents.XOf(human)); dy = Math.Sign(wolf.Y - _sim.Agents.YOf(human));
             }
             else if (wolf.DrinkUtility > wolf.HuntUtility && wolf.DrinkUtility > wolf.SleepUtility
-                && WildlifeSystem.CanDrinkAt(_sim.World, wolf.X, wolf.Y))
-            { wolf.Action = "Drink"; wolf.Thirst = SimMath.Clamp01(wolf.Thirst - elapsedDays * 2f); }
-            else if (wolf.SleepUtility > wolf.HuntUtility)
+                && wolf.DrinkUtility > wolf.RestUtility && TryDrinkStep(wolf, out var drinkStep))
+            {
+                wolf.Action = "Drink";
+                if (drinkStep.X == wolf.X && drinkStep.Y == wolf.Y)
+                    wolf.Thirst = SimMath.Clamp01(wolf.Thirst - elapsedDays * 2f);
+                else { dx = drinkStep.X - wolf.X; dy = drinkStep.Y - wolf.Y; }
+            }
+            // A missing prey target has utility zero. Comparing sleep only to
+            // that zero trapped every isolated wolf in a tiny-fatigue sleep loop.
+            else if (wolf.Fatigue >= .45f && wolf.SleepUtility > Math.Max(wolf.HuntUtility, wolf.RestUtility))
             { wolf.Action = "Sleep"; wolf.Fatigue = SimMath.Clamp01(wolf.Fatigue - elapsedDays * 2f); }
             else if (wolf.HuntUtility > wolf.RestUtility)
             {
@@ -88,8 +99,13 @@ public sealed class PredatorSystem : ISimEntitySet
             else
             {
                 wolf.Action = "Wander"; int direction = _sim.Random.Get(RngStream.Events).NextInt(4);
-                dx = direction == 0 ? 1 : direction == 1 ? -1 : 0;
-                dy = direction == 2 ? 1 : direction == 3 ? -1 : 0;
+                for (int choice = 0; choice < Directions.Length; choice++)
+                {
+                    var step = Directions[(direction + choice) % Directions.Length];
+                    int nx = wolf.X + step.X, ny = wolf.Y + step.Y;
+                    if (!_sim.World.IsInBounds(nx, ny) || !_sim.World.TileAt(nx, ny).Walkable) { continue; }
+                    dx = step.X; dy = step.Y; break;
+                }
             }
             if (dx != 0 || dy != 0)
             {
@@ -100,6 +116,28 @@ public sealed class PredatorSystem : ISimEntitySet
             if (wolf.Thirst >= 0.95f) { wolf.Energy = Math.Max(0, wolf.Energy - elapsedDays); }
         }
         _wolves.RemoveAll(w => w.Energy <= 0);
+    }
+    private bool TryDrinkStep(Predator wolf, out Int2 step)
+    {
+        var origin = new Int2(wolf.X, wolf.Y); step = origin;
+        if (WildlifeSystem.CanDrinkAt(_sim.World, wolf.X, wolf.Y)) { return true; }
+        int reach = Math.Max(0, _sim.Config.Predator.SenseRadius);
+        _drinkSearch.Clear(); _drinkVisited.Clear();
+        _drinkSearch.Enqueue((origin, origin, 0)); _drinkVisited.Add(origin);
+        while (_drinkSearch.Count > 0)
+        {
+            var current = _drinkSearch.Dequeue();
+            if (current.Depth >= reach) { continue; }
+            foreach (var direction in Directions)
+            {
+                var next = current.Position + direction;
+                if (!_sim.World.IsInBounds(next.X, next.Y) || !_sim.World.TileAt(next.X, next.Y).Walkable || !_drinkVisited.Add(next)) { continue; }
+                var first = current.Depth == 0 ? next : current.First;
+                if (WildlifeSystem.CanDrinkAt(_sim.World, next.X, next.Y)) { step = first; return true; }
+                _drinkSearch.Enqueue((next, first, current.Depth + 1));
+            }
+        }
+        return false;
     }
     public void TickDay(long tick)
     {

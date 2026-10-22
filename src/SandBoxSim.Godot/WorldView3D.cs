@@ -774,7 +774,7 @@ NORMAL=normalize(mat3(VIEW_MATRIX)*surface_normal); }" };
             // Keep position interpolation every frame; distant joint poses need fewer updates.
             int stride=distanceSquared>45*45?8:distanceSquared>30*30?6:distanceSquared>12*12?2:1;
             var rig=(ResidentRig)node;
-            rig.SetHeadDetail(distanceSquared<18*18);rig.SetHandDetail(distanceSquared<18*18);
+            rig.UpdateDistanceDetail(distanceSquared);
             if((_poseFrame+slot)%stride!=0)continue;
             var cargoKind=ResourceKind.Food;float cargoAmount=0;
             foreach(var resource in ResidentRig.CargoKinds)

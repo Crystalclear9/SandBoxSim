@@ -36,7 +36,7 @@ def snapshot(target):
     files=subprocess.run(['git','ls-files','--cached','--others','--exclude-standard','-z'],cwd=ROOT,capture_output=True,check=True).stdout.decode().split('\0')
     for name in sorted(set(files)):
         if name and (name.startswith(('src/SandBoxSim.Core/','src/SandBoxSim.Console/','src/SandBoxSim.Tests/','config/'))
-                     or name in ('Directory.Build.props','NuGet.Config','global.json')):
+                     or name in ('Directory.Build.props','NuGet.config','global.json')):
             source=ROOT/name
             if source.is_symlink():raise ValueError('Symlink source is unsupported')
             if not source.is_file():continue

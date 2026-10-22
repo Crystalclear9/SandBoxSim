@@ -71,10 +71,21 @@ public partial class MainGame : Control
     public override void _Ready()
     {
         GetWindow().Title="SandBoxSim";
+        try { System.IO.Directory.CreateDirectory(OS.GetUserDataDir()); }
+        catch(System.IO.IOException ex){GD.PushWarning("Game preferences directory unavailable: "+ex.Message);}
+        catch(UnauthorizedAccessException ex){GD.PushWarning("Game preferences directory unavailable: "+ex.Message);}
         Theme = new Theme { DefaultFontSize = 16, DefaultFont = new SystemFont
             { FontNames = new[] { "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "WenQuanYi Zen Hei", "sans-serif" } } };
         var preferences = new ConfigFile();
-        HudStyle.MotionEnabled = preferences.Load("user://interface.cfg") != Error.Ok || preferences.GetValue("interface", "motion", true).AsBool();
+        var preferenceResult=preferences.Load("user://interface.cfg");
+        if(preferenceResult==Error.FileNotFound)
+        {
+            // Renaming the project changes Godot's default user directory.
+            // Read the old preference without moving or deleting user files.
+            string? parent=System.IO.Path.GetDirectoryName(OS.GetUserDataDir());
+            if(parent!=null)preferenceResult=preferences.Load(System.IO.Path.Combine(parent,"SandBoxSim · 河山","interface.cfg"));
+        }
+        HudStyle.MotionEnabled = preferenceResult != Error.Ok || preferences.GetValue("interface", "motion", true).AsBool();
         ApplyVisualTheme();
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
@@ -163,7 +174,7 @@ public partial class MainGame : Control
             PlayerTool.Rain => "增加局部土壤湿度；强度至少 25 时扑灭范围内的火，保留未烧尽的植被。",
             PlayerTool.Grass or PlayerTool.Road => "改变通行条件，让分隔的居民有机会相遇。",
             PlayerTool.Inspect => "点击人物、动物或聚落，追踪他们的故事。",
-            _ => "在地图点击或拖动施加干预；右键 / Esc 返回观察。"
+            _ => "在地图点击或拖动施加干预；Esc 返回观察，右键拖动旋转视角。"
         };
         _toolDescription.Text = hint; _status.Text = ToolNames[(int)tool] + " · " + hint;
         _toolBadge.Text = ToolNames[(int)tool] + (tool == PlayerTool.Inspect ? "" : $"  ·  半径 {Radius}");
@@ -209,6 +220,7 @@ public partial class MainGame : Control
             if (!result.Success || !result.DigestMatches) { throw new InvalidOperationException(result.Error); }
             RestoreClientContext(root);
             Sim = restored; SubscribeVisualEvents(); _pending = 0; _selected = -1; _selectedPersonId = 0; _selectedAnimal = -1; _selectedWolf = -1;
+            ResetMetricHistory();
             _map.Focus(46, 50, 13); SyncControls(); _status.Text = "回到 " + _experimentLabel + "；试试另一种选择"; RefreshPanels(); _discovery.Refresh();
         }
         catch (Exception ex) { _status.Text = "回溯失败：" + ex.Message; GD.PushError(ex.ToString()); }
@@ -300,6 +312,7 @@ public partial class MainGame : Control
             if (!result.Success || !result.DigestMatches) { throw new InvalidOperationException(result.Error + " " + result.SegmentDifference); }
             RestoreClientContext(root, true);
             Sim = restored; SubscribeVisualEvents(); _selected = -1; _selectedPersonId = 0; _selectedAnimal = -1; _selectedWolf = -1; _pending = 0; _map.Center(); SyncControls();
+            ResetMetricHistory();
             _status.Text = "已恢复第 " + result.Day + " 天"; RefreshPanels(); _discovery.Refresh();
         }
         catch (Exception ex) { _status.Text = "载入失败：" + ex.Message; GD.PushError(ex.Message); }
@@ -706,6 +719,7 @@ public partial class MainGame : Control
             var freeClient=JsonParser.Parse(EncodeClientWorld()).Get("client");
             if(!freeClient.Get("trial").IsNull || !freeClient.Get("projects").IsNull || !freeClient.Get("blueprint").IsNull || _drawer.GetTabCount()!=4)
                 throw new Exception("Legacy objectives survived in free exploration client");
+            ValidateMetricWorldReplacement();
             PlayerTools.Apply(Sim,PlayerTool.Forest,20,20,1,10); Sim.Fire.Ignite(20,20,Sim.Clock,"火情自检");
             string hazardBefore=StateHash.ComputeDigest(Sim); ((WorldView3D)_map).ValidateHazardVisuals();
             if(hazardBefore!=StateHash.ComputeDigest(Sim)) throw new Exception("Hazards observation mutated world");

@@ -4,6 +4,9 @@ import argparse, hashlib, heapq, json, math, random, secrets, shutil, statistics
 from pathlib import Path
 from online import Client
 
+REPORT_SCHEMA = 2
+REPORT_KIND = 'paired-efficiency-v2'
+
 def read(path):
     def invalid(s): raise ValueError('Nonfinite JSON: ' + s)
     return json.loads(Path(path).read_text(encoding='utf-8-sig'), parse_constant=invalid)
@@ -122,12 +125,16 @@ def report_summary(samples,old,new):
         summary['binaryUnchanged']=True
     return summary
 
-def evaluate(reference,candidate,suite,repeats):
-    if repeats < 3 or repeats > 20: raise ValueError('Use 3-20 paired repeats')
+def validate_suite(suite,repeats):
+    if type(repeats) is not int or repeats < 3 or repeats > 20: raise ValueError('Use 3-20 paired repeats')
     if suite.get('schemaVersion') != 1 or len(suite['cases']) < 3: raise ValueError('Suite needs at least three cases')
     for c in suite['cases']:
         for key,low,high in [('seed',-2147483648,2147483647),('width',16,64),('height',16,64),('agents',0,100),('pathQueries',1,32),('batches',1,10),('ticksPerBatch',1,1000)]:
             if type(c[key]) is not int or not low <= c[key] <= high: raise ValueError('Invalid suite field '+key)
+
+
+def evaluate(reference,candidate,suite,repeats):
+    validate_suite(suite,repeats)
     old,new=identity(reference),identity(candidate)
     for key in ('machineId','os','architecture','framework','processorCount','protocol'):
         if old[key] != new[key]: raise ValueError('Incompatible service environment: '+key)
@@ -154,7 +161,7 @@ def evaluate(reference,candidate,suite,repeats):
             except (ValueError,OSError,KeyError,TypeError) as e:
                 failures.append({'case':index,'repeat':repeat,'error':str(e)})
     correct=not failures and len(samples)==repeats*len(suite['cases'])
-    return {'schemaVersion':1,'kind':'paired-efficiency-v1','correct':correct,'suite':suite,
+    return {'schemaVersion':REPORT_SCHEMA,'kind':REPORT_KIND,'correct':correct,'suite':suite,
             'suiteSha256':hashlib.sha256(json.dumps(suite,sort_keys=True).encode()).hexdigest(),
             'evaluatorSha256':sha(__file__),'clientSha256':sha(Path(__file__).with_name('online.py')),
             'referenceIdentity':old,'candidateIdentity':new,'repeats':repeats,'coldEpisodes':cold,'samples':samples,'failures':failures,
@@ -163,34 +170,55 @@ def evaluate(reference,candidate,suite,repeats):
             'scope':'Controlled code-efficiency experiment; not proof of recursive model capability improvement'}
 
 def validate_report(report):
-    if report['kind']!='paired-efficiency-v1' or not report['correct'] or report['failures']:
+    if report.get('schemaVersion')!=REPORT_SCHEMA or report.get('kind')!=REPORT_KIND:
+        raise ValueError('Full-cost validation requires paired-efficiency-v2/schemaVersion 2; rerun legacy measurements')
+    if report.get('correct') is not True or report['failures']:
         raise ValueError('Invalid or failed round report')
     if report['evaluatorSha256']!=sha(__file__) or report['clientSha256']!=sha(Path(__file__).with_name('online.py')):
         raise ValueError('Evaluator changed')
-    expected={(i,r) for i in range(len(report['suite']['cases'])) for r in range(report['repeats'])}
+    validate_suite(report['suite'],report['repeats'])
+    cases=report['suite']['cases'];repeats=report['repeats']
+    expected={(i,r) for i in range(len(cases)) for r in range(repeats)}
+    if any(type(s['case']) is not int or type(s['repeat']) is not int for s in report['samples']):
+        raise ValueError('Measurement indices must be integers')
     actual=[(s['case'],s['repeat']) for s in report['samples']]
-    if set(actual)!=expected or len(actual)!=len(expected) or report['repeats']<3:
+    if set(actual)!=expected or len(actual)!=len(expected):
         raise ValueError('Incomplete or duplicated paired measurements')
     suite_hash=hashlib.sha256(json.dumps(report['suite'],sort_keys=True).encode()).hexdigest()
     if report['suiteSha256']!=suite_hash: raise ValueError('Suite hash mismatch')
-    if report.get('coldEpisodes'):
-        if len(report['coldEpisodes'])!=len(report['suite']['cases']): raise ValueError('Incomplete cold measurements')
-        for cold in report['coldEpisodes']:
-            if cold['reference']['digests']!=cold['candidate']['digests'] or cold['reference']['mapSha256']!=cold['candidate']['mapSha256']:
-                raise ValueError('Incorrect cold-start state')
-            for value in cold.values():
-                total=sum(number(t,'cold step time',.000001) for t in value['stepMs'])+number(value['pathMs'],'cold path time',.000001)+number(value['setupAndReleaseMs'],'cold setup time')
-                if not math.isclose(total,value['wallMs'],rel_tol=1e-9): raise ValueError('Cold total mismatch')
-    for sample in report['samples']:
-        old,new=sample['reference'],sample['candidate']
+    cold=report.get('coldEpisodes')
+    if not isinstance(cold,list) or len(cold)!=len(cases):
+        raise ValueError('Complete cold measurements are mandatory')
+    def episode_total(value,case):
+        required=('stepMs','pathMs','setupAndReleaseMs','wallMs','measuredTicks','digests','queries','finalObservation')
+        if any(key not in value for key in required):raise ValueError('Incomplete episode workload or full-cost ledger')
+        if len(value['stepMs'])!=case['batches'] or len(value['digests'])!=case['batches']+1 or len(value['queries'])!=case['pathQueries']:
+            raise ValueError('Episode trace does not match the requested workload')
+        if type(value['measuredTicks']) is not int or value['measuredTicks']!=case['batches']*case['ticksPerBatch']:
+            raise ValueError('Incorrect measured tick count')
+        final=value['finalObservation']
+        if final.get('faulted') is not False or final.get('tick')!=5+value['measuredTicks'] or final.get('revision')!=1+case['batches'] or final.get('digest')!=value['digests'][-1]:
+            raise ValueError('Final observation does not match the complete episode')
+        total=sum(number(t,'step time',.000001) for t in value['stepMs'])+number(value['pathMs'],'path time',.000001)+number(value['setupAndReleaseMs'],'setup time')
+        if not math.isclose(total,number(value['wallMs'],'episode wall time',.000001),rel_tol=1e-9):
+            raise ValueError('Episode total mismatch')
+        return total
+    def paired_state(pair):
+        old,new=pair['reference'],pair['candidate']
         if old['digests']!=new['digests'] or old['mapSha256']!=new['mapSha256'] or old['queries']!=new['queries']:
             raise ValueError('Incorrect paired state')
-        for key,value in [('referenceMs',old),('candidateMs',new)]:
-            expected_ms=sum(number(t,'step time',.000001) for t in value['stepMs'])+number(value['pathMs'],'path time',.000001)+number(value.get('setupAndReleaseMs',0),'setup time')
-            if report.get('coldEpisodes'):
-                expected_ms+=number(report['coldEpisodes'][sample['case']][key.removesuffix('Ms')]['wallMs'],'cold time',.000001)/report['repeats']
-            if not math.isclose(sample[key],expected_ms,rel_tol=1e-9): raise ValueError('Measurement total mismatch')
+    cold_totals=[]
+    for index,pair in enumerate(cold):
+        paired_state(pair)
+        cold_totals.append({key:episode_total(pair[key],cases[index]) for key in ('reference','candidate')})
+    for sample in report['samples']:
+        paired_state(sample)
+        for key in ('reference','candidate'):
+            expected_ms=episode_total(sample[key],cases[sample['case']])+cold_totals[sample['case']][key]/repeats
+            if not math.isclose(number(sample[key+'Ms'],'amortized episode time',.000001),expected_ms,rel_tol=1e-9):
+                raise ValueError('Measurement total mismatch')
     if report['summary']!=report_summary(report['samples'],report['referenceIdentity'],report['candidateIdentity']): raise ValueError('Summary was modified')
+
 
 def rounds(manifest, root):
     """Validate round lineage and budgets against immutable evaluator reports and artifact hashes."""

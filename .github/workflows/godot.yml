@@ -32,6 +32,7 @@ jobs:
         shell: pwsh
         run: |
           ./tools/test-godot-path.ps1
+          ./tools/test-godot-export.ps1
           python -m unittest discover -s tools -p test_evaluate.py
       - name: Install verified Godot .NET editor
         shell: pwsh

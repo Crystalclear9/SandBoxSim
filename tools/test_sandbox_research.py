@@ -56,5 +56,16 @@ class ResearchTests(unittest.TestCase):
             self.assertEqual(['src/SandBoxSim.Core/new.cs','src/SandBoxSim.Core/tracked.cs'],list(manifest))
             self.assertEqual('new module',(destination/'src/SandBoxSim.Core/new.cs').read_text())
 
+    def test_snapshot_keeps_exactly_cased_nuget_build_configuration(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)/'repository';root.mkdir();destination=Path(temp)/'snapshot';destination.mkdir()
+            subprocess.run(['git','init','-q'],cwd=root,check=True)
+            configuration=b'<configuration><packageSources><clear /></packageSources></configuration>'
+            (root/'NuGet.config').write_bytes(configuration)
+            subprocess.run(['git','add','NuGet.config'],cwd=root,check=True)
+            with patch.object(research,'ROOT',root):manifest=research.snapshot(destination)
+            self.assertEqual({'NuGet.config':hashlib.sha256(configuration).hexdigest()},manifest)
+            self.assertEqual(configuration,(destination/'NuGet.config').read_bytes())
+
 
 if __name__=='__main__':unittest.main()

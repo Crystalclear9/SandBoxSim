@@ -5,6 +5,7 @@ using SandBoxSim.Core.Environment;
 using SandBoxSim.Core.Agents;
 using SandBoxSim.Core.Save;
 using SandBoxSim.Core.Systems;
+using SandBoxSim.Core;
 
 namespace SandBoxSim.Client;
 
@@ -427,8 +428,29 @@ public partial class MainGame
     private readonly Dictionary<Label, Tween> _metricTransitions = new();
     private void ResetMetricHistory()
     {
+        foreach(var pair in _metricTransitions){pair.Value.Kill();pair.Key.Modulate=Colors.White;}
+        _metricTransitions.Clear();
         foreach(var label in new[]{_populationLabel,_settlementLabel,_buildingLabel,_foodLabel,_woodLabel,_stoneLabel})
             if(label!=null&&label.HasMeta("trend"))((HudMetricTrail)label.GetMeta("trend").AsGodotObject()).ResetHistory();
+    }
+    private void ValidateMetricWorldReplacement()
+    {
+        string snapshot=EncodeClientWorld(),digest=StateHash.ComputeDigest(Sim),previousCheckpoint=_checkpoint,previousLabel=_experimentLabel;
+        string path=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"sandboxsim-metric-"+Guid.NewGuid().ToString("N")+".simsave");
+        var trail=(HudMetricTrail)_populationLabel.GetMeta("trend").AsGodotObject();
+        try
+        {
+            _checkpoint=snapshot;trail.Sample("901");trail.Sample("902");RestoreCheckpoint();
+            if(StateHash.ComputeDigest(Sim)!=digest||trail.SampleCount!=1)throw new InvalidOperationException("Checkpoint retains a different world's metric history");
+            trail.Sample("903");System.IO.File.WriteAllText(path,snapshot);LoadWorld(path);
+            if(StateHash.ComputeDigest(Sim)!=digest||trail.SampleCount!=1)throw new InvalidOperationException("Loaded world retains a previous metric trajectory");
+        }
+        finally
+        {
+            _checkpoint=previousCheckpoint;_experimentLabel=previousLabel;
+            if(System.IO.File.Exists(path))System.IO.File.Delete(path);
+        }
+        GD.Print("METRIC_RESTORE_PASS: checkpoint/load clear prior trajectories without changing restored simulation");
     }
     private void UpdateMetric(Label label, string value)
     {

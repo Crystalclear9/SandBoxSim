@@ -45,6 +45,13 @@ internal partial class ResidentRig : Node3D
         if(_detailedHead==detailed)return;_detailedHead=detailed;HeadSkin.Visible=detailed;HeadProxy.Visible=!detailed;Mouth.Visible=detailed;
         for(int i=0;i<2;i++){Eyes[i].Visible=detailed;Eyelids[i].Visible=detailed;}
     }
+    public void UpdateDistanceDetail(float distanceSquared)
+    {
+        // Different entry/exit radii prevent mesh and skeleton thrashing when a
+        // resident or an orbiting camera hovers near the detail boundary.
+        SetHeadDetail(distanceSquared<(_detailedHead?20*20:16*16));
+        SetHandDetail(distanceSquared<(_detailedHands?20*20:16*16));
+    }
     private bool _detailedHands=true;
     private readonly List<(MeshInstance3D Node,Mesh Near,Mesh Far)> _distanceMeshes=new();
     public void RegisterDistanceMeshes(Node parent)
@@ -81,6 +88,7 @@ internal partial class ResidentRig : Node3D
     public void PresentAction(float delta,ActionKind action,ActionPhase phase,bool paused,float identityPhase)
     {
         if(paused)return;
+        delta=PresentationDelta(delta);
         if(action!=_observedAction || (phase==ActionPhase.Moving&&_observedPhase!=ActionPhase.Moving) || (phase==ActionPhase.Executing&&_observedPhase is ActionPhase.Done or ActionPhase.Idle or ActionPhase.Failed)){_observedExecution=0;_completionRemaining=0;}
         bool gesture=ToolFor(action)!=ResidentTool.None||action is ActionKind.GatherFood or ActionKind.Take or ActionKind.Deposit or ActionKind.StoreInBuilding or ActionKind.Eat or ActionKind.Drink or ActionKind.ShareFood or ActionKind.Trade or ActionKind.Socialize;
         if(phase==ActionPhase.Executing)_observedExecution+=delta;
@@ -127,7 +135,16 @@ internal partial class ResidentRig : Node3D
     public void PoseAction(float delta,ActionKind action,ActionPhase phase,bool paused,float identityPhase)
     {
         if(paused)return;
-        delta=Math.Clamp(delta,0,.1f);
+        delta=PresentationDelta(delta);
+        // Distant residents arrive with several frame intervals accumulated.
+        // Consume that time in bounded steps instead of discarding everything
+        // beyond .1 seconds. A long host stall still has a one-second budget.
+        int steps=Math.Max(1,(int)MathF.Ceiling(delta/.1f));
+        for(int step=0;step<steps;step++)PoseActionStep(delta/steps,action,phase,identityPhase);
+    }
+    private static float PresentationDelta(float delta)=>float.IsFinite(delta)?Math.Clamp(delta,0,1):0;
+    private void PoseActionStep(float delta,ActionKind action,ActionPhase phase,float identityPhase)
+    {
         bool moving=phase==ActionPhase.Moving,executing=phase==ActionPhase.Executing;
         bool resting=executing&&action==ActionKind.Sleep;
         if((_lastAction!=action||_lastPhase!=phase)&&executing)_workTime=0;
