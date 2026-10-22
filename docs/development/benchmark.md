@@ -77,11 +77,15 @@ python tools/evaluate.py verify runs/evaluation/candidate
 
 有图册时，`renderQuality.galleries` 还包含各卡片实际阴影模式、范围、偏移和地台投影条件；地图同时记录阴影偏移。可见人物肖像使用 `renderQuality.portrait` 保存实际子视口分辨率、MSAA、背景、环境光及灯光颜色、能量、方向、投影状态及各灯的阴影模式、范围、深度偏移与法线偏移。旧结果缺少这些条件时应重建基线，不能把画质差异归因于程序效率。
 
+模型图册只构建和绘制自己的工作室，避免在六个模型视口背后再绘制完整世界。`renderQuality.worldPresentationEnabled` 在图册中为 `false`，普通地图和人物观察场景为 `true`；原有图册结果需要重新采样。CI 的角色图册烟雾测试检查原生渲染、截图、协议和进程正常结束，不作为全世界渲染性能或 RSI 改进成绩。
+
 CLI 输出使用 UTF-8；`python tools/evaluate.py --json-errors <子命令> ...` 将输入或用法错误作为 JSON 写到 stderr，包含 `schemaVersion`、`error.code` 和 `error.message`。引擎异常的原始退出码保留在溯源中，运行器统一返回接口定义的错误码。验证会核对请求 ID、帧预算、截图排程、状态门槛以及 PNG 结构/CRC，不能把缺少截图的运行视为完成。
 
 退出码：0 为完成且满足设定门槛；1 为低于性能门槛，结果仍保存；2 为协议/产物/对照错误；运行器 124 为超时。`artifactValidation: passed` 只说明产物及回放检查有效，不能替代进程正常退出或性能门槛结果。即使产物完整，真实进程超时也继续返回 124。
 
 运行器将 stdout/stderr 写入项目内临时文件并直接等待引擎 PID，不再依赖日志管道的 EOF；避免 Linux 桌面辅助进程继承管道后，引擎已退出却被误判为超时。结束后合并为 `engine.log`，仍拒绝日志中的引擎错误。CLI 摘要与溯源记录 `engineExitCode`、`timedOut`；溯源另记 `timeoutSeconds`，区分引擎错误退出和实际超时终止。CI 在 Windows/Linux/macOS 上回归继承日志句柄、真实超时及非零退出。
+
+`engine.log` 中的 `EVALUATION_PHASE` 单行 JSON 记录 `world_initialized`、`interface_ready`、`scene_ready`、`warmup_complete`、`capture_started`、`capture_complete`、`quit_requested`。每项包含当前评测帧及从载入配置开始的单调时钟毫秒数，保存到 `provenance.phaseTimings`；失败摘要的 `lastPhase` 帮助区分启动、采样和退出阶段。`quit_requested` 只表示发出了退出请求，进程实际退出码仍单独校验。启动计时不改变已有采样区间 FPS 的计算口径。
 
 ## 视觉模型接入与评分
 

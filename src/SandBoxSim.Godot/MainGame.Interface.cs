@@ -85,7 +85,7 @@ public partial class MainGame
     private void BuildInterface()
     {
         // The world occupies the whole window. No opaque rail or layout container resizes its viewport.
-        _map = new WorldView3D { Game = this }; _map.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(_map);
+        _map = new WorldView3D { Game = this, WorldPresentationEnabled = !IsModelGallery }; _map.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(_map);
         var overlay = new Control { MouseFilter = MouseFilterEnum.Ignore }; overlay.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(overlay);
         var header = Surface(overlay, Vector2.Zero, new Vector2(16, 16), new Vector2(1264, 60), 0);
         header.AnchorRight = 1; header.OffsetRight = -16;
@@ -380,7 +380,7 @@ public partial class MainGame
         _residentActionPhase.Text = (a.PhaseOf(slot)==ActionPhase.Moving?"行进中":a.PhaseOf(slot)==ActionPhase.Done&&_residentPortrait.FinishingGesture?"已完成 · 动作收尾":PhaseName(a.PhaseOf(slot)))+(a.PhaseOf(slot) is ActionPhase.Moving or ActionPhase.Executing ? "  ·  目的地 "+a.TargetOf(slot):"");
         _residentTitle.Text = a.NameOrOverride(slot);
         _residentSubtitle.Text = $"{a.AgeDaysOf(slot)} 天  /  {LifeStageName(a.LifeStageOf(slot))}  /  {JobName(a.JobOf(slot))}  ·  {a.PositionOf(slot)}";
-        if(_portraitOverlay?.Visible==true){_portraitWindowTitle.Text=_residentTitle.Text;_portraitWindowActivity.Text=_residentSubtitle.Text+"  ·  "+_residentAction.Text;RefreshPortraitFacts();}
+        if(_portraitOverlay?.Visible==true)RefreshPortraitFacts();
         float[] values = { a.HealthOf(slot), a.HungerOf(slot), a.ThirstOf(slot), 1 - a.FatigueOf(slot) };
         string[] names = { "生命", "饥饿", "干渴", "精力" };
         _vitalTransition = HudStyle.MotionEnabled ? CreateTween().SetParallel().SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.Out) : null;

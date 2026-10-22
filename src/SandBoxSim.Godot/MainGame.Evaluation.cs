@@ -59,19 +59,26 @@ public partial class MainGame
 {
     private EvaluationSpec? _evaluation;
     private int _evaluationFrame;
-    private long _evaluationLast,_evaluationStart;
+    private long _evaluationLast,_evaluationStart,_evaluationLoadedAt;
     private readonly List<double> _evaluationTimes=new();
     private readonly List<object> _evaluationCaptures=new(),_evaluationCommands=new(),_evaluationQuestions=new(),_evaluationAnswers=new();
     private bool _evaluationPending,_evaluationFinishing;
     private double _evaluationDrawCalls,_evaluationPrimitives;
     private void LoadEvaluation(string path)
     {
+        _evaluationLoadedAt=Stopwatch.GetTimestamp();
         _evaluation=JsonSerializer.Deserialize<EvaluationSpec>(File.ReadAllText(path),EvaluationSpec.Json)??throw new ArgumentException("Missing evaluation configuration");
         _evaluation.Validate();_initialPopulation=_evaluation.Agents;_previewDays=_evaluation.PreviewDays;_previewPanel=_evaluation.Panel;
         _evaluation.OutputDirectory=Path.GetFullPath(_evaluation.OutputDirectory);
         if(Directory.Exists(_evaluation.OutputDirectory)&&Directory.EnumerateFileSystemEntries(_evaluation.OutputDirectory).Any())throw new ArgumentException("Evaluation output must be empty; previous artifacts are preserved");
         Directory.CreateDirectory(_evaluation.OutputDirectory);EvaluationClock.Enabled=true;HudStyle.MotionEnabled=true;
         File.WriteAllText(Path.Combine(_evaluation.OutputDirectory,"request.json"),JsonSerializer.Serialize(_evaluation,EvaluationSpec.Json));
+    }
+    private void TraceEvaluationPhase(string phase,int? frame=null)
+    {
+        if(_evaluation==null)return;
+        long elapsedMs=(long)Stopwatch.GetElapsedTime(_evaluationLoadedAt).TotalMilliseconds;
+        GD.Print("EVALUATION_PHASE "+JsonSerializer.Serialize(new {phase,elapsedMs,frame=frame??_evaluationFrame}));
     }
     private object EvaluationState()=>new {tick=Sim.Clock,digest=StateHash.ComputeDigest(Sim),population=Sim.Agents.LiveCount,ai=new {decisions=Sim.Ai.TotalDecisions,targetSelectionFailures=Sim.Ai.TargetSelectionFailures,actionFailures=Sim.Actions.TotalFailed,pathSearches=Sim.Pathfinder.TotalSearches,failedPathSearches=Sim.Pathfinder.FailedSearches},buildings=Sim.Buildings.TotalCompleted,journalVisible=_journalPanel.Visible,settingsVisible=_settingsPanel.Visible,portraitExpanded=_portraitOverlay.Visible,portrait=_residentPortrait.EvaluationState(),worldVisuals=((WorldView3D)_map).VisualUpdateState()};
     private void ApplyEvaluationCommand(EvaluationCommand e)
@@ -102,7 +109,7 @@ public partial class MainGame
     {
         if(_evaluation==null||_evaluationFinishing||_evaluationPending)return;
         int frame=_evaluationFrame;long now=Stopwatch.GetTimestamp();
-        if(frame==_evaluation.WarmupFrames){RenderProfile.Reset();_evaluationStart=now;_evaluationLast=now;}
+        if(frame==_evaluation.WarmupFrames){RenderProfile.Reset();_evaluationStart=now;_evaluationLast=now;TraceEvaluationPhase("warmup_complete",frame);}
         else if(frame>_evaluation.WarmupFrames)
         {
             _evaluationTimes.Add((now-_evaluationLast)*1000.0/Stopwatch.Frequency);_evaluationLast=now;
@@ -120,6 +127,7 @@ public partial class MainGame
         _evaluationPending=true;
         try
         {
+            TraceEvaluationPhase("capture_started",frame);
             await ToSignal(RenderingServer.Singleton,RenderingServer.SignalName.FramePostDraw);
             var image=GetViewport().GetTexture().GetImage();string name=$"frame-{frame:D5}.png",path=Path.Combine(_evaluation!.OutputDirectory,name);
             if(image==null||image.IsEmpty()||image.SavePng(path)!=Error.Ok)throw new IOException("Evaluation capture failed; use a graphical renderer");
@@ -136,8 +144,9 @@ public partial class MainGame
                 _evaluationQuestions.Add(new {id,image=cropName,sha256=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(_evaluation.OutputDirectory,cropName)))).ToLowerInvariant(),prompt="Which object is shown?",choices=new[]{"house","storage","resident","deer","wolf","tree","farm","mine","ruins","grove","fern","grass","rock","shrub"}});
                 _evaluationAnswers.Add(new {id,label=region.Label,frame,region=new[]{clipped.Position.X,clipped.Position.Y,clipped.Size.X,clipped.Size.Y}});
             }
+            TraceEvaluationPhase("capture_complete",frame);
         }
-        catch(Exception ex){GD.PrintErr(ex.Message);GetTree().Quit(2);}
+        catch(Exception ex){GD.PrintErr(ex.Message);TraceEvaluationPhase("quit_requested");GetTree().Quit(2);}
         finally{_evaluationPending=false;}
     }
     private void FinishEvaluation(long now)
@@ -148,7 +157,7 @@ public partial class MainGame
         var result=new {schemaVersion=1,id=_evaluation.Id,status=pass?"completed":"performance_threshold_failed",timing="monotonic-wall-clock; render submission intervals include capture IO",engine=Engine.GetVersionInfo()["string"].AsString(),renderer=RenderingServer.GetCurrentRenderingMethod(),renderQuality=((WorldView3D)_map).RenderQualityState(GetChildren().OfType<ModelGallery>().Select(g=>g.RenderQualityState()).ToArray(),_residentPortrait.IsVisibleInTree()?_residentPortrait.RenderQualityState():null),vsync=DisplayServer.WindowGetVsyncMode().ToString(),os=OS.GetName(),processor=OS.GetProcessorName(),videoAdapter=RenderingServer.GetVideoAdapterName(),resolution=new[]{DisplayServer.WindowGetSize().X,DisplayServer.WindowGetSize().Y},logicalResolution=new[]{GetViewport().GetVisibleRect().Size.X,GetViewport().GetVisibleRect().Size.Y},fixedVisualDelta=1.0/60,seed=_evaluation.Seed,warmupFrames=_evaluation.WarmupFrames,measuredFrames=_evaluationTimes.Count,ticksPerFrame=_evaluation.TicksPerFrame,wallSeconds=seconds,averageFps=fps,frameMs=new {p50=Percentile(.5),p95=Percentile(.95),p99=Percentile(.99),max=ordered[^1],over33MsCount=ordered.Count(ms=>ms>1000.0/30),over50MsCount=ordered.Count(ms=>ms>50)},averageDrawCalls=_evaluationDrawCalls/ordered.Length,averagePrimitives=_evaluationPrimitives/ordered.Length,managedMemoryBytes=GC.GetTotalMemory(false),cpuScopes=RenderProfile.Report(),state=EvaluationState(),captures=_evaluationCaptures,commands=_evaluationCommands};
         foreach(var (file,data) in new[]{("result.json",(object)result),("questions.json",_evaluationQuestions),("answer-key.json",_evaluationAnswers)})
             File.WriteAllText(Path.Combine(_evaluation.OutputDirectory,file),JsonSerializer.Serialize(data,EvaluationSpec.Json));
-        GD.Print("EVALUATION_COMPLETE "+_evaluation.OutputDirectory);GetTree().Quit(pass?0:1);
+        GD.Print("EVALUATION_COMPLETE "+_evaluation.OutputDirectory);TraceEvaluationPhase("quit_requested");GetTree().Quit(pass?0:1);
     }
     private static void ValidateEvaluationContract()
     {

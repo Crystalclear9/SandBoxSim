@@ -14,9 +14,22 @@ public partial class MainGame
     private Control? _portraitReturnFocus;
     private readonly Label[] _portraitFactLabels=new Label[4];
     private readonly ProgressBar[] _portraitFactBars=new ProgressBar[4];
-    private Label _portraitFactAction=null!,_portraitFactInventory=null!;
+    private Label _portraitFactAction=null!;
+    private readonly Label[] _portraitInventoryValues=new Label[4];
+    private Godot.Button _portraitPin=null!;
+    private static readonly ResourceKind[] PortraitResources={ResourceKind.Food,ResourceKind.Wood,ResourceKind.Stone,ResourceKind.Iron};
     private static Label PortraitPaperLabel(string text,int size=13,bool muted=false)
     {var label=HudStyle.Label(text,size);label.AddThemeColorOverride("font_color",muted?HudStyle.PaperMuted:HudStyle.PaperInk);return label;}
+    private static Godot.Button PortraitPaperButton(string text,Action action)
+    {
+        var button=new Godot.Button {Text=text,CustomMinimumSize=new(0,36)};HudStyle.Button(button);
+        button.SetMeta("notebook",true);
+        foreach(string state in new[]{"font_color","font_focus_color","font_hover_color","font_pressed_color"})button.AddThemeColorOverride(state,state=="font_color"?HudStyle.PaperInk:HudStyle.PaperAccent);
+        button.AddThemeStyleboxOverride("normal",HudStyle.Box(new Color(0,0,0,0),3,9,false));
+        foreach(string state in new[]{"hover","pressed","hover_pressed"})button.AddThemeStyleboxOverride(state,HudStyle.Box(HudStyle.PaperLine,3,9,false));
+        var focus=HudStyle.Box(new Color(0,0,0,0),3,9);focus.BorderColor=HudStyle.PaperAccent;focus.ShadowSize=0;button.AddThemeStyleboxOverride("focus",focus);
+        button.Pressed+=action;return button;
+    }
     public override void _Input(InputEvent input)
     {
         if(_portraitOverlay?.Visible!=true||input is not InputEventKey {Pressed:true} key)return;
@@ -51,14 +64,13 @@ public partial class MainGame
         var header=new HBoxContainer();layout.AddChild(header);
         var identity=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};identity.AddThemeConstantOverride("separation",3);header.AddChild(identity);
         identity.AddChild(PortraitPaperLabel("居民档案 / 人物观察",11,true));_portraitWindowTitle=PortraitPaperLabel("",26);identity.AddChild(_portraitWindowTitle);
-        var close=new Godot.Button {Text="返回手记",CustomMinimumSize=new(96,36)};HudStyle.Button(close);header.AddChild(close);close.Pressed+=()=>ShowPortraitWindow(false);
-        close.SetMeta("notebook",true);close.AddThemeColorOverride("font_color",HudStyle.PaperInk);close.AddThemeColorOverride("font_hover_color",HudStyle.PaperAccent);close.AddThemeColorOverride("font_pressed_color",HudStyle.PaperAccent);
-        close.AddThemeStyleboxOverride("hover",HudStyle.Box(HudStyle.PaperWash,4,9,false));close.AddThemeStyleboxOverride("pressed",HudStyle.Box(HudStyle.PaperWash,4,9,false));
+        var close=PortraitPaperButton("返回手记  ×",()=>ShowPortraitWindow(false));header.AddChild(close);
         _portraitWindowActivity=PortraitPaperLabel("",12,true);layout.AddChild(_portraitWindowActivity);
         var content=new HBoxContainer {SizeFlagsVertical=SizeFlags.ExpandFill};content.AddThemeConstantOverride("separation",20);layout.AddChild(content);
         _portraitWindowBody=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill,SizeFlagsVertical=SizeFlags.ExpandFill};content.AddChild(_portraitWindowBody);
         var factsPanel=new PanelContainer {CustomMinimumSize=new(224,0)};factsPanel.AddThemeStyleboxOverride("panel",HudStyle.Box(HudStyle.PaperWash,3,16,false));content.AddChild(factsPanel);
-        var facts=new VBoxContainer();facts.AddThemeConstantOverride("separation",12);factsPanel.AddChild(facts);
+        var scroll=new ScrollContainer {HorizontalScrollMode=ScrollContainer.ScrollMode.Disabled,FollowFocus=true,SizeFlagsVertical=SizeFlags.ExpandFill};factsPanel.AddChild(scroll);
+        var facts=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};facts.AddThemeConstantOverride("separation",12);scroll.AddChild(facts);
         facts.AddChild(PortraitPaperLabel("当下",11,true));_portraitFactAction=PortraitPaperLabel("",15);_portraitFactAction.AutowrapMode=TextServer.AutowrapMode.WordSmart;facts.AddChild(_portraitFactAction);
         facts.AddChild(new HSeparator());facts.AddChild(PortraitPaperLabel("身体与需求",11,true));
         for(int i=0;i<4;i++)
@@ -69,7 +81,16 @@ public partial class MainGame
             bar.AddThemeStyleboxOverride("background",HudStyle.Box(HudStyle.PaperLine,1,0,false));bar.AddThemeStyleboxOverride("fill",HudStyle.Box(HudStyle.PaperMuted,1,0,false));metric.AddChild(bar);_portraitFactBars[i]=bar;
         }
         facts.AddChild(new HSeparator());facts.AddChild(PortraitPaperLabel("随身物资",11,true));
-        _portraitFactInventory=PortraitPaperLabel("",13);facts.AddChild(_portraitFactInventory);
+        var inventory=new GridContainer {Columns=2};inventory.AddThemeConstantOverride("h_separation",18);inventory.AddThemeConstantOverride("v_separation",12);facts.AddChild(inventory);
+        string[] resources={"食物","木材","石料","铁矿"};
+        for(int i=0;i<4;i++)
+        {
+            var cell=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};cell.AddThemeConstantOverride("separation",1);inventory.AddChild(cell);
+            cell.AddChild(PortraitPaperLabel(resources[i],11,true));var amount=PortraitPaperLabel("",22);amount.AddThemeFontOverride("font",HudStyle.NumericFont);cell.AddChild(amount);_portraitInventoryValues[i]=amount;
+        }
+        facts.AddChild(new HSeparator());
+        _portraitPin=PortraitPaperButton("关注此居民",()=>{TogglePin();RefreshPortraitFacts();});facts.AddChild(_portraitPin);
+        facts.AddChild(PortraitPaperButton("在世界中跟随  →",()=>{int slot=SelectedSlot;if(slot<0)return;ShowPortraitWindow(false);_map.Follow(slot);}));
         _residentPortrait.ExpandRequested+=()=>ShowPortraitWindow(!_portraitOverlay.Visible);
         FitPortraitWindow(Size);
     }
@@ -106,7 +127,7 @@ public partial class MainGame
     {
         int slot=SelectedSlot;if(slot<0||_portraitFactAction==null)return;
         _portraitWindowTitle.Text=_residentTitle.Text;
-        _portraitWindowActivity.Text=_residentSubtitle.Text+"  ·  "+_residentAction.Text;
+        _portraitWindowActivity.Text=_residentSubtitle.Text;
         var agents=Sim.Agents;_portraitFactAction.Text=_residentAction.Text+"\n"+_residentActionPhase.Text;
         float[] values={agents.HealthOf(slot),agents.HungerOf(slot),agents.ThirstOf(slot),1-agents.FatigueOf(slot)};
         string[] names={"生命","饥饿","干渴","精力"};
@@ -116,7 +137,8 @@ public partial class MainGame
             bool danger=i is 1 or 2?values[i]>.7f:values[i]<.35f;
             ((StyleBoxFlat)_portraitFactBars[i].GetThemeStylebox("fill")).BgColor=danger?new Color("#a5533d"):HudStyle.PaperMuted;
         }
-        _portraitFactInventory.Text=$"食物    {agents.InventoryOf(slot,ResourceKind.Food):0.0}\n木材    {agents.InventoryOf(slot,ResourceKind.Wood):0.0}\n石料    {agents.InventoryOf(slot,ResourceKind.Stone):0.0}\n铁矿    {agents.InventoryOf(slot,ResourceKind.Iron):0.0}";
+        for(int i=0;i<4;i++)_portraitInventoryValues[i].Text=agents.InventoryOf(slot,PortraitResources[i]).ToString("0.0");
+        _portraitPin.Text=PinnedPerson!=0&&PinnedPerson==_selectedPersonId?"已关注 · 取消关注":"关注此居民";
     }
     private void ValidatePortraitWindow()
     {
@@ -128,6 +150,15 @@ public partial class MainGame
             throw new InvalidOperationException("Large portrait did not reuse the selected model viewport");
         if(state!=System.Text.Json.JsonSerializer.Serialize(_residentPortrait.EvaluationState()))
             throw new InvalidOperationException("Expanding a portrait reset its framing or orbit");
+        long priorPin=PinnedPerson;
+        try
+        {
+            PinnedPerson=0;_portraitPin.EmitSignal(Godot.Button.SignalName.Pressed);
+            if(PinnedPerson!=_selectedPersonId)throw new InvalidOperationException("Portrait failed to pin the real selected resident");
+            _portraitPin.EmitSignal(Godot.Button.SignalName.Pressed);
+            if(PinnedPerson!=0)throw new InvalidOperationException("Portrait failed to unpin the resident");
+        }
+        finally{PinnedPerson=priorPin;RefreshOperations();_discovery.Refresh();RefreshPortraitFacts();}
         if(GetViewport().GuiGetFocusOwner()!=_residentPortrait)throw new InvalidOperationException("Portrait inherited background keyboard focus");
         for(int i=0;i<16;i++)
         {
@@ -140,6 +171,6 @@ public partial class MainGame
             throw new InvalidOperationException("Closing portrait did not restore the notebook");
         if(GetViewport().GuiGetFocusOwner()!=_journalButton)throw new InvalidOperationException("Portrait did not restore keyboard focus");
         if(before!=StateHash.ComputeDigest(Sim))throw new InvalidOperationException("Portrait expansion changed simulation state");
-        GD.Print("PORTRAIT_WINDOW_PASS: shared model/view, preserved framing, initial/repeated/directional focus isolation and restore, Escape priority, notebook return and observation purity");
+        GD.Print("PORTRAIT_WINDOW_PASS: shared model/view, preserved framing, pin/unpin, initial/repeated/directional focus isolation and restore, Escape priority, notebook return and observation purity");
     }
 }

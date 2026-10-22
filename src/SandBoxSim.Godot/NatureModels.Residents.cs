@@ -8,6 +8,7 @@ namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
     private int _garmentCut;
+    private const float PlacketBottom=1.03f,PlacketTop=1.267f;
     private float GarmentBottom=>_garmentCut==1?.63f:_garmentCut==2?.535f:.60f;
     private void SelectGarmentCut(int cut)
     {
@@ -38,13 +39,13 @@ internal sealed partial class NatureModels
         new[]{.63f,.665f,.73f,.82f,.97f,1.10f,1.19f,1.24f,1.28f},
         new[]{.535f,.570f,.73f,.82f,.97f,1.10f,1.19f,1.24f,1.28f}};
     private static readonly float[][] GarmentWidthProfiles={
-        new[]{.20f,.205f,.174f,.166f,.172f,.177f,.184f,.150f,.060f},
-        new[]{.185f,.190f,.174f,.166f,.172f,.177f,.184f,.150f,.060f},
-        new[]{.20f,.205f,.174f,.166f,.172f,.177f,.184f,.150f,.060f}};
+        new[]{.185f,.189f,.174f,.166f,.172f,.177f,.184f,.150f,.067f},
+        new[]{.178f,.183f,.174f,.166f,.172f,.177f,.184f,.150f,.067f},
+        new[]{.185f,.189f,.174f,.166f,.172f,.177f,.184f,.150f,.067f}};
     private static readonly float[][] GarmentDepthProfiles={
-        new[]{.137f,.143f,.123f,.116f,.123f,.127f,.111f,.086f,.067f},
-        new[]{.137f,.143f,.123f,.116f,.123f,.127f,.111f,.086f,.067f},
-        new[]{.153f,.156f,.123f,.116f,.123f,.127f,.111f,.086f,.067f}};
+        new[]{.128f,.132f,.123f,.116f,.123f,.127f,.111f,.086f,.084f},
+        new[]{.128f,.132f,.123f,.116f,.123f,.127f,.111f,.086f,.084f},
+        new[]{.140f,.144f,.123f,.116f,.123f,.127f,.111f,.086f,.084f}};
     private Vector3 GarmentPoint(float fraction,float angle)
     {
         var height=GarmentHeightProfiles[_garmentCut];
@@ -151,10 +152,10 @@ internal sealed partial class NatureModels
         Sculpt(rig.Torso,TurnedNeckline(),Vector3.Zero,CollarMaterial(cloth));
         if(_garmentCut==2)foreach(float side in new[]{-1f,1f})
             Sculpt(rig.Torso,CollarLeaf(side),Vector3.Zero,CollarMaterial(cloth));
-        Sculpt(rig.Torso,FittedRibbon("placket",1.03f,1.205f),Vector3.Zero,CollarMaterial(cloth));
+        Sculpt(rig.Torso,FittedRibbon("placket",PlacketBottom,PlacketTop),Vector3.Zero,CollarMaterial(cloth));
         for (int button = 0; button < 3; button++)
         {
-            var anchor=TorsoSurface(.006f,1.17f-button*.055f,false,.0012f);
+            var anchor=TorsoSurface(.006f,1.237f-button*.067f,false,.0012f);
             Sculpt(rig.Torso,SewnButton(),anchor,ResidentMaterial("#514237"));
             FineBeam(rig.Torso,anchor+new Vector3(-.0014f,-.0010f,-.0038f),anchor+new Vector3(.0014f,.0010f,-.0038f),.00055f,"#a09380");
         }
@@ -236,7 +237,7 @@ internal sealed partial class NatureModels
         foreach (var key in new[]{"belt","apron","armor","placket","shoulder-front","shoulder-back"})
         {
             bool back=key=="shoulder-back";
-            var mesh=FittedRibbon(key,key=="belt"?.748f:key=="armor"?.91f:key=="apron"?.79f:key=="placket"?1.03f:.81f,key=="belt"?.775f:key=="armor"||key=="apron"?1.17f:key=="placket"?1.205f:1.20f,back);
+            var mesh=FittedRibbon(key,key=="belt"?.748f:key=="armor"?.91f:key=="apron"?.79f:key=="placket"?PlacketBottom:.81f,key=="belt"?.775f:key=="armor"||key=="apron"?1.17f:key=="placket"?PlacketTop:1.20f,back);
             var arrays=mesh.SurfaceGetArrays(0);var vertices=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
             var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
             for(int i=0;i<vertices.Length;i++)

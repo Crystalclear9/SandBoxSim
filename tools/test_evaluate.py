@@ -1,8 +1,78 @@
-import json, tempfile, unittest, zlib, struct, os, signal, sys
+import json, tempfile, unittest, zlib, struct, os, signal, sys, io, shutil
+from contextlib import redirect_stdout
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 import evaluate
 
 class EvaluationTests(unittest.TestCase):
+    def test_phase_timings_keep_valid_records_among_mixed_logs(self):
+        first = dict(phase="world_initialized", elapsedMs=15, frame=0)
+        last = dict(phase="capture_complete", elapsedMs=1650, frame=4)
+        logs = (b"Godot Engine\n\xff driver diagnostic\n" +
+                ("EVALUATION_PHASE " + json.dumps(first) + "\r\n").encode() +
+                b"ERROR: unrelated diagnostic\nEVALUATION_PHASE {truncated\n" +
+                ("EVALUATION_PHASE " + json.dumps(last) + "\nEVALUATION_COMPLETE output\n").encode())
+        self.assertEqual(evaluate.phase_timings(logs), [first, last])
+
+    def test_phase_timings_ignore_malformed_records(self):
+        invalid = [None, [], "scene_ready", {},
+                   dict(phase=[], elapsedMs=10, frame=0),
+                   dict(phase="invalid phase", elapsedMs=10, frame=0),
+                   dict(phase="scene_ready", elapsedMs=-1, frame=0),
+                   dict(phase="scene_ready", elapsedMs=True, frame=0),
+                   dict(phase="scene_ready", elapsedMs=float("nan"), frame=0),
+                   dict(phase="scene_ready", elapsedMs=10, frame=False),
+                   dict(phase="scene_ready", elapsedMs=10, frame=-1),
+                   dict(phase="scene_ready", elapsedMs=10, frame="0")]
+        logs = "\n".join("EVALUATION_PHASE " + json.dumps(value) for value in invalid)
+        logs += '\nnoise EVALUATION_PHASE {"phase":"scene_ready","elapsedMs":10,"frame":0}'
+        logs += '\nEVALUATION_PHASE ' + '[' * 2000 + ']' * 2000
+        self.assertEqual(evaluate.phase_timings(logs.encode()), [])
+
+    def test_run_real_timeout_with_complete_artifacts_stays_124(self):
+        root = self.folder / "runner-project"
+        assembly = root / "src/SandBoxSim.Godot/.godot/mono/temp/bin/Debug/SandBoxSim.Godot.dll"
+        assembly.parent.mkdir(parents=True)
+        assembly.write_bytes(b"game")
+        assembly.with_name("SandBoxSim.Core.dll").write_bytes(b"core")
+        evaluate.write(assembly.with_name("build-source.json"), dict(
+            schemaVersion=1, configuration="Debug", sourceFiles=evaluate.compiled_source_hashes(root),
+            assemblySha256=evaluate.digest(assembly), coreSha256=evaluate.digest(assembly.with_name("SandBoxSim.Core.dll"))))
+        output = root / "result"
+        last = dict(phase="quit_requested", elapsedMs=50, frame=13)
+        original_wait = evaluate.wait_for_engine
+        def completed_but_running(command, cwd, env, timeout):
+            # The engine stand-in has completed every requested artifact but stays alive.
+            request = next(arg.split("=", 1)[1] for arg in command if arg.startswith("--evaluation="))
+            shutil.copy2(request, output / "request.json")
+            for name in ("image.png", "result.json", "questions.json", "answer-key.json"):
+                shutil.copy2(self.folder / name, output / name)
+            script = "import time; print(" + repr("EVALUATION_PHASE " + json.dumps(last)) + ",flush=True); time.sleep(30)"
+            return original_wait([sys.executable, "-c", script], cwd, env, timeout)
+        args = SimpleNamespace(scenario=self.folder / "request.json", output=output, engine=sys.executable,
+                               timeout=1, max_fps=60, resolution="1440x900", audio_driver="Dummy", label="test")
+        captured = io.StringIO()
+        with mock.patch.object(evaluate, "ROOT", root), \
+             mock.patch.object(evaluate, "assert_dotnet_engine"), \
+             mock.patch.object(evaluate, "tool_environment", return_value=os.environ.copy()), \
+             mock.patch.object(evaluate, "dotnet_executable", return_value=None), \
+             mock.patch.object(evaluate, "git", side_effect=lambda *args: "1" * 40 if args[0] == "rev-parse" else ""), \
+             mock.patch.object(evaluate, "wait_for_engine", side_effect=completed_but_running), redirect_stdout(captured):
+            code = evaluate.run(args)
+        summary = json.loads(captured.getvalue())
+        provenance = evaluate.read(output / "provenance.json")
+        self.assertEqual(code, 124)
+        self.assertEqual(summary["exitCode"], 124)
+        self.assertNotEqual(summary["engineExitCode"], 0)
+        self.assertTrue(summary["timedOut"])
+        self.assertEqual(summary["artifactValidation"], "passed")
+        self.assertEqual(summary["lastPhase"], last)
+        self.assertEqual(provenance["phaseTimings"], [last])
+        self.assertEqual(provenance["exitCode"], 124)
+        self.assertEqual(provenance["execution"], dict(maxFps=60, resolution="1440x900", disableVsync=True, audioDriver="Dummy"))
+        self.assertEqual(evaluate.validate_artifacts(output)["status"], "completed")
+
     def test_engine_exit_does_not_wait_for_inherited_log_handles(self):
         # A real descendant retains both handles after the engine stand-in exits.
         # communicate(PIPE) would time out; the engine itself exits successfully.

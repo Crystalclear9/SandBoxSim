@@ -223,6 +223,22 @@ def wait_for_engine(command, cwd, env, timeout):
         out.seek(0); err.seek(0)
         return process.returncode, timed_out, out.read() + err.read()
 
+def phase_timings(logs):
+    records = []
+    prefix = "EVALUATION_PHASE "
+    for line in logs.decode("utf-8", errors="replace").splitlines():
+        if not line.startswith(prefix): continue
+        try:
+            value = json.loads(line[len(prefix):])
+        except (ValueError, RecursionError):
+            continue
+        if not isinstance(value, dict): continue
+        phase = value.get("phase")
+        if not isinstance(phase, str) or not re.fullmatch(r"[a-z][a-z0-9_]{0,63}", phase): continue
+        if any(type(value.get(key)) is not int or value[key] < 0 for key in ("elapsedMs", "frame")): continue
+        records.append({key: value[key] for key in ("phase", "elapsedMs", "frame")})
+    return records
+
 def run(args):
     spec = object_value(read(args.scenario), "Scenario")
     spec.setdefault("id", "sample")
@@ -255,7 +271,7 @@ def run(args):
     code = 124 if timed_out else native_code if native_code in (0,1,2) else 2
     native_log.unlink(missing_ok=True)
     (output / "engine.log").write_bytes(logs)
-    provenance.update(engineExitCode=native_code,exitCode=code,timedOut=timed_out,timeoutSeconds=args.timeout, wallSeconds=time.monotonic() - started, sourceChangedDuringRun=source_hashes() != provenance["sourceFiles"])
+    provenance.update(engineExitCode=native_code,exitCode=code,timedOut=timed_out,timeoutSeconds=args.timeout, wallSeconds=time.monotonic() - started, sourceChangedDuringRun=source_hashes() != provenance["sourceFiles"],phaseTimings=phase_timings(logs))
     if provenance["sourceChangedDuringRun"] and code == 0: code = 2
     try:
         if validate_build(ROOT,assembly)!=build_identity:raise ValueError('Build identity changed during evaluation')
@@ -271,8 +287,10 @@ def run(args):
         if code != 124: code = 2
     provenance["exitCode"] = code
     write(output / "provenance.json", provenance)
-    print(json.dumps({"output": str(output), "exitCode": code, "engineExitCode": native_code,
-                      "timedOut": timed_out, "artifactValidation": provenance["artifactValidation"]}))
+    summary = {"output": str(output), "exitCode": code, "engineExitCode": native_code,
+               "timedOut": timed_out, "artifactValidation": provenance["artifactValidation"]}
+    if code != 0: summary["lastPhase"] = provenance["phaseTimings"][-1] if provenance["phaseTimings"] else None
+    print(json.dumps(summary))
     return code
 
 class ProtocolParser(argparse.ArgumentParser):

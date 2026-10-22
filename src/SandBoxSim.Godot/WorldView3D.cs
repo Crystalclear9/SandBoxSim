@@ -13,6 +13,8 @@ namespace SandBoxSim.Client;
 /// <summary>Actual 3D scene with perspective orbit camera and read-only animated visual agents.</summary>
 public partial class WorldView3D : MapView
 {
+    // Gallery previews use independent studios. Do not build or draw a second world underneath them.
+    internal bool WorldPresentationEnabled { get; init; } = true;
     private SubViewport _viewport = null!;
     private SubViewportContainer _container = null!;
     private Node3D _scene = null!, _terrainRoot = null!, _props = null!, _actors = null!;
@@ -47,6 +49,19 @@ public partial class WorldView3D : MapView
     private int[] _density = Array.Empty<int>();
     public bool HasTerrain => _terrainRoot.GetChildCount() > 0;
     public bool HasPerspectiveCamera => _camera.Projection == Camera3D.ProjectionType.Perspective;
+    internal static void ValidateGalleryIsolation(MainGame game)
+    {
+        var view = new WorldView3D { Game = game, WorldPresentationEnabled = false };
+        game.AddChild(view);
+        try
+        {
+            view._Process(1.0 / 60);
+            if (view.HasTerrain || view._props.GetChildCount() != 0 || view._actors.GetChildCount() != 0 ||
+                view._viewport.RenderTargetUpdateMode != SubViewport.UpdateMode.Disabled || view._container.Visible)
+                throw new InvalidOperationException("Model gallery constructed or rendered a background world");
+        }
+        finally { game.RemoveChild(view); view.Free(); }
+    }
     public void ValidateViewControls()
     {
         if (!HasTerrain || !HasPerspectiveCamera || _people.Count != Game.Sim.Agents.LiveCount) { throw new InvalidOperationException("3D scene incomplete"); }
@@ -91,10 +106,10 @@ public partial class WorldView3D : MapView
     }
     public override void _Ready()
     {
-        MouseFilter = MouseFilterEnum.Stop; ClipContents = true;
-        _container = new SubViewportContainer { Stretch = true, MouseFilter = MouseFilterEnum.Ignore };
+        MouseFilter = WorldPresentationEnabled ? MouseFilterEnum.Stop : MouseFilterEnum.Ignore; ClipContents = true;
+        _container = new SubViewportContainer { Stretch = true, MouseFilter = MouseFilterEnum.Ignore, Visible = WorldPresentationEnabled };
         _container.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(_container);
-        _viewport = new SubViewport { OwnWorld3D = true, RenderTargetUpdateMode = SubViewport.UpdateMode.Always, Msaa3D = Viewport.Msaa.Msaa2X };
+        _viewport = new SubViewport { OwnWorld3D = true, RenderTargetUpdateMode = WorldPresentationEnabled ? SubViewport.UpdateMode.Always : SubViewport.UpdateMode.Disabled, Msaa3D = Viewport.Msaa.Msaa2X };
         _container.AddChild(_viewport);
         _scene = new Node3D(); _viewport.AddChild(_scene);
         _terrainRoot = new Node3D(); _scene.AddChild(_terrainRoot);
@@ -158,7 +173,7 @@ public partial class WorldView3D : MapView
     public override void _Process(double delta)
     {
         delta=EvaluationClock.Delta(delta);
-        if (_camera == null) { return; }
+        if (_camera == null || !WorldPresentationEnabled) { return; }
         if (!ReferenceEquals(_world, Game.Sim)) { RebuildWorld(); }
         if (_follow >= 0 && Game.Sim.Agents.IsSlotAlive(_follow) && Game.Sim.Agents.GenerationOf(_follow) == _followGeneration)
             { _target = PositionAt(Game.Sim.Agents.XOf(_follow), Game.Sim.Agents.YOf(_follow)); }
@@ -286,6 +301,7 @@ public partial class WorldView3D : MapView
     private static void Clear(Node node) { foreach (Node child in node.GetChildren()) { node.RemoveChild(child); child.QueueFree(); } }
     private void RebuildWorld()
     {
+        if (!WorldPresentationEnabled) { return; }
         CancelPointerGesture();
         _pickMeshes.Clear();_brushTile=new(-1,-1);_pendingTerrain=_pendingNature=_pendingBuildings=false;
         _world = Game.Sim; _follow = -1; Clear(_terrainRoot); Clear(_props); Clear(_actors);
@@ -378,7 +394,7 @@ public partial class WorldView3D : MapView
     }
     internal object RenderQualityState(object[]? galleries=null,object? portrait=null)
     {
-        var quality=new Dictionary<string,object> { ["shadowMode"]=_sunlight.DirectionalShadowMode.ToString(),
+        var quality=new Dictionary<string,object> { ["worldPresentationEnabled"]=WorldPresentationEnabled,["shadowMode"]=_sunlight.DirectionalShadowMode.ToString(),
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString() };
         if(galleries is {Length:>0})quality["galleries"]=galleries;

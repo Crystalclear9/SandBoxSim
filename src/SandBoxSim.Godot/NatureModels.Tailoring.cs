@@ -42,8 +42,8 @@ internal sealed partial class NatureModels
         new Vector3(.050f,-.047f,.047f),new(.053f,-.039f,.050f),new(.051f,-.028f,.048f),
         new(.047f,-.024f,.044f),new(.045f,-.028f,.042f),new(.046f,-.042f,.043f)});
     private Mesh TurnedNeckline()=>FabricFacing("turned-neckline",new[]{
-        new Vector3(.061f,1.276f,.071f),new(.064f,1.280f,.074f),new(.061f,1.285f,.068f),
-        new(.057f,1.286f,.061f),new(.055f,1.282f,.060f),new(.057f,1.278f,.064f)});
+        new Vector3(.068f,1.276f,.087f),new(.071f,1.280f,.090f),new(.069f,1.285f,.086f),
+        new(.065f,1.286f,.081f),new(.063f,1.282f,.080f),new(.065f,1.278f,.083f)});
     private Material CollarMaterial(string cloth)
     {
         string key="folded-collar:"+cloth;if(_residentMaterials.TryGetValue(key,out var cached))return cached;
@@ -82,11 +82,14 @@ internal sealed partial class NatureModels
     private void AddResidentTailoring(ResidentRig rig,string cloth,string skin,JobType job)
     {
         Detail(rig.Torso,"box",TorsoSurface(.021f,.737f,false,.006f),new(.033f,.075f,.012f),"#514237");
-        foreach(float side in new[]{-1f,1f})
+        // Short stitches follow the actual folded surface instead of spanning
+        // the chest as two loose, contrasting cords.
+        string thread="#"+new Color(cloth).Darkened(.14f).ToHtml(false);
+        foreach(float side in new[]{-1f,1f})for(int stitch=0;stitch<24;stitch++)
         {
-            var middle=TorsoSurface(side*.015f,1.19f,false,.005f);
-            FineBeam(rig.Torso,TorsoSurface(side*.011f,1.225f,false,.005f),middle,.0016f,"#a09380");
-            FineBeam(rig.Torso,middle,TorsoSurface(side*.018f,1.16f,false,.005f),.0016f,"#a09380");
+            float y=Mathf.Lerp(PlacketBottom+.006f,PlacketTop-.006f,stitch/23f);
+            FineBeam(rig.Torso,TorsoSurface(side*.007f,y,false,.0047f),
+                TorsoSurface(side*.007f,y+.0035f,false,.0047f),.00055f,thread);
         }
         if(job is JobType.Gatherer or JobType.Hunter or JobType.Trader)
         {
@@ -114,8 +117,8 @@ internal sealed partial class NatureModels
             foreach(var key in new[]{"belt","apron","armor","placket","shoulder-front","shoulder-back"})
             {
                 bool rear=key=="shoulder-back";
-                var layer=FittedRibbon(key,key=="belt"?.748f:key=="armor"?.91f:key=="apron"?.79f:key=="placket"?1.03f:.81f,
-                    key=="belt"?.775f:key=="armor"||key=="apron"?1.17f:key=="placket"?1.205f:1.20f,rear);
+                var layer=FittedRibbon(key,key=="belt"?.748f:key=="armor"?.91f:key=="apron"?.79f:key=="placket"?PlacketBottom:.81f,
+                    key=="belt"?.775f:key=="armor"||key=="apron"?1.17f:key=="placket"?PlacketTop:1.20f,rear);
                 foreach(var p in layer.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
                 {
                     float gap=MathF.Abs(p.Z-TorsoSurface(p.X,p.Y,key=="belt"?p.Z>0:rear,0).Z);

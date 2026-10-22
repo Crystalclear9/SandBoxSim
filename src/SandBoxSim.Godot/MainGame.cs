@@ -56,6 +56,7 @@ public partial class MainGame : Control
     private int _previewDays;
     private string _previewView = "";
     private string _previewPanel = "";
+    private bool IsModelGallery => _previewPanel is "architecture" or "characters" or "naturemodels" or "faces" or "equipment" or "actions" or "motion" or "grip" or "hands" or "model-details" or "ecology-details" or "wardrobe" or "forearms" or "social" or "handedness";
     private double _benchmarkSeconds, _benchmarkElapsed, _benchmarkMeasuredSeconds;
     private long _benchmarkFrames;
     private double _benchmarkProcessTime,_benchmarkDrawCalls,_benchmarkPrimitives;
@@ -122,15 +123,18 @@ public partial class MainGame : Control
         if(evaluationPath!=null)
         {
             try{if(_selfTest||_benchmarkSeconds>0||_capture.Length>0||_captureFrames.Length>0)throw new ArgumentException("Evaluation cannot be mixed with legacy capture/test modes");LoadEvaluation(evaluationPath.Substring(13));}
-            catch(Exception ex){GD.PrintErr("EVALUATION_CONFIG_ERROR "+ex.Message);GetTree().Quit(2);SetProcess(false);return;}
+            catch(Exception ex){GD.PrintErr("EVALUATION_CONFIG_ERROR "+ex.Message);TraceEvaluationPhase("quit_requested");GetTree().Quit(2);SetProcess(false);return;}
         }
         NewWorld(_evaluation?.Seed??839102);
+        TraceEvaluationPhase("world_initialized");
         if (_previewDays > 0) { AdvanceWorld(_previewDays * Sim.Config.Clock.TicksPerDay); }
         BuildInterface();
-        if (_previewPanel is "architecture" or "characters" or "naturemodels" or "faces" or "equipment" or "actions" or "motion" or "grip" or "hands" or "model-details" or "ecology-details" or "wardrobe" or "forearms" or "social" or "handedness")
+        TraceEvaluationPhase("interface_ready");
+        if (IsModelGallery)
         { SetSpeed(0); AddChild(new ModelGallery { Collection = _previewPanel == "naturemodels" ? "nature" : _previewPanel }); }
 
         if(_previewPanel=="ecology")ShowCategory("生态");
+        TraceEvaluationPhase("scene_ready");
         if (_selfTest) { RunSelfTest(); }
     }
     private void NewWorld(int seed)
@@ -673,6 +677,7 @@ public partial class MainGame : Control
         try
         {
             ValidateEvaluationContract();
+            WorldView3D.ValidateGalleryIsolation(this);
             new NatureModels().ValidateCraftedModels();
             new NatureModels().ValidateResidentMeshes();
             new NatureModels().ValidateWildPlaceMeshes();
