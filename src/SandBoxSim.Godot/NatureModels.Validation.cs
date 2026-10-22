@@ -46,6 +46,7 @@ internal sealed partial class NatureModels
         ValidateGarmentCuts();
         ValidateLeatherGoods();
         ValidateHumanAsset();
+        ValidateWindowRecesses();
         var batch=new Node3D();
         var placements=new System.Collections.Generic.List<Transform3D>();
         foreach(float x in new[]{-30f,0,23.9f,24.1f,60})placements.Add(new Transform3D(Basis.Identity,new(x,0,x)));

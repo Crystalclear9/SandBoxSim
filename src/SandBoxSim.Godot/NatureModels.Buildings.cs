@@ -1,4 +1,5 @@
 using Godot;
+using System.Collections.Generic;
 using SandBoxSim.Core.Agents;
 using SandBoxSim.Core.Environment;
 
@@ -52,7 +53,7 @@ internal sealed partial class NatureModels
         float height = variant == 3 ? 2.6f : variant == 0 ? 2.05f : 2.15f;
         int walls = variant == 0 ? 1 : variant == 2 ? 6 : 3;
         Part(model, "box", new(0, .12f, 0), new(width + .1f, .24f, depth + .1f), 6);
-        Part(model, "box", new(0, height / 2 + .18f, 0), new(width, height, depth), walls);
+        HouseWallShell(model,width,depth,height,variant,walls);
         if(variant==1 || variant==3)
         {
             foreach(float x in new[]{-width*.28f,0f,width*.28f})
@@ -94,9 +95,12 @@ internal sealed partial class NatureModels
     }
     private void Window(Node3D model, float x, float y, float z)
     {
-        Part(model, "box", new(x, y, z), new(.32f, .4f, .08f), 9);
-        Part(model, "box", new(x, y, z + .05f), new(.035f, .44f, .06f), 1);
-        Part(model, "box", new(x, y, z + .05f), new(.36f, .035f, .06f), 1);
+        // Recessed glazing and a dark reveal sit inside a real wall opening.
+        // The mullions and shutters remain proud of the facade.
+        Detail(model,"box",new(x,y,z-.155f),new(.32f,.40f,.008f),"#202923");
+        Part(model, "box", new(x, y, z-.092f), new(.30f, .38f, .008f), 9);
+        Part(model, "box", new(x, y, z-.015f), new(.022f, .42f, .045f), 1);
+        Part(model, "box", new(x, y, z-.015f), new(.34f, .022f, .045f), 1);
         foreach(float side in new[] {-1f,1f})
         {
             Part(model,"box",new(x+side*.19f,y,z+.06f),new(.045f,.46f,.09f),0);
@@ -109,6 +113,80 @@ internal sealed partial class NatureModels
         }
         Part(model,"box",new(x,y-.23f,z+.095f),new(.48f,.055f,.16f),0);
         Part(model,"box",new(x,y+.23f,z+.04f),new(.44f,.055f,.10f),0);
+    }
+    private static Rect2[] HouseOpenings(float width,int variant)
+    {
+        float doorX=variant is 0 or 4?-.28f:0;
+        var openings=new List<Rect2> {new(doorX-.41f,.18f,.82f,1.75f),new(width*.355f-.16f,1.07f,.32f,.40f)};
+        if(variant is 1 or 2 or 3)openings.Add(new(-width*.355f-.16f,1.07f,.32f,.40f));
+        if(variant==3)openings.Add(new(-.16f,2.25f,.32f,.40f));
+        return openings.ToArray();
+    }
+    private static IEnumerable<Rect2> WallPatches(Rect2 wall,Rect2[] openings)
+    {
+        var patches=new List<Rect2> {wall};
+        foreach(var opening in openings)
+        {
+            var next=new List<Rect2>();
+            foreach(var p in patches)
+            {
+                var cut=p.Intersection(opening);
+                if(!cut.HasArea()){next.Add(p);continue;}
+                void Add(float x,float y,float w,float h){if(w>.0001f&&h>.0001f)next.Add(new(x,y,w,h));}
+                Add(p.Position.X,p.Position.Y,cut.Position.X-p.Position.X,p.Size.Y);
+                Add(cut.End.X,p.Position.Y,p.End.X-cut.End.X,p.Size.Y);
+                Add(cut.Position.X,p.Position.Y,cut.Size.X,cut.Position.Y-p.Position.Y);
+                Add(cut.Position.X,cut.End.Y,cut.Size.X,p.End.Y-cut.End.Y);
+            }
+            patches=next;
+        }
+        return patches;
+    }
+    private void HouseWallShell(Node3D model,float width,float depth,float height,int variant,int material)
+    {
+        foreach(var p in WallPatches(new(-width/2,.18f,width,height),HouseOpenings(width,variant)))
+            Part(model,"box",new(p.GetCenter().X,p.GetCenter().Y,depth/2-.07f),new(p.Size.X,p.Size.Y,.14f),material);
+        Part(model,"box",new(0,height/2+.18f,-depth/2+.07f),new(width,height,.14f),material);
+        foreach(float side in new[]{-1f,1f})
+        {
+            var openings=_fineArchitecture?new[]{new Rect2(depth*.13f-.16f,1.05f,.32f,.40f)}:System.Array.Empty<Rect2>();
+            foreach(var p in WallPatches(new(-depth/2,.18f,depth,height),openings))
+                Part(model,"box",new(side*(width/2-.07f),p.GetCenter().Y,p.GetCenter().X),new(.14f,p.Size.Y,p.Size.X),material);
+        }
+        Part(model,"box",new(0,.205f,0),new(width-.28f,.05f,depth-.28f),0);
+    }
+    private void ValidateWindowRecesses()
+    {
+        for(uint variant=0;variant<5;variant++)
+        {
+            var model=Building(BuildingKind.House,true,variant);
+            try
+            {
+                float width=2.35f+(variant%4)*.16f,depth=1.85f;
+                var mesh=model.GetChild<MeshInstance3D>(0).Mesh;
+                float x=width*.355f+.08f,y=1.35f,nearest=float.NegativeInfinity;
+                Material? hit=null;
+                for(int s=0;s<mesh.GetSurfaceCount();s++)
+                {
+                    var a=mesh.SurfaceGetArrays(s);var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();var ids=a[(int)Mesh.ArrayType.Index].AsInt32Array();
+                    for(int i=0;i<ids.Length;i+=3)
+                    {
+                        var a0=p[ids[i]];var b=p[ids[i+1]];var c=p[ids[i+2]];
+                        float d=(b.Y-c.Y)*(a0.X-c.X)+(c.X-b.X)*(a0.Y-c.Y);
+                        if(Godot.Mathf.Abs(d)<.00000001f)continue;
+                        float u=((b.Y-c.Y)*(x-c.X)+(c.X-b.X)*(y-c.Y))/d;
+                        float v=((c.Y-a0.Y)*(x-c.X)+(a0.X-c.X)*(y-c.Y))/d;
+                        if(u<0||v<0||u+v>1)continue;
+                        float z=u*a0.Z+v*b.Z+(1-u-v)*c.Z;
+                        if(z>nearest){nearest=z;hit=mesh.SurfaceGetMaterial(s);}
+                    }
+                }
+                if(hit!=Material(9)||nearest>=depth/2-.008f||nearest<depth/2-.05f)
+                    throw new System.InvalidOperationException("Window reveal is covered by facade geometry or sits outside its opening: "+variant);
+            }
+            finally{model.Free();}
+        }
+        GD.Print("WINDOW_RECESSES_PASS: actual front-window rays reach recessed glazing in all five house variants");
     }
     private void GableWalls(Node3D model, float width, float depth, float height, int material)
     {

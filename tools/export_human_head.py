@@ -125,5 +125,21 @@ result={"schemaVersion":1,"source":{"creator":"Julien Kaspar / Blender Studio","
         "eyeCenter":[abs(float(eye_center.x)),float(eye_center.y),float(eye_center.z)],
         "mouthCenter":list(mouth),"noseProbeY":float(nose.y),
         "scalp":{"rows":rows,"columns":columns,"low":low,"high":high,"centers":centers,"radii":radii}}
+body.modifiers["Multires"].levels = 2
+bpy.context.view_layer.update()
+detail_mesh=body.evaluated_get(deps).to_mesh(preserve_all_data_layers=True,depsgraph=deps)
+detail_mesh.calc_loop_triangles()
+detail_regions=detail_mesh.attributes[".sculpt_face_set"]
+detail_triangles=[]
+for triangle in detail_mesh.loop_triangles:
+    region=detail_regions.data[triangle.polygon_index].value
+    if region not in head_regions or region in {22,23}:continue
+    if min((body.matrix_world@detail_mesh.vertices[i].co).z for i in triangle.vertices)<1.500:continue
+    detail_triangles.append((triangle,region))
+sys.path.insert(0,str(pathlib.Path(__file__).parent))
+from bake_human_detail import bake_head_detail
+normal_path=output/'human-head_normal.png'
+result['head'],normal_hash=bake_head_detail(head,encode(detail_mesh,body.matrix_world,detail_triangles),normal_path)
+result['detailNormal']={"file":normal_path.name,"sha256":normal_hash,"resolution":2048,"sourceSubdivisionLevel":2}
 target=output/'human-head.mesh.json';target.write_text(json.dumps(result,separators=(',',':')),encoding='utf-8')
-print('HUMAN_ASSET_EXPORTED',target,{'headVertices':len(head['positions'])//3,'headTriangles':len(head['indices'])//3,'mouthCenter':list(mouth),'eyeCenter':list(eye_center),'noseProbeY':nose.y})
+print('HUMAN_ASSET_EXPORTED',target,{'headVertices':len(result['head']['positions'])//3,'headTriangles':len(result['head']['indices'])//3,'mouthCenter':list(mouth),'eyeCenter':list(eye_center),'noseProbeY':nose.y})

@@ -135,7 +135,11 @@ internal partial class ModelGallery : PanelContainer
         }
         else if(Collection=="faces")
         {
-            for(int i=0;i<6;i++)Face(grid,models.Resident(17+i,false,i%2==0 ? JobType.Gatherer : JobType.Farmer),"面部与衣领 · "+(i+1),i%2!=0,(i%3)*.45f);
+            int[] identities={19,17,18,20,21,22};
+            float[] views={0,.20f,.65f,0,.80f,-.70f};
+            for(int i=0;i<identities.Length;i++)
+                Face(grid,models.Resident(identities[i],false,i==3?JobType.Farmer:JobType.Gatherer),
+                    "面部、发际线与衣领 · "+(i+1),i==3,views[i]);
         }
         else if(Collection=="characters")
         {

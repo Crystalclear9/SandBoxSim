@@ -17,13 +17,15 @@ varying vec3 coat_normal;
 void vertex(){ local=VERTEX;coat_normal=NORMAL; }
 float coat_noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);vec2 q=vec2(127.1,311.7);return mix(mix(fract(sin(dot(i,q))*43758.5453),fract(sin(dot(i+vec2(1,0),q))*43758.5453),f.x),mix(fract(sin(dot(i+vec2(0,1),q))*43758.5453),fract(sin(dot(i+vec2(1,1),q))*43758.5453),f.x),f.y);}
 void fragment(){
-vec2 coat_uv=vec2(local.x*.83+local.z*.56,local.y*.93-local.z*.37);
-float guard=(coat_noise(coat_uv*181.0)+coat_noise(vec2(-coat_uv.y,coat_uv.x)*397.0)*.5)/1.5-.5;
+vec2 coat_uv=vec2(local.x*.83+local.y*.21,local.z*.81-local.y*.37);
+// Strands have a growth direction and irregular ends. Isotropic noise alone
+// looks like mottled plastic even on a detailed continuous skin.
+float guard=(coat_noise(coat_uv*vec2(390.0,43.0))+coat_noise(coat_uv*vec2(810.0,91.0))*.35)/1.35-.5;
 float footprint=max(length(dFdx(local)),length(dFdy(local)))*300.0;
 guard/=1.0+footprint*footprint;
 float belly=(1.0-smoothstep(mix(.86,.54,predator),mix(1.03,.72,predator),local.y))*(.65+.35*smoothstep(.10,.75,-coat_normal.y));
 float saddle=smoothstep(.68,.95,local.y)*(1.0-smoothstep(.08,.22,abs(local.x)))*predator*.24;
-float locks=0.0;
+float locks=(coat_noise(coat_uv*vec2(42.0,13.0))-.5)*.055;
 float agouti=coat_noise(coat_uv*27.0+vec2(7.0,3.0))-.5;
 agouti/=1.0+footprint*footprint*.04;
 float flank=(coat_noise(vec2(local.z,local.y)*3.1)-.5)*.10;
@@ -31,7 +33,7 @@ float dorsal=smoothstep(mix(1.08,.78,predator),mix(1.25,.98,predator),local.y)*.
 vec3 dx=dFdx(VERTEX),dy=dFdy(VERTEX);
 vec3 across=cross(dy,NORMAL),along=cross(NORMAL,dx);
 float determinant=dot(dx,across);
-float fiber_height=guard*0.000030;
+float fiber_height=guard*mix(.000030,.000065,predator);
 if(abs(determinant)>0.0000000001){
 NORMAL=normalize(abs(determinant)*NORMAL-sign(determinant)*(dFdx(fiber_height)*across+dFdy(fiber_height)*along));
 }
@@ -40,12 +42,16 @@ float brow_mask=exp(-pow((abs(local.x)-.092)*21.0,2.0)-pow((local.y-1.035)*22.0,
 float muzzle_shade=smoothstep(.99,1.13,-local.z)*predator*.10;
 float throat=(1.0-smoothstep(-.62,-.30,local.z))*(1.0-smoothstep(1.04,1.20,local.y))*predator*.34;
 float cheek=exp(-pow((local.z+.90)*6.0,2.0)-pow((local.y-.99)*12.0,2.0))*predator*.18;
-ALBEDO=mix(coat.rgb,pale.rgb,clamp(belly*.62+face_pale+throat+cheek,0.0,.82))*(0.97+guard*.034+agouti*.10+locks+flank-saddle-dorsal-muzzle_shade-brow_mask);
+float cervid_chin=(1.0-predator)*(1.0-smoothstep(-1.08,-.91,local.z))*(1.0-smoothstep(1.34,1.44,local.y))*.40;
+float rump=(1.0-predator)*smoothstep(.43,.58,local.z)*(1.0-smoothstep(.07,.15,abs(local.x)))*.48;
+float tear=(1.0-predator)*exp(-pow((abs(local.x)-.085)*41.0,2.0)-pow((local.y-1.474)*45.0,2.0)-pow((local.z+.883)*24.0,2.0))*.12;
+vec3 base=mix(coat.rgb,pale.rgb,clamp(belly*.52+face_pale+throat+cheek+cervid_chin+rump,0.0,.78));
+ALBEDO=base*(0.97+guard*.072+agouti*.09+locks+flank-saddle-dorsal-muzzle_shade-brow_mask-tear);
 ROUGHNESS=0.94+guard*0.025; SPECULAR=0.10;
 }" };
         var material = new ShaderMaterial { Shader = _furShader };
-        material.SetShaderParameter("coat", new Color(wolf ? "#827d72" : "#886047"));
-        material.SetShaderParameter("pale", new Color(wolf ? "#d3c9b5" : "#d8c7ab"));
+        material.SetShaderParameter("coat", new Color(wolf ? "#777971" : "#8a6d52"));
+        material.SetShaderParameter("pale", new Color(wolf ? "#c3c0ae" : "#c8bca3"));
         material.SetShaderParameter("predator",wolf?1f:0f);
         _residentMaterials[key] = material; return material;
     }
@@ -69,15 +75,13 @@ ROUGHNESS=0.94+guard*0.025; SPECULAR=0.10;
         var body = Loft(wolf ? "wolf-body" : "deer-body", new[] {
             new Vector4(-.90f,back+(wolf?.29f:.42f),.035f,.045f),
             new(-.78f,back+(wolf?.25f:.36f),wolf?.102f:.083f,wolf?.13f:.112f),
-            new(-.64f,back+(wolf?.15f:.23f),wolf?.145f:.115f,.18f),
-            new(-.48f,back+.035f,wolf?.170f:.150f,.220f), new(-.30f,back,wolf?.185f:.175f,.235f),
-            new(-.08f,back-.005f,wolf?.165f:.155f,.195f), new(.18f,back+.015f,wolf?.135f:.130f,.160f), new(.39f,back+.005f,wolf?.170f:.165f,.205f),
+            new(-.64f,back+(wolf?.15f:.23f),wolf?.164f:.111f,wolf?.195f:.171f),
+            new(-.48f,back+.050f,wolf?.183f:.152f,.235f), new(-.30f,back-.008f,wolf?.180f:.172f,.238f),
+            new(-.08f,back+.003f,wolf?.151f:.151f,wolf?.185f:.210f), new(.18f,back+.032f,wolf?.127f:.129f,wolf?.142f:.170f), new(.39f,back+.008f,wolf?.174f:.170f,.216f),
             new(.53f,back-.025f,.135f,.175f), new(.64f,back-.04f,.008f,.015f) });
         Sculpt(rig.Body, body, Vector3.Zero, fur);
         rig.Head = new Node3D { Name = "Head", Position = new Vector3(0,back+(wolf?.28f:.42f),-.755f), Scale=Vector3.One*(wolf?.84f:.96f) }; rig.Body.AddChild(rig.Head);
-        Sculpt(rig.Head, Loft(wolf ? "wolf-head" : "deer-head", new[] {
-            new Vector4(.15f,0,.008f,.015f), new(.06f,.025f,wolf?.127f:.108f,wolf?.119f:.119f), new(-.055f,.030f,wolf?.124f:.100f,.109f), new(-.12f,.002f,wolf?.103f:.080f,wolf?.079f:.077f),
-            new(-.23f,-.031f,wolf?.084f:.057f,wolf?.059f:.050f), new(-.36f,-.04f,wolf?.060f:.043f,.040f), new(-.40f,-.04f,.006f,.012f) }), Vector3.Zero, fur);
+        Sculpt(rig.Head, AnimalSkull(wolf), Vector3.Zero, fur);
         Sculpt(rig.Head,Loft("animal-nose:"+wolf,new[]{new Vector4(-.415f,-.039f,.008f,.008f),new(-.410f,-.039f,wolf?.028f:.021f,.018f),new(-.391f,-.038f,wolf?.036f:.028f,.023f),new(-.376f,-.040f,wolf?.031f:.025f,.021f)},24),Vector3.Zero,LeatherSurface("#292e2c"));
         Sculpt(rig.Head,Loft("animal-jaw-"+wolf,new[]{new Vector4(-.04f,-.075f,.078f,.034f),new(-.16f,-.080f,.068f,.033f),new(-.29f,-.072f,.048f,.022f),new(-.36f,-.059f,.021f,.010f)}),Vector3.Zero,fur);
         // The mouth crease follows the lower muzzle; nostrils are inset into the nose.
@@ -132,5 +136,32 @@ ROUGHNESS=0.94+guard*0.025; SPECULAR=0.10;
         rig.Body.RemoveChild(rig.Head);rig.Neck.AddChild(rig.Head);rig.Head.Position-=rig.Neck.Position;
         if(!_exportingAnimals)InstallAnimalSurface(rig,wolf);
         MergeResidentParts(rig,wolf ? "crafted-wolf" : "crafted-deer"); return rig;
+    }
+    private Mesh AnimalSkull(bool wolf)
+    {
+        string key="anatomical-skull:"+wolf;if(_meshes.TryGetValue(key,out var cached))return cached;
+        var baseMesh=Loft(wolf?"wolf-head":"deer-head",new[]{
+            new Vector4(.15f,0,.008f,.015f),new(.085f,.023f,wolf?.110f:.092f,wolf?.104f:.098f),
+            new(.015f,.030f,wolf?.128f:.105f,wolf?.112f:.102f),new(-.055f,.027f,wolf?.122f:.096f,wolf?.096f:.087f),
+            new(-.12f,.001f,wolf?.096f:.073f,wolf?.067f:.064f),new(-.23f,-.033f,wolf?.076f:.052f,wolf?.050f:.043f),
+            new(-.33f,-.046f,wolf?.057f:.039f,wolf?.039f:.034f),new(-.38f,-.044f,wolf?.042f:.030f,.029f),new(-.40f,-.04f,.006f,.012f)},48);
+        var a=baseMesh.SurfaceGetArrays(0);var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        for(int i=0;i<p.Length;i++)
+        {
+            var v=p[i];
+            float brow=MathF.Exp(-MathF.Pow((v.Z+.085f)/.050f,2)-MathF.Pow((v.Y-.070f)/.035f,2));
+            float socket=MathF.Exp(-MathF.Pow((v.Z+.105f)/.038f,2)-MathF.Pow((v.Y-.038f)/.021f,2));
+            float cheek=MathF.Exp(-MathF.Pow((v.Z+.005f)/.060f,2)-MathF.Pow((v.Y+.010f)/.045f,2));
+            v.X+=MathF.Sign(v.X)*(brow*.004f-socket*.004f+cheek*(wolf?.009f:.003f));
+            // A flatter nasal plane and a narrow bridge distinguish the long
+            // cervid face from the canine stop and projecting cheekbones.
+            float top=Math.Clamp((v.Y+.015f)/.10f,0,1);
+            v.Y-=top*top*MathF.Exp(-MathF.Pow((v.Z+.17f)/.11f,2))*(wolf?.006f:.010f);
+            p[i]=v;
+        }
+        a[(int)Mesh.ArrayType.Vertex]=p;
+        var source=new ArrayMesh();source.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,a);
+        using var tool=new SurfaceTool();tool.CreateFrom(source,0);tool.GenerateNormals();
+        var mesh=tool.Commit();_meshes[key]=mesh;return mesh;
     }
 }

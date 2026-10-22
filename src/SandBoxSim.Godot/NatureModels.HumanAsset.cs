@@ -8,20 +8,38 @@ internal sealed partial class NatureModels
 {
     private sealed record HumanSurface(Vector3[] Points,Vector3[] Normals,Vector2[] Uv,Color[] Colors,int[] Indices);
     private sealed record HumanAsset(HumanSurface Head,HumanSurface Lips,HumanSurface[] Eyes,Vector3 Eye,Vector3 Mouth,
-        float NoseY,int Rows,int Columns,float Low,float High,float[] Centers,float[] Radii);
-    private HumanAsset? _humanAsset;
+        float NoseY,int Rows,int Columns,float Low,float High,float[] Centers,float[] Radii,string NormalPath);
+    private readonly System.Collections.Generic.Dictionary<int,HumanAsset> _humanAssets=new();
+    private int HumanFamily=>_faceVariant<2?0:_faceVariant<5?1:2;
     private readonly System.Collections.Generic.Dictionary<(int Variant,string Kind,int Side),(Vector3[] Points,int[] Indices)> _humanProjectionParts=new();
-    private const string HumanAssetPath="res://assets/models/human/human-head.mesh.json";
-    private const string HumanAssetHash="55cf103000de89d14dac0a2a09265aad72606516bffc56539ae605f792463c5b";
+    private static readonly string[] HumanFiles={"human-head","human-scan","human-feminine"};
+    private static readonly string[] HumanHashes={
+        "2c1faededfe891387b30b39524ffd14a919616f0914db60109f05abd1d8a0217",
+        "945276999642992c1751aec1147846ecbde2773607f29365f72bb875a6c31041",
+        "76311ff14fc5e3122db485689975fdb3886c3da7c07110eec8ca76f37e46d124"};
     private HumanAsset HumanData()
     {
-        if(_humanAsset!=null)return _humanAsset;
-        if(!FileAccess.FileExists(HumanAssetPath))throw new InvalidOperationException("Missing attributed human mesh asset");
-        string raw=FileAccess.GetFileAsString(HumanAssetPath);
+        int family=HumanFamily;
+        if(_humanAssets.TryGetValue(family,out var cached))return cached;
+        string path="res://assets/models/human/"+HumanFiles[family]+".mesh.json";
+        if(!FileAccess.FileExists(path))throw new InvalidOperationException("Missing attributed human mesh asset");
+        string raw=FileAccess.GetFileAsString(path);
         string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
-        if(hash!=HumanAssetHash)throw new InvalidOperationException("Human mesh asset does not match the exported source");
+        if(hash!=HumanHashes[family])throw new InvalidOperationException("Human mesh asset does not match the exported source");
         using var document=JsonDocument.Parse(raw);var root=document.RootElement;
         if(root.GetProperty("schemaVersion").GetInt32()!=1)throw new InvalidOperationException("Unsupported human mesh schema");
+        var detail=root.GetProperty("detailNormal");
+        string normalName=HumanFiles[family]+"_normal.png",normalPath="res://assets/models/human/"+normalName;
+        if(detail.GetProperty("file").GetString()!=normalName||!ResourceLoader.Exists(normalPath)||detail.GetProperty("resolution").GetInt32()!=2048)
+            throw new InvalidOperationException("Human sculpt normal atlas does not match its mesh");
+        // Editor runs expose the source PNG. Exported games use Godot's
+        // imported .ctex remap; validate the source bytes when available rather
+        // than requiring a second raw copy of each texture in the game package.
+        if(FileAccess.FileExists(normalPath))
+        {
+            string normalHash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(FileAccess.GetFileAsBytes(normalPath))).ToLowerInvariant();
+            if(normalHash!=detail.GetProperty("sha256").GetString())throw new InvalidOperationException("Human sculpt normal source hash mismatch");
+        }
         float[] Floats(JsonElement e){var values=new float[e.GetArrayLength()];int i=0;foreach(var v in e.EnumerateArray())values[i++]=v.GetSingle();return values;}
         Vector3 Vector(JsonElement e){var f=Floats(e);return new(f[0],f[1],f[2]);}
         HumanSurface Surface(JsonElement e)
@@ -37,11 +55,11 @@ internal sealed partial class NatureModels
             return new(points,normals,uv,colors,indices);
         }
         var scalp=root.GetProperty("scalp");var eyes=root.GetProperty("eyes");
-        _humanAsset=new(Surface(root.GetProperty("head")),Surface(root.GetProperty("lips")),new[]{Surface(eyes[0]),Surface(eyes[1])},
+        var asset=new HumanAsset(Surface(root.GetProperty("head")),Surface(root.GetProperty("lips")),new[]{Surface(eyes[0]),Surface(eyes[1])},
             Vector(root.GetProperty("eyeCenter")),Vector(root.GetProperty("mouthCenter")),root.GetProperty("noseProbeY").GetSingle(),
             scalp.GetProperty("rows").GetInt32(),scalp.GetProperty("columns").GetInt32(),scalp.GetProperty("low").GetSingle(),scalp.GetProperty("high").GetSingle(),
-            Floats(scalp.GetProperty("centers")),Floats(scalp.GetProperty("radii")));
-        return _humanAsset;
+            Floats(scalp.GetProperty("centers")),Floats(scalp.GetProperty("radii")),normalPath);
+        _humanAssets[family]=asset;return asset;
     }
     private float HumanWidth(float y,out float derivative)
     {
@@ -147,22 +165,23 @@ internal sealed partial class NatureModels
         float direction=_faceVariant%2==0?1:-1;
         float part=MathF.Atan2(MathF.Sin(angle-direction*.55f),MathF.Cos(angle-direction*.55f));
         float locks=.5f+.5f*MathF.Sin(swept*11+MathF.Sin(angle*3)*.65f);
-        float lift=.0026f+crown*(.0018f*locks+.0010f*MathF.Sin(swept*23));
-        lift-=.0008f*MathF.Exp(-MathF.Pow(part/.13f,2))*crown;
-        lift=MathF.Max(.0018f,lift);
+        float lift=.0016f+crown*.0005f*locks;
+        lift-=.0004f*MathF.Exp(-MathF.Pow(part/.13f,2))*crown;
+        lift=MathF.Max(.0012f,lift);
         return new(MathF.Cos(angle)*(radius+lift)*HumanWidth(worldY,out _)/.181f,p.Y,
             (zCenter+MathF.Sin(angle)*(radius+lift)*HumanDepth)/.200f);
     }
     private void ValidateHumanAsset()
     {
-        var data=HumanData();int previous=_faceVariant;
+        int previous=_faceVariant;
         if(!FileAccess.FileExists("res://assets/models/human/LICENSE.txt"))throw new InvalidOperationException("Missing human mesh attribution");
-        if(data.Radii.Length!=data.Rows*data.Columns||data.Centers.Length!=data.Rows||data.High<=data.Low)
-            throw new InvalidOperationException("Incomplete scalp surface lookup");
-        foreach(float radius in data.Radii)if(!float.IsFinite(radius)||radius<=0)throw new InvalidOperationException("Invalid scalp sample");
         for(int variant=0;variant<8;variant++)
         {
             _faceVariant=variant;
+            var data=HumanData();
+            if(data.Radii.Length!=data.Rows*data.Columns||data.Centers.Length!=data.Rows||data.High<=data.Low)
+                throw new InvalidOperationException("Incomplete scalp surface lookup");
+            foreach(float radius in data.Radii)if(!float.IsFinite(radius)||radius<=0)throw new InvalidOperationException("Invalid scalp sample");
             foreach(var mesh in new[]{HumanMesh("head"),HumanMesh("mouth"),HumanMesh("eye",0),HumanMesh("eye",1)})
             {
                 var arrays=mesh.SurfaceGetArrays(0);var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
@@ -172,6 +191,6 @@ internal sealed partial class NatureModels
             }
         }
         _faceVariant=previous;_facePoints=null;_faceIndices=null;
-        GD.Print("HUMAN_ASSET_PASS: attributed source hash, eight head/lip/eye variants, scalp lookup, finite geometry and normals");
+        GD.Print("HUMAN_ASSET_PASS: three attributed head families and sculpt normal atlases, eight head/lip/eye variants, scalp lookup, finite geometry and normals");
     }
 }

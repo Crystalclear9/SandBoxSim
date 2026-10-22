@@ -60,14 +60,14 @@ internal sealed partial class NatureModels
             if(flow.LengthSquared()<.5f)flow=normal.Cross(Vector3.Right).Normalized();
             var across=normal.Cross(flow).Normalized();
             float ruff=wolf?MathF.Exp(-MathF.Pow((root.Z+.4f)/.25f,2)):0;
-            float length=(wolf?.016f:.0045f)*(0.65f+Random()*.6f)*(1+ruff*.8f);
-            float width=wolf?.0014f:.0007f;
+            float length=(wolf?.024f:.0045f)*(0.65f+Random()*.6f)*(1+ruff*.9f);
+            float width=wolf?.0011f:.00055f;
             for(int plane=0;plane<2;plane++)
             {
                 var spread=plane==0?across:(across+normal*.5f).Normalized();
                 var basePoint=root-normal*.0004f;
-                var middle=root+normal*length*.12f+flow*length*.45f;
-                var tip=root+normal*length*.17f+flow*length;
+                var middle=root+normal*length*(.12f+ruff*.25f)+flow*length*.45f;
+                var tip=root+normal*length*(.18f+ruff*.30f)+flow*length;
                 void V(Vector3 point){surface.SetBones(bones);surface.SetWeights(weights);surface.SetNormal(normal);surface.SetUV(Vector2.Zero);surface.AddVertex(point);}
                 void Tri(Vector3 x,Vector3 y,Vector3 z){if((y-x).Cross(z-x).Dot(normal)>0)(y,z)=(z,y);V(x);V(y);V(z);}
                 Tri(basePoint-spread*width,basePoint+spread*width,middle-spread*width*.65f);

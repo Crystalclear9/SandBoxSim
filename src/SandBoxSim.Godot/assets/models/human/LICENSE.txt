@@ -47,3 +47,36 @@ near mesh has a single connected arm/hand skin; added forearm vertices bind to
 the wrist compensation bone. Distant hand extraction retains only the original
 hand region. The shared wrist transition uses the existing retargeted hand ring.
 Join helper: tools/join_human_arm.py. Same CC BY 4.0 attribution applies.
+
+Sculpt-normal derivative (human-head_normal.png): baked the source's second
+multiresolution level onto a packed UV atlas for the first-level runtime head.
+UV seams split runtime vertices; topology and triangle count remain unchanged.
+Exporter/helper: tools/export_human_head.py and tools/bake_human_detail.py.
+This normal atlas and human-head.mesh.json remain CC BY 4.0 under the above
+Julien Kaspar / Blender Studio attribution.
+
+Additional independent CC0 head families
+--------------------------------------
+Creator: Dan Ulrich / Blender
+License: CC0 1.0 Universal (Public Domain)
+Terms: https://creativecommons.org/publicdomain/zero/1.0/
+Provider license policy: https://projects.blender.org/blender/blender-assets/src/branch/main/README.md
+
+human-scan.mesh.json and human-scan_normal.png derive from Head (Animation) -
+Realistic, described by its asset metadata as scan data with animation topology.
+Source: https://projects.blender.org/blender/blender-assets/src/branch/main/publish/online/base_meshes/human_base_meshes__head-realistic-animation.blend
+Source SHA-256: a680ca23a0dee2a16ecc6e3921ddcfa0e039a5a7ef4262ec56214a924d08d3ca
+
+human-feminine.mesh.json and human-feminine_normal.png derive from Body Female -
+Realistic. Only the head, neck, lips and eyes are included in this derivative.
+Source: https://projects.blender.org/blender/blender-assets/src/branch/main/publish/online/base_meshes/human_base_meshes__body-realistic-female.blend
+Source SHA-256: 74917ec876cdb6aae3b6d291f2f638f5a959276f4115a714cf8c5dcf6a99ce20
+
+Modifications: selected the head and neck, separated moving lips and eyes,
+converted axes and scale, fitted neck roots, packed UVs, generated scalp
+lookups and baked normal maps. Runtime identity variants, skin/hair materials,
+gaze and mouth motion are supplied by SandBoxSim. The scan head keeps level-one
+geometry; the feminine head bakes level-two detail onto level-one geometry.
+Exporter: tools/export_human_variants.py; bake helper: tools/bake_human_detail.py.
+These two independent head families are CC0, not covered by the CC BY 4.0
+condition applicable to the earlier Julien Kaspar derivatives above.

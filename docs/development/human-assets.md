@@ -1,20 +1,24 @@
 # 人物解剖素材与转换
 
-近景头脸使用 Blender Studio 的 **Realistic Human Base** 衍生网格，来源为 Julien Kaspar / Blender Studio，许可为 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)。原始来源与下载见 [Use of Base Meshes](https://studio.blender.org/training/realistic-human-research/use-of-base-meshes/)。它是人工制作的写实基础网格，当前客户端使用自己的肤色、材质和动作表现。
+近景居民使用三套独立头脸来源。Julien Kaspar / Blender Studio 的 Realistic Human Base 衍生数据适用 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)；Dan Ulrich / Blender 的两套扫描解剖来源适用 CC0。它们共用游戏的骨架、眼神、眨眼、交谈和职业配件。形象由稳定身份选择，不新增性别、职业或游玩限制。
 
-## 当前数据
+## 当前头脸数据
 
-[human-head.mesh.json](../../src/SandBoxSim.Godot/assets/models/human/human-head.mesh.json) 包含经过一级多重细分处理的头颈、耳部、独立唇部、左右眼球和头发表面查找表。头颈有 17,689 个导出顶点和 34,585 个三角面，嘴唇有 638 个顶点，每只眼球有 2,786 个顶点。颜色边界处允许分裂顶点以保留唇色与口腔色层。
+| 文件 | 来源与许可 | 头颈顶点 / 三角面 |
+|---|---|---|
+| [human-head.mesh.json](../../src/SandBoxSim.Godot/assets/models/human/human-head.mesh.json) | Julien Kaspar / Blender Studio，CC BY 4.0 | 22,167 / 34,585 |
+| [human-scan.mesh.json](../../src/SandBoxSim.Godot/assets/models/human/human-scan.mesh.json) | Dan Ulrich 的 Head Animation Realistic，CC0 | 14,527 / 22,641 |
+| [human-feminine.mesh.json](../../src/SandBoxSim.Godot/assets/models/human/human-feminine.mesh.json) | Dan Ulrich 的 Body Female Realistic 头颈，CC0 | 17,805 / 27,763 |
 
-源码校验原始 `.blend` 的 SHA-256，运行时校验导出数据的 SHA-256。生成脚本是 [export_human_head.py](../../tools/export_human_head.py)，运行时读取、变体和头发贴合位于 [NatureModels.HumanAsset.cs](../../src/SandBoxSim.Godot/NatureModels.HumanAsset.cs)。普通构建、运行和评测直接使用仓库中的导出数据，无须 Blender 或在线下载。
+每套数据包含独立唇部、左右眼球和自己的头皮查找表。八种运行变体分别使用原始头部两种、扫描头部三种和女性解剖头部三种，不再全部由同一男性头部缩放而来。头部、眼口和挂点共用温和的宽深变形；法线按变形的局部 Jacobian 修正。新增来源仅提取头颈，没有把整套源人体放进客户端。
 
-转换保留原作者的面部拓扑，提取头颈和耳部；唇部独立用于原有交谈与进食表现，左右眼球保留体积并由眼睑闭合实现眨眼。坐标转换在三个方向统一使用 0.90 比例，保留原作者的解剖宽高深关系；颈根仍经过收束以接入游戏衣身。运行时八种结构调整下颌到上脸的宽度与面部纵深，不再分别推移鼻、颊、眉弓、下颌和嘴角；所有面部件和挂点使用同一变形，法线以局部 Jacobian 修正。头发按实际头颅表面查找表贴合，分别控制额前、鬓角、后颈与冠顶轮廓，近景增加渐细弧面发束；年龄沿用原有缩放。运行时保留原始唇色和浅暖色层。当前没有独立女性基础网格或年龄专用雕刻。
+三张 2048×2048 法线图分别与各自的 UV 图集绑定。原始头部和女性解剖头部把更高一级雕刻烘焙到运行网格；动画扫描头部保留同级拓扑及法线。UV 缝处分裂顶点，合并头部后重新生成切线。JSON 记录法线源图 SHA-256，离线回归与编辑器运行核对原图；导出游戏通过 Godot 的纹理重映射加载导入图，检查实际尺寸。
 
-## 运行时头发与眉毛
+[export_human_head.py](../../tools/export_human_head.py) 重建原始 CC BY 4.0 头部；[export_human_variants.py](../../tools/export_human_variants.py) 重建两套 CC0 头部；二者共用 [bake_human_detail.py](../../tools/bake_human_detail.py) 生成 UV 与法线图。[NatureModels.HumanAsset.cs](../../src/SandBoxSim.Godot/NatureModels.HumanAsset.cs) 管理来源选择、网格校验和实际表面采样。
 
-头脸数据保持原有授权拓扑。侧分头发依据同源头皮查找表贴合，额前与两侧发际线采用不对称轮廓，近景弧面发束沿侧分方向扫掠；远景继续使用不带发束的轻量轮廓。
+近景发型使用 2,400 根约 0.2–0.4 毫米半宽的渐细发丝，叠加贴合头皮的底层轮廓；部分形象带随头部移动的低发髻。远景保留基础轮廓与简化发髻。发根和发丝的顶点色在合并网格时保留，皮肤使用烘焙细节、轻微色泽与粗糙度变化。眉毛仍为左右各 72 组贴合实际面部的弧面毛束。
 
-眉毛包含左右各 72 组渐细弧面毛束，共 864 三角面，沿实际脸部三角面采样，距面部 0.35–0.60 毫米。网格按八种脸型缓存，并进入既有近远景切换；自检覆盖贴合间距、缓存与三角面上限。这些是运行时细节，不是重新制作的整套头脸雕刻，也没有更换授权来源。
+普通构建、运行、评测和 CI 直接读取仓库中的派生文件，不需要 Blender 或联网。授权记录见 [LICENSE.txt](../../src/SandBoxSim.Godot/assets/models/human/LICENSE.txt)。
 
 ## 肘部与前臂
 
@@ -56,7 +60,16 @@ $headSource = './.tools/sources/realistic_human_base.blend'
 & $headBlender --background --disable-autoexec $headSource --python tools/export_human_head.py -- --output src/SandBoxSim.Godot/assets/models/human
 ```
 
-脚本使用明确的对象名和雕刻区域，评估多重细分、拆分头脸与眼唇、重定位颈部、转换坐标并生成头发表面查找表。原文件中的脚本保持关闭。导出后计算数据 SHA-256，更新运行时代码的 `HumanAssetHash`，运行 `./tools/godot.ps1 -Mode test` 并查看 `visual-faces`、`visual-wardrobe` 和动作场景。
+脚本使用明确的对象名和雕刻区域，评估多重细分、拆分头脸与眼唇、重定位颈部、转换坐标、生成头皮查找表，并烘焙雕刻法线。原文件中的脚本保持关闭。导出后计算数据 SHA-256，更新运行时代码的 `HumanHashes`，运行 `./tools/godot.ps1 -Mode test` 并查看 `visual-faces`、`visual-wardrobe` 和动作场景。
+
+两套 CC0 头部的官方源文件也放在 `.tools/sources/blender-assets/`，运行时文件的 `source` 字段保存官方地址与 SHA-256。重新生成：
+
+```powershell
+& $headBlender --background --disable-autoexec ./.tools/sources/blender-assets/head-realistic-animation.blend --python-exit-code 2 --python tools/export_human_variants.py -- --kind scan --output src/SandBoxSim.Godot/assets/models/human
+& $headBlender --background --disable-autoexec ./.tools/sources/blender-assets/body-realistic-female.blend --python-exit-code 2 --python tools/export_human_variants.py -- --kind feminine --output src/SandBoxSim.Godot/assets/models/human
+```
+
+官方原文件各约 1 MB、13 MB，分别核对 `a680ca23a0dee2a16ecc6e3921ddcfa0e039a5a7ef4262ec56214a924d08d3ca`、`74917ec876cdb6aae3b6d291f2f638f5a959276f4115a714cf8c5dcf6a99ce20`。脚本校验源文件，不自动下载；原始下载、工具配置与缓存均位于 `.tools/`。
 
 人物前臂、手部与动物外皮可一起重新生成：
 
@@ -70,6 +83,6 @@ $headSource = './.tools/sources/realistic_human_base.blend'
 
 ## 发布与署名
 
-许可记录保存在 [LICENSE.txt](../../src/SandBoxSim.Godot/assets/models/human/LICENSE.txt)，包含来源、作者、原文件校验值及修改内容。该模型数据适用 CC BY 4.0，项目的软件许可不替代素材许可。再分发时保留署名和许可链接，并记录进一步修改。
+许可记录保存在 [LICENSE.txt](../../src/SandBoxSim.Godot/assets/models/human/LICENSE.txt)，包含来源、作者、原文件校验值及修改内容。原始头部、前臂和手部衍生数据适用 CC BY 4.0；新增两套头部衍生数据适用 CC0。项目的软件许可不替代素材许可。再分发时保留署名和许可链接，并记录进一步修改。
 
 Windows、Linux、macOS 的 Godot 导出预设包含 `*.json,*.txt`，将网格数据与署名一起打包。图形项目目录包含独立 `SandBoxSim.Godot.sln`，导出配置允许从官方 NuGet 源恢复自包含运行时包；普通内核构建保持原有包源规则。维护检查使用原生 PCK 导出与资源挂载核对，防止编辑器能读取而发行包缺失素材。原始下载、便携 Blender 和试验产物属于本机维护资料，不是客户端的运行依赖。

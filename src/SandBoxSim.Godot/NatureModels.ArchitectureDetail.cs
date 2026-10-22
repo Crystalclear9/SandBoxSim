@@ -103,7 +103,16 @@ internal sealed partial class NatureModels
             }
             if(variant==0 && kind==BuildingKind.House)
                 for(int row=0;row<14;row++) foreach(float side in new[]{-1f,1f})
-                    Part(model,"cylinder",new(side*width/2,.27f+row*.138f,0),new(.14f,depth+.12f,.14f),0,new(Godot.Mathf.Pi/2,0,0));
+                {
+                    float logY=.27f+row*.138f;
+                    if(_fineArchitecture&&logY+.07f>1.05f&&logY-.07f<1.45f)
+                    {
+                        float opening=depth*.13f;
+                        foreach(var span in new[]{new Vector2(-depth/2-.06f,opening-.16f),new Vector2(opening+.16f,depth/2+.06f)})
+                            Part(model,"cylinder",new(side*width/2,logY,(span.X+span.Y)/2),new(.14f,span.Y-span.X,.14f),0,new(Godot.Mathf.Pi/2,0,0));
+                    }
+                    else Part(model,"cylinder",new(side*width/2,logY,0),new(.14f,depth+.12f,.14f),0,new(Godot.Mathf.Pi/2,0,0));
+                }
             if(variant==2 && kind==BuildingKind.House)
                 for(int row=0;row<11;row++) for(int col=0;col<8;col++)
                 {
@@ -112,11 +121,13 @@ internal sealed partial class NatureModels
                     float near=Godot.Mathf.Max(-depth/2,-depth/2+(col-offset)*depth/7),far=Godot.Mathf.Min(depth/2,-depth/2+(col+1-offset)*depth/7);
                     if(right-left<.02f || far-near<.02f)continue;
                     float x=(left+right)/2;
-                    foreach(float side in new[]{-1f,1f})
-                        Part(model,_fineArchitecture?"masonry":"box",new(x,.18f+(row+.5f)*height/11,side*(depth/2+.026f)),new(right-left-.012f,height/11-.012f,.07f),6);
+                    foreach(var patch in WallPatches(new(left+.006f,.18f+row*height/11+.006f,right-left-.012f,height/11-.012f),HouseOpenings(width,variant)))
+                        Part(model,_fineArchitecture?"masonry":"box",new(patch.GetCenter().X,patch.GetCenter().Y,depth/2+.026f),new(patch.Size.X,patch.Size.Y,.07f),6);
+                    Part(model,_fineArchitecture?"masonry":"box",new(x,.18f+(row+.5f)*height/11,-depth/2-.026f),new(right-left-.012f,height/11-.012f,.07f),6);
                     float stoneZ=(near+far)/2;
                     foreach(float side in new[]{-1f,1f})
-                        Part(model,_fineArchitecture?"masonry":"box",new(side*(width/2+.026f),.18f+(row+.5f)*height/11,stoneZ),new(.07f,height/11-.012f,far-near-.012f),6);
+                    foreach(var patch in WallPatches(new(near+.006f,.18f+row*height/11+.006f,far-near-.012f,height/11-.012f),_fineArchitecture?new[]{new Rect2(depth*.13f-.16f,1.05f,.32f,.40f)}:System.Array.Empty<Rect2>()))
+                        Part(model,_fineArchitecture?"masonry":"box",new(side*(width/2+.026f),patch.GetCenter().Y,patch.GetCenter().X),new(.07f,patch.Size.Y,patch.Size.X),6);
                 }
                 // Recessed entrance canopy and carved corbels vary the cottage facade.
                 if(kind==BuildingKind.House && (variant==1 || variant==2 || variant==3))

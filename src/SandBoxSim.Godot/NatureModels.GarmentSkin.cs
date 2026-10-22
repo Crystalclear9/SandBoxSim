@@ -53,7 +53,7 @@ internal sealed partial class NatureModels
         arrays[(int)Mesh.ArrayType.Bones]=b;arrays[(int)Mesh.ArrayType.Weights]=w;arrays[(int)Mesh.ArrayType.Index]=index;
         var mesh=new ArrayMesh();mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);_meshes[key]=mesh;return mesh;
     }
-    private static Vector4[] SleeveProfile()=>new[]{new Vector4(.040f,0,.045f,.040f),new(.085f,0,.056f,.051f),new(.17f,0,.053f,.049f),new(.24f,0,.047f,.044f),new(.263f,0,.043f,.042f)};
+    private static Vector4[] SleeveProfile()=>new[]{new Vector4(.040f,0,.043f,.040f),new(.085f,0,.049f,.046f),new(.17f,0,.047f,.044f),new(.24f,0,.045f,.043f),new(.263f,0,.043f,.042f)};
     private void ValidateContinuousGarments()
     {
         int previous=_garmentCut;

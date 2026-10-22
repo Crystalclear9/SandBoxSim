@@ -39,13 +39,13 @@ internal sealed partial class NatureModels
         new[]{.63f,.665f,.73f,.82f,.97f,1.10f,1.19f,1.24f,1.28f},
         new[]{.535f,.570f,.73f,.82f,.97f,1.10f,1.19f,1.24f,1.28f}};
     private static readonly float[][] GarmentWidthProfiles={
-        new[]{.185f,.189f,.174f,.166f,.172f,.177f,.184f,.150f,.067f},
-        new[]{.178f,.183f,.174f,.166f,.172f,.177f,.184f,.150f,.067f},
-        new[]{.185f,.189f,.174f,.166f,.172f,.177f,.184f,.150f,.067f}};
+        new[]{.180f,.184f,.168f,.153f,.158f,.165f,.171f,.145f,.067f},
+        new[]{.173f,.178f,.168f,.153f,.158f,.165f,.171f,.145f,.067f},
+        new[]{.184f,.188f,.171f,.157f,.161f,.168f,.174f,.147f,.067f}};
     private static readonly float[][] GarmentDepthProfiles={
-        new[]{.128f,.132f,.123f,.116f,.123f,.127f,.111f,.086f,.084f},
-        new[]{.128f,.132f,.123f,.116f,.123f,.127f,.111f,.086f,.084f},
-        new[]{.140f,.144f,.123f,.116f,.123f,.127f,.111f,.086f,.084f}};
+        new[]{.114f,.118f,.108f,.101f,.108f,.111f,.103f,.084f,.084f},
+        new[]{.114f,.118f,.108f,.101f,.108f,.111f,.103f,.084f,.084f},
+        new[]{.128f,.132f,.113f,.105f,.111f,.115f,.106f,.085f,.084f}};
     private Vector3 GarmentPoint(float fraction,float angle)
     {
         var height=GarmentHeightProfiles[_garmentCut];
@@ -65,16 +65,20 @@ internal sealed partial class NatureModels
         float hem=Math.Clamp((.80f-y)/(.80f-GarmentBottom),0,1);
         float front=MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),4);
         float tension=MathF.Exp(-MathF.Pow((y-.82f)/.08f,2));
-        float fold=1+(.006f+.022f*hem)*MathF.Cos(angle*9+(y-.6f)*4+.7f*MathF.Sin(angle*3))*belt;
+        float fold=1+(.002f+.025f*hem)*MathF.Cos(angle*9+(y-.6f)*4+.7f*MathF.Sin(angle*3))*belt;
         // Cloth gathers below the belt; diagonal compression folds radiate from it.
         fold+=front*tension*.025f*MathF.Sin((y-.76f)*70+MathF.Abs(MathF.Cos(angle))*10);
         // Tension follows the two armholes and belt, rather than forming
         // evenly spaced ribs over the entire chest.
         float armhole=MathF.Exp(-MathF.Pow((y-1.145f)/.10f,2))*MathF.Pow(MathF.Abs(MathF.Cos(angle)),3);
-        fold+=armhole*.022f*MathF.Sin(y*65+MathF.Sin(angle)*5);
+        fold+=armhole*.016f*MathF.Sin(y*65+MathF.Sin(angle)*5);
+        // The shirt rests on a sternum and shoulder blades rather than an
+        // inflated circular trunk; fabric falls away from those support points.
+        float shoulderBlade=MathF.Exp(-MathF.Pow((y-1.15f)/.07f,2))*MathF.Pow(MathF.Max(0,MathF.Sin(angle)),4);
+        float sternum=MathF.Exp(-MathF.Pow((y-1.115f)/.10f,2))*MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),12);
         float vent=_garmentCut==2?hem*(.075f*MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),16)+.040f*MathF.Pow(MathF.Max(0,MathF.Sin(angle)),16)):0;
         float chest=MathF.Exp(-MathF.Pow((y-1.10f)/.10f,2));
-        float volume=chest*(front*.004f+MathF.Pow(MathF.Max(0,MathF.Sin(angle)),4)*.002f);
+        float volume=chest*front*.002f+shoulderBlade*.003f-sternum*.003f;
         float neckline=MathF.Exp(-MathF.Pow((y-1.28f)/.022f,2))*front*.009f;
         return new Vector3(MathF.Sign(MathF.Cos(angle))*MathF.Pow(MathF.Abs(MathF.Cos(angle)),.96f)*Profile(width)*fold,y+vent-neckline,MathF.Sign(MathF.Sin(angle))*MathF.Pow(MathF.Abs(MathF.Sin(angle)),.96f)*(Profile(depth)*fold+volume));
     }
@@ -168,7 +172,7 @@ internal sealed partial class NatureModels
         // The attributed head already includes a continuous anatomical neck.
         // A second torso-mounted neck intersects it when the head turns.
         rig.Head = new Node3D { Name = "Head", Position = new Vector3(0, 1.382f, 0) }; rig.Torso.AddChild(rig.Head);
-        Detail(rig.Head, "face", Vector3.Zero, new Vector3(.177f, .220f, .195f), skin).MaterialOverride=FaceSurfaceMaterial(skin);
+        Detail(rig.Head, "face", Vector3.Zero, new Vector3(.177f, .220f, .195f), skin).MaterialOverride=AnatomicalFaceMaterial(skin);
         Detail(rig.Head, "hair", new Vector3(0, .008f, 0), new Vector3(.181f, .224f, .200f), hair);
         rig.Head.AddChild(new MeshInstance3D {Name="Brows",Mesh=Brows(),MaterialOverride=ResidentMaterial(hair)});
 
@@ -269,13 +273,28 @@ internal sealed partial class NatureModels
                 if (hat.Position.Y > .04f || hat.End.Y < .13f) throw new InvalidOperationException("Headwear does not enclose scalp");
             }
             bool tintPreserved=false;
+            bool sculptTangents=false,hairFiberColors=false;
             for(int surface=0;surface<resident.HeadSkin.Mesh.GetSurfaceCount();surface++)
             {
                 var arrays=resident.HeadSkin.Mesh.SurfaceGetArrays(surface);
+                var material=resident.HeadSkin.Mesh.SurfaceGetMaterial(surface);
+                if(material.HasMeta("UsesSculptNormal"))
+                {
+                    var tangent=arrays[(int)Mesh.ArrayType.Tangent].AsFloat32Array();
+                    if(tangent.Length!=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array().Length*4)
+                        throw new InvalidOperationException("Sculpt normal atlas lost its tangent frame");
+                    foreach(float v in tangent)if(!float.IsFinite(v))throw new InvalidOperationException("Invalid sculpt tangent frame");
+                    sculptTangents=true;
+                }
                 if(arrays[(int)Mesh.ArrayType.Color].VariantType==Variant.Type.Nil)continue;
-                foreach(var color in arrays[(int)Mesh.ArrayType.Color].AsColorArray())if(color.G<.975f)tintPreserved=true;
+                foreach(var color in arrays[(int)Mesh.ArrayType.Color].AsColorArray())
+                {
+                    if(color.G<.975f)tintPreserved=true;
+                    if(color.A<.1f&&color.R<.85f)hairFiberColors=true;
+                }
             }
             if(!tintPreserved)throw new InvalidOperationException("Facial tint lost during mesh consolidation");
+            if(!sculptTangents||!hairFiberColors)throw new InvalidOperationException("Head consolidation erased sculpt shading or hair undercoat colors");
             if(resident.HandSkins[1].MaterialOverride!=null||resident.HandSkins[1].Mesh.GetSurfaceCount()!=2)throw new InvalidOperationException("Nails lost their skin binding or material");
             if(resident.Grip?.GetParent()!=resident.Hands[1]) throw new InvalidOperationException("Tool grip bypasses wrist");
             foreach(var pose in new[]{(true,false,false),(false,true,false),(false,false,true)})

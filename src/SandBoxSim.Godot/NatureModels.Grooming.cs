@@ -9,14 +9,14 @@ internal sealed partial class NatureModels
     // alter the silhouette; fine strands remain shading, not thousands of nodes.
     private Mesh GroomedHair(int sides,int rings)
     {
-        using var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);surface.SetColor(Colors.White);
+        using var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);surface.SetColor(new Color(.78f,.78f,.78f,0));
         int style=_faceVariant%3;float direction=_faceVariant%2==0?1:-1;
         Vector3 Point(float row,float column)
         {
             float angle=column*MathF.Tau/sides,front=MathF.Max(0,-MathF.Sin(angle));
             float side=MathF.Abs(MathF.Cos(angle)),back=MathF.Max(0,MathF.Sin(angle));
             float t=row/(float)rings;
-            float hairline=.019f+(.039f+(style==1?.012f:style==2?-.004f:0))*MathF.Pow(front,2)-.045f*back;
+            float hairline=.023f+(.043f+(style==1?.012f:style==2?.002f:0))*MathF.Pow(front,2)-.045f*back;
             // Unequal temple/fringe heights make the part read in silhouette,
             // while retaining the source scalp and the fitted hat clearance.
             hairline+=direction*MathF.Cos(angle)*front*(style==1?.007f:.003f);
@@ -36,7 +36,7 @@ internal sealed partial class NatureModels
             float groove=MathF.Exp(-MathF.Pow(part/.10f,2))*crown;
             float locks=MathF.Pow(.5f+.5f*MathF.Sin(swept*(style==2?11:8)+t*3),2);
             float volume=(style==2?.0010f:style==1?.007f:.0045f)*crown*(.35f+.65f*front);
-            float radial=volume+locks*.0011f*crown-groove*.0024f;
+            float radial=volume+locks*.0004f*crown-groove*.0014f;
             world+=new Vector3(MathF.Cos(angle),0,MathF.Sin(angle))*radial;
             float forelock=MathF.Exp(-MathF.Pow((angle+MathF.PI*.5f-direction*.30f)/.65f,2))*MathF.Sin(t*MathF.PI);
             world.Y+=(style==2?.001f:.004f)*crown*front+locks*.0013f*crown+(style==1?.022f:.012f)*forelock;
@@ -59,38 +59,62 @@ internal sealed partial class NatureModels
             surface.SetUV(new(.5f,0));surface.AddVertex(center);
             Vertex(0,column);Vertex(0,column+1);
         }
-        // Overlapping tapered locks follow the fitted scalp. Their curved
-        // cross section and lifted tips create actual silhouette and self-shadow,
-        // rather than drawing strand noise on one opaque helmet-shaped shell.
-        int count=sides>=64?180:0;
+        // Fine curved fibers cover a quiet fitted undercoat. Millimetre-wide
+        // raised locks read as carved clay in a portrait; these strands are
+        // 0.2–0.4 mm wide and follow the scalp through the part and hairline.
+        int count=sides>=64?2400:0;
+        uint state=72913u+(uint)_faceVariant*5197u;
+        float Random(){state^=state<<13;state^=state>>17;state^=state<<5;return (state&0xffffff)/16777216f;}
         for(int strand=0;strand<count;strand++)
         {
-            float seed=strand*.61803398875f;seed-=MathF.Floor(seed);
-            float column=seed*sides;
-            float start=.06f+(strand%7)*.085f;
-            float length=(style==2?.22f:.38f)+(strand%5)*.025f;
-            float end=MathF.Min(1.025f,start+length);
-            float width=(.0018f+(strand%4)*.0004f)/.19f;
+            float column=Random()*sides;
+            float start=.08f+MathF.Sqrt(Random())*.90f;
+            float length=(style==2?.10f:.16f)+Random()*.14f;
+            float end=MathF.Min(1.014f,start+length);
+            float width=(.00019f+Random()*.00017f)/.19f;
+            float lift=(.0004f+Random()*.0007f)/.20f;
+            float value=.68f+Random()*.40f;
+            surface.SetColor(new Color(value,value,value,1));
             Vector3 LockPoint(int row,int cross)
             {
-                float t=row/8f,r=start+(end-start)*t;
-                float c=column+direction*MathF.Sin(t*MathF.PI*.65f)*(style==2?1.5f:5.5f);
+                float t=row/3f,r=start+(end-start)*t;
+                float c=column+direction*MathF.Sin(t*MathF.PI*.65f)*(style==2?.7f:2.4f);
                 float angle=c*MathF.Tau/sides;
                 var p=Point(r*rings,c);
                 var radial=new Vector3(MathF.Cos(angle),.25f,MathF.Sin(angle)).Normalized();
                 var tangent=new Vector3(-MathF.Sin(angle),0,MathF.Cos(angle));
-                float across=cross/3f*2-1;
-                float taper=MathF.Pow(MathF.Max(0,MathF.Sin(t*MathF.PI)),.55f);
-                float lift=(.0006f+MathF.Sin(t*MathF.PI)*.0012f)/.20f;
-                return p+tangent*(across*width*taper)+radial*(lift*(1-across*across)*taper);
+                float across=cross*2-1;
+                float taper=.90f*(1-t)+.04f;
+                return p+tangent*(across*width*taper)+radial*(lift*(.25f+MathF.Sin(t*MathF.PI)));
             }
-            for(int row=0;row<8;row++)for(int cross=0;cross<3;cross++)
+            for(int row=0;row<3;row++)
             {
-                var a=LockPoint(row,cross);var b=LockPoint(row+1,cross);
-                var c=LockPoint(row,cross+1);var d=LockPoint(row+1,cross+1);
+                var a=LockPoint(row,0);var b=LockPoint(row+1,0);
+                var c=LockPoint(row,1);var d=LockPoint(row+1,1);
                 float angle=column*MathF.Tau/sides;
                 var outward=new Vector3(MathF.Cos(angle),.4f,MathF.Sin(angle));
-                surface.SetColor(new Color(.90f+(strand%7)*.025f,.90f+(strand%7)*.025f,.90f+(strand%7)*.025f));
+                surface.SetUV(new(0,row/3f));
+                EquipmentTriangle(surface,a,b,c,outward);EquipmentTriangle(surface,c,b,d,outward);
+            }
+        }
+        if(HumanFamily==2&&style!=2)
+        {
+            // A tied nape style adds a distinct practical silhouette. It is
+            // part of the head mesh and follows the same head joint and LOD.
+            int rows=sides>=64?16:8,columns=sides>=64?32:16;
+            Vector3 Bun(int row,int column)
+            {
+                float u=row*MathF.PI/rows,a=column*MathF.Tau/columns;
+                float radius=MathF.Sin(u),groove=1+.018f*MathF.Sin(a*19+u*7);
+                var p=new Vector3(.030f*radius*MathF.Cos(a)*groove,-.028f+.032f*MathF.Cos(u),.071f+.028f*radius*MathF.Sin(a)*groove);
+                return new(p.X/.181f,(p.Y-.008f)/.224f,p.Z/.200f);
+            }
+            surface.SetColor(new Color(.85f,.85f,.85f,.8f));
+            for(int row=0;row<rows;row++)for(int column=0;column<columns;column++)
+            {
+                var a=Bun(row,column);var b=Bun(row+1,column);var c=Bun(row,column+1);var d=Bun(row+1,column+1);
+                var center=new Vector3(0,(-.028f-.008f)/.224f,.071f/.200f);
+                var outward=(a+b+c+d)*.25f-center;
                 EquipmentTriangle(surface,a,b,c,outward);EquipmentTriangle(surface,c,b,d,outward);
             }
         }

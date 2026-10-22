@@ -33,7 +33,7 @@ SDK 与 Godot 工具链由参数或环境变量覆盖，不提交本机绝对路
 
 ## 模型素材转换
 
-`export_human_head.py` 仅由 Blender 后台执行，用于重建已授权的头脸数据。普通游戏构建不依赖 Blender；原文件校验、转换参数与署名要求见 [人物头脸素材](../docs/development/human-assets.md)。
+`export_human_head.py` 与 `export_human_variants.py` 由 Blender 后台执行，重建三套已授权头脸；`bake_human_detail.py` 为共用 UV/雕刻法线烘焙器。普通游戏构建不依赖 Blender；原文件校验、转换参数与署名要求见 [人物头脸素材](../docs/development/human-assets.md)。
 
 `export_environment_models.py` 在 Blender 后台转换五种 CC0 环境模型，按完整叶片抽样并独立简化木质表面。来源、原文件哈希、贴图及运行路径见 [环境素材](../docs/development/environment-assets.md)。
 

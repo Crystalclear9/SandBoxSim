@@ -55,11 +55,17 @@ internal sealed partial class NatureModels
         if(key=="belt")
         {
             // Two surface-following half ribbons join at the sides without a filled cylinder through the waist.
+            float HalfWidth(float y)
+            {
+                float t=(y-GarmentBottom)/(1.28f-GarmentBottom);
+                return MathF.Min(MathF.Abs(GarmentPoint(t,0).X),MathF.Abs(GarmentPoint(t,MathF.PI).X))-.0015f;
+            }
+            float lowerWidth=HalfWidth(bottom),upperWidth=HalfWidth(top);
             foreach(bool rear in new[]{false,true}) for(int i=0;i<48;i++)
             {
-                float x0=-.165f+i*.33f/48,x1=-.165f+(i+1)*.33f/48;
-                var a=TorsoSurface(x0,bottom,rear);var b=TorsoSurface(x1,bottom,rear);
-                var c=TorsoSurface(x0,top,rear);var d=TorsoSurface(x1,top,rear);
+                float u=i/24f-1,v=(i+1)/24f-1;
+                var a=TorsoSurface(u*lowerWidth,bottom,rear);var b=TorsoSurface(v*lowerWidth,bottom,rear);
+                var c=TorsoSurface(u*upperWidth,top,rear);var d=TorsoSurface(v*upperWidth,top,rear);
                 EquipmentTriangle(surface,a,b,c,new(0,0,rear?1:-1));EquipmentTriangle(surface,b,d,c,new(0,0,rear?1:-1));
             }
         }

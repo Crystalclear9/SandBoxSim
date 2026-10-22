@@ -42,10 +42,10 @@ def build_pattern(data):
             t=row/12
             # A set-in sleeve bends downward from its sewn armhole. The crown
             # is narrow and sloped, rather than a sphere perched on the arm.
-            cx=side*(.202+.010*math.sin(math.pi*t))
+            cx=side*(.202+.004*math.sin(math.pi*t))
             cy=shoulder-.263*t
-            rx=.055*(1-t)+.043*t
-            rz=.051*(1-t)+.042*t
+            rx=.047*(1-t)+.043*t
+            rz=.046*(1-t)+.042*t
             blend=min(1,t*3);blend=blend*blend*(3-2*blend)
             ring=[]
             for p,phase in zip(anchor,phases):
