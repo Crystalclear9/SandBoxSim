@@ -171,6 +171,36 @@
           "bytes": 638904
         }
       }
+    },
+    "reed_roof_03": {
+      "url": "https://polyhaven.com/a/reed_roof_03",
+      "authors": {
+        "Rob Tuytel": "All"
+      },
+      "dimensionsMillimeters": [
+        2500,
+        2500
+      ],
+      "maps": {
+        "diffuse": {
+          "path": "reed_roof_03/reed_roof_03_diff_1k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/reed_roof_03/reed_roof_03_diff_1k.jpg",
+          "sha256": "be5e3d941b4c46215a2198f8b641df820b198afc6790149394299ec3c5e8d98d",
+          "bytes": 661238
+        },
+        "normal": {
+          "path": "reed_roof_03/reed_roof_03_nor_gl_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/reed_roof_03/reed_roof_03_nor_gl_1k.png",
+          "sha256": "fe96f374173b5888aadfd624993c34b1c5da3fa1966e24de930d512c625e8501",
+          "bytes": 6624786
+        },
+        "roughness": {
+          "path": "reed_roof_03/reed_roof_03_rough_1k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/reed_roof_03/reed_roof_03_rough_1k.jpg",
+          "sha256": "a0b7d4ab71d5c2c881dd0821a392ec3c52cc15ad68112a9bbe107f952628dac6",
+          "bytes": 411081
+        }
+      }
     }
   }
 }

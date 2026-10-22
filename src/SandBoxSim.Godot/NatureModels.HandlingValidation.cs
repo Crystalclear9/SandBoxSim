@@ -150,6 +150,9 @@ internal sealed partial class NatureModels
             if(action==ActionKind.GatherWood)foreach(var hand in rig.HandSkins)ValidateHandSurface(hand.Mesh);
             int transfers=0;float travel=0;Vector3 previous=Vector3.Zero;bool blinked=false;
             var bridgeArrays=rig.ShoulderGeometry.SurfaceGetArrays(0);var bridgeVertices=bridgeArrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var bridgeWeights=bridgeArrays[(int)Mesh.ArrayType.Color].AsColorArray();
+            var garmentArrays=rig.DetailedBodyMesh.SurfaceGetArrays(0);
+            var garmentPoints=garmentArrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            var garmentBones=garmentArrays[(int)Mesh.ArrayType.Bones].AsInt32Array();var garmentWeights=garmentArrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();
             for(int frame=0;frame<270;frame++)
             {
                 var parent=rig.ToolMesh.GetParent();
@@ -158,6 +161,17 @@ internal sealed partial class NatureModels
                 if(rig.HasAnatomicalEyes&&(rig.Eyes[0].Scale!=Vector3.One||rig.Eyes[1].Scale!=Vector3.One))
                     throw new InvalidOperationException("Anatomical eyeballs were flattened during blink");
                 for(int side=0;side<2;side++)if(MathF.Abs(rig.ShoulderSkeleton.GetBonePoseRotation(side+1).Dot(rig.Arms[side].Basis.GetRotationQuaternion()))<.999f)throw new InvalidOperationException("Sleeve bone does not follow shoulder");
+                if(frame%30==0)for(int i=0;i<garmentPoints.Length;i++)if(garmentPoints[i].Y<1.0f)
+                {
+                    for(int j=0;j<4;j++)
+                    {
+                        int bone=garmentBones[i*4+j];if(bone==0||garmentWeights[i*4+j]<.99f)continue;
+                        var arm=rig.Arms[bone-1];var bind=new Vector3(bone==1?-.202f:.202f,ResidentRig.BodyY(1.18f),0);
+                        var point=arm.Transform*(garmentPoints[i]-bind);
+                        var cuff=arm.Transform*new Vector3(0,-.253f,0);
+                        if(point.DistanceTo(cuff)>.09f)throw new InvalidOperationException("Continuous sleeve separates from moving cuff");
+                    }
+                }
                 if(rig.ToolMesh.GetParent()!=parent)
                 {
                     transfers++;

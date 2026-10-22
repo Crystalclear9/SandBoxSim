@@ -42,14 +42,14 @@ internal sealed partial class NatureModels
         }
         if (kind == BuildingKind.Storage)
         {
-            Part(model, "box", new(0, .7f, 0), new(width, 1.4f, depth), 1);
-            Gable(model, width, depth, 1.4f, 2);
-            Part(model, "box", new(0, .6f, depth / 2 + .04f), new(.85f, 1.2f, .08f), 10);
+            Part(model, "box", new(0, 1.10f, 0), new(width, 2.2f, depth), 1);
+            Gable(model, width, depth, 2.2f, 2);
+            Part(model, "box", new(0, 1.105f, depth / 2 + .04f), new(.95f, 1.85f, .08f), 10);
             for (int i = 0; i < 3; i++) Part(model, "box", new(-.65f + i * .52f, .18f, depth / 2 + .28f), new(.4f, .36f, .4f), 1);
             return FinishArchitecture(model, kind, complete, identity, width, depth);
         }
         // Five silhouettes: log cabin, plaster cottage, stone cottage, tall gable, lean-to cottage.
-        float height = variant == 3 ? 2.6f : variant == 0 ? 1.8f : 2.15f;
+        float height = variant == 3 ? 2.6f : variant == 0 ? 2.05f : 2.15f;
         int walls = variant == 0 ? 1 : variant == 2 ? 6 : 3;
         Part(model, "box", new(0, .12f, 0), new(width + .1f, .24f, depth + .1f), 6);
         Part(model, "box", new(0, height / 2 + .18f, 0), new(width, height, depth), walls);
@@ -67,19 +67,19 @@ internal sealed partial class NatureModels
             GableWalls(model, width, depth, height + .18f, walls);
         }
         float doorX = variant is 0 or 4 ? -.28f : 0;
-        Part(model, "box", new(doorX, .95f, depth / 2 + .04f), new(.62f, 1.55f, .1f), 10);
-        Part(model, "box", new(doorX, .13f, depth / 2 + .18f), new(.64f, .14f, .3f), 6);
-        Window(model, width*.30f, 1.27f, depth / 2 + .07f);
-        if(variant is 1 or 2 or 3)Window(model,-width*.30f,1.27f,depth/2+.07f);
-        if (variant == 3) Window(model, 0, 2.12f, depth / 2 + .07f);
+        Part(model, "box", new(doorX, 1.055f, depth / 2 + .04f), new(.82f, 1.75f, .1f), 10);
+        Part(model, "box", new(doorX, .13f, depth / 2 + .18f), new(.86f, .14f, .3f), 6);
+        Window(model, width*.355f, 1.27f, depth / 2 + .07f);
+        if(variant is 1 or 2 or 3)Window(model,-width*.355f,1.27f,depth/2+.07f);
+        if (variant == 3) Window(model, 0, 2.45f, depth / 2 + .07f);
         foreach (float side in new[] { -1f, 1f })
             Part(model, "box", new(side * width / 2, height / 2 + .18f, depth / 2 + .04f), new(.09f, height, .08f), 0);
         if (variant == 1 || variant == 3)
             Part(model, "box", new(-.5f, height + .5f, -.4f), new(.25f, .7f, .28f), 6);
         if (variant == 0 || variant == 4)
         {
-            Part(model, "box", new(0, 1.83f, depth / 2 + .27f), new(width * .8f, .1f, .55f), 1, new(.12f, 0, 0));
-            foreach (float side in new[] { -1f, 1f }) Part(model, "cylinder", new(side * width * .35f, .89f, depth / 2 + .46f), new(.06f, 1.78f, .06f), 0);
+            Part(model, "box", new(0, 2.09f, depth / 2 + .27f), new(width * .8f, .1f, .55f), 1, new(.12f, 0, 0));
+            foreach (float side in new[] { -1f, 1f }) Part(model, "cylinder", new(side * width * .35f, 1.02f, depth / 2 + .46f), new(.06f, 2.04f, .06f), 0);
         }
         Part(model, "cylinder", new(width / 2 - .13f, .2f, -depth / 2 - .07f), new(.25f, .4f, .25f), 1);
         return FinishArchitecture(model, kind, complete, identity, width, depth);

@@ -14,7 +14,8 @@
 | `test-godot-manifest.ps1` | 检查 NuGet.config 规范大小写与包源配置变化对构建身份的影响 |
 | `export-game.ps1` / `test-godot-export.ps1` | Windows 项目本地模板导出、零退出码错误防护、成品自检后更新与日志判定回归 |
 | `bake-models.ps1` | 在项目本地 Blender 中重建人体解剖手部和动物连续蒙皮 |
-| `fetch-surface-materials.py` | 下载并校验六种 CC0 扫描表面；`--verify` 离线核对运行贴图大小与 SHA-256，源文件缓存仅放 `.tools/` |
+| `bake-garments.ps1` / `bake_garment_surfaces.py` | 导出三种上衣源几何，在项目本地 Blender 中焊接肩袖、转移权重并校验成品/源哈希 |
+| `fetch-surface-materials.py` | 下载并校验七种 CC0 扫描表面；`--verify` 离线核对运行贴图大小与 SHA-256，源文件缓存仅放 `.tools/` |
 | `export_human_hands.py` / `export_hand_lod.py` / `bake_animal_surfaces.py` | 掌指重定向、同源手部减面、腕口贴合、动物体素缝合与蒙皮转移；由 Blender 执行 |
 | `run.ps1` | TUI、headless、digest、snapshot 和 batch 模式 |
 | `test.ps1` | 自带测试运行器与名称过滤 |

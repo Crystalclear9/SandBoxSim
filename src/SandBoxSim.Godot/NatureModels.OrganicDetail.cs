@@ -66,9 +66,9 @@ ALBEDO=dye.rgb*(0.97+pores*0.025+wear);ROUGHNESS=0.69+pores*0.035;SPECULAR=0.26;
         Vector3 Point(int row,int column,bool rear)
         {
             float t=row/(float)rows,u=column/(float)columns*2-1;
-            float width=wolf?.063f*(1-t)*MathF.Min(1,t/.12f):.057f*MathF.Pow(MathF.Max(0,MathF.Sin(t*MathF.PI)),.6f);
+            float width=wolf?.060f*(1-t)*MathF.Min(1,t/.14f)*(1+.3f*MathF.Sin(t*MathF.PI)):.057f*MathF.Pow(MathF.Max(0,MathF.Sin(t*MathF.PI)),.6f);
             float cup=(1-u*u)*MathF.Sin(t*MathF.PI);
-            return new(u*width,t*(wolf?.17f:.21f),rear?.019f*cup+.005f*MathF.Sin(t*MathF.PI):-.015f*cup);
+            return new(u*width,t*(wolf?.155f:.21f),rear?.019f*cup+.005f*MathF.Sin(t*MathF.PI):-.015f*cup);
         }
         void Vertex(int r,int c,bool rear)
         {

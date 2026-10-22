@@ -23,6 +23,7 @@ internal sealed partial class NatureModels
             var fabric=new ShaderMaterial {Shader=_shoulderFabric};fabric.SetShaderParameter("dye",new Color(cloth));material=fabric;_residentMaterials[key]=material;
         }
         rig.ShoulderGeometry=JoinedShoulders();
+        RemoveSeparateSleeves(rig,cloth);
         rig.DistantBodyMesh=DistantBody(rig.BodySkin.Mesh);rig.DetailedBodyMesh=SkinnedBody(rig.BodySkin.Mesh,material);rig.DetailedBodySkin=_shoulderSkin;
         rig.BodySkin.Mesh=rig.DetailedBodyMesh;rig.BodySkin.Skin=_shoulderSkin;rig.BodySkin.Skeleton=new NodePath("../ShoulderSkeleton");rig.ShoulderBridge=rig.BodySkin;
         for(int side=0;side<2;side++)rig.ShoulderFlesh[side]=Detail(rig.Arms[side],"sphere",Vector3.Zero,new(.068f,.068f,.060f),skin);
@@ -52,16 +53,24 @@ internal sealed partial class NatureModels
         for(int s=0;s<body.GetSurfaceCount();s++)
         {
             var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);surface.SetMaterial(s==0?cloth:body.SurfaceGetMaterial(s));
-            void Append(Godot.Collections.Array arrays,bool shoulder)
+            void Append(Godot.Collections.Array arrays,bool garment=false)
             {
-                var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();var uv=arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();var colors=shoulder?arrays[(int)Mesh.ArrayType.Color].AsColorArray():Array.Empty<Color>();
+                var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();var uv=arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+                var garmentBones=garment?arrays[(int)Mesh.ArrayType.Bones].AsInt32Array():Array.Empty<int>();
+                var garmentWeights=garment?arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array():Array.Empty<float>();
                 for(int i=0;i<indices.Length;i++)
                 {
-                    int v=indices[i];float t=shoulder?colors[v].R:0;int bone=shoulder?(colors[v].G<.5f?1:2):0;
-                    surface.SetBones(new[]{0,bone,0,0});surface.SetWeights(new[]{1-t,t,0f,0f});surface.SetUV(uv[v]);surface.SetNormal(normals[v]);surface.AddVertex(points[v]);
+                    int v=indices[i];
+                    if(garment)
+                    {
+                        var b=garmentBones;var w=garmentWeights;
+                        surface.SetBones(new[]{b[v*4],b[v*4+1],b[v*4+2],b[v*4+3]});surface.SetWeights(new[]{w[v*4],w[v*4+1],w[v*4+2],w[v*4+3]});
+                    }
+                    else{surface.SetBones(new[]{0,0,0,0});surface.SetWeights(new[]{1f,0f,0f,0f});}
+                    surface.SetUV(uv[v]);surface.SetNormal(normals[v]);surface.AddVertex(points[v]);
                 }
             }
-            Append(body.SurfaceGetArrays(s),false);if(s==0)Append(JoinedShoulders().SurfaceGetArrays(0),true);
+            if(s==0)Append(ContinuousGarment().SurfaceGetArrays(0),true);else Append(body.SurfaceGetArrays(s));
             surface.Index();surface.Commit(result);
         }
         mesh=WithScreenLods(result);_meshes[key]=mesh;return mesh;

@@ -102,6 +102,14 @@ public partial class MainGame : Control
             if (arg.StartsWith("--view=", StringComparison.Ordinal)) { _previewView = arg.Substring(7); }
             if (arg.StartsWith("--panel=", StringComparison.Ordinal)) { _previewPanel = arg.Substring(8); }
         }
+        string? garmentExport=OS.GetCmdlineUserArgs().FirstOrDefault(a=>a.StartsWith("--export-garment-sources=",StringComparison.Ordinal));
+        if(garmentExport!=null)
+        {
+            SetProcess(false);
+            try{new NatureModels().ExportGarmentSources(garmentExport.Substring("--export-garment-sources=".Length));GetTree().Quit();}
+            catch(Exception exception){GD.PrintErr("GARMENT_EXPORT_ERROR "+exception.Message);GetTree().Quit(2);}
+            return;
+        }
         string? animalExport=OS.GetCmdlineUserArgs().FirstOrDefault(a=>a.StartsWith("--export-animal-sources=",StringComparison.Ordinal));
         if(animalExport!=null)
         {

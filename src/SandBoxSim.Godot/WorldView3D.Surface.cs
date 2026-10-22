@@ -122,7 +122,8 @@ void fragment(){
     float shore=smoothstep(.12,.42,damp)*(1.0-smoothstep(.60,.86,damp));
     float exposed=smoothstep(.08,.32,slope)*.9;
     weights=mix(weights,vec4(0,0,1,0),exposed);
-    weights=mix(weights,vec4(0,0,0,1),shore*.82);
+    float sediment=shore*(.55+noise2(world_position.xz*.83)*.45);
+    weights=mix(weights,vec4(0,0,0,1),sediment*.88);
     float wear=clamp(trail(grid)*.9+texture(material_map,map_uv).g*.12,0.0,.95);
     weights=mix(weights,vec4(0,0,0,1),wear);
     vec2 grass_uv=world_position.xz/2.51;
@@ -130,9 +131,10 @@ void fragment(){
     vec2 forest_uv=world_position.xz*.22;
     vec3 rock_uv=world_position/2.7;
     vec3 projection=pow(abs(base),vec3(4));projection/=max(.001,projection.x+projection.y+projection.z);
-    // A second, offset macro sample reduces the repeating aerial stamp.
-    float macro=noise2(world_position.xz*.033)*.32;
-    vec3 grass=mix(texture(grass_diffuse,grass_uv).rgb,texture(grass_diffuse,grass_uv+vec2(.37,.61)).rgb,macro);
+    // Cross the two sample directions so scanned grass does not form mowing stripes.
+    float macro=.5+(noise2(world_position.xz*.13)-.5)*.35;
+    vec2 crossed=mat2(vec2(.36,.933),vec2(-.933,.36))*grass_uv+vec2(.37,.61);
+    vec3 grass=mix(texture(grass_diffuse,grass_uv).rgb,texture(grass_diffuse,crossed).rgb,macro);
     grass*=vec3(.94,1.02,.95);
     vec3 forest=texture(forest_diffuse,forest_uv).rgb;
     vec3 earth=texture(earth_diffuse,earth_uv).rgb;

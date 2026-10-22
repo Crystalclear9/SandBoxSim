@@ -21,7 +21,7 @@
 
 ## 扫描表面材质
 
-地表与建筑使用独立的可平铺扫描表面，清单在 [materials/scanned/manifest.json](../../src/SandBoxSim.Godot/assets/materials/scanned/manifest.json)，署名在 [LICENSE.txt](../../src/SandBoxSim.Godot/assets/materials/scanned/LICENSE.txt)。六种素材均来自 Poly Haven、采用 CC0，保留 16 张 1K 原始贴图的官方 URL、尺寸、文件大小及 SHA-256：
+地表与建筑使用独立的可平铺扫描表面，清单在 [materials/scanned/manifest.json](../../src/SandBoxSim.Godot/assets/materials/scanned/manifest.json)，署名在 [LICENSE.txt](../../src/SandBoxSim.Godot/assets/materials/scanned/LICENSE.txt)。七种素材均来自 Poly Haven、采用 CC0，保留 19 张 1K 原始贴图的官方 URL、尺寸、文件大小及 SHA-256：
 
 | 素材 | 用途 | 原始覆盖宽度 |
 |---|---|---:|
@@ -31,8 +31,11 @@
 | `wood_planks_grey` | 木墙与梁柱 | 1.5 米 |
 | `plastered_wall_03` | 灰泥墙 | 4 米 |
 | `coast_sand_01` | 沙地颜色 | 15 米 |
+| `reed_roof_03` | 连续茅草屋面的颜色、法线、粗糙度 | 2.5 米 |
 
 沙地只引入颜色图，沿用通用地表微法线；覆盖宽度是来源记录，显示混合可另行缩放。林地继续使用已有的 `forest_ground_04`。`boulder_01` 的贴图对应岩石自身 UV，不能拿来平铺山坡或墙面。
+
+茅草屋面使用 Rob Tuytel 的 [Reed Roof 03](https://polyhaven.com/a/reed_roof_03) 原始 1K 贴图，裁取草束覆盖区域避开来源顶部的压条；`NatureModels.Thatch.cs` 将它接到连续厚壳、参差檐口和散落草梗。材质不再使用周期正弦条带模拟草束，瓦片屋面仍使用独立几何和材质。
 
 `ScannedSurfaces.cs` 共享加载缓存，并把法线 XY 与粗糙度打包为一张带 mipmap 的运行纹理；原始贴图字节不改动。`WorldView3D.Surface.cs` 的地表材质使用 12 个采样器，按坡度、湿度、岸线和压实混合，陡坡岩面采用三向投影。`NatureModels.ScannedCraft.cs` 为建筑应用木、石、灰泥表面，屋瓦保留独立材质。纹理不会新增真实几何位移或室内结构。
 

@@ -525,7 +525,9 @@ public partial class WorldView3D : MapView
             var tile=Game.Sim.World.TileAt(Math.Min(ix,width-1),Math.Min(iy,height-1));
             float relief=1-Mathf.Lerp(Mathf.Lerp(foundation[ix,iy],foundation[Math.Min(ix+1,width),iy],u),Mathf.Lerp(foundation[ix,Math.Min(iy+1,height)],foundation[Math.Min(ix+1,width),Math.Min(iy+1,height)],u),v);
             if(tile.Terrain==TerrainKind.Water)relief=0;
-            _groundHeights[x,y]=h+relief*(1-wet)*(1-tile.FootTraffic*.65f)*NaturalRelief(fx,fy,Game.Sim.World.Seed);
+            float bank=Mathf.SmoothStep(.04f,.22f,wet)*(1-Mathf.SmoothStep(.42f,.60f,wet));
+            float erosion=(TerrainNoise(fx*1.8f,fy*1.8f,Game.Sim.World.Seed)-.5f)*.14f*bank*relief;
+            _groundHeights[x,y]=h+erosion+relief*(1-wet)*(1-tile.FootTraffic*.65f)*NaturalRelief(fx,fy,Game.Sim.World.Seed);
         }
         for(int y=0;y<=ny;y++)for(int x=0;x<=nx;x++)
         {

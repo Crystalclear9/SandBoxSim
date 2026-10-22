@@ -19,7 +19,7 @@ internal sealed partial class NatureModels
             float hairline=.019f+(.039f+(style==1?.012f:style==2?-.004f:0))*MathF.Pow(front,2)-.045f*back;
             // Temple recession and short sideburns break the old bowl-cut edge.
             hairline+=.015f*MathF.Exp(-MathF.Pow((side-.78f)/.17f,2))*front;
-            hairline-=.012f*MathF.Pow(side,18);
+            hairline+=.012f*MathF.Pow(side,10);
             hairline+=.0008f*MathF.Sin(angle*23+.6f)+.0005f*MathF.Sin(angle*41);
             float top=HumanData().High;
             float y=Mathf.Lerp(top+.005f,hairline,1-MathF.Cos(t*MathF.PI*.5f));
@@ -54,6 +54,20 @@ internal sealed partial class NatureModels
             var center=WrapHumanHair(new(0,(HumanData().High+.005f-.008f)/.224f,0),0,true);
             surface.SetUV(new(.5f,0));surface.AddVertex(center);
             Vertex(0,column);Vertex(0,column+1);
+        }
+        // Tapered fringe groups grow from the existing surface and break its
+        // uniform outline without separate floating cards or per-frame nodes.
+        for(int strand=0;strand<40;strand++)
+        {
+            int column=strand*sides/40;float angle=column*MathF.Tau/sides;
+            var root=Point(rings-3,column);var end=Point(rings,column);
+            var radial=new Vector3(MathF.Cos(angle),0,MathF.Sin(angle));
+            var tangent=new Vector3(-MathF.Sin(angle),0,MathF.Cos(angle));
+            root-=radial*.002f;end+=radial*.006f-Vector3.Up*(.008f+(strand%3)*.004f);
+            var middle=(root+end)*.5f+radial*.010f;
+            var left=middle-tangent*.006f;var right=middle+tangent*.006f;
+            EquipmentTriangle(surface,root,left,right,radial);EquipmentTriangle(surface,left,end,right,radial);
+            EquipmentTriangle(surface,root,right,left,-radial);EquipmentTriangle(surface,left,right,end,-radial);
         }
         surface.GenerateNormals();surface.Index();return surface.Commit();
     }

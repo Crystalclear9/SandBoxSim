@@ -13,6 +13,7 @@
 | `resident-face-detail.png`、`character-detail.png` | 面部、居民和动物模型 |
 | `resident-handedness.png` | 左右手掌心、手背与近远景对照 |
 | `resident-social.png` | 交谈、分享和进食的实际模型动作 |
+| `resident-garment-actions.png` | 连续肩袖在拿取、作业和存放动作中的表现 |
 | `wardrobe-detail.png` | 三种衣装剪裁的正背面 |
 | `model-surface-detail.png` | 衣料、靴子、动物与建筑近景 |
 | `living-homes.png`、`living-farms.png`、`living-paths.png` | 住房生活、农业与逐渐累积的土地痕迹 |
@@ -21,9 +22,9 @@
 
 ## 来源与版本
 
-`terrain-modern.png`、`terrain-closeup.png` 和 `architecture-detail.png` 更新为 2026-10-22 的 1600×1000 原生渲染。地形图使用公开 `visual-landscape` 场景的第 40、80 帧，种子 839102、40 人、零步进，第二张切换近景；建筑图使用 `--panel=architecture --capture-delay=.2 --max-fps 30 --quit-after 24`。这些配图展示扫描地表和木石灰泥表面，没有重绘或合成；冻结场景用于比较画面，不代表流畅度测试。
+`terrain-modern.png`、`terrain-closeup.png` 更新为 2026-10-22 肩袖/动物造型修改后的 1600×1000 原生渲染。它们使用公开 `visual-landscape` 场景的第 40、80 帧，种子 839102、40 人、零步进，第二张切换近景，展示交叉草地采样和斑块岸色。冻结场景用于比较画面，不代表流畅度测试。
 
-`resident-face-detail.png`、`character-detail.png` 与 `model-surface-detail.png` 已更新为 2026-10-22 的 1600×1000 原生渲染，分别使用 `faces`、`characters`、`model-details` 入口及 `--capture-delay=.2 --max-fps 30 --quit-after 30`。它们展示本次面部/发型、衣身、鞋楦和重新烘焙的动物表面；均为实际游戏网格，没有图像重绘。解剖近景保持动物头部可见，综合图册仍演示进食。
+`resident-face-detail.png`、`character-detail.png`、`model-surface-detail.png`、`architecture-detail.png` 和 `resident-garment-actions.png` 为同日的肩袖焊接版本，分别使用 `faces`、`characters`、`model-details`、`architecture`、`actions` 入口，1600×1000、`--capture-delay=2.4 --max-fps 30 --quit-after 140`。这些图片展示连续上衣、修整后的动物、入口尺度和草束屋面，均为实际游戏网格，没有重绘或合成；头脸基础数据没有更换。解剖近景保持动物头部可见，综合图册仍演示进食。
 
 `resident-handedness.png`、`free-world-ui.png` 与 `ui-detail-refined.png` 为 2026-10-21 的 1440×900 原生渲染，分别使用 `handedness`、`ecology` 与 `person` 预览入口、2.5 秒采样；展示同源远景手型和卡片式工具界面。以下旧来源说明仅适用于未被此次替换的配图。
 

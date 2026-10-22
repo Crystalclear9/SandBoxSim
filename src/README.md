@@ -28,6 +28,7 @@
 | 扫描表面与建筑材质 | `SandBoxSim.Godot/ScannedSurfaces.cs`、`NatureModels.ScannedCraft.cs`、`assets/materials/scanned/` |
 | 人物姿态与握持 | `SandBoxSim.Godot/ResidentRig.cs`、`ResidentRig.HandPose.cs` |
 | 网格、材质和草丛 | `SandBoxSim.Godot/NatureModels*.cs` |
+| 连续上衣与草束屋面 | `SandBoxSim.Godot/NatureModels.GarmentSkin.cs`、`NatureModels.Thatch.cs`、`assets/models/garments/` |
 | 面部与人物肖像 | `SandBoxSim.Godot/NatureModels.Face.cs`、`NatureModels.CharacterSurface.cs`、`ResidentPortrait.cs` |
 | 固定场景评测 | `SandBoxSim.Godot/MainGame.Evaluation.cs` |
 

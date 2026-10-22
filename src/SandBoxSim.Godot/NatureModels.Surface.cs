@@ -71,5 +71,6 @@ float height=mix(grain,rings,end_grain)*.0007;if(abs(determinant)>.0000000001)NO
         _materials[11]=new StandardMaterial3D {AlbedoColor=new("#727c80"),Metallic=.72f,Roughness=.42f,MetallicSpecular=.42f};
         _materials[9]=new StandardMaterial3D {AlbedoColor=new("#354b55"),Roughness=.24f,MetallicSpecular=.52f};
         InstallScannedCraftMaterials();
+        InstallThatchMaterial();
     }
 }

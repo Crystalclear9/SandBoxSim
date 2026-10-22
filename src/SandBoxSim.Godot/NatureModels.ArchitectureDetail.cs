@@ -6,6 +6,11 @@ internal sealed partial class NatureModels
 {
     private void RoofCourses(Node3D model,float width,float depth,float height,int material)
     {
+        if(material==15)
+        {
+            foreach(float side in new[]{-1f,1f})Sculpt(model,ThatchPanel(width,depth,height,side),Vector3.Zero,Material(15));
+            return;
+        }
         float half=(width+.4f)/2;int courses=_fineArchitecture?12:7,columns=_fineArchitecture?18:12;
         foreach(float side in new[]{-1f,1f})
         {
@@ -53,10 +58,10 @@ internal sealed partial class NatureModels
         else if(kind==BuildingKind.House || kind==BuildingKind.Storage)
         {
             int variant=(int)(identity%5);
-            float height=kind==BuildingKind.Storage ? 1.4f : variant==3 ? 2.6f : variant==0 ? 1.8f : 2.15f;
+            float height=kind==BuildingKind.Storage ? 2.2f : variant==3 ? 2.6f : variant==0 ? 2.05f : 2.15f;
             float z=depth/2+.1f, doorX=kind==BuildingKind.Storage ? 0 : variant is 0 or 4 ? -.28f : 0;
-            float doorHeight=kind==BuildingKind.Storage ? 1.2f : 1.55f, centerY=kind==BuildingKind.Storage ? .6f : .95f;
-            float doorWidth=kind==BuildingKind.Storage ? .85f : .62f;
+            float doorHeight=kind==BuildingKind.Storage ? 1.85f : 1.75f, centerY=kind==BuildingKind.Storage ? 1.105f : 1.055f;
+            float doorWidth=kind==BuildingKind.Storage ? .95f : .82f;
             // Individual planks, lintel, jambs, iron straps and latch.
             for(int i=0;i<5;i++) Part(model,"box",new(doorX-doorWidth/2+(i+.5f)*doorWidth/5,centerY,z+.015f),new(doorWidth/5-.009f,doorHeight-.04f,.025f),1);
             foreach(float side in new[]{-1f,1f}) Part(model,"box",new(doorX+side*(doorWidth/2+.035f),centerY,z),new(.07f,doorHeight+.13f,.10f),0);
@@ -97,7 +102,7 @@ internal sealed partial class NatureModels
                 Timber(model,new(x,.4f,-depth*.4f),new(x,height+.08f,depth*.4f),.045f);
             }
             if(variant==0 && kind==BuildingKind.House)
-                for(int row=0;row<12;row++) foreach(float side in new[]{-1f,1f})
+                for(int row=0;row<14;row++) foreach(float side in new[]{-1f,1f})
                     Part(model,"cylinder",new(side*width/2,.27f+row*.138f,0),new(.14f,depth+.12f,.14f),0,new(Godot.Mathf.Pi/2,0,0));
             if(variant==2 && kind==BuildingKind.House)
                 for(int row=0;row<11;row++) for(int col=0;col<8;col++)

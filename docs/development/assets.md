@@ -8,7 +8,8 @@
 |---|---|
 | `models/environment/` | Poly Haven CC0 环境网格、PBR 贴图、清单与来源记录 |
 | `models/human/human-head.mesh.json`、`models/human/LICENSE.txt` | Blender Studio 头脸衍生数据与 CC BY 4.0 署名 |
-| `materials/scanned/` | 六种扫描表面、16 张 1K 原始贴图、哈希清单与许可 |
+| `materials/scanned/` | 七种扫描表面、19 张 1K 原始贴图、哈希清单与许可 |
+| `models/garments/` | 三种项目自有连续上衣蒙皮、源几何哈希和成品清单 |
 | `textures/natural-terrain.png` | 早期地形图集，保留二维地图入口；当前 3D 地表不使用 |
 | `textures/natural-materials.png` | 4×4 对象材质图集，结合木纹、石层、布料及肤发表面 |
 | `textures/natural-objects.png` | 早期对象图集，保留二维地图入口；当前 3D 人物与建筑使用网格 |
@@ -34,6 +35,8 @@
 原素材、来源记录和正式文档配图分别保存。调试截图属于 `runs/`，不能当成游戏资源替换材质。正式配图见 [图片索引](../images/README.md)，原始要求与素材来源见 [来源资料](../archive/README.md)。不再加载的生态工程插画和旧配方已从运行资源中移除。
 
 ## 检查
+
+上衣重建使用 `./tools/bake-garments.ps1`，原始导出在 `.tools/garment-sources/`，正式 JSON 和哈希清单进入 `assets/models/garments/`；普通构建不执行 Blender。改变剪裁或肩袖源几何后必须重新烘焙，不能只修改运行代码并继续使用旧蒙皮。动作、服装配件和近远景均需一同检查，细节见 [模型系统](models.md)。
 
 通过 `./tools/godot.ps1 -Mode test` 构建、导入并检查网格、法线、UV、缓存与握持，再查看真实窗口中的近景和远景。无头几何检查不能判断美感，图像识别准确率也不能替代材质与解剖质量检查。
 

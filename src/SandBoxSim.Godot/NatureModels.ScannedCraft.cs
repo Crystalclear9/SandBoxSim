@@ -13,6 +13,7 @@ uniform vec4 pigment:source_color;
 uniform float metres=1.5;
 uniform float tint_strength=.3;
 uniform float gain=1.0;
+uniform float mineral_desaturation=0.0;
 varying vec3 p;
 varying vec3 face_normal;
 void vertex(){p=VERTEX;face_normal=NORMAL;}
@@ -22,6 +23,7 @@ void fragment(){
     vec3 cx=texture(diffuse_map,point.zy).rgb,cy=texture(diffuse_map,point.xz).rgb,cz=texture(diffuse_map,point.xy).rgb;
     vec3 nx=texture(packed_map,point.zy).rgb,ny=texture(packed_map,point.xz).rgb,nz=texture(packed_map,point.xy).rgb;
     vec3 colour=cx*weights.x+cy*weights.y+cz*weights.z;
+    colour=mix(colour,vec3(dot(colour,vec3(.2126,.7152,.0722))),mineral_desaturation);
     float variation=sin(dot(floor(p*vec3(2.5,8.0,2.5)),vec3(1.73,3.17,2.41)))*.035;
     ALBEDO=colour*mix(vec3(1),pigment.rgb,tint_strength)*(1.0+variation)*gain;
     ROUGHNESS=clamp(nx.b*weights.x+ny.b*weights.y+nz.b*weights.z,.58,.98);SPECULAR=.21;
@@ -37,6 +39,7 @@ void fragment(){
             material.SetShaderParameter("packed_map",ScannedSurfaces.NormalRoughness(ScannedSurfaces.Map(asset,"normal"),ScannedSurfaces.Map(asset,"roughness")));
             material.SetShaderParameter("pigment",new Color(tint));material.SetShaderParameter("metres",metres);_materials[index]=material;
             material.SetShaderParameter("gain",index==1?1.5f:index==0?1.15f:1f);
+            material.SetShaderParameter("mineral_desaturation",index is 6 or 7?.65f:0f);
         }
         Assign(0,"wood_planks_grey","#8f8170",1.5f);
         Assign(1,"wood_planks_grey","#b5a18a",1.5f);

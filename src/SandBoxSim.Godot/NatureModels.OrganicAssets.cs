@@ -44,7 +44,7 @@ internal sealed partial class NatureModels
         {
             string raw=FileAccess.GetFileAsString("res://assets/models/animals/"+(wolf?"wolf":"deer")+".skin.json");
             string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
-            if(hash!=(wolf?"65bcb6b764e8840862aab72367da839d7a80d74af66b5218e6774e863e16255f":"2b3b8622b2974b1cf721a12a24728bc31b7f95e19fc85759177cecb385362fc4"))throw new InvalidOperationException("Animal skin asset hash mismatch");
+            if(hash!=(wolf?"59e0ce30ffa72e383947cb5ee8b6bf6d32a61d67dc5805fe502fab82e70b0ab4":"6237ae2d386d3242f1a2365aead6e29aabf1271cd8e06418a6ee41e7518e2d01"))throw new InvalidOperationException("Animal skin asset hash mismatch");
             using var document=JsonDocument.Parse(raw);var root=document.RootElement;
             float[] Floats(string name){var e=root.GetProperty(name);var values=new float[e.GetArrayLength()];int i=0;foreach(var v in e.EnumerateArray())values[i++]=v.GetSingle();return values;}
             int[] Ints(string name){var e=root.GetProperty(name);var values=new int[e.GetArrayLength()];int i=0;foreach(var v in e.EnumerateArray())values[i++]=v.GetInt32();return values;}

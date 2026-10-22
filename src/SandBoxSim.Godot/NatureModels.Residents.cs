@@ -166,7 +166,7 @@ internal sealed partial class NatureModels
             var arm = rig.Arms[i] = new Node3D { Name = i == 0 ? "LeftArm" : "RightArm", Position = new Vector3(side * .202f, 1.18f, 0) }; rig.Torso.AddChild(arm);
             // Bury the sleeve end inside the deforming shoulder instead of placing
             // a flat cap at the shoulder pivot, where it creates a visible ledge.
-            Sculpt(arm,Loft("tailored-sleeve",new[]{new Vector4(.040f,0,.045f,.040f),new(.085f,0,.056f,.051f),new(.17f,0,.053f,.049f),new(.24f,0,.047f,.044f),new(.263f,0,.043f,.042f)}),Vector3.Zero,ResidentMaterial(cloth),new(MathF.PI/2,0,0));
+            Sculpt(arm,Loft("tailored-sleeve",SleeveProfile()),Vector3.Zero,ResidentMaterial(cloth),new(MathF.PI/2,0,0));
             var elbow = rig.Elbows[i] = new Node3D { Name = "Elbow", Position = new Vector3(0, -.28f, 0) }; arm.AddChild(elbow);
             Detail(elbow,"sphere",Vector3.Zero,new(.070f,.067f,.067f),skin);
             Sculpt(elbow,Loft("resident-forearm",new[]{new Vector4(-.015f,0,.036f,.034f),new(.045f,-.003f,.039f,.035f),new(.10f,-.004f,.036f,.031f),new(.17f,-.003f,.029f,.026f),new(.24f,0,.028f,.026f)}),Vector3.Zero,ResidentMaterial(skin),new(MathF.PI/2,0,0));
@@ -218,6 +218,7 @@ internal sealed partial class NatureModels
     }
     public void ValidateResidentMeshes()
     {
+        ValidateContinuousGarments();
         foreach (var key in new[]{"belt","apron","armor","placket","shoulder-front","shoulder-back"})
         {
             bool back=key=="shoulder-back";
