@@ -472,6 +472,7 @@ public partial class MainGame
     }
     private void ResetHudMotion()
     {
+        _residentPortrait.SettleMotion();
         foreach(var node in GetTree().GetNodesInGroup("hud_button_motion"))if(node is HudButtonDetail detail)detail.Settle();
         foreach (var pair in _panelTransitions) { pair.Value.Kill(); pair.Key.Scale = Vector2.One; pair.Key.Modulate = Colors.White; }
         foreach (var pair in _metricTransitions) { pair.Value.Kill(); pair.Key.Modulate = Colors.White; }

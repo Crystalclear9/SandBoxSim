@@ -18,6 +18,21 @@ internal partial class ResidentPortrait : SubViewportContainer
     public bool Compact { get; set; }
     public event Action? ExpandRequested;
     private Godot.Button _expandButton=null!;
+    private Label _gestureHint=null!;
+    private Tween? _hintTransition;
+    private void Hint(float alpha)
+    {
+        _hintTransition?.Kill();
+        if(!HudStyle.MotionEnabled){_gestureHint.Modulate=new Color(1,1,1,alpha);return;}
+        _hintTransition=_gestureHint.CreateTween();_hintTransition.TweenProperty(_gestureHint,"modulate:a",alpha,.16);
+    }
+    internal void SettleMotion()
+    {
+        _hintTransition?.Kill();_gestureHint.Modulate=new Color(1,1,1,0);
+        _viewDistance=_distance;
+        if(_resident!=null)_resident.Rotation=new(0,_yaw,0);
+        Aim();
+    }
     internal bool Expanded {get;private set;}
     internal void SetExpanded(bool expanded)
     {
@@ -42,7 +57,7 @@ internal partial class ResidentPortrait : SubViewportContainer
     {
         Stretch = true; CustomMinimumSize = Compact ? new Vector2(0, 256) : new Vector2(270, 224);
         TooltipText = "拖动左右旋转与上下俯仰 · 滚轮缩放 · 双击复位";
-        MouseFilter = MouseFilterEnum.Stop;
+        MouseFilter = MouseFilterEnum.Stop;FocusMode=FocusModeEnum.All;
         _viewport = new SubViewport { Size = Compact ? new Vector2I(624, 512) : new Vector2I(540, 448), OwnWorld3D = true, Msaa3D = Viewport.Msaa.Msaa4X,
             RenderTargetUpdateMode = SubViewport.UpdateMode.WhenVisible, HandleInputLocally = false };
         AddChild(_viewport);
@@ -70,11 +85,10 @@ internal partial class ResidentPortrait : SubViewportContainer
         _expandButton=new Godot.Button {Text="放大",CustomMinimumSize=new(44,28)};HudStyle.Button(_expandButton);_expandButton.AddThemeFontSizeOverride("font_size",13);
         _expandButton.SetAnchorsAndOffsetsPreset(LayoutPreset.TopRight);_expandButton.OffsetLeft=-104;_expandButton.OffsetRight=-56;_expandButton.OffsetTop=8;_expandButton.OffsetBottom=36;
         _expandButton.TooltipText="展开大尺寸模型观察窗";_expandButton.Pressed+=()=>ExpandRequested?.Invoke();AddChild(_expandButton);
-        var caption = HudStyle.Label("拖动旋转  /  滚轮缩放  /  双击复位", 10);
+        var caption = _gestureHint = HudStyle.Label("拖动旋转  /  滚轮缩放  /  双击复位", 10);
         caption.AddThemeColorOverride("font_color", new Color("#aab2bc")); caption.MouseFilter = MouseFilterEnum.Ignore;
         caption.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide); caption.OffsetTop = -22; caption.OffsetLeft = 10; AddChild(caption);
-        caption.Modulate=new Color(1,1,1,0);Tween? hint=null;
-        void Hint(float alpha){hint?.Kill();if(!HudStyle.MotionEnabled){caption.Modulate=new Color(1,1,1,alpha);return;}hint=caption.CreateTween();hint.TweenProperty(caption,"modulate:a",alpha,.16);}
+        caption.Modulate=new Color(1,1,1,0);
         MouseEntered+=()=>Hint(1);MouseExited+=()=>Hint(0);
     }
     public void ShowResident(long identity, int slot, bool child, JobType job)
@@ -151,6 +165,15 @@ internal partial class ResidentPortrait : SubViewportContainer
     public void ValidatePresentation()
     {
         if (_resident == null) { throw new InvalidOperationException("Selected resident has no portrait"); }
+        bool motion=HudStyle.MotionEnabled;
+        try
+        {
+            HudStyle.MotionEnabled=true;Hint(1);_hintTransition!.CustomStep(.08);
+            HudStyle.MotionEnabled=false;SettleMotion();
+            if(_hintTransition.IsRunning()||_gestureHint.Modulate.A!=0||_viewDistance!=_distance)
+                throw new InvalidOperationException("Reduced motion left portrait interpolation or hint running");
+        }
+        finally{HudStyle.MotionEnabled=motion;}
         var original = _resident;
         ShowResident(_identity, (int)(_identity & uint.MaxValue), _child, _job);
         if (!ReferenceEquals(original, _resident)) { throw new InvalidOperationException("Unchanged portrait recreated its model"); }

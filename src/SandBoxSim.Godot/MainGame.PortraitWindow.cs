@@ -10,9 +10,13 @@ public partial class MainGame
     private PanelContainer _portraitWindow=null!,_portraitHome=null!;
     private VBoxContainer _portraitWindowBody=null!;
     private Label _portraitWindowTitle=null!,_portraitWindowActivity=null!;
+    private Control? _portraitReturnFocus;
     public override void _Input(InputEvent input)
     {
-        if(_portraitOverlay?.Visible!=true||input is not InputEventKey {Keycode:Key.Tab,Pressed:true,Echo:false} key)return;
+        if(_portraitOverlay?.Visible!=true||input is not InputEventKey {Pressed:true} key)return;
+        var focused=GetViewport().GuiGetFocusOwner();
+        if(focused==null||!_portraitWindow.IsAncestorOf(focused))_residentPortrait.GrabFocus();
+        if(key.Keycode is not (Key.Tab or Key.Left or Key.Right or Key.Up or Key.Down))return;
         var controls=new System.Collections.Generic.List<Control>();
         void Visit(Node node)
         {
@@ -23,7 +27,8 @@ public partial class MainGame
         if(controls.Count>0)
         {
             int current=controls.IndexOf(GetViewport().GuiGetFocusOwner());
-            int next=current<0?(key.ShiftPressed?controls.Count-1:0):(current+(key.ShiftPressed?-1:1)+controls.Count)%controls.Count;
+            bool backwards=key.Keycode is Key.Left or Key.Up||key.Keycode==Key.Tab&&key.ShiftPressed;
+            int next=current<0?(backwards?controls.Count-1:0):(current+(backwards?-1:1)+controls.Count)%controls.Count;
             controls[next].GrabFocus();
         }
         GetViewport().SetInputAsHandled();
@@ -56,10 +61,12 @@ public partial class MainGame
         if(visible)
         {
             if(SelectedSlot<0)return;
+            _portraitReturnFocus=GetViewport().GuiGetFocusOwner();
             if(_map is WorldView3D world)world.CancelPointerGesture();
             RefreshResidentVitals();
             _residentPortrait.Reparent(_portraitWindowBody,false);
             _residentPortrait.SetExpanded(true);_portraitOverlay.Visible=true;
+            _residentPortrait.GrabFocus();
             _portraitWindowTitle.Text=_residentTitle.Text;
             _portraitWindowActivity.Text=_residentSubtitle.Text+"  ·  "+_residentAction.Text;
             FitPortraitWindow(Size);FadeIn(_portraitWindow);
@@ -67,6 +74,9 @@ public partial class MainGame
         else
         {
             _residentPortrait.Reparent(_portraitHome,false);_residentPortrait.SetExpanded(false);_portraitOverlay.Visible=false;
+            if(_portraitReturnFocus!=null&&GodotObject.IsInstanceValid(_portraitReturnFocus)&&_portraitReturnFocus.IsVisibleInTree()&&_portraitReturnFocus.FocusMode!=FocusModeEnum.None)
+                _portraitReturnFocus.GrabFocus();
+            _portraitReturnFocus=null;
         }
     }
     private void ValidatePortraitWindow()
@@ -74,21 +84,23 @@ public partial class MainGame
         if(SelectedSlot<0)return;
         string before=StateHash.ComputeDigest(Sim);
         var state=System.Text.Json.JsonSerializer.Serialize(_residentPortrait.EvaluationState());
-        ShowJournal(true);_drawer.CurrentTab=1;ShowPortraitWindow(true);
+        ShowJournal(true);_drawer.CurrentTab=1;_journalButton.GrabFocus();ShowPortraitWindow(true);
         if(!_portraitOverlay.Visible||!_residentPortrait.Expanded||_residentPortrait.GetParent()!=_portraitWindowBody)
             throw new InvalidOperationException("Large portrait did not reuse the selected model viewport");
         if(state!=System.Text.Json.JsonSerializer.Serialize(_residentPortrait.EvaluationState()))
             throw new InvalidOperationException("Expanding a portrait reset its framing or orbit");
-        for(int i=0;i<9;i++)
+        if(GetViewport().GuiGetFocusOwner()!=_residentPortrait)throw new InvalidOperationException("Portrait inherited background keyboard focus");
+        for(int i=0;i<16;i++)
         {
-            _Input(new InputEventKey {Keycode=Key.Tab,Pressed=true,ShiftPressed=i>5});
+            _Input(new InputEventKey {Keycode=i<8?Key.Tab:i%2==0?Key.Left:Key.Down,Pressed=true,Echo=i%2==0,ShiftPressed=i>5});
             var focused=GetViewport().GuiGetFocusOwner();
             if(focused==null||!_portraitWindow.IsAncestorOf(focused))throw new InvalidOperationException("Portrait keyboard focus escaped to the world");
         }
         _UnhandledKeyInput(new InputEventKey {Keycode=Key.Escape,Pressed=true});
         if(_portraitOverlay.Visible||!_journalPanel.Visible||_residentPortrait.GetParent()!=_portraitHome||_residentPortrait.Expanded)
             throw new InvalidOperationException("Closing portrait did not restore the notebook");
+        if(GetViewport().GuiGetFocusOwner()!=_journalButton)throw new InvalidOperationException("Portrait did not restore keyboard focus");
         if(before!=StateHash.ComputeDigest(Sim))throw new InvalidOperationException("Portrait expansion changed simulation state");
-        GD.Print("PORTRAIT_WINDOW_PASS: shared model/view, preserved framing, Escape priority, notebook return and observation purity");
+        GD.Print("PORTRAIT_WINDOW_PASS: shared model/view, preserved framing, initial/repeated/directional focus isolation and restore, Escape priority, notebook return and observation purity");
     }
 }
