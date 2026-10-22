@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Godot;
 using SandBoxSim.Core.Agents;
 
@@ -29,22 +30,24 @@ internal partial class ResidentPortrait : SubViewportContainer
     private float _yaw = -.28f, _distance = FaceDistance;
     public override void _Ready()
     {
-        Stretch = true; CustomMinimumSize = Compact ? new Vector2(0, 204) : new Vector2(270, 196);
+        Stretch = true; CustomMinimumSize = Compact ? new Vector2(0, 256) : new Vector2(270, 224);
         TooltipText = "拖动左右旋转与上下俯仰 · 滚轮缩放 · 双击复位";
         MouseFilter = MouseFilterEnum.Stop;
-        _viewport = new SubViewport { Size = Compact ? new Vector2I(624, 408) : new Vector2I(540, 392), OwnWorld3D = true, Msaa3D = Viewport.Msaa.Msaa4X,
+        _viewport = new SubViewport { Size = Compact ? new Vector2I(624, 512) : new Vector2I(540, 448), OwnWorld3D = true, Msaa3D = Viewport.Msaa.Msaa4X,
             RenderTargetUpdateMode = SubViewport.UpdateMode.WhenVisible, HandleInputLocally = false };
         AddChild(_viewport);
         _stage = new Node3D(); _viewport.AddChild(_stage);
         var environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color,
-            BackgroundColor = new Color("#252e29"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
-            AmbientLightColor = new Color("#d6dce3"), AmbientLightEnergy = .32f, TonemapMode = Godot.Environment.ToneMapper.Aces };
+            BackgroundColor = new Color("#202c26"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
+            AmbientLightColor = new Color("#ded9cc"), AmbientLightEnergy = .40f, TonemapMode = Godot.Environment.ToneMapper.Aces };
         _stage.AddChild(new WorldEnvironment { Environment = environment });
-        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-35, -35, 0), LightColor = new Color("#f0f3ed"), LightEnergy = .78f });
-        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-15, 145, 0), LightColor = new Color("#b9cadd"), LightEnergy = .36f });
+        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-25, -28, 0), LightColor = new Color("#f1e7d6"), LightEnergy = .68f });
+        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-12, 120, 0), LightColor = new Color("#b9ccc8"), LightEnergy = .30f });
+        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-35, -150, 0), LightColor = new Color("#e9dbc2"), LightEnergy = .24f });
         _portraitGround=new MeshInstance3D { Mesh = new PlaneMesh { Size = new(20,20) }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new("#252e29"), Roughness = 1 },Visible=false };_stage.AddChild(_portraitGround);
         _camera = new Camera3D { Current = true, Fov = 34 }; _stage.AddChild(_camera); Aim();
-        var controls=new HBoxContainer();controls.SetAnchorsAndOffsetsPreset(LayoutPreset.TopLeft);controls.Position=new(8,8);controls.AddThemeConstantOverride("separation",2);AddChild(controls);
+        var controlPlate=new PanelContainer();controlPlate.SetAnchorsAndOffsetsPreset(LayoutPreset.TopLeft);controlPlate.Position=new(8,8);controlPlate.AddThemeStyleboxOverride("panel",HudStyle.Box(new Color(HudStyle.Ink,.94f),4,2,false));AddChild(controlPlate);
+        var controls=new HBoxContainer();controls.AddThemeConstantOverride("separation",2);controlPlate.AddChild(controls);
         foreach(var (mode,title) in new[]{(Framing.Face,"面部"),(Framing.Hands,"手部"),(Framing.Body,"全身")})
         {
             var button=new Godot.Button {Text=title,ToggleMode=true,CustomMinimumSize=new(44,28)};HudStyle.Button(button);button.AddThemeFontSizeOverride("font_size",13);
@@ -54,9 +57,12 @@ internal partial class ResidentPortrait : SubViewportContainer
         _frameButtons[Framing.Face].SetPressedNoSignal(true);
         var reset=new Godot.Button {Text="复位",CustomMinimumSize=new(44,28)};HudStyle.Button(reset);reset.AddThemeFontSizeOverride("font_size",13);reset.TooltipText="恢复当前构图 · 也可双击画面";
         reset.SetAnchorsAndOffsetsPreset(LayoutPreset.TopRight);reset.OffsetLeft=-52;reset.OffsetRight=-8;reset.OffsetTop=8;reset.OffsetBottom=36;reset.Pressed+=ResetView;AddChild(reset);
-        var caption = HudStyle.Label("拖动旋转与俯仰 · 滚轮缩放 · 双击复位", 10); caption.Visible=!Compact;
+        var caption = HudStyle.Label("拖动旋转  /  滚轮缩放  /  双击复位", 10);
         caption.AddThemeColorOverride("font_color", new Color("#aab2bc")); caption.MouseFilter = MouseFilterEnum.Ignore;
         caption.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide); caption.OffsetTop = -22; caption.OffsetLeft = 10; AddChild(caption);
+        caption.Modulate=new Color(1,1,1,0);Tween? hint=null;
+        void Hint(float alpha){hint?.Kill();if(!HudStyle.MotionEnabled){caption.Modulate=new Color(1,1,1,alpha);return;}hint=caption.CreateTween();hint.TweenProperty(caption,"modulate:a",alpha,.16);}
+        MouseEntered+=()=>Hint(1);MouseExited+=()=>Hint(0);
     }
     public void ShowResident(long identity, int slot, bool child, JobType job)
     {
@@ -69,6 +75,14 @@ internal partial class ResidentPortrait : SubViewportContainer
     public void ShowCargo(bool hasCargo, SandBoxSim.Core.Environment.ResourceKind resource) => _resident?.ShowCargo(hasCargo,resource);
     public void ShowActivity(ActionKind action,ActionPhase phase,bool paused) { _action=action;_actionPhase=phase;_worldPaused=paused; }
     internal object EvaluationState()=>new {framing=_framing.ToString().ToLowerInvariant(),yaw=_yaw,pitch=_pitch,distance=_distance,dragging=_drag};
+    internal object RenderQualityState()
+    {
+        var environment=_stage.GetChildren().OfType<WorldEnvironment>().Single().Environment;
+        return new {msaa=_viewport.Msaa3D.ToString(),resolution=new[]{_viewport.Size.X,_viewport.Size.Y},
+            background=environment.BackgroundColor.ToHtml(),ambient=environment.AmbientLightColor.ToHtml(),ambientEnergy=environment.AmbientLightEnergy,
+            lights=_stage.GetChildren().OfType<DirectionalLight3D>().Select(light=>new {
+                color=light.LightColor.ToHtml(),energy=light.LightEnergy,rotation=new[]{light.RotationDegrees.X,light.RotationDegrees.Y,light.RotationDegrees.Z},shadows=light.ShadowEnabled}).ToArray()};
+    }
     internal void EvaluationFraming(string mode)=>SetFraming(mode=="hands"?Framing.Hands:mode=="body"?Framing.Body:Framing.Face);
     internal void EvaluationReset()=>ResetView();
     public void FocusHands()=>SetFraming(Framing.Hands);

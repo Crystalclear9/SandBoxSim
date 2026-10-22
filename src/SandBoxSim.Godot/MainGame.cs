@@ -168,6 +168,7 @@ public partial class MainGame : Control
     public void SelectTool(PlayerTool tool)
     {
         Tool = tool; _toolPicker.Select((int)tool);
+        _inspectDockButton.SetPressedNoSignal(tool==PlayerTool.Inspect&&!_dockPanel.Visible);
         string hint = tool switch
         {
             PlayerTool.River or PlayerTool.Water => "拖动画出水源；河流能灌溉，也可能隔断道路。",

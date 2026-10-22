@@ -136,16 +136,26 @@ ALBEDO=mix(color,vec3(0.85,0.87,0.87),glint*iris*0.45);ROUGHNESS=0.19;SPECULAR=0
         using var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);
         foreach(float side in new[]{-1f,1f})
         {
-            void Vertex(int col,int row)
+            // Separate tapered hairs grow outward from the brow ridge. Both
+            // ends are sampled on the actual face; no straight floating ribbon.
+            for(int hair=0;hair<72;hair++)
             {
-                float u=col/24f,x=side*(.017f+u*.035f),taper=MathF.Pow(MathF.Max(0,MathF.Sin(u*MathF.PI)),.45f);
-                float y=.026f+MathF.Sin(u*MathF.PI*.95f)*.0045f-row*.0016f*taper-u*.0020f;
-                surface.SetUV(new(u,row));surface.AddVertex(new(x,y,FaceDepth(x,y)-.0010f));
-            }
-            for(int col=0;col<24;col++)
-            {
-                if(side>0){Vertex(col,0);Vertex(col,1);Vertex(col+1,0);Vertex(col+1,0);Vertex(col,1);Vertex(col+1,1);}
-                else{Vertex(col,0);Vertex(col+1,0);Vertex(col,1);Vertex(col+1,0);Vertex(col+1,1);Vertex(col,1);}
+                float u=(hair+.5f)/72,fullness=MathF.Pow(MathF.Sin(u*MathF.PI),.55f);
+                float x=side*(.017f+u*.036f),y=.027f+MathF.Sin(u*MathF.PI*.95f)*.0045f-u*.002f;
+                float length=(.0015f+.0028f*fullness)*(1+(hair%3-1)*.12f);
+                Vector3 Point(float t,float across)
+                {
+                    float px=x+side*t*(.0006f+.0015f*u),py=y+length*(t-.55f);
+                    px+=across*.00040f*fullness*MathF.Sin(MathF.PI*t);
+                    return new(px,py,FaceDepth(px,py)-.00035f-.00025f*MathF.Sin(MathF.PI*t));
+                }
+                for(int row=0;row<3;row++)
+                {
+                    float t=row/3f,v=(row+1)/3f;
+                    surface.SetColor(new Color(.76f+(hair%5)*.045f,.76f+(hair%5)*.045f,.76f+(hair%5)*.045f));
+                    EquipmentTriangle(surface,Point(t,-1),Point(v,-1),Point(t,1),Vector3.Forward);
+                    EquipmentTriangle(surface,Point(t,1),Point(v,-1),Point(v,1),Vector3.Forward);
+                }
             }
         }
         surface.GenerateNormals();surface.Index();var mesh=surface.Commit();_meshes[key]=mesh;return mesh;

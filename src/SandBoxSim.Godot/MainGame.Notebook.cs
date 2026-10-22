@@ -7,7 +7,7 @@ public partial class MainGame
     {
         Color paper=HudStyle.Surface,ink=HudStyle.Text,muted=HudStyle.Muted,accent=HudStyle.Accent;
         _journalPanel.Material=null;
-        var surface=HudStyle.Box(paper,10,20);surface.BorderColor=HudStyle.Border;surface.BorderWidthLeft=1;surface.ShadowColor=new Color(0,0,0,.22f);surface.ShadowSize=12;
+        var surface=HudStyle.Box(paper,7,18);surface.BorderColor=HudStyle.Border;surface.BorderWidthLeft=1;surface.ShadowColor=new Color(0,0,0,.28f);surface.ShadowSize=16;
         _journalPanel.AddThemeStyleboxOverride("panel",surface);_journalPanel.GetChild<HudBevel>(0).Visible=false;
         void Apply(Node node)
         {

@@ -14,7 +14,7 @@ internal partial class HudBevel : Control
         for(int row=0;row<18;row++)
         {
             float inset=row<8?12-row:4;
-            DrawLine(outer.Position+new Vector2(inset,row+1),new Vector2(outer.End.X-inset,outer.Position.Y+row+1),new Color(new Color("#bccce0"),.035f*(1-row/18f)),1);
+            DrawLine(outer.Position+new Vector2(inset,row+1),new Vector2(outer.End.X-inset,outer.Position.Y+row+1),new Color(HudStyle.Accent,.025f*(1-row/18f)),1);
         }
         DrawLine(outer.Position+new Vector2(12,1),new Vector2(outer.End.X-12,outer.Position.Y+1),new Color(Colors.White,.13f),1,true);
     }

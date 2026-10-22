@@ -91,20 +91,27 @@ ALBEDO=dye.rgb*(0.97+pores*0.025+wear);ROUGHNESS=0.69+pores*0.035;SPECULAR=0.26;
     private Mesh AnimalEar(bool wolf)
     {
         string key="sculpted-ear:"+wolf;if(_meshes.TryGetValue(key,out var cached))return cached;
-        const int rows=20,columns=24;
+        const int rows=28,columns=32;
         using var tool=new SurfaceTool();tool.Begin(Mesh.PrimitiveType.Triangles);
         Vector3 Point(int row,int column,bool rear)
         {
             float t=row/(float)rows,u=column/(float)columns*2-1;
-            float width=wolf?.060f*(1-t)*MathF.Min(1,t/.14f)*(1+.3f*MathF.Sin(t*MathF.PI)):.057f*MathF.Pow(MathF.Max(0,MathF.Sin(t*MathF.PI)),.6f);
+            float leaf=MathF.Pow(MathF.Max(0,MathF.Sin(t*MathF.PI)),wolf?.78f:.68f);
+            float width=(wolf?.059f:.060f)*leaf*(wolf?1.20f-.55f*t:1+.09f*MathF.Sin(t*MathF.PI));
             float cup=(1-u*u)*MathF.Sin(t*MathF.PI);
-            return new(u*width,t*(wolf?.155f:.21f),rear?.019f*cup+.005f*MathF.Sin(t*MathF.PI):-.015f*cup);
+            float rim=.004f*MathF.Exp(-MathF.Pow((MathF.Abs(u)-.84f)/.14f,2))*MathF.Sin(t*MathF.PI);
+            float root=.006f*MathF.Exp(-MathF.Pow((t-.18f)/.13f,2))*(1-u*u);
+            // A curled, thick cartilage rim surrounds a recessed concha; the
+            // tip bends backwards instead of ending in a flat triangular plane.
+            float bend=.016f*t*t*t;
+            return new(u*width,t*(wolf?.145f:.21f),bend+(rear?.012f*cup+.004f*MathF.Sin(t*MathF.PI):.007f*cup-rim-root));
         }
         void Vertex(int r,int c,bool rear)
         {
             float t=r/(float)rows,u=c/(float)columns*2-1;
             float inset=rear?0:MathF.Pow(MathF.Max(0,1-u*u),.8f)*MathF.Sin(t*MathF.PI);
-            tool.SetColor(new Color(wolf?"#747b7b":"#8c6445").Lerp(new Color("#b9a08a"),inset*.75f));
+            float baseShade=MathF.Exp(-MathF.Pow((t-.23f)/.19f,2))*(1-u*u);
+            tool.SetColor(new Color(wolf?"#797b71":"#8c6445").Lerp(new Color("#bcb09c"),inset*.7f).Darkened(rear?0:baseShade*.13f));
             tool.SetUV(new(c/(float)columns,t));tool.AddVertex(Point(r,c,rear));
         }
         foreach(bool rear in new[]{false,true})for(int r=0;r<rows;r++)for(int c=0;c<columns;c++)

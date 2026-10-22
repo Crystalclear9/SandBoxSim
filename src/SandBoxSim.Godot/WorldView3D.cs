@@ -109,7 +109,7 @@ public partial class WorldView3D : MapView
             FogEnabled = true, FogDensity = .0017f, FogLightColor = new Color("#c2d1bd") };
         _scene.AddChild(new WorldEnvironment { Environment = _weatherEnvironment });
         _sunlight = new DirectionalLight3D { RotationDegrees = new Vector3(-48, -35, 0), LightColor = new Color("#f4eee0"),
-            LightEnergy = .9f, ShadowEnabled = true, DirectionalShadowMode=DirectionalLight3D.ShadowMode.Parallel2Splits, DirectionalShadowMaxDistance = 160 };
+            LightEnergy = .9f, ShadowEnabled = true, ShadowBias=1.2f, DirectionalShadowMode=DirectionalLight3D.ShadowMode.Parallel4Splits, DirectionalShadowMaxDistance = 160 };
         _scene.AddChild(_sunlight);
         _camera = new Camera3D { Current = true, Near = .15f, Far = 650, Fov = 52 }; _scene.AddChild(_camera);
         _routes = new MeshInstance3D { CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
@@ -376,12 +376,13 @@ public partial class WorldView3D : MapView
         }
         if(buildings!=_buildingSignature){_buildingSignature=buildings;if(deferred)_pendingBuildings=true;else BuildBuildings();}
     }
-    internal object RenderQualityState(object[]? galleries=null)
+    internal object RenderQualityState(object[]? galleries=null,object? portrait=null)
     {
         var quality=new Dictionary<string,object> { ["shadowMode"]=_sunlight.DirectionalShadowMode.ToString(),
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString() };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
+        if(portrait!=null)quality["portrait"]=portrait;
         return quality;
     }
     internal object VisualUpdateState()=>new {terrainPending=_pendingTerrain,naturePending=_pendingNature,buildingsPending=_pendingBuildings,cachedBuildings=_buildingVisuals.Count,livedHomes=_buildingVisuals.Values.Count(v=>v.Kind==BuildingKind.House&&v.Life!=null&&v.Life.Visible&&v.LifeKey>=3),growingFields=_buildingVisuals.Values.Count(v=>v.Kind==BuildingKind.Farm&&v.Life!=null&&v.Life.Visible),groundStockModels=_stockVisuals.Values.Count(v=>v.Node.Visible)};

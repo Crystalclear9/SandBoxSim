@@ -78,6 +78,14 @@ internal sealed partial class NatureModels
                 foreach(var normal in arrays[(int)Mesh.ArrayType.Normal].AsVector3Array())
                     if(!normal.IsFinite())throw new InvalidOperationException("Facial rim or brow has non-finite normals");
             }
+            var brows=Brows();var browData=brows.SurfaceGetArrays(0);
+            if(brows!=Brows()||browData[(int)Mesh.ArrayType.Index].AsInt32Array().Length>3600)
+                throw new InvalidOperationException("Brow detail exceeds its cached geometry budget");
+            foreach(var point in browData[(int)Mesh.ArrayType.Vertex].AsVector3Array())
+            {
+                float gap=FaceDepth(point.X,point.Y)-point.Z;
+                if(gap<.00030f||gap>.00065f)throw new InvalidOperationException("Brow hair detached from the actual face");
+            }
         }
         if(faceVariants.Count!=8)throw new InvalidOperationException("Resident face structures share the same mesh");
         GD.Print("FACE_CONTOURS_PASS: eight face/hair structures, attached eyes/lips, bounded nasal projection, finite ear/eyelid geometry and normals");

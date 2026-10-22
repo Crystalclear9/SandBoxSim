@@ -17,6 +17,9 @@ internal sealed partial class NatureModels
             float side=MathF.Abs(MathF.Cos(angle)),back=MathF.Max(0,MathF.Sin(angle));
             float t=row/(float)rings;
             float hairline=.019f+(.039f+(style==1?.012f:style==2?-.004f:0))*MathF.Pow(front,2)-.045f*back;
+            // Unequal temple/fringe heights make the part read in silhouette,
+            // while retaining the source scalp and the fitted hat clearance.
+            hairline+=direction*MathF.Cos(angle)*front*(style==1?.007f:.003f);
             // Temple recession and short sideburns break the old bowl-cut edge.
             hairline+=.015f*MathF.Exp(-MathF.Pow((side-.78f)/.17f,2))*front;
             hairline+=.012f*MathF.Pow(side,10);
@@ -29,13 +32,13 @@ internal sealed partial class NatureModels
             float swept=angle+direction*(1-t)*(style==1?1.4f:.75f);
             float partAngle=-MathF.PI*.5f+direction*.38f;
             float part=MathF.Atan2(MathF.Sin(angle-partAngle),MathF.Cos(angle-partAngle));
-            float groove=MathF.Exp(-MathF.Pow(part/.065f,2))*crown;
+            float groove=MathF.Exp(-MathF.Pow(part/.10f,2))*crown;
             float locks=MathF.Pow(.5f+.5f*MathF.Sin(swept*(style==2?11:8)+t*3),2);
-            float volume=(style==2?.0010f:.0020f)*crown*(.35f+.65f*front);
-            float radial=volume+locks*.0005f*crown-groove*.0018f;
+            float volume=(style==2?.0010f:.0035f)*crown*(.35f+.65f*front);
+            float radial=volume+locks*.0011f*crown-groove*.0024f;
             world+=new Vector3(MathF.Cos(angle),0,MathF.Sin(angle))*radial;
             float forelock=MathF.Exp(-MathF.Pow((angle+MathF.PI*.5f-direction*.30f)/.65f,2))*MathF.Sin(t*MathF.PI);
-            world.Y+=(style==2?.001f:.003f)*crown*front+locks*.0013f*crown+(style==1?.012f:.005f)*forelock;
+            world.Y+=(style==2?.001f:.004f)*crown*front+locks*.0013f*crown+(style==1?.015f:.007f)*forelock;
             world.X+=direction*forelock*(style==2?.001f:.004f);
             return new(world.X/.181f,(world.Y-.008f)/.224f,world.Z/.200f);
         }
@@ -64,13 +67,13 @@ internal sealed partial class NatureModels
             float seed=strand*.61803398875f;seed-=MathF.Floor(seed);
             float column=seed*sides;
             float start=.06f+(strand%7)*.085f;
-            float length=(style==2?.22f:.33f)+(strand%5)*.025f;
+            float length=(style==2?.22f:.38f)+(strand%5)*.025f;
             float end=MathF.Min(1.025f,start+length);
             float width=(.0018f+(strand%4)*.0004f)/.19f;
             Vector3 LockPoint(int row,int cross)
             {
                 float t=row/8f,r=start+(end-start)*t;
-                float c=column+direction*MathF.Sin(t*MathF.PI*.65f)*(style==2?1.5f:4.0f);
+                float c=column+direction*MathF.Sin(t*MathF.PI*.65f)*(style==2?1.5f:5.5f);
                 float angle=c*MathF.Tau/sides;
                 var p=Point(r*rings,c);
                 var radial=new Vector3(MathF.Cos(angle),.25f,MathF.Sin(angle)).Normalized();

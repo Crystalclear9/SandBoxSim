@@ -22,6 +22,7 @@ public partial class MainGame
     private bool _settingsOpen;
     private OptionButton _scenarioPicker = null!;
     private Godot.Button _settingsButton = null!, _journalButton = null!;
+    private Godot.Button _inspectDockButton=null!,_journalDockButton=null!;
     private GridContainer _paletteRow = null!;
     private Label _paletteTitle=null!, _paletteCaption=null!;
     private PanelContainer _commandPanel = null!;
@@ -117,14 +118,14 @@ public partial class MainGame
         _journalButton = ActionButton(actions, "世界手记", () => ShowJournal(!_journalPanel.Visible)); _journalButton.ToggleMode = true;
 
         _journalPanel = Surface(overlay, new Vector2(1, 0), new Vector2(-372, 92), new Vector2(348, 600), 18);
-        var journal = new VBoxContainer(); journal.AddThemeConstantOverride("separation", 12); _journalPanel.AddChild(journal);
+        var journal = new VBoxContainer(); journal.AddThemeConstantOverride("separation", 10); _journalPanel.AddChild(journal);
         var journalHeading = new PanelContainer(); journalHeading.SetMeta("journal_heading",true);
-        var headingBox=HudStyle.Box(HudStyle.Wash,8,14,false);journalHeading.AddThemeStyleboxOverride("panel",headingBox);journal.AddChild(journalHeading);
+        var headingBox=HudStyle.Box(new Color(0,0,0,0),0,0,false);journalHeading.AddThemeStyleboxOverride("panel",headingBox);journal.AddChild(journalHeading);
         var headingBody=new VBoxContainer();headingBody.AddThemeConstantOverride("separation",5);journalHeading.AddChild(headingBody);
         var journalHeader = new HBoxContainer(); headingBody.AddChild(journalHeader);
-        var journalTitle = HudStyle.Heading("世界手记", 22); journalTitle.SizeFlagsHorizontal = SizeFlags.ExpandFill; journalHeader.AddChild(journalTitle);
-        ActionButton(journalHeader, "关闭 ×", () => ShowJournal(false));
-        headingBody.AddChild(HudStyle.Label("观察 · 记录 · 回访",11,true));
+        var journalTitle = HudStyle.Heading("世界手记", 19); journalTitle.SizeFlagsHorizontal = SizeFlags.ExpandFill; journalHeader.AddChild(journalTitle);
+        var closeJournal=ActionButton(journalHeader, "×", () => ShowJournal(false));closeJournal.TooltipText="收起世界手记 · Esc";closeJournal.CustomMinimumSize=new(32,32);
+        journal.AddChild(new HSeparator());
         _drawer = new TabContainer { SizeFlagsVertical = SizeFlags.ExpandFill }; journal.AddChild(_drawer);
         _drawer.AddThemeStyleboxOverride("panel", HudStyle.Box(new Color(0, 0, 0, 0), 0, 0, false));
         _discovery = new DiscoveryPanel { Name = "现场", Game = this }; _drawer.AddChild(_discovery);
@@ -207,12 +208,12 @@ public partial class MainGame
         _commandPanel = Surface(overlay, new Vector2(.5f, 1), new Vector2(-270, -88), new Vector2(540, 70), 6);
 
         var commands = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center }; commands.AddThemeConstantOverride("separation", 6); _commandPanel.AddChild(commands);
-        ActionButton(commands, "观察", () => { SelectTool(PlayerTool.Inspect); ShowTools(false); });
+        _inspectDockButton=ActionButton(commands, "观察", () => { SelectTool(PlayerTool.Inspect); ShowTools(false); });_inspectDockButton.ToggleMode=true;
         _toolsMenuButton = ActionButton(commands,"生命",()=>ShowCategory("生命"));_toolsMenuButton.ToggleMode=true;_primaryCategories["生命"]=_toolsMenuButton;
         var ecologyButton=ActionButton(commands,"生态",()=>ShowCategory("生态"));ecologyButton.ToggleMode=true;_primaryCategories["生态"]=ecologyButton;
         var terrainButton=ActionButton(commands,"地貌",()=>ShowCategory("地貌"));terrainButton.ToggleMode=true;_primaryCategories["地貌"]=terrainButton;
         var climateButton=ActionButton(commands,"气候",()=>ShowCategory("祝福"));climateButton.ToggleMode=true;_primaryCategories["祝福"]=climateButton;
-        ActionButton(commands, "手记", () => ShowJournal(!_journalPanel.Visible));
+        _journalDockButton=ActionButton(commands, "手记", () => ShowJournal(!_journalPanel.Visible));_journalDockButton.ToggleMode=true;
         foreach (Godot.Button command in commands.GetChildren())
         {
             command.Icon = command.Text switch { "生命"=>ToolGlyphs.For(PlayerTool.Human),"生态"=>ToolGlyphs.For(PlayerTool.MeadowSeeds),"地貌"=>ToolGlyphs.For(PlayerTool.Mountain),"气候"=>ToolGlyphs.For(PlayerTool.Rain),_=>HudSymbols.For(command.Text) }; command.ExpandIcon = true;
@@ -221,6 +222,7 @@ public partial class MainGame
             command.CustomMinimumSize = new Vector2(80, 54);
             command.AddThemeConstantOverride("outline_size",0);
         }
+        _inspectDockButton.SetPressedNoSignal(Tool==PlayerTool.Inspect);
 
         var timePanel = Surface(overlay, new Vector2(0, 1), new Vector2(24, -86), new Vector2(272, 64), 8); _timePanel = timePanel;
 
@@ -300,13 +302,14 @@ public partial class MainGame
     { panel.AddThemeStyleboxOverride("panel", HudStyle.Box(new Color(0, 0, 0, 0), 0, 8, false)); panel.GetChild<HudBevel>(0).Visible = false; }
     private void BuildResidentVitals(VBoxContainer parent)
     {
-        _residentVitals = new VBoxContainer { Visible = false }; _residentVitals.AddThemeConstantOverride("separation", 6); parent.AddChild(_residentVitals);
+        _residentVitals = new VBoxContainer { Visible = false }; _residentVitals.AddThemeConstantOverride("separation", 10); parent.AddChild(_residentVitals);
         _residentTitle = HudStyle.Heading("", 24); _residentSubtitle = HudStyle.Label("", 12, true);
-        _residentPortrait = new ResidentPortrait { Compact = true, SizeFlagsHorizontal = SizeFlags.ExpandFill }; _residentVitals.AddChild(_residentPortrait);
+        var portraitFrame=new PanelContainer();portraitFrame.AddThemeStyleboxOverride("panel",HudStyle.Box(HudStyle.Wash,5,1,false));_residentVitals.AddChild(portraitFrame);
+        _residentPortrait = new ResidentPortrait { Compact = true, SizeFlagsHorizontal = SizeFlags.ExpandFill }; portraitFrame.AddChild(_residentPortrait);
         var identity = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; identity.AddThemeConstantOverride("separation", 3); _residentVitals.AddChild(identity);
         identity.AddChild(_residentTitle); identity.AddChild(_residentSubtitle);
         _residentTitle.AutowrapMode = TextServer.AutowrapMode.WordSmart; _residentSubtitle.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        var activity = new PanelContainer(); var activityStyle=HudStyle.Box(HudStyle.Wash,6,10,false);activityStyle.BorderWidthLeft=2;activityStyle.BorderColor=HudStyle.Accent;activity.AddThemeStyleboxOverride("panel",activityStyle);_residentVitals.AddChild(activity);
+        var activity = new PanelContainer(); var activityStyle=HudStyle.Box(new Color(HudStyle.Wash,.65f),4,10,false);activityStyle.BorderWidthLeft=2;activityStyle.BorderColor=HudStyle.Accent;activity.AddThemeStyleboxOverride("panel",activityStyle);_residentVitals.AddChild(activity);
         var activityBody=new VBoxContainer();activityBody.AddThemeConstantOverride("separation",2);activity.AddChild(activityBody);
         _residentAction=HudStyle.Label("",13);_residentActionPhase=HudStyle.Label("",11,true);activityBody.AddChild(_residentAction);activityBody.AddChild(_residentActionPhase);
         var grid = new GridContainer { Columns = 2 }; grid.AddThemeConstantOverride("h_separation", 12); grid.AddThemeConstantOverride("v_separation", 8); _residentVitals.AddChild(grid);
@@ -384,7 +387,7 @@ public partial class MainGame
             _vitalLabels[i].Text = names[i] + "   " + values[i].ToString("P0");
             if (HudStyle.MotionEnabled) { _vitalTransition!.TweenProperty(_vitalBars[i], "value", values[i], .18); }
             else { _vitalBars[i].Value = values[i]; }
-            ((StyleBoxFlat)_vitalBars[i].GetThemeStylebox("fill")).BgColor = danger ? new Color("#a84e32") : HudStyle.Accent;
+            ((StyleBoxFlat)_vitalBars[i].GetThemeStylebox("fill")).BgColor = danger ? new Color("#d58c70") : i==0?new Color("#a4b69a"):i==2?new Color("#9fbac0"):HudStyle.Accent;
         }
     }
     private static Label Metric(HBoxContainer row, string title, string value, int size)
@@ -400,8 +403,8 @@ public partial class MainGame
     private void ShowCategory(string category)
     { bool close=_dockPanel.Visible && _category==category;SetCategory(category);ShowTools(!close); }
     private void ShowTools(bool visible)
-    { _dockPanel.Visible = visible; foreach(var pair in _primaryCategories)pair.Value.SetPressedNoSignal(visible && pair.Key==_category); _toolBadge.Visible = !visible; _status.Visible = !visible; if (visible) { FadeIn(_dockPanel); } }
-    private void ShowJournal(bool visible) { _journalPanel.Visible = visible; _journalButton.SetPressedNoSignal(visible); if (_pulseButton != null) { _pulseButton.Visible = !visible; } if (visible) { FadeIn(_journalPanel); } }
+    { _dockPanel.Visible = visible; _inspectDockButton.SetPressedNoSignal(!visible&&Tool==PlayerTool.Inspect); foreach(var pair in _primaryCategories)pair.Value.SetPressedNoSignal(visible && pair.Key==_category); _toolBadge.Visible = !visible; _status.Visible = !visible; if (visible) { FadeIn(_dockPanel); } }
+    private void ShowJournal(bool visible) { _journalPanel.Visible = visible; _journalButton.SetPressedNoSignal(visible);_journalDockButton.SetPressedNoSignal(visible); if (_pulseButton != null) { _pulseButton.Visible = !visible; } if (visible) { FadeIn(_journalPanel); } }
     private void ShowSettings(bool visible)
     { _settingsOpen = visible; _settingsButton.SetPressedNoSignal(visible); _settingsPanel.Visible = visible; _brushPanel.Visible = !visible && Tool != PlayerTool.Inspect; if (visible) { FadeIn(_settingsPanel); } }
     private readonly Dictionary<Control, Tween> _panelTransitions = new();
@@ -493,6 +496,8 @@ public partial class MainGame
             _UnhandledKeyInput(new InputEventKey {Keycode=Key.Escape,Pressed=true});
             if(_journalPanel.Visible)throw new InvalidOperationException("Escape did not close notebook");
             ShowJournal(true); ShowJournal(false); ShowJournal(true);
+            if(!_journalButton.ButtonPressed||!_journalDockButton.ButtonPressed||!_inspectDockButton.ButtonPressed)
+                throw new InvalidOperationException("Dock and header do not reflect the active journal/inspection mode");
             _panelTransitions[_journalPanel].CustomStep(1);
             if (_journalPanel.Scale != Vector2.One || _journalPanel.Modulate.A != 1)
                 { throw new InvalidOperationException("Interrupted journal transition did not settle"); }
