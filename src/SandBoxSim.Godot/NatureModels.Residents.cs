@@ -31,45 +31,59 @@ internal sealed partial class NatureModels
             Rotation = rotation, MaterialOverride = ResidentMaterial(color) };
         parent.AddChild(detail); return detail;
     }
+    // Shared by source sampling, clothing attachments and distant meshes.
+    // Keep profiles outside the point sampler to avoid per-vertex allocations.
+    private static readonly float[][] GarmentHeightProfiles={
+        new[]{.60f,.635f,.73f,.82f,.97f,1.10f,1.19f,1.24f,1.28f},
+        new[]{.63f,.665f,.73f,.82f,.97f,1.10f,1.19f,1.24f,1.28f},
+        new[]{.535f,.570f,.73f,.82f,.97f,1.10f,1.19f,1.24f,1.28f}};
+    private static readonly float[][] GarmentWidthProfiles={
+        new[]{.20f,.205f,.174f,.166f,.174f,.184f,.193f,.155f,.060f},
+        new[]{.185f,.190f,.174f,.166f,.174f,.184f,.193f,.155f,.060f},
+        new[]{.20f,.205f,.174f,.166f,.174f,.184f,.193f,.155f,.060f}};
+    private static readonly float[][] GarmentDepthProfiles={
+        new[]{.137f,.143f,.123f,.116f,.123f,.127f,.111f,.086f,.067f},
+        new[]{.137f,.143f,.123f,.116f,.123f,.127f,.111f,.086f,.067f},
+        new[]{.153f,.156f,.123f,.116f,.123f,.127f,.111f,.086f,.067f}};
+    private Vector3 GarmentPoint(float fraction,float angle)
+    {
+        var height=GarmentHeightProfiles[_garmentCut];
+        var width=GarmentWidthProfiles[_garmentCut];
+        var depth=GarmentDepthProfiles[_garmentCut];
+        float y=Mathf.Lerp(height[0],height[^1],fraction);
+        float Profile(float[] values)
+        {
+            int i=0;while(i<height.Length-2 && y>height[i+1])i++;
+            float t=(y-height[i])/(height[i+1]-height[i]);int a=Math.Max(0,i-1),b=Math.Min(height.Length-1,i+2);
+            float m0=(values[i+1]-values[a])/(height[i+1]-height[a])*(height[i+1]-height[i]);
+            float m1=(values[b]-values[i])/(height[b]-height[i])*(height[i+1]-height[i]);
+            float value=(2*t*t*t-3*t*t+1)*values[i]+(t*t*t-2*t*t+t)*m0+(-2*t*t*t+3*t*t)*values[i+1]+(t*t*t-t*t)*m1;
+            return value;
+        }
+        float belt=1-MathF.Exp(-MathF.Pow((y-.765f)*22,2));
+        float hem=Math.Clamp((.80f-y)/(.80f-GarmentBottom),0,1);
+        float front=MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),4);
+        float tension=MathF.Exp(-MathF.Pow((y-.82f)/.08f,2));
+        float fold=1+(.006f+.022f*hem)*MathF.Cos(angle*9+(y-.6f)*4+.7f*MathF.Sin(angle*3))*belt;
+        // Cloth gathers below the belt; diagonal compression folds radiate from it.
+        fold+=front*tension*.025f*MathF.Sin((y-.76f)*70+MathF.Abs(MathF.Cos(angle))*10);
+        // Tension follows the two armholes and belt, rather than forming
+        // evenly spaced ribs over the entire chest.
+        float armhole=MathF.Exp(-MathF.Pow((y-1.145f)/.10f,2))*MathF.Pow(MathF.Abs(MathF.Cos(angle)),3);
+        fold+=armhole*.022f*MathF.Sin(y*65+MathF.Sin(angle)*5);
+        float vent=_garmentCut==2?hem*(.075f*MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),16)+.040f*MathF.Pow(MathF.Max(0,MathF.Sin(angle)),16)):0;
+        float chest=MathF.Exp(-MathF.Pow((y-1.10f)/.10f,2));
+        float volume=chest*(front*.004f+MathF.Pow(MathF.Max(0,MathF.Sin(angle)),4)*.002f);
+        float neckline=MathF.Exp(-MathF.Pow((y-1.28f)/.022f,2))*front*.009f;
+        return new Vector3(MathF.Sign(MathF.Cos(angle))*MathF.Pow(MathF.Abs(MathF.Cos(angle)),.80f)*Profile(width)*fold,y+vent-neckline,MathF.Sign(MathF.Sin(angle))*MathF.Pow(MathF.Abs(MathF.Sin(angle)),.80f)*(Profile(depth)*fold+volume));
+    }
     private Mesh Garment()
     {
         string key="tunic:"+_garmentCut;
         if (_meshes.TryGetValue(key, out var existing)) { return existing; }
         const int sides = 64, rings=40;
-        float[] height = { GarmentBottom, GarmentBottom+.035f, .73f, .82f, .97f, 1.10f, 1.19f, 1.24f, 1.28f };
-        float[] width = { _garmentCut==1?.185f:.20f, _garmentCut==1?.190f:.205f, .174f, .166f, .174f, .184f, .193f, .155f, .060f };
-        float[] depth = { _garmentCut==2?.153f:.137f, _garmentCut==2?.156f:.143f, .123f, .116f, .123f, .127f, .111f, .086f, .067f };
         var surface = new SurfaceTool(); surface.Begin(Mesh.PrimitiveType.Triangles); surface.SetSmoothGroup(0);
-        Vector3 Point(int ring, int side)
-        {
-            float y=Mathf.Lerp(height[0],height[^1],ring/(float)rings);
-            float Profile(float[] values)
-            {
-                int i=0;while(i<height.Length-2 && y>height[i+1])i++;
-                float t=(y-height[i])/(height[i+1]-height[i]);int a=Math.Max(0,i-1),b=Math.Min(height.Length-1,i+2);
-                float m0=(values[i+1]-values[a])/(height[i+1]-height[a])*(height[i+1]-height[i]);
-                float m1=(values[b]-values[i])/(height[b]-height[i])*(height[i+1]-height[i]);
-                float value=(2*t*t*t-3*t*t+1)*values[i]+(t*t*t-2*t*t+t)*m0+(-2*t*t*t+3*t*t)*values[i+1]+(t*t*t-t*t)*m1;
-                return value;
-            }
-            float angle = side * MathF.Tau / sides;
-            float belt=1-MathF.Exp(-MathF.Pow((y-.765f)*22,2));
-            float hem=Math.Clamp((.80f-y)/(.80f-GarmentBottom),0,1);
-            float front=MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),4);
-            float tension=MathF.Exp(-MathF.Pow((y-.82f)/.08f,2));
-            float fold=1+(.006f+.022f*hem)*MathF.Cos(angle*9+(y-.6f)*4+.7f*MathF.Sin(angle*3))*belt;
-            // Cloth gathers below the belt; diagonal compression folds radiate from it.
-            fold+=front*tension*.025f*MathF.Sin((y-.76f)*70+MathF.Abs(MathF.Cos(angle))*10);
-            // Tension follows the two armholes and belt, rather than forming
-            // evenly spaced ribs over the entire chest.
-            float armhole=MathF.Exp(-MathF.Pow((y-1.145f)/.10f,2))*MathF.Pow(MathF.Abs(MathF.Cos(angle)),3);
-            fold+=armhole*.022f*MathF.Sin(y*65+MathF.Sin(angle)*5);
-            float vent=_garmentCut==2?hem*(.075f*MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),16)+.040f*MathF.Pow(MathF.Max(0,MathF.Sin(angle)),16)):0;
-            float chest=MathF.Exp(-MathF.Pow((y-1.10f)/.10f,2));
-            float volume=chest*(front*.004f+MathF.Pow(MathF.Max(0,MathF.Sin(angle)),4)*.002f);
-            float neckline=MathF.Exp(-MathF.Pow((y-1.28f)/.022f,2))*front*.009f;
-            return new Vector3(MathF.Cos(angle)*Profile(width)*fold,y+vent-neckline,MathF.Sin(angle)*(Profile(depth)*fold+volume));
-        }
+        Vector3 Point(int ring,int side)=>GarmentPoint(ring/(float)rings,side*MathF.Tau/sides);
         for (int ring = 0; ring < rings; ring++) for (int side = 0; side < sides; side++)
         {
             Vector3 a = Point(ring, side), b = Point(ring, side + 1), c = Point(ring + 1, side), d = Point(ring + 1, side + 1);

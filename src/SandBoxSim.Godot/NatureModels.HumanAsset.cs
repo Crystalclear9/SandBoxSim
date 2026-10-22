@@ -12,7 +12,7 @@ internal sealed partial class NatureModels
     private HumanAsset? _humanAsset;
     private readonly System.Collections.Generic.Dictionary<(int Variant,string Kind,int Side),(Vector3[] Points,int[] Indices)> _humanProjectionParts=new();
     private const string HumanAssetPath="res://assets/models/human/human-head.mesh.json";
-    private const string HumanAssetHash="ee5a201c695f605baa7bcff6628daa4a311648b18c41819097e1e7247e2eab01";
+    private const string HumanAssetHash="55cf103000de89d14dac0a2a09265aad72606516bffc56539ae605f792463c5b";
     private HumanAsset HumanData()
     {
         if(_humanAsset!=null)return _humanAsset;
@@ -53,15 +53,11 @@ internal sealed partial class NatureModels
     private float HumanDepth=>1+((_faceVariant%3)-1)*.025f;
     private Vector3 HumanPoint(Vector3 p)
     {
-        float front=Math.Clamp((-p.Z-.012f)/.035f,0,1);
-        float jaw=MathF.Exp(-MathF.Pow((p.Y+.062f)/.032f,2));
-        float cheek=MathF.Exp(-MathF.Pow((MathF.Abs(p.X)-.047f)/.022f,2)-MathF.Pow((p.Y+.023f)/.026f,2));
-        float brow=MathF.Exp(-MathF.Pow((MathF.Abs(p.X)-.027f)/.023f,2)-MathF.Pow((p.Y-.025f)/.015f,2));
-        float mouth=MathF.Exp(-MathF.Pow((p.Y+.051f)/.012f,2))*Math.Clamp(MathF.Abs(p.X)/.025f,0,1);
-        float nose=MathF.Exp(-MathF.Pow(p.X/.015f,2)-MathF.Pow((p.Y+.021f)/.025f,2));
-        return new(p.X*HumanWidth(p.Y,out _)*(1-.055f*jaw*front),
-            p.Y+.0017f*mouth*front,p.Z*HumanDepth+front*(.002f*brow-.0015f*cheek+.0025f*nose));
+        // Identity varies width/depth gently; retain the source anatomy rather
+        // than independently pushing nose, brow, cheeks and jaw landmarks.
+        return new(p.X*HumanWidth(p.Y,out _),p.Y,p.Z*HumanDepth);
     }
+
     private Vector3 HumanNormal(Vector3 p,Vector3 n)
     {
         // All facial parts and landmarks share the same deformation. Use its

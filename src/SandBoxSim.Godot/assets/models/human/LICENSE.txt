@@ -12,9 +12,10 @@ head/neck, lip and eye geometry, cropped and retargeted the neck, converted axes
 and scale, split lip movement, generated scalp lookup samples, added vertex
 tint regions, and exported compact mesh data. Runtime variants reshape width
 and depth and reuse the game's own rig, blink, gaze and lip movement.
-Further runtime modifications soften the jaw, cheek, brow and nasal contours,
-raise lip corners slightly, apply the same deformation to facial landmarks and
-reconstruct transformed normals with the local deformation Jacobian.
+Current head export uses a uniform 0.90 scale instead of independently
+compressing depth. Runtime retains gentle identity width/depth variation and
+reconstructs transformed normals with the local deformation Jacobian; prior
+individual jaw, cheek, brow, nose and lip-corner displacements were removed.
 
 human-head.mesh.json is a derivative of this CC BY 4.0 asset. The project's
 general software license does not replace this asset's license. Retain this

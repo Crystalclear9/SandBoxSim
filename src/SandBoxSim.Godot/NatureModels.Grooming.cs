@@ -9,9 +9,9 @@ internal sealed partial class NatureModels
     // alter the silhouette; fine strands remain shading, not thousands of nodes.
     private Mesh GroomedHair(int sides,int rings)
     {
-        using var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);
+        using var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);surface.SetColor(Colors.White);
         int style=_faceVariant%3;float direction=_faceVariant%2==0?1:-1;
-        Vector3 Point(int row,int column)
+        Vector3 Point(float row,float column)
         {
             float angle=column*MathF.Tau/sides,front=MathF.Max(0,-MathF.Sin(angle));
             float side=MathF.Abs(MathF.Cos(angle)),back=MathF.Max(0,MathF.Sin(angle));
@@ -31,11 +31,11 @@ internal sealed partial class NatureModels
             float part=MathF.Atan2(MathF.Sin(angle-partAngle),MathF.Cos(angle-partAngle));
             float groove=MathF.Exp(-MathF.Pow(part/.065f,2))*crown;
             float locks=MathF.Pow(.5f+.5f*MathF.Sin(swept*(style==2?11:8)+t*3),2);
-            float volume=(style==2?.0020f:.0050f)*crown*(.35f+.65f*front);
-            float radial=volume+locks*.0018f*crown-groove*.0018f;
+            float volume=(style==2?.0010f:.0020f)*crown*(.35f+.65f*front);
+            float radial=volume+locks*.0005f*crown-groove*.0018f;
             world+=new Vector3(MathF.Cos(angle),0,MathF.Sin(angle))*radial;
             float forelock=MathF.Exp(-MathF.Pow((angle+MathF.PI*.5f-direction*.30f)/.65f,2))*MathF.Sin(t*MathF.PI);
-            world.Y+=(style==2?.003f:.010f)*crown*front+locks*.0013f*crown+(style==1?.012f:.005f)*forelock;
+            world.Y+=(style==2?.001f:.003f)*crown*front+locks*.0013f*crown+(style==1?.012f:.005f)*forelock;
             world.X+=direction*forelock*(style==2?.001f:.004f);
             return new(world.X/.181f,(world.Y-.008f)/.224f,world.Z/.200f);
         }
@@ -55,19 +55,40 @@ internal sealed partial class NatureModels
             surface.SetUV(new(.5f,0));surface.AddVertex(center);
             Vertex(0,column);Vertex(0,column+1);
         }
-        // Tapered fringe groups grow from the existing surface and break its
-        // uniform outline without separate floating cards or per-frame nodes.
-        for(int strand=0;strand<40;strand++)
+        // Overlapping tapered locks follow the fitted scalp. Their curved
+        // cross section and lifted tips create actual silhouette and self-shadow,
+        // rather than drawing strand noise on one opaque helmet-shaped shell.
+        int count=sides>=64?180:0;
+        for(int strand=0;strand<count;strand++)
         {
-            int column=strand*sides/40;float angle=column*MathF.Tau/sides;
-            var root=Point(rings-3,column);var end=Point(rings,column);
-            var radial=new Vector3(MathF.Cos(angle),0,MathF.Sin(angle));
-            var tangent=new Vector3(-MathF.Sin(angle),0,MathF.Cos(angle));
-            root-=radial*.002f;end+=radial*.006f-Vector3.Up*(.008f+(strand%3)*.004f);
-            var middle=(root+end)*.5f+radial*.010f;
-            var left=middle-tangent*.006f;var right=middle+tangent*.006f;
-            EquipmentTriangle(surface,root,left,right,radial);EquipmentTriangle(surface,left,end,right,radial);
-            EquipmentTriangle(surface,root,right,left,-radial);EquipmentTriangle(surface,left,right,end,-radial);
+            float seed=strand*.61803398875f;seed-=MathF.Floor(seed);
+            float column=seed*sides;
+            float start=.06f+(strand%7)*.085f;
+            float length=(style==2?.22f:.33f)+(strand%5)*.025f;
+            float end=MathF.Min(1.025f,start+length);
+            float width=(.0018f+(strand%4)*.0004f)/.19f;
+            Vector3 LockPoint(int row,int cross)
+            {
+                float t=row/8f,r=start+(end-start)*t;
+                float c=column+direction*MathF.Sin(t*MathF.PI*.65f)*(style==2?1.5f:4.0f);
+                float angle=c*MathF.Tau/sides;
+                var p=Point(r*rings,c);
+                var radial=new Vector3(MathF.Cos(angle),.25f,MathF.Sin(angle)).Normalized();
+                var tangent=new Vector3(-MathF.Sin(angle),0,MathF.Cos(angle));
+                float across=cross/3f*2-1;
+                float taper=MathF.Pow(MathF.Max(0,MathF.Sin(t*MathF.PI)),.55f);
+                float lift=(.0006f+MathF.Sin(t*MathF.PI)*.0012f)/.20f;
+                return p+tangent*(across*width*taper)+radial*(lift*(1-across*across)*taper);
+            }
+            for(int row=0;row<8;row++)for(int cross=0;cross<3;cross++)
+            {
+                var a=LockPoint(row,cross);var b=LockPoint(row+1,cross);
+                var c=LockPoint(row,cross+1);var d=LockPoint(row+1,cross+1);
+                float angle=column*MathF.Tau/sides;
+                var outward=new Vector3(MathF.Cos(angle),.4f,MathF.Sin(angle));
+                surface.SetColor(new Color(.90f+(strand%7)*.025f,.90f+(strand%7)*.025f,.90f+(strand%7)*.025f));
+                EquipmentTriangle(surface,a,b,c,outward);EquipmentTriangle(surface,c,b,d,outward);
+            }
         }
         surface.GenerateNormals();surface.Index();return surface.Commit();
     }

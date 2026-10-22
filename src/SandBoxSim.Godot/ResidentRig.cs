@@ -25,7 +25,7 @@ internal partial class ResidentRig : Node3D
     public readonly Skeleton3D[] HandSkeletons=new Skeleton3D[2];
     public Mesh ShoulderGeometry=null!,DetailedBodyMesh=null!,DistantBodyMesh=null!;
     public Skin DetailedBodySkin=null!;
-    public readonly MeshInstance3D[] Eyelids=new MeshInstance3D[2],ShoulderFlesh=new MeshInstance3D[2];
+    public readonly MeshInstance3D[] Eyelids=new MeshInstance3D[2];
     public readonly Node3D[] Eyes=new Node3D[2];
     public Node3D Mouth=null!;
     public Vector3 MouthRest;
@@ -309,7 +309,7 @@ internal partial class ResidentRig : Node3D
         {
             HandSkeletons[side].ProcessMode=detailed?ProcessModeEnum.Inherit:ProcessModeEnum.Disabled;
             if(detailed){_skinnedCurl[side]=float.NaN;UpdateHandBones(side);}
-            ShoulderFlesh[side].Visible=detailed;HandProxies[side].Visible=!detailed;HandSkins[side].Visible=detailed;Thumbs[side].Visible=detailed;
+            HandProxies[side].Visible=!detailed;HandSkins[side].Visible=detailed;Thumbs[side].Visible=detailed;
             for(int digit=0;digit<4;digit++)Fingers[side,digit].Visible=detailed;
         }
     }

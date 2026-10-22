@@ -29,7 +29,7 @@ float line=angle*157.0+hair_point.y*180.0+sin(angle*2.0)*hair_point.y*110.0;
 float strand=sin(line)/(1.0+fwidth(line)*fwidth(line));
 float lock=sin(angle*8.0+hair_point.y*10.0+sin(angle*3.0)*.6)*0.040;
 float breakup=sin(angle*31.0+hair_point.y*71.0)*sin(hair_point.y*93.0+angle*7.0)*.012;
-ALBEDO=tone.rgb*(0.94+strand*0.045+lock+breakup);ROUGHNESS=0.72;SPECULAR=0.24;
+ALBEDO=tone.rgb*COLOR.rgb*(0.94+strand*0.025+lock+breakup);ROUGHNESS=0.86;SPECULAR=0.16;
 }"};
         var material=new ShaderMaterial {Shader=_hairShader};material.SetShaderParameter("tone",new Color(color));return material;
     }

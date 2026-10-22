@@ -31,8 +31,9 @@ regions = mesh.attributes[".sculpt_face_set"]
 eye_object = bpy.data.objects["GEO-eye.cornea.R"]
 eye_origin = eye_object.matrix_world.translation
 eye_z = float(eye_origin.z)
-scale_x = .93
-scale_y, scale_z = .90, .80
+# Preserve anatomical aspect ratios; the old depth compression flattened noses,
+# lips and jaws while leaving the ears comparatively prominent.
+scale_x = scale_y = scale_z = .90
 center_z, center_y = eye_z - .010/scale_y, -.030
 
 def point(world, neck=False):

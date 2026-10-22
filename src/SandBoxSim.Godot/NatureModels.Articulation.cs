@@ -26,7 +26,6 @@ internal sealed partial class NatureModels
         RemoveSeparateSleeves(rig,cloth);
         rig.DistantBodyMesh=DistantBody(rig.BodySkin.Mesh);rig.DetailedBodyMesh=SkinnedBody(rig.BodySkin.Mesh,material);rig.DetailedBodySkin=_shoulderSkin;
         rig.BodySkin.Mesh=rig.DetailedBodyMesh;rig.BodySkin.Skin=_shoulderSkin;rig.BodySkin.Skeleton=new NodePath("../ShoulderSkeleton");rig.ShoulderBridge=rig.BodySkin;
-        for(int side=0;side<2;side++)rig.ShoulderFlesh[side]=Detail(rig.Arms[side],"sphere",Vector3.Zero,new(.068f,.068f,.060f),skin);
     }
     private Mesh DistantBody(Mesh body)
     {

@@ -24,7 +24,9 @@
 
 `terrain-modern.png`、`terrain-closeup.png` 更新为 2026-10-22 肩袖/动物造型修改后的 1600×1000 原生渲染。它们使用公开 `visual-landscape` 场景的第 40、80 帧，种子 839102、40 人、零步进，第二张切换近景，展示交叉草地采样和斑块岸色。冻结场景用于比较画面，不代表流畅度测试。
 
-`resident-face-detail.png`、`character-detail.png`、`model-surface-detail.png`、`architecture-detail.png` 和 `resident-garment-actions.png` 为同日的肩袖焊接版本，分别使用 `faces`、`characters`、`model-details`、`architecture`、`actions` 入口，1600×1000、`--capture-delay=2.4 --max-fps 30 --quit-after 140`。这些图片展示连续上衣、修整后的动物、入口尺度和草束屋面，均为实际游戏网格，没有重绘或合成；头脸基础数据没有更换。解剖近景保持动物头部可见，综合图册仍演示进食。
+`resident-face-detail.png`、`character-detail.png`、`model-surface-detail.png`、`resident-garment-actions.png` 和 `wardrobe-detail.png` 为同日的共顶点衣片/统一头脸比例版本，分别使用 `faces`、`characters`、`model-details`、`actions`、`wardrobe` 入口，1600×1000、`--capture-delay=2.4 --max-fps 30 --quit-after 140`。图片保留实际渲染像素，展示三种衣片拓扑、近景弧面发束、头脸比例及现有动物；动物、建筑和地形没有在这轮人物改动中重做。解剖近景保持动物头部可见，综合图册仍演示进食。
+
+`architecture-detail.png` 为同日之前的入口尺度与扫描茅草屋面版本。
 
 `resident-handedness.png`、`free-world-ui.png` 与 `ui-detail-refined.png` 为 2026-10-21 的 1440×900 原生渲染，分别使用 `handedness`、`ecology` 与 `person` 预览入口、2.5 秒采样；展示同源远景手型和卡片式工具界面。以下旧来源说明仅适用于未被此次替换的配图。
 

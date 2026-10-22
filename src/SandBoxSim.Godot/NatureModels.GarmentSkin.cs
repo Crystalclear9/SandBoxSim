@@ -13,30 +13,15 @@ internal sealed partial class NatureModels
         for(int cut=0;cut<3;cut++)
         {
             SelectGarmentCut(cut);
-            var positions=new List<float>();var indices=new List<int>();var bones=new List<int>();var weights=new List<float>();
-            void Append(Mesh mesh,Transform3D space,int bone,bool bridge=false)
+            const int rings=40,sides=64;
+            var positions=new List<float>();
+            for(int r=0;r<=rings;r++)for(int c=0;c<sides;c++)
             {
-                var arrays=mesh.SurfaceGetArrays(0);var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
-                var colours=bridge?arrays[(int)Mesh.ArrayType.Color].AsColorArray():Array.Empty<Color>();
-                int start=positions.Count/3;
-                for(int i=0;i<p.Length;i++)
-                {
-                    var point=space*p[i];positions.Add(point.X);positions.Add(point.Y);positions.Add(point.Z);
-                    float t=bridge?colours[i].R:bone==0?0:1;
-                    int b=bridge?(colours[i].G<.5f?1:2):bone;
-                    bones.AddRange(new[]{0,b,0,0});weights.AddRange(new[]{1-t,t,0f,0f});
-                }
-                foreach(int i in arrays[(int)Mesh.ArrayType.Index].AsInt32Array())indices.Add(start+i);
-            }
-            Append(ProportionedMesh(Garment(),Transform3D.Identity,true),Transform3D.Identity,0);
-            Append(JoinedShoulders(),Transform3D.Identity,0,true);
-            for(int side=0;side<2;side++)
-            {
-                var sleeve=Loft("tailored-sleeve",SleeveProfile());
-                Append(sleeve,new Transform3D(new Basis(Vector3.Right,MathF.PI/2),new(side==0?-.202f:.202f,ResidentRig.BodyY(1.18f),0)),side+1);
+                var p=ResidentRig.BodyPoint(GarmentPoint(r/(float)rings,c*MathF.Tau/sides));
+                positions.AddRange(new[]{p.X,p.Y,p.Z});
             }
             System.IO.File.WriteAllText(System.IO.Path.Combine(folder,$"garment-{cut}-source.json"),
-                JsonSerializer.Serialize(new{schemaVersion=1,cut,hem=ResidentRig.BodyY(GarmentBottom),positions,indices,bones,weights}));
+                JsonSerializer.Serialize(new{schemaVersion=2,cut,rings,sides,hem=ResidentRig.BodyY(GarmentBottom),shoulder=ResidentRig.BodyY(1.18f),positions}));
         }
         GD.Print("GARMENT_SOURCES_EXPORTED");
     }

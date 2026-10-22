@@ -28,7 +28,7 @@
 
 - `assets/models/environment/`：CC0 环境衍生网格、原始 PBR 贴图、许可与来源清单，普通运行直接读取。
 - `assets/models/human/`：授权头脸衍生数据与署名，普通运行直接读取；原始 `.blend` 和 Blender 工具放在本机维护目录。
-- `assets/models/garments/`：项目自有三种焊接上衣、源几何哈希和运行清单，普通运行不需要原始导出或 Blender。
+- `assets/models/garments/`：项目自有三种缝片上衣、源几何哈希和运行清单，普通运行不需要原始导出或 Blender。
 - `assets/materials/scanned/`：可平铺扫描表面、原始贴图、许可与哈希清单；通过 `tools/fetch-surface-materials.py --verify` 离线核对。
 - `assets/textures/`：自然材质及早期地形/对象图集；3D 地表使用扫描表面，二维地图仍保留图集入口。
 
@@ -40,7 +40,7 @@
 
 地表与水面材质在 `WorldView3D.Surface.cs`，建筑扫描表面在 `NatureModels.ScannedCraft.cs`，原始纹理读取与法线/粗糙度打包共用 `ScannedSurfaces.cs`。素材下载只写入 `.tools/sources/surface-materials/` 与验证后的正式资源目录，普通运行不读取原始下载缓存。
 
-上衣源几何和焊接读取在 `NatureModels.GarmentSkin.cs`，连续草束屋面在 `NatureModels.Thatch.cs`。`tools/bake-garments.ps1` 把维护用输入放在 `.tools/garment-sources/`，只将正式蒙皮与清单写入 `assets/models/garments/`；预览和失败试版不进入正式目录。
+上衣采样源与成品读取在 `NatureModels.GarmentSkin.cs`，连续草束屋面在 `NatureModels.Thatch.cs`。`tools/bake-garments.ps1` 把维护用输入放在 `.tools/garment-sources/`，只将正式蒙皮与清单写入 `assets/models/garments/`；预览和失败试版不进入正式目录。
 
 ## 运行资料与截图
 
