@@ -182,8 +182,8 @@ internal sealed partial class NatureModels
             // a flat cap at the shoulder pivot, where it creates a visible ledge.
             Sculpt(arm,Loft("tailored-sleeve",SleeveProfile()),Vector3.Zero,ResidentMaterial(cloth),new(MathF.PI/2,0,0));
             var elbow = rig.Elbows[i] = new Node3D { Name = "Elbow", Position = new Vector3(0, -.28f, 0) }; arm.AddChild(elbow);
-            Detail(elbow,"sphere",Vector3.Zero,new(.070f,.067f,.067f),skin);
-            Sculpt(elbow,Loft("resident-forearm",new[]{new Vector4(-.015f,0,.036f,.034f),new(.045f,-.003f,.039f,.035f),new(.10f,-.004f,.036f,.031f),new(.17f,-.003f,.029f,.026f),new(.24f,0,.028f,.026f)}),Vector3.Zero,ResidentMaterial(skin),new(MathF.PI/2,0,0));
+            rig.ForearmProxies[i]=Sculpt(elbow,DistantForearm(i),Vector3.Zero,ResidentMaterial(skin));
+            rig.ForearmProxies[i].Visible=false;
             var hand = rig.Hands[i] = new Node3D { Name = "Hand", Position = new(0,-.255f,-.01f) }; elbow.AddChild(hand);
             rig.HandSkins[i]=new MeshInstance3D {Name="AnatomicalHand"};hand.AddChild(rig.HandSkins[i]);
             for(int digit=0;digit<4;digit++)
@@ -207,12 +207,8 @@ internal sealed partial class NatureModels
             var foot=rig.Feet[i]=new Node3D {Name="Foot",Position=new(0,-.295f,-.04f)};knee.AddChild(foot);
             Sculpt(foot,BootLast(false),Vector3.Zero,LeatherSurface("#423a32"));
             Sculpt(foot,BootLast(true),Vector3.Zero,LeatherSurface("#302e28"));
-            for(int lace=0;lace<4;lace++)
-            {
-                float z=.006f-lace*.021f,y=.048f-lace*.005f;
-                FineBeam(foot,new(-.025f,y,z),new(.025f,y-.004f,z-.018f),.0018f,"#8c7b66");
-                FineBeam(foot,new(.025f,y,z),new(-.025f,y-.004f,z-.018f),.0018f,"#8c7b66");
-            }
+            Sculpt(foot,BootLaces(),Vector3.Zero,ResidentMaterial("#8c7b66"));
+
         }
         AddResidentEquipment(rig, job);
         AddResidentTailoring(rig, cloth, skin, job);

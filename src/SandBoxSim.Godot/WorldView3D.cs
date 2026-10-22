@@ -193,7 +193,8 @@ public partial class WorldView3D : MapView
         if (_camera == null) { return; }
         _target.X = Math.Clamp(_target.X, 0, Game.Sim.World.Width * 2); _target.Z = Math.Clamp(_target.Z, 0, Game.Sim.World.Height * 2);
         var offset = new Vector3(MathF.Sin(_yaw) * MathF.Cos(_pitch), MathF.Sin(_pitch), MathF.Cos(_yaw) * MathF.Cos(_pitch)) * _distance;
-        _sunlight.DirectionalShadowMaxDistance=Math.Clamp(_distance*1.8f,45,160);
+        _sunlight.DirectionalShadowMaxDistance=Math.Clamp(_distance*1.8f,16,160);
+        _sunlight.ShadowNormalBias=Mathf.Lerp(.2f,1f,Math.Clamp((_distance-16)/24,0,1));
         _camera.Position = _target + offset; _camera.LookAt(_target, Vector3.Up);
     }
     private Vector2I _brushTile=new(-1,-1);
@@ -375,7 +376,14 @@ public partial class WorldView3D : MapView
         }
         if(buildings!=_buildingSignature){_buildingSignature=buildings;if(deferred)_pendingBuildings=true;else BuildBuildings();}
     }
-    internal object RenderQualityState()=>new {shadowMode=_sunlight.DirectionalShadowMode.ToString(),shadowDistance=_sunlight.DirectionalShadowMaxDistance,msaa=_viewport.Msaa3D.ToString()};
+    internal object RenderQualityState(object[]? galleries=null)
+    {
+        var quality=new Dictionary<string,object> { ["shadowMode"]=_sunlight.DirectionalShadowMode.ToString(),
+            ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
+            ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString() };
+        if(galleries is {Length:>0})quality["galleries"]=galleries;
+        return quality;
+    }
     internal object VisualUpdateState()=>new {terrainPending=_pendingTerrain,naturePending=_pendingNature,buildingsPending=_pendingBuildings,cachedBuildings=_buildingVisuals.Count,livedHomes=_buildingVisuals.Values.Count(v=>v.Kind==BuildingKind.House&&v.Life!=null&&v.Life.Visible&&v.LifeKey>=3),growingFields=_buildingVisuals.Values.Count(v=>v.Kind==BuildingKind.Farm&&v.Life!=null&&v.Life.Visible),groundStockModels=_stockVisuals.Values.Count(v=>v.Node.Visible)};
     private bool _pendingTerrain,_pendingNature,_pendingBuildings;
     private void DrainVisualUpdates()

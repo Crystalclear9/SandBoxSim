@@ -16,7 +16,7 @@
 | `bake-models.ps1` | 在项目本地 Blender 中重建人体解剖手部和动物连续蒙皮 |
 | `bake-garments.ps1` / `garment_pattern.py` / `bake_garment_surfaces.py` | 导出三种衣片采样，共顶点生成袖片与左右权重，在项目本地 Blender 中统一面朝向并校验成品/源哈希 |
 | `fetch-surface-materials.py` | 下载并校验七种 CC0 扫描表面；`--verify` 离线核对运行贴图大小与 SHA-256，源文件缓存仅放 `.tools/` |
-| `export_human_hands.py` / `export_hand_lod.py` / `bake_animal_surfaces.py` | 掌指重定向、同源手部减面、腕口贴合、动物体素缝合与蒙皮转移；由 Blender 执行 |
+| `export_human_forearm.py` / `export_human_hands.py` / `join_human_arm.py` / `export_hand_lod.py` / `bake_animal_surfaces.py` | 同源肘/前臂截取、掌指重定向、近景腕环连接、同源手部减面、腕口贴合、动物体素缝合与蒙皮转移；由 Blender 执行 |
 | `run.ps1` | TUI、headless、digest、snapshot 和 batch 模式 |
 | `test.ps1` | 自带测试运行器与名称过滤 |
 | `dev.ps1` | 内核构建、测试与可选 TUI 开发流程 |

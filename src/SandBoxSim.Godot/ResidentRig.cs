@@ -18,6 +18,7 @@ internal partial class ResidentRig : Node3D
     public readonly Node3D[] Arms=new Node3D[2],Elbows=new Node3D[2],Hands=new Node3D[2],Thumbs=new Node3D[2],Legs=new Node3D[2],Knees=new Node3D[2],Feet=new Node3D[2];
     public readonly Node3D[,] Fingers=new Node3D[2,4],FingerMiddles=new Node3D[2,4],Fingertips=new Node3D[2,4];
     public readonly Node3D[] ThumbTips=new Node3D[2];
+    public readonly MeshInstance3D[] ForearmProxies=new MeshInstance3D[2];
     public readonly MeshInstance3D[] HandProxies=new MeshInstance3D[2],HandSkins=new MeshInstance3D[2];
     public readonly Mesh[] HandOpen=new Mesh[2],HandClosed=new Mesh[2];
     public MeshInstance3D HeadSkin=null!,HeadProxy=null!,BodySkin=null!,ShoulderBridge=null!;
@@ -309,7 +310,7 @@ internal partial class ResidentRig : Node3D
         {
             HandSkeletons[side].ProcessMode=detailed?ProcessModeEnum.Inherit:ProcessModeEnum.Disabled;
             if(detailed){_skinnedCurl[side]=float.NaN;UpdateHandBones(side);}
-            HandProxies[side].Visible=!detailed;HandSkins[side].Visible=detailed;Thumbs[side].Visible=detailed;
+            ForearmProxies[side].Visible=!detailed;HandProxies[side].Visible=!detailed;HandSkins[side].Visible=detailed;Thumbs[side].Visible=detailed;
             for(int digit=0;digit<4;digit++)Fingers[side,digit].Visible=detailed;
         }
     }

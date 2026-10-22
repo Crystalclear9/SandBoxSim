@@ -16,26 +16,56 @@ internal sealed partial class NatureModels
         Vector3 Point(int row,int column)
         {
             float t=row/(float)rings,a=column*MathF.Tau/sides;
-            float z=Mathf.Lerp(-.139f,.083f,t);
-            float taper=MathF.Sqrt(MathF.Max(0,MathF.Sin(t*MathF.PI)));
-            float width=(.056f+.016f*MathF.Exp(-MathF.Pow((t-.25f)*5,2)))*taper;
-            float arch=.018f*MathF.Exp(-MathF.Pow((t-.64f)*6,2));
-            float bottom=-.034f+arch;
-            float top=.016f+.050f*MathF.Exp(-MathF.Pow((t-.66f)*4,2));
-            if(sole)
-            {
-                width+=.0015f*taper;
-                return new(MathF.Cos(a)*width,bottom+.001f-.012f*MathF.Pow(MathF.Max(0,-MathF.Sin(a)),.4f),z);
-            }
-            // The lower half sits on the same last as the outsole. An ellipse
-            // shrinks upward at the toe/heel and used to leave a visible gap.
-            float upper=bottom+(top-bottom)*taper*MathF.Pow(MathF.Max(0,MathF.Sin(a)),.70f);
-            return new(MathF.Cos(a)*width,upper,z);
+            BootSection(t,out float width,out float bottom,out float top,out float taper);
+            float z=Mathf.Lerp(-.170f,.090f,t);
+            if(sole)return new(MathF.Cos(a)*(width+.0015f*taper),bottom+.001f-.012f*MathF.Pow(MathF.Max(0,-MathF.Sin(a)),.4f),z);
+            return new(MathF.Cos(a)*width,bottom+(top-bottom)*taper*MathF.Pow(MathF.Max(0,MathF.Sin(a)),.70f),z);
         }
         void Vertex(int r,int c){tool.SetUV(new(c/(float)sides,r/(float)rings));tool.AddVertex(Point(r,c));}
         for(int r=0;r<rings;r++)for(int c=0;c<sides;c++)
         {Vertex(r,c);Vertex(r+1,c);Vertex(r,c+1);Vertex(r,c+1);Vertex(r+1,c);Vertex(r+1,c+1);}
         tool.GenerateNormals();tool.Index();var mesh=tool.Commit();_meshes[key]=mesh;return mesh;
+    }
+
+    private static void BootSection(float t,out float width,out float bottom,out float top,out float taper)
+    {
+        taper=MathF.Sqrt(MathF.Max(0,MathF.Sin(t*MathF.PI)));
+        width=(.051f+.007f*MathF.Exp(-MathF.Pow((t-.25f)*5,2)))*taper;
+        bottom=-.053f+.018f*MathF.Exp(-MathF.Pow((t-.64f)*6,2));
+        top=.016f+.050f*MathF.Exp(-MathF.Pow((t-.66f)*4,2));
+    }
+    private static float BootUpperHeight(float x,float z)
+    {
+        float t=Math.Clamp((z+.170f)/.260f,0,1);
+        BootSection(t,out float width,out float bottom,out float top,out float taper);
+        float across=Math.Clamp(x/MathF.Max(.0001f,width),-1,1);
+        return bottom+(top-bottom)*taper*MathF.Pow(MathF.Sqrt(MathF.Max(0,1-across*across)),.70f);
+    }
+    private Mesh BootLaces()
+    {
+        if(_meshes.TryGetValue("boot-laces",out var cached))return cached;
+        using var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);
+        for(int row=0;row<4;row++)foreach(float side in new[]{-1f,1f})
+        {
+            Vector3 Point(int step)
+            {
+                float t=step/8f,x=Mathf.Lerp(side*-.022f,side*.022f,t),z=.010f-row*.023f-t*.018f;
+                return new(x,BootUpperHeight(x,z)+.0013f,z);
+            }
+            for(int segment=0;segment<8;segment++)
+            {
+                var start=Point(segment);var end=Point(segment+1);var axis=(end-start).Normalized();
+                var right=axis.Cross(Vector3.Up).Normalized();var up=axis.Cross(right).Normalized();
+                for(int edge=0;edge<6;edge++)
+                {
+                    float a=edge*MathF.Tau/6,b=(edge+1)*MathF.Tau/6;
+                    var n=right*MathF.Cos(a)+up*MathF.Sin(a);var m=right*MathF.Cos(b)+up*MathF.Sin(b);
+                    var x=start+n*.0008f;var y=start+m*.0008f;var z=end+n*.0008f;var w=end+m*.0008f;
+                    EquipmentTriangle(surface,x,y,z,n+m);EquipmentTriangle(surface,y,w,z,n+m);
+                }
+            }
+        }
+        surface.GenerateNormals();surface.Index();var mesh=surface.Commit();_meshes["boot-laces"]=mesh;return mesh;
     }
 
     private Shader? _leatherShader;
@@ -159,7 +189,18 @@ ALBEDO=dye.rgb*(0.97+pores*0.025+wear);ROUGHNESS=0.69+pores*0.035;SPECULAR=0.26;
             if(!float.IsFinite(upperBottom)||!float.IsFinite(soleTop)||upperBottom-soleTop>.0015f||soleTop-upperBottom>.003f)
                 throw new InvalidOperationException("Shoe upper separates from outsole at toe, waist or heel");
         }
-        GD.Print("FOOTWEAR_CONTACT_PASS: actual upper/outsole triangle contact across toe, waist and heel");
+        var laces=BootLaces().SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        foreach(var point in laces)
+        {
+            float gap=point.Y-HeightAt(BootLast(false),point.X,point.Z,true);
+            if(!float.IsFinite(gap)||gap<-.0008f||gap>.004f)
+                throw new InvalidOperationException("Lace leaves or penetrates the actual shoe upper: "+gap);
+        }
+        var soleBounds=BootLast(true).GetAabb();
+        float footY=ResidentRig.HipHeight-ResidentRig.ThighLength-ResidentRig.ShinLength;
+        if(MathF.Abs(footY+soleBounds.Position.Y)>.002f||soleBounds.Size.Z<.25f)
+            throw new InvalidOperationException("Boot sole floats in the rest pose or loses anatomical length");
+        GD.Print("FOOTWEAR_CONTACT_PASS: actual upper/outsole/lace triangle contact, rest ground contact and anatomical length");
         GD.Print("ORGANIC_DETAILS_PASS: shoe lasts, soles, cupped ears, tapered antlers, finite geometry and shared meshes");
     }
 }

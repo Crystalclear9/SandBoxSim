@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using SandBoxSim.Core.Agents;
 using SandBoxSim.Core.Environment;
@@ -8,6 +9,11 @@ namespace SandBoxSim.Client;
 /// <summary>Opt-in developer preview of actual reusable meshes; never instantiates simulation entities.</summary>
 internal partial class ModelGallery : PanelContainer
 {
+    private readonly List<DirectionalLight3D> _studioLights=new();
+    private readonly List<MeshInstance3D> _studioFloors=new();
+    internal object RenderQualityState()=>new {collection=Collection,shadows=_studioLights.Select((light,index)=>new {
+        enabled=light.ShadowEnabled,mode=light.DirectionalShadowMode.ToString(),distance=light.DirectionalShadowMaxDistance,
+        bias=light.ShadowBias,normalBias=light.ShadowNormalBias,groundCaster=_studioFloors[index].CastShadow.ToString()}).ToArray()};
     private readonly List<(SubViewportContainer View,string Label)> _evaluationRegions=new();
     internal IEnumerable<(int Index,string Label,Rect2 Bounds)> EvaluationRegions()
     {
@@ -36,6 +42,13 @@ internal partial class ModelGallery : PanelContainer
             grid.Columns=4;body.GetChild<Label>(0).Text="左右手 · 同一角色的近景与远景模型";
             for(int detail=0;detail<2;detail++)for(int view=0;view<2;view++)for(int side=0;side<2;side++)
                 Closeup(grid,(detail==0?"近景":"远景")+" · "+(side==0?"左手":"右手")+" · "+(view==0?"掌心":"手背"),models.HandStudy(side,detail==1),.20f,new(0,.105f,0),new(0,0,view==0?-2:2),false);
+        }
+        else if(Collection=="forearms")
+        {
+            grid.Columns=2;body.GetChild<Label>(0).Text="肘部、前臂与手腕 · 实际连续解剖表面";
+            for(int view=0;view<2;view++)for(int side=0;side<2;side++)
+                Closeup(grid,(side==0?"左臂":"右臂")+(view==0?" · 掌侧肌腱与腕口":" · 背侧肘部与腕骨"),
+                    models.ForearmStudy(side),.46f,new(0,.17f,0),new(.18f,.04f,view==0?-2:2),false);
         }
         else if(Collection=="social")
         {
@@ -204,14 +217,18 @@ internal partial class ModelGallery : PanelContainer
         card.AddThemeConstantOverride("separation",7); grid.AddChild(card);
         var view=new SubViewportContainer { Stretch=true,CustomMinimumSize=new(0,120),SizeFlagsVertical=SizeFlags.ExpandFill,MouseFilter=MouseFilterEnum.Ignore }; card.AddChild(view);
         int index=grid.GetChildCount()-1;
-        string semanticLabel=Collection=="ecology-details"?new[]{"tree","tree","fern","grass","rock","shrub"}[index]:model is ResidentRig?"resident":Collection=="model-details"?(index==2?"deer":index==3?"wolf":"house"):Collection=="architecture"?(index<5?"house":"storage"):Collection=="characters"?(index==4?"deer":"wolf"):index<2?"tree":index==2?"farm":index==3?"mine":index==4?"ruins":"grove";
+        string semanticLabel=Collection=="forearms"?"resident":Collection=="ecology-details"?new[]{"tree","tree","fern","grass","rock","shrub"}[index]:model is ResidentRig?"resident":Collection=="model-details"?(index==2?"deer":index==3?"wolf":"house"):Collection=="architecture"?(index<5?"house":"storage"):Collection=="characters"?(index==4?"deer":"wolf"):index<2?"tree":index==2?"farm":index==3?"mine":index==4?"ruins":"grove";
         _evaluationRegions.Add((view,semanticLabel));
         var viewport=new SubViewport { OwnWorld3D=true,Size=new(420,280),Msaa3D=Viewport.Msaa.Msaa4X,RenderTargetUpdateMode=SubViewport.UpdateMode.Once }; view.AddChild(viewport);
         var stage=new Node3D(); viewport.AddChild(stage);
         stage.AddChild(new WorldEnvironment { Environment=new Godot.Environment { BackgroundMode=Godot.Environment.BGMode.Color,BackgroundColor=new("#252e29"),AmbientLightSource=Godot.Environment.AmbientSource.Color,AmbientLightColor=new("#d3dbe4"),AmbientLightEnergy=.36f,TonemapMode=Godot.Environment.ToneMapper.Aces } });
-        stage.AddChild(new DirectionalLight3D { RotationDegrees=new(-40,-35,0),LightColor=new("#f2eee5"),LightEnergy=.95f,ShadowEnabled=true });
+        var keyLight=new DirectionalLight3D { RotationDegrees=new(-40,-35,0),LightColor=new("#f2eee5"),LightEnergy=.95f,ShadowEnabled=true,
+            DirectionalShadowMode=DirectionalLight3D.ShadowMode.Orthogonal,DirectionalShadowMaxDistance=MathF.Max(4,size*3),ShadowBias=.05f,ShadowNormalBias=.2f };
+        stage.AddChild(keyLight);_studioLights.Add(keyLight);
         stage.AddChild(new DirectionalLight3D { RotationDegrees=new(-20,140,0),LightColor=new("#bacbd1"),LightEnergy=.32f });
-        stage.AddChild(new MeshInstance3D { Mesh=new PlaneMesh { Size=new(40,40) },MaterialOverride=new StandardMaterial3D { AlbedoColor=new("#3b4840"),Roughness=1 } });
+        var floor=new MeshInstance3D { Mesh=new PlaneMesh { Size=new(40,40) },CastShadow=GeometryInstance3D.ShadowCastingSetting.Off,
+            MaterialOverride=new StandardMaterial3D { AlbedoColor=new("#3b4840"),Roughness=1 } };
+        stage.AddChild(floor);_studioFloors.Add(floor);
         if(model is AnimalRig creature){_animals.Add(creature);viewport.RenderTargetUpdateMode=SubViewport.UpdateMode.WhenVisible;}
         if(model is ResidentRig resident&&Collection!="equipment")
         {

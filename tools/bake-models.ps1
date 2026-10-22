@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([string]$BlenderPath='', [string]$HumanSource='')
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
@@ -23,6 +23,8 @@ $editor=Resolve-GodotExecutable -Explicit $env:GODOT_EXE
 $sourceRoot=Join-Path $repositoryRoot '.tools/animal-sources'
 & $editor --headless --path (Join-Path $repositoryRoot 'src/SandBoxSim.Godot') --log-file (Join-Path $repositoryRoot '.tools/model-export.log') -- "--export-animal-sources=$sourceRoot"
 if($LASTEXITCODE -ne 0){throw 'Animal source export failed'}
+& $BlenderPath --background --disable-autoexec $HumanSource --python-exit-code 2 --python (Join-Path $PSScriptRoot 'export_human_forearm.py') -- --output (Join-Path $repositoryRoot 'src/SandBoxSim.Godot/assets/models/human')
+if($LASTEXITCODE -ne 0){throw 'Anatomical forearm export failed'}
 & $BlenderPath --background --disable-autoexec $HumanSource --python (Join-Path $PSScriptRoot 'export_human_hands.py') -- --output (Join-Path $repositoryRoot 'src/SandBoxSim.Godot/assets/models/human')
 if($LASTEXITCODE -ne 0){throw 'Anatomical hand export failed'}
 & $BlenderPath --background --factory-startup --python (Join-Path $PSScriptRoot 'export_hand_lod.py') -- --source (Join-Path $repositoryRoot 'src/SandBoxSim.Godot/assets/models/human/human-hand.mesh.json') --output (Join-Path $repositoryRoot 'src/SandBoxSim.Godot/assets/models/human/human-hand-lod.mesh.json')

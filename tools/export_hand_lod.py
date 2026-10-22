@@ -18,9 +18,14 @@ parser.add_argument('--source', required=True)
 parser.add_argument('--output', required=True)
 args = parser.parse_args(sys.argv[sys.argv.index('--') + 1:])
 raw = pathlib.Path(args.source).read_bytes()
-if hashlib.sha256(raw).hexdigest() != 'e4ef3512eb34385e380517f79c8b76f2af3d62beea868949fc1db9cc2da821a6':
+if hashlib.sha256(raw).hexdigest() != '03fb4ec965287396050ecf2f2009b765aa034f7e16fa2819d0bd8aaa22e979ba':
     raise ValueError('Anatomical source mismatch')
 source = json.loads(raw)
+# The distant hand stays separate from the rigid forearm. Near skin includes
+# the forearm, but preserves original hand indices before handVertexCount.
+count = source.get('handVertexCount', len(source['positions'])//3)
+source['positions'] = source['positions'][:count*3]
+source['indices'] = [v for i in range(0,len(source['indices']),3) if max(source['indices'][i:i+3])<count for v in source['indices'][i:i+3]]
 points = [Vector(source['positions'][i:i+3]) for i in range(0, len(source['positions']), 3)]
 # Godot uses clockwise winding; Blender uses counterclockwise winding.
 faces = [tuple(reversed(source['indices'][i:i+3])) for i in range(0, len(source['indices']), 3)]

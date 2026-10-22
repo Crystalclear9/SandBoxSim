@@ -136,5 +136,8 @@ for (tri,region),indices in zip(selected,triangles):
   ellipse=((center.x-origin_x)/(.0043 if thumb else .0038))**2+((distance-(total-.007*scale))/(.006*scale))**2
   if ellipse<1 and normal.z>.5:result['nailIndices'].extend((indices[0],indices[2],indices[1]))
 out=pathlib.Path(args.output);out.mkdir(parents=True,exist_ok=True)
+sys.path.insert(0,str(pathlib.Path(__file__).resolve().parent))
+from join_human_arm import join_forearm
+result=join_forearm(result,out/'human-forearm.mesh.json')
 target=out/'human-hand.mesh.json';target.write_text(json.dumps(result,separators=(',',':')),encoding='utf-8')
-print('HUMAN_HAND_EXPORTED',len(verts),len(triangles),hashlib.sha256(target.read_bytes()).hexdigest())
+print('HUMAN_HAND_EXPORTED',len(result['positions'])//3,len(result['indices'])//3,hashlib.sha256(target.read_bytes()).hexdigest())

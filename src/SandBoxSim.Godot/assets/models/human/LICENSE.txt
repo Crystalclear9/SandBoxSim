@@ -33,3 +33,17 @@ Distance hand derivative (human-hand-lod.mesh.json): reduced from the above
 licensed hand to 1,400 triangles using tools/export_hand_lod.py, with triangle
 barycentric transfer of normals, UVs and skin weights. Runtime static open/grip
 poses use the same articulation as the close hand. CC BY 4.0, same attribution.
+
+Additional forearm derivative (human-forearm.mesh.json): extracted the authored
+elbow and forearm from sculpt regions 12 and 102 with one multiresolution level;
+cropped the sleeve/wrist openings, straightened the relaxed centreline,
+retargeted length and wrist cross section, and recomputed normals. Runtime
+mirrors geometry, normals and winding for the opposite side. CC BY 4.0, same
+creator, source and attribution above. Exporter: tools/export_human_forearm.py.
+
+Current hand derivative also joins the above forearm through a shared wrist
+transition, preserving original hand vertex indices and nail partitions. The
+near mesh has a single connected arm/hand skin; added forearm vertices bind to
+the wrist compensation bone. Distant hand extraction retains only the original
+hand region. The shared wrist transition uses the existing retargeted hand ring.
+Join helper: tools/join_human_arm.py. Same CC BY 4.0 attribution applies.

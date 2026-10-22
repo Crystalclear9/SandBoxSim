@@ -36,18 +36,20 @@ internal sealed partial class NatureModels
             combined.Add(source);
         }
         var triangles=combined.ToArray();var edges=new System.Collections.Generic.Dictionary<long,int>();
+        var parent=new int[points.Length];for(int i=0;i<parent.Length;i++)parent[i]=i;
+        int Root(int v){while(parent[v]!=v){parent[v]=parent[parent[v]];v=parent[v];}return v;}
         for(int i=0;i<triangles.Length;i+=3)for(int j=0;j<3;j++)
         {
-            int a=triangles[i+j],b=triangles[i+(j+1)%3];if(a>b)(a,b)=(b,a);long edge=((long)a<<32)|(uint)b;
+            int a=triangles[i+j],b=triangles[i+(j+1)%3];parent[Root(a)]=Root(b);if(a>b)(a,b)=(b,a);long edge=((long)a<<32)|(uint)b;
             edges[edge]=edges.TryGetValue(edge,out int count)?count+1:1;
         }
         foreach(var pair in edges)
         {
             if(pair.Value>2)throw new InvalidOperationException("Anatomical hand has non-manifold edges");
-            if(pair.Value==1&&(points[(int)(pair.Key>>32)].Y<.0449f||points[(int)(pair.Key&uint.MaxValue)].Y<.0449f))
-                throw new InvalidOperationException("Anatomical hand has an exposed cut away from the buried wrist ring");
+            if(pair.Value==1&&(points[(int)(pair.Key>>32)].Y<.2749f||points[(int)(pair.Key&uint.MaxValue)].Y<.2749f))
+                throw new InvalidOperationException("Joined arm has an exposed cut away from the buried elbow opening");
         }
-
+        for(int i=0;i<points.Length;i++)if(Root(i)!=Root(0))throw new InvalidOperationException("Hand and forearm are not one connected skin");
     }
     private static Vector3 ReflectHand(Vector3 point)=>new(-point.X,point.Y,point.Z);
     private void ValidateHandLaterality()
@@ -143,7 +145,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateHandling()
     {
-        ValidateHandLaterality();ValidateSocialGesture();ValidatePresentationCadence();
+        ValidateForearmSurfaces();ValidateHandLaterality();ValidateSocialGesture();ValidatePresentationCadence();
         foreach(var action in new[]{ActionKind.GatherWood,ActionKind.GatherIron,ActionKind.Farm,ActionKind.BuildHouse})
         {
             var rig=Resident(17,false,JobType.Gatherer);
@@ -224,14 +226,40 @@ internal sealed partial class NatureModels
                         var points=mesh[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                         var bones=mesh[(int)Mesh.ArrayType.Bones].AsInt32Array();
                         var skinWeights=mesh[(int)Mesh.ArrayType.Weights].AsFloat32Array();
-                        var palette=new Transform3D[16];
-                        for(int b=0;b<16;b++)palette[b]=rig.HandSkeletons[hand].GetBoneGlobalPose(b)*rig.HandSkeletons[hand].GetBoneGlobalRest(b).AffineInverse();
+                        // Synchronous out-of-tree rigs do not run Skeleton3D's
+                        // deferred update. Compose current local poses, rather
+                        // than comparing this frame against a cached global pose.
+                        var palette=new Transform3D[16];var global=new Transform3D[16];
+                        var skeleton=rig.HandSkeletons[hand];
+                        for(int b=0;b<16;b++)
+                        {
+                            int parentBone=skeleton.GetBoneParent(b);
+                            global[b]=parentBone<0?skeleton.GetBonePose(b):global[parentBone]*skeleton.GetBonePose(b);
+                            palette[b]=global[b]*skeleton.GetBoneGlobalRest(b).AffineInverse();
+                        }
                         var handTransform=InTorso(rig.Hands[hand],rig.Torso);var toolTransform=InTorso(rig.ToolMesh,rig.Torso);var axis=toolTransform.Basis.Y.Normalized();
                         for(int v=0;v<points.Length;v++)
                         {
-                            if(bones[v*4]==0)continue;
+                            bool wristRing=points[v].Y>.0449f;
+                            if(bones[v*4]==0&&!wristRing)continue;
                             var point=Vector3.Zero;
                             for(int b=0;b<4;b++)point+=(palette[bones[v*4+b]]*points[v])*skinWeights[v*4+b];
+                            if(points[v].Y>.0451f)
+                            {
+                                var forearm=InTorso(rig.Elbows[hand],rig.Torso).AffineInverse()*(handTransform*point);
+                                var expected=points[v]+new Vector3(0,-.255f,-.010f);
+                                if(!forearm.IsFinite()||forearm.DistanceTo(expected)>.001f)
+                                    throw new InvalidOperationException("Joined forearm follows the rotating hand instead of the elbow");
+                                continue;
+                            }
+                            if(wristRing)
+                            {
+                                var wrist=InTorso(rig.Elbows[hand],rig.Torso).AffineInverse()*(handTransform*point);
+                                float oval=wrist.X*wrist.X/(.027f*.027f)+wrist.Z*wrist.Z/(.024f*.024f);
+                                if(MathF.Abs(wrist.Y+.210f)>.001f||MathF.Abs(oval-1)>.015f)
+                                    throw new InvalidOperationException($"Animated wrist leaves forearm: {action}, side={hand}, frame={frame}, y={wrist.Y}, oval={oval}");
+                                continue;
+                            }
                             float gap=(handTransform*point-toolTransform.Origin).Cross(axis).Length();
                             if(!point.IsFinite()||gap<.0105f)
                                 throw new InvalidOperationException("Rendered hand skin penetrates shaft: hand="+hand+" action="+action+" gap="+gap);
@@ -292,7 +320,11 @@ internal sealed partial class NatureModels
             if(rig.HeadSkin.Visible||!rig.HeadProxy.Visible||rig.HeadProxy.Mesh.GetSurfaceCount()!=1)throw new InvalidOperationException("Distant head LOD failed");
             rig.SetHeadDetail(true);
             rig.SetHandDetail(false);rig.PoseAction(.016f,ActionKind.Wander,ActionPhase.Moving,false,0);
-            if(rig.Fingers[1,0].Visible||!rig.HandProxies[1].Visible)throw new InvalidOperationException("Distant hand LOD failed");
+            if(rig.Fingers[1,0].Visible||!rig.HandProxies[1].Visible||!rig.ForearmProxies[0].Visible||!rig.ForearmProxies[1].Visible)
+                throw new InvalidOperationException("Distant hand/forearm LOD failed");
+            rig.SetHandDetail(true);
+            if(rig.ForearmProxies[0].Visible||rig.ForearmProxies[1].Visible||!rig.HandSkins[0].Visible||!rig.HandSkins[1].Visible)
+                throw new InvalidOperationException("Near joined arm draws a duplicate forearm");
             rig.Free();
         }
         var shortAction=Resident(17,false,JobType.Gatherer);bool visibleStroke=false;int attachments=0;
