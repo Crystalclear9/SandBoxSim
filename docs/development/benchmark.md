@@ -79,7 +79,9 @@ python tools/evaluate.py verify runs/evaluation/candidate
 
 CLI 输出使用 UTF-8；`python tools/evaluate.py --json-errors <子命令> ...` 将输入或用法错误作为 JSON 写到 stderr，包含 `schemaVersion`、`error.code` 和 `error.message`。引擎异常的原始退出码保留在溯源中，运行器统一返回接口定义的错误码。验证会核对请求 ID、帧预算、截图排程、状态门槛以及 PNG 结构/CRC，不能把缺少截图的运行视为完成。
 
-退出码：0 为完成且满足设定门槛；1 为低于性能门槛，结果仍保存；2 为协议/产物/对照错误；运行器 124 为超时。`artifactValidation: passed` 只说明产物及回放检查有效，不能替代性能门槛结果。
+退出码：0 为完成且满足设定门槛；1 为低于性能门槛，结果仍保存；2 为协议/产物/对照错误；运行器 124 为超时。`artifactValidation: passed` 只说明产物及回放检查有效，不能替代进程正常退出或性能门槛结果。即使产物完整，真实进程超时也继续返回 124。
+
+运行器将 stdout/stderr 写入项目内临时文件并直接等待引擎 PID，不再依赖日志管道的 EOF；避免 Linux 桌面辅助进程继承管道后，引擎已退出却被误判为超时。结束后合并为 `engine.log`，仍拒绝日志中的引擎错误。CLI 摘要与溯源记录 `engineExitCode`、`timedOut`；溯源另记 `timeoutSeconds`，区分引擎错误退出和实际超时终止。CI 在 Windows/Linux/macOS 上回归继承日志句柄、真实超时及非零退出。
 
 ## 视觉模型接入与评分
 

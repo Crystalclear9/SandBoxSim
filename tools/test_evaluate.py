@@ -1,8 +1,37 @@
-import json, tempfile, unittest, zlib, struct
+import json, tempfile, unittest, zlib, struct, os, signal, sys
 from pathlib import Path
 import evaluate
 
 class EvaluationTests(unittest.TestCase):
+    def test_engine_exit_does_not_wait_for_inherited_log_handles(self):
+        # A real descendant retains both handles after the engine stand-in exits.
+        # communicate(PIPE) would time out; the engine itself exits successfully.
+        child_pid = None
+        try:
+            script = "import subprocess,sys; p=subprocess.Popen([sys.executable,'-c','import time; time.sleep(30)']); print(p.pid,flush=True)"
+            native, timed_out, logs = evaluate.wait_for_engine([sys.executable,'-c',script], self.folder, os.environ.copy(), 3)
+            child_pid = int(logs.strip())
+            self.assertEqual(native, 0)
+            self.assertFalse(timed_out)
+        finally:
+            if child_pid is not None:
+                try: os.kill(child_pid, signal.SIGTERM)
+                except ProcessLookupError: pass
+
+    def test_engine_real_timeout_remains_failure_and_keeps_logs(self):
+        script = "import sys,time; print('started',flush=True); print('diagnostic',file=sys.stderr,flush=True); time.sleep(30)"
+        native, timed_out, logs = evaluate.wait_for_engine([sys.executable,'-c',script], self.folder, os.environ.copy(), 1)
+        self.assertTrue(timed_out)
+        self.assertNotEqual(native, 0)
+        self.assertIn(b'started', logs)
+        self.assertIn(b'diagnostic', logs)
+
+    def test_engine_failure_preserves_exit_code_and_stderr(self):
+        native, timed_out, logs = evaluate.wait_for_engine([sys.executable,'-c',"import sys; print('failed',file=sys.stderr); sys.exit(2)"], self.folder, os.environ.copy(), 3)
+        self.assertEqual(native, 2)
+        self.assertFalse(timed_out)
+        self.assertIn(b'failed', logs)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(); self.folder = Path(self.temp.name)
         def chunk(kind, data): return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))

@@ -1,6 +1,6 @@
 """Local evaluation runner, artifact verifier, vision scorer and paired comparison."""
 from __future__ import annotations
-import argparse, hashlib, json, os, platform, re, shutil, signal, struct, zlib, subprocess, sys, time
+import argparse, hashlib, json, os, platform, re, shutil, signal, struct, zlib, subprocess, sys, tempfile, time
 from pathlib import Path
 from local_environment import tool_environment, dotnet_executable
 ROOT = Path(__file__).resolve().parents[1]
@@ -198,6 +198,31 @@ def assert_dotnet_engine(executable, env):
     if probe.returncode != 0 or not re.search(r"\b4\.7\.2[.-].*mono", version):
         raise ValueError("Godot 4.7.2 .NET editor required; executable version does not match")
 
+def wait_for_engine(command, cwd, env, timeout):
+    # A desktop helper may inherit stdout/stderr and outlive Godot on Linux.
+    # Waiting for PIPE EOF via communicate() would then report a false timeout
+    # even after Godot exited. Files let us wait for the actual engine process.
+    temporary = ROOT / ".tools/tmp"
+    temporary.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryFile(dir=temporary) as out, tempfile.TemporaryFile(dir=temporary) as err:
+        process = subprocess.Popen(command, cwd=cwd, env=env, stdout=out, stderr=err,
+                                   creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
+                                   start_new_session=os.name != "nt")
+        timed_out = False
+        try:
+            process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            if os.name == "nt":
+                subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], capture_output=True)
+            else:
+                try: os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError: pass
+            if process.poll() is None: process.kill()
+            process.wait()
+        out.seek(0); err.seek(0)
+        return process.returncode, timed_out, out.read() + err.read()
+
 def run(args):
     spec = object_value(read(args.scenario), "Scenario")
     spec.setdefault("id", "sample")
@@ -226,21 +251,11 @@ def run(args):
                   "sourceFiles": source_hashes(), "assemblySha256": digest(assembly), "execution": {"maxFps": args.max_fps, "resolution": args.resolution, "disableVsync": True, "audioDriver": args.audio_driver or "system-default"}, "candidateLabel": args.label, "python": platform.python_version(), "command": command, "startedUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     started = time.monotonic()
     provenance['buildIdentity']=build_identity
-    process = subprocess.Popen(command, cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                               creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
-                               start_new_session=os.name != "nt")
-    try:
-        stdout, stderr = process.communicate(timeout=args.timeout)
-        native_code = process.returncode; code = native_code if native_code in (0,1,2) else 2; logs = stdout + stderr
-    except subprocess.TimeoutExpired:
-        if os.name == "nt": subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], capture_output=True)
-        else:
-            try: os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError: pass
-        stdout, stderr = process.communicate(); native_code = process.returncode; code = 124; logs = stdout + stderr
+    native_code, timed_out, logs = wait_for_engine(command, ROOT, env, args.timeout)
+    code = 124 if timed_out else native_code if native_code in (0,1,2) else 2
     native_log.unlink(missing_ok=True)
     (output / "engine.log").write_bytes(logs)
-    provenance.update(engineExitCode=native_code,exitCode=code, wallSeconds=time.monotonic() - started, sourceChangedDuringRun=source_hashes() != provenance["sourceFiles"])
+    provenance.update(engineExitCode=native_code,exitCode=code,timedOut=timed_out,timeoutSeconds=args.timeout, wallSeconds=time.monotonic() - started, sourceChangedDuringRun=source_hashes() != provenance["sourceFiles"])
     if provenance["sourceChangedDuringRun"] and code == 0: code = 2
     try:
         if validate_build(ROOT,assembly)!=build_identity:raise ValueError('Build identity changed during evaluation')
@@ -256,7 +271,8 @@ def run(args):
         if code != 124: code = 2
     provenance["exitCode"] = code
     write(output / "provenance.json", provenance)
-    print(json.dumps({"output": str(output), "exitCode": code, "artifactValidation": provenance["artifactValidation"]}))
+    print(json.dumps({"output": str(output), "exitCode": code, "engineExitCode": native_code,
+                      "timedOut": timed_out, "artifactValidation": provenance["artifactValidation"]}))
     return code
 
 class ProtocolParser(argparse.ArgumentParser):
