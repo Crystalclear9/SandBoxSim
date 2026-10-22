@@ -21,6 +21,7 @@ public sealed class PredatorSystem : ISimEntitySet
     // Scratch search state is rebuilt for each decision and is not simulation state.
     private readonly Queue<(Int2 Position, Int2 First, int Depth)> _drinkSearch = new();
     private readonly HashSet<Int2> _drinkVisited = new();
+    private readonly Dictionary<Int2, int> _preyByPosition = new();
     private static readonly Int2[] Directions = { Int2.Right, Int2.Left, Int2.Down, Int2.Up };
     private int _nextId = 1;
     public int TotalKills { get; private set; }
@@ -54,17 +55,15 @@ public sealed class PredatorSystem : ISimEntitySet
             wolf.Fatigue = SimMath.Clamp01(wolf.Fatigue + elapsedDays * 0.3f);
             wolf.DrinkUtility = wolf.Thirst * wolf.Thirst;
             wolf.SleepUtility = wolf.Fatigue * wolf.Fatigue;
-            int target = -1, nearest = int.MaxValue;
-            for (int i = 0; i < _sim.Wildlife.Capacity; i++)
-            {
-                if (!_sim.Wildlife.IsAlive(i)) { continue; }
-                int distance = Int2.SquaredDistance(new Int2(wolf.X, wolf.Y), _sim.Wildlife.PositionOf(i));
-                if (distance <= _sim.Config.Predator.SenseRadius * _sim.Config.Predator.SenseRadius && distance < nearest)
-                { target = i; nearest = distance; }
-            }
+            // Decide from reachable prey, not the nearest animal behind a wall.
+            // Search only when hunger can beat resting; scratch state is reused.
+            int target = -1;
+            var huntStep = new Int2(wolf.X, wolf.Y);
+            float possibleHuntUtility = (1 - wolf.Energy) * 0.8f + 0.2f;
+            wolf.RestUtility = wolf.Energy * 0.65f;
+            if (possibleHuntUtility > wolf.RestUtility) { TryHuntStep(wolf, out target, out huntStep); }
             bool threat = _sim.Agents.TryFindNearest(wolf.X, wolf.Y, 3, out int human, out int humanDistance);
             wolf.HuntUtility = target < 0 ? 0 : (1 - wolf.Energy) * 0.8f + 0.2f;
-            wolf.RestUtility = wolf.Energy * 0.65f;
             wolf.FleeUtility = threat ? 0.85f : 0;
             int dx = 0, dy = 0;
             if (wolf.FleeUtility > wolf.HuntUtility && wolf.FleeUtility > wolf.RestUtility)
@@ -87,13 +86,13 @@ public sealed class PredatorSystem : ISimEntitySet
             else if (wolf.HuntUtility > wolf.RestUtility)
             {
                 wolf.Action = "Hunt";
-                if (nearest <= 1)
+                if (huntStep.X == wolf.X && huntStep.Y == wolf.Y)
                 {
                     _sim.Wildlife.Kill(target, false); TotalKills++;
                     wolf.Action = "Eat";
                     wolf.Energy = Math.Min(1, wolf.Energy + _sim.Config.Predator.MealEnergy);
                 }
-                else { dx = Math.Sign(_sim.Wildlife.XOf(target) - wolf.X); dy = Math.Sign(_sim.Wildlife.YOf(target) - wolf.Y); }
+                else { dx = huntStep.X - wolf.X; dy = huntStep.Y - wolf.Y; }
             }
             else if (wolf.Energy > 0.7f) { wolf.Action = "Rest"; }
             else
@@ -116,6 +115,46 @@ public sealed class PredatorSystem : ISimEntitySet
             if (wolf.Thirst >= 0.95f) { wolf.Energy = Math.Max(0, wolf.Energy - elapsedDays); }
         }
         _wolves.RemoveAll(w => w.Energy <= 0);
+    }
+    private bool TryHuntStep(Predator wolf, out int target, out Int2 step)
+    {
+        var origin = new Int2(wolf.X, wolf.Y); target = -1; step = origin;
+        int radius = Math.Max(0, _sim.Config.Predator.SenseRadius);
+        _preyByPosition.Clear();
+        for (int k = 0; k < _sim.Wildlife.LiveCount; k++)
+        {
+            int slot = _sim.Wildlife.LiveAt(k);
+            var position = _sim.Wildlife.PositionOf(slot);
+            if (Int2.SquaredDistance(origin, position) > radius * radius) { continue; }
+            // Explicit slot tie-break keeps decisions independent of swap-delete order.
+            if (!_preyByPosition.TryGetValue(position, out int previous) || slot < previous)
+                _preyByPosition[position] = slot;
+        }
+        if (_preyByPosition.Count == 0) { return false; }
+        _drinkSearch.Clear(); _drinkVisited.Clear();
+        _drinkSearch.Enqueue((origin, origin, 0)); _drinkVisited.Add(origin);
+        // A finite detour budget permits obstacles without scanning the whole world.
+        int pathBudget = radius * 2;
+        while (_drinkSearch.Count > 0)
+        {
+            var current = _drinkSearch.Dequeue();
+            if (_preyByPosition.TryGetValue(current.Position, out target))
+            { step = current.First; return true; }
+            foreach (var direction in Directions)
+            {
+                if (_preyByPosition.TryGetValue(current.Position + direction, out target))
+                { step = current.First; return true; }
+            }
+            if (current.Depth >= pathBudget) { continue; }
+            foreach (var direction in Directions)
+            {
+                var next = current.Position + direction;
+                if (!_sim.World.IsInBounds(next.X, next.Y) || !_sim.World.TileAt(next.X, next.Y).Walkable || !_drinkVisited.Add(next)) { continue; }
+                var first = current.Depth == 0 ? next : current.First;
+                _drinkSearch.Enqueue((next, first, current.Depth + 1));
+            }
+        }
+        target = -1; return false;
     }
     private bool TryDrinkStep(Predator wolf, out Int2 step)
     {

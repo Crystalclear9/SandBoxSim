@@ -69,8 +69,7 @@ try {
     Assert-GodotExportLog -ExitCode $process.ExitCode -Log ($output+([IO.File]::ReadAllText($stderr)))
     if ($output -notmatch 'GODOT_SELF_TEST_PASS:') { throw 'Exported game did not complete its self-test.' }
     $destination=Join-Path $repositoryRoot 'artifacts/game/windows'
-    [IO.Directory]::CreateDirectory($destination) | Out-Null
-    Copy-Item -Path (Join-Path $stage '*') -Destination $destination -Recurse -Force
+    Publish-GodotPackage -Stage $stage -Destination $destination
     Write-Host "GAME_EXPORT_PASS: $destination (exported package self-test passed)"
 } finally {
     # This random staging directory belongs exclusively to this invocation.

@@ -73,12 +73,12 @@ public partial class WorldView3D : MapView
         Game.SelectTool(PlayerTool.Inspect);
         Vector3 beforeDrag = _target;
         _GuiInput(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true, Position = new Vector2(400, 300) });
-        _Input(new InputEventMouseMotion { Position = new Vector2(460, 320), Relative = new Vector2(60, 20) });
+        _Input(new InputEventMouseMotion { Position = new Vector2(460, 320), Relative = new Vector2(60, 20), ButtonMask = MouseButtonMask.Left });
         _Input(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = false, Position = new Vector2(-20, -20) });
         if (_target == beforeDrag || _leftHeld || _painting) { throw new InvalidOperationException("Left drag/release failed"); }
         float beforeYaw = _yaw, beforePitch = _pitch;
         _GuiInput(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = true, Position = new Vector2(400, 300) });
-        _Input(new InputEventMouseMotion { Position = new Vector2(430, 310), Relative = new Vector2(30, 10) });
+        _Input(new InputEventMouseMotion { Position = new Vector2(430, 310), Relative = new Vector2(30, 10), ButtonMask = MouseButtonMask.Right });
         _Input(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = false, Position = new Vector2(-20, -20) });
         if (_yaw == beforeYaw || _pitch == beforePitch || _orbit) { throw new InvalidOperationException("Orbit/release failed"); }
         float beforeZoom = _distance;
@@ -88,7 +88,7 @@ public partial class WorldView3D : MapView
     }
     public override void _Notification(int what)
     {
-        if (what == NotificationWMWindowFocusOut) { _orbit = _pan = _painting = _leftHeld = _leftDragged = false; }
+        if (what==NotificationWMWindowFocusOut || what==NotificationApplicationFocusOut || (what==NotificationVisibilityChanged&&!IsVisibleInTree())) { CancelPointerGesture(); }
     }
     public override void _Ready()
     {
@@ -287,6 +287,7 @@ public partial class WorldView3D : MapView
     private static void Clear(Node node) { foreach (Node child in node.GetChildren()) { node.RemoveChild(child); child.QueueFree(); } }
     private void RebuildWorld()
     {
+        CancelPointerGesture();
         _pickMeshes.Clear();_brushTile=new(-1,-1);_pendingTerrain=_pendingNature=_pendingBuildings=false;
         _world = Game.Sim; _follow = -1; Clear(_terrainRoot); Clear(_props); Clear(_actors);
         _observerPaths = new SandBoxSim.Core.Pathing.AStarPathfinder(Game.Sim.World);

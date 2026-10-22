@@ -1,6 +1,7 @@
 import copy, json, tempfile, unittest
 from pathlib import Path
 import efficiency as e
+from unittest.mock import patch
 
 class EfficiencyTests(unittest.TestCase):
     def grid(self):
@@ -11,6 +12,42 @@ class EfficiencyTests(unittest.TestCase):
         with self.assertRaises(ValueError): e.check_paths(grid,[q],[{'success':True,'cost':1.,'points':[[0,0],[2,2]]}])
         grid['tiles'][1]['walkable']=False
         with self.assertRaises(ValueError): e.check_paths(grid,[q],[{'success':True,'cost':2.8284,'points':[[0,0],[1,1],[2,2]]}])
+    def test_untrusted_map_rejected_before_oracle(self):
+        # A negative-cost cycle used to keep Dijkstra relaxing forever.
+        invalid=[]
+        for value in (-1., 0., float('nan'), float('inf'), 1e308, 10**400, True):
+            grid=self.grid();grid['tiles'][0]['moveCost']=value;invalid.append(grid)
+        for value in (float('nan'), float('inf'), 1e308, -1e308, 10**400, True):
+            grid=self.grid();grid['tiles'][0]['traversalHeight']=value;invalid.append(grid)
+        for field,value in [('width',True),('width',129),('height',0),('tiles',[])]:
+            grid=self.grid();grid[field]=value;invalid.append(grid)
+        grid=self.grid();grid['tiles'][0]['walkable']=1;invalid.append(grid)
+        q={'x':0,'y':0,'goalX':2,'goalY':2}
+        path={'success':True,'cost':2.8284,'points':[[0,0],[1,1],[2,2]]}
+        for grid in invalid:
+            with self.subTest(grid=grid),patch.object(e,'_optimal_cost') as oracle:
+                with self.assertRaises(ValueError):e.check_paths(grid,[q],[path])
+                oracle.assert_not_called()
+
+    def test_untrusted_query_and_path_types_rejected(self):
+        q={'x':0,'y':0,'goalX':2,'goalY':2}
+        path={'success':True,'cost':2.8284,'points':[[0,0],[1,1],[2,2]]}
+        for value in (True, -1, 3, 1.5):
+            bad=dict(q,x=value)
+            with self.subTest(query=bad),self.assertRaises(ValueError):e.check_paths(self.grid(),[bad],[path])
+        for field,value in [('success',1),('cost',True),('cost',float('nan')),('cost',float('inf')),
+                            ('points',[[False,0],[1,1],[2,2]]),('points',[[0,0],[1.,1],[2,2]]),
+                            ('points',[[0,0],[3,1],[2,2]]),('points',[[0,0]]*10)]:
+            with self.subTest(field=field,value=value),self.assertRaises(ValueError):
+                e.check_paths(self.grid(),[q],[dict(path,**{field:value})])
+
+    def test_valid_unreachable_and_same_cell_paths(self):
+        grid=self.grid();q={'x':0,'y':0,'goalX':2,'goalY':2}
+        grid['tiles'][-1]['walkable']=False
+        e.check_paths(grid,[q],[{'success':False,'cost':0.,'points':[]}])
+        q['goalX']=q['goalY']=0
+        e.check_paths(grid,[q],[{'success':True,'cost':0.,'points':[[0,0]]}])
+
     def test_shorter_road_route_beats_direct_grass(self):
         grid=self.grid()
         for t in grid['tiles'][3:6]: t['moveCost']=.6

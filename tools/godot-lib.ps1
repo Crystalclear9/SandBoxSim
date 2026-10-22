@@ -1,4 +1,30 @@
 # Shared Godot executable discovery; no build or network side effects.
+function Publish-GodotPackage {
+    param([Parameter(Mandatory)][string]$Stage, [Parameter(Mandatory)][string]$Destination)
+    $repo = Split-Path -Parent $PSScriptRoot
+    $source = [IO.Path]::GetFullPath($Stage)
+    $target = [IO.Path]::GetFullPath($Destination)
+    $comparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+    foreach ($pair in @(@($source, '.tools/export-staging'), @($target, 'artifacts/game'))) {
+        $allowed = [IO.Path]::GetFullPath((Join-Path $repo $pair[1])) + [IO.Path]::DirectorySeparatorChar
+        if (-not $pair[0].StartsWith($allowed, $comparison)) { throw 'Package publication escaped project output directories.' }
+    }
+    if (-not (Test-Path -LiteralPath $source -PathType Container)) { throw 'Package staging directory does not exist.' }
+    [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($target)) | Out-Null
+    $backup = $target + '.previous-' + [Guid]::NewGuid().ToString('N')
+    $hadPrevious = Test-Path -LiteralPath $target -PathType Container
+    if ($hadPrevious) { [IO.Directory]::Move($target, $backup) }
+    try {
+        # Move the complete verified package; overlay copying retains obsolete
+        # assemblies and can leave a mixture of versions after a copy failure.
+        [IO.Directory]::Move($source, $target)
+    } catch {
+        if ($hadPrevious) { [IO.Directory]::Move($backup, $target) }
+        throw
+    }
+    if ($hadPrevious) { Remove-Item -LiteralPath $backup -Recurse -Force }
+}
+
 function Assert-GodotExportLog {
     param([int]$ExitCode, [string]$Log)
     # Some editor failures return zero and still write an executable containing

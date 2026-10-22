@@ -7,6 +7,24 @@ namespace SandBoxSim.Client;
 
 public partial class WorldView3D
 {
+    private void CancelPointerGesture()
+    {
+        _orbit=_pan=_painting=_leftHeld=_leftDragged=_doubleClick=false;
+        _lastPaint=new(-1,-1);
+    }
+    private void ReconcilePointerButtons(MouseButtonMask buttons)
+    {
+        // A release outside the window may never reach this Control. The next
+        // motion contains the authoritative button state, so it must not paint
+        // or move the camera using a stale press.
+        if((buttons&MouseButtonMask.Right)==0)_orbit=false;
+        if((buttons&MouseButtonMask.Middle)==0)_pan=false;
+        if((buttons&MouseButtonMask.Left)==0)
+        {
+            _leftHeld=_painting=_leftDragged=_doubleClick=false;
+            _lastPaint=new(-1,-1);
+        }
+    }
     private void Pan(Vector2 delta)
     {
         _follow=-1;
@@ -80,6 +98,7 @@ public partial class WorldView3D
                 _leftHeld=_painting=_leftDragged=_doubleClick=false;_lastPaint=new(-1,-1);
             }
         }
+        if(input is InputEventMouseMotion motion)ReconcilePointerButtons(motion.ButtonMask);
         if(input is InputEventMouseMotion m&&(_orbit||_pan||_leftHeld))
         {
             var inverse=GetGlobalTransform().AffineInverse();_mouse=inverse*m.Position;
@@ -280,8 +299,23 @@ public partial class WorldView3D
             _GuiInput(new InputEventMouseButton {ButtonIndex=MouseButton.Left,Pressed=true,Position=screen});
             _GuiInput(new InputEventMouseButton {ButtonIndex=MouseButton.Right,Pressed=true,Position=screen});
             if(_painting||!_leftDragged)throw new InvalidOperationException("Orbit gesture can accidentally paint or inspect");
+            var beforeLostRelease=_target;float yawBeforeLostRelease=_yaw,pitchBeforeLostRelease=_pitch;
+            _pan=true;_painting=true;_lastPaint=new(4,4);_doubleClick=true;
+            _Input(new InputEventMouseMotion {Position=screen+new Vector2(40,20),Relative=new(40,20),ButtonMask=0});
+            if(_orbit||_pan||_leftHeld||_painting||_doubleClick||_lastPaint!=new Vector2I(-1,-1)
+                ||_target!=beforeLostRelease||_yaw!=yawBeforeLostRelease||_pitch!=pitchBeforeLostRelease)
+                throw new InvalidOperationException("Lost mouse release continues a gesture on unpressed motion");
+            _orbit=_pan=_painting=_leftHeld=_leftDragged=_doubleClick=true;_lastPaint=new(4,4);
             _Notification((int)NotificationWMWindowFocusOut);
             if(_orbit||_leftHeld||_pan||_painting)throw new InvalidOperationException("Focus loss leaves a gesture active");
+            _orbit=_pan=_leftHeld=_leftDragged=true;
+            ReconcilePointerButtons(MouseButtonMask.Left);
+            if(_orbit||_pan||!_leftHeld||!_leftDragged)
+                throw new InvalidOperationException("Releasing camera buttons cancels a still-held left gesture");
+            _orbit=_pan=_painting=_leftHeld=_leftDragged=_doubleClick=true;_lastPaint=new(4,4);
+            RebuildWorld();
+            if(_orbit||_pan||_painting||_leftHeld||_leftDragged||_doubleClick||_lastPaint!=new Vector2I(-1,-1))
+                throw new InvalidOperationException("World replacement retains a gesture from the previous world");
             foreach(var pair in _people)
             {
                 var node=pair.Value;bool visible=node.Visible;node.Visible=true;
@@ -302,6 +336,7 @@ public partial class WorldView3D
         }
         finally{_target=target;_distance=distance;_yaw=yaw;_pitch=pitch;_mouse=mouse;_leftHeld=_painting=_leftDragged=_orbit=_pan=false;UpdateCamera();}
         if(state!=Game.Sim.StateDigestString())throw new InvalidOperationException("Pointer observation changed simulation");
+        GD.Print("POINTER_RECOVERY_PASS: lost releases, mixed held buttons and world rebuild cancel stale camera/brush state");
         GD.Print("INTERACTION_CONTINUITY_PASS: anchored pan/zoom, connected fast strokes, body picking/building occlusion, focus cancellation, paused roots and observer purity");
     }
 

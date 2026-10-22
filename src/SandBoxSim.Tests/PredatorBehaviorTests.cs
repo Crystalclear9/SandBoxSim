@@ -93,4 +93,50 @@ public sealed class PredatorBehaviorTests
         Assert.True(SaveLoader.Load(loaded,SaveFile.Encode(sim)).DigestMatches);
         for(int i=0;i<40;i++){sim.Tick(10);loaded.Tick(10);Assert.Equal(StateHash.ComputeDigest(sim),StateHash.ComputeDigest(loaded));}
     }
+
+    [Fact("饥饿的狼能绕过障碍追踪猎物，每次只走一个可行走格")]
+    public void PredatorHuntsThroughWallGap()
+    {
+        var sim = DryWorld();
+        for (int y = 5; y <= 11; y++) if (y != 10) sim.World.SetTerrain(9, y, TerrainKind.Lava);
+        int prey = sim.Wildlife.Add(sim.World, 12, 8, 0, sim.Random.Get(RngStream.Events));
+        sim.Predators.Spawn(6, 8); var wolf = sim.Predators.Wolves[0]; wolf.Energy = .4f;
+        for (int i = 1; i <= 20 && sim.Wildlife.IsAlive(prey); i++)
+        {
+            var before = new Int2(wolf.X, wolf.Y);
+            sim.Predators.TickFast(i * 10);
+            Assert.True(sim.World.TileAt(wolf.X, wolf.Y).Walkable);
+            Assert.LessOrEqual(Int2.ManhattanDistance(before, new(wolf.X, wolf.Y)), 1);
+        }
+        Assert.False(sim.Wildlife.IsAlive(prey), "A sensed prey animal has a reachable route through the gap");
+        Assert.Equal(1, sim.Predators.TotalKills);
+    }
+
+    [Fact("隔离的近处猎物不能遮蔽更远但可达的猎物")]
+    public void PredatorChoosesReachablePreyOverTrappedNearest()
+    {
+        var sim = DryWorld();
+        int trapped = sim.Wildlife.Add(sim.World, 8, 8, 0, sim.Random.Get(RngStream.Events));
+        foreach (var direction in new[] { Int2.Left, Int2.Right, Int2.Up, Int2.Down })
+            sim.World.SetTerrain(8 + direction.X, 8 + direction.Y, TerrainKind.Lava);
+        int reachable = sim.Wildlife.Add(sim.World, 6, 13, 0, sim.Random.Get(RngStream.Events));
+        sim.Predators.Spawn(6, 8); sim.Predators.Wolves[0].Energy = .4f;
+        for (int i = 1; i <= 12 && sim.Wildlife.IsAlive(reachable); i++) sim.Predators.TickFast(i * 10);
+        Assert.False(sim.Wildlife.IsAlive(reachable));
+        Assert.True(sim.Wildlife.IsAlive(trapped), "Hunting must not kill through an impassable enclosure");
+    }
+
+    [Fact("完全不可达的猎物不会令狼持续原地假狩猎")]
+    public void PredatorDoesNotHuntUnreachablePrey()
+    {
+        var sim = DryWorld();
+        int prey = sim.Wildlife.Add(sim.World, 8, 8, 0, sim.Random.Get(RngStream.Events));
+        foreach (var direction in new[] { Int2.Left, Int2.Right, Int2.Up, Int2.Down })
+            sim.World.SetTerrain(6 + direction.X, 8 + direction.Y, TerrainKind.Lava);
+        sim.Predators.Spawn(6, 8); var wolf = sim.Predators.Wolves[0]; wolf.Energy = .4f;
+        sim.Predators.TickFast(10);
+        Assert.Equal("Wander", wolf.Action);
+        Assert.Equal(new Int2(6, 8), new Int2(wolf.X, wolf.Y));
+        Assert.True(sim.Wildlife.IsAlive(prey));
+    }
 }

@@ -6,6 +6,7 @@ from online import Client
 
 REPORT_SCHEMA = 2
 REPORT_KIND = 'paired-efficiency-v2'
+MAX_FLOAT32 = 3.4028234663852886e38
 
 def read(path):
     def invalid(s): raise ValueError('Nonfinite JSON: ' + s)
@@ -16,12 +17,44 @@ def write(path, value):
     with Path(path).open('x', encoding='utf-8') as f: json.dump(value, f, ensure_ascii=False, indent=2, allow_nan=False)
 
 def number(v, name, minimum=0):
-    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or v < minimum:
+    try: finite = math.isfinite(v) if not isinstance(v, bool) and isinstance(v, (int, float)) else False
+    except OverflowError: finite = False
+    if not finite or v < minimum:
         raise ValueError('Invalid ' + name)
     return v
 
+def validate_grid(grid):
+    """Treat service maps as untrusted before running an oracle with their edge weights."""
+    if not isinstance(grid, dict): raise ValueError('Map must be an object')
+    w, h = grid.get('width'), grid.get('height')
+    if type(w) is not int or type(h) is not int or not 1 <= w <= 128 or not 1 <= h <= 128:
+        raise ValueError('Invalid map dimensions')
+    tiles = grid.get('tiles')
+    if not isinstance(tiles, list) or len(tiles) != w*h: raise ValueError('Invalid map tile count')
+    for tile in tiles:
+        if not isinstance(tile, dict) or type(tile.get('walkable')) is not bool: raise ValueError('Invalid map walkability')
+        # Dijkstra requires nonnegative weights; zero weights are not documented terrain costs.
+        cost = number(tile.get('moveCost'), 'map movement cost')
+        if not 0 < cost <= MAX_FLOAT32: raise ValueError('Map movement cost must be a positive float32 value')
+        value = tile.get('traversalHeight')
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or abs(value) > MAX_FLOAT32 or not math.isfinite(value):
+            raise ValueError('Invalid map traversal height')
+    return w, h
+
+
+def validate_query(query, w, h):
+    if not isinstance(query, dict): raise ValueError('Query must be an object')
+    for key, maximum in (('x',w),('y',h),('goalX',w),('goalY',h)):
+        if type(query.get(key)) is not int or not 0 <= query[key] < maximum: raise ValueError('Invalid query coordinate')
+
+
 def optimal_cost(grid, query):
     """Independent Dijkstra oracle using the documented traversal rules, never candidate code."""
+    w, h = validate_grid(grid); validate_query(query, w, h)
+    return _optimal_cost(grid, query)
+
+
+def _optimal_cost(grid, query):
     w, h, tiles = grid['width'], grid['height'], grid['tiles']
     start, goal = (query['x'], query['y']), (query['goalX'], query['goalY'])
     if not tiles[goal[1]*w+goal[0]]['walkable']: return None
@@ -44,9 +77,17 @@ def optimal_cost(grid, query):
 
 def check_paths(grid, queries, paths):
     if len(queries) != len(paths): raise ValueError('Incomplete path results')
-    w, h, tiles = grid['width'], grid['height'], grid['tiles']
+    w, h = validate_grid(grid); tiles = grid['tiles']
     for q, result in zip(queries, paths):
-        expected = optimal_cost(grid, q)
+        validate_query(q, w, h)
+        if not isinstance(result, dict) or type(result.get('success')) is not bool: raise ValueError('Invalid path success flag')
+        number(result.get('cost'), 'path cost')
+        points = result.get('points')
+        if not isinstance(points, list) or len(points) > w*h: raise ValueError('Invalid path point count')
+        for point in points:
+            if not isinstance(point, list) or len(point) != 2 or any(type(v) is not int for v in point): raise ValueError('Invalid path point')
+            if not 0 <= point[0] < w or not 0 <= point[1] < h: raise ValueError('Path point outside map')
+        expected = _optimal_cost(grid, q)
         if result['success'] != (expected is not None): raise ValueError('Path reachability is incorrect')
         if expected is None:
             if result['points']: raise ValueError('Failed path contains points')
@@ -84,7 +125,11 @@ def episode(client, case):
         # Identical warmup is charged in the complete episode; step scopes are also reported separately.
         observation = client.request('POST',path+'/step',{'requestId':'warmup','expectedRevision':0,'ticks':5})['observation']
         grid = client.request('GET',path+'/map')
+        w,h = validate_grid(grid)
+        if (w,h) != (case['width'],case['height']) or grid.get('revision') != observation['revision']:
+            raise ValueError('Map dimensions or revision do not match the episode')
         walkable = [i for i,t in enumerate(grid['tiles']) if t['walkable']]
+        if not walkable: raise ValueError('Map has no walkable query endpoints')
         rng = random.Random(case['seed']); queries=[]
         for _ in range(case['pathQueries']):
             a,b=rng.choice(walkable),rng.choice(walkable)
