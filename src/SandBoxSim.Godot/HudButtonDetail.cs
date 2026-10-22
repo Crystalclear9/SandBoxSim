@@ -58,6 +58,7 @@ internal partial class HudButtonDetail : Control
         bool selected = _button.ToggleMode && _button.ButtonPressed;
         float strength = selected ? .85f : _light * .55f;
         Color accent=selected&&_button.HasMeta("filled_action")&&_button.GetMeta("filled_action").AsBool()?HudStyle.Ink:HudStyle.Accent;
+        if(_button.HasMeta("notebook"))accent=HudStyle.PaperAccent;
         if(_ripple<1)
             DrawArc(_pressPoint,4+_ripple*Size.Length(),0,Mathf.Tau,48,new Color(accent,(1-_ripple)*.20f),2,true);
         if(_sweep<1&&_light>.01f)

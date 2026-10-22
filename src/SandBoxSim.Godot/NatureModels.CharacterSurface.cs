@@ -6,7 +6,7 @@ namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
     private Shader? _hairShader;
-    private NoiseTexture2D? _skinGrain;
+    private NoiseTexture2D? _skinGrain,_skinMicroNormal;
     private Material SkinSurface(string color)=>FaceSurfaceMaterial(color);
     private Material FaceSurfaceMaterial(string color)
     {
@@ -14,8 +14,11 @@ internal sealed partial class NatureModels
         _skinGrain??=new NoiseTexture2D {Width=128,Height=128,GenerateMipmaps=true,
             Noise=new FastNoiseLite {Seed=937,Frequency=.24f},
             ColorRamp=new Gradient {Colors=new[]{new Color(.96f,.96f,.96f),Colors.White}}};
+        _skinMicroNormal??=new NoiseTexture2D {Width=256,Height=256,GenerateMipmaps=true,AsNormalMap=true,BumpStrength=.8f,
+            Noise=new FastNoiseLite {Seed=937,Frequency=.12f}};
         var material=new StandardMaterial3D {AlbedoColor=new Color(color),VertexColorUseAsAlbedo=true,
-            Roughness=.76f,MetallicSpecular=.20f,RoughnessTexture=_skinGrain,AlbedoTexture=_skinGrain,Uv1Scale=new(12,12,1)};
+            Roughness=.72f,MetallicSpecular=.20f,RoughnessTexture=_skinGrain,AlbedoTexture=_skinGrain,Uv1Scale=new(12,12,1),
+            NormalEnabled=true,NormalTexture=_skinMicroNormal,NormalScale=.12f};
         _residentMaterials[key]=material;return material;
     }
     private Material HairSurface(string color)

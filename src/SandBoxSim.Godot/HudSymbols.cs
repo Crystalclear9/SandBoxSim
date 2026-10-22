@@ -6,9 +6,9 @@ namespace SandBoxSim.Client;
 internal static class HudSymbols
 {
     private static readonly Dictionary<string, Texture2D> Cache = new();
-    public static Texture2D For(string name,int pixels=96)
+    public static Texture2D For(string name,int pixels=96,string stroke="#e9e3d6")
     {
-        string key=name+":"+pixels;
+        string key=name+":"+pixels+":"+stroke;
         if (Cache.TryGetValue(key, out var texture)) return texture;
         string path = name switch
         {
@@ -26,7 +26,7 @@ internal static class HudSymbols
             _ => "<path d='M12 5h24v25L24 43 12 30ZM24 13v17m-7-9h14'/>",
         };
         var image = new Image();
-        image.LoadSvgFromString("<svg xmlns='http://www.w3.org/2000/svg' width='"+pixels+"' height='"+pixels+"' viewBox='0 0 48 48'><g fill='none' stroke='#e9e3d6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'>" + path + "</g></svg>");
+        image.LoadSvgFromString("<svg xmlns='http://www.w3.org/2000/svg' width='"+pixels+"' height='"+pixels+"' viewBox='0 0 48 48'><g fill='none' stroke='"+stroke+"' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'>" + path + "</g></svg>");
         texture = ImageTexture.CreateFromImage(image); Cache[key] = texture; return texture;
     }
 }

@@ -64,12 +64,14 @@ internal partial class ResidentPortrait : SubViewportContainer
         _stage = new Node3D(); _viewport.AddChild(_stage);
         var environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color,
             BackgroundColor = new Color("#202c26"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
-            AmbientLightColor = new Color("#ded9cc"), AmbientLightEnergy = .40f, TonemapMode = Godot.Environment.ToneMapper.Aces };
+            AmbientLightColor = new Color("#ded9cc"), AmbientLightEnergy = .45f, TonemapMode = Godot.Environment.ToneMapper.Aces };
         _stage.AddChild(new WorldEnvironment { Environment = environment });
-        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-25, -28, 0), LightColor = new Color("#f1e7d6"), LightEnergy = .68f });
-        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-12, 120, 0), LightColor = new Color("#b9ccc8"), LightEnergy = .30f });
+        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-25, -28, 0), LightColor = new Color("#f1e7d6"), LightEnergy = .60f,
+            ShadowEnabled=true,DirectionalShadowMode=DirectionalLight3D.ShadowMode.Orthogonal,DirectionalShadowMaxDistance=6,ShadowBias=.05f,ShadowNormalBias=.2f });
+        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-12, 120, 0), LightColor = new Color("#b9ccc8"), LightEnergy = .34f });
         _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-35, -150, 0), LightColor = new Color("#e9dbc2"), LightEnergy = .24f });
-        _portraitGround=new MeshInstance3D { Mesh = new PlaneMesh { Size = new(20,20) }, MaterialOverride = new StandardMaterial3D { AlbedoColor = new("#252e29"), Roughness = 1 },Visible=false };_stage.AddChild(_portraitGround);
+        _portraitGround=new MeshInstance3D { Mesh = new CylinderMesh {TopRadius=.62f,BottomRadius=.62f,Height=.004f,RadialSegments=64},Position=new(0,-.006f,0),
+            CastShadow=GeometryInstance3D.ShadowCastingSetting.Off,MaterialOverride = new StandardMaterial3D { AlbedoColor = new("#293930"), Roughness = 1 },Visible=false };_stage.AddChild(_portraitGround);
         _camera = new Camera3D { Current = true, Fov = 34 }; _stage.AddChild(_camera); Aim();
         var controlPlate=new PanelContainer();controlPlate.SetAnchorsAndOffsetsPreset(LayoutPreset.TopLeft);controlPlate.Position=new(8,8);controlPlate.AddThemeStyleboxOverride("panel",HudStyle.Box(new Color(HudStyle.Ink,.94f),4,2,false));AddChild(controlPlate);
         var controls=new HBoxContainer();controls.AddThemeConstantOverride("separation",2);controlPlate.AddChild(controls);
@@ -108,7 +110,8 @@ internal partial class ResidentPortrait : SubViewportContainer
         return new {msaa=_viewport.Msaa3D.ToString(),resolution=new[]{_viewport.Size.X,_viewport.Size.Y},
             background=environment.BackgroundColor.ToHtml(),ambient=environment.AmbientLightColor.ToHtml(),ambientEnergy=environment.AmbientLightEnergy,
             lights=_stage.GetChildren().OfType<DirectionalLight3D>().Select(light=>new {
-                color=light.LightColor.ToHtml(),energy=light.LightEnergy,rotation=new[]{light.RotationDegrees.X,light.RotationDegrees.Y,light.RotationDegrees.Z},shadows=light.ShadowEnabled}).ToArray()};
+                color=light.LightColor.ToHtml(),energy=light.LightEnergy,rotation=new[]{light.RotationDegrees.X,light.RotationDegrees.Y,light.RotationDegrees.Z},shadows=light.ShadowEnabled,
+                shadowMode=light.DirectionalShadowMode.ToString(),shadowDistance=light.DirectionalShadowMaxDistance,bias=light.ShadowBias,normalBias=light.ShadowNormalBias}).ToArray()};
     }
     internal void EvaluationFraming(string mode)=>SetFraming(mode=="hands"?Framing.Hands:mode=="body"?Framing.Body:Framing.Face);
     internal void EvaluationReset()=>ResetView();
@@ -128,7 +131,7 @@ internal partial class ResidentPortrait : SubViewportContainer
     }
     private void Aim(float delta=0)
     {
-        var center = _fullBody ? new Vector3(0,_child?.62f:1.0f,0) : _resident != null ? _resident.Head.GlobalPosition - new Vector3(0, Compact ? .055f : .19f, 0) : new Vector3(0, 1.4f, 0);
+        var center = _fullBody ? new Vector3(0,_child?.55f:.88f,0) : _resident != null ? _resident.Head.GlobalPosition - new Vector3(0, Compact ? .055f : .19f, 0) : new Vector3(0, 1.4f, 0);
         if(_framing==Framing.Hands&&_resident!=null)center=(_resident.Hands[0].GlobalPosition+_resident.Hands[1].GlobalPosition)*.5f+new Vector3(0,-.03f,0);
         _viewCenter=!_centerReady||delta==0||!HudStyle.MotionEnabled?center:_viewCenter.Lerp(center,1-MathF.Exp(-delta*9));_centerReady=true;
         _camera.Position = _viewCenter + new Vector3(0, .035f+MathF.Sin(_pitch)*_viewDistance, -MathF.Cos(_pitch)*_viewDistance);

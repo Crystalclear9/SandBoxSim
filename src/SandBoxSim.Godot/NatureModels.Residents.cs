@@ -38,9 +38,9 @@ internal sealed partial class NatureModels
         new[]{.63f,.665f,.73f,.82f,.97f,1.10f,1.19f,1.24f,1.28f},
         new[]{.535f,.570f,.73f,.82f,.97f,1.10f,1.19f,1.24f,1.28f}};
     private static readonly float[][] GarmentWidthProfiles={
-        new[]{.20f,.205f,.174f,.166f,.174f,.184f,.193f,.155f,.060f},
-        new[]{.185f,.190f,.174f,.166f,.174f,.184f,.193f,.155f,.060f},
-        new[]{.20f,.205f,.174f,.166f,.174f,.184f,.193f,.155f,.060f}};
+        new[]{.20f,.205f,.174f,.166f,.172f,.177f,.184f,.150f,.060f},
+        new[]{.185f,.190f,.174f,.166f,.172f,.177f,.184f,.150f,.060f},
+        new[]{.20f,.205f,.174f,.166f,.172f,.177f,.184f,.150f,.060f}};
     private static readonly float[][] GarmentDepthProfiles={
         new[]{.137f,.143f,.123f,.116f,.123f,.127f,.111f,.086f,.067f},
         new[]{.137f,.143f,.123f,.116f,.123f,.127f,.111f,.086f,.067f},
@@ -75,7 +75,7 @@ internal sealed partial class NatureModels
         float chest=MathF.Exp(-MathF.Pow((y-1.10f)/.10f,2));
         float volume=chest*(front*.004f+MathF.Pow(MathF.Max(0,MathF.Sin(angle)),4)*.002f);
         float neckline=MathF.Exp(-MathF.Pow((y-1.28f)/.022f,2))*front*.009f;
-        return new Vector3(MathF.Sign(MathF.Cos(angle))*MathF.Pow(MathF.Abs(MathF.Cos(angle)),.80f)*Profile(width)*fold,y+vent-neckline,MathF.Sign(MathF.Sin(angle))*MathF.Pow(MathF.Abs(MathF.Sin(angle)),.80f)*(Profile(depth)*fold+volume));
+        return new Vector3(MathF.Sign(MathF.Cos(angle))*MathF.Pow(MathF.Abs(MathF.Cos(angle)),.96f)*Profile(width)*fold,y+vent-neckline,MathF.Sign(MathF.Sin(angle))*MathF.Pow(MathF.Abs(MathF.Sin(angle)),.96f)*(Profile(depth)*fold+volume));
     }
     private Mesh Garment()
     {
@@ -204,9 +204,9 @@ internal sealed partial class NatureModels
             rig.HandProxies[i]=new MeshInstance3D {Name="DistantFingers",Mesh=rig.HandOpen[i],Visible=false};hand.AddChild(rig.HandProxies[i]);
             Sculpt(arm,RolledCuff(),Vector3.Zero,CollarMaterial(cloth));
             var leg = rig.Legs[i] = new Node3D { Name = i == 0 ? "LeftLeg" : "RightLeg", Position = new Vector3(side * .10f, .67f, 0) }; rig.AddChild(leg);
-            Sculpt(leg,Loft("resident-trouser",new[]{new Vector4(-.01f,0,.065f,.058f),new(.08f,0,.077f,.073f),new(.20f,0,.070f,.060f),new(.33f,0,.051f,.05f)}),Vector3.Zero,ResidentMaterial("#645e53"),new(MathF.PI/2,0,0));
+            Sculpt(leg,Loft("resident-trouser",new[]{new Vector4(-.01f,0,.064f,.059f),new(.04f,.004f,.074f,.066f),new(.10f,.004f,.076f,.068f),new(.17f,.001f,.069f,.060f),new(.23f,-.002f,.061f,.055f),new(.28f,-.004f,.055f,.052f),new(.33f,-.004f,.050f,.048f)}),Vector3.Zero,ResidentMaterial("#645e53"),new(MathF.PI/2,0,0));
             var knee = rig.Knees[i] = new Node3D { Name = "Knee", Position = new Vector3(0, -.31f, 0) }; leg.AddChild(knee);
-            Sculpt(knee,Loft("resident-boot",new[]{new Vector4(0,0,.055f,.052f),new(.07f,0,.060f,.058f),new(.19f,0,.05f,.048f),new(.28f,-.012f,.052f,.051f)}),Vector3.Zero,LeatherSurface("#514237"),new(MathF.PI/2,0,0));
+            Sculpt(knee,Loft("resident-boot",new[]{new Vector4(0,0,.047f,.044f),new(.035f,0,.052f,.048f),new(.085f,-.002f,.057f,.052f),new(.15f,-.005f,.052f,.048f),new(.21f,-.010f,.045f,.045f),new(.25f,-.015f,.043f,.044f),new(.28f,-.012f,.047f,.048f)}),Vector3.Zero,LeatherSurface("#514237"),new(MathF.PI/2,0,0));
             Sculpt(knee,TurnedBootRim(),Vector3.Zero,LeatherSurface("#514237"));
             var foot=rig.Feet[i]=new Node3D {Name="Foot",Position=new(0,-.295f,-.04f)};knee.AddChild(foot);
             Sculpt(foot,BootLast(false),Vector3.Zero,LeatherSurface("#423a32"));

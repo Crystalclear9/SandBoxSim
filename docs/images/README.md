@@ -34,7 +34,9 @@
 
 `resident-portrait.png`、`resident-hand-inspector.png`、`resident-body-inspector.png` 更新为同日公开 `ui-portrait-window` 场景第 90、130、170 帧的原生截图，种子 839102、40 人、零步进、1600×1000、30 FPS 上限，分别展示展开观察窗的面部、双手和全身。`wardrobe-detail.png`、`resident-garment-actions.png` 与 `ui-detail-refined.png` 同时更新为收紧肩袖、薄圆扣及观察窗入口版本，使用 `wardrobe`、`actions`、`person` 入口与 2.4 秒采样。它们是游戏实际渲染，不经过重绘；原生回放检查不构成正式性能或 RSI 成绩。
 
-`resident-handedness.png`、`free-world-ui.png` 为 2026-10-21 的 1440×900 原生渲染，分别使用 `handedness`、`ecology` 预览入口、2.5 秒采样；展示同源远景手型和早期卡片式工具界面。以下旧来源说明仅适用于未被此次替换的配图。
+当前纸面手记版本替换了 `free-world-ui.png`、`ui-detail-refined.png`（`field`、`person` 入口），以及 `wardrobe-detail.png`、`resident-face-detail.png`、`character-detail.png`、`model-surface-detail.png`、`resident-garment-actions.png`（对应 `wardrobe`、`faces`、`characters`、`model-details`、`actions`）。均为 2026-10-22、1600×1000 原生渲染、2.4 秒采样、30 FPS 上限。三张观察窗配图使用同日最终 `ui-portrait-window` 的 90/130/170 帧，展示纸面框架、实时资料栏、收束衣装及有限接触地台。未替换头脸基础素材或动物/场景几何，不将这些配图描述为全部资产重做，也不作为正式效率/RSI 成绩。
+
+`resident-handedness.png` 为 2026-10-21 的 1440×900 原生渲染，使用 `handedness` 入口、2.5 秒采样，展示同源远景手型。以下旧来源说明仅适用于未被此次替换的配图。
 
 面部、人物动物、衣装和表面近景分别来自 `proportion-final-{faces,characters,wardrobe,details}-20261009` 的第 90 帧。植物图册、建筑图册和现代地表图来自 `modern-environment-delivery-{ecology,architecture,terrain}-20261009` 的第 90 帧。
 

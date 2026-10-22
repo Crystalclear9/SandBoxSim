@@ -45,7 +45,7 @@ public partial class DiscoveryPanel : VBoxContainer
         _miniMap = new WorldMiniMap { Game = Game, CustomMinimumSize = new Vector2(280, 146) }; body.AddChild(_miniMap);
         _land = HudStyle.Label("", 13, true); _land.AutowrapMode = TextServer.AutowrapMode.WordSmart; body.AddChild(_land);
         var readings=new HBoxContainer();readings.AddThemeConstantOverride("separation",14);body.AddChild(readings);
-        string[] names={"土壤水分","肥沃程度","活动压实"};string[] colors={"#92b5bd","#a7b899","#d4b995"};
+        string[] names={"土壤水分","肥沃程度","活动压实"};string[] colors={"#92b5bd","#a7b899","#80613b"};
         for(int i=0;i<3;i++)
         {
             var column=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};readings.AddChild(column);
@@ -127,7 +127,7 @@ public partial class DiscoveryPanel : VBoxContainer
                 {
                     if(sim.Agents.DwellingOf(resident)!=building)continue;
                     long identity=sim.Society.Identity(resident);var person=sim.Society.Find(identity);
-                    if(person!=null)occupants.AppendLine($"[url={identity}][color=#d4b995]{person.Name.Replace("[","[lb]")} →[/color][/url]");
+                    if(person!=null)occupants.AppendLine($"[url={identity}][color=#80613b]{person.Name.Replace("[","[lb]")} →[/color][/url]");
                 }
                 _homeResidents.Text=occupants.ToString();_homeResidents.Visible=occupants.Length>0;
             }
@@ -158,7 +158,7 @@ public partial class DiscoveryPanel : VBoxContainer
         if(traffic>.02f)_land.Text+=$"\n{(traffic>.25f?"逐渐成形的小径":"新近留下的足迹")} · 压实 {traffic:P0}\n反复行走让痕迹加深；无人经过时，土地缓慢恢复。";
         var notes=new StringBuilder();
         foreach(var mark in Game.Wild.Marks)
-            notes.AppendLine($"[url=place:{mark.X}:{mark.Y}][color=#c7b992]{mark.Name.Replace("[","[lb]")}[/color][/url]  [url=forget:{mark.X}:{mark.Y}]×[/url]");
+            notes.AppendLine($"[url=place:{mark.X}:{mark.Y}][color=#80613b]{mark.Name.Replace("[","[lb]")}[/color][/url]  [url=forget:{mark.X}:{mark.Y}]×[/url]");
         _marks.Text=notes.ToString();
         var pinned = sim.Society.Find(Game.PinnedPerson); _pinLink.Visible = pinned != null;
         _pinText.Text = pinned == null ? "尚未关注居民。"
@@ -167,11 +167,11 @@ public partial class DiscoveryPanel : VBoxContainer
         var text = new StringBuilder();
         foreach (var ev in sim.Society.History.Where(e => IsStory((WorldEventType)e.Type)).TakeLast(3).Reverse())
         {
-            text.AppendLine($"[color=#a8b3a5]第 {ev.Tick / sim.Config.Clock.TicksPerDay + 1} 天[/color]  " + ev.Description.Replace("[", "[lb]"));
-            if (ev.Actor != 0 || ev.X >= 0 && ev.Y >= 0) { text.AppendLine($"[url={ev.Actor}:{ev.X}:{ev.Y}][color=#c7b992]追踪故事 →[/color][/url]"); }
+            text.AppendLine($"[color=#697267]第 {ev.Tick / sim.Config.Clock.TicksPerDay + 1} 天[/color]  " + ev.Description.Replace("[", "[lb]"));
+            if (ev.Actor != 0 || ev.X >= 0 && ev.Y >= 0) { text.AppendLine($"[url={ev.Actor}:{ev.X}:{ev.Y}][color=#80613b]追踪故事 →[/color][/url]"); }
             text.AppendLine();
         }
-        _stories.Text = text.Length == 0 ? "[color=#a8b3a5]居民的第一次选择，将成为这里的故事。[/color]" : text.ToString();
+        _stories.Text = text.Length == 0 ? "[color=#697267]居民的第一次选择，将成为这里的故事。[/color]" : text.ToString();
         _miniMap.QueueRedraw();
     }
     public void ValidateNavigation() => _miniMap.ValidateMapping();

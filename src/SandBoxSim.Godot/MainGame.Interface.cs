@@ -76,7 +76,7 @@ public partial class MainGame
             if (hidden) { continue; }
             string escaped = EscapeMarkup(line);
             if (first && line.Length > 0) { result.AppendLine("[font_size=23][b]" + escaped + "[/b][/font_size]"); first = false; }
-            else if (section) { result.AppendLine("[color=#c7b992][b]" + escaped + "[/b][/color]"); }
+            else if (section) { result.AppendLine("[color=#80613b][b]" + escaped + "[/b][/color]"); }
             else { result.AppendLine(escaped); }
         }
         return result.ToString().TrimStart('\r','\n');
@@ -141,7 +141,7 @@ public partial class MainGame
         nameControls.AddChild(_residentName); ActionButton(nameControls, "命名", RenameResident);
         _inspector = TextPanel("人物详情"); _inspector.FitContent=true;_inspector.ScrollActive=false;_inspector.SizeFlagsVertical=SizeFlags.Fill;personPanel.AddChild(_inspector); _history = TextPanel("历史"); _drawer.AddChild(_history);
         _chart = new StatisticsView { Name = "曲线", Game = this }; _drawer.AddChild(_chart);
-        foreach(var (tab,glyph) in new[]{(0,"观察"),(1,"居民"),(2,"手记"),(3,"曲线")})_drawer.SetTabIcon(tab,HudSymbols.For(glyph,16));
+        foreach(var (tab,glyph) in new[]{(0,"观察"),(1,"居民"),(2,"手记"),(3,"曲线")})_drawer.SetTabIcon(tab,HudSymbols.For(glyph,16,"#697267"));
         _drawer.TabChanged += _ => RevealJournalPage();
 
         _brushPanel = Surface(overlay, new Vector2(0, 0), new Vector2(24, 104), new Vector2(245, 230), 18);
@@ -380,7 +380,7 @@ public partial class MainGame
         _residentActionPhase.Text = (a.PhaseOf(slot)==ActionPhase.Moving?"行进中":a.PhaseOf(slot)==ActionPhase.Done&&_residentPortrait.FinishingGesture?"已完成 · 动作收尾":PhaseName(a.PhaseOf(slot)))+(a.PhaseOf(slot) is ActionPhase.Moving or ActionPhase.Executing ? "  ·  目的地 "+a.TargetOf(slot):"");
         _residentTitle.Text = a.NameOrOverride(slot);
         _residentSubtitle.Text = $"{a.AgeDaysOf(slot)} 天  /  {LifeStageName(a.LifeStageOf(slot))}  /  {JobName(a.JobOf(slot))}  ·  {a.PositionOf(slot)}";
-        if(_portraitOverlay?.Visible==true){_portraitWindowTitle.Text=_residentTitle.Text;_portraitWindowActivity.Text=_residentSubtitle.Text+"  ·  "+_residentAction.Text;}
+        if(_portraitOverlay?.Visible==true){_portraitWindowTitle.Text=_residentTitle.Text;_portraitWindowActivity.Text=_residentSubtitle.Text+"  ·  "+_residentAction.Text;RefreshPortraitFacts();}
         float[] values = { a.HealthOf(slot), a.HungerOf(slot), a.ThirstOf(slot), 1 - a.FatigueOf(slot) };
         string[] names = { "生命", "饥饿", "干渴", "精力" };
         _vitalTransition = HudStyle.MotionEnabled ? CreateTween().SetParallel().SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.Out) : null;

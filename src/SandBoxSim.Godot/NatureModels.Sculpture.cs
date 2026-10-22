@@ -105,6 +105,9 @@ float yarn=(sin(weave.x)+sin(weave.y+sin(weave.x)*.22))/(2.0+footprint*footprint
 float twill=sin((weave.x-weave.y)*.25)/(1.0+footprint*footprint*.15);
 float slub=sin(cloth_position.y*91.0+sin(cloth_position.x*23.0)*2.0)*.008;
 ALBEDO=dye.rgb*(.985+yarn*.012+twill*.004+slub);
+vec3 dx=dFdx(VERTEX),dy=dFdy(VERTEX),tx=cross(dy,NORMAL),ty=cross(NORMAL,dx);float determinant=dot(dx,tx);
+float fiber_height=yarn*.00009+slub*.0003;
+if(abs(determinant)>.0000000001)NORMAL=normalize(abs(determinant)*NORMAL-sign(determinant)*(dFdx(fiber_height)*tx+dFdy(fiber_height)*ty));
 ROUGHNESS = 0.94; SPECULAR = 0.16;
 }" };
         var material = new ShaderMaterial { Shader = _fabricShader }; material.SetShaderParameter("dye", new Color(color)); return material;

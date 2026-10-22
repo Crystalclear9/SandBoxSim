@@ -39,8 +39,8 @@ internal sealed partial class NatureModels
         new Vector3(.047f,-.270f,.045f),new(.052f,-.263f,.050f),new(.054f,-.252f,.052f),
         new(.050f,-.241f,.048f),new(.046f,-.241f,.044f),new(.044f,-.253f,.042f),new(.044f,-.266f,.042f)});
     private Mesh TurnedBootRim()=>FabricFacing("turned-boot-rim",new[]{
-        new Vector3(.058f,-.047f,.055f),new(.061f,-.039f,.058f),new(.059f,-.028f,.056f),
-        new(.055f,-.024f,.052f),new(.053f,-.028f,.050f),new(.054f,-.042f,.051f)});
+        new Vector3(.050f,-.047f,.047f),new(.053f,-.039f,.050f),new(.051f,-.028f,.048f),
+        new(.047f,-.024f,.044f),new(.045f,-.028f,.042f),new(.046f,-.042f,.043f)});
     private Mesh TurnedNeckline()=>FabricFacing("turned-neckline",new[]{
         new Vector3(.061f,1.276f,.071f),new(.064f,1.280f,.074f),new(.061f,1.285f,.068f),
         new(.057f,1.286f,.061f),new(.055f,1.282f,.060f),new(.057f,1.278f,.064f)});

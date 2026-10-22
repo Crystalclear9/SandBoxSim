@@ -94,13 +94,15 @@ internal sealed partial class NatureModels
         Vector3 Point(int ring,int column)
         {
             float t=(float)ring/rings,a=column*MathF.Tau/sides;
-            var center=new Vector3(side*-.048f*(1-t)*(1-t),.010f*MathF.Sin(MathF.PI*t)-.077f*t*t,0);
+            // Keep the diagnostic bridge's root inside the fitted chest.
+            // Visible sleeves use the sewn pattern, rather than this old patch.
+            var center=new Vector3(side*-.062f*(1-t)*(1-t),.010f*MathF.Sin(MathF.PI*t)-.077f*t*t,0);
             var basis=new Basis(Quaternion.Identity.Slerp(new Quaternion(new Vector3(side,0,0),Vector3.Down),t));
             var radial=new Vector3(0,MathF.Cos(a)*Mathf.Lerp(.055f,.058f,t),MathF.Sin(a)*.053f);
             return center+basis*radial;
         }
         void Vertex(Vector3 point,int ring,int column){float t=(float)ring/rings;surface.SetColor(new Color(t,t,t,1));surface.SetUV(new((float)column/sides,t));surface.AddVertex(point);}
-        Vector3 Center(int ring){float t=(float)ring/rings;return new(side*-.048f*(1-t)*(1-t),.010f*MathF.Sin(MathF.PI*t)-.077f*t*t,0);}
+        Vector3 Center(int ring){float t=(float)ring/rings;return new(side*-.062f*(1-t)*(1-t),.010f*MathF.Sin(MathF.PI*t)-.077f*t*t,0);}
         void Triangle(int ra,int ca,int rb,int cb,int rc,int cc)
         {
             var a=Point(ra,ca);var b=Point(rb,cb);var c=Point(rc,cc);

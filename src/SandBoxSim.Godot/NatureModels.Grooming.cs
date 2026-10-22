@@ -23,6 +23,7 @@ internal sealed partial class NatureModels
             // Temple recession and short sideburns break the old bowl-cut edge.
             hairline+=.015f*MathF.Exp(-MathF.Pow((side-.78f)/.17f,2))*front;
             hairline+=.012f*MathF.Pow(side,10);
+            hairline-=.020f*MathF.Pow(side,30)+.006f*MathF.Pow(front,4)*(.5f+.5f*direction*MathF.Cos(angle));
             hairline+=.0008f*MathF.Sin(angle*23+.6f)+.0005f*MathF.Sin(angle*41);
             float top=HumanData().High;
             float y=Mathf.Lerp(top+.005f,hairline,1-MathF.Cos(t*MathF.PI*.5f));
@@ -34,11 +35,11 @@ internal sealed partial class NatureModels
             float part=MathF.Atan2(MathF.Sin(angle-partAngle),MathF.Cos(angle-partAngle));
             float groove=MathF.Exp(-MathF.Pow(part/.10f,2))*crown;
             float locks=MathF.Pow(.5f+.5f*MathF.Sin(swept*(style==2?11:8)+t*3),2);
-            float volume=(style==2?.0010f:.0035f)*crown*(.35f+.65f*front);
+            float volume=(style==2?.0010f:style==1?.007f:.0045f)*crown*(.35f+.65f*front);
             float radial=volume+locks*.0011f*crown-groove*.0024f;
             world+=new Vector3(MathF.Cos(angle),0,MathF.Sin(angle))*radial;
             float forelock=MathF.Exp(-MathF.Pow((angle+MathF.PI*.5f-direction*.30f)/.65f,2))*MathF.Sin(t*MathF.PI);
-            world.Y+=(style==2?.001f:.004f)*crown*front+locks*.0013f*crown+(style==1?.015f:.007f)*forelock;
+            world.Y+=(style==2?.001f:.004f)*crown*front+locks*.0013f*crown+(style==1?.022f:.012f)*forelock;
             world.X+=direction*forelock*(style==2?.001f:.004f);
             return new(world.X/.181f,(world.Y-.008f)/.224f,world.Z/.200f);
         }

@@ -8,6 +8,8 @@ internal static class HudStyle
     public static bool MotionEnabled { get; set; } = true;
     public static readonly Color Ink = new("#19221e"), Surface = new(.065f, .088f, .078f, .97f), Text = new("#eee9dd"),
         Muted = new("#a6b0a5"), Accent = new("#d5bc8a"), Border = new("#414e43"), Wash = new("#28382f");
+    public static readonly Color Paper=new("#e6e0d2"),PaperInk=new("#28362e"),PaperMuted=new("#697267"),
+        PaperLine=new("#c7c9b9"),PaperAccent=new("#80613b"),PaperWash=new("#dadbcb");
     public static StyleBox Frame(int padding)
     {
         var surface = Box(Surface, 7, padding);

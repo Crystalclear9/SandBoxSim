@@ -75,7 +75,7 @@ python tools/evaluate.py verify runs/evaluation/candidate
 
 比较器拒绝配置、引擎、渲染器、设备、分辨率、VSync、`renderQuality` 阴影/MSAA 参数、运行器执行参数或最终模拟摘要不同的结果，返回原因；相同条件才输出 FPS 比值和 p95 耗时变化。它不自动断言优化显著，也不把减少几何造成的视觉损失当成成功。优化实验应同时保留视觉检查与功能自检。
 
-有图册时，`renderQuality.galleries` 还包含各卡片实际阴影模式、范围、偏移和地台投影条件；地图同时记录阴影偏移。可见人物肖像使用 `renderQuality.portrait` 保存实际子视口分辨率、MSAA、背景、环境光及灯光颜色、能量、方向与投影状态。旧结果缺少这些条件时应重建基线，不能把画质差异归因于程序效率。
+有图册时，`renderQuality.galleries` 还包含各卡片实际阴影模式、范围、偏移和地台投影条件；地图同时记录阴影偏移。可见人物肖像使用 `renderQuality.portrait` 保存实际子视口分辨率、MSAA、背景、环境光及灯光颜色、能量、方向、投影状态及各灯的阴影模式、范围、深度偏移与法线偏移。旧结果缺少这些条件时应重建基线，不能把画质差异归因于程序效率。
 
 CLI 输出使用 UTF-8；`python tools/evaluate.py --json-errors <子命令> ...` 将输入或用法错误作为 JSON 写到 stderr，包含 `schemaVersion`、`error.code` 和 `error.message`。引擎异常的原始退出码保留在溯源中，运行器统一返回接口定义的错误码。验证会核对请求 ID、帧预算、截图排程、状态门槛以及 PNG 结构/CRC，不能把缺少截图的运行视为完成。
 
