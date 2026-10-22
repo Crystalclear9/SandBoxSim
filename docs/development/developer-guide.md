@@ -38,7 +38,7 @@
 | 扫描表面与建筑材质 | `Godot/ScannedSurfaces.cs`、`NatureModels.ScannedCraft.cs`、`tools/fetch-surface-materials.py` | 离线素材校验、导入、近远景与署名 |
 | 居民动作与握持 | `Godot/ResidentRig.cs`、`ResidentRig.HandPose.cs`、`NatureModels.HandSkin.cs`、`NatureModels.Face.cs` | 工具取放、手部表面、肘腕范围、近远景与暂停 |
 | 建筑和人物外观 | `Godot/NatureModels*.cs`、`BuildingPortrait.cs`、`ResidentPortrait.cs` | 近远景、变体、动作与显示缓存 |
-| 自由探索界面 | `Godot/MainGame.Interface.cs`、`MainGame.Notebook.cs` | 阅读层次、直接工具与无目标导航 |
+| 自由探索界面 | `Godot/MainGame.Interface.cs`、`MainGame.Notebook.cs`、`MainGame.PortraitWindow.cs` | 阅读层次、观察窗复用/返回、直接工具与无目标导航 |
 | 跨平台工具链 | `tools/build-lib.ps1` 与具体入口脚本 | 脚本回归和受影响构建通道 |
 
 表中 `Core/`、`Console/`、`Godot/` 分别缩写 `src/SandBoxSim.Core/`、`src/SandBoxSim.Console/`、`src/SandBoxSim.Godot/`。实体槽位可以复用；人物关注、命名和关系应使用稳定身份，不能缓存槽位作为永久人物标识。
@@ -78,7 +78,7 @@
 
 UI 的配色、字体、圆角和基础状态样式集中在 `HudStyle.cs`，手记的组件覆盖在 `MainGame.Notebook.cs`；镜头与肖像输入分开。模型的形状、材质和 LOD 分别由 `NatureModels` 的分文件实现。更改面部采样后，检查八种脸型的几何与法线有限性；更改建筑后，检查近远景轮廓、缓存和实例是否仍正确。具体参数见 [模型说明](models.md)。
 
-固定场景可分别检查人物近景、建筑、动物和 UI。`ui-modern-observation.json` 先自由运行 14 日，再回放肖像构图与设置开关；`render-population.json` 检查 300 人负载。视觉场景通过表示产物和操作正常，不表示画面已经达到某种审美标准；性能应同时查看平均值和长帧，见 [采样口径](performance.md)。
+固定场景可分别检查人物近景、建筑、动物和 UI。`ui-modern-observation.json` 先自由运行 14 日，再回放肖像构图与设置开关；`ui-portrait-window.json` 检查观察窗展开、返回及构图保留，`render-population.json` 检查 300 人负载。视觉场景通过表示产物和操作正常，不表示画面已经达到某种审美标准；性能应同时查看平均值和长帧，见 [采样口径](performance.md)。
 
 研究工具分为真实程序性能、代理改进实验与真实工程源码研究。新增控制器并不自动升级 RSI 证据：源码研究协议 v1 管理修改和真实世界验证，[冻结研究程序对照](sandbox-research-comparison.md) 在相同源码和配置下比较三组研究，代理协议 v2 管理自修改与二阶对照。选择、配置和失败保留方式见 [源码研究](sandbox-research.md)、[代理协议](rsi-improver.md) 和 [改进器效率](rsi-efficiency.md)。
 

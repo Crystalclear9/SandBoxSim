@@ -42,10 +42,10 @@ def build_pattern(data):
             t=row/12
             # A set-in sleeve bends downward from its sewn armhole. The crown
             # is narrow and sloped, rather than a sphere perched on the arm.
-            cx=side*(.202+.018*math.sin(math.pi*t))
+            cx=side*(.202+.010*math.sin(math.pi*t))
             cy=shoulder-.263*t
-            rx=.064*(1-t)+.043*t
-            rz=.060*(1-t)+.042*t
+            rx=.055*(1-t)+.043*t
+            rz=.051*(1-t)+.042*t
             blend=min(1,t*3);blend=blend*blend*(3-2*blend)
             ring=[]
             for p,phase in zip(anchor,phases):
@@ -53,7 +53,7 @@ def build_pattern(data):
                 q=tuple(p[i]*(1-blend)+target[i]*blend for i in range(3))
                 # Broad sleeve compression follows the inside elbow, not
                 # periodic bumps over the entire cloth surface.
-                fold=.0018*math.exp(-((t-.76)/.19)**2)*math.sin(phase*3+t*13)
+                fold=.0024*math.exp(-((t-.76)/.19)**2)*math.sin(phase*3+t*13)
                 q=(q[0]+side*fold*math.cos(phase),q[1],q[2]+fold*math.sin(phase))
                 ring.append(len(points));points.append(q)
                 w=min(1,t*3);w=w*w*(3-2*w)

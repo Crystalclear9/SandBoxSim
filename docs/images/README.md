@@ -14,6 +14,7 @@
 | `resident-forearm-detail.png` | 同源解剖肘部/前臂、左右镜像及实际腕口 |
 | `resident-handedness.png` | 左右手掌心、手背与近远景对照 |
 | `resident-social.png` | 交谈、分享和进食的实际模型动作 |
+| `resident-portrait.png`、`resident-hand-inspector.png`、`resident-body-inspector.png` | 可展开人物观察窗的面部、双手与全身 |
 | `resident-garment-actions.png` | 连续肩袖在拿取、作业和存放动作中的表现 |
 | `wardrobe-detail.png` | 三种衣装剪裁的正背面 |
 | `model-surface-detail.png` | 衣料、靴子、动物与建筑近景 |
@@ -30,6 +31,8 @@
 前臂图是世界共用模型的独立切面预览，实际袖口在作业图中查看。头脸、动物、建筑与地形几何没有在本轮重新制作；图中保留之前的共顶点衣片、动物毛束、鹿角和扫描茅草屋面。重新采样这些图是为了让当前人物修改与图册光照设置保持一致，不能据此声称全部资产已经重做。
 
 `resident-face-detail.png`、`character-detail.png`、`model-surface-detail.png` 与 `ui-detail-refined.png` 随后更新为同日的眉毛、侧分发型、动物耳廓和绿灰界面版本，分别使用 `faces`、`characters`、`model-details`、`person` 入口，分辨率仍为 1600×1000，参数仍为 `--capture-delay=2.4 --max-fps 30 --quit-after 140`。人物页缩小标题、加大模型预览并调整补光；地图采用四级级联阴影、深度偏移 1.2，减少坡面条纹。没有重绘截图、替换背景或以概念图代替游戏模型。
+
+`resident-portrait.png`、`resident-hand-inspector.png`、`resident-body-inspector.png` 更新为同日公开 `ui-portrait-window` 场景第 90、130、170 帧的原生截图，种子 839102、40 人、零步进、1600×1000、30 FPS 上限，分别展示展开观察窗的面部、双手和全身。`wardrobe-detail.png`、`resident-garment-actions.png` 与 `ui-detail-refined.png` 同时更新为收紧肩袖、薄圆扣及观察窗入口版本，使用 `wardrobe`、`actions`、`person` 入口与 2.4 秒采样。它们是游戏实际渲染，不经过重绘；原生回放检查不构成正式性能或 RSI 成绩。
 
 `resident-handedness.png`、`free-world-ui.png` 为 2026-10-21 的 1440×900 原生渲染，分别使用 `handedness`、`ecology` 预览入口、2.5 秒采样；展示同源远景手型和早期卡片式工具界面。以下旧来源说明仅适用于未被此次替换的配图。
 

@@ -5,6 +5,10 @@ using SandBoxSim.Core.Agents;
 namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
+    private Mesh SewnButton()=>Loft("sewn-button",new[]{
+        new Vector4(-.0038f,0,.0001f,.0001f),new(-.0032f,0,.0038f,.0038f),
+        new(-.0020f,0,.0048f,.0048f),new(0,0,.0048f,.0048f),
+        new(.0010f,0,.0038f,.0038f),new(.0012f,0,.0001f,.0001f)},24);
     private Mesh FabricFacing(string key,Vector3[] profile)
     {
         if(_meshes.TryGetValue(key,out var cached))return cached;

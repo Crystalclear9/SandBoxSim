@@ -47,7 +47,7 @@ internal sealed class EvaluationSpec
         if((Panel is "person" or "person-hands")&&Agents==0)throw new ArgumentException("Resident panel requires a population");
         foreach(var e in Commands)
         {
-            if(e==null||e.Value==null||e.Frame<3||e.Frame>=WarmupFrames+MeasuredFrames||!new[]{"journal.open","settings.open","escape","portrait.face","portrait.hands","portrait.body","portrait.drag","portrait.zoom","portrait.reset","world.view","home.focus","home.resident"}.Contains(e.Command))throw new ArgumentException("Unknown evaluation command");
+            if(e==null||e.Value==null||e.Frame<3||e.Frame>=WarmupFrames+MeasuredFrames||!new[]{"journal.open","settings.open","escape","portrait.face","portrait.hands","portrait.body","portrait.drag","portrait.zoom","portrait.reset","portrait.expand","portrait.collapse","world.view","home.focus","home.resident"}.Contains(e.Command))throw new ArgumentException("Unknown evaluation command");
             if(e.Command.StartsWith("home.")&&(Panel!="homes"||e.Value!=""))throw new ArgumentException("Home command requires the homes panel and empty value");
             if(e.Command=="world.view"&&!new[]{"near","top","oblique"}.Contains(e.Value))throw new ArgumentException("Unknown camera preset");
             if(e.Command.StartsWith("portrait.")&&Panel is not ("person" or "person-hands"))throw new ArgumentException("Portrait command requires a resident panel");
@@ -73,7 +73,7 @@ public partial class MainGame
         Directory.CreateDirectory(_evaluation.OutputDirectory);EvaluationClock.Enabled=true;HudStyle.MotionEnabled=true;
         File.WriteAllText(Path.Combine(_evaluation.OutputDirectory,"request.json"),JsonSerializer.Serialize(_evaluation,EvaluationSpec.Json));
     }
-    private object EvaluationState()=>new {tick=Sim.Clock,digest=StateHash.ComputeDigest(Sim),population=Sim.Agents.LiveCount,ai=new {decisions=Sim.Ai.TotalDecisions,targetSelectionFailures=Sim.Ai.TargetSelectionFailures,actionFailures=Sim.Actions.TotalFailed,pathSearches=Sim.Pathfinder.TotalSearches,failedPathSearches=Sim.Pathfinder.FailedSearches},buildings=Sim.Buildings.TotalCompleted,journalVisible=_journalPanel.Visible,settingsVisible=_settingsPanel.Visible,portrait=_residentPortrait.EvaluationState(),worldVisuals=((WorldView3D)_map).VisualUpdateState()};
+    private object EvaluationState()=>new {tick=Sim.Clock,digest=StateHash.ComputeDigest(Sim),population=Sim.Agents.LiveCount,ai=new {decisions=Sim.Ai.TotalDecisions,targetSelectionFailures=Sim.Ai.TargetSelectionFailures,actionFailures=Sim.Actions.TotalFailed,pathSearches=Sim.Pathfinder.TotalSearches,failedPathSearches=Sim.Pathfinder.FailedSearches},buildings=Sim.Buildings.TotalCompleted,journalVisible=_journalPanel.Visible,settingsVisible=_settingsPanel.Visible,portraitExpanded=_portraitOverlay.Visible,portrait=_residentPortrait.EvaluationState(),worldVisuals=((WorldView3D)_map).VisualUpdateState()};
     private void ApplyEvaluationCommand(EvaluationCommand e)
     {
         var before=EvaluationState();string digest=StateHash.ComputeDigest(Sim);
@@ -87,6 +87,8 @@ public partial class MainGame
             case "portrait.hands":_residentPortrait.EvaluationFraming("hands");break;
             case "portrait.body":_residentPortrait.EvaluationFraming("body");break;
             case "portrait.reset":_residentPortrait.EvaluationReset();break;
+            case "portrait.expand":ShowPortraitWindow(true);break;
+            case "portrait.collapse":ShowPortraitWindow(false);break;
             case "portrait.drag":
                 _residentPortrait._GuiInput(new InputEventMouseButton {ButtonIndex=MouseButton.Left,Pressed=true});
                 _residentPortrait._GuiInput(new InputEventMouseMotion {Relative=new(20,float.Parse(e.Value,System.Globalization.CultureInfo.InvariantCulture))});

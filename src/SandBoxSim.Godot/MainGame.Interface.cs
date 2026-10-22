@@ -248,6 +248,7 @@ public partial class MainGame
         RefreshPanels();
         _drawer.CurrentTab = 0;
         BuildWorldPulse(overlay);
+        BuildPortraitWindow(overlay);
         ShowJournal(false);
         if (_capture.Length > 0)
         {
@@ -266,6 +267,7 @@ public partial class MainGame
         _journalPanel.OffsetLeft=-journalWidth-24;_journalPanel.OffsetRight=-24;
         _journalPanel.OffsetBottom = 92 + Math.Min(740, size.Y - 220);
         _settingsPanel.OffsetBottom = Math.Min(size.Y - 280, 744);
+        FitPortraitWindow(size);
         _toolBadge.OffsetTop = -149; _toolBadge.OffsetBottom = -129;
     }
     private void ValidateHudLayout()
@@ -283,7 +285,7 @@ public partial class MainGame
                 if (dock.Intersects(time) || dock.Intersects(camera) || time.Intersects(camera) || Bounds(_commandPanel).Intersects(time) || Bounds(_commandPanel).Intersects(camera)) { throw new InvalidOperationException("HUD controls overlap at " + size); }
                 foreach (var auxiliary in new[] { _brushPanel, _settingsPanel })
                     if (Bounds(auxiliary).Intersects(dock)) { throw new InvalidOperationException("Tool rail obscures an auxiliary panel at " + size); }
-                foreach (var panel in new[] { _dockPanel, _commandPanel, _timePanel, _cameraPanel, _journalPanel, _settingsPanel })
+                foreach (var panel in new[] { _dockPanel, _commandPanel, _timePanel, _cameraPanel, _journalPanel, _settingsPanel, _portraitWindow })
                 {
                     Rect2 bounds = Bounds(panel);
                     if (bounds.Position.X < 0 || bounds.Position.Y < 0 || bounds.End.X > size.X || bounds.End.Y > size.Y)
@@ -304,7 +306,7 @@ public partial class MainGame
     {
         _residentVitals = new VBoxContainer { Visible = false }; _residentVitals.AddThemeConstantOverride("separation", 10); parent.AddChild(_residentVitals);
         _residentTitle = HudStyle.Heading("", 24); _residentSubtitle = HudStyle.Label("", 12, true);
-        var portraitFrame=new PanelContainer();portraitFrame.AddThemeStyleboxOverride("panel",HudStyle.Box(HudStyle.Wash,5,1,false));_residentVitals.AddChild(portraitFrame);
+        var portraitFrame=new PanelContainer();_portraitHome=portraitFrame;portraitFrame.AddThemeStyleboxOverride("panel",HudStyle.Box(HudStyle.Wash,5,1,false));_residentVitals.AddChild(portraitFrame);
         _residentPortrait = new ResidentPortrait { Compact = true, SizeFlagsHorizontal = SizeFlags.ExpandFill }; portraitFrame.AddChild(_residentPortrait);
         var identity = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; identity.AddThemeConstantOverride("separation", 3); _residentVitals.AddChild(identity);
         identity.AddChild(_residentTitle); identity.AddChild(_residentSubtitle);
@@ -367,7 +369,7 @@ public partial class MainGame
         int slot = SelectedSlot; _residentVitals.Visible = slot >= 0;
         _residentControls.Visible = _selectedPersonId != 0;
         _residentNameControls.Visible = _selectedPersonId != 0 && _editingResidentName;
-        if (slot < 0) { return; }
+        if (slot < 0) { ShowPortraitWindow(false);return; }
         var a = Sim.Agents;
         _residentPortrait.ShowResident(Sim.Society.Identity(slot), slot, a.LifeStageOf(slot) == SandBoxSim.Core.Agents.LifeStage.Child, a.JobOf(slot));
         _residentPortrait.ShowActivity(a.ActionOf(slot),a.PhaseOf(slot),VisualPaused);
@@ -378,6 +380,7 @@ public partial class MainGame
         _residentActionPhase.Text = (a.PhaseOf(slot)==ActionPhase.Moving?"行进中":a.PhaseOf(slot)==ActionPhase.Done&&_residentPortrait.FinishingGesture?"已完成 · 动作收尾":PhaseName(a.PhaseOf(slot)))+(a.PhaseOf(slot) is ActionPhase.Moving or ActionPhase.Executing ? "  ·  目的地 "+a.TargetOf(slot):"");
         _residentTitle.Text = a.NameOrOverride(slot);
         _residentSubtitle.Text = $"{a.AgeDaysOf(slot)} 天  /  {LifeStageName(a.LifeStageOf(slot))}  /  {JobName(a.JobOf(slot))}  ·  {a.PositionOf(slot)}";
+        if(_portraitOverlay?.Visible==true){_portraitWindowTitle.Text=_residentTitle.Text;_portraitWindowActivity.Text=_residentSubtitle.Text+"  ·  "+_residentAction.Text;}
         float[] values = { a.HealthOf(slot), a.HungerOf(slot), a.ThirstOf(slot), 1 - a.FatigueOf(slot) };
         string[] names = { "生命", "饥饿", "干渴", "精力" };
         _vitalTransition = HudStyle.MotionEnabled ? CreateTween().SetParallel().SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.Out) : null;

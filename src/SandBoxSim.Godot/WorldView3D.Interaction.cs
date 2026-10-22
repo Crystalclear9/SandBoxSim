@@ -7,7 +7,7 @@ namespace SandBoxSim.Client;
 
 public partial class WorldView3D
 {
-    private void CancelPointerGesture()
+    internal void CancelPointerGesture()
     {
         _orbit=_pan=_painting=_leftHeld=_leftDragged=_doubleClick=false;
         _lastPaint=new(-1,-1);

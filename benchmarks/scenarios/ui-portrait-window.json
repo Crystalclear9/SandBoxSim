@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "ui-portrait-window",
+  "seed": 839102,
+  "agents": 40,
+  "previewDays": 0,
+  "panel": "person",
+  "warmupFrames": 60,
+  "measuredFrames": 150,
+  "ticksPerFrame": 0,
+  "minimumFps": 0,
+  "outputDirectory": "runs/evaluation/ui-portrait-window",
+  "captureFrames": [90, 130, 170],
+  "commands": [
+    { "frame": 70, "command": "portrait.expand", "value": "" },
+    { "frame": 100, "command": "portrait.hands", "value": "" },
+    { "frame": 110, "command": "portrait.drag", "value": "15" },
+    { "frame": 145, "command": "portrait.collapse", "value": "" },
+    { "frame": 155, "command": "portrait.body", "value": "" },
+    { "frame": 160, "command": "portrait.expand", "value": "" },
+    { "frame": 175, "command": "escape", "value": "" }
+  ]
+}

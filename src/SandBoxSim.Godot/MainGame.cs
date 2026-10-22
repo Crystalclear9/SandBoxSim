@@ -391,7 +391,7 @@ public partial class MainGame : Control
             }
             if (_previewPanel == "tools") { SetCategory("地貌"); ShowTools(true); }
             if (_previewPanel == "brush") { SetCategory("地貌"); SelectTool(PlayerTool.River); }
-            if (_previewPanel is "person" or "person-hands")
+            if (_previewPanel is "person" or "person-hands" or "person-expanded")
             {
                 _selected = Sim.Agents.AliveSlots().FirstOrDefault(-1);
                 if (_selected >= 0)
@@ -399,7 +399,9 @@ public partial class MainGame : Control
                     _selectedGeneration = Sim.Agents.GenerationOf(_selected); _selectedPersonId = Sim.Society.Identity(_selected);
                     var point = Sim.Agents.PositionOf(_selected); _map.Focus(point.X, point.Y, 30);
                     ShowJournal(true); _drawer.CurrentTab = 1;
+                    RefreshPanels();
                     if(_previewPanel=="person-hands")_residentPortrait.FocusHands();
+                    if(_previewPanel=="person-expanded")ShowPortraitWindow(true);
                 }
             }
             if (_selfTest) { SelectTool(PlayerTool.Inspect); _drawer.CurrentTab = 0; }
@@ -457,10 +459,11 @@ public partial class MainGame : Control
         if (input is InputEventKey key && key.Pressed && !key.Echo)
         {
             if (key.Keycode == Key.Space) { SetSpeed(_speed == 0 ? 1 : 0); }
-            if (key.Keycode == Key.F) { _map.Center(); }
+            if (key.Keycode == Key.F && !_portraitOverlay.Visible) { _map.Center(); }
             if (key.Keycode == Key.Escape)
             {
-                if(_settingsPanel.Visible)ShowSettings(false);
+                if(_portraitOverlay.Visible)ShowPortraitWindow(false);
+                else if(_settingsPanel.Visible)ShowSettings(false);
                 else if(_journalPanel.Visible)ShowJournal(false);
                 else{SelectTool(PlayerTool.Inspect);ShowTools(false);}
                 GetViewport().SetInputAsHandled();
@@ -702,6 +705,7 @@ public partial class MainGame : Control
                 finally { Sim.Agents.SetInventory(observed, ResourceKind.Food, originalFood); RefreshPanels(); }
             }
             if (observed >= 0) { _residentPortrait.ValidatePresentation(); }
+            if (observed >= 0) { ValidatePortraitWindow(); }
             _discovery.ValidateNavigation();
             if (observed >= 0) { TogglePin(); if (PinnedPerson != Sim.Society.Identity(observed)) { throw new Exception("Resident pin lost stable identity"); } }
             _discovery.Refresh();

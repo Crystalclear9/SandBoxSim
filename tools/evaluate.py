@@ -132,8 +132,12 @@ def validate_artifacts(folder):
         if command == "settings.open" and not after["settingsVisible"]: raise ValueError("Settings failed to open")
         if command == "journal.open" and not after["journalVisible"]: raise ValueError("Journal failed to open")
         if command == "escape":
-            if before["settingsVisible"] and (after["settingsVisible"] or after["journalVisible"] != before["journalVisible"]): raise ValueError("Escape precedence failed")
-            if not before["settingsVisible"] and before["journalVisible"] and after["journalVisible"]: raise ValueError("Journal did not close")
+            if before.get("portraitExpanded", False):
+                if after.get("portraitExpanded", False) or after["settingsVisible"] != before["settingsVisible"] or after["journalVisible"] != before["journalVisible"]: raise ValueError("Portrait Escape precedence failed")
+            else:
+                if before["settingsVisible"] and (after["settingsVisible"] or after["journalVisible"] != before["journalVisible"]): raise ValueError("Escape precedence failed")
+                if not before["settingsVisible"] and before["journalVisible"] and after["journalVisible"]: raise ValueError("Journal did not close")
+        if command in ("portrait.expand", "portrait.collapse") and after.get("portraitExpanded") != (command == "portrait.expand"): raise ValueError("Portrait window transition failed")
         if command in ("portrait.face", "portrait.hands", "portrait.body") and after["portrait"]["framing"] != command.split(".")[1]: raise ValueError("Portrait framing failed")
         if command == "portrait.reset" and (after["portrait"]["pitch"] != 0 or after["portrait"]["dragging"] or abs(after["portrait"]["yaw"] + .28) > .001): raise ValueError("Portrait reset failed")
         if command == "portrait.drag" and after["portrait"]["dragging"]: raise ValueError("Portrait drag not released")

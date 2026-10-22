@@ -31,7 +31,7 @@
 | 连续上衣与草束屋面 | `SandBoxSim.Godot/NatureModels.GarmentSkin.cs`、`NatureModels.Thatch.cs`、`assets/models/garments/` |
 | 动物近景毛束 | `SandBoxSim.Godot/NatureModels.Coat.cs`、`NatureModels.OrganicAssets.cs`、`AnimalRig.cs` |
 | 解剖前臂与腕口 | `SandBoxSim.Godot/NatureModels.Forearm.cs`、`assets/models/human/human-forearm.mesh.json` |
-| 面部与人物肖像 | `SandBoxSim.Godot/NatureModels.Face.cs`、`NatureModels.CharacterSurface.cs`、`ResidentPortrait.cs` |
+| 面部与人物肖像 | `SandBoxSim.Godot/NatureModels.Face.cs`、`NatureModels.CharacterSurface.cs`、`ResidentPortrait.cs`、`MainGame.PortraitWindow.cs` |
 | 固定场景评测 | `SandBoxSim.Godot/MainGame.Evaluation.cs` |
 
 `ProjectCatalog`、`LandProjects`、`SettlementBlueprint`、`WorldTrial` 等保留历史 SDK 能力；正常图形游戏不加载或推进其任务流程。修改自由探索体验从当前 `MainGame` 与 `WildPlaces` 入口进入。

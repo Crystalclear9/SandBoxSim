@@ -118,6 +118,8 @@
               "portrait.drag",
               "portrait.zoom",
               "portrait.reset",
+              "portrait.expand",
+              "portrait.collapse",
               "world.view",
               "home.focus",
               "home.resident"

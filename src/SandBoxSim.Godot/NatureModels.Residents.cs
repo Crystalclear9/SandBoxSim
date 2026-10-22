@@ -153,7 +153,11 @@ internal sealed partial class NatureModels
             Sculpt(rig.Torso,CollarLeaf(side),Vector3.Zero,CollarMaterial(cloth));
         Sculpt(rig.Torso,FittedRibbon("placket",1.03f,1.205f),Vector3.Zero,CollarMaterial(cloth));
         for (int button = 0; button < 3; button++)
-        { Detail(rig.Torso, "sphere", TorsoSurface(.006f,1.17f-button*.055f,false,.006f), Vector3.One * .011f, "#514237"); }
+        {
+            var anchor=TorsoSurface(.006f,1.17f-button*.055f,false,.0012f);
+            Sculpt(rig.Torso,SewnButton(),anchor,ResidentMaterial("#514237"));
+            FineBeam(rig.Torso,anchor+new Vector3(-.0014f,-.0010f,-.0038f),anchor+new Vector3(.0014f,.0010f,-.0038f),.00055f,"#a09380");
+        }
         Sculpt(rig.Torso, FittedRibbon("belt", .748f, .775f), Vector3.Zero, ResidentMaterial("#514237"));
         var buckle=TorsoSurface(.015f,.7615f,false,.009f);
         var buckleCorners=new[]{buckle+new Vector3(-.0205f,-.0155f,0),buckle+new Vector3(.0205f,-.0155f,0),buckle+new Vector3(.0205f,.0155f,0),buckle+new Vector3(-.0205f,.0155f,0)};

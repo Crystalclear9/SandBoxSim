@@ -15,6 +15,25 @@ class EvaluationTests(unittest.TestCase):
         evaluate.write(self.folder / "provenance.json", dict(execution=dict(maxFps=0)))
         self.save_result()
     def save_result(self): evaluate.write(self.folder / "result.json", self.result)
+    def test_portrait_window_commands_and_escape_precedence(self):
+        request=evaluate.read(self.folder/'request.json')
+        base=dict(journalVisible=True,settingsVisible=False,portraitExpanded=False)
+        events=[dict(frame=3,command='portrait.expand',value=''),dict(frame=4,command='escape',value='')]
+        request['commands']=events;evaluate.write(self.folder/'request.json',request)
+        expanded=base|dict(portraitExpanded=True)
+        self.result['commands']=[events[0]|dict(before=base,state=expanded,simulationUnchanged=True),events[1]|dict(before=expanded,state=base,simulationUnchanged=True)]
+        self.save_result();evaluate.validate_artifacts(self.folder)
+        self.result['commands'][1]['state']=base|dict(journalVisible=False)
+        self.save_result()
+        with self.assertRaisesRegex(ValueError,'Portrait Escape'):evaluate.validate_artifacts(self.folder)
+    def test_portrait_window_rejects_unperformed_transition(self):
+        request=evaluate.read(self.folder/'request.json')
+        event=dict(frame=3,command='portrait.expand',value='');request['commands']=[event]
+        evaluate.write(self.folder/'request.json',request)
+        state=dict(journalVisible=True,settingsVisible=False,portraitExpanded=False)
+        self.result['commands']=[event|dict(before=state,state=state,simulationUnchanged=True)]
+        self.save_result()
+        with self.assertRaisesRegex(ValueError,'window transition'):evaluate.validate_artifacts(self.folder)
     def tearDown(self): self.temp.cleanup()
     def test_missing_answers_are_wrong(self):
         self.assertEqual(evaluate.score(self.folder, [dict(id="q1", label="house")])["accuracy"], 1)

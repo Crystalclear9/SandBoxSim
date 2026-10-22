@@ -16,6 +16,16 @@ internal partial class ResidentPortrait : SubViewportContainer
     private Vector3 _viewCenter;
     private bool _centerReady;
     public bool Compact { get; set; }
+    public event Action? ExpandRequested;
+    private Godot.Button _expandButton=null!;
+    internal bool Expanded {get;private set;}
+    internal void SetExpanded(bool expanded)
+    {
+        Expanded=expanded;_drag=false;
+        CustomMinimumSize=expanded?new Vector2(270,400):Compact?new Vector2(0,256):new Vector2(270,224);
+        SizeFlagsVertical=expanded?SizeFlags.ExpandFill:SizeFlags.Fill;
+        _expandButton.Visible=!expanded;
+    }
     private readonly NatureModels _models = new();
     private SubViewport _viewport = null!;
     private Node3D _stage = null!;
@@ -57,6 +67,9 @@ internal partial class ResidentPortrait : SubViewportContainer
         _frameButtons[Framing.Face].SetPressedNoSignal(true);
         var reset=new Godot.Button {Text="复位",CustomMinimumSize=new(44,28)};HudStyle.Button(reset);reset.AddThemeFontSizeOverride("font_size",13);reset.TooltipText="恢复当前构图 · 也可双击画面";
         reset.SetAnchorsAndOffsetsPreset(LayoutPreset.TopRight);reset.OffsetLeft=-52;reset.OffsetRight=-8;reset.OffsetTop=8;reset.OffsetBottom=36;reset.Pressed+=ResetView;AddChild(reset);
+        _expandButton=new Godot.Button {Text="放大",CustomMinimumSize=new(44,28)};HudStyle.Button(_expandButton);_expandButton.AddThemeFontSizeOverride("font_size",13);
+        _expandButton.SetAnchorsAndOffsetsPreset(LayoutPreset.TopRight);_expandButton.OffsetLeft=-104;_expandButton.OffsetRight=-56;_expandButton.OffsetTop=8;_expandButton.OffsetBottom=36;
+        _expandButton.TooltipText="展开大尺寸模型观察窗";_expandButton.Pressed+=()=>ExpandRequested?.Invoke();AddChild(_expandButton);
         var caption = HudStyle.Label("拖动旋转  /  滚轮缩放  /  双击复位", 10);
         caption.AddThemeColorOverride("font_color", new Color("#aab2bc")); caption.MouseFilter = MouseFilterEnum.Ignore;
         caption.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide); caption.OffsetTop = -22; caption.OffsetLeft = 10; AddChild(caption);

@@ -50,6 +50,8 @@ python tools/evaluate.py compare runs/evaluation/baseline-1 runs/evaluation/cand
 
 ## 建筑与模型缓存
 
+人物观察窗复用档案中的 `ResidentPortrait` 和 3D 世界，只在界面容器间移动；关闭后返回原容器，不创建第二份角色或重复骨架。展开后的视口更大，像素填充和 MSAA 成本也更高，`renderQuality.portrait.resolution` 记录实际尺寸；展开样本与紧凑档案不能当作同条件性能比较。`ui-portrait-window` 用于交互回归与实际模型观察。
+
 [WorldView3D.Buildings.cs](../../src/SandBoxSim.Godot/WorldView3D.Buildings.cs) 按槽位、生成号、身份、种类及完工状态维护建筑节点。道路变化更新朝向，地形变化更新位置和贴地石基；四角深度不变时复用基座网格。拆除立即移除节点，换世界或读档清空缓存。
 
 住房保留 140 个稳定身份组合。近远景按 24/32 米滞回切换；静态网格命中缓存后直接创建独立节点，避免重建随后丢弃的门、瓦片和木作。CPU 合并由 [NatureModels.MeshBatching.cs](../../src/SandBoxSim.Godot/NatureModels.MeshBatching.cs) 按材质批量变换顶点、法线、UV、索引及顶点色，不跨越独立运动关节，不替代手部或肩部蒙皮。

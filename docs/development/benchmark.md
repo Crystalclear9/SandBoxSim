@@ -52,7 +52,9 @@ python tools/evaluate.py run benchmarks/scenarios/render-population.json --label
 
 表现层 `_Process` 使用固定 1/60 秒，包括世界角色、肖像和图册。这不意味着每秒实际渲染 60 帧；状态推进与采样帧独立于渲染速度。字体、驱动、着色器时间及浮点光照可能使像素有差异，不要求 PNG 跨机器逐字节一致。模拟摘要可用于相同配置下的确定性检查。状态还记录 `worldVisuals` 的图形刷新欠账和 `ai` 的决策、目标选择失败、动作失败及寻路次数；这些是进程诊断数据，不是通用智能分数。AI 规则改变后，旧版本与新版本的摘要可能不同；比较器会拒绝把这种差异当作纯性能优化。
 
-命令白名单是 `journal.open`, `settings.open`, `escape`, `portrait.face`, `portrait.hands`, `portrait.body`, `portrait.drag`, `portrait.zoom`, `portrait.reset`, `world.view`。人物命令需要人物面板；拖动固定水平 20 像素，`value` 是垂直位移；缩放正值为向内一步、负值或 0 为向外一步；镜头预设为 `near`, `top`, `oblique`。所有命令都记录执行前后状态与模拟摘要是否保持一致。
+命令白名单是 `journal.open`, `settings.open`, `escape`, `portrait.face`, `portrait.hands`, `portrait.body`, `portrait.drag`, `portrait.zoom`, `portrait.reset`, `portrait.expand`, `portrait.collapse`, `world.view`。人物命令需要人物面板；拖动固定水平 20 像素，`value` 是垂直位移；缩放正值为向内一步、负值或 0 为向外一步；镜头预设为 `near`, `top`, `oblique`。所有命令都记录执行前后状态与模拟摘要是否保持一致。
+
+`portrait.expand` 和 `portrait.collapse` 使用空 `value` 展开或收起人物观察窗，状态中的 `portraitExpanded` 记录实际开合。Esc 优先关闭观察窗，保留下层设置和手记；校验器兼容缺少该新增字段的旧记录。公开 `ui-portrait-window` 场景在零步进世界中回放构图、拖动和返回，第 90/130/170 帧保留面部、双手与全身画面。它是 UI 和观察纯度检查，不是 RSI 能力结论。
 
 住房回放另提供 `home.focus` 和 `home.resident`，仅接受 `homes` 面板与空 `value`。前者触发实际住房卡的近景按钮，后者触发第一位实际住户的档案链接；没有选中住房或没有住户时运行失败，不植入虚构居民。`world-living-homes` 场景保存交互前后截图和不变的模拟摘要。
 
