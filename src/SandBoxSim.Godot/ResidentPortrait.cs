@@ -11,7 +11,7 @@ internal partial class ResidentPortrait : SubViewportContainer
     private enum Framing { Face, Hands, Body }
     private Framing _framing;
     private readonly System.Collections.Generic.Dictionary<Framing,Godot.Button> _frameButtons=new();
-    private const float FaceDistance=.68f;
+    private const float FaceDistance=1.0f;
     private float _pitch,_viewDistance=FaceDistance;
     private Vector3 _viewCenter;
     private bool _centerReady;
@@ -81,7 +81,7 @@ ALBEDO=mix(vec3(.035,.047,.065),vec3(.135,.17,.20),halo);}"}};
         _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-28, -150, 0), LightColor = new Color("#d7e6ef"), LightEnergy = .28f });
         _portraitGround=new MeshInstance3D { Mesh = new CylinderMesh {TopRadius=.62f,BottomRadius=.62f,Height=.004f,RadialSegments=64},Position=new(0,-.006f,0),
             CastShadow=GeometryInstance3D.ShadowCastingSetting.Off,MaterialOverride = new StandardMaterial3D { AlbedoColor = new("#293930"), Roughness = 1 },Visible=false };_stage.AddChild(_portraitGround);
-        _camera = new Camera3D { Current = true, Fov = 34 }; _stage.AddChild(_camera); Aim();
+        _camera = new Camera3D { Current = true, Fov = 26 }; _stage.AddChild(_camera); Aim();
         var controlPlate=new PanelContainer();
         controlPlate.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide);
         controlPlate.OffsetLeft=10;controlPlate.OffsetRight=-10;controlPlate.OffsetTop=-57;controlPlate.OffsetBottom=-10;
@@ -137,7 +137,7 @@ ALBEDO=mix(vec3(.035,.047,.065),vec3(.135,.17,.20),halo);}"}};
     internal object RenderQualityState()
     {
         var environment=_stage.GetChildren().OfType<WorldEnvironment>().Single().Environment;
-        return new {studio="graphite-softbox-v3",backdrop="radial-unlit-v1",msaa=_viewport.Msaa3D.ToString(),resolution=new[]{_viewport.Size.X,_viewport.Size.Y},
+        return new {studio="anatomical-portrait-v4",backdrop="radial-unlit-v1",lensFov=_camera.Fov,msaa=_viewport.Msaa3D.ToString(),resolution=new[]{_viewport.Size.X,_viewport.Size.Y},
             background=environment.BackgroundColor.ToHtml(),ambient=environment.AmbientLightColor.ToHtml(),ambientEnergy=environment.AmbientLightEnergy,
             lights=_stage.GetChildren().OfType<DirectionalLight3D>().Select(light=>new {
                 color=light.LightColor.ToHtml(),energy=light.LightEnergy,rotation=new[]{light.RotationDegrees.X,light.RotationDegrees.Y,light.RotationDegrees.Z},shadows=light.ShadowEnabled,
@@ -152,7 +152,8 @@ ALBEDO=mix(vec3(.035,.047,.065),vec3(.135,.17,.20),halo);}"}};
         // Close detail framing avoids unstable submillimetre shadow-map facets;
         // the full-body studio retains the ground contact shadow.
         _keyLight.ShadowEnabled=_fullBody;
-        _distance=mode==Framing.Body?3.5f:mode==Framing.Hands?.68f:FaceDistance;
+        _distance=mode==Framing.Body?3.6f:mode==Framing.Hands?.68f:FaceDistance;
+        _camera.Fov=mode==Framing.Face?26:34;
         foreach(var pair in _frameButtons)pair.Value.SetPressedNoSignal(pair.Key==mode);
         if(!HudStyle.MotionEnabled)_viewDistance=_distance;
     }
@@ -164,7 +165,7 @@ ALBEDO=mix(vec3(.035,.047,.065),vec3(.135,.17,.20),halo);}"}};
     }
     private void Aim(float delta=0)
     {
-        var center = _fullBody ? new Vector3(0,_child?.55f:.88f,0) : _resident != null ? _resident.Head.GlobalPosition - new Vector3(0, Compact ? .055f : .19f, 0) : new Vector3(0, 1.4f, 0);
+        var center = _fullBody ? new Vector3(0,_child?.50f:.80f,0) : _resident != null ? _resident.Head.GlobalPosition - new Vector3(0, Compact ? .055f : .19f, 0) : new Vector3(0, 1.4f, 0);
         if(_framing==Framing.Hands&&_resident!=null)center=(_resident.Hands[0].GlobalPosition+_resident.Hands[1].GlobalPosition)*.5f+new Vector3(0,-.03f,0);
         _viewCenter=!_centerReady||delta==0||!HudStyle.MotionEnabled?center:_viewCenter.Lerp(center,1-MathF.Exp(-delta*9));_centerReady=true;
         _camera.Position = _viewCenter + new Vector3(0, .035f+MathF.Sin(_pitch)*_viewDistance, -MathF.Cos(_pitch)*_viewDistance);

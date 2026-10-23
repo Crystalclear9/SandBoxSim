@@ -43,10 +43,11 @@ internal sealed partial class NatureModels
     private void AddResidentFace(ResidentRig rig,string skin)
     {
         _lidShader??=new Shader {Code=@"shader_type spatial;
-uniform vec4 dye:source_color;uniform float blink=0.0;
-void vertex(){ float x=UV.x*2.0-1.0;float arc=sqrt(max(0.0,1.0-x*x));VERTEX.y=arc*(0.0050-UV.y*(0.0013+blink*0.0092)); }
+uniform vec4 dye:source_color;uniform float blink=0.0;uniform float resting_lid=.14;
+void vertex(){ VERTEX.yz=mix(VERTEX.yz,UV2,resting_lid+(1.0-resting_lid)*blink); }
 void fragment(){ALBEDO=dye.rgb;ROUGHNESS=0.76;SPECULAR=0.18;}"};
         rig.LidMaterial=new ShaderMaterial {Shader=_lidShader};rig.LidMaterial.SetShaderParameter("dye",new Color(skin));
+        rig.LidMaterial.SetShaderParameter("resting_lid",ChildHead?.08f:.12f+(FaceArchetype%3)*.015f);
         _eyeShader??=new Shader {Code=@"shader_type spatial;
 uniform vec2 gaze=vec2(0.0);
 uniform vec4 iris_tone:source_color=vec4(0.18,0.22,0.19,1.0);
@@ -74,65 +75,43 @@ ALBEDO=mix(color,vec3(0.85,0.87,0.87),glint*iris*0.35);ROUGHNESS=0.24;SPECULAR=0
             var center=HumanEyeCenter(eye);
             var eyeball=rig.Eyes[eye]=new Node3D {Name="Eye"+eye,Position=center};rig.Head.AddChild(eyeball);
             eyeball.AddChild(new MeshInstance3D {Mesh=HumanMesh("eye",eye),MaterialOverride=rig.EyeMaterial});
-            var lid=rig.Eyelids[eye]=new MeshInstance3D {Name="Eyelid"+eye,Mesh=EyeSurface(eye,true),Position=center,MaterialOverride=rig.LidMaterial};rig.Head.AddChild(lid);
+            var lid=rig.Eyelids[eye]=new MeshInstance3D {Name="Eyelid"+eye,Mesh=EyelidSurface(eye),Position=center,MaterialOverride=rig.LidMaterial};rig.Head.AddChild(lid);
         }
         rig.Mouth=new Node3D {Name="Mouth",Position=HumanMouthCenter};rig.Head.AddChild(rig.Mouth);
-        rig.Mouth.AddChild(new MeshInstance3D {Mesh=HumanMesh("mouth"),MaterialOverride=LipMaterial(skin)});rig.MouthRest=rig.Mouth.Position;
-        rig.Head.AddChild(new MeshInstance3D {Name="LowerLidRims",Mesh=LowerEyelids(),MaterialOverride=FaceSurfaceMaterial(skin)});
+        rig.MouthMaterial=(ShaderMaterial)LipMaterial(skin).Duplicate();
+        rig.Mouth.AddChild(new MeshInstance3D {Mesh=HumanMesh("mouth"),MaterialOverride=rig.MouthMaterial});rig.MouthRest=rig.Mouth.Position;
     }
-    private Mesh LipSurface(string skin)
+    private Mesh EyelidSurface(int side)
     {
-        string key="lip-surface:"+skin+_faceVariant;if(_meshes.TryGetValue(key,out var mesh))return mesh;
+        string key="anatomical-lid:"+side+":"+_faceVariant;if(_meshes.TryGetValue(key,out var mesh))return mesh;
         var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);
-        surface.SetMaterial(new StandardMaterial3D {VertexColorUseAsAlbedo=true,Roughness=.83f,MetallicSpecular=.12f});
-        float z=FaceDepth(0,-.058f);
-        void Vertex(int column,int row)
+        var anchor=HumanEyeCenter(side);var asset=HumanData();var upper=asset.UpperLids[side];var lower=asset.LowerLids[side];
+        int columns=upper.Length-1;const int rows=8;
+        for(int col=0;col<=columns;col++)
         {
-            float u=column/24f,v=row/8f,x=(u*2-1)*.020f,edge=MathF.Sqrt(MathF.Max(0,1-MathF.Pow(u*2-1,2)));
-            float y=(.003f-.0065f*v)*edge+.0006f*MathF.Cos((u-.5f)*MathF.Tau*2)*edge;
-            float crease=MathF.Exp(-MathF.Pow((v-.45f)*12,2));
-            var dye=new Color(skin).Lerp(new Color("#986d64"),edge*.28f).Darkened(edge*(.025f+.16f*crease));surface.SetColor(dye);
-            surface.SetNormal(Vector3.Forward);surface.SetUV(new(u,v));
-            surface.AddVertex(new(x,y,FaceDepth(x,-.058f+y)-z-.0004f-.0011f*MathF.Sin(v*MathF.PI)*edge));
-        }
-        for(int row=0;row<8;row++)for(int col=0;col<24;col++){Vertex(col,row);Vertex(col,row+1);Vertex(col+1,row);Vertex(col+1,row);Vertex(col,row+1);Vertex(col+1,row+1);}
-        surface.Index();mesh=surface.Commit();_meshes[key]=mesh;return mesh;
-    }
-
-    private Mesh EyeSurface(int side,bool lid)
-    {
-        string key="eye-surface:"+side+lid+_faceVariant;if(_meshes.TryGetValue(key,out var mesh))return mesh;
-        var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);
-        var anchor=HumanEyeCenter(side);float cx=anchor.X,cy=anchor.Y,cz=anchor.Z;
-        void Vertex(int col,int row)
-        {
-            float u=col/20f,t=row/6f,x=u*2-1,arc=MathF.Sqrt(MathF.Max(0,1-x*x));
-            float px=x*.014f,py=lid?arc*(.0050f-t*.0013f):arc*(1-t*2)*.0054f;
-            surface.SetUV(new(u,t));
-            float cornea=lid?0:.0011f*arc*MathF.Sin(t*MathF.PI);
-            surface.AddVertex(new(px,py,FaceDepth(cx+px,cy+py)-cz-(lid?.001f:.00065f)-cornea));
-        }
-        for(int row=0;row<6;row++)for(int col=0;col<20;col++){Vertex(col,row);Vertex(col,row+1);Vertex(col+1,row);Vertex(col+1,row);Vertex(col,row+1);Vertex(col+1,row+1);}
-        surface.GenerateNormals();surface.Index();mesh=surface.Commit();_meshes[key]=mesh;return mesh;
-    }
-
-    private Mesh LowerEyelids()
-    {
-        string key="lower-eyelids:"+_faceVariant;if(_meshes.TryGetValue(key,out var cached))return cached;
-        using var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);
-        for(int eye=0;eye<2;eye++)
-        {
-            var anchor=HumanEyeCenter(eye);
-            void Vertex(int col,int row)
+            float u=col/(float)columns,edge=MathF.Max(0,MathF.Sin(u*MathF.PI));
+            var top=HumanPoint(upper[col]);var bottom=HumanPoint(lower[col]);
+            float outer=top.Y+.0013f*edge;
+            float outerZ=FaceDepth(top.X,outer);
+            for(int row=0;row<=rows;row++)
             {
-                float u=col/24f,x=(u*2-1)*.014f,arc=MathF.Sqrt(MathF.Max(0,1-MathF.Pow(u*2-1,2)));
-                float y=anchor.Y-arc*(.0048f+row*.0010f),cx=anchor.X+x;
-                surface.SetColor(new Color(1,.94f,.92f));
-                surface.SetUV(new(u,row));surface.AddVertex(new(cx,y,FaceDepth(cx,y)-.00035f));
+                float t=row/(float)rows;
+                float restY=Mathf.Lerp(outer,top.Y-.00010f*edge,t);
+                float closedY=Mathf.Lerp(outer,bottom.Y-.00025f*edge,t);
+                float restZ=Mathf.Lerp(outerZ,top.Z,t)-.00022f;
+                float globeZ=HumanPartDepth("eye",side,top.X,closedY);
+                if(!float.IsFinite(globeZ))globeZ=Mathf.Lerp(top.Z,bottom.Z,t);
+                float closedZ=Mathf.Lerp(outerZ,globeZ,Math.Clamp(t*4,0,1))-.00038f;
+                surface.SetUV(new(u,t));surface.SetUV2(new(closedY-anchor.Y,closedZ-anchor.Z));
+                surface.AddVertex(new(top.X-anchor.X,restY-anchor.Y,restZ-anchor.Z));
             }
-            for(int col=0;col<24;col++){Vertex(col,0);Vertex(col,1);Vertex(col+1,0);Vertex(col+1,0);Vertex(col,1);Vertex(col+1,1);}
         }
-        surface.GenerateNormals();surface.Index();var mesh=surface.Commit();_meshes[key]=mesh;return mesh;
+        for(int col=0;col<columns;col++)for(int row=0;row<rows;row++)
+        {
+            int a=col*(rows+1)+row,b=a+1,c=a+rows+1,d=c+1;
+            foreach(int index in new[]{a,b,c,c,b,d})surface.AddIndex(index);
+        }
+        surface.GenerateNormals();mesh=surface.Commit();_meshes[key]=mesh;return mesh;
     }
 
     private Mesh Brows()

@@ -9,6 +9,8 @@ namespace SandBoxSim.Client;
 internal partial class ResidentRig : Node3D
 {
     public Node3D Torso=null!,Head=null!,Holster=null!;
+    internal const float NeckPivotY=-.105f;
+    internal Vector3 HeadRest;
     public Node3D? Headwear,Grip,PackMount;
     public bool IsChild;
     public ResidentTool DefaultTool;
@@ -33,6 +35,7 @@ internal partial class ResidentRig : Node3D
     public bool HasAnatomicalEyes;
     public ShaderMaterial EyeMaterial=null!;
     public ShaderMaterial LidMaterial=null!;
+    public ShaderMaterial MouthMaterial=null!;
     private bool _detailedHead=true,_returning;
     private float _faceTime;
     private Vector2 _gaze;
@@ -165,6 +168,8 @@ internal partial class ResidentRig : Node3D
         _socialBlend=Mathf.Lerp(_socialBlend,executing&&action==ActionKind.Socialize?1:0,1-MathF.Exp(-delta*7));
         _attentionYaw=Mathf.Lerp(_attentionYaw,_wantedAttention,1-MathF.Exp(-delta*6));
         Head.Rotation=new(pickup?.15f:usingTool?-.045f-effort*.4f:breath*.018f+MathF.Sin(_workTime*2.3f+identityPhase)*.035f*_socialBlend,MathF.Sin(_phase*.32f+identityPhase)*.045f+_attentionYaw,MathF.Sin(_workTime*1.1f+identityPhase)*.02f*_socialBlend);
+        var neckPivot=new Vector3(0,NeckPivotY*Head.Scale.Y,0);
+        Head.Position=HeadRest+neckPivot-Basis.FromEuler(Head.Rotation)*neckPivot;
         for(int i=0;i<2;i++)
         {
             float stride=wave*(i==0?1:-1)*_activity;
@@ -188,7 +193,7 @@ internal partial class ResidentRig : Node3D
             if(executing)targetGaze*=.35f;
             _gaze=_gaze.Lerp(targetGaze,1-MathF.Exp(-delta*18));EyeMaterial.SetShaderParameter("gaze",_gaze);
             float speech=executing&&action is ActionKind.Eat or ActionKind.Drink or ActionKind.Socialize ? MathF.Abs(MathF.Sin(_faceTime*5)) : 0;
-            Mouth.Position=MouthRest+new Vector3(0,-speech*.0007f,0);Mouth.Scale=new(1,1+speech*.35f,1);
+            Mouth.Position=MouthRest;Mouth.Scale=Vector3.One;MouthMaterial.SetShaderParameter("speech",speech);
         }
         bool wantCurrent=usingTool&&wanted==CurrentTool;
         if(ToolHeld)

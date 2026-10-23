@@ -7,6 +7,8 @@ import argparse
 import hashlib
 import json
 import math
+from collections import Counter
+from statistics import median
 from pathlib import Path
 import sys
 
@@ -15,17 +17,21 @@ from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--kind', choices=('scan', 'feminine'), required=True)
+parser.add_argument('--kind', choices=('scan', 'feminine', 'masculine'), required=True)
 parser.add_argument('--output', required=True)
 args = parser.parse_args(sys.argv[sys.argv.index('--')+1:])
 female = args.kind == 'feminine'
-name = 'body-realistic-female' if female else 'head-realistic-animation'
+masculine = args.kind == 'masculine'
+body_kind = female or masculine
+name = 'body-realistic-male' if masculine else 'body-realistic-female' if female else 'head-realistic-animation'
 expected = ('74917ec876cdb6aae3b6d291f2f638f5a959276f4115a714cf8c5dcf6a99ce20' if female else
+            '697b55a5595a756f9304d12909c85f9eddb0c0f57ec2b6c8f1edf071e00f9b30' if masculine else
             'a680ca23a0dee2a16ecc6e3921ddcfa0e039a5a7ef4262ec56214a924d08d3ca')
 if hashlib.sha256(Path(bpy.data.filepath).read_bytes()).hexdigest() != expected:
     raise ValueError('Source does not match the official Blender LFS object')
-body = bpy.data.objects['GEO-body_female_realistic' if female else 'GEO-head_animation_realistic']
-eye_names = ['GEO-body_female_realistic.eye.L', 'GEO-body_female_realistic.eye.R'] if female else [
+body_name='GEO-body_male_realistic' if masculine else 'GEO-body_female_realistic' if female else 'GEO-head_animation_realistic'
+body = bpy.data.objects[body_name]
+eye_names = [body_name+'.eye.L', body_name+'.eye.R'] if body_kind else [
     'GEO-head_animation_realistic.sclera.L', 'GEO-head_animation_realistic.sclera.R']
 for obj in [body]+[bpy.data.objects[n] for n in eye_names]:
     if obj.name not in bpy.context.scene.objects:
@@ -58,6 +64,13 @@ def point(world):
 def encode(mesh, transform, selected, lip=False):
     result = {k: [] for k in ('positions', 'normals', 'colors', 'uv', 'indices')}
     lookup = {}
+    boundary=set()
+    if lip:
+        edges=Counter()
+        for tri,_ in selected:
+            a,b,c=tri.vertices
+            for u,v in ((a,b),(b,c),(c,a)):edges[tuple(sorted((u,v)))]+=1
+        boundary={v for edge,count in edges.items() if count==1 for v in edge}
     for tri, region in selected:
         face = []
         for vertex_id in tri.vertices:
@@ -70,7 +83,7 @@ def encode(mesh, transform, selected, lip=False):
                 result['positions'].extend(round(x, 7) for x in p)
                 result['normals'].extend(round(x, 7) for x in n)
                 result['uv'].extend((round(.5+p.x/.177, 7), round(.5-p.y/.220, 7)))
-                result['colors'].extend((1, .85, .82, 1) if lip else (1, .99, .98, 1))
+                result['colors'].extend((1, .85, .82, 0 if vertex_id in boundary else 1) if lip else (1, .99, .98, 1))
             face.append(lookup[vertex_id])
         result['indices'].extend((face[0], face[2], face[1]))
     return result
@@ -86,23 +99,25 @@ def extract(level):
     head, lips, scalp = [], [], []
     for tri in mesh.loop_triangles:
         region = regions.data[tri.polygon_index].value
-        if female and region not in {2, 3, 4, 5, 7, 8, 17, 22}:
+        # Region 1 includes the anterior neck, not just the trunk. Omitting it
+        # leaves an open strip below the jaw even when the back neck survives.
+        if body_kind and region not in {1, 2, 3, 4, 5, 7, 8, 17, 22}:
             continue
         positions = [point(body.matrix_world@mesh.vertices[i].co) for i in tri.vertices]
         if min(p.y for p in positions) < -.149:
             continue
-        if region == 7:
+        if region == 7 or body_kind and region == 8:
             lips.append((tri, region))
         else:
             head.append((tri, region))
-            if region not in ({4, 5} if female else {3, 4}):
+            if region not in ({4, 5} if body_kind else {3, 4}):
                 scalp.append((tri, region))
     return (encode(mesh, body.matrix_world, head), encode(mesh, body.matrix_world, lips, True),
             encode(mesh, body.matrix_world, scalp))
 
 
 head, lips, scalp = extract(1)
-high_level = 2 if female else 1
+high_level = 2 if body_kind else 1
 high, _, _ = extract(high_level)
 eyes = []
 for n in sorted(eye_names, key=lambda n: point(eye_points[eye_names.index(n)]).x):
@@ -140,11 +155,19 @@ out = Path(args.output)
 out.mkdir(parents=True, exist_ok=True)
 sys.path.insert(0, str(Path(__file__).parent))
 from bake_human_detail import bake_head_detail
-normal_path = out/('human-'+args.kind+'_normal.png')
+from human_eyelids import eye_apertures
+from human_head_lod import build_head_lod
+apertures=eye_apertures(head,eyes)
+head_lod=build_head_lod(head,lips,eyes)
+file_name='human-head' if masculine else 'human-'+args.kind
+normal_path = out/(file_name+'_normal.png')
 head, normal_hash = bake_head_detail(head, high, normal_path)
 mouth_points = [Vector(lips['positions'][i:i+3]) for i in range(0, len(lips['positions']), 3)]
 mouth = sum(mouth_points, Vector())/len(mouth_points)
 mouth.x = 0
+front=min(p.z for p in mouth_points)
+visible_lip=[p for p in mouth_points if p.z<front+.005 and abs(p.x)<.022]
+mouth.y=median(p.y for p in visible_lip);mouth.z=median(p.z for p in visible_lip)
 eye_center = sum((point(p) for p in eye_points), Vector())/2
 eye_center.x = sum(abs(point(p).x) for p in eye_points)/2
 points = head['positions']
@@ -152,11 +175,11 @@ nose = min((Vector(points[i:i+3]) for i in range(0, len(points), 3)), key=lambda
 result = {'schemaVersion': 1, 'source': {'creator': 'Dan Ulrich / Blender', 'license': 'CC0-1.0',
     'url': 'https://projects.blender.org/blender/blender-assets/src/branch/main/publish/online/base_meshes/human_base_meshes__'+name+'.blend',
     'sha256': expected}, 'head': head, 'lips': lips, 'eyes': eyes, 'eyeCenter': list(eye_center),
-    'mouthCenter': list(mouth), 'noseProbeY': nose.y,
+    'mouthCenter': list(mouth),'mouthRegions':[7,8] if body_kind else [7], 'noseProbeY': nose.y,'eyelids':apertures,'headLod':head_lod,
     'scalp': {'rows': rows, 'columns': columns, 'low': low, 'high': high_y, 'centers': centers, 'radii': radii},
     'detailNormal': {'file': normal_path.name, 'sha256': normal_hash, 'resolution': 2048,
                      'sourceSubdivisionLevel': high_level, 'runtimeSubdivisionLevel': 1}}
-path = out/('human-'+args.kind+'.mesh.json')
+path = out/(file_name+'.mesh.json')
 path.write_text(json.dumps(result, separators=(',', ':')), encoding='utf-8')
 print('HEAD_FAMILY_EXPORTED', args.kind, len(head['positions'])//3, len(head['indices'])//3,
       hashlib.sha256(path.read_bytes()).hexdigest())

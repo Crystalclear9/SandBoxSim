@@ -71,7 +71,7 @@ internal sealed partial class NatureModels
             if(noseProjection<.009f||noseProjection>.036f)throw new InvalidOperationException("Nasal surface lost its bounded anatomical projection");
             foreach(var feature in new[]{new Vector2(HumanEyeCenter(0).X,HumanEyeCenter(0).Y),new Vector2(HumanEyeCenter(1).X,HumanEyeCenter(1).Y),new Vector2(0,HumanMouthCenter.Y)})
                 if(FaceDepth(feature.X,feature.Y)>=-.03f)throw new InvalidOperationException("Facial feature does not attach to the front surface: "+variant+" "+feature+" depth="+FaceDepth(feature.X,feature.Y));
-            foreach(var mesh in new[]{Shape("face"),Shape("hair"),Brows(),LowerEyelids(),EarSurface(-1),EarSurface(1)})
+            foreach(var mesh in new[]{Shape("face"),Shape("hair"),Brows(),EyelidSurface(0),EarSurface(-1),EarSurface(1)})
             {
                 var arrays=mesh.SurfaceGetArrays(0);
                 foreach(var point in arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array())

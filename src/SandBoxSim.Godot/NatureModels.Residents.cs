@@ -144,7 +144,7 @@ internal sealed partial class NatureModels
     {
         uint variation = unchecked((uint)identity * 2654435761u);
         SelectGarmentCut(child?0:job==JobType.Trader?2:job is JobType.Gatherer or JobType.Hunter or JobType.Soldier?1:0);
-        _faceVariant=(int)((variation>>8)%8);_facePoints=null;_faceIndices=null;
+        _faceVariant=(int)((variation>>8)%8)+(child?8:0);_facePoints=null;_faceIndices=null;
         string[] clothColors = { "#637471", "#8c8978", "#806f65", "#6a7680", "#717961", "#9a9080" };
         string[] skinColors = { "#aa8b78", "#8e705e", "#ba9d89", "#806653" };
         string cloth = clothColors[variation % clothColors.Length], skin = skinColors[(variation >> 4) % skinColors.Length];
@@ -222,6 +222,7 @@ internal sealed partial class NatureModels
         AddResidentEquipment(rig, job);
         AddResidentTailoring(rig, cloth, skin, job);
         ApplyResidentProportions(rig);
+        rig.HeadRest=rig.Head.Position;
         MergeResidentParts(rig.Head,"resident:head:"+skin+hair+job+":"+_faceVariant);
         MergeResidentParts(rig, "resident:" + cloth + skin + hair + job+":"+_garmentCut);
         rig.BodySkin=rig.Torso.GetChild<MeshInstance3D>(rig.Torso.GetChildCount()-1);
@@ -232,12 +233,22 @@ internal sealed partial class NatureModels
         AddHandSkin(rig,skin);
         rig.Head.Scale=new Vector3(.96f+((variation>>15)%4)*.025f,.98f+((variation>>18)%3)*.025f,1);
         if (child) { rig.Scale = new Vector3(.72f, .65f, .72f); rig.Head.Scale = Vector3.One * 1.15f; }
-        else { rig.Scale = new Vector3(1 + ((variation >> 8) % 5 - 2f) * .025f, 1.005f + ((variation >> 12) % 5) * .012f, 1); }
+        else
+        {
+            float frame=HumanFamily==2?.88f:.94f;
+            rig.Scale = new Vector3(frame*(1 + ((variation >> 8) % 5 - 2f) * .025f), 1.005f + ((variation >> 12) % 5) * .012f, 1);
+            rig.Head.Scale*=new Vector3(1/frame,1,1);
+        }
         rig.RegisterDistanceMeshes(rig);return rig;
     }
     public void ValidateResidentMeshes()
     {
         ValidateContinuousGarments();
+        var speaker=Resident(17,false,JobType.Builder);var listener=Resident(17,false,JobType.Builder);
+        speaker.MouthMaterial.SetShaderParameter("speech",1f);
+        if(ReferenceEquals(speaker.MouthMaterial,listener.MouthMaterial)||listener.MouthMaterial.GetShaderParameter("speech").AsSingle()!=0)
+            throw new InvalidOperationException("Residents share facial animation material state");
+        speaker.Free();listener.Free();
         foreach (var key in new[]{"belt","apron","armor","placket","shoulder-front","shoulder-back"})
         {
             bool back=key=="shoulder-back";

@@ -56,7 +56,7 @@ internal sealed partial class NatureModels
             "seed" => new SphereMesh { Radius=.5f,Height=1,RadialSegments=12,Rings=6 },
             "masonry" => SoftBlock(),
             "face" => HumanMesh("head"),
-            "hair" => SculptedHead(true),
+            "hair" => GroomedHair(80,32),
             "cone" => new CylinderMesh { TopRadius = 0, BottomRadius = .5f, Height = 1, RadialSegments = 16 },
             "cylinder" => new CylinderMesh { TopRadius = .5f, BottomRadius = .5f, Height = 1, RadialSegments = 16 },
             "capsule" => new CapsuleMesh { Radius = .5f, Height = 2, RadialSegments = 12, Rings = 6 },

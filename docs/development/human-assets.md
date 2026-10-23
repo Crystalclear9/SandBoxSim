@@ -1,28 +1,32 @@
 # 人物解剖素材与转换
 
-近景居民使用三套独立头脸来源。Julien Kaspar / Blender Studio 的 Realistic Human Base 衍生数据适用 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)；Dan Ulrich / Blender 的两套扫描解剖来源适用 CC0。它们共用游戏的骨架、眼神、眨眼、交谈和职业配件。形象由稳定身份选择，不新增性别、职业或游玩限制。
+居民头脸使用 Dan Ulrich / Blender 提供的三套 CC0 解剖数据，前臂和手部使用 Julien Kaspar / Blender Studio 的 CC BY 4.0 衍生数据。素材复用游戏的骨架、动作和稳定身份，不增加性别、职业或游玩限制。
 
 ## 当前头脸数据
 
-| 文件 | 来源与许可 | 头颈顶点 / 三角面 |
-|---|---|---|
-| [human-head.mesh.json](../../src/SandBoxSim.Godot/assets/models/human/human-head.mesh.json) | Julien Kaspar / Blender Studio，CC BY 4.0 | 22,167 / 34,585 |
-| [human-scan.mesh.json](../../src/SandBoxSim.Godot/assets/models/human/human-scan.mesh.json) | Dan Ulrich 的 Head Animation Realistic，CC0 | 14,527 / 22,641 |
-| [human-feminine.mesh.json](../../src/SandBoxSim.Godot/assets/models/human/human-feminine.mesh.json) | Dan Ulrich 的 Body Female Realistic 头颈，CC0 | 17,805 / 27,763 |
+| 文件 | 来源 | 头颈顶点 / 三角面 | 远景头脸三角面 |
+|---|---|---|---|
+| [human-head.mesh.json](../../src/SandBoxSim.Godot/assets/models/human/human-head.mesh.json) | Body Male Realistic 头颈，CC0 | 17,209 / 27,241 | 2,400 |
+| [human-scan.mesh.json](../../src/SandBoxSim.Godot/assets/models/human/human-scan.mesh.json) | Head Animation Realistic，CC0 | 14,527 / 22,641 | 2,400 |
+| [human-feminine.mesh.json](../../src/SandBoxSim.Godot/assets/models/human/human-feminine.mesh.json) | Body Female Realistic 头颈，CC0 | 17,395 / 27,490 | 2,400 |
 
-每套数据包含独立唇部、左右眼球和自己的头皮查找表。八种运行变体分别使用原始头部两种、扫描头部三种和女性解剖头部三种，不再全部由同一男性头部缩放而来。头部、眼口和挂点共用温和的宽深变形；法线按变形的局部 Jacobian 修正。新增来源仅提取头颈，没有把整套源人体放进客户端。
+默认头部已替换旧长脸来源。每套数据包含独立眼球、唇部、头皮查找表、真实眼裂的上下缘，以及同源减面头脸；保留颈前雕刻区域，裁切边界位于领口以下。八种身份原型另有儿童变形缓存：面中部缩短、面颊略宽、纵深减弱，眼口和头皮使用同一变形，儿童材质不带胡茬。成人躯干按体型收束，头部通过反向宽度补偿保留源解剖比例。
 
-三张 2048×2048 法线图分别与各自的 UV 图集绑定。原始头部和女性解剖头部把更高一级雕刻烘焙到运行网格；动画扫描头部保留同级拓扑及法线。UV 缝处分裂顶点，合并头部后重新生成切线。JSON 记录法线源图 SHA-256，离线回归与编辑器运行核对原图；导出游戏通过 Godot 的纹理重映射加载导入图，检查实际尺寸。
+每眼沿实际头部和眼球的可见相交区域测量 49 对上下缘点。运行时以此生成上眼睑，并把闭合坐标写入第二 UV 通道；眨眼沿真实眼球前表面闭合，静息状态保留少量上眼睑下垂，不缩放眼球。旧的通用圆弧眼睑与额外下眼睑贴片已移除。
 
-[export_human_head.py](../../tools/export_human_head.py) 重建原始 CC BY 4.0 头部；[export_human_variants.py](../../tools/export_human_variants.py) 重建两套 CC0 头部；二者共用 [bake_human_detail.py](../../tools/bake_human_detail.py) 生成 UV 与法线图。[NatureModels.HumanAsset.cs](../../src/SandBoxSim.Godot/NatureModels.HumanAsset.cs) 管理来源选择、网格校验和实际表面采样。
+男性和女性头部同时提取上唇与下唇，连接脸部的边界顶点用颜色 alpha 固定，内部顶点才随说话轻微开合。每个人持有独立口部材质参数，不整体缩放唇网格，也不共享说话状态。
 
-近景发型使用 2,400 根约 0.2–0.4 毫米半宽的渐细发丝，叠加贴合头皮的底层轮廓；部分形象带随头部移动的低发髻。远景保留基础轮廓与简化发髻。发根和发丝的顶点色在合并网格时保留，皮肤使用烘焙细节、轻微色泽与粗糙度变化。眉毛仍为左右各 72 组贴合实际面部的弧面毛束。
+三张 2048×2048 法线图绑定各自 UV。男性和女性头部把高一级雕刻烘焙到运行网格；动画扫描头部保留同级表面。UV 缝分裂顶点，网格合并后生成切线；JSON 保存原图 SHA-256，编辑器核对原图，发行包通过 Godot 的纹理重映射读取导入图。运行时修正偏离实际曲面的异常法线。
 
-普通构建、运行、评测和 CI 直接读取仓库中的派生文件，不需要 Blender 或联网。授权记录见 [LICENSE.txt](../../src/SandBoxSim.Godot/assets/models/human/LICENSE.txt)。
+远景头脸由同一头颈、眼球与唇部离线减面，最多 2,400 三角面，再与简化的同源头皮发型合并为单材质。远景不再调用独立的程序化脸，也不再额外叠加椭球耳朵和眼睛。普通构建与 CI 直接读取提交数据，不依赖 Blender 或联网。
+
+转换入口为 [export_human_variants.py](../../tools/export_human_variants.py)；[export_human_head.py](../../tools/export_human_head.py) 保留默认男性头部的简短入口。辅助程序为 [bake_human_detail.py](../../tools/bake_human_detail.py)、[human_eyelids.py](../../tools/human_eyelids.py) 与 [human_head_lod.py](../../tools/human_head_lod.py)。运行时由 [NatureModels.HumanAsset.cs](../../src/SandBoxSim.Godot/NatureModels.HumanAsset.cs) 校验、缓存并变形。
+
+近景发型保留 2,400 根细发丝、44 条浅起伏发束及部分低发髻；它们随实际头皮和头部骨骼移动，远景省略细发丝。眉毛是左右各 72 组贴合面部的弧面毛束。
 
 ## 肘部与前臂
 
-[human-forearm.mesh.json](../../src/SandBoxSim.Godot/assets/models/human/human-forearm.mesh.json) 来自同一授权人体的肘部、前臂区域 12/102，共 1,928 顶点、3,687 三角面。它替换了运行时的球形肘部和规则管状前臂，保留原作者的肘尖、肌腹与近腕骨形体；不是肌肉或软组织物理。
+[human-forearm.mesh.json](../../src/SandBoxSim.Godot/assets/models/human/human-forearm.mesh.json) 来自 Julien Kaspar / Blender Studio 的授权人体的肘部、前臂区域 12/102，共 1,928 顶点、3,687 三角面。它替换了运行时的球形肘部和规则管状前臂，保留原作者的肘尖、肌腹与近腕骨形体；不是肌肉或软组织物理。
 
 [export_human_forearm.py](../../tools/export_human_forearm.py) 校验原始文件哈希后，评估一级多重细分、截取连续表面、平顺原始倾斜中心线，并将长度接入当前骨架。上端埋入卷袖；腕端位于肘部局部 Y=-0.210，与手节点 Y=-0.255 加手网格腕环 Y=0.045 对齐，横截面半径为 0.027/0.024。腕口拟合为平面，避免倾斜裁切或重叠留下台阶。
 
@@ -32,7 +36,7 @@
 
 ## 解剖手部
 
-[human-hand.mesh.json](../../src/SandBoxSim.Godot/assets/models/human/human-hand.mesh.json) 从同一授权人体提取手掌、指缝与五指。近景文件包含连续的前臂和手部，共 9,154 个顶点、18,205 个三角面；其中原始手部区域有 7,255 个顶点、14,464 个三角面，`handVertexCount` 保留该分界，供远景只提取手部。甲面从实际指背曲面提取，运行时仅上传甲面引用的顶点。
+[human-hand.mesh.json](../../src/SandBoxSim.Godot/assets/models/human/human-hand.mesh.json) 从 Julien Kaspar / Blender Studio 的授权人体提取手掌、指缝与五指。近景文件包含连续的前臂和手部，共 9,154 个顶点、18,205 个三角面；其中原始手部区域有 7,255 个顶点、14,464 个三角面，`handVertexCount` 保留该分界，供远景只提取手部。甲面从实际指背曲面提取，运行时仅上传甲面引用的顶点。
 
 手部使用平滑位移场接入掌指骨，左右手镜像骨骼位置与展开方向；腕环与前臂在运行坐标中对齐；`join_human_arm.py` 用共顶点过渡环接入前臂，并重新计算连续表面法线。掌根在相邻指骨间平滑分配权重，手指保留近节、中节与末节。每手 16 骨，与原有握持、取用和收纳动作共用。指甲与皮肤使用同一表面分区、共享权重，随手指一起变形，避免叠面闪烁。
 
@@ -46,43 +50,33 @@ LOD 由 [export_hand_lod.py](../../tools/export_hand_lod.py) 生成，读取仓�
 
 ## 重新导出
 
-当前数据由 Blender 4.5.14 LTS 转换。将便携 Blender 与原始 `.blend` 保存到项目 `.tools/` 下的版本目录和素材来源目录，SHA-256 必须为：
+便携 Blender 4.5.14 和原始文件保存在项目 `.tools/` 中，原文件中的脚本保持禁用。三套头部源文件的 SHA-256 为：
 
-```text
-1d9d2a6070acd6a3d0d9b676af816001310fb0f6128d07a3ab3e0318c7fdd981
-```
-
-从仓库根目录执行，路径按本机安装位置填写：
-
-```powershell
-$headBlender = './.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
-$headSource = './.tools/sources/realistic_human_base.blend'
-& $headBlender --background --disable-autoexec $headSource --python tools/export_human_head.py -- --output src/SandBoxSim.Godot/assets/models/human
-```
-
-脚本使用明确的对象名和雕刻区域，评估多重细分、拆分头脸与眼唇、重定位颈部、转换坐标、生成头皮查找表，并烘焙雕刻法线。原文件中的脚本保持关闭。导出后计算数据 SHA-256，更新运行时代码的 `HumanHashes`，运行 `./tools/godot.ps1 -Mode test` 并查看 `visual-faces`、`visual-wardrobe` 和动作场景。
-
-两套 CC0 头部的官方源文件也放在 `.tools/sources/blender-assets/`，运行时文件的 `source` 字段保存官方地址与 SHA-256。重新生成：
+| `.tools/sources/blender-assets/` 下的文件 | SHA-256 |
+|---|---|
+| `body-realistic-male.blend` | `697b55a5595a756f9304d12909c85f9eddb0c0f57ec2b6c8f1edf071e00f9b30` |
+| `head-realistic-animation.blend` | `a680ca23a0dee2a16ecc6e3921ddcfa0e039a5a7ef4262ec56214a924d08d3ca` |
+| `body-realistic-female.blend` | `74917ec876cdb6aae3b6d291f2f638f5a959276f4115a714cf8c5dcf6a99ce20` |
 
 ```powershell
-& $headBlender --background --disable-autoexec ./.tools/sources/blender-assets/head-realistic-animation.blend --python-exit-code 2 --python tools/export_human_variants.py -- --kind scan --output src/SandBoxSim.Godot/assets/models/human
-& $headBlender --background --disable-autoexec ./.tools/sources/blender-assets/body-realistic-female.blend --python-exit-code 2 --python tools/export_human_variants.py -- --kind feminine --output src/SandBoxSim.Godot/assets/models/human
+$humanBlender = './.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
+$humanOutput = 'src/SandBoxSim.Godot/assets/models/human'
+& $humanBlender --background --disable-autoexec ./.tools/sources/blender-assets/body-realistic-male.blend --python-exit-code 2 --python tools/export_human_variants.py -- --kind masculine --output $humanOutput
+& $humanBlender --background --disable-autoexec ./.tools/sources/blender-assets/head-realistic-animation.blend --python-exit-code 2 --python tools/export_human_variants.py -- --kind scan --output $humanOutput
+& $humanBlender --background --disable-autoexec ./.tools/sources/blender-assets/body-realistic-female.blend --python-exit-code 2 --python tools/export_human_variants.py -- --kind feminine --output $humanOutput
 ```
 
-官方原文件各约 1 MB、13 MB，分别核对 `a680ca23a0dee2a16ecc6e3921ddcfa0e039a5a7ef4262ec56214a924d08d3ca`、`74917ec876cdb6aae3b6d291f2f638f5a959276f4115a714cf8c5dcf6a99ce20`。脚本校验源文件，不自动下载；原始下载、工具配置与缓存均位于 `.tools/`。
-
-人物前臂、手部与动物外皮可一起重新生成：
+脚本验证源文件后提取头颈、眼口、眼裂、头皮、远景网格及法线图；不自动下载。生成后同步 `HumanHashes`，运行素材检查、客户端自检与实际画面核对：
 
 ```powershell
-./tools/bake-models.ps1
+python -m unittest discover -s tools -p test_human_assets.py
+./tools/godot.ps1 -Mode test
 ```
 
-`bake-models.ps1` 依次生成解剖前臂、高精度手部、手部 LOD 和动物外皮。
-
-脚本默认查找 `.tools/blender-4.5.14/` 下的 Blender 和 `.tools/sources/realistic_human_base.blend`。可以显式传入 `-BlenderPath`、`-HumanSource` 使用已有文件；下载、缓存与临时数据保持在项目内。输出会打印派生模型哈希，修改生成逻辑后需审查并同步运行时代码中的哈希，再运行客户端自检。普通游玩和构建直接使用已提交的网格，不依赖 Blender。
+前臂、手部和动物仍可通过 `./tools/bake-models.ps1` 重建。手臂源文件为 `.tools/sources/realistic_human_base.blend`，SHA-256 为 `1d9d2a6070acd6a3d0d9b676af816001310fb0f6128d07a3ab3e0318c7fdd981`。配置、下载和缓存均留在项目内，普通游玩只需要成品数据。
 
 ## 发布与署名
 
-许可记录保存在 [LICENSE.txt](../../src/SandBoxSim.Godot/assets/models/human/LICENSE.txt)，包含来源、作者、原文件校验值及修改内容。原始头部、前臂和手部衍生数据适用 CC BY 4.0；新增两套头部衍生数据适用 CC0。项目的软件许可不替代素材许可。再分发时保留署名和许可链接，并记录进一步修改。
+[LICENSE.txt](../../src/SandBoxSim.Godot/assets/models/human/LICENSE.txt) 分别列出三套 CC0 头脸和 CC BY 4.0 手臂的来源、作者、校验值与转换内容。头部当前不再使用旧的 CC BY 长脸数据；手掌、手部 LOD、前臂及连体手臂仍必须保留原作者署名。软件许可不替代素材许可。
 
-Windows、Linux、macOS 的 Godot 导出预设包含 `*.json,*.txt`，将网格数据与署名一起打包。图形项目目录包含独立 `SandBoxSim.Godot.sln`，导出配置允许从官方 NuGet 源恢复自包含运行时包；普通内核构建保持原有包源规则。维护检查使用原生 PCK 导出与资源挂载核对，防止编辑器能读取而发行包缺失素材。原始下载、便携 Blender 和试验产物属于本机维护资料，不是客户端的运行依赖。
+Godot 的三平台导出预设包含网格 JSON、许可文本与导入纹理；发行包自检会读取并校验成品。原始 Blender 文件、便携工具和转换中间数据不是运行依赖。

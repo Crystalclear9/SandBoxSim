@@ -10,16 +10,19 @@ internal sealed partial class NatureModels
     {
         string key="lips:"+color;if(_residentMaterials.TryGetValue(key,out var cached))return cached;
         _lipShader??=new Shader {Code=@"shader_type spatial;
-uniform vec4 tone:source_color;varying vec3 lip_point;
-void vertex(){lip_point=VERTEX;}
+uniform vec4 tone:source_color;uniform float speech=0.0;varying vec3 lip_point;
+void vertex(){lip_point=VERTEX;
+float weight=exp(-pow(VERTEX.x/.023,4.0)-pow(VERTEX.y/.008,4.0))*(1.0-smoothstep(-.006,.006,VERTEX.z))*COLOR.a;
+VERTEX.y+=(VERTEX.y>=0.0?1.0:-1.0)*speech*.0012*weight;VERTEX.z-=speech*.0002*weight;}
 void fragment(){
 float edge=smoothstep(.010,.026,abs(lip_point.x));
 float crease=exp(-pow(lip_point.y/.0008,2.0))*(1.0-edge);
 float line=sin(lip_point.x*4600.0+sin(lip_point.y*1300.0));
 line/=1.0+pow(fwidth(lip_point.x*4600.0),2.0);
-ALBEDO=mix(tone.rgb,tone.rgb*vec3(1.02,.79,.78),.48*(1.0-edge))*(1.0-crease*.12+line*.012);
+float pigment=(1.0-edge)*(1.0-smoothstep(.004,.011,abs(lip_point.y)));
+ALBEDO=mix(tone.rgb,tone.rgb*vec3(1.02,.79,.78)*COLOR.rgb,.65*pigment)*(1.0-crease*.12+line*.012);
 ROUGHNESS=.62;SPECULAR=.25;}"};
-        var material=new ShaderMaterial {Shader=_lipShader};material.SetShaderParameter("tone",new Color(color));
+        var material=new ShaderMaterial {Shader=_lipShader};material.SetShaderParameter("tone",new Color(color));material.SetShaderParameter("speech",0f);
         return _residentMaterials[key]=material;
     }
     private Shader? _anatomicalSkinShader;
@@ -72,7 +75,7 @@ ROUGHNESS=clamp(.66-nose*.07+pores*.04,.56,.72);SPECULAR=.25;
         var material=new ShaderMaterial {Shader=_anatomicalSkinShader};
         material.SetShaderParameter("tone",new Color(color));
         material.SetShaderParameter("sculpt_normal",normal);
-        material.SetShaderParameter("beard",HumanFamily==2?0f:_faceVariant%4==0?.75f:_faceVariant%4==3?.35f:0f);
+        material.SetShaderParameter("beard",ChildHead||HumanFamily==2?0f:_faceVariant%4==0?.75f:_faceVariant%4==3?.35f:0f);
         material.SetMeta("UsesSculptNormal",true);
         _residentMaterials[key]=material;return material;
     }

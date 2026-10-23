@@ -159,6 +159,11 @@ internal sealed partial class NatureModels
             {
                 var parent=rig.ToolMesh.GetParent();
                 rig.PoseAction(1f/60,action,frame<190?ActionPhase.Executing:ActionPhase.Idle,false,0);
+                var neckBase=rig.Head.Transform*(Vector3.Up*ResidentRig.NeckPivotY);
+                if(neckBase.DistanceTo(rig.HeadRest+Vector3.Up*(ResidentRig.NeckPivotY*rig.Head.Scale.Y))>.00001f)
+                    throw new InvalidOperationException("Head motion pulls the neck away from its torso anchor");
+                if(rig.Mouth.Position!=rig.MouthRest||rig.Mouth.Scale!=Vector3.One)
+                    throw new InvalidOperationException("Facial animation stretches the lip attachment boundary");
                 if(rig.LidMaterial.GetShaderParameter("blink").AsSingle()>.92f)blinked=true;
                 if(rig.HasAnatomicalEyes&&(rig.Eyes[0].Scale!=Vector3.One||rig.Eyes[1].Scale!=Vector3.One))
                     throw new InvalidOperationException("Anatomical eyeballs were flattened during blink");

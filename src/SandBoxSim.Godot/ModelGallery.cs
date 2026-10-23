@@ -135,11 +135,11 @@ internal partial class ModelGallery : PanelContainer
         }
         else if(Collection=="faces")
         {
-            int[] identities={19,17,18,20,21,22};
-            float[] views={0,.20f,.65f,0,.80f,-.70f};
+            int[] identities={19,17,18,19,17,18};
+            float[] views={0,0,0,MathF.PI*.5f,MathF.PI*.5f,MathF.PI*.5f};
+            string[] labels={"男性头颈 · 正面","扫描头颈 · 正面","女性头颈 · 正面","男性头颈 · 侧面","扫描头颈 · 侧面","女性头颈 · 侧面"};
             for(int i=0;i<identities.Length;i++)
-                Face(grid,models.Resident(identities[i],false,i==3?JobType.Farmer:JobType.Gatherer),
-                    "面部、发际线与衣领 · "+(i+1),i==3,views[i]);
+                Face(grid,models.Resident(identities[i],false,JobType.Gatherer),labels[i],false,views[i]);
         }
         else if(Collection=="characters")
         {
