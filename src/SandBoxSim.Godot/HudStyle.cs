@@ -18,9 +18,23 @@ internal static class HudStyle
         return surface;
     }
     private static readonly SystemFont DisplayFont = new() { FontNames = new[] { "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "sans-serif" } };
+    private static readonly SystemFont HeadingFont = new() { FontNames = new[] { "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "sans-serif" }, FontWeight=600 };
     internal static readonly SystemFont NumericFont=new() {FontNames=new[]{"Bahnschrift","Inter","Segoe UI","sans-serif"}};
     public static Label Heading(string text, int size)
-    { var label = Label(text, size); label.AddThemeFontOverride("font", DisplayFont); return label; }
+    { var label = Label(text, size); label.AddThemeFontOverride("font", HeadingFont); return label; }
+    public static PanelContainer IconWell(Texture2D texture,int size=36)
+    {
+        var plate=new PanelContainer {CustomMinimumSize=new(size,size),SizeFlagsVertical=Control.SizeFlags.ShrinkCenter,MouseFilter=Control.MouseFilterEnum.Ignore};
+        var box=Box(Ink,8,7);box.BorderColor=new Color(Border,.65f);box.ShadowSize=0;plate.AddThemeStyleboxOverride("panel",box);
+        plate.AddChild(new TextureRect {Texture=texture,TextureFilter=CanvasItem.TextureFilterEnum.LinearWithMipmaps,ExpandMode=TextureRect.ExpandModeEnum.IgnoreSize,StretchMode=TextureRect.StretchModeEnum.KeepAspectCentered,MouseFilter=Control.MouseFilterEnum.Ignore});
+        return plate;
+    }
+    public static PanelContainer Keycap(string text)
+    {
+        var plate=new PanelContainer {SizeFlagsVertical=Control.SizeFlags.ShrinkCenter,MouseFilter=Control.MouseFilterEnum.Ignore};
+        var box=Box(Ink,4,5);box.ShadowSize=0;plate.AddThemeStyleboxOverride("panel",box);
+        var label=Label(text,11,true);label.MouseFilter=Control.MouseFilterEnum.Ignore;plate.AddChild(label);return plate;
+    }
     public static StyleBoxFlat Box(Color color, int radius = 12, int padding = 16, bool border = true)
         => new() { BgColor = color, BorderColor = Border, BorderWidthBottom = border ? 1 : 0, BorderWidthTop = border ? 1 : 0,
             BorderWidthLeft = border ? 1 : 0, BorderWidthRight = border ? 1 : 0, CornerRadiusBottomLeft = radius, CornerRadiusBottomRight = radius,
@@ -34,6 +48,7 @@ internal static class HudStyle
     public static void Button(Godot.Button button, bool prominent = false)
     {
         button.SetMeta("filled_action",prominent);
+        button.TextureFilter=CanvasItem.TextureFilterEnum.LinearWithMipmaps;
         button.AddThemeFontSizeOverride("font_size", 14);
         button.CustomMinimumSize=new Vector2(button.CustomMinimumSize.X,36);
         button.MouseDefaultCursorShape=Control.CursorShape.PointingHand;
@@ -120,6 +135,10 @@ internal static class HudStyle
         }
         theme.SetConstant("buttons_width","SpinBox",24);
         theme.SetStylebox("separator","VSeparator",new StyleBoxLine {Color=Border,Thickness=1,Vertical=true});
+        var track=Box(Ink,2,0,false);track.ContentMarginTop=2;track.ContentMarginBottom=2;
+        theme.SetStylebox("slider","HSlider",track);
+        foreach(string state in new[]{"grabber_area","grabber_area_highlight"})
+        {var fill=Box(state=="grabber_area"?Accent.Darkened(.2f):Accent,2,0,false);fill.ContentMarginTop=2;fill.ContentMarginBottom=2;theme.SetStylebox(state,"HSlider",fill);}
         foreach(string state in new[]{"normal","hover","pressed","focus"})
             theme.SetStylebox(state,"OptionButton",state=="focus"?focus:Box(state=="normal"?Colors.Transparent:Wash,4,8,false));
         var rail=Box(new Color(Border,.35f),2,0,false);rail.ContentMarginLeft=3;rail.ContentMarginRight=3;

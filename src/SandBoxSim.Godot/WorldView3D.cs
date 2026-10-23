@@ -399,7 +399,7 @@ public partial class WorldView3D : MapView
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="mineral-meadow-v3",["habitatDetail"]="translucent-leaves-v3",
-            ["architecture"]="forged-hardware-v4",["garmentMaterial"]="draped-linen-v3",["interface"]="canvas-workspace-v5" };
+            ["architecture"]="forged-hardware-v4",["garmentMaterial"]="draped-linen-v3",["interface"]="crafted-workspace-v6" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
         return quality;

@@ -26,7 +26,7 @@ internal static class HudSymbols
             _ => "<path d='M12 5h24v25L24 43 12 30ZM24 13v17m-7-9h14'/>",
         };
         var image = new Image();
-        image.LoadSvgFromString("<svg xmlns='http://www.w3.org/2000/svg' width='"+pixels+"' height='"+pixels+"' viewBox='0 0 48 48'><g fill='none' stroke='"+stroke+"' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'>" + path + "</g></svg>");
-        texture = ImageTexture.CreateFromImage(image); Cache[key] = texture; return texture;
+        image.LoadSvgFromString("<svg xmlns='http://www.w3.org/2000/svg' width='"+pixels+"' height='"+pixels+"' viewBox='0 0 48 48'><g fill='none' stroke='"+stroke+"' stroke-width='2.0' stroke-linecap='round' stroke-linejoin='round'>" + path + "</g></svg>");
+        image.GenerateMipmaps();texture = ImageTexture.CreateFromImage(image); Cache[key] = texture; return texture;
     }
 }

@@ -76,7 +76,7 @@
 
 ## 图形与研究工具维护
 
-UI 的配色、字体、圆角和基础状态样式集中在 `HudStyle.cs`，手记的组件覆盖在 `MainGame.Notebook.cs`；两者使用同一套自然色令牌。创造工具库在 `MainGame.Interface.cs` 中组织固定分类、单列工具与参数，快捷搜索入口接入 `MainGame.PortraitWindow.cs` 的全局输入，并避开人物模态窗口。工具行采用原生按钮语义，说明子控件不拦截鼠标；绘制反馈不移动命中区域。镜头与肖像输入分开。模型的形状、材质和 LOD 分别由 `NatureModels` 的分文件实现。更改面部采样后，检查八种脸型的几何与法线有限性；更改建筑后，检查近远景轮廓、缓存和实例是否仍正确。具体参数见 [模型说明](models.md)。
+UI 的配色、字体、圆角和基础状态样式集中在 `HudStyle.cs`，手记的组件覆盖在 `MainGame.Notebook.cs`；两者使用同一套自然色令牌。创造工具库在 `MainGame.Interface.cs` 中组织固定分类、单列工具与参数，快捷搜索入口接入 `MainGame.PortraitWindow.cs` 的全局输入，并避开人物模态窗口。范围 / 强度使用原生 HSlider 与 SpinBox 同步，程序回写使用无信号更新，避免循环。工具行采用原生按钮语义，说明子控件不拦截鼠标；绘制反馈不移动命中区域。镜头与肖像输入分开。模型的形状、材质和 LOD 分别由 `NatureModels` 的分文件实现。更改面部采样后，检查八种脸型的几何与法线有限性；更改建筑后，检查近远景轮廓、缓存和实例是否仍正确。具体参数见 [模型说明](models.md)。
 
 人物观察窗的键盘隔离由 `MainGame.PortraitWindow.cs` 处理，覆盖首次焦点、Tab 重复事件、方向键导航和返回后的焦点恢复；不能只测试单次 Tab。肖像自己的提示动画在 `ResidentPortrait.SettleMotion()` 收束，由 `ResetHudMotion()` 一并调用，避免全局关闭动效后仍残留局部过渡。
 

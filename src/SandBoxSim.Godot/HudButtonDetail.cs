@@ -66,7 +66,7 @@ internal partial class HudButtonDetail : Control
             float x=Mathf.Lerp(-Size.X*.4f,Size.X*1.3f,_sweep);
             DrawColoredPolygon(new[]{new Vector2(x,3),new Vector2(x+9,3),new Vector2(x-10,Size.Y-3),new Vector2(x-19,Size.Y-3)},new Color(accent,.035f*Mathf.Sin(_sweep*Mathf.Pi)));
         }
-        if (strength < .01f) { return; }
+        if (strength < .01f || _button.HasMeta("tool_row")) { return; }
         float half = (Size.X - 16) * (selected ? .5f : .16f + .34f * _light);
         var center = new Vector2(Size.X / 2, Size.Y - 3);
         DrawLine(center - new Vector2(half, 0), center + new Vector2(half, 0), new Color(accent, strength*.55f), 1, true);

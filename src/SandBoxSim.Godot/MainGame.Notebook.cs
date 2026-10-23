@@ -8,7 +8,7 @@ public partial class MainGame
         Color paper=HudStyle.Paper,ink=HudStyle.PaperInk,muted=HudStyle.PaperMuted,accent=HudStyle.PaperAccent;
         _journalPanel.Material=null;
         var surface=HudStyle.Box(paper,5,18);surface.BorderColor=HudStyle.PaperLine;surface.BorderWidthLeft=1;surface.ShadowColor=new Color(0,0,0,.24f);surface.ShadowSize=16;
-        _journalPanel.AddThemeStyleboxOverride("panel",surface);_journalPanel.GetChild<HudBevel>(0).Visible=false;
+        _journalPanel.AddThemeStyleboxOverride("panel",surface);_journalPanel.GetChild<HudBevel>(0).Visible=true;
         void Apply(Node node)
         {
             if(node is ResidentPortrait or WorldMiniMap or StatisticsView)return;

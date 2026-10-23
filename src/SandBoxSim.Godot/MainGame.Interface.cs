@@ -17,6 +17,8 @@ public partial class MainGame
     private PanelContainer _timePanel = null!, _cameraPanel = null!, _dockPanel = null!;
     private Label _toolBadge = null!, _dayLabel = null!, _populationLabel = null!, _settlementLabel = null!, _buildingLabel = null!;
     private VBoxContainer _brushParameters=null!;
+    private HSlider _radiusSlider=null!,_strengthSlider=null!;
+    private TextureRect _paletteGlyph=null!;
     private Label _ecologyFootprint=null!,_brushControlsHint=null!;
     private Label _brushTitle = null!, _brushHint = null!;
     private bool _settingsOpen;
@@ -92,23 +94,23 @@ public partial class MainGame
         Theme=HudStyle.InterfaceTheme();
         // The world occupies the whole window. No opaque rail or layout container resizes its viewport.
         _map = new WorldView3D { Game = this, WorldPresentationEnabled = !IsModelGallery }; _map.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(_map);
-        var overlay = new Control { MouseFilter = MouseFilterEnum.Ignore }; overlay.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(overlay);
+        var overlay = new Control { MouseFilter = MouseFilterEnum.Ignore,TextureFilter=TextureFilterEnum.LinearWithMipmaps }; overlay.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(overlay);
         // One quiet frame groups global controls; content panels share its palette.
         foreach(bool bottom in new[]{false,true})
         {
             var bar=new Panel {MouseFilter=MouseFilterEnum.Stop};
             bar.AnchorRight=1;bar.AnchorTop=bar.AnchorBottom=bottom?1:0;
-            bar.OffsetTop=bottom?-82:0;bar.OffsetBottom=bottom?0:80;
+            bar.OffsetTop=bottom?-76:0;bar.OffsetBottom=bottom?0:74;
             var fill=HudStyle.Box(new Color(HudStyle.Surface,.96f),0,0,false);fill.BorderColor=HudStyle.Border;
             fill.BorderWidthTop=bottom?1:0;fill.BorderWidthBottom=bottom?0:1;
             bar.AddThemeStyleboxOverride("panel",fill);overlay.AddChild(bar);
         }
-        var worldCard = Surface(overlay, new Vector2(0, 0), new Vector2(18, 10), new Vector2(318, 60), 4);
+        var worldCard = Surface(overlay, new Vector2(0, 0), new Vector2(18, 4), new Vector2(318, 60), 4);
 
         _worldPanel=worldCard;
         ClearSurface(worldCard);
         var worldRow = new HBoxContainer(); worldRow.AddThemeConstantOverride("separation", 12); worldCard.AddChild(worldRow);
-        worldRow.AddChild(new TextureRect { Texture = HudSymbols.For("crest"), CustomMinimumSize = new Vector2(28, 38), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered });
+        worldRow.AddChild(HudStyle.IconWell(HudSymbols.For("crest"),34));
         var wordmark = HudStyle.Heading("SandBoxSim", 20); worldRow.AddChild(wordmark);
         var worldInfo = new VBoxContainer(); worldInfo.AddThemeConstantOverride("separation", 0); worldRow.AddChild(worldInfo);
         worldInfo.AddChild(HudStyle.Label("自由世界 · 持续演化", 10, true));
@@ -125,10 +127,12 @@ public partial class MainGame
         var statsRow = new HBoxContainer(); statsRow.AddThemeConstantOverride("separation", 12); stats.AddChild(statsRow);
         _populationLabel = Metric(statsRow, "居民", "40", 20); _settlementLabel = Metric(statsRow, "聚落", "0", 20); _buildingLabel = Metric(statsRow, "建筑", "0", 20);
         _foodLabel = Metric(statsRow, "食物储备", "0", 20); _woodLabel = Metric(statsRow, "木材储备", "0", 20); _stoneLabel = Metric(statsRow, "石料储备", "0", 20);
+        var resourceDivider=new VSeparator {SizeFlagsVertical=SizeFlags.ShrinkCenter,CustomMinimumSize=new(1,30),MouseFilter=MouseFilterEnum.Ignore};
+        statsRow.AddChild(resourceDivider);statsRow.MoveChild(resourceDivider,3);
         foreach (var resource in new[] { _foodLabel, _woodLabel, _stoneLabel })
             resource.TooltipText = "居民携带 + 地面物资堆 + 仓库；不包含尚未采集的地表资源，也不保证所有居民都可到达。";
         _summary = new Label { Visible = false }; overlay.AddChild(_summary);
-        var topActions = Surface(overlay, new Vector2(1, 0), new Vector2(-238, 18), new Vector2(210, 44), 4);
+        var topActions = Surface(overlay, new Vector2(1, 0), new Vector2(-238, 12), new Vector2(210, 44), 4);
         ClearSurface(topActions);
 
         var actions = new HBoxContainer(); actions.AddThemeConstantOverride("separation", 6); topActions.AddChild(actions);
@@ -140,7 +144,7 @@ public partial class MainGame
         var journalHeading = new PanelContainer(); journalHeading.SetMeta("journal_heading",true);
         var headingBox=HudStyle.Box(new Color(0,0,0,0),0,0,false);journalHeading.AddThemeStyleboxOverride("panel",headingBox);journal.AddChild(journalHeading);
         var headingBody=new VBoxContainer();headingBody.AddThemeConstantOverride("separation",5);journalHeading.AddChild(headingBody);
-        var journalHeader = new HBoxContainer(); headingBody.AddChild(journalHeader);
+        var journalHeader = new HBoxContainer();journalHeader.AddThemeConstantOverride("separation",12);headingBody.AddChild(journalHeader);journalHeader.AddChild(HudStyle.IconWell(HudSymbols.For("手记"),34));
         var journalTitle = HudStyle.Heading("世界手记", 19); journalTitle.SizeFlagsHorizontal = SizeFlags.ExpandFill; journalHeader.AddChild(journalTitle);
         var closeJournal=ActionButton(journalHeader, "×", () => ShowJournal(false));closeJournal.TooltipText="收起世界手记 · Esc";closeJournal.CustomMinimumSize=new(32,32);
         journal.AddChild(new HSeparator());
@@ -172,7 +176,7 @@ public partial class MainGame
         _brushParameters=new VBoxContainer();brush.AddChild(_brushParameters);
         var parameterFields=new HBoxContainer();parameterFields.AddThemeConstantOverride("separation",12);_brushParameters.AddChild(parameterFields);
         var radiusField=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};var strengthField=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};parameterFields.AddChild(radiusField);parameterFields.AddChild(strengthField);
-        _radius = Spin(radiusField, "范围 · 格", 0, 20, 2); _strength = Spin(strengthField, "数量 / 强度", 1, 100, 10);
+        _radius = BrushField(radiusField, "范围·格", 0, 20, 2,out _radiusSlider); _strength = BrushField(strengthField, "数量/强度", 1, 100, 10,out _strengthSlider);
         _ecologyFootprint=HudStyle.Label("生态地块 · 周围 3 格\n可连续栽植，水土决定后续生长。",12,true);brush.AddChild(_ecologyFootprint);_ecologyFootprint.Visible=false;
         _brushPanel.Visible = false;
 
@@ -217,11 +221,14 @@ public partial class MainGame
 
         var dock = Surface(overlay, Vector2.Zero, new Vector2(16, 96), new Vector2(368, 624), 14); _dockPanel = dock;
         var dockContents = new VBoxContainer(); dockContents.AddThemeConstantOverride("separation", 8); dock.AddChild(dockContents);
-        var paletteHeading=new HBoxContainer();dockContents.AddChild(paletteHeading);
+        var paletteHeading=new HBoxContainer();paletteHeading.AddThemeConstantOverride("separation",12);dockContents.AddChild(paletteHeading);
+        var paletteWell=HudStyle.IconWell(ToolGlyphs.For(PlayerTool.Human),36);_paletteGlyph=paletteWell.GetChild<TextureRect>(0);paletteHeading.AddChild(paletteWell);
+        dock.GetChild<HudBevel>(0).Visible=true;
         _paletteTitle=HudStyle.Heading("创造",22);_paletteTitle.SizeFlagsHorizontal=SizeFlags.ExpandFill;paletteHeading.AddChild(_paletteTitle);
         var closeTools=ActionButton(paletteHeading,"×",()=>{SelectTool(PlayerTool.Inspect);ShowTools(false);});closeTools.TooltipText="结束干预并收起 · Esc";closeTools.CustomMinimumSize=new(40,40);
         _paletteCaption=HudStyle.Label("生命",12,true);dockContents.AddChild(_paletteCaption);
-        _toolSearch=new LineEdit {PlaceholderText="搜索所有工具…  Ctrl / ⌘ K",ClearButtonEnabled=true,CustomMinimumSize=new(0,38)};dockContents.AddChild(_toolSearch);
+        var searchRow=new HBoxContainer();searchRow.AddThemeConstantOverride("separation",8);dockContents.AddChild(searchRow);
+        _toolSearch=new LineEdit {PlaceholderText="搜索工具与用途…",ClearButtonEnabled=true,SizeFlagsHorizontal=SizeFlags.ExpandFill,CustomMinimumSize=new(0,38)};searchRow.AddChild(_toolSearch);searchRow.AddChild(HudStyle.Keycap(OS.GetName()=="macOS"?"⌘ K":"Ctrl K"));
         _toolSearch.TextChanged+=_=>PopulateTools();
         _toolSearch.GuiInput+=HandleToolSearchInput;
         var browser=new HBoxContainer {SizeFlagsVertical=SizeFlags.ExpandFill};browser.AddThemeConstantOverride("separation",10);dockContents.AddChild(browser);
@@ -229,7 +236,8 @@ public partial class MainGame
         foreach (string category in new[] { "生命", "生态", "地貌", "资源", "灾害", "祝福" })
         {
             string chosen=category;var button=ActionButton(categories,category,()=>SetCategory(chosen));
-            button.ToggleMode=true;button.CustomMinimumSize=new(52,40);button.AddThemeFontSizeOverride("font_size",13);
+            button.ToggleMode=true;button.CustomMinimumSize=new(70,40);button.AddThemeFontSizeOverride("font_size",12);
+            button.Icon=ToolGlyphs.For(CategoryGlyph(category));button.ExpandIcon=true;button.AddThemeConstantOverride("icon_max_width",16);button.AddThemeConstantOverride("h_separation",5);button.Alignment=HorizontalAlignment.Left;
             _categoryButtons[category]=button;
         }
         browser.AddChild(new VSeparator {MouseFilter=MouseFilterEnum.Ignore});
@@ -243,7 +251,7 @@ public partial class MainGame
         _brushControlsHint=HudStyle.Label("左键施加  ·  Shift + 滚轮调范围  ·  Esc 退出",11,true);brush.AddChild(_brushControlsHint);
         SetCategory("生命");
         _dockPanel.Visible = false;
-        _commandPanel = Surface(overlay, new Vector2(.5f, 1), new Vector2(-180, -72), new Vector2(360, 54), 6);
+        _commandPanel = Surface(overlay, new Vector2(.5f, 1), new Vector2(-180, -65), new Vector2(360, 50), 6);
         var commandSurface=HudStyle.Box(HudStyle.Wash,8,5,false);commandSurface.BorderColor=new Color(HudStyle.Border,.5f);
         _commandPanel.AddThemeStyleboxOverride("panel",commandSurface);_commandPanel.GetChild<HudBevel>(0).Visible=false;
 
@@ -256,20 +264,20 @@ public partial class MainGame
             command.TooltipText=command.Text switch {"观察"=>"选择人物或地块，查看正在发生的变化。","创造"=>"打开工具库 · Ctrl / ⌘ K 搜索；再次点击结束干预。",_=>"现场、居民、历史与世界曲线。"};
             command.Icon = HudSymbols.For(command.Text); command.ExpandIcon = true;
             command.IconAlignment=HorizontalAlignment.Left;command.VerticalIconAlignment=VerticalAlignment.Center;command.SizeFlagsHorizontal=SizeFlags.ExpandFill;
-            command.AddThemeFontSizeOverride("font_size",13); command.AddThemeConstantOverride("icon_max_width", 22); command.AddThemeConstantOverride("h_separation", 8);
-            command.CustomMinimumSize = new Vector2(102, 44);
+            command.AddThemeFontSizeOverride("font_size",14); command.AddThemeConstantOverride("icon_max_width", 22); command.AddThemeConstantOverride("h_separation", 8);
+            command.CustomMinimumSize = new Vector2(102, 40);
             command.AddThemeConstantOverride("outline_size",0);
         }
         _inspectDockButton.SetPressedNoSignal(Tool==PlayerTool.Inspect);
 
-        var timePanel = Surface(overlay, new Vector2(0, 1), new Vector2(16, -76), new Vector2(272, 64), 8); _timePanel = timePanel;
+        var timePanel = Surface(overlay, new Vector2(0, 1), new Vector2(16, -72), new Vector2(272, 64), 8); _timePanel = timePanel;
         ClearSurface(timePanel);
 
         var timeBox = new VBoxContainer(); timeBox.AddThemeConstantOverride("separation", 4); timePanel.AddChild(timeBox); _dayLabel = HudStyle.Label("第 1 天", 14); timeBox.AddChild(_dayLabel);
         var timeRow = new HBoxContainer(); timeBox.AddChild(timeRow);
         foreach (int speed in new[] { 0, 1, 4, 8, 16, 32 })
         { int chosen = speed; var button = ActionButton(timeRow, speed == 0 ? "暂停" : speed + "×", () => SetSpeed(chosen)); button.ToggleMode = true; _speedButtons[speed] = button; } SetSpeed(_speed);
-        var cameraPanel = Surface(overlay, new Vector2(1, 1), new Vector2(-280, -76), new Vector2(264, 64), 8); _cameraPanel = cameraPanel;
+        var cameraPanel = Surface(overlay, new Vector2(1, 1), new Vector2(-280, -72), new Vector2(264, 64), 8); _cameraPanel = cameraPanel;
         ClearSurface(cameraPanel);
 
         var cameraBox = new VBoxContainer(); cameraBox.AddThemeConstantOverride("separation", 4); cameraPanel.AddChild(cameraBox);
@@ -300,10 +308,10 @@ public partial class MainGame
     private void FitHudFor(Vector2 size)
     {
         FitToolLibrary(size);
-        HudStyle.Float(_timePanel, new Vector2(0, 1), new Vector2(16, -76), new Vector2(272, 64));
-        HudStyle.Float(_cameraPanel, new Vector2(1, 1), new Vector2(-280, -76), new Vector2(264, 64));
+        HudStyle.Float(_timePanel, new Vector2(0, 1), new Vector2(16, -72), new Vector2(272, 64));
+        HudStyle.Float(_cameraPanel, new Vector2(1, 1), new Vector2(-280, -72), new Vector2(264, 64));
         float statsWidth=Math.Clamp(size.X-760,480,620);
-        HudStyle.Float(_statsPanel,new Vector2(.5f,0),new Vector2(-statsWidth/2,9),new Vector2(statsWidth,62));
+        HudStyle.Float(_statsPanel,new Vector2(.5f,0),new Vector2(-statsWidth/2,3),new Vector2(statsWidth,62));
         float journalWidth=Math.Clamp(size.X*.26f,348,448);
         _journalPanel.OffsetLeft=-journalWidth-16;_journalPanel.OffsetRight=-16;
         _journalPanel.OffsetBottom = size.Y - 100;
@@ -452,6 +460,17 @@ public partial class MainGame
             ((StyleBoxFlat)_vitalBars[i].GetThemeStylebox("fill")).BgColor = danger ? new Color("#d58c70") : i==0?new Color("#a4b69a"):i==2?new Color("#9fbac0"):HudStyle.Accent;
         }
     }
+    private static PlayerTool CategoryGlyph(string category)=>category switch
+    {"生态"=>PlayerTool.MeadowSeeds,"地貌"=>PlayerTool.Mountain,"资源"=>PlayerTool.Wood,"灾害"=>PlayerTool.Fire,"祝福"=>PlayerTool.Rain,_=>PlayerTool.Human};
+    private static SpinBox BrushField(VBoxContainer parent,string title,int min,int max,int value,out HSlider slider)
+    {
+        var heading=new HBoxContainer();parent.AddChild(heading);
+        var label=HudStyle.Label(title,12,true);label.SizeFlagsHorizontal=SizeFlags.ExpandFill;heading.AddChild(label);
+        var spin=new SpinBox {MinValue=min,MaxValue=max,Value=value,Step=1,CustomMinimumSize=new(66,0)};heading.AddChild(spin);
+        slider=new HSlider {MinValue=min,MaxValue=max,Value=value,Step=1,CustomMinimumSize=new(0,20),SizeFlagsHorizontal=SizeFlags.ExpandFill,TooltipText=title+" · 拖动调整，也可在上方输入精确数值",MouseDefaultCursorShape=CursorShape.PointingHand};parent.AddChild(slider);
+        var range=slider;range.ValueChanged+=v=>spin.Value=v;spin.ValueChanged+=v=>range.SetValueNoSignal(v);
+        return spin;
+    }
     private static Label Metric(HBoxContainer row, string title, string value, int size)
     {
         var item = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; item.AddThemeConstantOverride("separation", 7); row.AddChild(item);
@@ -593,7 +612,7 @@ public partial class MainGame
     }
     private void ValidateToolLibrary()
     {
-        string digest=StateHash.ComputeDigest(Sim);double radius=_radius.Value;int scenario=Scenario,speed=_speed,resume=_resumeSpeed;
+        string digest=StateHash.ComputeDigest(Sim);double radius=_radius.Value,strength=_strength.Value;int scenario=Scenario,speed=_speed,resume=_resumeSpeed;
         try
         {
             ShowSettings(false);SetCategory("生命");ShowTools(false);
@@ -619,6 +638,13 @@ public partial class MainGame
             if(_toolSearch.Text!=""||_toolButtons.Count!=13)throw new InvalidOperationException("Category selection leaves a stale search filter");
             _toolButtons[PlayerTool.River].EmitSignal(BaseButton.SignalName.Pressed);
             if(Tool!=PlayerTool.River||!_brushPanel.IsVisibleInTree())throw new InvalidOperationException("Selected brush has no visible parameter editor");
+            var minimum=_dockPanel.GetCombinedMinimumSize();
+            if(minimum.X>368.5f||minimum.Y>Size.Y-196+.5f)
+                throw new InvalidOperationException("Brush controls exceed the authored library size: "+minimum);
+            _radiusSlider.Value=7;_strengthSlider.Value=31;
+            if(_radius.Value!=7||_strength.Value!=31)throw new InvalidOperationException("Brush slider and numeric fields diverge");
+            _radius.Value=3;_strength.Value=18;
+            if(_radiusSlider.Value!=3||_strengthSlider.Value!=18)throw new InvalidOperationException("Brush numeric edits leave stale sliders");
             AdjustBrushRadius(100);if(_radius.Value!=_radius.MaxValue)throw new InvalidOperationException("Brush size exceeds its maximum");
             AdjustBrushRadius(-100);if(_radius.Value!=_radius.MinValue)throw new InvalidOperationException("Brush size exceeds its minimum");
             _UnhandledKeyInput(new InputEventKey {Pressed=true,Keycode=Key.Escape});
@@ -632,13 +658,13 @@ public partial class MainGame
             _UnhandledKeyInput(new InputEventKey {Pressed=true,Keycode=Key.Space});
             if(_speed!=8)throw new InvalidOperationException("Resume loses the selected time multiplier");
         }
-        finally{_radius.Value=radius;SetSpeed(speed);_resumeSpeed=resume;_scenarioConfirm.Hide();SelectTool(PlayerTool.Inspect);SetCategory("生命");}
+        finally{_radius.Value=radius;_strength.Value=strength;SetSpeed(speed);_resumeSpeed=resume;_scenarioConfirm.Hide();SelectTool(PlayerTool.Inspect);SetCategory("生命");}
         if(StateHash.ComputeDigest(Sim)!=digest)throw new InvalidOperationException("Browsing tools mutated the world");
-        GD.Print("TOOL_LIBRARY_PASS: keyboard search/activation, category and mode states, empty/filter reset, attached parameters, radius bounds, safe close, Escape and scenario replacement confirmation");
+        GD.Print("TOOL_LIBRARY_PASS: keyboard search/activation, category and mode states, empty/filter reset, attached parameters, slider/numeric synchronization, radius bounds, safe close, Escape and scenario replacement confirmation");
     }
     private void SetCategory(string category)
     {
-        _category = category;
+        _category = category;_paletteGlyph.Texture=ToolGlyphs.For(CategoryGlyph(category));
         foreach (var pair in _categoryButtons) { pair.Value.SetPressedNoSignal(pair.Key == category); }
         _toolSearch.Text="";
         PopulateTools();
@@ -677,8 +703,9 @@ public partial class MainGame
             };
             if(query.Length>0&&!(title+description+category).Contains(query,StringComparison.OrdinalIgnoreCase))continue;
             if(!seen.Add(tool))continue;
-            var button=new HudToolCard {Title=title,Description=description,Glyph=ToolGlyphs.For(tool),CustomMinimumSize=new(248,64),SizeFlagsHorizontal=SizeFlags.ExpandFill,ToggleMode=true,TooltipText=title+" · "+description};
-            HudStyle.Button(button);button.CustomMinimumSize=new(248,64);button.AddThemeStyleboxOverride("normal",HudStyle.Box(Colors.Transparent,6,9,false));
+            var button=new HudToolCard {Title=title,Description=description,Glyph=ToolGlyphs.For(tool),CustomMinimumSize=new(230,66),SizeFlagsHorizontal=SizeFlags.ExpandFill,ToggleMode=true,TooltipText=title+" · "+description};
+            HudStyle.Button(button);button.CustomMinimumSize=new(230,66);button.AddThemeStyleboxOverride("normal",HudStyle.Box(Colors.Transparent,6,9,false));
+            var selectedStyle=HudStyle.Box(HudStyle.Wash,6,9,false);selectedStyle.BorderWidthLeft=2;selectedStyle.BorderColor=HudStyle.Accent;button.AddThemeStyleboxOverride("pressed",selectedStyle);button.AddThemeStyleboxOverride("hover_pressed",selectedStyle);button.SetMeta("tool_row",true);
             var chosen=tool;button.Pressed+=()=>{_toolSearch.ReleaseFocus();SelectTool(chosen);};_paletteRow.AddChild(button);
             _toolButtons[tool]=button;button.SetPressedNoSignal(Tool==tool);
         }
