@@ -21,7 +21,7 @@
 
 ## 扫描表面材质
 
-地表与建筑使用独立的可平铺扫描表面，清单在 [materials/scanned/manifest.json](../../src/SandBoxSim.Godot/assets/materials/scanned/manifest.json)，署名在 [LICENSE.txt](../../src/SandBoxSim.Godot/assets/materials/scanned/LICENSE.txt)。七种素材均来自 Poly Haven、采用 CC0，保留 19 张 1K 原始贴图的官方 URL、尺寸、文件大小及 SHA-256：
+地表、建筑与衣料使用独立的可平铺扫描表面，清单在 [materials/scanned/manifest.json](../../src/SandBoxSim.Godot/assets/materials/scanned/manifest.json)，署名在 [LICENSE.txt](../../src/SandBoxSim.Godot/assets/materials/scanned/LICENSE.txt)。八种素材均来自 Poly Haven、采用 CC0，保留 22 张 1K 原始贴图的官方 URL、尺寸、文件大小及 SHA-256：
 
 | 素材 | 用途 | 原始覆盖宽度 |
 |---|---|---:|
@@ -32,6 +32,9 @@
 | `plastered_wall_03` | 灰泥墙 | 4 米 |
 | `coast_sand_01` | 沙地颜色 | 15 米 |
 | `reed_roof_03` | 连续茅草屋面的颜色、法线、粗糙度 | 2.5 米 |
+| `rough_linen` | 衣身、衣袖与领口的亚麻织纹 | 0.27 米 |
+
+`rough_linen` 的 1K 原图为 1024×1026；清单以 `pixelSize` 保留真实尺寸，加载器按此校验。其摄影为 colormass、处理为 Rico Cilliers。
 
 沙地只引入颜色图，沿用通用地表微法线；覆盖宽度是来源记录，显示混合可另行缩放。林地继续使用已有的 `forest_ground_04`。`boulder_01` 的贴图对应岩石自身 UV，不能拿来平铺山坡或墙面。
 

@@ -33,7 +33,7 @@ SDK 与 Godot 工具链由参数或环境变量覆盖，不提交本机绝对路
 
 ## 模型素材转换
 
-`export_human_head.py` 与 `export_human_variants.py` 由 Blender 后台执行，重建三套已授权头脸；`bake_human_detail.py` 为共用 UV/雕刻法线烘焙器，`human_eyelids.py` 采样真实眼裂，`human_head_lod.py` 从实际头颈与眼口生成远景网格。普通游戏构建不依赖 Blender；原文件校验、转换参数与署名要求见 [人物头脸素材](../docs/development/human-assets.md)。
+`fetch-human-assets.py` 将 23 个固定 CC0 输入校验并下载到 `.tools/sources/makehuman`，通过 HTTP Range 仅提取需要的 ZIP 成员。`export_resident_faces.py` 在 Blender 后台重建头颈、原生 UV、皮肤／发片、闭眼形变与远景头脸；旧头部导出入口转发到新流程。`human_eyelids.py` 采样实际眼裂，`human_head_lod.py` 生成同源远景头脸。普通构建不需要 Blender 或联网，见 [人物素材](../docs/development/human-assets.md)。
 
 `export_environment_models.py` 在 Blender 后台转换五种 CC0 环境模型，按完整叶片抽样并独立简化木质表面。来源、原文件哈希、贴图及运行路径见 [环境素材](../docs/development/environment-assets.md)。
 

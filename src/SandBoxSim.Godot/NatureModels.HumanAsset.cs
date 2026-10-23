@@ -7,9 +7,9 @@ namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
     private int _faceVariant;
-    private sealed record HumanSurface(Vector3[] Points,Vector3[] Normals,Vector2[] Uv,Color[] Colors,int[] Indices);
-    private sealed record HumanAsset(HumanSurface Head,HumanSurface Lips,HumanSurface[] Eyes,HumanSurface Lod,Vector3 Eye,Vector3 Mouth,
-        float NoseY,Vector3[][] UpperLids,Vector3[][] LowerLids,int Rows,int Columns,float Low,float High,float[] Centers,float[] Radii,string NormalPath);
+    private sealed record HumanSurface(Vector3[] Points,Vector3[] Normals,Vector2[] Uv,Color[] Colors,int[] Indices,Vector3[]? Blink=null);
+    private sealed record HumanAsset(HumanSurface Head,HumanSurface Lips,HumanSurface[] Eyes,HumanSurface Lod,HumanSurface Hair,Vector3 Eye,Vector3 Mouth,
+        float NoseY,Vector3[][] UpperLids,Vector3[][] LowerLids,int Rows,int Columns,float Low,float High,float[] Centers,float[] Radii,string AlbedoPath,string HairPath,float HairLuminance);
     private readonly System.Collections.Generic.Dictionary<int,HumanAsset> _humanAssets=new();
     private int FaceArchetype=>_faceVariant%8;
     private bool ChildHead=>_faceVariant>=8;
@@ -17,9 +17,9 @@ internal sealed partial class NatureModels
     private readonly System.Collections.Generic.Dictionary<(int Variant,string Kind,int Side),(Vector3[] Points,int[] Indices)> _humanProjectionParts=new();
     private static readonly string[] HumanFiles={"human-head","human-scan","human-feminine"};
     private static readonly string[] HumanHashes={
-        "501a38c3b95c03a997ecfaf96e798b884924bfacbba6b847541143137e23b702",
-        "381ede83b8311d05212cb344e9e3b8b316bb04fdc1ca379bd57fdcb024053f7b",
-        "7696902883bf4210379db019fc2d32884bd26afe983125bc9feafe5189e88e0d"};
+        "c4360eca573251eefa456aff4035a040a7504c5c365a6f43d91b156612a6d750",
+        "2a77da0969950e1590620d67f6e1bcd81208e27a9ece88db28f2490ecef1ff01",
+        "2dd7e9f888977a2d3b2a3092aa8ec1346630af9aa4a078c3d0fcd5e607bfc5b3"};
     private HumanAsset HumanData()
     {
         int family=HumanFamily;
@@ -30,18 +30,18 @@ internal sealed partial class NatureModels
         string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
         if(hash!=HumanHashes[family])throw new InvalidOperationException("Human mesh asset does not match the exported source");
         using var document=JsonDocument.Parse(raw);var root=document.RootElement;
-        if(root.GetProperty("schemaVersion").GetInt32()!=1)throw new InvalidOperationException("Unsupported human mesh schema");
-        var detail=root.GetProperty("detailNormal");
-        string normalName=HumanFiles[family]+"_normal.png",normalPath="res://assets/models/human/"+normalName;
-        if(detail.GetProperty("file").GetString()!=normalName||!ResourceLoader.Exists(normalPath)||detail.GetProperty("resolution").GetInt32()!=2048)
-            throw new InvalidOperationException("Human sculpt normal atlas does not match its mesh");
-        // Editor runs expose the source PNG. Exported games use Godot's
-        // imported .ctex remap; validate the source bytes when available rather
-        // than requiring a second raw copy of each texture in the game package.
-        if(FileAccess.FileExists(normalPath))
+        if(root.GetProperty("schemaVersion").GetInt32()!=2)throw new InvalidOperationException("Unsupported human mesh schema");
+        foreach(string texture in new[]{"albedo","hairAlbedo","eyeAlbedo"})
         {
-            string normalHash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(FileAccess.GetFileAsBytes(normalPath))).ToLowerInvariant();
-            if(normalHash!=detail.GetProperty("sha256").GetString())throw new InvalidOperationException("Human sculpt normal source hash mismatch");
+            var entry=root.GetProperty(texture);string file=entry.GetProperty("file").GetString()!;
+            if(System.IO.Path.GetFileName(file)!=file)throw new InvalidOperationException("Invalid human texture path");
+            string texturePath="res://assets/models/human/"+file;
+            if(!ResourceLoader.Exists(texturePath))throw new InvalidOperationException("Missing human texture atlas");
+            if(FileAccess.FileExists(texturePath))
+            {
+                string textureHash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(FileAccess.GetFileAsBytes(texturePath))).ToLowerInvariant();
+                if(textureHash!=entry.GetProperty("sha256").GetString())throw new InvalidOperationException("Human texture source hash mismatch");
+            }
         }
         float[] Floats(JsonElement e){var values=new float[e.GetArrayLength()];int i=0;foreach(var v in e.EnumerateArray())values[i++]=v.GetSingle();return values;}
         Vector3 Vector(JsonElement e){var f=Floats(e);return new(f[0],f[1],f[2]);}
@@ -56,15 +56,19 @@ internal sealed partial class NatureModels
             var index=e.GetProperty("indices");var indices=new int[index.GetArrayLength()];int k=0;
             foreach(var value in index.EnumerateArray()){int v=value.GetInt32();if(v<0||v>=count)throw new InvalidOperationException("Human surface index out of range");indices[k++]=v;}
             if(indices.Length%3!=0||count==0)throw new InvalidOperationException("Empty human surface");
-            return new(points,normals,uv,colors,indices);
+            return new(points,normals,uv,colors,indices,e.TryGetProperty("blink",out var blink)?Vectors(blink):null);
         }
+        Vector3[] Vectors(JsonElement e){var f=Floats(e);var result=new Vector3[f.Length/3];for(int i=0;i<result.Length;i++)result[i]=new(f[i*3],f[i*3+1],f[i*3+2]);return result;}
         var scalp=root.GetProperty("scalp");var eyes=root.GetProperty("eyes");var lids=root.GetProperty("eyelids");
         var asset=new HumanAsset(Surface(root.GetProperty("head")),Surface(root.GetProperty("lips")),new[]{Surface(eyes[0]),Surface(eyes[1])},Surface(root.GetProperty("headLod")),
-            Vector(root.GetProperty("eyeCenter")),Vector(root.GetProperty("mouthCenter")),root.GetProperty("noseProbeY").GetSingle(),
+            Surface(root.GetProperty("hair")),Vector(root.GetProperty("eyeCenter")),Vector(root.GetProperty("mouthCenter")),root.GetProperty("noseProbeY").GetSingle(),
             new[]{Curve(lids[0].GetProperty("upper")),Curve(lids[1].GetProperty("upper"))},
             new[]{Curve(lids[0].GetProperty("lower")),Curve(lids[1].GetProperty("lower"))},
             scalp.GetProperty("rows").GetInt32(),scalp.GetProperty("columns").GetInt32(),scalp.GetProperty("low").GetSingle(),scalp.GetProperty("high").GetSingle(),
-            Floats(scalp.GetProperty("centers")),Floats(scalp.GetProperty("radii")),normalPath);
+            Floats(scalp.GetProperty("centers")),Floats(scalp.GetProperty("radii")),
+            "res://assets/models/human/"+root.GetProperty("albedo").GetProperty("file").GetString(),
+            "res://assets/models/human/"+root.GetProperty("hairAlbedo").GetProperty("file").GetString(),
+            root.GetProperty("hairAlbedo").GetProperty("luminance").GetSingle());
         asset=asset with {Head=RepairHeadNormals(asset.Head)};
         _humanAssets[family]=asset;return asset;
     }
@@ -157,9 +161,9 @@ internal sealed partial class NatureModels
     {
         string key="human-asset:"+kind+":"+side+":"+_faceVariant;
         if(_meshes.TryGetValue(key,out var cached))return cached;
-        var asset=HumanData();var source=kind=="head"?asset.Head:kind=="lod"?asset.Lod:kind=="mouth"?asset.Lips:asset.Eyes[side];
+        var asset=HumanData();var source=kind=="head"?asset.Head:kind=="hair"?asset.Hair:kind=="lod"?asset.Lod:kind=="mouth"?asset.Lips:asset.Eyes[side];
         var colors=(Color[])source.Colors.Clone();
-        var points=new Vector3[source.Points.Length];var normals=new Vector3[points.Length];var uv=(Vector2[])source.Uv.Clone();
+        var points=new Vector3[source.Points.Length];var normals=new Vector3[points.Length];var uv=(Vector2[])source.Uv.Clone();var blinkUv=new Vector2[points.Length];
         var origin=kind=="eye"?HumanEyeCenter(side):kind=="mouth"?HumanMouthCenter:Vector3.Zero;
         for(int i=0;i<points.Length;i++)
         {
@@ -167,22 +171,23 @@ internal sealed partial class NatureModels
             if(kind=="head"||kind=="lod")
             {
                 points[i]=new(p.X/.177f,p.Y/.220f,p.Z/.195f);
-                float front=Math.Clamp((-p.Z-.025f)/.045f,0,1);
-                float cheeks=MathF.Exp(-MathF.Pow((MathF.Abs(p.X)-.044f)/.023f,2)-MathF.Pow((p.Y+.018f)/.024f,2));
-                float nose=MathF.Exp(-MathF.Pow(p.X/.014f,2)-MathF.Pow((p.Y+.020f)/.025f,2));
-                float warmth=front*(.045f*cheeks+.025f*nose);
-                colors[i]=new Color(colors[i].R,colors[i].G*(1-warmth),colors[i].B*(1-warmth*1.2f),colors[i].A);
                 normals[i]=new Vector3(n.X*.177f,n.Y*.220f,n.Z*.195f).Normalized();
+                if(source.Blink!=null){var delta=HumanPoint(source.Points[i]+source.Blink[i])-p;blinkUv[i]=new(delta.Y/.220f,delta.Z/.195f);}
+            }
+            else if(kind=="hair")
+            {
+                points[i]=new(p.X/.181f,(p.Y-.008f)/.224f,p.Z/.200f);
+                normals[i]=new Vector3(n.X*.181f,n.Y*.224f,n.Z*.200f).Normalized();
             }
             else
             {
                 points[i]=p-origin;normals[i]=n;
-                if(kind=="eye")uv[i]=new(.5f+(p.X-origin.X)/.028f,.5f-(p.Y-origin.Y)/.0108f);
             }
         }
         var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);
         arrays[(int)Mesh.ArrayType.Vertex]=points;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.TexUV]=uv;
         arrays[(int)Mesh.ArrayType.Color]=colors;arrays[(int)Mesh.ArrayType.Index]=source.Indices;
+        if(source.Blink!=null)arrays[(int)Mesh.ArrayType.TexUV2]=blinkUv;
         var mesh=new ArrayMesh();mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);_meshes[key]=mesh;return mesh;
     }
     private Vector3 WrapHumanHair(Vector3 p,float angle,bool center=false)
@@ -235,22 +240,15 @@ internal sealed partial class NatureModels
             if(data.Lod.Indices.Length>7200||HumanMesh("head").GetAabb().Position.DistanceTo(HumanMesh("lod").GetAabb().Position)>.06f
                 ||HumanMesh("head").GetAabb().Size.DistanceTo(HumanMesh("lod").GetAabb().Size)>.08f)
                 throw new InvalidOperationException("Distant anatomical head exceeds its budget or changes silhouette");
+            var morph=data.Head.Blink;
+            if(morph==null||morph.Length!=data.Head.Points.Length)throw new InvalidOperationException("Missing source eyelid morph");
+            float coverage=0;
+            foreach(var delta in morph){if(!delta.IsFinite()||delta.Length()>.020f)throw new InvalidOperationException("Invalid eyelid displacement");coverage=MathF.Max(coverage,-delta.Y);}
+            if(coverage<.006f||coverage>.015f)throw new InvalidOperationException("Eyelid morph cannot close its eye aperture");
             for(int side=0;side<2;side++)
-            {
                 if(data.UpperLids[side].Length!=49||data.LowerLids[side].Length!=49)throw new InvalidOperationException("Incomplete anatomical aperture");
-                var arrays=EyelidSurface(side).SurfaceGetArrays(0);
-                var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var closed=arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
-                var uv=arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();float coverage=0;
-                if(closed.Length!=points.Length)throw new InvalidOperationException("Eyelid lost its closed geometry");
-                for(int i=0;i<points.Length;i++)
-                {
-                    if(!points[i].IsFinite()||!closed[i].IsFinite())throw new InvalidOperationException("Nonfinite eyelid morph");
-                    if(uv[i].Y>.99f)coverage=MathF.Max(coverage,points[i].Y-closed[i].X);
-                }
-                if(coverage<.004f||coverage>.016f)throw new InvalidOperationException("Eyelid does not cover its source eye aperture");
-            }
-            if(ChildHead&&((ShaderMaterial)AnatomicalFaceMaterial("#aa8b78")).GetShaderParameter("beard").AsSingle()!=0)
-                throw new InvalidOperationException("Child head inherited adult stubble");
+            if(ChildHead&&((Texture2D)((ShaderMaterial)AnatomicalFaceMaterial("#aa8b78")).GetShaderParameter("skin_albedo").AsGodotObject()).ResourcePath!="res://assets/models/human/human-feminine_albedo.png")
+                throw new InvalidOperationException("Child head inherited the adult male skin atlas");
         }
         _faceVariant=previous;_facePoints=null;_faceIndices=null;
         GD.Print("HUMAN_ASSET_PASS: three attributed anatomical heads, eight adult/eight child variants, aperture-fitted eyelid closure, child skin, scalp lookup, finite geometry and normals");

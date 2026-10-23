@@ -1,4 +1,4 @@
-"""Check shipped head/normal pairs without requiring Blender or network access."""
+"""Check shipped anatomical heads and original UV atlases without requiring Blender or network access."""
 import hashlib
 import json
 import math
@@ -14,19 +14,18 @@ NAMES = ('human-head', 'human-scan', 'human-feminine')
 
 
 class HumanAssetTests(unittest.TestCase):
-    def test_sculpt_normal_matches_mesh_and_import_contract(self):
+    def test_atlases_match_mesh_and_import_contract(self):
         for name in NAMES:
-            with self.subTest(family=name):
-                data = json.loads((ROOT/(name+'.mesh.json')).read_text())
-                detail = data['detailNormal']
-                self.assertEqual(detail['file'], name+'_normal.png')
-                raw = (ROOT/detail['file']).read_bytes()
-                self.assertEqual(hashlib.sha256(raw).hexdigest(), detail['sha256'])
+            data=json.loads((ROOT/(name+'.mesh.json')).read_text())
+            self.assertEqual(data['schemaVersion'],2)
+            self.assertFalse((ROOT/(name+'_normal.png')).exists())
+            for field,size in (('albedo',2048),('hairAlbedo',2048),('eyeAlbedo',1024)):
+                entry=data[field];raw=(ROOT/entry['file']).read_bytes()
+                self.assertEqual(hashlib.sha256(raw).hexdigest(),entry['sha256'])
                 validate_png(raw)
-                self.assertEqual(struct.unpack('>II', raw[16:24]), (2048, 2048))
-                settings = (ROOT/(detail['file']+'.import')).read_text(encoding='utf-8-sig')
-                self.assertIn('mipmaps/generate=true', settings)
-                self.assertIn('compress/normal_map=1', settings)
+                self.assertEqual(struct.unpack('>II',raw[16:24]),(size,size))
+                settings=(ROOT/(entry['file']+'.import')).read_text(encoding='utf-8-sig')
+                self.assertIn('mipmaps/generate=true',settings)
 
     def test_packed_head_atlas_retains_geometry_and_color(self):
         for name in NAMES:
@@ -49,7 +48,11 @@ class HumanAssetTests(unittest.TestCase):
         self.assertEqual(len({source['sha256'] for source in sources}), 3)
         self.assertEqual([source['license'] for source in sources], ['CC0-1.0']*3)
         license_text = (ROOT/'LICENSE.txt').read_text()
-        self.assertIn('Dan Ulrich', license_text)
+        self.assertIn('MakeHuman', license_text)
+        source_manifest=json.loads((ROOT/'head-sources.json').read_text())
+        for source in sources:
+            for name,digest in source['files'].items():
+                self.assertEqual(digest,source_manifest['files'][name]['sha256'])
         self.assertIn('CC0', license_text)
 
     def test_eyelids_follow_each_source_aperture(self):
@@ -106,8 +109,40 @@ class HumanAssetTests(unittest.TestCase):
             self.assertTrue(boundary,name)
             self.assertTrue(all(surface['colors'][i*4+3]==0 for i in boundary),name)
             self.assertGreater(sum(surface['colors'][3::4]),100,name)
-            self.assertEqual(data['mouthRegions'],[7] if name=='human-scan' else [7,8])
+            self.assertEqual(data['mouthRegions'],['source-uv-mouth'])
 
+
+    def test_source_winding_faces_outward_in_godot(self):
+        for name in NAMES:
+            data=json.loads((ROOT/(name+'.mesh.json')).read_text())
+            for part in ('head','lips','hair'):
+                surface=data[part];p=surface['positions'];n=surface['normals'];indices=surface['indices']
+                wrong=total=0
+                for j in range(0,len(indices),3):
+                    a,b,c=[p[i*3:i*3+3] for i in indices[j:j+3]]
+                    u=[b[i]-a[i] for i in range(3)];v=[c[i]-a[i] for i in range(3)]
+                    cross=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]]
+                    if sum(x*x for x in cross)<1e-20:continue
+                    normal=[sum(n[index*3+i] for index in indices[j:j+3]) for i in range(3)]
+                    wrong+=sum(x*y for x,y in zip(cross,normal))>0
+                    total+=1
+                self.assertLess(wrong/max(1,total),.02,(name,part))
+
+    def test_blink_moves_the_original_lids_without_moving_the_neck(self):
+        for name in NAMES:
+            data=json.loads((ROOT/(name+'.mesh.json')).read_text());head=data['head']
+            self.assertEqual(len(head['blink']),len(head['positions']))
+            displacements=head['blink'];moved=0
+            for i in range(len(displacements)//3):
+                delta=displacements[i*3:i*3+3];point=head['positions'][i*3:i*3+3]
+                self.assertTrue(all(math.isfinite(x) for x in delta))
+                self.assertLess(sum(x*x for x in delta),.02**2)
+                if sum(x*x for x in delta)>1e-12:
+                    moved+=1
+                    self.assertGreater(point[1],-.04)
+                    self.assertLess(point[1],.07)
+            self.assertGreater(moved,100)
+            self.assertGreater(-min(displacements[1::3]),.006)
 
 if __name__ == '__main__':
     unittest.main()

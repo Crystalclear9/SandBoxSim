@@ -15,10 +15,12 @@ internal static class ScannedSurfaces
         using var doc=JsonDocument.Parse(FileAccess.GetFileAsString(Root+"manifest.json"));
         if(doc.RootElement.GetProperty("license").GetString()!="CC0-1.0"||!FileAccess.FileExists(Root+"LICENSE.txt"))
             throw new InvalidOperationException("Missing scanned surface attribution");
-        string path=Root+doc.RootElement.GetProperty("assets").GetProperty(asset).GetProperty("maps").GetProperty(kind).GetProperty("path").GetString();
+        var record=doc.RootElement.GetProperty("assets").GetProperty(asset);
+        var expected=record.TryGetProperty("pixelSize",out var size)?new Vector2I(size[0].GetInt32(),size[1].GetInt32()):new Vector2I(1024,1024);
+        string path=Root+record.GetProperty("maps").GetProperty(kind).GetProperty("path").GetString();
         if(!ResourceLoader.Exists(path))throw new InvalidOperationException("Missing scanned surface: "+path);
         texture=GD.Load<Texture2D>(path);
-        if(texture.GetWidth()!=1024||texture.GetHeight()!=1024)throw new InvalidOperationException("Unexpected surface resolution");
+        if(texture.GetWidth()!=expected.X||texture.GetHeight()!=expected.Y)throw new InvalidOperationException("Unexpected surface resolution");
         Textures[key]=texture;return texture;
     }
     public static Texture2D NormalRoughness(Texture2D normalMap,Texture2D roughMap)

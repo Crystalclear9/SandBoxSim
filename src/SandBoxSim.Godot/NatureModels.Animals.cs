@@ -33,7 +33,7 @@ float dorsal=smoothstep(mix(1.08,.78,predator),mix(1.25,.98,predator),local.y)*.
 vec3 dx=dFdx(VERTEX),dy=dFdy(VERTEX);
 vec3 across=cross(dy,NORMAL),along=cross(NORMAL,dx);
 float determinant=dot(dx,across);
-float fiber_height=guard*mix(.000030,.000065,predator);
+float fiber_height=guard*mix(.000075,.000220,predator);
 if(abs(determinant)>0.0000000001){
 NORMAL=normalize(abs(determinant)*NORMAL-sign(determinant)*(dFdx(fiber_height)*across+dFdy(fiber_height)*along));
 }
@@ -46,8 +46,8 @@ float cervid_chin=(1.0-predator)*(1.0-smoothstep(-1.08,-.91,local.z))*(1.0-smoot
 float rump=(1.0-predator)*smoothstep(.43,.58,local.z)*(1.0-smoothstep(.07,.15,abs(local.x)))*.48;
 float tear=(1.0-predator)*exp(-pow((abs(local.x)-.085)*41.0,2.0)-pow((local.y-1.474)*45.0,2.0)-pow((local.z+.883)*24.0,2.0))*.12;
 vec3 base=mix(coat.rgb,pale.rgb,clamp(belly*.52+face_pale+throat+cheek+cervid_chin+rump,0.0,.78));
-ALBEDO=base*(0.97+guard*.072+agouti*.09+locks+flank-saddle-dorsal-muzzle_shade-brow_mask-tear);
-ROUGHNESS=0.94+guard*0.025; SPECULAR=0.10;
+ALBEDO=base*COLOR.rgb*(0.97+guard*.12+agouti*.14+locks+flank-saddle-dorsal-muzzle_shade-brow_mask-tear);
+ROUGHNESS=.86+guard*.06;SPECULAR=.17;
 }" };
         var material = new ShaderMaterial { Shader = _furShader };
         material.SetShaderParameter("coat", new Color(wolf ? "#777971" : "#8a6d52"));

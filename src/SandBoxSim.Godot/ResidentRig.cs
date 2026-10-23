@@ -28,7 +28,7 @@ internal partial class ResidentRig : Node3D
     public readonly Skeleton3D[] HandSkeletons=new Skeleton3D[2];
     public Mesh ShoulderGeometry=null!,DetailedBodyMesh=null!,DistantBodyMesh=null!;
     public Skin DetailedBodySkin=null!;
-    public readonly MeshInstance3D[] Eyelids=new MeshInstance3D[2];
+    public readonly Node3D[] Eyelids=new Node3D[2];
     public readonly Node3D[] Eyes=new Node3D[2];
     public Node3D Mouth=null!;
     public Vector3 MouthRest;

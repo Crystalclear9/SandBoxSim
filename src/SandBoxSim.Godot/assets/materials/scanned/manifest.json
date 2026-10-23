@@ -201,6 +201,41 @@
           "bytes": 411081
         }
       }
+    },
+    "rough_linen": {
+      "url": "https://polyhaven.com/a/rough_linen",
+      "authors": {
+        "colormass": "Photography",
+        "Rico Cilliers": "Processing"
+      },
+      "dimensionsMillimeters": [
+        270.7081392676629,
+        271.29998803138733
+      ],
+      "maps": {
+        "diffuse": {
+          "path": "rough_linen/rough_linen_diff_1k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rough_linen/rough_linen_diff_1k.jpg",
+          "sha256": "04897d7611d7390ddf5b2c6f7273f448dfc48341fdbd1f4f207fa30b331d7f57",
+          "bytes": 835801
+        },
+        "normal": {
+          "path": "rough_linen/rough_linen_nor_gl_1k.png",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/rough_linen/rough_linen_nor_gl_1k.png",
+          "sha256": "ebafddfe30e304f9479e1005c800c4b0b2280fd8de9eeb1a96f92f57b999ea72",
+          "bytes": 5653944
+        },
+        "roughness": {
+          "path": "rough_linen/rough_linen_rough_1k.jpg",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/rough_linen/rough_linen_rough_1k.jpg",
+          "sha256": "734ad6718841a6e296aacaa6e9ee2e1686eed5f62bb8d71c915c5605e162bcb4",
+          "bytes": 1083725
+        }
+      },
+      "pixelSize": [
+        1024,
+        1026
+      ]
     }
   }
 }

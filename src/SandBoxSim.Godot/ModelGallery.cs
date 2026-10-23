@@ -137,7 +137,7 @@ internal partial class ModelGallery : PanelContainer
         {
             int[] identities={19,17,18,19,17,18};
             float[] views={0,0,0,MathF.PI*.5f,MathF.PI*.5f,MathF.PI*.5f};
-            string[] labels={"男性头颈 · 正面","扫描头颈 · 正面","女性头颈 · 正面","男性头颈 · 侧面","扫描头颈 · 侧面","女性头颈 · 侧面"};
+            string[] labels={"男性头颈 · 正面","中性头颈 · 正面","女性头颈 · 正面","男性头颈 · 侧面","中性头颈 · 侧面","女性头颈 · 侧面"};
             for(int i=0;i<identities.Length;i++)
                 Face(grid,models.Resident(identities[i],false,JobType.Gatherer),labels[i],false,views[i]);
         }

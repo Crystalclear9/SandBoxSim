@@ -1,5 +1,6 @@
 """Simplify the actual anatomical head, lips and eyes for distant residents."""
 import bpy
+import bmesh
 
 
 def build_head_lod(head,lips,eyes,budget=2400):
@@ -13,9 +14,21 @@ def build_head_lod(head,lips,eyes,budget=2400):
     mesh=bpy.data.meshes.new('Anatomical head LOD');mesh.from_pydata(points,[],faces);mesh.update()
     color=mesh.color_attributes.new(name='HeadTint',type='FLOAT_COLOR',domain='POINT')
     for value,tint in zip(color.data,colors):value.color=tint
+    # A colour-only LOD has no UV seams. Weld the atlas splits before collapse;
+    # otherwise every island boundary needlessly constrains simplification.
+    edit=bmesh.new()
+    try:
+        edit.from_mesh(mesh)
+        bmesh.ops.remove_doubles(edit,verts=list(edit.verts),dist=.000001)
+        edit.to_mesh(mesh)
+    finally:
+        edit.free()
+    mesh.update()
     for face in mesh.polygons:face.use_smooth=True
     obj=bpy.data.objects.new('Anatomical head LOD',mesh);bpy.context.collection.objects.link(obj)
-    modifier=obj.modifiers.new('Preserve anatomical silhouette','DECIMATE');modifier.ratio=budget/len(faces);modifier.use_collapse_triangulate=True
+    # Disconnected eye shells and UV boundaries can leave a few triangles over
+    # the requested ratio. Reserve a small margin while retaining the hard cap.
+    modifier=obj.modifiers.new('Preserve anatomical silhouette','DECIMATE');modifier.ratio=(budget-32)/len(faces);modifier.use_collapse_triangulate=True
     bpy.context.view_layer.update();deps=bpy.context.evaluated_depsgraph_get();result_mesh=obj.evaluated_get(deps).to_mesh(preserve_all_data_layers=True,depsgraph=deps)
     result_mesh.calc_loop_triangles()
     tint_data=result_mesh.color_attributes['HeadTint'].data

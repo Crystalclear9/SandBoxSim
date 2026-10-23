@@ -137,7 +137,7 @@ ALBEDO=mix(vec3(.035,.047,.065),vec3(.135,.17,.20),halo);}"}};
     internal object RenderQualityState()
     {
         var environment=_stage.GetChildren().OfType<WorldEnvironment>().Single().Environment;
-        return new {studio="anatomical-portrait-v4",backdrop="radial-unlit-v1",lensFov=_camera.Fov,msaa=_viewport.Msaa3D.ToString(),resolution=new[]{_viewport.Size.X,_viewport.Size.Y},
+        return new {studio="textured-portrait-v5",backdrop="radial-unlit-v1",lensFov=_camera.Fov,msaa=_viewport.Msaa3D.ToString(),resolution=new[]{_viewport.Size.X,_viewport.Size.Y},
             background=environment.BackgroundColor.ToHtml(),ambient=environment.AmbientLightColor.ToHtml(),ambientEnergy=environment.AmbientLightEnergy,
             lights=_stage.GetChildren().OfType<DirectionalLight3D>().Select(light=>new {
                 color=light.LightColor.ToHtml(),energy=light.LightEnergy,rotation=new[]{light.RotationDegrees.X,light.RotationDegrees.Y,light.RotationDegrees.Z},shadows=light.ShadowEnabled,

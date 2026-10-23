@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b1brajto51s0l"
-path="res://.godot/imported/human-head_normal.png-4b4a3d04cb81f187748deffac442c0cf.ctex"
+uid="uid://d4cp7nkklvxdl"
+path="res://.godot/imported/short01_albedo.png-827e52978725fe4c7cceb7e4d93335ae.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/models/human/human-head_normal.png"
-dest_files=["res://.godot/imported/human-head_normal.png-4b4a3d04cb81f187748deffac442c0cf.ctex"]
+source_file="res://assets/models/human/short01_albedo.png"
+dest_files=["res://.godot/imported/short01_albedo.png-827e52978725fe4c7cceb7e4d93335ae.ctex"]
 
 [params]
 
@@ -21,7 +21,7 @@ compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=1
+compress/normal_map=0
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1

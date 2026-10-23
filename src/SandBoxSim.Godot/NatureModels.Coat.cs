@@ -39,6 +39,8 @@ internal sealed partial class NatureModels
         int strands=wolf?2200:1200;
         for(int strand=0;strand<strands;strand++)
         {
+            float tone=.80f+Random()*.34f;
+            surface.SetColor(new Color(tone,tone,tone));
             int selected=cumulative.BinarySearch(Random()*area);if(selected<0)selected=~selected;
             int t=eligible[Math.Min(selected,eligible.Count-1)];
             float r=MathF.Sqrt(Random()),s=Random();float[] bary={1-r,r*(1-s),r*s};
@@ -61,7 +63,7 @@ internal sealed partial class NatureModels
             var across=normal.Cross(flow).Normalized();
             float ruff=wolf?MathF.Exp(-MathF.Pow((root.Z+.4f)/.25f,2)):0;
             float length=(wolf?.024f:.0045f)*(0.65f+Random()*.6f)*(1+ruff*.9f);
-            float width=wolf?.0011f:.00055f;
+            float width=wolf?.00065f:.00035f;
             for(int plane=0;plane<2;plane++)
             {
                 var spread=plane==0?across:(across+normal*.5f).Normalized();

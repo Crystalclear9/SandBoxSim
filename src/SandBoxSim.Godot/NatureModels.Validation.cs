@@ -71,7 +71,7 @@ internal sealed partial class NatureModels
             if(noseProjection<.009f||noseProjection>.036f)throw new InvalidOperationException("Nasal surface lost its bounded anatomical projection");
             foreach(var feature in new[]{new Vector2(HumanEyeCenter(0).X,HumanEyeCenter(0).Y),new Vector2(HumanEyeCenter(1).X,HumanEyeCenter(1).Y),new Vector2(0,HumanMouthCenter.Y)})
                 if(FaceDepth(feature.X,feature.Y)>=-.03f)throw new InvalidOperationException("Facial feature does not attach to the front surface: "+variant+" "+feature+" depth="+FaceDepth(feature.X,feature.Y));
-            foreach(var mesh in new[]{Shape("face"),Shape("hair"),Brows(),EyelidSurface(0),EarSurface(-1),EarSurface(1)})
+            foreach(var mesh in new[]{Shape("face"),Shape("hair"),HumanMesh("eye",0),EarSurface(-1),EarSurface(1)})
             {
                 var arrays=mesh.SurfaceGetArrays(0);
                 foreach(var point in arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array())
@@ -157,6 +157,10 @@ internal sealed partial class NatureModels
             var groomBones=groom[(int)Mesh.ArrayType.Bones].AsInt32Array();var groomWeights=groom[(int)Mesh.ArrayType.Weights].AsFloat32Array();
             if(groom[(int)Mesh.ArrayType.Index].AsInt32Array().Length!=(wolf?2200:1200)*18)
                 throw new InvalidOperationException("Animal grooming exceeds fixed strand budget");
+            var strandColors=groom[(int)Mesh.ArrayType.Color].AsColorArray();float darkest=1,lightest=0;
+            if(strandColors.Length!=groomPoints.Length)throw new InvalidOperationException("Animal coat lost strand colours");
+            foreach(var tint in strandColors){darkest=MathF.Min(darkest,tint.R);lightest=MathF.Max(lightest,tint.R);}
+            if(lightest-darkest<.15f)throw new InvalidOperationException("Animal strands lost coat variation");
             if(GroomAnimalCoat(animal.FurSkin.Mesh,wolf)!=grooming.Mesh)
                 throw new InvalidOperationException("Animal grooming cache not reused");
             for(int v=0;v<groomPoints.Length;v++)

@@ -1,31 +1,37 @@
 SandBoxSim human model sources
 
-HEADS, EYES, LIPS AND SCULPT NORMAL ATLASES
-Creator: Dan Ulrich / Blender
+HEADS, EYES, LIPS, HAIR AND SKIN ATLASES (CC0)
+Creator/provider: MakeHuman Community / MakeHuman Team
+Data Collection AB, Joel Palmius, Jonas Hauquier; original mesh work includes
+Manuel Bastioni. Core assets explicitly released as CC0 in September 2020.
 License: CC0 1.0 Universal (Public Domain)
 Terms: https://creativecommons.org/publicdomain/zero/1.0/
-Provider policy: https://projects.blender.org/blender/blender-assets/src/branch/main/README.md
+Policy: https://github.com/makehumancommunity/makehuman/blob/master/LICENSE.md
+Full asset license: MAKEHUMAN-LICENSE.txt
+System assets: https://static.makehumancommunity.org/assets/assetpacks/makehuman_system_assets.html
 
-human-head.mesh.json and human-head_normal.png:
-Source: https://projects.blender.org/blender/blender-assets/src/branch/main/publish/online/base_meshes/human_base_meshes__body-realistic-male.blend
-Source SHA-256: 697b55a5595a756f9304d12909c85f9eddb0c0f57ec2b6c8f1edf071e00f9b30
-This anatomical male head replaces the former Blender Studio head derivative.
+human-head.mesh.json, human-scan.mesh.json and human-feminine.mesh.json:
+CC0 HM08 base topology, male/female young macro target, source eye closure
+expressions, fitted high-poly eyes and short01/short02/ponytail01 hair cards.
+The historical filename human-scan identifies the neutral variant; it does not
+claim that this replacement is a scan. Source UV skin textures are young
+caucasian male, male2 and female from the CC0 MakeHuman system assets pack.
+The packaged eye_albedo.png retains the original transparent cornea patch.
 
-human-scan.mesh.json and human-scan_normal.png:
-Source: https://projects.blender.org/blender/blender-assets/src/branch/main/publish/online/base_meshes/human_base_meshes__head-realistic-animation.blend
-Source SHA-256: a680ca23a0dee2a16ecc6e3921ddcfa0e039a5a7ef4262ec56214a924d08d3ca
+Exact input filenames, URLs, sizes and SHA-256 are in head-sources.json.
+Each runtime JSON also records the inputs actually used for that variant and
+the checksums of its skin, hair and eye texture atlases.
 
-human-feminine.mesh.json and human-feminine_normal.png:
-Source: https://projects.blender.org/blender/blender-assets/src/branch/main/publish/online/base_meshes/human_base_meshes__body-realistic-female.blend
-Source SHA-256: 74917ec876cdb6aae3b6d291f2f638f5a959276f4115a714cf8c5dcf6a99ce20
-
-SandBoxSim modifications: evaluate multiresolution surfaces; extract and fit
-head/neck, eyes and lips; convert axes and scale; generate scalp samples;
-pack UVs and bake 2K tangent normals. The actual skin/eye intersections yield
-49 upper/lower aperture samples per eye. Runtime derives continuous eyelid
-closure, age-dependent facial proportions, and repairs inconsistent normals.
-Exporters: tools/export_human_variants.py, tools/export_human_head.py,
-tools/bake_human_detail.py and tools/human_eyelids.py.
+SandBoxSim modifications: apply macro data, crop and fit the cervical ring,
+subdivide source topology, preserve source UVs, export the original eyelid
+closure displacement, partition mouth geometry with fixed attachment weights,
+measure visible eye apertures and simplify the same head for distant actors.
+Retarget hair cards to the head; retain the open-forehead ponytail;
+apply independent actor blink/speech uniforms and age-dependent proportions.
+The former Blender head meshes, separate eyelid overlays and three old head
+normal atlases have been replaced. No MakeHuman application code is bundled.
+Exporter: tools/export_resident_faces.py
+Source fetcher: tools/fetch-human-assets.py
 
 HANDS AND FOREARMS (CC BY 4.0)
 Creator/provider: Julien Kaspar / Blender Studio

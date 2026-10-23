@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "creator": "MakeHuman Community",
+  "license": "CC0-1.0",
+  "licenseUrl": "https://github.com/makehumancommunity/makehuman/blob/master/LICENSE.md",
+  "packLicenseUrl": "https://static.makehumancommunity.org/assets/assetpacks/makehuman_system_assets.html",
+  "archiveUrl": "https://files2.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip",
+  "archiveBytes": 280737770,
+  "files": {
+    "base.obj": {
+      "url": "https://raw.githubusercontent.com/makehumancommunity/makehuman/master/makehuman/data/3dobjs/base.obj",
+      "sha256": "8e761e6624b8f54536409135d1636da63b32486a90d4897f84e121d144f6fb4c",
+      "bytes": 1749303
+    },
+    "caucasian-male-young.target": {
+      "url": "https://raw.githubusercontent.com/makehumancommunity/makehuman/master/makehuman/data/targets/macrodetails/caucasian-male-young.target",
+      "sha256": "70e228ba7164737dae664454394536fc5935fa48d333c1a97d77e2dc6eacc5f5",
+      "bytes": 396479
+    },
+    "caucasian-female-young.target": {
+      "url": "https://raw.githubusercontent.com/makehumancommunity/makehuman/master/makehuman/data/targets/macrodetails/caucasian-female-young.target",
+      "sha256": "118379f6e8ba9266247fdb8788a20e1df40a239f97ced0b9905bcbcc74f6e820",
+      "bytes": 420559
+    },
+    "eye-left-closure.target": {
+      "url": "https://raw.githubusercontent.com/makehumancommunity/makehuman/master/makehuman/data/targets/expression/units/caucasian/eye-left-closure.target",
+      "sha256": "e38cb77fd888de3d0d944efe6f3511bf3ca4076b0397fa7c840d8368f08205c2",
+      "bytes": 3946
+    },
+    "eye-right-closure.target": {
+      "url": "https://raw.githubusercontent.com/makehumancommunity/makehuman/master/makehuman/data/targets/expression/units/caucasian/eye-right-closure.target",
+      "sha256": "58faf2c199272bfd87478ea122cdaa4b4b8669505be0d75f777c5471527b2b15",
+      "bytes": 3776
+    },
+    "eyes.obj": {
+      "url": "https://raw.githubusercontent.com/makehumancommunity/makehuman/master/makehuman/data/eyes/high-poly/high-poly.obj",
+      "sha256": "da2493215b708a344c33dc72f2a9a5b8fa985dcc5a70ad3b208995cf871da8e1",
+      "bytes": 100882
+    },
+    "eyes.mhclo": {
+      "url": "https://raw.githubusercontent.com/makehumancommunity/makehuman/master/makehuman/data/eyes/high-poly/high-poly.mhclo",
+      "sha256": "b183cfe37120ab726f9b3f2ea6cd3a64c44ce7b4bd91a77c841cf70c04f83a0d",
+      "bytes": 72490
+    },
+    "brown_eye.png": {
+      "url": "https://raw.githubusercontent.com/makehumancommunity/makehuman/master/makehuman/data/eyes/materials/brown_eye.png",
+      "sha256": "4659691c7295ad6206c78b003e5fd0e5f91dcd53032fa914a229bb48cabe424b",
+      "bytes": 610817
+    },
+    "LICENSE.md": {
+      "url": "https://raw.githubusercontent.com/makehumancommunity/makehuman/master/LICENSE.md",
+      "sha256": "edd99571ca62698f78c943fd4fffb159a413c315fa0d4819d3cec5cadaf8b4f1",
+      "bytes": 3598
+    },
+    "LICENSE.ASSETS.md": {
+      "url": "https://raw.githubusercontent.com/makehumancommunity/makehuman/master/LICENSE.ASSETS.md",
+      "sha256": "f6089cba01cb570a24712b41ab8a586ccd3cc5ef53dc266ca50b95c288956d2c",
+      "bytes": 6962
+    },
+    "basemesh_vertex_groups.json": {
+      "url": "https://raw.githubusercontent.com/makehumancommunity/mpfb2/master/src/mpfb/data/mesh_metadata/basemesh_vertex_groups.json",
+      "sha256": "8cb1417bc55ae5ec8aa99f90734e81ed5fbb556511ff6a2c00e0534b70911444",
+      "bytes": 81984
+    },
+    "skins/young_caucasian_male2/young_lightskinned_male_diffuse2.png": {
+      "archiveMember": "skins/young_caucasian_male2/young_lightskinned_male_diffuse2.png",
+      "sha256": "03efe1f6b0ae52429649dcefc9dcaef6058032f874a251169cc3e2ed473c3874",
+      "bytes": 3595270
+    },
+    "hair/short01/short01.mhclo": {
+      "archiveMember": "hair/short01/short01.mhclo",
+      "sha256": "ae1ffaa98da5753b803b3a173bede4895d2215e6bb94763f3765a71f0e984f35",
+      "bytes": 201588
+    },
+    "hair/short01/short01.obj": {
+      "archiveMember": "hair/short01/short01.obj",
+      "sha256": "d998d8416f9b5d5591f1d756f4d292288d000a6951bc0f4d2e8e72727bbc44fa",
+      "bytes": 194450
+    },
+    "hair/short01/short01_diffuse.png": {
+      "archiveMember": "hair/short01/short01_diffuse.png",
+      "sha256": "f34a0957184e3d1e911ed59245f874f8d4843f61ee44ff49f43edb4be0196949",
+      "bytes": 2354146
+    },
+    "skins/young_caucasian_male/young_lightskinned_male_diffuse.png": {
+      "archiveMember": "skins/young_caucasian_male/young_lightskinned_male_diffuse.png",
+      "sha256": "862a26e335e958b70534cb5f0d7c47ef30ab148a56c42b3e9da969cf76f12963",
+      "bytes": 3693828
+    },
+    "skins/young_caucasian_female/young_lightskinned_female_diffuse.png": {
+      "archiveMember": "skins/young_caucasian_female/young_lightskinned_female_diffuse.png",
+      "sha256": "b2a6ac8cd4f9febdb447368e29c76cd68410bb66e46d9dcfa2d5f75126eea8fc",
+      "bytes": 4391156
+    },
+    "hair/short02/short02_diffuse.png": {
+      "archiveMember": "hair/short02/short02_diffuse.png",
+      "sha256": "47fe33831a3929567c733356dd66243116e05df2ace1f884ddca0080b728229f",
+      "bytes": 3553543
+    },
+    "hair/short02/short02.mhclo": {
+      "archiveMember": "hair/short02/short02.mhclo",
+      "sha256": "625736cdb73e6d094df6e5a2df18f371781f1d2cd37b0ae15795c5d7051c3ec2",
+      "bytes": 119240
+    },
+    "hair/short02/short02.obj": {
+      "archiveMember": "hair/short02/short02.obj",
+      "sha256": "48f979114adfa712165a69cc55c45a70831af1fb3cba8e2a89120f0c87407b64",
+      "bytes": 139742
+    },
+    "hair/ponytail01/ponytail01.obj": {
+      "archiveMember": "hair/ponytail01/ponytail01.obj",
+      "sha256": "d9f5fe96fbedbc8006220d87aad0e4a33d15286eb6b21f5929661cdc490ebf5a",
+      "bytes": 264384
+    },
+    "hair/ponytail01/ponytail01.mhclo": {
+      "archiveMember": "hair/ponytail01/ponytail01.mhclo",
+      "sha256": "97fc50b12bcb3b1c7b33edddd8d427a2604ffb06fe79b31132bf47f82d7afbac",
+      "bytes": 252080
+    },
+    "hair/ponytail01/ponytail01_diffuse.png": {
+      "archiveMember": "hair/ponytail01/ponytail01_diffuse.png",
+      "sha256": "dcb364300cac06ce8bef91b2f7c0970baf310898bbdd06b0c6b884ee9306eb97",
+      "bytes": 3910782
+    }
+  }
+}

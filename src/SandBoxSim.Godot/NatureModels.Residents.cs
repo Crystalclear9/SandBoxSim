@@ -65,7 +65,7 @@ internal sealed partial class NatureModels
         float hem=Math.Clamp((.80f-y)/(.80f-GarmentBottom),0,1);
         float front=MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),4);
         float tension=MathF.Exp(-MathF.Pow((y-.82f)/.08f,2));
-        float fold=1+(.002f+.025f*hem)*MathF.Cos(angle*9+(y-.6f)*4+.7f*MathF.Sin(angle*3))*belt;
+        float fold=1+hem*belt*(.012f*MathF.Cos(angle*3+(y-.6f)*5)+.008f*MathF.Cos(angle*7-.4f)+.006f*MathF.Cos(angle*13+y*7));
         // Cloth gathers below the belt; diagonal compression folds radiate from it.
         fold+=front*tension*.025f*MathF.Sin((y-.76f)*70+MathF.Abs(MathF.Cos(angle))*10);
         // Tension follows the two armholes and belt, rather than forming
@@ -173,7 +173,7 @@ internal sealed partial class NatureModels
         // A second torso-mounted neck intersects it when the head turns.
         rig.Head = new Node3D { Name = "Head", Position = new Vector3(0, 1.382f, 0) }; rig.Torso.AddChild(rig.Head);
         Detail(rig.Head, "face", Vector3.Zero, new Vector3(.177f, .220f, .195f), skin).MaterialOverride=AnatomicalFaceMaterial(skin);
-        Detail(rig.Head, "hair", new Vector3(0, .008f, 0), new Vector3(.181f, .224f, .200f), hair);
+        Detail(rig.Head, "hair", new Vector3(0, .008f, 0), new Vector3(.181f, .224f, .200f), hair).MaterialOverride=AuthoredHairMaterial(hair);
         rig.Head.AddChild(new MeshInstance3D {Name="Brows",Mesh=Brows(),MaterialOverride=ResidentMaterial(hair)});
 
         // The short cut exposes the trouser waist. A continuous pelvis connects
@@ -248,6 +248,18 @@ internal sealed partial class NatureModels
         speaker.MouthMaterial.SetShaderParameter("speech",1f);
         if(ReferenceEquals(speaker.MouthMaterial,listener.MouthMaterial)||listener.MouthMaterial.GetShaderParameter("speech").AsSingle()!=0)
             throw new InvalidOperationException("Residents share facial animation material state");
+        speaker.LidMaterial.SetShaderParameter("blink",1f);
+        if(ReferenceEquals(speaker.LidMaterial,listener.LidMaterial)||listener.LidMaterial.GetShaderParameter("blink").AsSingle()!=0)
+            throw new InvalidOperationException("Residents share eyelid animation state");
+        float mergedClosure=0;
+        for(int surface=0;surface<speaker.HeadSkin.Mesh.GetSurfaceCount();surface++)
+        {
+            if(!speaker.HeadSkin.Mesh.SurfaceGetMaterial(surface).HasMeta("UsesSkinAtlas"))continue;
+            var arrays=speaker.HeadSkin.Mesh.SurfaceGetArrays(surface);
+            var deltas=arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
+            foreach(var delta in deltas)mergedClosure=MathF.Max(mergedClosure,-delta.X);
+        }
+        if(mergedClosure<.006f||mergedClosure>.015f)throw new InvalidOperationException("Head merge lost the metric eyelid morph");
         speaker.Free();listener.Free();
         foreach (var key in new[]{"belt","apron","armor","placket","shoulder-front","shoulder-back"})
         {
@@ -284,28 +296,29 @@ internal sealed partial class NatureModels
                 if (hat.Position.Y > .04f || hat.End.Y < .13f) throw new InvalidOperationException("Headwear does not enclose scalp");
             }
             bool tintPreserved=false;
-            bool sculptTangents=false,hairFiberColors=false;
+            bool skinTangents=false,hairAtlas=false;
             for(int surface=0;surface<resident.HeadSkin.Mesh.GetSurfaceCount();surface++)
             {
                 var arrays=resident.HeadSkin.Mesh.SurfaceGetArrays(surface);
                 var material=resident.HeadSkin.Mesh.SurfaceGetMaterial(surface);
-                if(material.HasMeta("UsesSculptNormal"))
+                if(material.HasMeta("UsesSkinAtlas"))
                 {
                     var tangent=arrays[(int)Mesh.ArrayType.Tangent].AsFloat32Array();
                     if(tangent.Length!=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array().Length*4)
-                        throw new InvalidOperationException("Sculpt normal atlas lost its tangent frame");
+                        throw new InvalidOperationException("Skin UV atlas lost its tangent frame");
                     foreach(float v in tangent)if(!float.IsFinite(v))throw new InvalidOperationException("Invalid sculpt tangent frame");
-                    sculptTangents=true;
+                    skinTangents=true;
                 }
+                if(material.HasMeta("UsesHairAtlas"))hairAtlas=true;
                 if(arrays[(int)Mesh.ArrayType.Color].VariantType==Variant.Type.Nil)continue;
                 foreach(var color in arrays[(int)Mesh.ArrayType.Color].AsColorArray())
                 {
-                    if(color.G<.975f)tintPreserved=true;
-                    if(color.A<.1f&&color.R<.85f)hairFiberColors=true;
+                    if(color.G>.5f)tintPreserved=true;
+
                 }
             }
             if(!tintPreserved)throw new InvalidOperationException("Facial tint lost during mesh consolidation");
-            if(!sculptTangents||!hairFiberColors)throw new InvalidOperationException("Head consolidation erased sculpt shading or hair undercoat colors");
+            if(!skinTangents||!hairAtlas)throw new InvalidOperationException("Head consolidation erased skin UV tangents or hair atlas");
             if(resident.HandSkins[1].MaterialOverride!=null||resident.HandSkins[1].Mesh.GetSurfaceCount()!=2)throw new InvalidOperationException("Nails lost their skin binding or material");
             if(resident.Grip?.GetParent()!=resident.Hands[1]) throw new InvalidOperationException("Tool grip bypasses wrist");
             foreach(var pose in new[]{(true,false,false),(false,true,false),(false,false,true)})

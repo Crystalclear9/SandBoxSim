@@ -9,10 +9,11 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+import struct
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
-ASSETS = ('grass_ground', 'brown_mud_leaves_01', 'wood_planks_grey', 'plastered_wall_03', 'coast_sand_01', 'rock_face_03', 'reed_roof_03')
+ASSETS = ('grass_ground', 'brown_mud_leaves_01', 'wood_planks_grey', 'plastered_wall_03', 'coast_sand_01', 'rock_face_03', 'reed_roof_03', 'rough_linen')
 SOURCE = ROOT / '.tools/sources/surface-materials'
 OUTPUT = ROOT / 'src/SandBoxSim.Godot/assets/materials/scanned'
 
@@ -47,6 +48,8 @@ def fetch(asset):
         if len(data) != entry['size'] or hashlib.md5(data).hexdigest() != entry['md5']:
             raise ValueError('Upstream map integrity mismatch: ' + asset + '/' + name)
         path.write_bytes(data)
+        if kind == 'nor_gl':
+            record['pixelSize'] = list(struct.unpack('>II', data[16:24]))
         record['maps'][output_key] = {'path': asset + '/' + name, 'url': entry['url'],
                                      'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data)}
     return asset, record

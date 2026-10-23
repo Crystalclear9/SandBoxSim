@@ -6,77 +6,46 @@ namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
     private Shader? _hairShader,_lipShader;
+    private string HeadAlbedoPath=>ChildHead?"res://assets/models/human/human-feminine_albedo.png":HumanData().AlbedoPath;
     private Material LipMaterial(string color)
     {
-        string key="lips:"+color;if(_residentMaterials.TryGetValue(key,out var cached))return cached;
+        string key="lips:"+color+":"+HumanFamily+":"+ChildHead;if(_residentMaterials.TryGetValue(key,out var cached))return cached;
         _lipShader??=new Shader {Code=@"shader_type spatial;
-uniform vec4 tone:source_color;uniform float speech=0.0;varying vec3 lip_point;
+uniform vec4 tone:source_color;uniform sampler2D skin_albedo:source_color,filter_linear_mipmap_anisotropic;uniform float speech=0.0;varying vec3 lip_point;
 void vertex(){lip_point=VERTEX;
-float weight=exp(-pow(VERTEX.x/.023,4.0)-pow(VERTEX.y/.008,4.0))*(1.0-smoothstep(-.006,.006,VERTEX.z))*COLOR.a;
+float weight=exp(-pow(abs(VERTEX.x)/.023,4.0)-pow(abs(VERTEX.y)/.008,4.0))*(1.0-smoothstep(-.006,.006,VERTEX.z))*COLOR.a;
 VERTEX.y+=(VERTEX.y>=0.0?1.0:-1.0)*speech*.0012*weight;VERTEX.z-=speech*.0002*weight;}
 void fragment(){
-float edge=smoothstep(.010,.026,abs(lip_point.x));
-float crease=exp(-pow(lip_point.y/.0008,2.0))*(1.0-edge);
-float line=sin(lip_point.x*4600.0+sin(lip_point.y*1300.0));
-line/=1.0+pow(fwidth(lip_point.x*4600.0),2.0);
-float pigment=(1.0-edge)*(1.0-smoothstep(.004,.011,abs(lip_point.y)));
-ALBEDO=mix(tone.rgb,tone.rgb*vec3(1.02,.79,.78)*COLOR.rgb,.65*pigment)*(1.0-crease*.12+line*.012);
+ALBEDO=texture(skin_albedo,UV).rgb*.72*(tone.rgb/vec3(.667,.545,.471));
 ROUGHNESS=.62;SPECULAR=.25;}"};
-        var material=new ShaderMaterial {Shader=_lipShader};material.SetShaderParameter("tone",new Color(color));material.SetShaderParameter("speech",0f);
+        var material=new ShaderMaterial {Shader=_lipShader};material.SetShaderParameter("tone",new Color(color));material.SetShaderParameter("speech",0f);material.SetShaderParameter("skin_albedo",GD.Load<Texture2D>(HeadAlbedoPath));
         return _residentMaterials[key]=material;
     }
     private Shader? _anatomicalSkinShader;
-    private readonly System.Collections.Generic.Dictionary<string,Texture2D> _anatomicalNormals=new();
     private NoiseTexture2D? _skinGrain,_skinMicroNormal;
     private Material SkinSurface(string color)=>FaceSurfaceMaterial(color);
     private Material AnatomicalFaceMaterial(string color)
     {
         string key="anatomical-face:"+color+":"+_faceVariant;
         if(_residentMaterials.TryGetValue(key,out var cached))return cached;
-        string normalPath=HumanData().NormalPath;
-        if(!_anatomicalNormals.TryGetValue(normalPath,out var normal))
-            _anatomicalNormals[normalPath]=normal=GD.Load<Texture2D>(normalPath);
-        if(normal.GetWidth()!=2048||normal.GetHeight()!=2048)throw new InvalidOperationException("Invalid imported human normal atlas dimensions");
         _anatomicalSkinShader??=new Shader {Code=@"shader_type spatial;
 uniform vec4 tone:source_color;
-uniform sampler2D sculpt_normal:hint_normal,filter_linear_mipmap_anisotropic;
-uniform float beard=0.0;
+uniform sampler2D skin_albedo:source_color,filter_linear_mipmap_anisotropic;
+uniform float blink=0.0;
 varying vec3 skin_point;
-void vertex(){skin_point=VERTEX;}
-float skin_noise(vec2 p){
-vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);vec2 q=vec2(127.1,311.7);
-return mix(mix(fract(sin(dot(i,q))*43758.5453),fract(sin(dot(i+vec2(1,0),q))*43758.5453),f.x),
-mix(fract(sin(dot(i+vec2(0,1),q))*43758.5453),fract(sin(dot(i+vec2(1),q))*43758.5453),f.x),f.y);}
+void vertex(){VERTEX.yz+=UV2*blink;skin_point=VERTEX;}
 void fragment(){
-vec3 p=skin_point;
-float front=1.0-smoothstep(-.060,-.025,p.z);
-float warmth=skin_noise(p.xy*75.0+p.z*13.0)-.5;
-float cheek=exp(-pow((abs(p.x)-.046)/.028,2.0)-pow((p.y+.016)/.035,2.0))*front;
-float nose=exp(-pow(p.x/.018,2.0)-pow((p.y+.018)/.032,2.0))*front;
-float temple=exp(-pow((abs(p.x)-.065)/.02,2.0)-pow((p.y-.024)/.035,2.0))*front;
-float stubble=beard*front*(1.0-smoothstep(-.040,-.015,p.y))*(1.0-smoothstep(.055,.072,abs(p.x)));
-vec2 pore_uv=p.xy*1900.0+p.z*127.0;
-float footprint=max(length(dFdx(pore_uv)),length(dFdy(pore_uv)));
-float pores=(skin_noise(pore_uv)-.5)/(1.0+footprint*footprint);
-float follicle=smoothstep(.70,.88,skin_noise(p.xy*1350.0+p.z*183.0))/(1.0+footprint*footprint);
-vec3 complexion=vec3(1.0+warmth*.035,1.0-warmth*.022,1.0-warmth*.032);
-complexion*=vec3(1.0,1.0-cheek*.022-nose*.018,1.0-cheek*.032-nose*.025);
-complexion*=1.0-temple*.025-stubble*(.035+follicle*.10);
-ALBEDO=tone.rgb*COLOR.rgb*complexion*(1.0+pores*.022);
-vec3 detail=texture(sculpt_normal,UV).rgb;
-// Grazing cage hits around the temples can encode extreme tangent normals.
-// Fade those samples rather than turning them into isolated specular facets.
-float sculpt_trust=smoothstep(.625,.90,detail.b)*(1.0-temple*.65);
-detail=mix(vec3(.5,.5,1.0),detail,sculpt_trust);
-detail.xy+=vec2(pores,-pores)*.010;
-NORMAL_MAP=detail;NORMAL_MAP_DEPTH=.18;
-ROUGHNESS=clamp(.66-nose*.07+pores*.04,.56,.72);SPECULAR=.25;
+vec3 colour=texture(skin_albedo,UV).rgb;
+float front=1.0-smoothstep(-.05,-.015,skin_point.z);
+float nose=exp(-pow(skin_point.x/.018,2.0)-pow((skin_point.y+.018)/.032,2.0))*front;
+ALBEDO=colour*.72*(tone.rgb/vec3(.667,.545,.471));
+ROUGHNESS=.60-nose*.08;SPECULAR=.32;
 }"};
         var material=new ShaderMaterial {Shader=_anatomicalSkinShader};
         material.SetShaderParameter("tone",new Color(color));
-        material.SetShaderParameter("sculpt_normal",normal);
-        material.SetShaderParameter("beard",ChildHead||HumanFamily==2?0f:_faceVariant%4==0?.75f:_faceVariant%4==3?.35f:0f);
-        material.SetMeta("UsesSculptNormal",true);
+        material.SetShaderParameter("skin_albedo",GD.Load<Texture2D>(HeadAlbedoPath));
+        material.SetShaderParameter("blink",0f);
+        material.SetMeta("UsesSkinAtlas",true);
         _residentMaterials[key]=material;return material;
     }
     private Material FaceSurfaceMaterial(string color)
@@ -110,6 +79,23 @@ ALPHA=COLOR.a<.1?1.0-smoothstep(.978+edge_noise*.018,1.006,UV.y):1.0;
 ALPHA_SCISSOR_THRESHOLD=.5;
 }"};
         var material=new ShaderMaterial {Shader=_hairShader};material.SetShaderParameter("tone",new Color(color));return material;
+    }
+    private Shader? _authoredHairShader;
+    private Material AuthoredHairMaterial(string color)
+    {
+        string key="authored-hair:"+HumanFamily+":"+color;
+        if(_residentMaterials.TryGetValue(key,out var cached))return cached;
+        _authoredHairShader??=new Shader {Code=@"shader_type spatial;render_mode cull_disabled;
+uniform sampler2D hair_albedo:source_color,filter_linear_mipmap_anisotropic;
+uniform vec4 tone:source_color;uniform float atlas_mean=.2;
+void fragment(){vec4 strand=texture(hair_albedo,UV);float fibre=dot(strand.rgb,vec3(.2126,.7152,.0722));
+ALBEDO=tone.rgb*clamp(fibre/max(.025,atlas_mean),.25,1.6)*.55;
+ALPHA=strand.a;ALPHA_SCISSOR_THRESHOLD=.38;ROUGHNESS=.64;SPECULAR=.23;}"};
+        var material=new ShaderMaterial {Shader=_authoredHairShader};
+        material.SetShaderParameter("hair_albedo",GD.Load<Texture2D>(HumanData().HairPath));
+        material.SetShaderParameter("atlas_mean",HumanData().HairLuminance);
+        material.SetShaderParameter("tone",new Color(color));material.SetMeta("UsesHairAtlas",true);
+        return _residentMaterials[key]=material;
     }
     private Mesh EarSurface(int side)
     {

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cd472g1kfsmbp"
-path="res://.godot/imported/human-feminine_normal.png-0f53d15276e1523edd683c56ca4e949e.ctex"
+uid="uid://hcl5m04x4hmi"
+path="res://.godot/imported/rough_linen_nor_gl_1k.png-f5dcdcac8fa5abcc3f144a8d3c4d4425.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/models/human/human-feminine_normal.png"
-dest_files=["res://.godot/imported/human-feminine_normal.png-0f53d15276e1523edd683c56ca4e949e.ctex"]
+source_file="res://assets/materials/scanned/rough_linen/rough_linen_nor_gl_1k.png"
+dest_files=["res://.godot/imported/rough_linen_nor_gl_1k.png-f5dcdcac8fa5abcc3f144a8d3c4d4425.ctex"]
 
 [params]
 
