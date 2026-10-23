@@ -74,6 +74,18 @@ internal sealed partial class NatureModels
             foreach(float y in new[]{centerY-doorHeight*.29f,centerY+doorHeight*.29f})
                 Part(model,"box",new(doorX,y,z+.04f),new(doorWidth*.85f,.026f,.018f),11);
             Part(model,"sphere",new(doorX+doorWidth*.3f,centerY,z+.067f),new(.033f,.033f,.025f),11);
+            if(_fineArchitecture)
+            {
+                // The pull hangs from its riveted plate; a hollow forged ring
+                // reads as hardware in close views instead of a round knob.
+                float pullX=doorX+doorWidth*.3f;
+                Part(model,"box",new(pullX,centerY-.018f,z+.040f),new(.046f,.098f,.014f),11);
+                if(!_meshes.TryGetValue("door-pull",out var pull))
+                    _meshes["door-pull"]=pull=new TorusMesh {InnerRadius=.026f,OuterRadius=.035f,Rings=24,RingSegments=8};
+                Sculpt(model,pull,new(pullX,centerY-.031f,z+.077f),Material(11),new(Mathf.Pi/2,0,0));
+                foreach(float offset in new[]{-.052f,.018f})
+                    Part(model,"sphere",new(pullX,centerY+offset,z+.051f),new(.009f,.009f,.006f),11);
+            }
             if(_fineArchitecture)foreach(float hingeY in new[]{centerY-doorHeight*.29f,centerY+doorHeight*.29f})
             {
                 Part(model,"cylinder",new(doorX-doorWidth*.44f,hingeY,z+.057f),new(.026f,.085f,.026f),11);

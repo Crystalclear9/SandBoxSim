@@ -43,9 +43,9 @@ internal sealed partial class NatureModels
         new[]{.173f,.178f,.168f,.153f,.158f,.165f,.171f,.145f,.067f},
         new[]{.184f,.188f,.171f,.157f,.161f,.168f,.174f,.147f,.067f}};
     private static readonly float[][] GarmentDepthProfiles={
-        new[]{.114f,.118f,.108f,.101f,.108f,.111f,.103f,.084f,.084f},
-        new[]{.114f,.118f,.108f,.101f,.108f,.111f,.103f,.084f,.084f},
-        new[]{.128f,.132f,.113f,.105f,.111f,.115f,.106f,.085f,.084f}};
+        new[]{.114f,.118f,.108f,.101f,.101f,.103f,.099f,.084f,.084f},
+        new[]{.114f,.118f,.108f,.101f,.101f,.103f,.099f,.084f,.084f},
+        new[]{.128f,.132f,.113f,.105f,.104f,.107f,.102f,.085f,.084f}};
     private Vector3 GarmentPoint(float fraction,float angle)
     {
         var height=GarmentHeightProfiles[_garmentCut];
@@ -77,9 +77,14 @@ internal sealed partial class NatureModels
         // attachments use this same sampler, so the belt cannot float above it.
         float waist=MathF.Exp(-MathF.Pow((y-.90f)/.095f,2));
         float diagonal=MathF.Sin((y-.81f)*58+MathF.Cos(angle)*6.0f+.7f);
-        fold+=waist*front*.027f*diagonal;
+        fold+=waist*front*.060f*diagonal;
+        // A few folds hang from the belt and armhole, with broad shoulders
+        // and narrow troughs rather than evenly spaced ripples.
+        float gather=MathF.Exp(-MathF.Pow((y-.98f)/.15f,2));
+        float oblique=MathF.Abs(MathF.Cos(angle))-.40f-(y-.95f)*.45f;
+        fold+=front*gather*(.055f*MathF.Exp(-MathF.Pow(oblique/.13f,2))-.035f*MathF.Exp(-MathF.Pow((oblique-.13f)/.075f,2)));
         float backPleat=MathF.Pow(MathF.Max(0,MathF.Sin(angle)),6)*MathF.Exp(-MathF.Pow((y-1.05f)/.14f,2));
-        fold+=backPleat*.018f*MathF.Cos(angle*11+y*16);
+        fold+=backPleat*.038f*MathF.Cos(angle*11+y*16);
         // The shirt rests on a sternum and shoulder blades rather than an
         // inflated circular trunk; fabric falls away from those support points.
         float shoulderBlade=MathF.Exp(-MathF.Pow((y-1.15f)/.07f,2))*MathF.Pow(MathF.Max(0,MathF.Sin(angle)),4);
@@ -225,6 +230,8 @@ internal sealed partial class NatureModels
             Sculpt(foot,BootLast(false),Vector3.Zero,LeatherSurface("#423a32"));
             Sculpt(foot,BootLast(true),Vector3.Zero,LeatherSurface("#302e28"));
             Sculpt(foot,BootLaces(),Vector3.Zero,ResidentMaterial("#8c7b66"));
+            Sculpt(foot,BootStitching(),Vector3.Zero,ResidentMaterial("#84715c"));
+            Sculpt(foot,BootTongue(),Vector3.Zero,LeatherSurface("#514237"));
 
         }
         AddResidentEquipment(rig, job);

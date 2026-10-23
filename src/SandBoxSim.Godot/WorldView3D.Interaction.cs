@@ -60,6 +60,8 @@ public partial class WorldView3D
             }
             if(b.Pressed&&b.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
             {
+                if(b.ShiftPressed&&Game.Tool!=PlayerTool.Inspect)
+                {Game.AdjustBrushRadius(b.ButtonIndex==MouseButton.WheelUp?1:-1);AcceptEvent();return;}
                 _leftHeld=_painting=_leftDragged=false;_lastPaint=new(-1,-1);
                 var anchor=SurfaceHit(b.Position);
                 _distance=Math.Clamp(_distance*(b.ButtonIndex==MouseButton.WheelUp?.85f:1/.85f),4,260);
@@ -73,7 +75,7 @@ public partial class WorldView3D
             }
             if(b.ButtonIndex==MouseButton.Left&&b.Pressed)
             {
-                _leftHeld=true;_leftDragged=_orbit||_pan;_leftStart=b.Position;_doubleClick=b.DoubleClick;
+                _leftHeld=true;_leftDragged=_orbit||_pan||b.AltPressed;_leftStart=b.Position;_doubleClick=b.DoubleClick;
                 _strokeTool=Game.Tool;_painting=Game.Tool!=PlayerTool.Inspect&&!_leftDragged;_lastPaint=new(-1,-1);
                 if(_painting)Paint(b.Position);
             }
@@ -265,7 +267,7 @@ public partial class WorldView3D
     public void ValidateInteractionContinuity()
     {
         ValidatePoseScheduling();
-        var target=_target;float distance=_distance,yaw=_yaw,pitch=_pitch;var mouse=_mouse;
+        var target=_target;float distance=_distance,yaw=_yaw,pitch=_pitch;var mouse=_mouse;var previousTool=Game.Tool;int previousRadius=Game.Radius;
         string state=Game.Sim.StateDigestString();
         try
         {
@@ -274,7 +276,7 @@ public partial class WorldView3D
             {
                 _pitch=angle;UpdateCamera();var anchor=_target;var before=_camera.UnprojectPosition(anchor);var delta=new Vector2(23,11);
                 _mouse=before+delta;Pan(delta);UpdateCamera();
-                if(_camera.UnprojectPosition(anchor).DistanceTo(before+delta)>.15f)throw new InvalidOperationException("Pan is detached from the pointer at pitch "+angle);
+                if(_camera.UnprojectPosition(anchor).DistanceTo(before+delta)>.15f)throw new InvalidOperationException($"Pan is detached at pitch {angle}; control {Size}, viewport {_viewport.Size}, expected {before+delta}, actual {_camera.UnprojectPosition(anchor)}");
             }
             _pitch=.18f;UpdateCamera();_mouse=new(Size.X*.5f,0);var horizonTarget=_target;
             Pan(new Vector2(2,2));
@@ -333,8 +335,18 @@ public partial class WorldView3D
                     if(node.Transform!=frozen)throw new InvalidOperationException("Paused resident keeps sliding or turning");node.Transform=original;break;
                 }
             }
+            Game.SelectTool(PlayerTool.River);
+            CancelPointerGesture();_mouse=Size*.5f;var panStart=_target;
+            _GuiInput(new InputEventMouseButton {ButtonIndex=MouseButton.Left,Pressed=true,AltPressed=true,Position=_mouse});
+            _Input(new InputEventMouseMotion {Position=_mouse+new Vector2(20,10),Relative=new(20,10),ButtonMask=MouseButtonMask.Left,AltPressed=true});
+            if(_painting||!_leftDragged||_target==panStart)throw new InvalidOperationException("Alt-drag paints or fails to pan while a brush is selected");
+            CancelPointerGesture();float zoomBefore=_distance;int radiusBefore=Game.Radius;
+            _GuiInput(new InputEventMouseButton {ButtonIndex=MouseButton.WheelDown,Pressed=true,ShiftPressed=true,Position=_mouse});
+            if(_distance!=zoomBefore||Game.Radius!=Math.Max(0,radiusBefore-1))throw new InvalidOperationException("Shift-wheel zooms instead of adjusting the brush");
+            _leftHeld=_painting=true;Game.SelectTool(PlayerTool.Food);
+            if(_leftHeld||_painting)throw new InvalidOperationException("Tool switch continues a previous stroke");
         }
-        finally{_target=target;_distance=distance;_yaw=yaw;_pitch=pitch;_mouse=mouse;_leftHeld=_painting=_leftDragged=_orbit=_pan=false;UpdateCamera();}
+        finally{Game.AdjustBrushRadius(previousRadius-Game.Radius);Game.SelectTool(previousTool);_target=target;_distance=distance;_yaw=yaw;_pitch=pitch;_mouse=mouse;_leftHeld=_painting=_leftDragged=_orbit=_pan=false;UpdateCamera();}
         if(state!=Game.Sim.StateDigestString())throw new InvalidOperationException("Pointer observation changed simulation");
         GD.Print("POINTER_RECOVERY_PASS: lost releases, mixed held buttons and world rebuild cancel stale camera/brush state");
         GD.Print("INTERACTION_CONTINUITY_PASS: anchored pan/zoom, connected fast strokes, body picking/building occlusion, focus cancellation, paused roots and observer purity");

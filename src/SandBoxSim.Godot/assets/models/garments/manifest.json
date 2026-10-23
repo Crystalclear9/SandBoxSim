@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "source": "SandBoxSim sewn panel garment pattern",
   "sha256": {
-    "garment-0.skin.json": "cf26bf93ece1736146e82d9bd6aed0b4d6285300a56a843644e9c5e9bf0fdf6b",
-    "garment-1.skin.json": "24f8a1f179047bddbc23adb37456901f58932f02d85754e889d8a56ef09ad63c",
-    "garment-2.skin.json": "ff9a26d5f357261b0b34fdac6f74505974929d0fdf2999ccf037e3193b85e5d9"
+    "garment-0.skin.json": "991c8a72755f77185291d6643207d26ad4731ec6c4920638e1ab6dafa2ae6851",
+    "garment-1.skin.json": "1cbf222497376443d94812b25668bd573b0c2e59639a64453fdb912c30dc4b5a",
+    "garment-2.skin.json": "fda03e38d42a23a2af50768441e8e8a8d9ac63c138c09cefba08597b04cfd5c5"
   }
 }

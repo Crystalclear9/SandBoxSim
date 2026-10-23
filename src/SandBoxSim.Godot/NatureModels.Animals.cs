@@ -25,7 +25,7 @@ float footprint=max(length(dFdx(local)),length(dFdy(local)))*300.0;
 guard/=1.0+footprint*footprint;
 float belly=(1.0-smoothstep(mix(.86,.54,predator),mix(1.03,.72,predator),local.y))*(.65+.35*smoothstep(.10,.75,-coat_normal.y));
 float saddle=smoothstep(.68,.95,local.y)*(1.0-smoothstep(.08,.22,abs(local.x)))*predator*.24;
-float locks=(coat_noise(coat_uv*vec2(145.0,37.0))-.5)*.035;
+float locks=(coat_noise(coat_uv*vec2(145.0,89.0))-.5)*.06;
 float agouti=coat_noise(coat_uv*27.0+vec2(7.0,3.0))-.5;
 agouti/=1.0+footprint*footprint*.04;
 float flank=(coat_noise(vec2(local.z,local.y)*3.1)-.5)*.035;
@@ -33,7 +33,7 @@ float dorsal=smoothstep(mix(1.08,.78,predator),mix(1.25,.98,predator),local.y)*.
 vec3 dx=dFdx(VERTEX),dy=dFdy(VERTEX);
 vec3 across=cross(dy,NORMAL),along=cross(NORMAL,dx);
 float determinant=dot(dx,across);
-float fiber_height=guard*mix(.000012,.000025,predator);
+float fiber_height=guard*mix(.000055,.000095,predator);
 if(abs(determinant)>0.0000000001){
 NORMAL=normalize(abs(determinant)*NORMAL-sign(determinant)*(dFdx(fiber_height)*across+dFdy(fiber_height)*along));
 }
@@ -49,7 +49,7 @@ vec3 base=mix(coat.rgb,pale.rgb,clamp(belly*.52+face_pale+throat+cheek+cervid_ch
 // Short, close hair on the face and legs; coarse guard hairs belong on the back.
 float short_coat=1.0-smoothstep(mix(.46,.43,predator),mix(.78,.66,predator),local.y);
 base=mix(base,coat.rgb*.73,short_coat*.32);
-ALBEDO=base*COLOR.rgb*(0.97+guard*.12+agouti*.14+locks+flank-saddle-dorsal-muzzle_shade-brow_mask-tear);
+ALBEDO=base*COLOR.rgb*(0.92+guard*.25+agouti*.19+locks+flank-saddle-dorsal-muzzle_shade-brow_mask-tear);
 ROUGHNESS=.86+guard*.06;SPECULAR=.17;
 }" };
         var material = new ShaderMaterial { Shader = _furShader };

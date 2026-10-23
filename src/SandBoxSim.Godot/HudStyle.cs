@@ -6,8 +6,8 @@ namespace SandBoxSim.Client;
 internal static class HudStyle
 {
     public static bool MotionEnabled { get; set; } = true;
-    public static readonly Color Ink = new("#242b2d"), Surface = new(.09f, .115f, .12f, .96f), Text = new("#f0eee8"),
-        Muted = new("#acb9b9"), Accent = new("#d7bc8e"), Border = new("#465456"), Wash = new("#344447");
+    public static readonly Color Ink = new("#17211e"), Surface = new(.065f, .085f, .080f, .97f), Text = new("#edf1eb"),
+        Muted = new("#a6b6ad"), Accent = new("#bdcfab"), Border = new("#45554c"), Wash = new("#28382f");
     public static readonly Color Paper=new("#f0eee7"),PaperInk=new("#263b3d"),PaperMuted=new("#617577"),
         PaperLine=new("#d6ddda"),PaperAccent=new("#335f60"),PaperWash=new("#e1e7e3");
     public static StyleBox Frame(int padding)
@@ -35,6 +35,8 @@ internal static class HudStyle
     {
         button.SetMeta("filled_action",prominent);
         button.AddThemeFontSizeOverride("font_size", 14);
+        button.CustomMinimumSize=new Vector2(button.CustomMinimumSize.X,36);
+        button.MouseDefaultCursorShape=Control.CursorShape.PointingHand;
         button.AddThemeColorOverride("font_color", prominent ? Ink : Text);
         button.AddThemeColorOverride("font_hover_color", prominent ? Ink : Accent);
         button.AddThemeColorOverride("font_pressed_color", prominent ? Ink : Accent);
@@ -42,7 +44,7 @@ internal static class HudStyle
         button.AddThemeColorOverride("icon_normal_color", Text);
         button.AddThemeColorOverride("icon_hover_color", Accent);
         button.AddThemeColorOverride("icon_pressed_color", prominent ? Ink : Accent);
-        button.AddThemeStyleboxOverride("normal", Box(prominent ? Accent : new Color(0, 0, 0, 0), 5, 9, false));
+        button.AddThemeStyleboxOverride("normal", Box(prominent ? Accent : new Color(0, 0, 0, 0), 6, 9, false));
         button.AddThemeStyleboxOverride("hover", Box(prominent ? Accent.Lightened(.08f) : Wash, 5, 9, false));
         var pressed = Box(prominent ? Accent : new Color("#3d493c"), 5, 9, false);
         button.AddThemeStyleboxOverride("pressed", pressed);

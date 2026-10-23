@@ -128,6 +128,9 @@ public partial class MainGame : Control
         NewWorld(_evaluation?.Seed??839102);
         TraceEvaluationPhase("world_initialized");
         if (_previewDays > 0) { AdvanceWorld(_previewDays * Sim.Config.Clock.TicksPerDay); }
+        // Headless display servers may start at 64x64 when stretch is disabled.
+        // Exercise native-size layout at the supported minimum window size.
+        if(_selfTest)GetWindow().Size=new Vector2I(1280,800);
         BuildInterface();
         TraceEvaluationPhase("interface_ready");
         if (IsModelGallery)
@@ -135,7 +138,16 @@ public partial class MainGame : Control
 
         if(_previewPanel=="ecology")ShowCategory("生态");
         TraceEvaluationPhase("scene_ready");
-        if (_selfTest) { RunSelfTest(); }
+        if (_selfTest) { RunSelfTestAfterLayout(); }
+    }
+    private async void RunSelfTestAfterLayout()
+    {
+        // With native-size UI the window and nested 3D viewport are sorted
+        // after _Ready. Test picking against the rendered size, not the
+        // SubViewport's provisional startup dimensions.
+        await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
+        RunSelfTest();
     }
     private void NewWorld(int seed)
     {
@@ -171,6 +183,7 @@ public partial class MainGame : Control
     { var button = new Godot.Button { Text = label }; parent.AddChild(button); button.Pressed += action; }
     public void SelectTool(PlayerTool tool)
     {
+        if(_map is WorldView3D view)view.CancelPointerGesture();
         Tool = tool; _toolPicker.Select((int)tool);
         _inspectDockButton.SetPressedNoSignal(tool==PlayerTool.Inspect&&!_dockPanel.Visible);
         string hint = tool switch
@@ -193,6 +206,12 @@ public partial class MainGame : Control
         _toolDescription.Text = hint; _status.Text = ToolNames[(int)tool] + " · " + hint;
         _toolBadge.Text = ToolNames[(int)tool] + (tool == PlayerTool.Inspect ? "" : $"  ·  半径 {Radius}");
         UpdateHudSelection(hint);
+    }
+    internal void AdjustBrushRadius(int delta)
+    {
+        if(Tool==PlayerTool.Inspect||IsEcosystemTool(Tool))return;
+        _radius.Value=Math.Clamp(_radius.Value+delta,_radius.MinValue,_radius.MaxValue);
+        _toolBadge.Text=ToolNames[(int)Tool]+$"  ·  半径 {Radius}";
     }
     public void FocusStory(long person, int x, int y)
     {
@@ -462,7 +481,7 @@ public partial class MainGame : Control
     {
         if (input is InputEventKey key && key.Pressed && !key.Echo)
         {
-            if (key.Keycode == Key.Space) { SetSpeed(_speed == 0 ? 1 : 0); }
+            if (key.Keycode == Key.Space) { SetSpeed(_speed == 0 ? _resumeSpeed : 0);GetViewport().SetInputAsHandled(); }
             if (key.Keycode == Key.F && !_portraitOverlay.Visible) { _map.Center(); }
             if (key.Keycode == Key.Escape)
             {
@@ -718,6 +737,7 @@ public partial class MainGame : Control
             _drawer.CurrentTab = 3; _chart._GuiInput(new InputEventMouseMotion { Position = new Vector2(150, 200) });
             SetCategory("地貌"); SelectTool(PlayerTool.River); SetCategory("生命"); SelectTool(PlayerTool.Inspect);
             ShowSettings(true); ShowSettings(false); ShowJournal(false); ShowJournal(true); ValidateHudMotion();
+            ValidateToolLibrary();
             if (before != StateHash.ComputeDigest(Sim)) { throw new Exception("Inspector mutated simulation"); }
             if (observed >= 0)
             {

@@ -68,6 +68,59 @@ internal sealed partial class NatureModels
         surface.GenerateNormals();surface.Index();var mesh=surface.Commit();_meshes["boot-laces"]=mesh;return mesh;
     }
 
+    // Welt stitches and a separate fitted tongue follow the same last as the
+    // upper and laces. Their small gaps are measured in the native mesh test.
+    private Mesh BootStitching()
+    {
+        const string key="boot-stitching";if(_meshes.TryGetValue(key,out var cached))return cached;
+        using var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);
+        void Tube(Vector3 start,Vector3 end,float radius)
+        {
+            var axis=(end-start).Normalized();var right=axis.Cross(Vector3.Up).Normalized();var up=axis.Cross(right).Normalized();
+            Vector3 Fitted(Vector3 origin,Vector3 normal)
+            {var p=origin+normal*radius;p.Y=BootUpperHeight(p.X,p.Z)+.0014f+normal.Y*radius;return p;}
+            for(int side=0;side<6;side++)
+            {
+                float a=side*MathF.Tau/6,b=(side+1)*MathF.Tau/6;
+                var n=right*MathF.Cos(a)+up*MathF.Sin(a);var m=right*MathF.Cos(b)+up*MathF.Sin(b);
+                EquipmentTriangle(surface,Fitted(start,n),Fitted(start,m),Fitted(end,n),n+m);
+                EquipmentTriangle(surface,Fitted(start,m),Fitted(end,m),Fitted(end,n),n+m);
+            }
+        }
+        foreach(float side in new[]{-1f,1f})for(int stitch=0;stitch<38;stitch++)
+        {
+            Vector3 Point(float t)
+            {
+                BootSection(t,out float width,out _,out _,out _);
+                float x=side*width*.91f,z=Mathf.Lerp(-.170f,.090f,t);
+                return new(x,BootUpperHeight(x,z)+.0014f,z);
+            }
+            float t=.075f+stitch*.022f;Tube(Point(t),Point(t+.010f),.00045f);
+        }
+        foreach(float side in new[]{-1f,1f})for(int row=0;row<4;row++)
+        {
+            Vector3 Point(int edge)
+            {
+                float a=edge*MathF.Tau/12,x=side*.022f+MathF.Cos(a)*.0020f,z=.010f-row*.023f+MathF.Sin(a)*.0020f;
+                return new(x,BootUpperHeight(x,z)+.0014f,z);
+            }
+            for(int edge=0;edge<12;edge++)Tube(Point(edge),Point(edge+1),.00045f);
+        }
+        surface.GenerateNormals();surface.Index();var mesh=surface.Commit();_meshes[key]=mesh;return mesh;
+    }
+    private Mesh BootTongue()
+    {
+        const string key="boot-tongue";if(_meshes.TryGetValue(key,out var cached))return cached;
+        using var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);
+        Vector3 P(int row,int col)
+        {
+            float z=Mathf.Lerp(-.088f,.024f,row/16f),x=(col/8f*2-1)*.016f;
+            return new(x,BootUpperHeight(x,z)+.0005f,z);
+        }
+        for(int row=0;row<16;row++)for(int col=0;col<8;col++)
+        {EquipmentTriangle(surface,P(row,col),P(row+1,col),P(row,col+1),Vector3.Up);EquipmentTriangle(surface,P(row,col+1),P(row+1,col),P(row+1,col+1),Vector3.Up);}
+        surface.GenerateNormals();surface.Index();var mesh=surface.Commit();_meshes[key]=mesh;return mesh;
+    }
     private Shader? _leatherShader;
     private Material LeatherSurface(string color)
     {
@@ -76,11 +129,22 @@ internal sealed partial class NatureModels
 uniform vec4 dye:source_color;
 varying vec3 point;
 void vertex(){point=VERTEX;}
+float leather_noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);vec3 q=vec3(127.1,311.7,74.7);
+float a=mix(fract(sin(dot(i,q))*43758.5453),fract(sin(dot(i+vec3(1,0,0),q))*43758.5453),f.x);
+float b=mix(fract(sin(dot(i+vec3(0,1,0),q))*43758.5453),fract(sin(dot(i+vec3(1,1,0),q))*43758.5453),f.x);
+float c=mix(fract(sin(dot(i+vec3(0,0,1),q))*43758.5453),fract(sin(dot(i+vec3(1,0,1),q))*43758.5453),f.x);
+float d=mix(fract(sin(dot(i+vec3(0,1,1),q))*43758.5453),fract(sin(dot(i+vec3(1,1,1),q))*43758.5453),f.x);
+return mix(mix(a,b,f.y),mix(c,d,f.y),f.z)-.5;}
 void fragment(){
 float pores=sin(point.x*1230.0+point.z*470.0)*sin(point.y*970.0+point.z*730.0);
 pores/=1.0+pow(max(length(dFdx(point)),length(dFdy(point)))*1100.0,2.0);
-float wear=sin(point.z*57.0+point.x*21.0)*0.018;
-ALBEDO=dye.rgb*(0.97+pores*0.025+wear);ROUGHNESS=0.69+pores*0.035;SPECULAR=0.26;
+float wear=sin(point.z*57.0+point.x*21.0)*0.035;
+float grain=leather_noise(point*420.0);
+grain/=1.0+pow(max(length(dFdx(point)),length(dFdy(point)))*420.0,2.0);
+ALBEDO=dye.rgb*(0.88+pores*0.05+grain*.045+wear);ROUGHNESS=0.64+pores*0.06+grain*.06;SPECULAR=0.28;
+vec3 dx=dFdx(VERTEX),dy=dFdy(VERTEX),tx=cross(dy,NORMAL),ty=cross(NORMAL,dx);float det=dot(dx,tx);
+float height=grain*.00015+pores*.00004;
+if(abs(det)>.0000000001)NORMAL=normalize(abs(det)*NORMAL-sign(det)*(dFdx(height)*tx+dFdy(height)*ty));
 }"};
         var material=new ShaderMaterial {Shader=_leatherShader};material.SetShaderParameter("dye",new Color(color));
         _residentMaterials[key]=material;return material;
@@ -163,7 +227,7 @@ ALBEDO=dye.rgb*(0.97+pores*0.025+wear);ROUGHNESS=0.69+pores*0.035;SPECULAR=0.26;
     private Mesh AntlerBranch(string key,Vector3[] controls,float radius)
     {
         if(_meshes.TryGetValue(key,out var cached))return cached;
-        const int segments=24,sides=12;
+        const int segments=40,sides=20;
         using var tool=new SurfaceTool();tool.Begin(Mesh.PrimitiveType.Triangles);
         Vector3 Center(float t)
         {
@@ -178,7 +242,8 @@ ALBEDO=dye.rgb*(0.97+pores*0.025+wear);ROUGHNESS=0.69+pores*0.035;SPECULAR=0.26;
             var tangent=(Center(t+.002f)-Center(t-.002f)).Normalized();
             var right=tangent.Cross(Vector3.Back).Normalized();var up=tangent.Cross(right).Normalized();
             float r=radius*MathF.Pow(1-t,.72f);
-            r*=1+.045f*MathF.Sin(t*90+a*3);
+            float burr=MathF.Exp(-MathF.Pow(t/.065f,2));
+            r*=1+.035f*MathF.Sin(t*90+a*3)+.055f*MathF.Sin(a*7+t*3)*(1-t)+burr*(.16f+.08f*MathF.Sin(a*9));
             tool.SetUV(new(col/(float)sides,t));tool.AddVertex(Center(t)+(right*MathF.Cos(a)+up*MathF.Sin(a))*r);
         }
         for(int r=0;r<segments;r++)for(int c=0;c<sides;c++)
@@ -189,6 +254,17 @@ ALBEDO=dye.rgb*(0.97+pores*0.025+wear);ROUGHNESS=0.69+pores*0.035;SPECULAR=0.26;
 
     private void ValidateOrganicDetails()
     {
+        foreach(var mesh in new[]{BootStitching(),BootTongue()})
+        {
+            var data=mesh.SurfaceGetArrays(0);var points=data[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            var normals=data[(int)Mesh.ArrayType.Normal].AsVector3Array();
+            for(int i=0;i<points.Length;i++)
+            {
+                float gap=points[i].Y-BootUpperHeight(points[i].X,points[i].Z);
+                if(!points[i].IsFinite()||!normals[i].IsFinite()||gap<-.0003f||gap>.0035f)
+                    throw new InvalidOperationException("Shoe stitching or tongue escapes the upper");
+            }
+        }
         foreach(var mesh in new[]{BootLast(false),BootLast(true),AnimalEar(false),AnimalEar(true),
             AntlerBranch("antler-check",new[]{Vector3.Zero,new Vector3(.08f,.3f,.02f),new Vector3(.2f,.5f,.08f)},.018f)})
         {
