@@ -21,6 +21,8 @@ internal partial class ResidentRig
             HandProxies[side].Mesh=curl>.5f?HandClosed[side]:HandOpen[side];
         }
     }
+    private static (Vector3,Basis) CarryPose(ResidentTool kind,float stride)
+        => (new(.30f,.74f,-.17f+stride*.025f),Basis.FromEuler(new Vector3(.10f+stride*.04f,0,.95f)));
     private static (Vector3,Basis) WorkPose(ResidentTool kind,float time)
     {
         float period=kind==ResidentTool.Hoe?1.55f:kind==ResidentTool.Pick?1.35f:kind==ResidentTool.Axe?1.25f:1.05f;
@@ -72,7 +74,7 @@ internal partial class ResidentRig
             desired=forearm*new Basis(Quaternion.Identity.Slerp(relative,.55f/angle));
         }
     }
-    private void SolveHand(int side,Vector3 gripTarget,Basis handBasis,bool bare=false)
+    private void SolveHand(int side,Vector3 gripTarget,Basis handBasis,bool bare=false,float carry=0)
     {
         Vector3 gripOffset=side==1?Grip!.Position:new(0,-.035f,-.0286f);
         Vector3 wrist=gripTarget-handBasis*gripOffset,shoulder=Arms[side].Position;
@@ -81,7 +83,8 @@ internal partial class ResidentRig
         wrist=shoulder+direction*distance;
         float along=(upper*upper-lower*lower+distance*distance)/(2*distance);
         // The elbow pole follows the palm, instead of forcing both forearms behind the body.
-        var pole=bare?new Vector3(side==0?-.75f:.75f,-.45f,.15f):handBasis.Y;
+        var relaxedPole=new Vector3(side==0?-.75f:.75f,-.45f,.15f);
+        var pole=bare?relaxedPole:handBasis.Y.Lerp(relaxedPole,carry);
         var bend=pole-direction*pole.Dot(direction);
         if(bend.LengthSquared()<.0001f){var hint=new Vector3(side==0?-1:1,.2f,.1f);bend=hint-direction*hint.Dot(direction);}
         bend=bend.Normalized();

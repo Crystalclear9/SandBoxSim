@@ -8,14 +8,36 @@ namespace SandBoxSim.Client;
 internal enum ResidentTool { None, Hammer, Axe, Pick, Hoe, Spear }
 internal sealed partial class NatureModels
 {
+    private ShaderMaterial? _handleMaterial;
+    private Material HandleMaterial()=>_handleMaterial??=new ShaderMaterial {Shader=new Shader {Code=@"shader_type spatial;
+varying vec3 p;void vertex(){p=VERTEX;}
+void fragment(){
+float fibre=sin(p.x*3400.0+p.z*1700.0+sin(p.y*19.0)*.35);
+fibre/=1.0+pow(max(length(dFdx(p)),length(dFdy(p)))*2900.0,2.0);
+float grain=sin(p.x*690.0+p.z*430.0+sin(p.y*8.0)*.6);
+ALBEDO=mix(vec3(.20,.135,.071),vec3(.31,.226,.133),.55+grain*.10+fibre*.065);
+ROUGHNESS=.64;SPECULAR=.24;
+}"}};
     private void AddHandTools(ResidentRig rig,JobType job)
     {
         rig.Grip=new Node3D {Name="HandGrip",Position=new(0,-.035f,-.0286f),Rotation=new(0,0,MathF.PI/2)};rig.Hands[1].AddChild(rig.Grip);
         rig.Holster=new Node3D {Name="BeltToolLoop",Position=new(.235f,.79f,-.14f),Rotation=new(0,0,.65f)};rig.Torso.AddChild(rig.Holster);
         if(!rig.IsChild)
         {
-            Detail(rig.Torso,"masonry",rig.Holster.Position+new Vector3(0,0,.014f),new(.032f,.052f,.020f),"#514237");
-            FineBeam(rig.Torso,TorsoSurface(.145f,.79f,false),rig.Holster.Position,.015f,"#514237");
+            // Two closed leather loops surround the shaft. The supporting strap
+            // reaches the belt; it is no longer a solid block behind empty air.
+            var mount=rig.Holster.Transform;
+            foreach(float y in new[]{-.045f,.045f})for(int edge=0;edge<24;edge++)
+            {
+                float a=edge*MathF.Tau/24,b=(edge+1)*MathF.Tau/24;
+                FineBeam(rig.Torso,mount*new Vector3(MathF.Cos(a)*.018f,y,MathF.Sin(a)*.018f),mount*new Vector3(MathF.Cos(b)*.018f,y,MathF.Sin(b)*.018f),.009f,"#514237");
+            }
+            foreach(float y in new[]{-.045f,.045f})
+            {
+                var start=TorsoSurface(.145f,.79f+y,false);var end=mount*new Vector3(0,y,.018f);var direction=end-start;
+                var strap=Detail(rig.Torso,"masonry",(start+end)*.5f,new(.025f,direction.Length(),.004f),"#514237");
+                strap.Quaternion=new Quaternion(Vector3.Up,direction.Normalized());
+            }
         }
         rig.ToolMesh=new MeshInstance3D {Name="Tool",Visible=false};rig.Holster.AddChild(rig.ToolMesh);
         foreach(ResidentTool tool in Enum.GetValues<ResidentTool>()) if(tool!=ResidentTool.None) rig.ToolMeshes[tool]=HandTool(tool);
@@ -111,7 +133,15 @@ internal sealed partial class NatureModels
         if(_meshes.TryGetValue(key,out var mesh))return mesh;
         var root=new Node3D();
         float length=kind==ResidentTool.Hoe?.61f:kind==ResidentTool.Spear?1.38f:.39f;
-        Detail(root,"cylinder",new(0,kind==ResidentTool.Spear?.28f:-.11f,0),new(.024f,length,.024f),"#8b6c46");
+        float center=kind==ResidentTool.Spear?.28f:-.11f;
+        // Taper outside the grip while keeping its 24 mm contact diameter.
+        Sculpt(root,Loft("tool-handle:"+kind,new[]{
+            new Vector4(-length/2,0,.010f,.010f),new(-length*.36f,0,.012f,.012f),
+            new(length*.20f,0,.012f,.012f),new(length/2,0,.0105f,.0105f)},24),
+            new(0,center,0),HandleMaterial(),new(-MathF.PI/2,0,0));
+        float socket=kind==ResidentTool.Spear?.97f:kind==ResidentTool.Hoe?-.385f:-.27f;
+        var ferrule=Detail(root,"cylinder",new(0,socket,0),new(.031f,.045f,.031f),"#68716f");ferrule.MaterialOverride=Material(11);
+        foreach(float side in new[]{-1f,1f})Detail(root,"sphere",new(side*.016f,socket,0),new(.004f,.006f,.006f),"#98968a");
         if(kind==ResidentTool.Hammer)
         {
             Detail(root,"masonry",new(0,-.30f,0),new(.13f,.046f,.046f),"#68716f");

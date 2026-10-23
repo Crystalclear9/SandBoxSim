@@ -103,6 +103,7 @@ internal sealed partial class NatureModels
     private void Window(Node3D model, float x, float y, float z)
     {
         int first = model.GetChildCount();
+        var shutters=new List<(int First,int End,float Side)>();
         // Recessed glazing and a dark reveal sit inside a real wall opening.
         // The mullions and shutters remain proud of the facade.
         Detail(model,"box",new(x,y,z-.155f),new(.32f,.40f,.008f),"#202923");
@@ -112,12 +113,14 @@ internal sealed partial class NatureModels
         foreach(float side in new[] {-1f,1f})
         {
             Part(model,"box",new(x+side*.19f,y,z+.06f),new(.045f,.46f,.09f),0);
-            Part(model,"box",new(x+side*.27f,y,z+.06f),new(.105f,.39f,.04f),1,new(0,side*.18f,0));
+            int shutterFirst=model.GetChildCount();
+            Part(model,"box",new(x+side*.27f,y,z+.06f),new(.105f,.39f,.04f),1);
             if(_fineArchitecture)
             {
-                for(int slat=0;slat<4;slat++)Part(model,"box",new(x+side*.27f,y-.145f+slat*.096f,z+.085f),new(.10f,.078f,.015f),0,new(0,side*.18f,0));
+                for(int slat=0;slat<4;slat++)Part(model,"box",new(x+side*.27f,y-.145f+slat*.096f,z+.085f),new(.10f,.078f,.015f),0);
                 foreach(float hingeY in new[]{y-.13f,y+.13f})Part(model,"box",new(x+side*.27f,hingeY,z+.10f),new(.11f,.015f,.008f),11);
             }
+            shutters.Add((shutterFirst,model.GetChildCount(),side));
         }
         Part(model,"box",new(x,y-.23f,z+.095f),new(.48f,.055f,.16f),0);
         Part(model,"box",new(x,y+.23f,z+.04f),new(.44f,.055f,.10f),0);
@@ -128,6 +131,14 @@ internal sealed partial class NatureModels
             var delta=part.Position-new Vector3(x,y,z);
             part.Position=new Vector3(x,y,z)+new Vector3(delta.X*1.5f,delta.Y*1.5f,delta.Z);
             part.Scale*=new Vector3(1.5f,1.5f,1);
+        }
+        // Rotate the complete shutter around its jamb after sizing. Previously
+        // only the boards were angled while their ironwork floated separately.
+        foreach(var shutter in shutters)
+        {
+            var hinge=new Vector3(x+shutter.Side*.315f,y,z+.06f);
+            var rotate=new Transform3D(new Basis(Vector3.Up,-shutter.Side*.65f),hinge)*new Transform3D(Basis.Identity,-hinge);
+            for(int i=shutter.First;i<shutter.End;i++){var part=model.GetChild<Node3D>(i);part.Transform=rotate*part.Transform;}
         }
     }
     private static Rect2[] HouseOpenings(float width,int variant)

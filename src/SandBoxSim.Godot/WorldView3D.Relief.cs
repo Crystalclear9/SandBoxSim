@@ -4,6 +4,16 @@ using SandBoxSim.Core.Environment;
 namespace SandBoxSim.Client;
 public partial class WorldView3D
 {
+    private Transform3D RootedPlant(Vector3 point,Vector3 scale,float yaw)
+    {
+        const float radius=.18f;
+        var normal=new Vector3((GroundHeight(point.X-radius,point.Z)-GroundHeight(point.X+radius,point.Z))/(radius*2),1,
+            (GroundHeight(point.X,point.Z-radius)-GroundHeight(point.X,point.Z+radius))/(radius*2)).Normalized();
+        var tilt=new Quaternion(Vector3.Up,normal);
+        float angle=tilt.GetAngle();if(angle>.35f)tilt=Quaternion.Identity.Slerp(tilt,.35f/angle);
+        point.Y=GroundHeight(point.X,point.Z)-.012f;
+        return new Transform3D(new Basis(tilt)*new Basis(Vector3.Up,yaw)*Basis.FromScale(scale),point);
+    }
     private static float TerrainNoise(float x,float y,int seed)
     {
         int ix=(int)MathF.Floor(x),iy=(int)MathF.Floor(y);float u=x-ix,v=y-iy;
@@ -27,9 +37,11 @@ public partial class WorldView3D
     private float GroundHeight(float x,float z)
     {
         if(_groundHeights==null)return 0;
-        float gx=Math.Clamp(x*GroundDetail*.5f,0,_groundHeights.GetLength(0)-1.00001f);
-        float gz=Math.Clamp(z*GroundDetail*.5f,0,_groundHeights.GetLength(1)-1.00001f);
-        int ix=(int)gx,iz=(int)gz;float u=gx-ix,v=gz-iz;
+        float gx=Math.Clamp(x*GroundDetail*.5f,0,_groundHeights.GetLength(0)-1);
+        float gz=Math.Clamp(z*GroundDetail*.5f,0,_groundHeights.GetLength(1)-1);
+        // An epsilon smaller than a float ULP rounds back onto the last vertex
+        // on large maps. Clamp cell indices explicitly, including outside probes.
+        int ix=Math.Min((int)gx,_groundHeights.GetLength(0)-2),iz=Math.Min((int)gz,_groundHeights.GetLength(1)-2);float u=gx-ix,v=gz-iz;
         float a=GroundVertex(ix,iz),b=GroundVertex(ix+1,iz),c=GroundVertex(ix,iz+1),d=GroundVertex(ix+1,iz+1);
         return u+v<=1?a+(b-a)*u+(c-a)*v:d+(c-d)*(1-u)+(b-d)*(1-v);
     }

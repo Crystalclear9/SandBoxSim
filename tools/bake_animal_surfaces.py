@@ -14,9 +14,9 @@ for name in ('deer','wolf'):
  bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
  mesh=bpy.data.meshes.new(name);mesh.from_pydata(points,[],faces);mesh.update()
  obj=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(obj);bpy.context.view_layer.objects.active=obj;obj.select_set(True)
- mesh.remesh_voxel_size=.008;mesh.use_remesh_preserve_volume=True
+ mesh.remesh_voxel_size=.006;mesh.use_remesh_preserve_volume=True
  bpy.ops.object.voxel_remesh()
- smooth=obj.modifiers.new('Continuous musculature','SMOOTH');smooth.factor=.45;smooth.iterations=3;bpy.ops.object.modifier_apply(modifier=smooth.name)
+ smooth=obj.modifiers.new('Continuous musculature','SMOOTH');smooth.factor=.55;smooth.iterations=8;bpy.ops.object.modifier_apply(modifier=smooth.name)
  # Anatomy is baked into the shared skin, not overlaid as intersecting muscle balls.
  # Centimetre-scale scapula, rib barrel and haunch relief survives the runtime LOD.
  import math
@@ -30,10 +30,19 @@ for name in ('deer','wolf'):
   relief=(shoulder*.012+haunch*.008-tuck*.005)*flank
   v.co+=v.normal*relief
  obj.data.update()
+ # Musculature displacement can fold tiny triangles where the shoulder meets
+ # a limb. Re-union the displaced surface before reducing it; smoothing alone
+ # leaves back-facing slivers which flash when the joint moves.
+ obj.data.remesh_voxel_size=.0075
+ obj.data.use_remesh_preserve_volume=True
+ bpy.ops.object.voxel_remesh()
+ relax=obj.modifiers.new('Joint surface relaxation','SMOOTH');relax.factor=.45;relax.iterations=3;bpy.ops.object.modifier_apply(modifier=relax.name)
  target=18000;triangles=sum(len(f.vertices)-2 for f in obj.data.polygons)
  if triangles>target:
   decimate=obj.modifiers.new('Runtime surface budget','DECIMATE');decimate.ratio=target/triangles;bpy.ops.object.modifier_apply(modifier=decimate.name)
  obj.data.calc_loop_triangles()
+ folded=sum(1 for t in obj.data.loop_triangles if t.normal.dot(sum((obj.data.vertices[i].normal for i in t.vertices),Vector()))<0)
+ if folded>8:raise RuntimeError(f'{name}: {folded} folded triangles after remeshing')
  kd=KDTree(len(points))
  for i,v in enumerate(points):kd.insert(v,i)
  kd.balance()

@@ -111,9 +111,10 @@ internal partial class ResidentRig : Node3D
     }
     private ActionKind _lastAction;
     private ActionPhase _lastPhase;
-    private float _phase,_activity,_reach,_draw,_workTime,_graspTime,_releaseTime,_lean;
+    private float _phase,_activity,_reach,_draw,_workTime,_graspTime,_releaseTime,_lean,_workBlend;
+    private bool _carrying;
     public bool ToolHeld {get;private set;}
-    public string Handling => ToolHeld ? _returning?"收回工具":_draw<.99f?"取出 / 抬手":"使用工具" : _releaseTime>0?"松开手指":_reach==1?"合拢握柄":_reach>.01f?"伸手拿取":"工具收纳";
+    public string Handling => ToolHeld ? _returning?"收回工具":_draw<.99f?"取出 / 抬手":_carrying?"手持携带":"使用工具" : _releaseTime>0?"松开手指":_reach==1?"合拢握柄":_reach>.01f?"伸手拿取":"工具收纳";
     public static ResidentTool ToolFor(ActionKind action)=>action switch {
         ActionKind.GatherWood=>ResidentTool.Axe,
         ActionKind.GatherStone or ActionKind.GatherIron=>ResidentTool.Pick,
@@ -154,6 +155,14 @@ internal partial class ResidentRig : Node3D
         if((_lastAction!=action||_lastPhase!=phase)&&executing)_workTime=0;
         _lastAction=action;_lastPhase=phase;
         var wanted=(executing||moving)&&!IsChild?ToolFor(action):ResidentTool.None;
+        // A long tool is carried in the hand during idle/wandering, rather than
+        // hanging diagonally from an invisible waist socket. Bare-hand actions
+        // and cargo retain priority and go through the complete stow transition.
+        if(wanted==ResidentTool.None&&!IsChild&&!_hasCargo&&!resting&&
+            (action is ActionKind.None or ActionKind.Wander||phase is ActionPhase.Idle or ActionPhase.Done))
+            wanted=DefaultTool;
+        _carrying=wanted!=ResidentTool.None&&(!executing||ToolFor(action)==ResidentTool.None);
+        _workBlend=Mathf.MoveToward(_workBlend,executing&&ToolFor(action)!=ResidentTool.None?1:0,delta/.25f);
         bool usingTool=wanted!=ResidentTool.None;
         _phase+=delta*(moving?7.5f:1.8f);_workTime+=delta;
         _activity=Mathf.Lerp(_activity,moving?1:0,1-MathF.Exp(-delta*8));
@@ -207,13 +216,16 @@ internal partial class ResidentRig : Node3D
                 _returnPosition=_heldPosition;_returnBasis=_heldBasis;
             }
             if(wantCurrent)_returning=false;
-            var (target,basis)=_returning?(_returnPosition,_returnBasis):WorkPose(CurrentTool,executing?_workTime:0);
+            var work=WorkPose(CurrentTool,_workTime);
+            var carry=CarryPose(CurrentTool,wave*_activity);
+            var active=(carry.Item1.Lerp(work.Item1,Smooth(_workBlend)),new Basis(carry.Item2.GetRotationQuaternion().Slerp(work.Item2.GetRotationQuaternion(),Smooth(_workBlend))));
+            var (target,basis)=_returning?(_returnPosition,_returnBasis):active;
             if(!_returning)target=BodyPoint(target);
-            SolveHand(1,Holster.Position.Lerp(target,Smooth(_draw)),new Basis(Holster.Basis.GetRotationQuaternion().Slerp(basis.GetRotationQuaternion(),Smooth(_draw)))*Grip!.Basis.Inverse());
+            SolveHand(1,Holster.Position.Lerp(target,Smooth(_draw)),new Basis(Holster.Basis.GetRotationQuaternion().Slerp(basis.GetRotationQuaternion(),Smooth(_draw)))*Grip!.Basis.Inverse(),false,(1-_workBlend)*Smooth(_draw));
             CurlHand(1,1);
             if(CurrentTool is ResidentTool.Axe or ResidentTool.Pick or ResidentTool.Hoe or ResidentTool.Spear)
             {
-                float support=Smooth(Math.Clamp((_draw-.15f)/.65f,0,1));
+                float support=Smooth(Math.Clamp((_draw-.15f)/.65f,0,1))*Smooth(_workBlend);
                 var heldTransform=Arms[1].Transform*Elbows[1].Transform*Hands[1].Transform*Grip!.Transform;
                 var actualGrip=heldTransform.Origin;
                 var leftRest=(Arms[0].Transform*Elbows[0].Transform*Hands[0].Transform)*Grip.Position;

@@ -76,8 +76,7 @@ internal partial class ModelGallery : PanelContainer
             Closeup(grid,"河岸草本 · 弯曲叶片与立体种穗",grass,1.18f,new(0,.47f,0),new(.4f,.2f,2),false);
             var rock=new Node3D();rock.AddChild(new MeshInstance3D {Mesh=models.Shape("boulder")});
             Closeup(grid,"扫描岩石 · 裂隙、苔斑与风化表面",rock,1.45f,new(0,.42f,0),new(.9f,.5f,2),false);
-            var shrub=new Node3D();models.Part(shrub,"foliage",new(0,.28f,0),new(.9f,.7f,.9f),4);
-            Closeup(grid,"灌木 · 枝叶与花瓣细节",shrub,1.0f,new(0,.27f,0),new(.9f,.4f,2),false);
+            Closeup(grid,"浆果灌丛 · 连枝叶片与带梗果簇",models.BerryShrub(true),1.18f,new(0,.42f,0),new(.9f,.4f,2),false);
         }
         else if(Collection=="model-details")
         {
@@ -97,7 +96,7 @@ internal partial class ModelGallery : PanelContainer
         }
         else if(Collection is "motion" or "grip")
         {
-            grid.Columns=1;ActionCard(grid,models.Resident(17,false,JobType.Builder),ActionKind.BuildHouse,"从腰侧取出工具、握持、锤击、放回");
+            grid.Columns=1;ActionCard(grid,models.Resident(17,false,JobType.Builder),ActionKind.BuildHouse,"手持携带、抬手、锤击、回到携带");
             var viewport=grid.GetChild<VBoxContainer>(0).GetChild<SubViewportContainer>(0).GetChild<SubViewport>(0);
             var stage=viewport.GetChild<Node3D>(0);var camera=stage.GetChild<Camera3D>(stage.GetChildCount()-1);
             _handlingLabel=grid.GetChild<VBoxContainer>(0).GetChild<Label>(1);

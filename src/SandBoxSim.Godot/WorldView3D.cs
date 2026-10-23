@@ -428,6 +428,13 @@ public partial class WorldView3D : MapView
         CheckTerrain();var geometry=_terrainRoot.GetChild<MeshInstance3D>(0).Mesh;
         var world=Game.Sim.World;int index=world.Tiles.Length/2;var original=world.Tiles[index];
         string digest=StateHash.ComputeDigest(Game.Sim);
+        foreach(float x in new[]{-.5f,0f,world.Width*2f,world.Width*2f+.5f})
+        foreach(float z in new[]{-.5f,0f,world.Height*2f,world.Height*2f+.5f})
+        {
+            var plant=RootedPlant(new(x,0,z),Vector3.One,.7f);
+            if(!plant.IsFinite()||MathF.Abs(plant.Origin.Y-GroundHeight(x,z)+.012f)>.0001f)
+                throw new InvalidOperationException("Rooted plant fails at terrain boundary");
+        }
         try
         {
             world.Tiles[index].Height-=.006f*(.18f-original.FootTraffic);world.Tiles[index].FootTraffic=.18f;CheckTerrain();
@@ -638,14 +645,14 @@ public partial class WorldView3D : MapView
             if(riverbank)
             {
                 float px=p.X+MathF.Sin(h%719)*.55f,pz=p.Z+MathF.Cos(h%431)*.55f;
-                reeds.Add(NatureModels.Transform(new(px,GroundHeight(px,pz),pz),Vector3.One*(.72f+(h%7)*.06f),new(0,h%31,0)));
+                reeds.Add(RootedPlant(new(px,0,pz),Vector3.One*(.72f+(h%7)*.06f),h%31));
             }
             if(living&&tile.Terrain==TerrainKind.Forest&&tile.Vegetation>.35f&&tile.Moisture>.2f&&h%9==0)
                 for(int fern=0;fern<2;fern++)
                 {
                     float px=p.X+MathF.Sin(h%613+fern*2.7f)*.48f,pz=p.Z+MathF.Cos(h%791+fern*2.7f)*.48f;
                     float scale=size*(.65f+fern*.21f);
-                    ferns.Add(NatureModels.Transform(new(px,GroundHeight(px,pz),pz),Vector3.One*scale,new(0,h%19+fern,0)));
+                    ferns.Add(RootedPlant(new(px,0,pz),Vector3.One*scale,h%19+fern));
                 }
             if(HasMeadow(tile,h))for(int tuft=0;tuft<4;tuft++)
             {
@@ -653,18 +660,18 @@ public partial class WorldView3D : MapView
                 float pz=p.Z+MathF.Cos(h%431+tuft*2.399f)*(.30f+tuft*.19f);
                 float patch=TerrainNoise(x*.15f,y*.15f,Game.Sim.World.Seed);
                 float variation=(.48f+patch*.78f)*(.72f+((h>>(tuft*4))%11)*.045f);
-                grass.Add(NatureModels.Transform(new(px,GroundHeight(px,pz),pz),new Vector3(size,variation,size),new Vector3(0,h%31+tuft*1.7f,0)));
+                grass.Add(RootedPlant(new(px,0,pz),new Vector3(size,variation,size),h%31+tuft*1.7f));
             }
             if (tile.BuildingId==0&&tile.Terrain == TerrainKind.Forest && tile.Vegetation > .12f && tile.Fire != FireState.Burnt && h % 5 == 0)
             {
                 float px=p.X+((h>>7)%101/100f-.5f)*1.35f,pz=p.Z+((h>>17)%101/100f-.5f)*1.35f;
-                var tree=NatureModels.Transform(new(px,GroundHeight(px,pz),pz),Vector3.One*(.76f+(h%17)*.035f),new Vector3(0,h%17,0));
+                var tree=NatureModels.Transform(new(px,GroundHeight(px,pz)-.045f,pz),Vector3.One*(.76f+(h%17)*.035f),new Vector3(0,h%17,0));
                 if(h%3==0)pines.Add(tree);else leaves.Add(tree);
             }
             if (tile.BuildingId==0&&tile.Terrain == TerrainKind.Mountain && h % 9 == 0)
-            { var t = NatureModels.Transform(p + Vector3.Up * .4f, new Vector3(1.6f, 1.2f, 1.7f) * size, new Vector3(.2f, h % 7, .4f)); if (tile.Resource.Kind == ResourceKind.Iron) { ores.Add(t); } else { t.Origin=p-Vector3.Up*.08f;rocks.Add(t); } }
+            { var t = NatureModels.Transform(p-Vector3.Up*.08f, new Vector3(1.6f, 1.2f, 1.7f) * size, new Vector3(0,h%7,0)); if (tile.Resource.Kind == ResourceKind.Iron) ores.Add(t); else rocks.Add(t); }
             if (tile.BuildingId==0&&tile.Resource.Kind == ResourceKind.Food && tile.Resource.Amount > 5 && h % 17 == 0)
-                { bushes.Add(NatureModels.Transform(p + Vector3.Up * .28f, new Vector3(.9f, .7f, .9f) * size)); }
+                { bushes.Add(RootedPlant(p, new Vector3(.9f, .7f, .9f) * size,h%31)); }
         }
         if(_groundMapTexture!=null)_models.BindEnvironmentGround(_groundMapTexture,new Vector2(Game.Sim.World.Width,Game.Sim.World.Height));
         _models.Batch(_props,"pebble",6,pebbles,_models.RockSurface(false),28);
@@ -678,7 +685,7 @@ public partial class WorldView3D : MapView
             model.Position = PositionAt(place.X, place.Y); if(place.Kind is WildPlaceKind.Meadow or WildPlaceKind.Berries or WildPlaceKind.Wetland)model.Scale=Vector3.One*(.30f+.70f*WildPlaces.Maturity(Game.Sim,place)); _props.AddChild(model);
         }
         _models.Batch(_props,"broad-tree",4,leaves,preserveMaterials:true);
-        _models.Batch(_props,"conifer-tree",5,pines,preserveMaterials:true); _models.Batch(_props, "boulder", 6, rocks,preserveMaterials:true); _models.Batch(_props, "rock", 7, ores,_models.RockSurface(true)); _models.Batch(_props,"foliage",4,bushes,preserveMaterials:true);
+        _models.Batch(_props,"conifer-tree",5,pines,preserveMaterials:true); _models.Batch(_props, "boulder", 6, rocks,preserveMaterials:true); _models.Batch(_props, "boulder", 7, ores,_models.RockSurface(true)); _models.Batch(_props,"foliage",4,bushes,preserveMaterials:true);
     }
     private void SyncEntities()
     {
@@ -771,8 +778,13 @@ public partial class WorldView3D : MapView
     {
         if(Game.VisualPaused)return;
         Vector3 direction = target - node.Position;
-        ((AnimalRig)node).Pose(delta, direction.LengthSquared() > .02f, Game.VisualPaused,grazing);
         var location=node.Position.Lerp(target,1-MathF.Exp(-delta*8));location.Y=GroundHeight(location.X,location.Z);node.Position=location;
         if (direction.LengthSquared() > .02f) { node.Rotation = new Vector3(0, Mathf.LerpAngle(node.Rotation.Y,MathF.Atan2(direction.X, direction.Z) + MathF.PI,1-MathF.Exp(-delta*9)), 0); }
+        if(_camera.Position.DistanceSquaredTo(node.Position)<24*24)
+        {
+            var space=node.Transform;var inverse=space.AffineInverse();
+            ((AnimalRig)node).Pose(delta,direction.LengthSquared()>.02f,false,grazing,point=>{var world=space*point;world.Y=GroundHeight(world.X,world.Z);return (inverse*world).Y;});
+        }
+        else ((AnimalRig)node).Pose(delta,direction.LengthSquared()>.02f,false,grazing);
     }
 }

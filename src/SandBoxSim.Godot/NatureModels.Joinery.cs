@@ -53,7 +53,46 @@ internal sealed partial class NatureModels
             var position=new Vector3(-.5f,height+1.31f,-.4f);
             Sculpt(model,ChimneyPot(),position,Material(2));
             Part(model,"cylinder",position+new Vector3(0,.025f,0),new(.105f,.008f,.105f),10);
+            // Staggered narrow masonry courses give the stack a readable scale.
+            for(int row=0;row<6;row++)foreach(float side in new[]{-1f,1f})
+            {
+                float y=height+.29f+row*.16f;
+                Part(model,"masonry",new(-.5f+side*.084f,y,-.588f),new(.154f,.145f,.027f),6);
+                Part(model,"masonry",new(-.676f,y,-.4f+side*(row%2==0?.093f:.082f)),new(.027f,.145f,.173f),6);
+            }
         }
+        if(variant is 1 or 2 or 3)
+        {
+            foreach(float side in new[]{-1f,1f})
+            {
+                // Open carved wooden troughs, seated under the eaves, with
+                // iron supports. Both skins are modelled, not an opaque box.
+                Sculpt(model,EaveTrough(depth+.50f),new(side*(width/2+.23f),height+.10f,0),Material(0));
+                for(int bracket=0;bracket<4;bracket++)
+                {
+                    float z=-depth/2+(bracket+.5f)*depth/4;
+                    Timber(model,new(side*(width/2+.04f),height+.09f,z),new(side*(width/2+.23f),height+.03f,z),.018f,11);
+                }
+            }
+        }
+    }
+    private Mesh EaveTrough(float length)
+    {
+        string key="eave-trough:"+length;if(_meshes.TryGetValue(key,out var cached))return cached;
+        using var tool=new SurfaceTool();tool.Begin(Mesh.PrimitiveType.Triangles);
+        Vector3 P(int arc,int end,bool outer)
+        {float a=arc*MathF.PI/16,r=outer?.073f:.056f;return new(MathF.Cos(a)*r,-MathF.Sin(a)*r,end==0?-length/2:length/2);}
+        for(int arc=0;arc<16;arc++)
+        {
+            var normal=new Vector3(MathF.Cos((arc+.5f)*MathF.PI/16),-MathF.Sin((arc+.5f)*MathF.PI/16),0);
+            foreach(bool outer in new[]{true,false})
+            {var a=P(arc,0,outer);var b=P(arc+1,0,outer);var c=P(arc,1,outer);var d=P(arc+1,1,outer);EquipmentTriangle(tool,a,b,c,outer?normal:-normal);EquipmentTriangle(tool,b,d,c,outer?normal:-normal);}
+            foreach(int end in new[]{0,1})
+            {var a=P(arc,end,false);var b=P(arc+1,end,false);var c=P(arc,end,true);var d=P(arc+1,end,true);EquipmentTriangle(tool,a,b,c,new(0,0,end==0?-1:1));EquipmentTriangle(tool,b,d,c,new(0,0,end==0?-1:1));}
+        }
+        foreach(int edge in new[]{0,16})
+        {EquipmentTriangle(tool,P(edge,0,false),P(edge,1,false),P(edge,0,true),Vector3.Up);EquipmentTriangle(tool,P(edge,1,false),P(edge,1,true),P(edge,0,true),Vector3.Up);}
+        tool.GenerateNormals();tool.Index();var mesh=tool.Commit();_meshes[key]=mesh;return mesh;
     }
     private Mesh ChimneyPot()
     {

@@ -7,6 +7,13 @@ internal sealed partial class NatureModels
 {
     public void ValidateWildPlaceMeshes()
     {
+        foreach(bool fruit in new[]{true,false})for(int repeat=0;repeat<2;repeat++)
+        {
+            var bush=BerryShrub(fruit);var mesh=bush.GetChild<MeshInstance3D>(0).Mesh;
+            if(mesh.GetAabb().Position.Y<-.01f||mesh.GetAabb().Size.Y<.5f)throw new System.InvalidOperationException("Berry canes are not rooted at ground level");
+            for(int i=0;i<mesh.GetSurfaceCount();i++)if(mesh.SurfaceGetMaterial(i)==null)throw new System.InvalidOperationException("Cached berry shrub lost its material");
+            bush.Free();
+        }
         foreach (WildPlaceKind kind in System.Enum.GetValues<WildPlaceKind>())
         {
             var node = WildPlace(kind, 0, true);
@@ -39,14 +46,12 @@ internal sealed partial class NatureModels
             case WildPlaceKind.Spring:
                 for (int i=0;i<9;i++)
                 { float a=i*Mathf.Tau/9; Part(node,"rock",new Vector3(Mathf.Cos(a)*2.1f,.28f,Mathf.Sin(a)*2.1f),new Vector3(.95f,.7f,.9f),6,new Vector3(.1f,a,.2f)); }
-                for(int i=0;i<7;i++)Part(node,"cylinder",new Vector3(-2.6f+i*.21f,.75f,1.7f),new Vector3(.04f,1.5f,.04f),4,new Vector3(.08f,0,.11f));
+                for(int i=0;i<3;i++)Part(node,"reeds",new Vector3(-2.6f+i*.45f,0,1.7f),Vector3.One*(.8f+i*.08f),4,new Vector3(0,i*1.7f,0));
                 break;
             case WildPlaceKind.Berries:
                 for(int i=0;i<7;i++)
                 {
-                    float a=i*Mathf.Tau/7;var p=new Vector3(Mathf.Cos(a)*2,.5f,Mathf.Sin(a)*2);
-                    Part(node,"foliage",p,new Vector3(1.4f,1.2f,1.3f),4);
-                    if(phase!=3)for(int b=0;b<3;b++)Part(node,"sphere",p+new Vector3(-.32f+b*.3f,.5f,-.2f),new Vector3(.12f,.12f,.12f),14);
+                    float a=i*Mathf.Tau/7;var bush=BerryShrub(phase!=3);bush.Position=new(Mathf.Cos(a)*2,0,Mathf.Sin(a)*2);bush.Rotation=new(0,a,0);node.AddChild(bush);
                 }
                 break;
             case WildPlaceKind.OldGrove:
@@ -68,7 +73,7 @@ internal sealed partial class NatureModels
                     for(int row=0;row<6;row++)Part(node,"box",new Vector3(1.5f+side*.9f,.22f+row*.38f,.7f),new Vector3(.5f,.35f,.65f),6);
                 for(int i=0;i<5;i++)Part(node,"box",new Vector3(.7f+i*.4f,2.6f-Mathf.Abs(i-2)*.16f,.7f),new Vector3(.43f,.42f,.65f),6,new Vector3(0,0,(i-2)*.17f));
                 Part(node,"cylinder",new Vector3(-1,.25f,.4f),new Vector3(.22f,3.5f,.22f),0,new Vector3(0,0,1.35f));
-                for(int i=0;i<4;i++)Part(node,"foliage",new Vector3(-2.7f+i*.15f,.25f+i*.32f,-1.4f),new Vector3(.65f,.55f,.45f),4);
+                for(int i=0;i<4;i++)node.AddChild(new MeshInstance3D {Mesh=Shape("fern"),Position=new(-2.25f+i*.42f,0,-1.25f),Scale=Vector3.One*.9f,Rotation=new(0,i*1.7f,0)});
                 if(supplies)for(int i=0;i<5;i++)Part(node,"rock",new Vector3(-.5f+i*.45f,.2f,1.4f),new Vector3(.6f,.5f,.7f),6);
                 break;
             case WildPlaceKind.Meadow:
@@ -92,23 +97,54 @@ internal sealed partial class NatureModels
                 for(int i=0;i<28;i++)
                 {
                     float a=i*2.39996f,r=.7f+Mathf.Sqrt(i/28f)*2.3f,h=.7f+(i%5)*.12f;
-                    var p=new Vector3(Mathf.Cos(a)*r,h/2,Mathf.Sin(a)*r);
-                    Part(node,"cylinder",p,new(.022f,h,.022f),4,new(.06f,0,.12f));
-                    Detail(node,"seed",p+Vector3.Up*(h/2-.07f),new(.055f,.21f,.055f),"#85755a");
-                    Part(node,"foliage",p-Vector3.Up*(h/2-.1f),new(.3f,.25f,.3f),4);
+                    Part(node,"reeds",new(Mathf.Cos(a)*r,0,Mathf.Sin(a)*r),Vector3.One*h,4,new(0,a,0));
                 }
                 break;
             case WildPlaceKind.FallenWood:
                 Part(node,"trunk",new(0,.23f,0),new(.7f,4.3f,.7f),0,new(0,0,1.49f));
                 Part(node,"cylinder",new(1.7f,.26f,0),new(.64f,.035f,.64f),1,new(0,0,Mathf.Pi/2));
-                for(int i=0;i<5;i++) Part(node,"foliage",new(-1.1f+i*.5f,.15f,.38f),new(.65f,.3f,.5f),4);
+                for(int i=0;i<5;i++) Part(node,"foliage",new(-1.1f+i*.5f,0,.38f),new(.65f,.3f,.5f),4);
                 for(int i=0;i<3;i++) Timber(node,new(-1.2f+i*.6f,.23f,0),new(-1.4f+i*.6f,.50f,.75f),.065f);
                 break;
             case WildPlaceKind.Ore:
-                for(int i=0;i<5;i++)Part(node,"rock",new Vector3(-2+i,1.1f+i%2*.35f,0),new Vector3(1.7f,2.2f,2.5f),i%2==0?7:6,new Vector3(.2f,i*.4f,.15f));
+                for(int i=0;i<5;i++)node.AddChild(new MeshInstance3D {Mesh=Shape("boulder"),Position=new(-2+i,-.04f,0),Scale=new(1.7f,1.7f+i%2*.3f,2.0f),Rotation=new(0,i*.4f,0),MaterialOverride=i%2==0?RockSurface(true):null});
                 break;
         }
         MergeResidentParts(node,$"wild:{kind}:{phase}:{supplies}");
         return node;
+    }
+    internal Node3D BerryShrub(bool fruit)
+    {
+        var root=new Node3D();string key="berry-canes:"+fruit;
+        if(_meshes.TryGetValue(key,out var cached)){root.AddChild(new MeshInstance3D {Mesh=cached});return root;}
+        using var leaves=new SurfaceTool();leaves.Begin(Mesh.PrimitiveType.Triangles);
+        for(int cane=0;cane<7;cane++)
+        {
+            float a=cane*2.39996f,height=.65f+(cane%3)*.10f;
+            var outward=new Vector3(Mathf.Cos(a),0,Mathf.Sin(a));var across=new Vector3(-outward.Z,0,outward.X);
+            Vector3 Center(float t)=>Vector3.Up*height*t+outward*(.10f*t+.26f*t*t);
+            for(int row=0;row<5;row++)
+            {
+                float t=(row+1)/5f;BotanicalStem(leaves,Center(row/5f),Center(t),.008f*(1-t*.72f));
+                if(row==0)continue;
+                foreach(float side in new[]{-1f,1f})
+                {
+                    var origin=Center(t);var axis=(outward*.35f+across*side+Vector3.Up*.15f).Normalized();
+                    BotanicalStem(leaves,origin,origin+axis*.04f,.0015f);
+                    BotanicalLeaf(leaves,origin+axis*.03f,axis,outward,.12f,.035f,.008f,.9f+cane*.018f);
+                }
+            }
+            if(fruit)for(int berry=0;berry<3;berry++)
+            {
+                var stem=Center(.77f);var end=stem+across*((berry-1)*.035f)+outward*.045f-Vector3.Up*(.028f+berry*.012f);
+                FineBeam(root,stem,end,.002f,"#5f6141");
+                Detail(root,"finger-low",end-Vector3.Up*.016f,Vector3.One*.034f,"#50425c");
+            }
+        }
+        leaves.GenerateNormals();leaves.Index();var leafMesh=leaves.Commit();leafMesh.SurfaceSetMaterial(0,Material(4));Sculpt(root,leafMesh,Vector3.Zero,Material(4));
+        MergeResidentParts(root,key);
+        // A leaf-only dormant bush has one mesh and needs the same cache path.
+        _meshes[key]=root.GetChild<MeshInstance3D>(0).Mesh;
+        return root;
     }
 }

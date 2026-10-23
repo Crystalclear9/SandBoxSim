@@ -145,7 +145,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateHandling()
     {
-        ValidateForearmSurfaces();ValidateHandLaterality();ValidateSocialGesture();ValidatePresentationCadence();
+        ValidateForearmSurfaces();ValidateHandLaterality();ValidateSocialGesture();ValidatePresentationCadence();ValidateCarrying();ValidateAnimalContacts();
         foreach(var action in new[]{ActionKind.GatherWood,ActionKind.GatherIron,ActionKind.Farm,ActionKind.BuildHouse})
         {
             var rig=Resident(17,false,JobType.Gatherer);
@@ -350,5 +350,63 @@ internal sealed partial class NatureModels
         for(int i=0;i<100;i++)child.PoseAction(1f/60,ActionKind.Farm,ActionPhase.Executing,false,0);
         if(child.ToolHeld||child.ToolMesh.Visible)throw new InvalidOperationException("Child received adult tool");child.Free();
         GD.Print("HANDLING_PASS: take/use/stow continuity, action-specific tools, three phalanges, shaft clearance, wrist limits, mirrored support, IK, switching, cargo, child policy, LOD and pause");
+    }
+    private void ValidateCarrying()
+    {
+        foreach(var job in new[]{JobType.Farmer,JobType.Miner,JobType.Builder,JobType.Soldier})
+        {
+            var rig=Resident(17,false,job);
+            foreach(var phase in new[]{ActionPhase.Idle,ActionPhase.Moving,ActionPhase.Done})
+            {
+                for(int frame=0;frame<120;frame++)rig.PoseAction(1f/60,phase==ActionPhase.Idle?ActionKind.None:phase==ActionPhase.Done?ActionKind.Farm:ActionKind.Wander,phase,false,0);
+                if(!rig.ToolHeld||rig.ToolMesh.GetParent()!=rig.Grip||!rig.ToolMesh.Visible)throw new InvalidOperationException("Idle/walking resident leaves a tool floating at the belt: "+job);
+                var tool=InTorso(rig.ToolMesh,rig.Torso);var palm=InTorso(rig.Hands[1],rig.Torso)*rig.Grip!.Position;
+                if(palm.DistanceTo(tool.Origin)>.001f||rig.Hands[1].Basis.Y.AngleTo(Vector3.Up)>Mathf.DegToRad(55))throw new InvalidOperationException("Carry grip is detached or wrist is folded: "+job);
+                var hand=rig.Hands[1].Transform;var attachment=rig.ToolMesh.GetParent();
+                rig.PoseAction(.5f,ActionKind.Sleep,ActionPhase.Executing,true,0);
+                if(hand!=rig.Hands[1].Transform||attachment!=rig.ToolMesh.GetParent())throw new InvalidOperationException("Pause changes tool carry");
+            }
+            rig.ShowCargo(true,ResourceKind.Wood);
+            for(int frame=0;frame<120;frame++)rig.PoseAction(1f/60,ActionKind.Wander,ActionPhase.Moving,false,0);
+            if(rig.ToolHeld||!rig.CargoMesh.Visible)throw new InvalidOperationException("Idle carry overrides two-handed cargo");
+            rig.ShowCargo(false,ResourceKind.Wood);
+            for(int frame=0;frame<120;frame++)rig.PoseAction(1f/60,ActionKind.None,ActionPhase.Idle,false,0);
+            if(!rig.ToolHeld)throw new InvalidOperationException("Resident does not retrieve tool after cargo");
+            rig.SetHandDetail(false);rig.PoseAction(.2f,ActionKind.Wander,ActionPhase.Moving,false,0);
+            if(rig.HandProxies[1].Mesh!=rig.HandClosed[1])throw new InvalidOperationException("Distant carrier has an open hand");
+            rig.Free();
+        }
+        GD.Print("CARRY_CONTACT_PASS: idle/walk grip, wrist limits, pause, cargo priority, retrieval and closed-hand LOD");
+    }
+    private void ValidateAnimalContacts()
+    {
+        foreach(bool wolf in new[]{false,true})
+        {
+            var rig=DetailedAnimal(wolf);
+            var surface=rig.FurSkin!.Mesh.SurfaceGetArrays(0);
+            var vertices=surface[(int)Mesh.ArrayType.Vertex].AsVector3Array();var normals=surface[(int)Mesh.ArrayType.Normal].AsVector3Array();
+            var triangles=surface[(int)Mesh.ArrayType.Index].AsInt32Array();int reversed=0;
+            for(int t=0;t<triangles.Length;t+=3)
+            {
+                int a=triangles[t],b=triangles[t+1],c=triangles[t+2];
+                if((vertices[c]-vertices[a]).Cross(vertices[b]-vertices[a]).Dot(normals[a]+normals[b]+normals[c])<0)reversed++;
+            }
+            // Allow a handful of high-curvature tip triangles; broad patches
+            // of folded shoulder faces must never pass just for being finite.
+            if(reversed>8)throw new InvalidOperationException("Animal surface contains folded patches: "+reversed);
+            foreach(float slope in new[]{0f,.08f,-.08f})
+            {
+                rig.Pose(.016f,false,false);rig.FitFeet(p=>p.Z*slope);
+                for(int leg=0;leg<4;leg++)
+                {
+                    float lower=rig.Legs[leg].Position.Y-.32f;
+                    var point=rig.Body.Transform*rig.Legs[leg].Transform*rig.Knees[leg].Transform*new Vector3(0,-lower+.007f,-.025f);
+                    if(!point.IsFinite()||MathF.Abs(point.Y-point.Z*slope-.007f)>.012f)throw new InvalidOperationException($"Animal foot misses slope: wolf={wolf}, leg={leg}, gap={point.Y-point.Z*slope-.007f}");
+                    if(MathF.Abs(rig.FurSkeleton!.GetBonePoseRotation(3+leg*2).Dot(rig.Legs[leg].Basis.GetRotationQuaternion()))<.9999f)throw new InvalidOperationException("Animal fur does not follow ground contacts");
+                }
+            }
+            rig.Free();
+        }
+        GD.Print("ANIMAL_CONTACT_PASS: bounded surface folds, four feet on flat/uphill/downhill surfaces and shared skin joint transforms");
     }
 }

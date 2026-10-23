@@ -80,7 +80,9 @@ ROUGHNESS=.86+guard*.06;SPECULAR=.17;
             new(-.78f,back+(wolf?.25f:.36f),wolf?.102f:.083f,wolf?.13f:.112f),
             new(-.64f,back+(wolf?.15f:.23f),wolf?.164f:.111f,wolf?.195f:.171f),
             new(-.48f,back+.050f,wolf?.180f:.146f,wolf?.245f:.250f), new(-.30f,back-.008f,wolf?.178f:.170f,wolf?.250f:.250f),
-            new(-.08f,back+.003f,wolf?.161f:.158f,wolf?.197f:.223f), new(.18f,back+.045f,wolf?.119f:.123f,wolf?.122f:.156f), new(.39f,back+.008f,wolf?.160f:.161f,.209f),
+            // A continuous back line over the abdominal tuck avoids the old
+            // saddle-shaped dip between rib cage and pelvis.
+            new(-.08f,back+.018f,wolf?.161f:.158f,wolf?.210f:.232f), new(.18f,back+.045f,wolf?.139f:.142f,wolf?.162f:.188f), new(.39f,back+.008f,wolf?.160f:.161f,.209f),
             new(.53f,back-.025f,.135f,.175f), new(.64f,back-.04f,.008f,.015f) });
         Sculpt(rig.Body, body, Vector3.Zero, fur);
         rig.Head = new Node3D { Name = "Head", Position = new Vector3(0,back+(wolf?.28f:.42f),-.755f), Scale=Vector3.One*(wolf?.84f:.96f) }; rig.Body.AddChild(rig.Head);

@@ -44,7 +44,7 @@ internal sealed partial class NatureModels
         {
             string raw=FileAccess.GetFileAsString("res://assets/models/animals/"+(wolf?"wolf":"deer")+".skin.json");
             string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
-            if(hash!=(wolf?"245a73bfa3e218bf88f7132e2fb2210e9938eb18b6d4b8b96525987801f42554":"3786a1ff12ab0982a51d4b1c106a0f4c7aaedf500546264d3ad9e628028c4bd3"))throw new InvalidOperationException("Animal skin asset hash mismatch");
+            if(hash!=(wolf?"dc03237792acf7d1e93ea34871165c2ad4c9ed53feb8f75732b455e4dee84705":"b002bc6d7f74e436f83ec2b4c20ec826276524cc83f82b5e68f85e5060ad381c"))throw new InvalidOperationException("Animal skin asset hash mismatch");
             using var document=JsonDocument.Parse(raw);var root=document.RootElement;
             float[] Floats(string name){var e=root.GetProperty(name);var values=new float[e.GetArrayLength()];int i=0;foreach(var v in e.EnumerateArray())values[i++]=v.GetSingle();return values;}
             int[] Ints(string name){var e=root.GetProperty(name);var values=new int[e.GetArrayLength()];int i=0;foreach(var v in e.EnumerateArray())values[i++]=v.GetInt32();return values;}
@@ -68,7 +68,7 @@ internal sealed partial class NatureModels
         }
         skeleton.ResetBonePoses();rig.FurSkin=new MeshInstance3D {Name="ContinuousCoat",Mesh=mesh,Skin=skin,Skeleton=new NodePath("../FurSkeleton")};rig.Body.AddChild(rig.FurSkin);
         var groom=new MeshInstance3D {Name="GuardHairCoat",Mesh=GroomAnimalCoat(mesh,wolf),Skin=skin,
-            Skeleton=new NodePath("../FurSkeleton"),VisibilityRangeEnd=18,VisibilityRangeEndMargin=3};
+            Skeleton=new NodePath("../FurSkeleton"),VisibilityRangeEnd=18,VisibilityRangeEndMargin=3,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off};
         rig.Body.AddChild(groom);
 
     }
