@@ -14,6 +14,7 @@
 | `character-detail.png`、`resident-face-detail.png` | 人物、动物与面部；`characters`、`faces` |
 | `wardrobe-detail.png`、`resident-garment-actions.png` | 三种衣装的正背面与作业动作；`wardrobe`、`actions` |
 | `model-surface-detail.png` | 衣料、靴子、动物与建筑近景；`model-details` |
+| `resident-tool-motion.gif` | 当前携带、作业与收纳动作；`actions` 的 30 帧原生采样，覆盖约 7 秒循环 |
 | `terrain-modern.png`、`terrain-closeup.png` | 地形、植被与水岸；公开 `visual-landscape` 第 40/80 帧 |
 | `architecture-detail.png`、`resident-forearm-detail.png` | 建筑和连续前臂；`architecture`、`forearms` |
 | `resident-handedness.png` | 左右手与远近景模型；`handedness` |
