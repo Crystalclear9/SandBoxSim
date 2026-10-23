@@ -89,6 +89,22 @@ public partial class WorldView3D
                 if(score>best){best=score;facing=direction;}
             }
             visual.Root.RotationDegrees=new(0,facing*90,0);
+            if(kind is BuildingKind.House or BuildingKind.Storage)
+            {
+                // The simulation stores one occupied cell per building. Fit the complete
+                // silhouette to nearby occupied cells, including roofs and domestic props.
+                // This also handles dense legacy saves without moving simulation entities.
+                var footprint=NatureModels.BuildingFootprint(identity);
+                float scale=.96f+(identity%140%7)*.008f;
+                float span=MathF.Max(footprint.X,footprint.Y)+1.5f;
+                for(int dy=-3;dy<=3;dy++)for(int dx=-3;dx<=3;dx++)
+                {
+                    if((dx==0&&dy==0)||!sim.World.IsInBounds(x+dx,y+dy))continue;
+                    if(sim.World.TileAt(x+dx,y+dy).BuildingId==0)continue;
+                    scale=MathF.Min(scale,(Math.Max(Math.Abs(dx),Math.Abs(dy))*2-.15f)/span);
+                }
+                visual.Root.Scale=Vector3.One*scale;
+            }
             UpdateFoundation(visual);
         }
         var liveSettlements=new HashSet<int>();
@@ -111,7 +127,8 @@ public partial class WorldView3D
     {
         if(visual.Kind is not (BuildingKind.House or BuildingKind.Storage))return;
         uint identity=visual.Identity%140;
-        float halfWidth=(2.45f+(identity%4)*.16f)*.5f,halfDepth=(1.95f+((identity/7)%4)*.18f)*.5f;
+        var footprint=NatureModels.BuildingFootprint(identity);
+        float halfWidth=(footprint.X+.1f)*.5f,halfDepth=(footprint.Y+.1f)*.5f;
         var corners=new[]{new Vector3(-halfWidth,0,-halfDepth),new(halfWidth,0,-halfDepth),
             new Vector3(halfWidth,0,halfDepth),new(-halfWidth,0,halfDepth)};
         var depths=Vector4.Zero;
@@ -176,5 +193,18 @@ public partial class WorldView3D
         sim.Buildings.Demolish(world,queuedB);BuildBuildings();
         if(_buildingVisuals.ContainsKey(queuedB)||!_buildingVisuals.ContainsKey(queuedA))throw new Exception("Queued building was resurrected after demolition");
         GD.Print("BUILDING_CACHE_PASS: reuse, road/height updates, completion, demolition and slot generations");
+        world.SetTerrain(7,6,TerrainKind.Grass);
+        sim.Buildings.MarkComplete(first,sim.Clock);
+        int neighbour=sim.Buildings.Place(world,BuildingKind.House,7,6,10);
+        if(neighbour<0)throw new Exception("Dense building fixture failed");
+        sim.Buildings.MarkComplete(neighbour,sim.Clock);BuildBuildings();
+        var left=_buildingVisuals[first];var right=_buildingVisuals[neighbour];
+        var leftBounds=left.Root.Transform*left.Surface.Mesh.GetAabb();
+        var rightBounds=right.Root.Transform*right.Surface.Mesh.GetAabb();
+        if(leftBounds.Intersects(rightBounds))throw new Exception("Dense building roofs intersect");
+        float crowdedScale=left.Root.Scale.X;
+        sim.Buildings.Demolish(world,neighbour);BuildBuildings();
+        if(left.Root.Scale.X<=crowdedScale)throw new Exception("Building plot did not expand after neighbour demolition");
+        GD.Print("BUILDING_PLOT_PASS: adjacent mesh bounds remain separate and demolition refreshes available space");
     }
 }

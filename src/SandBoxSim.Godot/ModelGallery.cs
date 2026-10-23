@@ -92,8 +92,8 @@ internal partial class ModelGallery : PanelContainer
         else if(Collection=="architecture")
         {
             string[] names={"原木屋 · 屋面与檐柱","灰泥屋 · 门窗与烟囱","石屋 · 基座与侧墙","高山墙屋 · 木架与砌筑","单坡屋 · 柱廊与木作"};
-            for(uint i=0;i<5;i++) Card(grid,names[i],models.Building(BuildingKind.House,true,i),i==3 ? 4.5f : 3.8f,false);
-            Card(grid,"仓库 · 木门、铁箍与物料",models.Building(BuildingKind.Storage,true,1),3.2f,false);
+            for(uint i=0;i<5;i++) Card(grid,names[i],models.Building(BuildingKind.House,true,i),i==3 ? 5.5f : 5.1f,false);
+            Card(grid,"仓库 · 木门、铁箍与物料",models.Building(BuildingKind.Storage,true,1),5.1f,false);
         }
         else if(Collection is "motion" or "grip")
         {

@@ -149,10 +149,13 @@ void fragment(){
     grass_uv=mat2(vec2(.819,.574),vec2(-.574,.819))*grass_uv;
     vec3 grass=meadow_sample(grass_diffuse,grass_uv);
     float meadow=noise2(world_position.xz*.17)+noise2(world_position.xz*.43)*.28;
-    grass*=mix(vec3(.84,.97,.80),vec3(1.03,1.00,.82),smoothstep(.25,.95,meadow));
+    grass*=mix(vec3(.72,.90,.71),vec3(.97,.96,.82),smoothstep(.25,.95,meadow));
     vec3 forest=texture(forest_diffuse,forest_uv).rgb;
     vec3 earth=texture(earth_diffuse,earth_uv).rgb;
     vec3 rock=rock_sample(rock_diffuse,rock_uv,projection);
+    // Dry mineral faces retain broad strata, without glittering pale flecks.
+    float mineral=dot(rock,vec3(.2126,.7152,.0722));
+    rock=mix(rock,vec3(mineral)*vec3(1.02,1.01,.96),.35);
     vec3 colour=grass*weights.x+forest*weights.y+rock*weights.z+earth*weights.w;
     float sand=special.x;
     colour=mix(colour,texture(sand_diffuse,world_position.xz*.12).rgb,sand*(1.0-exposed)*(1.0-wear));
@@ -167,11 +170,11 @@ void fragment(){
     vec3 grass_data=meadow_sample(grass_nr,grass_uv),forest_data=texture(forest_nr,forest_uv).rgb;
     vec3 earth_data=texture(earth_nr,earth_uv).rgb,rock_data=rock_sample(rock_nr,rock_uv,projection);
     float rough=grass_data.b*weights.x+forest_data.b*weights.y+rock_data.b*weights.z+earth_data.b*weights.w;
-    ROUGHNESS=clamp(rough-shore*.16,.48,.98);SPECULAR=.22;
+    ROUGHNESS=clamp(rough-shore*.10,.64,.98);SPECULAR=.16;
     vec3 gn=decode_normal(grass_data);gn.xy=mat2(vec2(.819,-.574),vec2(.574,.819))*gn.xy;
     vec3 grain=gn*weights.x+decode_normal(forest_data)*weights.y+decode_normal(earth_data)*weights.w;
     vec3 rn=decode_normal(rock_data);
-    grain+=rn*weights.z;grain.xy*=mix(.34,.58,weights.z);
+    grain+=rn*weights.z;grain.xy*=mix(.30,.40,weights.z);
     vec3 n=top_normal(grain,base);
     NORMAL=normalize(mat3(VIEW_MATRIX)*n);
 }"};

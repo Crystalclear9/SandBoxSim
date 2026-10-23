@@ -50,7 +50,7 @@ internal sealed partial class NatureModels
         if(variant is 1 or 3)
         {
             // The chimney has a ceramic pot with a genuinely open mouth.
-            var position=new Vector3(-.5f,height+.91f,-.4f);
+            var position=new Vector3(-.5f,height+1.31f,-.4f);
             Sculpt(model,ChimneyPot(),position,Material(2));
             Part(model,"cylinder",position+new Vector3(0,.025f,0),new(.105f,.008f,.105f),10);
         }

@@ -65,13 +65,21 @@ internal sealed partial class NatureModels
         float hem=Math.Clamp((.80f-y)/(.80f-GarmentBottom),0,1);
         float front=MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),4);
         float tension=MathF.Exp(-MathF.Pow((y-.82f)/.08f,2));
-        float fold=1+hem*belt*(.012f*MathF.Cos(angle*3+(y-.6f)*5)+.008f*MathF.Cos(angle*7-.4f)+.006f*MathF.Cos(angle*13+y*7));
+        float fold=1+hem*belt*(.030f*MathF.Cos(angle*3+(y-.6f)*5)+.018f*MathF.Cos(angle*7-.4f)+.009f*MathF.Cos(angle*13+y*7));
         // Cloth gathers below the belt; diagonal compression folds radiate from it.
         fold+=front*tension*.025f*MathF.Sin((y-.76f)*70+MathF.Abs(MathF.Cos(angle))*10);
         // Tension follows the two armholes and belt, rather than forming
         // evenly spaced ribs over the entire chest.
         float armhole=MathF.Exp(-MathF.Pow((y-1.145f)/.10f,2))*MathF.Pow(MathF.Abs(MathF.Cos(angle)),3);
         fold+=armhole*.016f*MathF.Sin(y*65+MathF.Sin(angle)*5);
+        // A few diagonal tension folds terminate at the belt and armhole.
+        // Millimetre-scale displacement is sampled into the sewn surface;
+        // attachments use this same sampler, so the belt cannot float above it.
+        float waist=MathF.Exp(-MathF.Pow((y-.90f)/.095f,2));
+        float diagonal=MathF.Sin((y-.81f)*58+MathF.Cos(angle)*6.0f+.7f);
+        fold+=waist*front*.027f*diagonal;
+        float backPleat=MathF.Pow(MathF.Max(0,MathF.Sin(angle)),6)*MathF.Exp(-MathF.Pow((y-1.05f)/.14f,2));
+        fold+=backPleat*.018f*MathF.Cos(angle*11+y*16);
         // The shirt rests on a sternum and shoulder blades rather than an
         // inflated circular trunk; fabric falls away from those support points.
         float shoulderBlade=MathF.Exp(-MathF.Pow((y-1.15f)/.07f,2))*MathF.Pow(MathF.Max(0,MathF.Sin(angle)),4);

@@ -45,8 +45,10 @@ vec2 tex_uv=UV*uv_scale+uv_offset;
 vec3 root=(MODEL_MATRIX*vec4(0,0,0,1)).xyz;
 float variation=sin(root.x*1.73+root.z*2.41)*.035;
 ALBEDO=texture(diffuse_map,tex_uv).rgb*(1.0+variation);
-NORMAL_MAP=texture(normal_map,tex_uv).rgb;NORMAL_MAP_DEPTH=.65;
-ROUGHNESS=clamp(texture(roughness_map,tex_uv).r,.45,1.0);SPECULAR=.24;
+// Thin leaves transmit a small amount of light; woody surfaces stay opaque.
+BACKLIGHT=cutout?ALBEDO*vec3(.18,.23,.11):vec3(0.0);
+NORMAL_MAP=texture(normal_map,tex_uv).rgb;NORMAL_MAP_DEPTH=cutout?.40:.50;
+ROUGHNESS=clamp(texture(roughness_map,tex_uv).r,.62,1.0);SPECULAR=.18;
 ALPHA=cutout?texture(alpha_map,tex_uv).r:1.0;ALPHA_SCISSOR_THRESHOLD=mix(.45,.18,smoothstep(2.0,8.0,max(length(dFdx(UV)),length(dFdy(UV)))*1024.0));
 }"};
         var material=new ShaderMaterial {Shader=_sourceVegetationShader};

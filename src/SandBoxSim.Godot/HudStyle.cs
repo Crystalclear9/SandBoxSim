@@ -6,15 +6,15 @@ namespace SandBoxSim.Client;
 internal static class HudStyle
 {
     public static bool MotionEnabled { get; set; } = true;
-    public static readonly Color Ink = new("#202824"), Surface = new(.068f, .088f, .082f, .96f), Text = new("#efece2"),
-        Muted = new("#aab4aa"), Accent = new("#d8c39c"), Border = new("#48534b"), Wash = new("#303d35");
-    public static readonly Color Paper=new("#eeeade"),PaperInk=new("#303a32"),PaperMuted=new("#687367"),
-        PaperLine=new("#d3d6c7"),PaperAccent=new("#7b6341"),PaperWash=new("#e1e4d7");
+    public static readonly Color Ink = new("#242b2d"), Surface = new(.09f, .115f, .12f, .96f), Text = new("#f0eee8"),
+        Muted = new("#acb9b9"), Accent = new("#d7bc8e"), Border = new("#465456"), Wash = new("#344447");
+    public static readonly Color Paper=new("#f0eee7"),PaperInk=new("#263b3d"),PaperMuted=new("#617577"),
+        PaperLine=new("#d6ddda"),PaperAccent=new("#335f60"),PaperWash=new("#e1e7e3");
     public static StyleBox Frame(int padding)
     {
-        var surface = Box(Surface, 7, padding);
-        surface.BorderColor = new Color(Border, .72f);
-        surface.ShadowSize = 16; surface.ShadowOffset = new(0, 6);
+        var surface = Box(Surface, 9, padding);
+        surface.BorderColor = new Color(Border, .48f);
+        surface.ShadowSize = 10; surface.ShadowOffset = new(0, 4);
         return surface;
     }
     private static readonly SystemFont DisplayFont = new() { FontNames = new[] { "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "sans-serif" } };
@@ -59,6 +59,35 @@ internal static class HudStyle
     {
         item.AnchorLeft = item.AnchorRight = anchor.X; item.AnchorTop = item.AnchorBottom = anchor.Y;
         item.OffsetLeft = offset.X; item.OffsetRight = offset.X + size.X; item.OffsetTop = offset.Y; item.OffsetBottom = offset.Y + size.Y;
+    }
+    public static void LightButton(Godot.Button button)
+    {
+        button.SetMeta("notebook",true);
+        foreach(string state in new[]{"font_color","icon_normal_color"})button.AddThemeColorOverride(state,PaperInk);
+        foreach(string state in new[]{"font_hover_color","font_pressed_color","icon_hover_color","icon_pressed_color"})button.AddThemeColorOverride(state,PaperAccent);
+        button.AddThemeStyleboxOverride("normal",Box(Colors.Transparent,6,9,false));
+        button.AddThemeStyleboxOverride("hover",Box(PaperWash,6,9,false));
+        button.AddThemeStyleboxOverride("pressed",Box(new Color("#ccdbd5"),6,9,false));
+        button.AddThemeStyleboxOverride("hover_pressed",Box(new Color("#c3d4cd"),6,9,false));
+        var focus=Box(Colors.Transparent,6,9);focus.BorderColor=PaperAccent;focus.ShadowSize=0;
+        button.AddThemeStyleboxOverride("focus",focus);
+    }
+    public static void LightSurface(PanelContainer panel)
+    {
+        var surface=Box(Paper,9,14);surface.BorderColor=PaperLine;surface.ShadowSize=12;
+        panel.AddThemeStyleboxOverride("panel",surface);
+        void Apply(Node node)
+        {
+            if(node is HudBevel bevel)bevel.Visible=false;
+            if(node is Godot.Button button)LightButton(button);
+            if(node is Label label)
+            {
+                bool muted=label.GetThemeColor("font_color")==Muted||label.GetThemeColor("font_color")==PaperMuted;
+                label.AddThemeColorOverride("font_color",muted?PaperMuted:PaperInk);
+            }
+            foreach(Node child in node.GetChildren())Apply(child);
+        }
+        Apply(panel);
     }
     public static Theme InterfaceTheme()
     {

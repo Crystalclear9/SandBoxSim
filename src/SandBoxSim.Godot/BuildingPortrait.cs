@@ -32,7 +32,7 @@ internal partial class BuildingPortrait : SubViewportContainer
         stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-25, 145, 0),
             LightColor = new Color("#a8b5c3"), LightEnergy = .5f });
         Rebuild();
-        var camera = new Camera3D { Projection = Camera3D.ProjectionType.Orthogonal, Size = 4.05f,
+        var camera = new Camera3D { Projection = Camera3D.ProjectionType.Orthogonal, Size = 5.5f,
             Current = true, Position = new Vector3(0, 3.4f, 6.2f) };
         stage.AddChild(camera); camera.LookAt(new Vector3(0, 1.2f, 0));
     }

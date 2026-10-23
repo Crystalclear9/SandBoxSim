@@ -19,8 +19,12 @@ internal sealed partial class NatureModels
         string key="shoulder-fabric:"+cloth;
         if(!_residentMaterials.TryGetValue(key,out var material))
         {
-            _shoulderFabric??=new Shader {Code=((ShaderMaterial)ResidentMaterial(cloth)).Shader.Code.Replace("shader_type spatial;","shader_type spatial; render_mode cull_disabled;").Replace("ROUGHNESS = 0.94;","if(!FRONT_FACING){NORMAL=-NORMAL;} ROUGHNESS = 0.94;")};
-            var fabric=new ShaderMaterial {Shader=_shoulderFabric};fabric.SetShaderParameter("dye",new Color(cloth));material=fabric;_residentMaterials[key]=material;
+            var source=(ShaderMaterial)ResidentMaterial(cloth);
+            _shoulderFabric??=new Shader {Code=source.Shader.Code.Replace("shader_type spatial;","shader_type spatial; render_mode cull_disabled;").Replace("void fragment(){","void fragment(){if(!FRONT_FACING){NORMAL=-NORMAL;}")};
+            // Preserve every material parameter, especially scanned colour and
+            // normal/roughness maps. Copying shader text alone leaves white samplers.
+            var fabric=(ShaderMaterial)source.Duplicate();fabric.Shader=_shoulderFabric;
+            material=fabric;_residentMaterials[key]=material;
         }
         rig.ShoulderGeometry=JoinedShoulders();
         RemoveSeparateSleeves(rig,cloth);

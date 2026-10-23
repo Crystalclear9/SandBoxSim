@@ -7,7 +7,7 @@ internal sealed partial class NatureModels
     private Shader? _dryingShader;
     public Node3D HouseLife(uint identity,int residents,int wear)
     {
-        identity%=140;float depth=1.85f+((identity/7)%4)*.18f;
+        identity%=140;float depth=BuildingFootprint(identity).Y;
         var root=new Node3D {Name="HouseLife"};var daily=new Node3D {Name="Daily"};root.AddChild(daily);
         if(residents>0)
         {

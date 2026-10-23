@@ -110,10 +110,10 @@ internal sealed partial class NatureModels
                 for(int row=0;row<14;row++) foreach(float side in new[]{-1f,1f})
                 {
                     float logY=.27f+row*.138f;
-                    if(_fineArchitecture&&logY+.07f>1.05f&&logY-.07f<1.45f)
+                    if(_fineArchitecture&&logY+.07f>.95f&&logY-.07f<1.55f)
                     {
                         float opening=depth*.13f;
-                        foreach(var span in new[]{new Vector2(-depth/2-.06f,opening-.16f),new Vector2(opening+.16f,depth/2+.06f)})
+                        foreach(var span in new[]{new Vector2(-depth/2-.06f,opening-.24f),new Vector2(opening+.24f,depth/2+.06f)})
                             Part(model,"cylinder",new(side*width/2,logY,(span.X+span.Y)/2),new(.14f,span.Y-span.X,.14f),0,new(Godot.Mathf.Pi/2,0,0));
                     }
                     else Part(model,"cylinder",new(side*width/2,logY,0),new(.14f,depth+.12f,.14f),0,new(Godot.Mathf.Pi/2,0,0));
@@ -131,7 +131,7 @@ internal sealed partial class NatureModels
                     Part(model,_fineArchitecture?"masonry":"box",new(x,.18f+(row+.5f)*height/11,-depth/2-.026f),new(right-left-.012f,height/11-.012f,.07f),6);
                     float stoneZ=(near+far)/2;
                     foreach(float side in new[]{-1f,1f})
-                    foreach(var patch in WallPatches(new(near+.006f,.18f+row*height/11+.006f,far-near-.012f,height/11-.012f),_fineArchitecture?new[]{new Rect2(depth*.13f-.16f,1.05f,.32f,.40f)}:System.Array.Empty<Rect2>()))
+                    foreach(var patch in WallPatches(new(near+.006f,.18f+row*height/11+.006f,far-near-.012f,height/11-.012f),_fineArchitecture?new[]{new Rect2(depth*.13f-.24f,.95f,.48f,.60f)}:System.Array.Empty<Rect2>()))
                         Part(model,_fineArchitecture?"masonry":"box",new(side*(width/2+.026f),patch.GetCenter().Y,patch.GetCenter().X),new(.07f,patch.Size.Y,patch.Size.X),6);
                 }
                 // Recessed entrance canopy and carved corbels vary the cottage facade.
@@ -169,26 +169,26 @@ internal sealed partial class NatureModels
             }
             if(_fineArchitecture&&kind==BuildingKind.House&&variant is 1 or 2 or 3)
             {
-                float windowX=width*.30f;
-                Part(model,"box",new(windowX,.94f,z+.19f),new(.56f,.095f,.21f),0);
-                Part(model,"box",new(windowX,.99f,z+.19f),new(.48f,.025f,.14f),10);
+                float windowX=width*.355f;
+                Part(model,"box",new(windowX,.83f,z+.19f),new(.56f,.095f,.21f),0);
+                Part(model,"box",new(windowX,.88f,z+.19f),new(.48f,.025f,.14f),10);
                 foreach(float side in new[]{-1f,1f})
                 {
-                    Timber(model,new(windowX+side*.19f,.81f,z+.015f),new(windowX+side*.19f,.93f,z+.23f),.026f);
-                    Part(model,"box",new(windowX+side*.25f,1.01f,z+.19f),new(.035f,.10f,.21f),1);
+                    Timber(model,new(windowX+side*.19f,.70f,z+.015f),new(windowX+side*.19f,.82f,z+.23f),.026f);
+                    Part(model,"box",new(windowX+side*.25f,.90f,z+.19f),new(.035f,.10f,.21f),1);
                 }
                 for(int sprig=0;sprig<5;sprig++)
                 {
                     float x=windowX-.19f+sprig*.095f;
-                    Part(model,"sphere",new(x,1.025f+(sprig%2)*.02f,z+.20f),new(.11f,.075f,.105f),4);
-                    if((identity+sprig)%3==0)Part(model,"sphere",new(x,1.075f,z+.21f),new(.025f,.025f,.025f),8);
+                    Part(model,"sphere",new(x,.915f+(sprig%2)*.02f,z+.20f),new(.11f,.075f,.105f),4);
+                    if((identity+sprig)%3==0)Part(model,"sphere",new(x,.965f,z+.21f),new(.025f,.025f,.025f),8);
                 }
             }
             if((variant==1 || variant==3) && kind==BuildingKind.House)
             {
                 for(int i=0;i<5;i++) Part(model,"box",new(-.5f,height+.2f+i*.12f,-.4f),new(.29f,.025f,.31f),7);
-                Part(model,"box",new(-.5f,height+.88f,-.4f),new(.34f,.06f,.37f),6);
-                Part(model,"box",new(-.5f,height+.912f,-.4f),new(.19f,.013f,.22f),10);
+                Part(model,"box",new(-.5f,height+1.28f,-.4f),new(.34f,.06f,.37f),6);
+                Part(model,"box",new(-.5f,height+1.312f,-.4f),new(.19f,.013f,.22f),10);
             }
         }
         else if(kind==BuildingKind.Farm)

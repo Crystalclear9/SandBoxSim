@@ -91,12 +91,18 @@ ALBEDO=dye.rgb*(0.97+pores*0.025+wear);ROUGHNESS=0.69+pores*0.035;SPECULAR=0.26;
         string key=$"animal-lid:{wolf}:{side}";if(_meshes.TryGetValue(key,out var cached))return cached;
         using var tool=new SurfaceTool();tool.Begin(Mesh.PrimitiveType.Triangles);
         const int ring=48,sides=6;
+        var sockets=new float[ring+1];
+        for(int row=0;row<=ring;row++)
+        {
+            float t=row*MathF.Tau/ring;
+            sockets[row]=AnimalSkullSurfaceX(wolf,.038f+MathF.Sin(t)*(.009f+.0025f*MathF.Max(0,MathF.Sin(t))),-.105f+MathF.Cos(t)*.026f)+.001f;
+        }
         Vector3 Point(int row,int edge)
         {
             float t=row*MathF.Tau/ring,a=edge*MathF.Tau/sides;
             float y=.038f+MathF.Sin(t)*(.009f+.0025f*MathF.Max(0,MathF.Sin(t)));
             float z=-.105f+MathF.Cos(t)*.026f;
-            float x=(wolf?.113f:.104f)+MathF.Sin(t)*.0015f;
+            float x=sockets[row];
             return new(side*(x+MathF.Cos(a)*.0022f),y+MathF.Sin(a)*MathF.Sin(t)*.0022f,z+MathF.Sin(a)*MathF.Cos(t)*.0022f);
         }
         for(int r=0;r<ring;r++)for(int e=0;e<sides;e++)
@@ -121,6 +127,7 @@ ALBEDO=dye.rgb*(0.97+pores*0.025+wear);ROUGHNESS=0.69+pores*0.035;SPECULAR=0.26;
             float t=row/(float)rows,u=column/(float)columns*2-1;
             float leaf=MathF.Pow(MathF.Max(0,MathF.Sin(t*MathF.PI)),wolf?.78f:.68f);
             float width=(wolf?.059f:.060f)*leaf*(wolf?1.20f-.55f*t:1+.09f*MathF.Sin(t*MathF.PI));
+            if(wolf)width=.072f*(1-t)*MathF.Pow(MathF.Sin(MathF.Min(1,t/.16f)*MathF.PI/2),.65f);
             float cup=(1-u*u)*MathF.Sin(t*MathF.PI);
             float rim=.004f*MathF.Exp(-MathF.Pow((MathF.Abs(u)-.84f)/.14f,2))*MathF.Sin(t*MathF.PI);
             float root=.006f*MathF.Exp(-MathF.Pow((t-.18f)/.13f,2))*(1-u*u);

@@ -33,7 +33,7 @@ float dorsal=smoothstep(mix(1.08,.78,predator),mix(1.25,.98,predator),local.y)*.
 vec3 dx=dFdx(VERTEX),dy=dFdy(VERTEX);
 vec3 across=cross(dy,NORMAL),along=cross(NORMAL,dx);
 float determinant=dot(dx,across);
-float fiber_height=guard*mix(.000075,.000220,predator);
+float fiber_height=guard*mix(.000012,.000025,predator);
 if(abs(determinant)>0.0000000001){
 NORMAL=normalize(abs(determinant)*NORMAL-sign(determinant)*(dFdx(fiber_height)*across+dFdy(fiber_height)*along));
 }
@@ -97,11 +97,11 @@ ROUGHNESS=.86+guard*.06;SPECULAR=.17;
         {
             // Recessed eye, a continuous almond-shaped lid and a small wet tear duct.
             // The old three concentric spheres gave both species a bulging toy eye.
-            float eyeX=wolf?.111f:.102f;
+            float eyeX=AnimalSkullSurfaceX(wolf,.038f,-.105f)-.001f;
             Detail(rig.Head,"sphere",new(side*eyeX,.038f,-.105f),new(.012f,.020f,.030f),wolf?"#83754d":"#302c22").MaterialOverride=AnimalEyeMaterial(wolf);
             Detail(rig.Head,"sphere",new(side*(eyeX+.004f),.038f,-.108f),new(.007f,wolf?.011f:.005f,.016f),"#0d1412");
             Sculpt(rig.Head,AnimalEyelid(wolf,side),Vector3.Zero,LeatherSurface(wolf?"#55594f":"#685340"));
-            Detail(rig.Head,"sphere",new(side*(eyeX+.001f),.032f,-.130f),new(.007f,.006f,.009f),"#342a24");
+            Detail(rig.Head,"sphere",new(side*(AnimalSkullSurfaceX(wolf,.032f,-.130f)+.001f),.032f,-.130f),new(.004f,.004f,.006f),"#342a24");
             Detail(rig.Head,"sphere",new(side*(eyeX+.007f),.043f,-.114f),Vector3.One*.0017f,"#d8ddd6");
             if(wolf)for(int whisker=0;whisker<4;whisker++)
                 FineBeam(rig.Head,new(side*.051f,-.026f+whisker*.008f,-.32f+whisker*.017f),new(side*(.105f+whisker*.008f),-.013f+whisker*.010f,-.34f+whisker*.023f),.0003f,"#82897c");
@@ -172,5 +172,24 @@ ROUGHNESS=.86+guard*.06;SPECULAR=.17;
         var source=new ArrayMesh();source.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,a);
         using var tool=new SurfaceTool();tool.CreateFrom(source,0);tool.GenerateNormals();
         var mesh=tool.Commit();_meshes[key]=mesh;return mesh;
+    }
+    private float AnimalSkullSurfaceX(bool wolf,float y,float z)
+    {
+        // Place the eye and its rim against the actual cheek, rather than a
+        // guessed head radius that leaves the far eye visibly floating.
+        var arrays=AnimalSkull(wolf).SurfaceGetArrays(0);
+        var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();float result=0;
+        for(int i=0;i<indices.Length;i+=3)
+        {
+            var a=points[indices[i]];var b=points[indices[i+1]];var c=points[indices[i+2]];
+            float d=(b.Z-c.Z)*(a.Y-c.Y)+(c.Y-b.Y)*(a.Z-c.Z);
+            if(MathF.Abs(d)<1e-9f)continue;
+            float u=((b.Z-c.Z)*(y-c.Y)+(c.Y-b.Y)*(z-c.Z))/d;
+            float v=((c.Z-a.Z)*(y-c.Y)+(a.Y-c.Y)*(z-c.Z))/d;
+            if(u>=0&&v>=0&&u+v<=1)result=MathF.Max(result,a.X*u+b.X*v+c.X*(1-u-v));
+        }
+        if(result<=0)throw new InvalidOperationException("Animal eye lies outside the skull surface");
+        return result;
     }
 }

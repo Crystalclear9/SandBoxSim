@@ -13,7 +13,9 @@ uniform sampler2D straw_nr:filter_linear_mipmap_anisotropic,repeat_enable;
 varying vec3 p;varying vec3 face_normal;
 void vertex(){p=VERTEX;face_normal=NORMAL;}
 void fragment(){
-    vec2 uv=vec2(p.z/2.5,abs(p.x)/2.5+.30);
+    // Keep the enlarged roof in the reed-only strip of the source atlas.
+    // Wrapping into its upper band would paint timber battens on the eaves.
+    vec2 uv=vec2(p.z/2.5,.32+abs(p.x)/3.5*.48);
     vec3 packed=texture(straw_nr,uv).rgb;
     ALBEDO=texture(straw_diffuse,uv).rgb;
     vec3 base=normalize(face_normal),axis=abs(base.z)>.9?vec3(1,0,0):vec3(0,0,1);

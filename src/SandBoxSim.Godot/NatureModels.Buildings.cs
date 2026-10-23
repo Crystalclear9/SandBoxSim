@@ -6,15 +6,22 @@ using SandBoxSim.Core.Environment;
 namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
+    // Shared by the shell, domestic props and terrain skirt. Openings stay human-sized.
+    internal static Vector2 BuildingFootprint(uint identity)
+    {
+        identity %= 140;
+        return new(3.65f + (identity % 4) * .16f, 3.05f + ((identity / 7) % 4) * .18f);
+    }
     private Node3D Architecture(BuildingKind kind, bool complete, uint identity)
     {
         identity %= 140;
         int variant = (int)(identity % 5);
-        var model = new Node3D { Scale = new Vector3(.90f, .96f + (identity % 7) * .015f, .82f) };
+        var model = new Node3D { Scale = Vector3.One * (.96f + (identity % 7) * .008f) };
         // The merged mesh already contains all static details; do not rebuild temporary parts on a cache hit.
         if(_meshes.TryGetValue($"architecture:{kind}:{complete}:{identity}:{_fineArchitecture}",out var cached))
         {model.AddChild(new MeshInstance3D {Mesh=cached});return model;}
-        float width = 2.35f + (identity % 4) * .16f, depth = 1.85f + ((identity / 7) % 4) * .18f;
+        var footprint = BuildingFootprint(identity);
+        float width = footprint.X, depth = footprint.Y;
         if (!complete)
         {
             Part(model, "box", new(0, .09f, 0), new(width, .18f, depth), 6);
@@ -76,7 +83,7 @@ internal sealed partial class NatureModels
         foreach (float side in new[] { -1f, 1f })
             Part(model, "box", new(side * width / 2, height / 2 + .18f, depth / 2 + .04f), new(.09f, height, .08f), 0);
         if (variant == 1 || variant == 3)
-            Part(model, "box", new(-.5f, height + .5f, -.4f), new(.25f, .7f, .28f), 6);
+            Part(model, "box", new(-.5f, height + .72f, -.4f), new(.32f, 1.14f, .36f), 6);
         if (variant == 0 || variant == 4)
         {
             Part(model, "box", new(0, 2.09f, depth / 2 + .27f), new(width * .8f, .1f, .55f), 1, new(.12f, 0, 0));
@@ -95,6 +102,7 @@ internal sealed partial class NatureModels
     }
     private void Window(Node3D model, float x, float y, float z)
     {
+        int first = model.GetChildCount();
         // Recessed glazing and a dark reveal sit inside a real wall opening.
         // The mullions and shutters remain proud of the facade.
         Detail(model,"box",new(x,y,z-.155f),new(.32f,.40f,.008f),"#202923");
@@ -113,13 +121,21 @@ internal sealed partial class NatureModels
         }
         Part(model,"box",new(x,y-.23f,z+.095f),new(.48f,.055f,.16f),0);
         Part(model,"box",new(x,y+.23f,z+.04f),new(.44f,.055f,.10f),0);
+        // Enlarge the opening and joinery together, preserving the depth of the reveal.
+        for(int i=first;i<model.GetChildCount();i++)
+        {
+            var part=model.GetChild<Node3D>(i);
+            var delta=part.Position-new Vector3(x,y,z);
+            part.Position=new Vector3(x,y,z)+new Vector3(delta.X*1.5f,delta.Y*1.5f,delta.Z);
+            part.Scale*=new Vector3(1.5f,1.5f,1);
+        }
     }
     private static Rect2[] HouseOpenings(float width,int variant)
     {
         float doorX=variant is 0 or 4?-.28f:0;
-        var openings=new List<Rect2> {new(doorX-.41f,.18f,.82f,1.75f),new(width*.355f-.16f,1.07f,.32f,.40f)};
-        if(variant is 1 or 2 or 3)openings.Add(new(-width*.355f-.16f,1.07f,.32f,.40f));
-        if(variant==3)openings.Add(new(-.16f,2.25f,.32f,.40f));
+        var openings=new List<Rect2> {new(doorX-.41f,.18f,.82f,1.75f),new(width*.355f-.24f,.97f,.48f,.60f)};
+        if(variant is 1 or 2 or 3)openings.Add(new(-width*.355f-.24f,.97f,.48f,.60f));
+        if(variant==3)openings.Add(new(-.24f,2.15f,.48f,.60f));
         return openings.ToArray();
     }
     private static IEnumerable<Rect2> WallPatches(Rect2 wall,Rect2[] openings)
@@ -149,7 +165,7 @@ internal sealed partial class NatureModels
         Part(model,"box",new(0,height/2+.18f,-depth/2+.07f),new(width,height,.14f),material);
         foreach(float side in new[]{-1f,1f})
         {
-            var openings=_fineArchitecture?new[]{new Rect2(depth*.13f-.16f,1.05f,.32f,.40f)}:System.Array.Empty<Rect2>();
+            var openings=_fineArchitecture?new[]{new Rect2(depth*.13f-.24f,.95f,.48f,.60f)}:System.Array.Empty<Rect2>();
             foreach(var p in WallPatches(new(-depth/2,.18f,depth,height),openings))
                 Part(model,"box",new(side*(width/2-.07f),p.GetCenter().Y,p.GetCenter().X),new(.14f,p.Size.Y,p.Size.X),material);
         }
@@ -162,7 +178,7 @@ internal sealed partial class NatureModels
             var model=Building(BuildingKind.House,true,variant);
             try
             {
-                float width=2.35f+(variant%4)*.16f,depth=1.85f;
+                var footprint=BuildingFootprint(variant);float width=footprint.X,depth=footprint.Y;
                 var mesh=model.GetChild<MeshInstance3D>(0).Mesh;
                 float x=width*.355f+.08f,y=1.35f,nearest=float.NegativeInfinity;
                 Material? hit=null;

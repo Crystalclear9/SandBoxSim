@@ -75,7 +75,16 @@ internal sealed partial class NatureModels
             if(influence[0]<100||influence[1]<50||influence[2]<50||mesh.GetAabb().Size.X<.48f)
                 throw new InvalidOperationException("Garment lost torso or mirrored sleeve binding");
         }
-        SelectGarmentCut(previous);GD.Print("CONTINUOUS_GARMENT_PASS: three connected surfaces, mirrored sleeve weights, finite normals, hashes and 10k triangle budget");
+        var resident=Resident(17,false,SandBoxSim.Core.Agents.JobType.Farmer);
+        try
+        {
+            var fabric=(ShaderMaterial)resident.BodySkin.Mesh.SurfaceGetMaterial(0);
+            foreach(string sampler in new[]{"weave_map","fibre_map"})
+                if(fabric.GetShaderParameter(sampler).AsGodotObject() is not Texture2D texture||texture.GetWidth()<512)
+                    throw new InvalidOperationException("Rendered skinned garment lost its scanned material: "+sampler);
+        }
+        finally{resident.Free();SelectGarmentCut(previous);}
+        GD.Print("CONTINUOUS_GARMENT_PASS: connected surfaces, mirrored weights, hashes, budget and scanned textures on final skinned body");
     }
     private void RemoveSeparateSleeves(ResidentRig rig,string cloth)
     {
