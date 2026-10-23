@@ -25,10 +25,10 @@ float footprint=max(length(dFdx(local)),length(dFdy(local)))*300.0;
 guard/=1.0+footprint*footprint;
 float belly=(1.0-smoothstep(mix(.86,.54,predator),mix(1.03,.72,predator),local.y))*(.65+.35*smoothstep(.10,.75,-coat_normal.y));
 float saddle=smoothstep(.68,.95,local.y)*(1.0-smoothstep(.08,.22,abs(local.x)))*predator*.24;
-float locks=(coat_noise(coat_uv*vec2(42.0,13.0))-.5)*.055;
+float locks=(coat_noise(coat_uv*vec2(145.0,37.0))-.5)*.035;
 float agouti=coat_noise(coat_uv*27.0+vec2(7.0,3.0))-.5;
 agouti/=1.0+footprint*footprint*.04;
-float flank=(coat_noise(vec2(local.z,local.y)*3.1)-.5)*.10;
+float flank=(coat_noise(vec2(local.z,local.y)*3.1)-.5)*.035;
 float dorsal=smoothstep(mix(1.08,.78,predator),mix(1.25,.98,predator),local.y)*.13;
 vec3 dx=dFdx(VERTEX),dy=dFdy(VERTEX);
 vec3 across=cross(dy,NORMAL),along=cross(NORMAL,dx);
@@ -46,6 +46,9 @@ float cervid_chin=(1.0-predator)*(1.0-smoothstep(-1.08,-.91,local.z))*(1.0-smoot
 float rump=(1.0-predator)*smoothstep(.43,.58,local.z)*(1.0-smoothstep(.07,.15,abs(local.x)))*.48;
 float tear=(1.0-predator)*exp(-pow((abs(local.x)-.085)*41.0,2.0)-pow((local.y-1.474)*45.0,2.0)-pow((local.z+.883)*24.0,2.0))*.12;
 vec3 base=mix(coat.rgb,pale.rgb,clamp(belly*.52+face_pale+throat+cheek+cervid_chin+rump,0.0,.78));
+// Short, close hair on the face and legs; coarse guard hairs belong on the back.
+float short_coat=1.0-smoothstep(mix(.46,.43,predator),mix(.78,.66,predator),local.y);
+base=mix(base,coat.rgb*.73,short_coat*.32);
 ALBEDO=base*COLOR.rgb*(0.97+guard*.12+agouti*.14+locks+flank-saddle-dorsal-muzzle_shade-brow_mask-tear);
 ROUGHNESS=.86+guard*.06;SPECULAR=.17;
 }" };
@@ -55,9 +58,9 @@ ROUGHNESS=.86+guard*.06;SPECULAR=.17;
         material.SetShaderParameter("predator",wolf?1f:0f);
         _residentMaterials[key] = material; return material;
     }
-    private StandardMaterial3D? _animalEyeMaterial;
-    private Material AnimalEyeMaterial()=>_animalEyeMaterial??=new StandardMaterial3D {
-        AlbedoColor=new Color("#111917"),Roughness=.22f,MetallicSpecular=.48f};
+    private readonly StandardMaterial3D?[] _animalEyeMaterials=new StandardMaterial3D?[2];
+    private Material AnimalEyeMaterial(bool wolf)=>_animalEyeMaterials[wolf?1:0]??=new StandardMaterial3D {
+        AlbedoColor=new Color(wolf?"#81754d":"#49392b"),Roughness=.22f,MetallicSpecular=.48f};
     private Mesh AnimalFoot(bool wolf)=>Loft(wolf?"animal-paw":"animal-hoof",wolf?new[]{
         new Vector4(-.125f,.021f,.004f,.005f),new(-.105f,.030f,.034f,.020f),new(-.071f,.032f,.055f,.025f),
         new(-.025f,.035f,.048f,.032f),new(.027f,.040f,.037f,.037f),new(.061f,.038f,.028f,.030f),new(.073f,.025f,.004f,.005f)
@@ -76,8 +79,8 @@ ROUGHNESS=.86+guard*.06;SPECULAR=.17;
             new Vector4(-.90f,back+(wolf?.29f:.42f),.035f,.045f),
             new(-.78f,back+(wolf?.25f:.36f),wolf?.102f:.083f,wolf?.13f:.112f),
             new(-.64f,back+(wolf?.15f:.23f),wolf?.164f:.111f,wolf?.195f:.171f),
-            new(-.48f,back+.050f,wolf?.183f:.152f,.235f), new(-.30f,back-.008f,wolf?.180f:.172f,.238f),
-            new(-.08f,back+.003f,wolf?.151f:.151f,wolf?.185f:.210f), new(.18f,back+.032f,wolf?.127f:.129f,wolf?.142f:.170f), new(.39f,back+.008f,wolf?.174f:.170f,.216f),
+            new(-.48f,back+.050f,wolf?.180f:.146f,wolf?.245f:.250f), new(-.30f,back-.008f,wolf?.178f:.170f,wolf?.250f:.250f),
+            new(-.08f,back+.003f,wolf?.161f:.158f,wolf?.197f:.223f), new(.18f,back+.045f,wolf?.119f:.123f,wolf?.122f:.156f), new(.39f,back+.008f,wolf?.160f:.161f,.209f),
             new(.53f,back-.025f,.135f,.175f), new(.64f,back-.04f,.008f,.015f) });
         Sculpt(rig.Body, body, Vector3.Zero, fur);
         rig.Head = new Node3D { Name = "Head", Position = new Vector3(0,back+(wolf?.28f:.42f),-.755f), Scale=Vector3.One*(wolf?.84f:.96f) }; rig.Body.AddChild(rig.Head);
@@ -92,10 +95,16 @@ ROUGHNESS=.86+guard*.06;SPECULAR=.17;
         }
         foreach (float side in new[] {-1f,1f})
         {
-            Detail(rig.Head,"sphere",new(side*(wolf?.109f:.100f),.037f,-.102f),new(.009f,.025f,.036f),wolf?"#696d69":"#8b725d");
-            Detail(rig.Head,"sphere",new(side*(wolf?.112f:.103f),.038f,-.105f),new(.008f,.017f,.026f),wolf?"#8b825d":"#473a2c");
-            Detail(rig.Head,"sphere",new(side*(wolf?.116f:.107f),.038f,-.106f),new(.005f,wolf?.012f:.0045f,wolf?.012f:.020f),"#111917").MaterialOverride=AnimalEyeMaterial();
-            Detail(rig.Head,"sphere",new(side*(wolf?.119f:.110f),.042f,-.110f),Vector3.One*.0025f,"#e7ebe5");
+            // Recessed eye, a continuous almond-shaped lid and a small wet tear duct.
+            // The old three concentric spheres gave both species a bulging toy eye.
+            float eyeX=wolf?.111f:.102f;
+            Detail(rig.Head,"sphere",new(side*eyeX,.038f,-.105f),new(.012f,.020f,.030f),wolf?"#83754d":"#302c22").MaterialOverride=AnimalEyeMaterial(wolf);
+            Detail(rig.Head,"sphere",new(side*(eyeX+.004f),.038f,-.108f),new(.007f,wolf?.011f:.005f,.016f),"#0d1412");
+            Sculpt(rig.Head,AnimalEyelid(wolf,side),Vector3.Zero,LeatherSurface(wolf?"#55594f":"#685340"));
+            Detail(rig.Head,"sphere",new(side*(eyeX+.001f),.032f,-.130f),new(.007f,.006f,.009f),"#342a24");
+            Detail(rig.Head,"sphere",new(side*(eyeX+.007f),.043f,-.114f),Vector3.One*.0017f,"#d8ddd6");
+            if(wolf)for(int whisker=0;whisker<4;whisker++)
+                FineBeam(rig.Head,new(side*.051f,-.026f+whisker*.008f,-.32f+whisker*.017f),new(side*(.105f+whisker*.008f),-.013f+whisker*.010f,-.34f+whisker*.023f),.0003f,"#82897c");
             var ear=rig.Ears[side<0?0:1]=new Node3D {Name=side<0?"LeftEar":"RightEar",Position=new(side*.098f,.095f,.045f)};rig.Head.AddChild(ear);
             ear.Rotation=new(0,side*.25f,-side*(wolf?.18f:.65f));rig.EarRest[side<0?0:1]=ear.Rotation;
             Sculpt(ear,AnimalEar(wolf),Vector3.Zero,_earMaterial);
@@ -143,8 +152,8 @@ ROUGHNESS=.86+guard*.06;SPECULAR=.17;
         var baseMesh=Loft(wolf?"wolf-head":"deer-head",new[]{
             new Vector4(.15f,0,.008f,.015f),new(.085f,.023f,wolf?.110f:.092f,wolf?.104f:.098f),
             new(.015f,.030f,wolf?.128f:.105f,wolf?.112f:.102f),new(-.055f,.027f,wolf?.122f:.096f,wolf?.096f:.087f),
-            new(-.12f,.001f,wolf?.096f:.073f,wolf?.067f:.064f),new(-.23f,-.033f,wolf?.076f:.052f,wolf?.050f:.043f),
-            new(-.33f,-.046f,wolf?.057f:.039f,wolf?.039f:.034f),new(-.38f,-.044f,wolf?.042f:.030f,.029f),new(-.40f,-.04f,.006f,.012f)},48);
+            new(-.12f,.001f,wolf?.092f:.077f,wolf?.071f:.069f),new(-.23f,-.023f,wolf?.064f:.054f,wolf?.047f:.046f),
+            new(-.33f,-.034f,wolf?.051f:.040f,wolf?.037f:.035f),new(-.38f,-.039f,wolf?.042f:.032f,.029f),new(-.40f,-.04f,.006f,.012f)},48);
         var a=baseMesh.SurfaceGetArrays(0);var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
         for(int i=0;i<p.Length;i++)
         {

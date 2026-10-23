@@ -84,6 +84,7 @@ public partial class MainGame
 
     private void BuildInterface()
     {
+        Theme=HudStyle.InterfaceTheme();
         // The world occupies the whole window. No opaque rail or layout container resizes its viewport.
         _map = new WorldView3D { Game = this, WorldPresentationEnabled = !IsModelGallery }; _map.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(_map);
         var overlay = new Control { MouseFilter = MouseFilterEnum.Ignore }; overlay.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(overlay);
@@ -146,7 +147,10 @@ public partial class MainGame
 
         _brushPanel = Surface(overlay, new Vector2(0, 0), new Vector2(24, 104), new Vector2(245, 230), 18);
         var brush = new VBoxContainer(); brush.AddThemeConstantOverride("separation", 10); _brushPanel.AddChild(brush);
-        _brushTitle = HudStyle.Label("自由观察", 21); brush.AddChild(_brushTitle);
+        var brushHeading=new HBoxContainer();brush.AddChild(brushHeading);
+        _brushTitle = HudStyle.Heading("自由观察", 21);_brushTitle.SizeFlagsHorizontal=SizeFlags.ExpandFill;brushHeading.AddChild(_brushTitle);
+        var closeBrush=ActionButton(brushHeading,"×",()=>{SelectTool(PlayerTool.Inspect);ShowTools(false);});
+        closeBrush.TooltipText="结束干预，回到自由观察";closeBrush.CustomMinimumSize=new(32,32);
         _brushHint = HudStyle.Label("靠近一个人，看看他为什么\n做出自己的选择。", 14, true); _brushHint.AutowrapMode = TextServer.AutowrapMode.WordSmart; brush.AddChild(_brushHint);
         _brushParameters=new VBoxContainer();brush.AddChild(_brushParameters);
         _radius = Spin(_brushParameters, "作用范围", 0, 20, 2); _strength = Spin(_brushParameters, "数量 / 强度", 1, 100, 10);
@@ -216,11 +220,18 @@ public partial class MainGame
         _journalDockButton=ActionButton(commands, "手记", () => ShowJournal(!_journalPanel.Visible));_journalDockButton.ToggleMode=true;
         foreach (Godot.Button command in commands.GetChildren())
         {
+            command.TooltipText=command.Text switch {"观察"=>"选择人物或地块，查看正在发生的变化。","生命"=>"在世界中放入居民和动物。","生态"=>"栽种野花、湿地与果丛，让生态自行生长。","地貌"=>"塑造山地、水岸与地表。","气候"=>"改变天气，观察世界如何回应。",_=>"现场、居民、历史与世界曲线。"};
             command.Icon = command.Text switch { "生命"=>ToolGlyphs.For(PlayerTool.Human),"生态"=>ToolGlyphs.For(PlayerTool.MeadowSeeds),"地貌"=>ToolGlyphs.For(PlayerTool.Mountain),"气候"=>ToolGlyphs.For(PlayerTool.Rain),_=>HudSymbols.For(command.Text) }; command.ExpandIcon = true;
             command.IconAlignment=HorizontalAlignment.Center;command.VerticalIconAlignment=VerticalAlignment.Top;
             command.AddThemeFontSizeOverride("font_size",13); command.AddThemeConstantOverride("icon_max_width", 25); command.AddThemeConstantOverride("h_separation", 8);
-            command.CustomMinimumSize = new Vector2(80, 54);
+            command.CustomMinimumSize = new Vector2(74, 54);
             command.AddThemeConstantOverride("outline_size",0);
+        }
+        foreach(int position in new[]{1,6})
+        {
+            var separator=new VSeparator {MouseFilter=MouseFilterEnum.Ignore,SizeFlagsVertical=SizeFlags.ShrinkCenter,CustomMinimumSize=new(1,30)};
+            var line=HudStyle.Box(new Color(HudStyle.Border,.55f),0,0,false);line.ContentMarginLeft=1;
+            separator.AddThemeStyleboxOverride("separator",line);commands.AddChild(separator);commands.MoveChild(separator,position);
         }
         _inspectDockButton.SetPressedNoSignal(Tool==PlayerTool.Inspect);
 
@@ -396,7 +407,7 @@ public partial class MainGame
     private static Label Metric(HBoxContainer row, string title, string value, int size)
     {
         var item = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; item.AddThemeConstantOverride("separation", 7); row.AddChild(item);
-        item.AddChild(new TextureRect { Texture = HudSymbols.For(title), CustomMinimumSize = new Vector2(24, 30), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered, Modulate = HudStyle.Accent });
+        item.AddChild(new TextureRect { Texture = HudSymbols.For(title), CustomMinimumSize = new Vector2(21, 30), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered, Modulate = new Color("#c5cbb6") });
         var stack = new VBoxContainer(); stack.AddThemeConstantOverride("separation", 0); item.AddChild(stack); stack.AddChild(HudStyle.Label(title.Replace("储备", ""), 11, true));
         var metric = HudStyle.Label(value, size); metric.AddThemeFontOverride("font",HudStyle.NumericFont); stack.AddChild(metric); var trail=new HudMetricTrail();stack.AddChild(trail);trail.Sample(value);metric.SetMeta("trend",trail);item.TooltipText="最近 32 次数值变化；折线按当前范围缩放。";return metric;
     }

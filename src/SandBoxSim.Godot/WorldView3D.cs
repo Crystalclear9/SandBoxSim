@@ -328,7 +328,8 @@ public partial class WorldView3D : MapView
                 +(decoration%9==0&&tile.Terrain==TerrainKind.Mountain&&tile.Resource.Kind==ResourceKind.Iron?4:0)
                 +(HasMeadow(tile,decoration)?8:0);
             if(tile.BuildingId>0)flags|=128;
-            if(decoration%13==0&&tile.Terrain==TerrainKind.Forest&&tile.Vegetation>.35f&&tile.Moisture>.2f&&tile.Fire!=FireState.Burnt)flags|=16;
+            if(decoration%9==0&&tile.Terrain==TerrainKind.Forest&&tile.Vegetation>.35f&&tile.Moisture>.2f&&tile.Fire!=FireState.Burnt)flags|=16;
+            if(HasRiverPlants(tile,decoration))flags|=32;
             nature = unchecked(nature * 31 + flags);
             if (Overlay is 2 or 5) { appearance = unchecked(appearance * 31 + (int)tile.Resource.Kind * 1000 + (int)tile.Resource.Amount); }
             if (Overlay == 3) { appearance = unchecked(appearance * 31 + (int)(tile.Moisture * 100)); }
@@ -396,7 +397,8 @@ public partial class WorldView3D : MapView
     {
         var quality=new Dictionary<string,object> { ["worldPresentationEnabled"]=WorldPresentationEnabled,["shadowMode"]=_sunlight.DirectionalShadowMode.ToString(),
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
-            ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString() };
+            ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
+            ["landscapeSurface"]="stochastic-meadow-v2",["habitatDetail"]="riparian-reeds-v2" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
         return quality;
@@ -603,13 +605,15 @@ public partial class WorldView3D : MapView
         if (Overlay == 6) { int count = _density[y * Game.Sim.World.Width + x]; return new Color(.5f + Math.Clamp(count / 20f, 0, .5f), .55f, .5f); }
         return new Color(.9f, .94f, .85f);
     }
-    private static bool HasMeadow(Tile tile,uint hash)=>hash%5==1 && tile.BuildingId==0 && tile.Fire!=FireState.Burnt
+    private static bool HasMeadow(Tile tile,uint hash)=>hash%4==1 && tile.BuildingId==0 && tile.Fire!=FireState.Burnt
         && tile.Vegetation>.2f && tile.Terrain is TerrainKind.Grass or TerrainKind.Forest;
+    private static bool HasRiverPlants(Tile tile,uint hash)=>hash%3!=0&&tile.BuildingId==0&&tile.Fire!=FireState.Burnt
+        &&tile.Moisture>.30f&&tile.Terrain is TerrainKind.Grass or TerrainKind.Forest or TerrainKind.Sand;
     private void BuildNature()
     {
         using var profile=RenderProfile.Measure("BuildNature");
         var leaves = new List<Transform3D>(); var pines = new List<Transform3D>();
-        var grass = new List<Transform3D>(); var ferns = new List<Transform3D>(); var rocks = new List<Transform3D>(); var ores = new List<Transform3D>(); var bushes = new List<Transform3D>(); var pebbles=new List<Transform3D>();
+        var grass = new List<Transform3D>(); var ferns = new List<Transform3D>(); var rocks = new List<Transform3D>(); var ores = new List<Transform3D>(); var bushes = new List<Transform3D>(); var pebbles=new List<Transform3D>();var reeds=new List<Transform3D>();
         for (int y = 0; y < Game.Sim.World.Height; y++) for (int x = 0; x < Game.Sim.World.Width; x++)
         {
             var tile = Game.Sim.World.TileAt(x, y); uint h = unchecked((uint)(x * 73856093 ^ y * 19349663));
@@ -625,12 +629,29 @@ public partial class WorldView3D : MapView
                     pebbles.Add(NatureModels.Transform(new(px,GroundHeight(px,pz)+scale*.18f,pz),new(scale,scale*.65f,scale*1.3f),new(.1f,i*1.7f+h%13,.12f)));
                 }
             }
-            if(tile.BuildingId==0&&tile.Terrain==TerrainKind.Forest&&tile.Vegetation>.35f&&tile.Moisture>.2f&&tile.Fire!=FireState.Burnt&&h%13==0)ferns.Add(NatureModels.Transform(p,new Vector3(size,size,size),new Vector3(0,h%19,0)));
-            if(HasMeadow(tile,h))for(int tuft=0;tuft<3;tuft++)
+            bool living=tile.BuildingId==0&&tile.Fire!=FireState.Burnt;
+            bool riverbank=false;
+            if(HasRiverPlants(tile,h))
+                for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++)
+                    if(Game.Sim.World.IsInBounds(x+dx,y+dy)&&Game.Sim.World.TerrainAt(x+dx,y+dy)==TerrainKind.Water)riverbank=true;
+            if(riverbank)
+            {
+                float px=p.X+MathF.Sin(h%719)*.55f,pz=p.Z+MathF.Cos(h%431)*.55f;
+                reeds.Add(NatureModels.Transform(new(px,GroundHeight(px,pz),pz),Vector3.One*(.72f+(h%7)*.06f),new(0,h%31,0)));
+            }
+            if(living&&tile.Terrain==TerrainKind.Forest&&tile.Vegetation>.35f&&tile.Moisture>.2f&&h%9==0)
+                for(int fern=0;fern<2;fern++)
+                {
+                    float px=p.X+MathF.Sin(h%613+fern*2.7f)*.48f,pz=p.Z+MathF.Cos(h%791+fern*2.7f)*.48f;
+                    float scale=size*(.65f+fern*.21f);
+                    ferns.Add(NatureModels.Transform(new(px,GroundHeight(px,pz),pz),Vector3.One*scale,new(0,h%19+fern,0)));
+                }
+            if(HasMeadow(tile,h))for(int tuft=0;tuft<4;tuft++)
             {
                 float px=p.X+MathF.Sin(h%719+tuft*2.399f)*(.30f+tuft*.19f);
                 float pz=p.Z+MathF.Cos(h%431+tuft*2.399f)*(.30f+tuft*.19f);
-                float variation=.72f+((h>>(tuft*4))%11)*.045f;
+                float patch=TerrainNoise(x*.15f,y*.15f,Game.Sim.World.Seed);
+                float variation=(.48f+patch*.78f)*(.72f+((h>>(tuft*4))%11)*.045f);
                 grass.Add(NatureModels.Transform(new(px,GroundHeight(px,pz),pz),new Vector3(size,variation,size),new Vector3(0,h%31+tuft*1.7f,0)));
             }
             if (tile.BuildingId==0&&tile.Terrain == TerrainKind.Forest && tile.Vegetation > .12f && tile.Fire != FireState.Burnt && h % 5 == 0)
@@ -648,6 +669,7 @@ public partial class WorldView3D : MapView
         _models.Batch(_props,"pebble",6,pebbles,_models.RockSurface(false),28);
         _models.Batch(_props,"grass",5,grass,null,34,true);
         _models.Batch(_props,"fern",4,ferns,null,38,true);
+        _models.Batch(_props,"reeds",4,reeds,null,42);
         foreach (var place in Game.Wild.Places)
         {
             if (!Game.Sim.World.IsInBounds(place.X, place.Y) || !WildPlaces.IsLiving(Game.Sim, place)) continue;

@@ -25,7 +25,10 @@ void fragment(){
     vec3 colour=cx*weights.x+cy*weights.y+cz*weights.z;
     colour=mix(colour,vec3(dot(colour,vec3(.2126,.7152,.0722))),mineral_desaturation);
     float variation=sin(dot(floor(p*vec3(2.5,8.0,2.5)),vec3(1.73,3.17,2.41)))*.035;
-    ALBEDO=colour*mix(vec3(1),pigment.rgb,tint_strength)*(1.0+variation)*gain;
+    // Rain splash and low moss bind walls to their foundation, in metres after batching.
+    float damp=(1.0-smoothstep(.12,.58,p.y))*(.60+.40*sin(p.x*7.3+p.z*4.1));
+    vec3 aged=mix(colour,colour*vec3(.69,.76,.65),damp*.42);
+    ALBEDO=aged*mix(vec3(1),pigment.rgb,tint_strength)*(1.0+variation)*gain;
     ROUGHNESS=clamp(nx.b*weights.x+ny.b*weights.y+nz.b*weights.z,.58,.98);SPECULAR=.21;
     vec3 grain=vec3(0,nx.g*2.0-1.0,nx.r*2.0-1.0)*weights.x
         +vec3(ny.r*2.0-1.0,0,ny.g*2.0-1.0)*weights.y+vec3(nz.r*2.0-1.0,nz.g*2.0-1.0,0)*weights.z;

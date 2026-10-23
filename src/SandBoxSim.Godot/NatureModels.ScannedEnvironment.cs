@@ -36,12 +36,15 @@ vec3 root=(MODEL_MATRIX*vec4(0,0,0,1)).xyz;float t=clamp(VERTEX.y/plant_height,0
 float fade=grass?1.0-smoothstep(24.0,32.0,distance(root,CAMERA_POSITION_WORLD)):1.0;
 float wear=grass&&soil_bound?texture(soil,clamp(root.xz*.5/map_size,vec2(0),vec2(1))).g:0.0;
 VERTEX.y*=fade*(1.0-wear*.85);
-if(wind)VERTEX.x+=sin(TIME*.85+root.x*.31+root.z*.23+VERTEX.y*2.0)*.016*t*t*fade;
+if(wind){float gust=sin(TIME*.72+root.x*.19+root.z*.13),flutter=sin(TIME*2.3+VERTEX.x*9.0+VERTEX.z*7.0+root.x);
+VERTEX.x+=(gust*.022+flutter*.004)*t*t*fade;VERTEX.z+=cos(TIME*.61+root.z*.21)*.009*t*t*fade;}
 }
 void fragment(){
 if(!FRONT_FACING){NORMAL=-NORMAL;}
 vec2 tex_uv=UV*uv_scale+uv_offset;
-ALBEDO=texture(diffuse_map,tex_uv).rgb;
+vec3 root=(MODEL_MATRIX*vec4(0,0,0,1)).xyz;
+float variation=sin(root.x*1.73+root.z*2.41)*.035;
+ALBEDO=texture(diffuse_map,tex_uv).rgb*(1.0+variation);
 NORMAL_MAP=texture(normal_map,tex_uv).rgb;NORMAL_MAP_DEPTH=.65;
 ROUGHNESS=clamp(texture(roughness_map,tex_uv).r,.45,1.0);SPECULAR=.24;
 ALPHA=cutout?texture(alpha_map,tex_uv).r:1.0;ALPHA_SCISSOR_THRESHOLD=mix(.45,.18,smoothstep(2.0,8.0,max(length(dFdx(UV)),length(dFdy(UV)))*1024.0));

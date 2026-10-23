@@ -30,8 +30,9 @@ void fragment(){
     float bank=clamp(cubic(row(base,-1.0,f.x),row(base,0.0,f.x),row(base,1.0,f.x),row(base,2.0,f.x),f.y),0.0,1.0);
     if(bank<.48)discard;
     float depth=max(0.0,.02-texture(bed_height,(p.xz*2.0+vec2(.5))/(map_size*4.0+vec2(1))).r);
-    float w1=cos(p.x*1.73+p.z*1.19+TIME*.7),w2=cos(p.x*3.11-p.z*2.47-TIME*.93),w3=cos(p.x*5.37+p.z*4.19+TIME*1.13);
-    vec3 n=normalize(vec3(w1*.018+w2*.009+w3*.004,1,w1*.012-w2*.007+w3*.003));
+    float bend=sin(p.z*.31+p.x*.47)*1.7+sin(p.x*.17-p.z*.53)*.9;
+    float w1=cos(p.x*1.73+p.z*1.19+bend+TIME*.7),w2=cos(p.x*3.11-p.z*2.47+bend*.7-TIME*.93),w3=cos(p.x*5.37+p.z*4.19+TIME*1.13);
+    vec3 n=normalize(vec3(w1*.008+w2*.004+w3*.002,1,w1*.006-w2*.003+w3*.0015));
     NORMAL=normalize(mat3(VIEW_MATRIX)*n);
     float fresnel=.02+.98*pow(1.0-clamp(dot(NORMAL,normalize(VIEW)),0.0,1.0),5.0);
     float bed_detail=sin(p.x*17.0+sin(p.z*7.0))*sin(p.z*21.0+p.x*3.0)*.012;
@@ -40,10 +41,10 @@ void fragment(){
     ALBEDO=mix(absorbed,vec3(.24,.30,.32),fresnel*.72);
     float contact=(1.0-smoothstep(.015,.075,depth))*smoothstep(.001,.010,depth);
     ALBEDO+=vec3(.025,.027,.024)*contact;
-    ROUGHNESS=.16+contact*.12;SPECULAR=.50;METALLIC=0.0;
+    ROUGHNESS=.24+contact*.12;SPECULAR=.46;METALLIC=0.0;
 }"};
-        var material=new ShaderMaterial {Shader=shader};material.SetShaderParameter("material_map",_groundMapTexture);
-        material.SetShaderParameter("bed_height",_waterBed);material.SetShaderParameter("map_size",new Vector2(width,height));
+        var material=new ShaderMaterial {Shader=shader};material.SetShaderParameter("material_map",_groundMapTexture!);
+        material.SetShaderParameter("bed_height",_waterBed!);material.SetShaderParameter("map_size",new Vector2(width,height));
         return material;
     }
     private ShaderMaterial CreateGroundMaterial()
@@ -107,6 +108,20 @@ vec3 rock_sample(sampler2D map,vec3 p,vec3 weights){
     return texture(map,p.zy).rgb*weights.x+texture(map,p.xz).rgb*weights.y+texture(map,p.xy).rgb*weights.z;
 }
 vec3 decode_normal(vec3 packed){vec2 xy=packed.rg*2.0-1.0;return normalize(vec3(xy,sqrt(max(.01,1.0-dot(xy,xy)))));}
+vec2 tile_hash(vec2 p){return fract(sin(vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))))*43758.5453);}
+vec3 meadow_sample(sampler2D map,vec2 uv){
+    // Three offset samples on a triangular lattice remove the scanned lawn's
+    // repeated rows. Explicit gradients retain mip levels across cell boundaries.
+    vec2 skew=vec2(uv.x+uv.y*.57735027,uv.y*1.15470054)*.43;
+    vec2 base=floor(skew),f=fract(skew),a,b,c;vec3 w;
+    if(f.x+f.y<1.0){a=base;b=base+vec2(1,0);c=base+vec2(0,1);w=vec3(1.0-f.x-f.y,f.x,f.y);}
+    else{a=base+vec2(1);b=base+vec2(0,1);c=base+vec2(1,0);w=vec3(f.x+f.y-1.0,1.0-f.x,1.0-f.y);}
+    w=w*w;w/=dot(w,vec3(1));
+    vec2 dx=dFdx(uv),dy=dFdy(uv);
+    return textureGrad(map,uv+tile_hash(a)*7.0,dx,dy).rgb*w.x
+        +textureGrad(map,uv+tile_hash(b)*7.0,dx,dy).rgb*w.y
+        +textureGrad(map,uv+tile_hash(c)*7.0,dx,dy).rgb*w.z;
+}
 void fragment(){
     vec2 map_uv=clamp(world_position.xz*.5/map_size,vec2(0),vec2(1));
     vec2 grid=world_position.xz*.5-vec2(.5);
@@ -131,11 +146,10 @@ void fragment(){
     vec2 forest_uv=world_position.xz*.22;
     vec3 rock_uv=world_position/2.7;
     vec3 projection=pow(abs(base),vec3(4));projection/=max(.001,projection.x+projection.y+projection.z);
-    // Cross the two sample directions so scanned grass does not form mowing stripes.
-    float macro=.5+(noise2(world_position.xz*.13)-.5)*.35;
-    vec2 crossed=mat2(vec2(.36,.933),vec2(-.933,.36))*grass_uv+vec2(.37,.61);
-    vec3 grass=mix(texture(grass_diffuse,grass_uv).rgb,texture(grass_diffuse,crossed).rgb,macro);
-    grass*=vec3(.94,1.02,.95);
+    grass_uv=mat2(vec2(.819,.574),vec2(-.574,.819))*grass_uv;
+    vec3 grass=meadow_sample(grass_diffuse,grass_uv);
+    float meadow=noise2(world_position.xz*.17)+noise2(world_position.xz*.43)*.28;
+    grass*=mix(vec3(.84,.97,.80),vec3(1.03,1.00,.82),smoothstep(.25,.95,meadow));
     vec3 forest=texture(forest_diffuse,forest_uv).rgb;
     vec3 earth=texture(earth_diffuse,earth_uv).rgb;
     vec3 rock=rock_sample(rock_diffuse,rock_uv,projection);
@@ -150,11 +164,12 @@ void fragment(){
     float lava=special.z;colour=mix(colour,vec3(.065,.045,.035),lava);
     EMISSION=vec3(1.0,.10,.005)*pow(max(0.0,sin(world_position.x*5.0+world_position.z*3.0+noise2(world_position.xz*2.0)*4.0)),24.0)*lava*.7;
     ALBEDO=colour*clamp(texture(tint_map,map_uv).rgb/vec3(.9,.94,.85),vec3(0),vec3(2));
-    vec3 grass_data=texture(grass_nr,grass_uv).rgb,forest_data=texture(forest_nr,forest_uv).rgb;
+    vec3 grass_data=meadow_sample(grass_nr,grass_uv),forest_data=texture(forest_nr,forest_uv).rgb;
     vec3 earth_data=texture(earth_nr,earth_uv).rgb,rock_data=rock_sample(rock_nr,rock_uv,projection);
     float rough=grass_data.b*weights.x+forest_data.b*weights.y+rock_data.b*weights.z+earth_data.b*weights.w;
     ROUGHNESS=clamp(rough-shore*.16,.48,.98);SPECULAR=.22;
-    vec3 grain=decode_normal(grass_data)*weights.x+decode_normal(forest_data)*weights.y+decode_normal(earth_data)*weights.w;
+    vec3 gn=decode_normal(grass_data);gn.xy=mat2(vec2(.819,-.574),vec2(.574,.819))*gn.xy;
+    vec3 grain=gn*weights.x+decode_normal(forest_data)*weights.y+decode_normal(earth_data)*weights.w;
     vec3 rn=decode_normal(rock_data);
     grain+=rn*weights.z;grain.xy*=mix(.34,.58,weights.z);
     vec3 n=top_normal(grain,base);

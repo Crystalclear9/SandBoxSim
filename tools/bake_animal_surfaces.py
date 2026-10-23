@@ -16,7 +16,20 @@ for name in ('deer','wolf'):
  obj=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(obj);bpy.context.view_layer.objects.active=obj;obj.select_set(True)
  mesh.remesh_voxel_size=.008;mesh.use_remesh_preserve_volume=True
  bpy.ops.object.voxel_remesh()
- smooth=obj.modifiers.new('Continuous musculature','SMOOTH');smooth.factor=.6;smooth.iterations=4;bpy.ops.object.modifier_apply(modifier=smooth.name)
+ smooth=obj.modifiers.new('Continuous musculature','SMOOTH');smooth.factor=.45;smooth.iterations=3;bpy.ops.object.modifier_apply(modifier=smooth.name)
+ # Anatomy is baked into the shared skin, not overlaid as intersecting muscle balls.
+ # Centimetre-scale scapula, rib barrel and haunch relief survives the runtime LOD.
+ import math
+ back=.72 if name=='wolf' else 1.03
+ def bell(value,center,width):return math.exp(-((value-center)/width)**2)
+ for v in obj.data.vertices:
+  x,y,z=v.co;flank=min(1,abs(x)/.12)
+  shoulder=bell(z,-.38,.17)*bell(y,back+.055,.20)
+  haunch=bell(z,.40,.13)*bell(y,back-.025,.17)
+  tuck=bell(z,.14,.17)*bell(y,back-.07,.12)
+  relief=(shoulder*.012+haunch*.008-tuck*.005)*flank
+  v.co+=v.normal*relief
+ obj.data.update()
  target=18000;triangles=sum(len(f.vertices)-2 for f in obj.data.polygons)
  if triangles>target:
   decimate=obj.modifiers.new('Runtime surface budget','DECIMATE');decimate.ratio=target/triangles;bpy.ops.object.modifier_apply(modifier=decimate.name)

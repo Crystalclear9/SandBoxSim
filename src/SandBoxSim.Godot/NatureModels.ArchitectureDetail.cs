@@ -20,13 +20,18 @@ internal sealed partial class NatureModels
                 float step=(depth+.4f)/columns,z=-(depth+.4f)/2+(col+.5f)*step;
                 z+=row%2==0?0:step*.22f;
                 z=Mathf.Clamp(z,-(depth+.4f)/2+step*.44f,(depth+.4f)/2-step*.44f);
-                Part(model,(material==15?"thatch-course":"tile-course")+(_fineArchitecture?"":"-far"),new(side*x,height+half*.48f-x*.495f+.13f+(1-(row+.5f)/courses)*.048f,z),
-                    new(half/courses*1.20f,.024f,(depth+.4f)/columns*(.96f-((row+col)%3)*.008f)),material,new(0,0,-side*.46f));
+                float irregular=_fineArchitecture?Mathf.Sin(row*17.13f+col*3.71f+side)*.004f:0;
+                Part(model,(material==15?"thatch-course":"tile-course")+(_fineArchitecture?"":"-far"),new(side*x,height+half*.48f-x*.495f+.13f+(1-(row+.5f)/courses)*.048f+irregular,z),
+                    new(half/courses*1.20f,.024f,(depth+.4f)/columns*(.96f-((row+col)%3)*.008f)),material,new(irregular,0,-side*.46f));
             }
             foreach(float z in new[]{-(depth+.43f)/2,(depth+.43f)/2})
                 Part(model,"box",new(side*half/2,height+half*.25f,z),new(half*1.15f,.075f,.085f),0,new(0,0,-side*.46f));
             Part(model,"box",new(side*half,height-.018f,0),new(.085f,.10f,depth+.5f),0);
         }
+        // Hollow overlapping ridge tiles replace the exposed square ridge beam.
+        int caps=_fineArchitecture?12:6;
+        for(int cap=0;cap<caps;cap++)
+            Sculpt(model,RidgeTile(),new(0,height+half*.48f+.115f,-(depth+.42f)/2+(cap+.5f)*(depth+.42f)/caps),Material(2)).Scale=new(1,1,(depth+.42f)/caps/.22f*1.10f);
     }
     private void LeanToDetail(Node3D model,float width,float depth,float height)
     {
@@ -152,6 +157,7 @@ internal sealed partial class NatureModels
                     Part(model,"box",new(side*(width/2+.11f),height+.13f,-depth/2+(i+.5f)*depth/5),new(.25f,.075f,.07f),0);
             }
             if(variant==4 && kind==BuildingKind.House) LeanToDetail(model,width,depth,height);
+            if(_fineArchitecture&&kind==BuildingKind.House) AddEaveJoinery(model,width,depth,height,variant);
             // Stacked firewood, a braced barrel and rain-darkened chimney cap.
             for(int i=0;i<5;i++) Part(model,"cylinder",new(width/2+.12f,.16f+(i/3)*.12f,-depth/2+.28f+(i%3)*.11f),new(.09f,.40f,.09f),0,new(0,0,Godot.Mathf.Pi/2));
             var barrelPosition=new Vector3(width/2+.14f,0,-depth/2+.20f);

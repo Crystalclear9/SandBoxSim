@@ -86,6 +86,29 @@ ALBEDO=dye.rgb*(0.97+pores*0.025+wear);ROUGHNESS=0.69+pores*0.035;SPECULAR=0.26;
         _residentMaterials[key]=material;return material;
     }
 
+    private Mesh AnimalEyelid(bool wolf,float side)
+    {
+        string key=$"animal-lid:{wolf}:{side}";if(_meshes.TryGetValue(key,out var cached))return cached;
+        using var tool=new SurfaceTool();tool.Begin(Mesh.PrimitiveType.Triangles);
+        const int ring=48,sides=6;
+        Vector3 Point(int row,int edge)
+        {
+            float t=row*MathF.Tau/ring,a=edge*MathF.Tau/sides;
+            float y=.038f+MathF.Sin(t)*(.009f+.0025f*MathF.Max(0,MathF.Sin(t)));
+            float z=-.105f+MathF.Cos(t)*.026f;
+            float x=(wolf?.113f:.104f)+MathF.Sin(t)*.0015f;
+            return new(side*(x+MathF.Cos(a)*.0022f),y+MathF.Sin(a)*MathF.Sin(t)*.0022f,z+MathF.Sin(a)*MathF.Cos(t)*.0022f);
+        }
+        for(int r=0;r<ring;r++)for(int e=0;e<sides;e++)
+        {
+            var a=Point(r,e);var b=Point(r+1,e);var c=Point(r,e+1);var d=Point(r+1,e+1);
+            float t=(r+.5f)*MathF.Tau/ring,section=(e+.5f)*MathF.Tau/sides;
+            var outward=new Vector3(side*MathF.Cos(section),MathF.Sin(section)*MathF.Sin(t),MathF.Sin(section)*MathF.Cos(t));
+            EquipmentTriangle(tool,a,b,c,outward);EquipmentTriangle(tool,c,b,d,outward);
+        }
+        tool.GenerateNormals();tool.Index();var mesh=tool.Commit();_meshes[key]=mesh;return mesh;
+    }
+
     // Both sides of a cupped ear share the rim. Its inset is part of the surface,
     // so the pale inner ear never floats in front of a separate primitive.
     private Mesh AnimalEar(bool wolf)

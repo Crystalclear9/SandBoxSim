@@ -6,15 +6,15 @@ namespace SandBoxSim.Client;
 internal static class HudStyle
 {
     public static bool MotionEnabled { get; set; } = true;
-    public static readonly Color Ink = new("#171c22"), Surface = new(.055f, .070f, .087f, .97f), Text = new("#f1eee7"),
-        Muted = new("#a1abb7"), Accent = new("#d3b88d"), Border = new("#39434e"), Wash = new("#2a3440");
-    public static readonly Color Paper=new("#ece9e2"),PaperInk=new("#29323b"),PaperMuted=new("#646e78"),
-        PaperLine=new("#d1d1cb"),PaperAccent=new("#80613b"),PaperWash=new("#e1e0d9");
+    public static readonly Color Ink = new("#202824"), Surface = new(.068f, .088f, .082f, .96f), Text = new("#efece2"),
+        Muted = new("#aab4aa"), Accent = new("#d8c39c"), Border = new("#48534b"), Wash = new("#303d35");
+    public static readonly Color Paper=new("#eeeade"),PaperInk=new("#303a32"),PaperMuted=new("#687367"),
+        PaperLine=new("#d3d6c7"),PaperAccent=new("#7b6341"),PaperWash=new("#e1e4d7");
     public static StyleBox Frame(int padding)
     {
-        var surface = Box(Surface, 10, padding);
-        surface.BorderColor = new Color(Border, .8f);
-        surface.ShadowSize = 12; surface.ShadowOffset = new(0, 5);
+        var surface = Box(Surface, 7, padding);
+        surface.BorderColor = new Color(Border, .72f);
+        surface.ShadowSize = 16; surface.ShadowOffset = new(0, 6);
         return surface;
     }
     private static readonly SystemFont DisplayFont = new() { FontNames = new[] { "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "sans-serif" } };
@@ -44,7 +44,7 @@ internal static class HudStyle
         button.AddThemeColorOverride("icon_pressed_color", prominent ? Ink : Accent);
         button.AddThemeStyleboxOverride("normal", Box(prominent ? Accent : new Color(0, 0, 0, 0), 5, 9, false));
         button.AddThemeStyleboxOverride("hover", Box(prominent ? Accent.Lightened(.08f) : Wash, 5, 9, false));
-        var pressed = Box(prominent ? Accent : Wash, 5, 9, false);
+        var pressed = Box(prominent ? Accent : new Color("#3d493c"), 5, 9, false);
         button.AddThemeStyleboxOverride("pressed", pressed);
         button.AddThemeStyleboxOverride("hover_pressed",Box(prominent ? Accent.Lightened(.05f) : Wash.Lightened(.06f),5,9,false));
         button.AddThemeStyleboxOverride("disabled",Box(new Color(Wash,.25f),9,9,false));
@@ -59,6 +59,33 @@ internal static class HudStyle
     {
         item.AnchorLeft = item.AnchorRight = anchor.X; item.AnchorTop = item.AnchorBottom = anchor.Y;
         item.OffsetLeft = offset.X; item.OffsetRight = offset.X + size.X; item.OffsetTop = offset.Y; item.OffsetBottom = offset.Y + size.Y;
+    }
+    public static Theme InterfaceTheme()
+    {
+        var theme=new Theme {DefaultFont=DisplayFont,DefaultFontSize=14};
+        foreach(string type in new[]{"Label","Button","OptionButton","PopupMenu","LineEdit","CheckBox","SpinBox"})
+        {theme.SetColor("font_color",type,Text);theme.SetColor("font_disabled_color",type,Muted);}
+        var popup=Box(Surface,7,12);popup.BorderColor=Border;
+        theme.SetStylebox("panel","PopupMenu",popup);
+        theme.SetStylebox("hover","PopupMenu",Box(Wash,4,8,false));
+        theme.SetColor("font_hover_color","PopupMenu",Accent);
+        theme.SetConstant("v_separation","PopupMenu",12);
+        var tooltip=Box(new Color("#eeeade"),5,12);tooltip.BorderColor=new("#c7cdbd");
+        theme.SetStylebox("panel","TooltipPanel",tooltip);
+        theme.SetColor("font_color","TooltipLabel",Ink);theme.SetColor("font_shadow_color","TooltipLabel",Colors.Transparent);
+        theme.SetFontSize("font_size","TooltipLabel",13);
+        var field=Box(new Color("#202c25"),4,8);field.BorderColor=Border;field.ShadowSize=0;
+        theme.SetStylebox("normal","LineEdit",field);
+        var focus=(StyleBoxFlat)field.Duplicate();focus.BorderColor=Accent;theme.SetStylebox("focus","LineEdit",focus);
+        theme.SetColor("font_placeholder_color","LineEdit",Muted);theme.SetColor("caret_color","LineEdit",Accent);
+        foreach(string state in new[]{"normal","hover","pressed","focus"})
+            theme.SetStylebox(state,"OptionButton",state=="focus"?focus:Box(state=="normal"?Colors.Transparent:Wash,4,8,false));
+        var rail=Box(new Color(Border,.35f),2,0,false);rail.ContentMarginLeft=3;rail.ContentMarginRight=3;
+        theme.SetStylebox("scroll","VScrollBar",rail);
+        foreach(string state in new[]{"grabber","grabber_highlight","grabber_pressed"})theme.SetStylebox(state,"VScrollBar",Box(state=="grabber"?Border:Muted,2,0,false));
+        var rule=Box(new Color(Border,.55f),0,0,false);rule.ContentMarginTop=1;
+        theme.SetStylebox("separator","HSeparator",rule);
+        return theme;
     }
     private static Texture2D? _unchecked, _checked;
     public static void Rule(CheckBox control)

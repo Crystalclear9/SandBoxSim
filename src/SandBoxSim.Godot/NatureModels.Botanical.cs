@@ -60,7 +60,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateBotanicalModels()
     {
-        foreach(string kind in new[]{"foliage","pine","fern","grass","rock"})
+        foreach(string kind in new[]{"foliage","pine","fern","grass","reeds","rock"})
         {
             var mesh=Shape(kind);if(mesh!=Shape(kind))throw new InvalidOperationException("Botanical mesh cache is unstable");
             var data=mesh.SurfaceGetArrays(0);var points=data[(int)Mesh.ArrayType.Vertex].AsVector3Array();
@@ -77,6 +77,8 @@ internal sealed partial class NatureModels
             }
         }
         if(Shape("fern").GetAabb().Position.Y<-.005f||Shape("fern").GetAabb().Size.Y<.15f)throw new InvalidOperationException("Fern roots or frond height are invalid");
+        var reeds=Shape("reeds").GetAabb();
+        if(reeds.Position.Y<-.005f||reeds.Size.Y<.8f||reeds.Size.Y>1.2f)throw new InvalidOperationException("Reed clump lost its rooted stems or metre scale");
         GD.Print("BOTANICAL_MODELS_PASS: curved leaves/connected stems, fern/grass/rock, outward normals, finite attributes, cache and geometry budgets");
     }
     private void InstallVegetationMaterials()

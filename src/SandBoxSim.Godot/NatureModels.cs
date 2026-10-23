@@ -67,6 +67,7 @@ internal sealed partial class NatureModels
             "pebble" => IrregularSphere(.40f,8,12),
             "boulder" => SourceEnvironment("boulder_01"),
             "grass" => SourceEnvironment("grass_medium_01"),
+            "reeds" => ReedClump(),
             "fern" => SourceEnvironment("fern_02"),
             "broad-tree" => SourceEnvironment("tree_small_02"),
             "conifer-tree" => SourceEnvironment("fir_sapling"),

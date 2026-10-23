@@ -36,7 +36,7 @@
 | `tools/sandbox_research_compare.py` | Python、三个真实源码研究归档或 .NET SDK | [冻结父/子/撤销程序对照](development/sandbox-research-comparison.md) |
 | `tools/sandbox_research.py` | Python、Git、.NET 8 SDK | 源码调查、候选编译与语义检查、真实开发/留出世界 |
 
-客户端的炭灰配色、肖像构图与材质说明见 [观察与界面](guides/gameplay-observation.md) 和 [模型系统](development/models.md)。当前扫描地表、河床深浅与坡地建筑说明见 [地形与活动痕迹](guides/terrain-and-traces.md)；素材署名、获取和离线校验见 [环境素材](development/environment-assets.md)。正式图片来自实际 Godot 渲染，采样版本见 [配图说明](images/README.md)。
+客户端的深苔绿与暖亚麻配色、肖像构图与材质说明见 [观察与界面](guides/gameplay-observation.md) 和 [模型系统](development/models.md)。当前扫描地表、河床深浅与坡地建筑说明见 [地形与活动痕迹](guides/terrain-and-traces.md)；素材署名、获取和离线校验见 [环境素材](development/environment-assets.md)。正式图片来自实际 Godot 渲染，采样版本见 [配图说明](images/README.md)。
 
 HTTP 服务不输出实时 3D 图像；Console 和 HTTP 不执行图形会话的额外荒野日界作用。游戏没有研究任务流程。程序加速、视觉识别与代理改进是不同实验，协议及证据不能混用。
 
