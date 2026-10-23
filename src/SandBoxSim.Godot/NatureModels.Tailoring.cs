@@ -17,7 +17,10 @@ internal sealed partial class NatureModels
         var center=Vector3.Zero;foreach(var p in profile)center+=p;center/=profile.Length;
         Vector3 Point(int row,int column)
         {
-            var p=profile[row%profile.Length];float a=column*MathF.Tau/sides;
+            float v=row/4f;int i=(int)v%profile.Length;float t=v-MathF.Floor(v);
+            var previous=profile[(i+profile.Length-1)%profile.Length];var start=profile[i];
+            var end=profile[(i+1)%profile.Length];var next=profile[(i+2)%profile.Length];
+            var p=start.CubicInterpolate(end,previous,next,t);float a=column*MathF.Tau/sides;
             float neckline=key=="turned-neckline"?.009f*MathF.Pow(MathF.Max(0,-MathF.Sin(a)),4):0;
             return new(MathF.Cos(a)*p.X,p.Y-neckline,MathF.Sin(a)*p.Z);
         }
@@ -31,7 +34,7 @@ internal sealed partial class NatureModels
             }
             EquipmentTriangle(surface,a,b,c,Outward(ra,ca)+Outward(rb,cb)+Outward(rc,cc));
         }
-        for(int row=0;row<profile.Length;row++)for(int col=0;col<sides;col++)
+        for(int row=0;row<profile.Length*4;row++)for(int col=0;col<sides;col++)
         {Triangle(row,col,row+1,col,row,col+1);Triangle(row,col+1,row+1,col,row+1,col+1);}
         surface.GenerateNormals();surface.Index();var mesh=surface.Commit();_meshes[key]=mesh;return mesh;
     }
@@ -42,7 +45,7 @@ internal sealed partial class NatureModels
         new Vector3(.050f,-.047f,.047f),new(.053f,-.039f,.050f),new(.051f,-.028f,.048f),
         new(.047f,-.024f,.044f),new(.045f,-.028f,.042f),new(.046f,-.042f,.043f)});
     private Mesh TurnedNeckline()=>FabricFacing("turned-neckline",new[]{
-        new Vector3(.068f,1.276f,.087f),new(.071f,1.280f,.090f),new(.069f,1.285f,.086f),
+        new Vector3(.068f,1.276f,.087f),new(.070f,1.279f,.089f),new(.068f,1.284f,.085f),
         new(.065f,1.286f,.081f),new(.063f,1.282f,.080f),new(.065f,1.278f,.083f)});
     private Material CollarMaterial(string cloth)
     {

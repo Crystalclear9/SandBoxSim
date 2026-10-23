@@ -19,15 +19,14 @@ public partial class MainGame
     private Godot.Button _portraitPin=null!;
     private static readonly ResourceKind[] PortraitResources={ResourceKind.Food,ResourceKind.Wood,ResourceKind.Stone,ResourceKind.Iron};
     private static Label PortraitPaperLabel(string text,int size=13,bool muted=false)
-    {var label=HudStyle.Label(text,size);label.AddThemeColorOverride("font_color",muted?HudStyle.PaperMuted:HudStyle.PaperInk);return label;}
+    {var label=HudStyle.Label(text,size);label.AddThemeColorOverride("font_color",muted?HudStyle.Muted:HudStyle.Text);return label;}
     private static Godot.Button PortraitPaperButton(string text,Action action)
     {
         var button=new Godot.Button {Text=text,CustomMinimumSize=new(0,36)};HudStyle.Button(button);
-        button.SetMeta("notebook",true);
-        foreach(string state in new[]{"font_color","font_focus_color","font_hover_color","font_pressed_color"})button.AddThemeColorOverride(state,state=="font_color"?HudStyle.PaperInk:HudStyle.PaperAccent);
+        foreach(string state in new[]{"font_color","font_focus_color","font_hover_color","font_pressed_color"})button.AddThemeColorOverride(state,state=="font_color"?HudStyle.Text:HudStyle.Accent);
         button.AddThemeStyleboxOverride("normal",HudStyle.Box(new Color(0,0,0,0),3,9,false));
-        foreach(string state in new[]{"hover","pressed","hover_pressed"})button.AddThemeStyleboxOverride(state,HudStyle.Box(HudStyle.PaperLine,3,9,false));
-        var focus=HudStyle.Box(new Color(0,0,0,0),3,9);focus.BorderColor=HudStyle.PaperAccent;focus.ShadowSize=0;button.AddThemeStyleboxOverride("focus",focus);
+        foreach(string state in new[]{"hover","pressed","hover_pressed"})button.AddThemeStyleboxOverride(state,HudStyle.Box(HudStyle.Wash,6,9,false));
+        var focus=HudStyle.Box(new Color(0,0,0,0),6,9);focus.BorderColor=HudStyle.Accent;focus.ShadowSize=0;button.AddThemeStyleboxOverride("focus",focus);
         button.Pressed+=action;return button;
     }
     public override void _Input(InputEvent input)
@@ -54,21 +53,23 @@ public partial class MainGame
     }
     private void BuildPortraitWindow(Control overlay)
     {
-        _portraitOverlay=new ColorRect {Color=new Color(.015f,.025f,.020f,.48f),Visible=false,MouseFilter=MouseFilterEnum.Stop};
+        _portraitOverlay=new ColorRect {Color=new Color(.008f,.012f,.020f,.64f),Visible=false,MouseFilter=MouseFilterEnum.Stop};
         _portraitOverlay.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);overlay.AddChild(_portraitOverlay);
         _portraitOverlay.GuiInput+=input=>{if(input is InputEventMouseButton {ButtonIndex:MouseButton.Left,Pressed:true})ShowPortraitWindow(false);};
         _portraitWindow=new PanelContainer {MouseFilter=MouseFilterEnum.Stop};
-        var paper=HudStyle.Box(HudStyle.Paper,5,20);paper.BorderColor=HudStyle.PaperLine;paper.ShadowSize=18;
+        var paper=HudStyle.Box(new Color("#171e26"),12,16);paper.BorderColor=HudStyle.Border;paper.ShadowSize=28;
         _portraitWindow.AddThemeStyleboxOverride("panel",paper);_portraitOverlay.AddChild(_portraitWindow);
         var layout=new VBoxContainer();layout.AddThemeConstantOverride("separation",12);_portraitWindow.AddChild(layout);
         var header=new HBoxContainer();layout.AddChild(header);
         var identity=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};identity.AddThemeConstantOverride("separation",3);header.AddChild(identity);
-        identity.AddChild(PortraitPaperLabel("居民档案 / 人物观察",11,true));_portraitWindowTitle=PortraitPaperLabel("",26);identity.AddChild(_portraitWindowTitle);
+        identity.AddChild(PortraitPaperLabel("RESIDENT  /  居民观察",11,true));_portraitWindowTitle=PortraitPaperLabel("",28);identity.AddChild(_portraitWindowTitle);
         var close=PortraitPaperButton("返回手记  ×",()=>ShowPortraitWindow(false));header.AddChild(close);
         _portraitWindowActivity=PortraitPaperLabel("",12,true);layout.AddChild(_portraitWindowActivity);
-        var content=new HBoxContainer {SizeFlagsVertical=SizeFlags.ExpandFill};content.AddThemeConstantOverride("separation",20);layout.AddChild(content);
+        var content=new HBoxContainer {SizeFlagsVertical=SizeFlags.ExpandFill};content.AddThemeConstantOverride("separation",24);layout.AddChild(content);
         _portraitWindowBody=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill,SizeFlagsVertical=SizeFlags.ExpandFill};content.AddChild(_portraitWindowBody);
-        var factsPanel=new PanelContainer {CustomMinimumSize=new(224,0)};factsPanel.AddThemeStyleboxOverride("panel",HudStyle.Box(HudStyle.PaperWash,3,16,false));content.AddChild(factsPanel);
+        var factsPanel=new PanelContainer {CustomMinimumSize=new(232,0)};
+        var factsStyle=HudStyle.Box(new Color(0,0,0,0),0,12,false);factsStyle.BorderWidthLeft=1;factsStyle.BorderColor=HudStyle.Border;
+        factsPanel.AddThemeStyleboxOverride("panel",factsStyle);content.AddChild(factsPanel);
         var scroll=new ScrollContainer {HorizontalScrollMode=ScrollContainer.ScrollMode.Disabled,FollowFocus=true,SizeFlagsVertical=SizeFlags.ExpandFill};factsPanel.AddChild(scroll);
         var facts=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};facts.AddThemeConstantOverride("separation",12);scroll.AddChild(facts);
         facts.AddChild(PortraitPaperLabel("当下",11,true));_portraitFactAction=PortraitPaperLabel("",15);_portraitFactAction.AutowrapMode=TextServer.AutowrapMode.WordSmart;facts.AddChild(_portraitFactAction);
@@ -78,7 +79,7 @@ public partial class MainGame
             var metric=new VBoxContainer();metric.AddThemeConstantOverride("separation",5);facts.AddChild(metric);
             _portraitFactLabels[i]=PortraitPaperLabel("");metric.AddChild(_portraitFactLabels[i]);
             var bar=new ProgressBar {MaxValue=1,ShowPercentage=false,CustomMinimumSize=new(0,4),MouseFilter=MouseFilterEnum.Ignore};
-            bar.AddThemeStyleboxOverride("background",HudStyle.Box(HudStyle.PaperLine,1,0,false));bar.AddThemeStyleboxOverride("fill",HudStyle.Box(HudStyle.PaperMuted,1,0,false));metric.AddChild(bar);_portraitFactBars[i]=bar;
+            bar.AddThemeStyleboxOverride("background",HudStyle.Box(HudStyle.Wash,2,0,false));bar.AddThemeStyleboxOverride("fill",HudStyle.Box(HudStyle.Accent,2,0,false));metric.AddChild(bar);_portraitFactBars[i]=bar;
         }
         facts.AddChild(new HSeparator());facts.AddChild(PortraitPaperLabel("随身物资",11,true));
         var inventory=new GridContainer {Columns=2};inventory.AddThemeConstantOverride("h_separation",18);inventory.AddThemeConstantOverride("v_separation",12);facts.AddChild(inventory);
@@ -91,6 +92,9 @@ public partial class MainGame
         facts.AddChild(new HSeparator());
         _portraitPin=PortraitPaperButton("关注此居民",()=>{TogglePin();RefreshPortraitFacts();});facts.AddChild(_portraitPin);
         facts.AddChild(PortraitPaperButton("在世界中跟随  →",()=>{int slot=SelectedSlot;if(slot<0)return;ShowPortraitWindow(false);_map.Follow(slot);}));
+        var breathingRoom=new Control {SizeFlagsVertical=SizeFlags.ExpandFill};facts.AddChild(breathingRoom);
+        var guide=PortraitPaperLabel("自由观察\n拖动旋转 · 滚轮缩放\n双击复位 · Esc 返回",11,true);facts.AddChild(guide);
+        foreach(Node child in facts.GetChildren())if(child is HSeparator line)line.AddThemeStyleboxOverride("separator",HudStyle.Box(HudStyle.Border,0,0,false));
         _residentPortrait.ExpandRequested+=()=>ShowPortraitWindow(!_portraitOverlay.Visible);
         FitPortraitWindow(Size);
     }
@@ -135,7 +139,7 @@ public partial class MainGame
         {
             _portraitFactLabels[i].Text=names[i]+"    "+values[i].ToString("P0");_portraitFactBars[i].Value=values[i];
             bool danger=i is 1 or 2?values[i]>.7f:values[i]<.35f;
-            ((StyleBoxFlat)_portraitFactBars[i].GetThemeStylebox("fill")).BgColor=danger?new Color("#a5533d"):HudStyle.PaperMuted;
+            ((StyleBoxFlat)_portraitFactBars[i].GetThemeStylebox("fill")).BgColor=danger?new Color("#d88c79"):HudStyle.Accent;
         }
         for(int i=0;i<4;i++)_portraitInventoryValues[i].Text=agents.InventoryOf(slot,PortraitResources[i]).ToString("0.0");
         _portraitPin.Text=PinnedPerson!=0&&PinnedPerson==_selectedPersonId?"已关注 · 取消关注":"关注此居民";

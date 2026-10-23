@@ -6,13 +6,13 @@ namespace SandBoxSim.Client;
 internal static class HudStyle
 {
     public static bool MotionEnabled { get; set; } = true;
-    public static readonly Color Ink = new("#19221e"), Surface = new(.065f, .088f, .078f, .97f), Text = new("#eee9dd"),
-        Muted = new("#a6b0a5"), Accent = new("#d5bc8a"), Border = new("#414e43"), Wash = new("#28382f");
-    public static readonly Color Paper=new("#e6e0d2"),PaperInk=new("#28362e"),PaperMuted=new("#697267"),
-        PaperLine=new("#c7c9b9"),PaperAccent=new("#80613b"),PaperWash=new("#dadbcb");
+    public static readonly Color Ink = new("#171c22"), Surface = new(.055f, .070f, .087f, .97f), Text = new("#f1eee7"),
+        Muted = new("#a1abb7"), Accent = new("#d3b88d"), Border = new("#39434e"), Wash = new("#2a3440");
+    public static readonly Color Paper=new("#ece9e2"),PaperInk=new("#29323b"),PaperMuted=new("#646e78"),
+        PaperLine=new("#d1d1cb"),PaperAccent=new("#80613b"),PaperWash=new("#e1e0d9");
     public static StyleBox Frame(int padding)
     {
-        var surface = Box(Surface, 7, padding);
+        var surface = Box(Surface, 10, padding);
         surface.BorderColor = new Color(Border, .8f);
         surface.ShadowSize = 12; surface.ShadowOffset = new(0, 5);
         return surface;

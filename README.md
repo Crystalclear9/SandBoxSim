@@ -12,6 +12,8 @@ SandBoxSim 是一款以自然生态与居民自主行为为核心的 3D 沙盒�
 
 ![当前界面与人物观察的实际游戏画面](docs/images/ui-detail-refined.png)
 
+人物观察窗使用独立布光和深色资料侧栏，支持面部、手部、全身聚焦，以及正面、三刻、背面快捷视角；鼠标拖动旋转、滚轮缩放、双击复位。观察和界面操作不会给世界添加任务流程。
+
 ## 安装与开始游玩
 
 Windows 本机已有独立导出包时，双击 [Play-3D.cmd](Play-3D.cmd) 即可游玩，不需要开发工具链。启动器优先使用 `artifacts/game/windows/` 中的完整游戏包；发行文件不提交到源码仓库。包的导出和更新见 [构建与运行](docs/development/build.md)，工具链与临时文件的管理见 [本机存储维护](docs/development/local-storage.md)。

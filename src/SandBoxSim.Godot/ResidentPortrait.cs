@@ -46,6 +46,7 @@ internal partial class ResidentPortrait : SubViewportContainer
     private Node3D _stage = null!;
     private MeshInstance3D _portraitGround=null!;
     private Camera3D _camera = null!;
+    private DirectionalLight3D _keyLight=null!;
     private ResidentRig? _resident;
     private long _identity = -1;
     private JobType _job;
@@ -63,13 +64,19 @@ internal partial class ResidentPortrait : SubViewportContainer
         AddChild(_viewport);
         _stage = new Node3D(); _viewport.AddChild(_stage);
         var environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color,
-            BackgroundColor = new Color("#202c26"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
-            AmbientLightColor = new Color("#ded9cc"), AmbientLightEnergy = .45f, TonemapMode = Godot.Environment.ToneMapper.Aces };
+            BackgroundColor = new Color("#202933"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
+            AmbientLightColor = new Color("#cbd0d5"), AmbientLightEnergy = .36f, TonemapMode = Godot.Environment.ToneMapper.Aces };
         _stage.AddChild(new WorldEnvironment { Environment = environment });
-        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-25, -28, 0), LightColor = new Color("#f1e7d6"), LightEnergy = .60f,
-            ShadowEnabled=true,DirectionalShadowMode=DirectionalLight3D.ShadowMode.Orthogonal,DirectionalShadowMaxDistance=6,ShadowBias=.05f,ShadowNormalBias=.2f });
-        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-12, 120, 0), LightColor = new Color("#b9ccc8"), LightEnergy = .34f });
-        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-35, -150, 0), LightColor = new Color("#e9dbc2"), LightEnergy = .24f });
+        var backdrop=new ShaderMaterial {Shader=new Shader {Code=@"shader_type spatial;
+render_mode unshaded,cull_disabled,fog_disabled;
+void fragment(){float halo=exp(-dot((UV-vec2(.48,.56))*vec2(1.4,1.0),(UV-vec2(.48,.56))*vec2(1.4,1.0))*30.0);
+ALBEDO=mix(vec3(.035,.047,.065),vec3(.135,.17,.20),halo);}"}};
+        _stage.AddChild(new MeshInstance3D {Mesh=new QuadMesh {Size=new(9,9)},Position=new(0,1.1f,2),MaterialOverride=backdrop,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off});
+        _keyLight=new DirectionalLight3D { RotationDegrees = new Vector3(-32, -38, 0), LightColor = new Color("#f1e5d6"), LightEnergy = .85f,
+            ShadowEnabled=false,DirectionalShadowMode=DirectionalLight3D.ShadowMode.Orthogonal,DirectionalShadowMaxDistance=6,ShadowBias=.05f,ShadowNormalBias=.2f };
+        _stage.AddChild(_keyLight);
+        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-8, 70, 0), LightColor = new Color("#c5d3df"), LightEnergy = .30f });
+        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-28, -150, 0), LightColor = new Color("#d7e6ef"), LightEnergy = .28f });
         _portraitGround=new MeshInstance3D { Mesh = new CylinderMesh {TopRadius=.62f,BottomRadius=.62f,Height=.004f,RadialSegments=64},Position=new(0,-.006f,0),
             CastShadow=GeometryInstance3D.ShadowCastingSetting.Off,MaterialOverride = new StandardMaterial3D { AlbedoColor = new("#293930"), Roughness = 1 },Visible=false };_stage.AddChild(_portraitGround);
         _camera = new Camera3D { Current = true, Fov = 34 }; _stage.AddChild(_camera); Aim();
@@ -89,9 +96,21 @@ internal partial class ResidentPortrait : SubViewportContainer
         _expandButton.TooltipText="展开大尺寸模型观察窗";_expandButton.Pressed+=()=>ExpandRequested?.Invoke();AddChild(_expandButton);
         var caption = _gestureHint = HudStyle.Label("拖动旋转  /  滚轮缩放  /  双击复位", 10);
         caption.AddThemeColorOverride("font_color", new Color("#aab2bc")); caption.MouseFilter = MouseFilterEnum.Ignore;
-        caption.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide); caption.OffsetTop = -22; caption.OffsetLeft = 10; AddChild(caption);
+        caption.SetAnchorsAndOffsetsPreset(LayoutPreset.TopWide); caption.OffsetTop = 44; caption.OffsetBottom=62; caption.OffsetLeft = 10; AddChild(caption);
         caption.Modulate=new Color(1,1,1,0);
         MouseEntered+=()=>Hint(1);MouseExited+=()=>Hint(0);
+        var angles=new HBoxContainer();angles.AddThemeConstantOverride("separation",4);
+        angles.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomRight);angles.OffsetLeft=-202;angles.OffsetRight=-10;angles.OffsetTop=-43;angles.OffsetBottom=-11;AddChild(angles);
+        foreach(var (title,angle) in new[]{("正面",0f),("三刻",-.65f),("背面",MathF.PI)})
+        {
+            var preset=new Godot.Button {Text=title,CustomMinimumSize=new(60,30)};HudStyle.Button(preset);preset.AddThemeFontSizeOverride("font_size",12);
+            preset.TooltipText="切换观察角度，保留当前聚焦和缩放";angles.AddChild(preset);preset.Pressed+=()=>SetAngle(angle);
+        }
+    }
+    private void SetAngle(float angle)
+    {
+        _yaw=angle;_pitch=0;_drag=false;
+        if(!HudStyle.MotionEnabled&&_resident!=null)_resident.Rotation=new(0,_yaw,0);
     }
     public void ShowResident(long identity, int slot, bool child, JobType job)
     {
@@ -107,7 +126,7 @@ internal partial class ResidentPortrait : SubViewportContainer
     internal object RenderQualityState()
     {
         var environment=_stage.GetChildren().OfType<WorldEnvironment>().Single().Environment;
-        return new {msaa=_viewport.Msaa3D.ToString(),resolution=new[]{_viewport.Size.X,_viewport.Size.Y},
+        return new {studio="graphite-softbox-v2",backdrop="radial-unlit-v1",msaa=_viewport.Msaa3D.ToString(),resolution=new[]{_viewport.Size.X,_viewport.Size.Y},
             background=environment.BackgroundColor.ToHtml(),ambient=environment.AmbientLightColor.ToHtml(),ambientEnergy=environment.AmbientLightEnergy,
             lights=_stage.GetChildren().OfType<DirectionalLight3D>().Select(light=>new {
                 color=light.LightColor.ToHtml(),energy=light.LightEnergy,rotation=new[]{light.RotationDegrees.X,light.RotationDegrees.Y,light.RotationDegrees.Z},shadows=light.ShadowEnabled,
@@ -119,6 +138,9 @@ internal partial class ResidentPortrait : SubViewportContainer
     private void SetFraming(Framing mode)
     {
         _framing=mode;_fullBody=mode==Framing.Body;_portraitGround.Visible=_fullBody;
+        // Close detail framing avoids unstable submillimetre shadow-map facets;
+        // the full-body studio retains the ground contact shadow.
+        _keyLight.ShadowEnabled=_fullBody;
         _distance=mode==Framing.Body?3.5f:mode==Framing.Hands?.68f:FaceDistance;
         foreach(var pair in _frameButtons)pair.Value.SetPressedNoSignal(pair.Key==mode);
         if(!HudStyle.MotionEnabled)_viewDistance=_distance;
@@ -197,6 +219,10 @@ internal partial class ResidentPortrait : SubViewportContainer
         _GuiInput(new InputEventMouseMotion {Relative=new(0,30)});
         if(_pitch<=0)throw new InvalidOperationException("Portrait pitch failed");
         SetFraming(Framing.Hands);if(_fullBody||_distance>=.85f)throw new InvalidOperationException("Hand framing failed");
+        if(_keyLight.ShadowEnabled)throw new InvalidOperationException("Detail studio left coarse self-shadows enabled");
+        SetFraming(Framing.Body);if(!_keyLight.ShadowEnabled)throw new InvalidOperationException("Body studio lost its contact shadow");SetFraming(Framing.Hands);
+        float handDistance=_distance;SetAngle(MathF.PI);
+        if(_distance!=handDistance||_framing!=Framing.Hands||_drag||_yaw!=MathF.PI)throw new InvalidOperationException("Angle preset reset the inspected detail or continued a gesture");
         _GuiInput(new InputEventMouseButton {ButtonIndex=MouseButton.Left,Pressed=true,DoubleClick=true});
         if(_pitch!=0||_drag)throw new InvalidOperationException("Portrait reset did not release orbit");
         SetFraming(Framing.Face);_viewDistance=FaceDistance;

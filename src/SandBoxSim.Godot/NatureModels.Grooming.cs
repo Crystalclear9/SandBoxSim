@@ -16,14 +16,14 @@ internal sealed partial class NatureModels
             float angle=column*MathF.Tau/sides,front=MathF.Max(0,-MathF.Sin(angle));
             float side=MathF.Abs(MathF.Cos(angle)),back=MathF.Max(0,MathF.Sin(angle));
             float t=row/(float)rings;
-            float hairline=.023f+(.043f+(style==1?.012f:style==2?.002f:0))*MathF.Pow(front,2)-.045f*back;
+            float hairline=.025f+(.049f+(style==1?.012f:style==2?.002f:0))*MathF.Pow(front,2)-.045f*back;
             // Unequal temple/fringe heights make the part read in silhouette,
             // while retaining the source scalp and the fitted hat clearance.
             hairline+=direction*MathF.Cos(angle)*front*(style==1?.007f:.003f);
             // Temple recession and short sideburns break the old bowl-cut edge.
             hairline+=.015f*MathF.Exp(-MathF.Pow((side-.78f)/.17f,2))*front;
             hairline+=.012f*MathF.Pow(side,10);
-            hairline-=.020f*MathF.Pow(side,30)+.006f*MathF.Pow(front,4)*(.5f+.5f*direction*MathF.Cos(angle));
+            hairline-=.014f*MathF.Pow(side,30)+.004f*MathF.Pow(front,4)*(.5f+.5f*direction*MathF.Cos(angle));
             hairline+=.0008f*MathF.Sin(angle*23+.6f)+.0005f*MathF.Sin(angle*41);
             float top=HumanData().High;
             float y=Mathf.Lerp(top+.005f,hairline,1-MathF.Cos(t*MathF.PI*.5f));

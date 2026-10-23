@@ -59,7 +59,9 @@ float fiber=sin(angle*63.0+sin(angle*9.0)*1.4+radius*37.0);
 fiber/=1.0+pow(fwidth(angle*63.0),2.0);
 float rim=smoothstep(0.185,0.225,radius);
 vec3 iris_color=iris_tone.rgb*(0.94+fiber*.065)*(1.0-rim*.38);
-vec3 color=mix(vec3(0.64,0.66,0.62),iris_color,iris);
+float corner=smoothstep(.28,.48,abs(UV.x-.5));
+vec3 sclera=mix(vec3(0.69,0.68,0.63),vec3(.61,.48,.44),corner*.38);
+vec3 color=mix(sclera,iris_color,iris);
 color=mix(color,vec3(0.075,0.069,0.056),pupil);
 float glint=1.0-smoothstep(0.009,0.020,length(p-vec2(-0.035,0.027)));
 ALBEDO=mix(color,vec3(0.85,0.87,0.87),glint*iris*0.35);ROUGHNESS=0.24;SPECULAR=0.36;
@@ -75,7 +77,8 @@ ALBEDO=mix(color,vec3(0.85,0.87,0.87),glint*iris*0.35);ROUGHNESS=0.24;SPECULAR=0
             var lid=rig.Eyelids[eye]=new MeshInstance3D {Name="Eyelid"+eye,Mesh=EyeSurface(eye,true),Position=center,MaterialOverride=rig.LidMaterial};rig.Head.AddChild(lid);
         }
         rig.Mouth=new Node3D {Name="Mouth",Position=HumanMouthCenter};rig.Head.AddChild(rig.Mouth);
-        rig.Mouth.AddChild(new MeshInstance3D {Mesh=HumanMesh("mouth"),MaterialOverride=FaceSurfaceMaterial(skin)});rig.MouthRest=rig.Mouth.Position;
+        rig.Mouth.AddChild(new MeshInstance3D {Mesh=HumanMesh("mouth"),MaterialOverride=LipMaterial(skin)});rig.MouthRest=rig.Mouth.Position;
+        rig.Head.AddChild(new MeshInstance3D {Name="LowerLidRims",Mesh=LowerEyelids(),MaterialOverride=FaceSurfaceMaterial(skin)});
     }
     private Mesh LipSurface(string skin)
     {
@@ -117,13 +120,15 @@ ALBEDO=mix(color,vec3(0.85,0.87,0.87),glint*iris*0.35);ROUGHNESS=0.24;SPECULAR=0
     {
         string key="lower-eyelids:"+_faceVariant;if(_meshes.TryGetValue(key,out var cached))return cached;
         using var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);
-        foreach(float side in new[]{-1f,1f})
+        for(int eye=0;eye<2;eye++)
         {
+            var anchor=HumanEyeCenter(eye);
             void Vertex(int col,int row)
             {
                 float u=col/24f,x=(u*2-1)*.014f,arc=MathF.Sqrt(MathF.Max(0,1-MathF.Pow(u*2-1,2)));
-                float y=.010f-arc*(.0054f+row*.0011f),cx=side*.034f+x;
-                surface.SetUV(new(u,row));surface.AddVertex(new(cx,y,FaceDepth(cx,y)-.00085f));
+                float y=anchor.Y-arc*(.0048f+row*.0010f),cx=anchor.X+x;
+                surface.SetColor(new Color(1,.94f,.92f));
+                surface.SetUV(new(u,row));surface.AddVertex(new(cx,y,FaceDepth(cx,y)-.00035f));
             }
             for(int col=0;col<24;col++){Vertex(col,0);Vertex(col,1);Vertex(col+1,0);Vertex(col+1,0);Vertex(col,1);Vertex(col+1,1);}
         }
@@ -136,13 +141,14 @@ ALBEDO=mix(color,vec3(0.85,0.87,0.87),glint*iris*0.35);ROUGHNESS=0.24;SPECULAR=0
         using var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);
         foreach(float side in new[]{-1f,1f})
         {
+            var eye=HumanEyeCenter(side<0?0:1);
             // Separate tapered hairs grow outward from the brow ridge. Both
             // ends are sampled on the actual face; no straight floating ribbon.
             for(int hair=0;hair<72;hair++)
             {
                 float u=(hair+.5f)/72,fullness=MathF.Pow(MathF.Sin(u*MathF.PI),.55f);
-                float x=side*(.017f+u*.036f),y=.027f+MathF.Sin(u*MathF.PI*.95f)*.0045f-u*.002f;
-                float length=(.0015f+.0028f*fullness)*(1+(hair%3-1)*.12f);
+                float x=eye.X+side*(-.016f+u*.035f),y=eye.Y+.015f+MathF.Sin(u*MathF.PI*.95f)*.004f-u*.003f;
+                float length=(.0012f+.0021f*fullness)*(1+(hair%3-1)*.12f);
                 Vector3 Point(float t,float across)
                 {
                     float px=x+side*t*(.0006f+.0015f*u),py=y+length*(t-.55f);

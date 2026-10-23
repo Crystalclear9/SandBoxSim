@@ -5,7 +5,23 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
-    private Shader? _hairShader;
+    private Shader? _hairShader,_lipShader;
+    private Material LipMaterial(string color)
+    {
+        string key="lips:"+color;if(_residentMaterials.TryGetValue(key,out var cached))return cached;
+        _lipShader??=new Shader {Code=@"shader_type spatial;
+uniform vec4 tone:source_color;varying vec3 lip_point;
+void vertex(){lip_point=VERTEX;}
+void fragment(){
+float edge=smoothstep(.010,.026,abs(lip_point.x));
+float crease=exp(-pow(lip_point.y/.0008,2.0))*(1.0-edge);
+float line=sin(lip_point.x*4600.0+sin(lip_point.y*1300.0));
+line/=1.0+pow(fwidth(lip_point.x*4600.0),2.0);
+ALBEDO=mix(tone.rgb,tone.rgb*vec3(1.02,.79,.78),.48*(1.0-edge))*(1.0-crease*.12+line*.012);
+ROUGHNESS=.62;SPECULAR=.25;}"};
+        var material=new ShaderMaterial {Shader=_lipShader};material.SetShaderParameter("tone",new Color(color));
+        return _residentMaterials[key]=material;
+    }
     private Shader? _anatomicalSkinShader;
     private readonly System.Collections.Generic.Dictionary<string,Texture2D> _anatomicalNormals=new();
     private NoiseTexture2D? _skinGrain,_skinMicroNormal;
@@ -41,13 +57,17 @@ float footprint=max(length(dFdx(pore_uv)),length(dFdy(pore_uv)));
 float pores=(skin_noise(pore_uv)-.5)/(1.0+footprint*footprint);
 float follicle=smoothstep(.70,.88,skin_noise(p.xy*1350.0+p.z*183.0))/(1.0+footprint*footprint);
 vec3 complexion=vec3(1.0+warmth*.035,1.0-warmth*.022,1.0-warmth*.032);
-complexion*=vec3(1.0,1.0-cheek*.045-nose*.024,1.0-cheek*.055-nose*.040);
+complexion*=vec3(1.0,1.0-cheek*.022-nose*.018,1.0-cheek*.032-nose*.025);
 complexion*=1.0-temple*.025-stubble*(.035+follicle*.10);
 ALBEDO=tone.rgb*COLOR.rgb*complexion*(1.0+pores*.022);
 vec3 detail=texture(sculpt_normal,UV).rgb;
+// Grazing cage hits around the temples can encode extreme tangent normals.
+// Fade those samples rather than turning them into isolated specular facets.
+float sculpt_trust=smoothstep(.625,.90,detail.b)*(1.0-temple*.65);
+detail=mix(vec3(.5,.5,1.0),detail,sculpt_trust);
 detail.xy+=vec2(pores,-pores)*.010;
-NORMAL_MAP=detail;NORMAL_MAP_DEPTH=.72;
-ROUGHNESS=clamp(.68-nose*.10+pores*.03,.54,.74);SPECULAR=.28;
+NORMAL_MAP=detail;NORMAL_MAP_DEPTH=.48;
+ROUGHNESS=clamp(.66-nose*.07+pores*.04,.56,.72);SPECULAR=.25;
 }"};
         var material=new ShaderMaterial {Shader=_anatomicalSkinShader};
         material.SetShaderParameter("tone",new Color(color));
@@ -82,6 +102,9 @@ float lock=sin(angle*8.0+hair_point.y*10.0+sin(angle*3.0)*.6)*0.020;
 float breakup=sin(angle*31.0+hair_point.y*71.0)*sin(hair_point.y*93.0+angle*7.0)*.009;
 ALBEDO=tone.rgb*COLOR.rgb*(0.89+strand*0.018+lock+breakup);
 ROUGHNESS=mix(.68,.52,COLOR.a);SPECULAR=.30;
+float edge_noise=fract(sin(dot(hair_point.xy,vec2(127.1,311.7)))*43758.5453);
+ALPHA=COLOR.a<.1?1.0-smoothstep(.978+edge_noise*.018,1.006,UV.y):1.0;
+ALPHA_SCISSOR_THRESHOLD=.5;
 }"};
         var material=new ShaderMaterial {Shader=_hairShader};material.SetShaderParameter("tone",new Color(color));return material;
     }
