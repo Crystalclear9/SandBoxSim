@@ -56,7 +56,7 @@ public partial class MainGame : Control
     private int _previewDays;
     private string _previewView = "";
     private string _previewPanel = "";
-    private bool IsModelGallery => _previewPanel is "architecture" or "characters" or "naturemodels" or "faces" or "equipment" or "actions" or "motion" or "grip" or "hands" or "model-details" or "ecology-details" or "wardrobe" or "forearms" or "social" or "handedness";
+    private bool IsModelGallery => _previewPanel is "architecture" or "characters" or "naturemodels" or "faces" or "equipment" or "actions" or "motion" or "grip" or "hands" or "model-details" or "ecology-details" or "animal-details" or "wardrobe" or "forearms" or "social" or "handedness";
     private double _benchmarkSeconds, _benchmarkElapsed, _benchmarkMeasuredSeconds;
     private long _benchmarkFrames;
     private double _benchmarkProcessTime,_benchmarkDrawCalls,_benchmarkPrimitives;

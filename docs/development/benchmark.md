@@ -42,7 +42,7 @@ python tools/evaluate.py run benchmarks/scenarios/render-population.json --label
 |---|---|
 | `id`, `seed` | 实验名称（1–64 位字母/数字/点/下划线/短横线，首位为字母或数字）与世界种子 |
 | `agents`, `previewDays` | 人口 0–2000，初始预演 0–30 天 |
-| `panel` | `field`, `trails`, `homes`, `farms`, `person`, `person-hands`, `architecture`, `characters`, `model-details`, `ecology-details`, `wardrobe`, `faces`, `equipment`, `actions`, `hands`, `naturemodels` |
+| `panel` | `field`, `trails`, `homes`, `farms`, `person`, `person-hands`, `architecture`, `characters`, `model-details`, `animal-details`, `ecology-details`, `wardrobe`, `faces`, `equipment`, `actions`, `hands`, `naturemodels` |
 | `warmupFrames`, `measuredFrames` | 预热 3–3600 帧，采样 2–36000 帧 |
 | `ticksPerFrame` | 每个逻辑帧推进 0–20 个模拟 tick，与本机快慢无关 |
 | `captureFrames` | 从 0 开始的逻辑帧索引；至少第 3 帧，最多 32 个，无重复，不能超过运行末帧 |

@@ -44,7 +44,7 @@ internal sealed partial class NatureModels
         {
             string raw=FileAccess.GetFileAsString("res://assets/models/animals/"+(wolf?"wolf":"deer")+".skin.json");
             string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
-            if(hash!=(wolf?"dc03237792acf7d1e93ea34871165c2ad4c9ed53feb8f75732b455e4dee84705":"b002bc6d7f74e436f83ec2b4c20ec826276524cc83f82b5e68f85e5060ad381c"))throw new InvalidOperationException("Animal skin asset hash mismatch");
+            if(hash!=(wolf?"0e03314d16e3bd77386fa581786817d47691e50ff53043b3d6654d5f78f1f971":"c5737f3547c5ced612b8011ac27ed85e9442331881d6cf7c3dc48bd2aa813e74"))throw new InvalidOperationException("Animal skin asset hash mismatch");
             using var document=JsonDocument.Parse(raw);var root=document.RootElement;
             float[] Floats(string name){var e=root.GetProperty(name);var values=new float[e.GetArrayLength()];int i=0;foreach(var v in e.EnumerateArray())values[i++]=v.GetSingle();return values;}
             int[] Ints(string name){var e=root.GetProperty(name);var values=new int[e.GetArrayLength()];int i=0;foreach(var v in e.EnumerateArray())values[i++]=v.GetInt32();return values;}
@@ -53,7 +53,7 @@ internal sealed partial class NatureModels
             var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);
             arrays[(int)Mesh.ArrayType.Vertex]=vertices;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.TexUV]=uv;
             arrays[(int)Mesh.ArrayType.Bones]=Ints("bones");arrays[(int)Mesh.ArrayType.Weights]=Floats("weights");arrays[(int)Mesh.ArrayType.Index]=Ints("indices");
-            var baked=new ArrayMesh();baked.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);baked.SurfaceSetMaterial(0,fur);mesh=baked;_meshes[key]=mesh;
+            var baked=new ArrayMesh();baked.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);baked.SurfaceSetMaterial(0,fur);mesh=WithScreenLods(baked);_meshes[key]=mesh;
         }
         var original=new List<MeshInstance3D>();
         void Visit(Node3D node){foreach(Node child in node.GetChildren())if(child is Node3D model){if(model is MeshInstance3D part&&part.MaterialOverride==fur)original.Add(part);Visit(model);}}

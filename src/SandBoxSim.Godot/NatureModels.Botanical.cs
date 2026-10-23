@@ -5,13 +5,17 @@ namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
     // Clockwise folded leaf, with a shared midrib, tapered apex and leaf-local UV.
-    private static void BotanicalLeaf(SurfaceTool tool,Vector3 root,Vector3 axis,Vector3 across,float length,float width,float cup,float tone)
+    private static void BotanicalLeaf(SurfaceTool tool,Vector3 root,Vector3 axis,Vector3 across,float length,float width,float cup,float tone,int segments=8)
     {
         var normal=across.Cross(axis).Normalized();if(normal.Y<0)normal=-normal;
         Vector3 Point(int row,int edge)
         {
-            float t=row/3f,w=width*MathF.Pow(MathF.Max(0,MathF.Sin(t*MathF.PI)),.8f);
-            return root+axis*length*t+across*w*edge+normal*(cup*MathF.Sin(t*MathF.PI)*(1-.70f*MathF.Abs(edge)));
+            float t=row/(float)segments,w=width*MathF.Pow(MathF.Max(0,MathF.Sin(t*MathF.PI)),.8f);
+            // Curved midrib, subtle uneven margin and a drooping tip give the
+            // leaf volume instead of two straight triangular halves.
+            float margin=1-.045f*MathF.Pow(MathF.Sin(t*MathF.PI*6),2)*MathF.Abs(edge);
+            float curl=cup*MathF.Sin(t*MathF.PI)*(1-.70f*MathF.Abs(edge))-length*.065f*t*t*t;
+            return root+axis*length*t+across*(w*edge*margin+width*.10f*MathF.Sin(t*MathF.PI))+normal*curl;
         }
         void Triangle(int ar,int ae,int br,int be,int cr,int ce)
         {
@@ -21,11 +25,11 @@ internal sealed partial class NatureModels
             n=n.Normalized();
             foreach(var v in new[]{(ar,ae),(br,be),(cr,ce)})
             {
-                tool.SetNormal(n);tool.SetUV(new((v.Item2+1)*.5f,v.Item1/3f));
-                float shade=tone*(.83f+.17f*v.Item1/3f);tool.SetColor(new(shade,shade,shade,1));tool.AddVertex(Point(v.Item1,v.Item2));
+                tool.SetNormal(n);tool.SetUV(new((v.Item2+1)*.5f,v.Item1/(float)segments));
+                float shade=tone*(.83f+.17f*v.Item1/(float)segments);tool.SetColor(new(shade,shade,shade,1));tool.AddVertex(Point(v.Item1,v.Item2));
             }
         }
-        for(int row=0;row<3;row++)foreach(int side in new[]{-1,1})
+        for(int row=0;row<segments;row++)foreach(int side in new[]{-1,1})
         {Triangle(row,0,row,side,row+1,0);Triangle(row,side,row+1,side,row+1,0);}
     }
     private static void BotanicalStem(SurfaceTool tool,Vector3 start,Vector3 end,float radius)

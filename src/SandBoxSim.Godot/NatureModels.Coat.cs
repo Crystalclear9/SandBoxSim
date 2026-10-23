@@ -36,7 +36,7 @@ internal sealed partial class NatureModels
         var coat=new ShaderMaterial {Shader=new Shader {Code=((ShaderMaterial)Fur(wolf)).Shader.Code.Replace("shader_type spatial;","shader_type spatial;render_mode cull_disabled;").Replace("void fragment(){","void fragment(){if(!FRONT_FACING){NORMAL=-NORMAL;}")}};
         foreach(string field in new[]{"coat","pale","predator"})coat.SetShaderParameter(field,((ShaderMaterial)Fur(wolf)).GetShaderParameter(field));
         surface.SetMaterial(coat);
-        int strands=wolf?2200:1200;
+        int strands=wolf?3000:1800;
         for(int strand=0;strand<strands;strand++)
         {
             float tone=.80f+Random()*.34f;
@@ -58,12 +58,12 @@ internal sealed partial class NatureModels
             var weights=new float[4];for(int k=0;k<4;k++)weights[k]=influence[bones[k]]/total;
             // Coat lays toward the rump and down the flanks. Shoulder guard
             // hairs stand slightly longer; the deer keeps a close summer coat.
-            var flow=new Vector3(0,-.65f,.8f);flow=(flow-normal*flow.Dot(normal)).Normalized();
+            var flow=root.Z<-.48f?new Vector3(0,-.85f,.25f):root.Y<.50f?Vector3.Down:new Vector3(0,-.35f,.9f);flow=(flow-normal*flow.Dot(normal)).Normalized();
             if(flow.LengthSquared()<.5f)flow=normal.Cross(Vector3.Right).Normalized();
             var across=normal.Cross(flow).Normalized();
             float ruff=wolf?MathF.Exp(-MathF.Pow((root.Z+.4f)/.25f,2)):0;
-            float length=(wolf?.024f:.0045f)*(0.65f+Random()*.6f)*(1+ruff*.9f);
-            float width=wolf?.00065f:.00035f;
+            float length=(wolf?.018f:.004f)*(0.65f+Random()*.6f)*(1+ruff*.9f);
+            float width=wolf?.00042f:.00028f;
             for(int plane=0;plane<2;plane++)
             {
                 var spread=plane==0?across:(across+normal*.5f).Normalized();

@@ -85,6 +85,12 @@ internal sealed partial class NatureModels
         fold+=front*gather*(.055f*MathF.Exp(-MathF.Pow(oblique/.13f,2))-.035f*MathF.Exp(-MathF.Pow((oblique-.13f)/.075f,2)));
         float backPleat=MathF.Pow(MathF.Max(0,MathF.Sin(angle)),6)*MathF.Exp(-MathF.Pow((y-1.05f)/.14f,2));
         fold+=backPleat*.038f*MathF.Cos(angle*11+y*16);
+        // Two unequal, localized folds run down from the shoulder support.
+        // Leave the placket flat and keep every accessory on this same surface.
+        float sideFront=front*(1-MathF.Exp(-MathF.Pow(MathF.Cos(angle)/.21f,2)));
+        float drape=MathF.Exp(-MathF.Pow((y-1.09f)/.125f,2));
+        float creaseLine=MathF.Abs(MathF.Cos(angle))-.57f-(y-1.07f)*.90f;
+        fold+=sideFront*drape*(.065f*MathF.Exp(-MathF.Pow(creaseLine/.085f,2))-.038f*MathF.Exp(-MathF.Pow((creaseLine-.08f)/.055f,2)));
         // The shirt rests on a sternum and shoulder blades rather than an
         // inflated circular trunk; fabric falls away from those support points.
         float shoulderBlade=MathF.Exp(-MathF.Pow((y-1.15f)/.07f,2))*MathF.Pow(MathF.Max(0,MathF.Sin(angle)),4);

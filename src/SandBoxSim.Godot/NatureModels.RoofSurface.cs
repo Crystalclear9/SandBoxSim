@@ -8,7 +8,7 @@ internal sealed partial class NatureModels
     private Mesh RoofCourse(bool thatch,bool detailed)
     {
         string key=(thatch?"thatch-course":"tile-course")+(detailed?"":"-far");if(_meshes.TryGetValue(key,out var cached))return cached;
-        int columns=detailed?5:1,rows=detailed?5:2;
+        int columns=detailed?7:1,rows=detailed?7:2;
         var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);surface.SetSmoothGroup(0);
         Vector3 Point(int x,int z,bool top)
         {
@@ -16,7 +16,9 @@ internal sealed partial class NatureModels
             float edge=MathF.Pow(MathF.Abs(u)*2,8);
             float fray=thatch?MathF.Sin(v*33)*edge*.028f:MathF.Sin(v*14)*edge*.007f;
             float crown=thatch?.42f+.065f*MathF.Sin(v*44+u*.7f):.34f+.17f*MathF.Cos(v*MathF.PI)+.018f*MathF.Sin(u*9+v*3);
-            return new(u+fray,top?crown:-.4f,v);
+            float bevel=detailed&&!thatch?.12f*MathF.Pow(MathF.Max(MathF.Abs(u),MathF.Abs(v))*2,12):0;
+            float nick=detailed&&!thatch?.018f*MathF.Exp(-MathF.Pow((v-.22f)*28,2))*edge:0;
+            return new(u+fray-nick,top?crown-bevel:-.4f+bevel,v);
         }
         void Triangle(Vector3 a,Vector3 b,Vector3 c,Vector3 outward)
         {

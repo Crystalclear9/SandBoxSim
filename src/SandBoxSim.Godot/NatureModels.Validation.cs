@@ -155,7 +155,7 @@ internal sealed partial class NatureModels
                 throw new InvalidOperationException("Animal grooming loses shared articulation or distance limit");
             var groom=grooming.Mesh.SurfaceGetArrays(0);var groomPoints=groom[(int)Mesh.ArrayType.Vertex].AsVector3Array();
             var groomBones=groom[(int)Mesh.ArrayType.Bones].AsInt32Array();var groomWeights=groom[(int)Mesh.ArrayType.Weights].AsFloat32Array();
-            if(groom[(int)Mesh.ArrayType.Index].AsInt32Array().Length!=(wolf?2200:1200)*18)
+            if(groom[(int)Mesh.ArrayType.Index].AsInt32Array().Length!=(wolf?3000:1800)*18)
                 throw new InvalidOperationException("Animal grooming exceeds fixed strand budget");
             var strandColors=groom[(int)Mesh.ArrayType.Color].AsColorArray();float darkest=1,lightest=0;
             if(strandColors.Length!=groomPoints.Length)throw new InvalidOperationException("Animal coat lost strand colours");

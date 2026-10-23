@@ -25,9 +25,9 @@ internal sealed partial class NatureModels
                     var stem=root+forward*r*u;
                     var axis=(forward*.5f+across*side*.8f+Vector3.Up*.15f).Normalized();
                     BotanicalStem(tool,stem,stem+axis*r*.10f,.002f);
-                    BotanicalLeaf(tool,stem,axis,across,r*(.32f-.09f*u),r*.069f,.003f,.80f+.12f*MathF.Sin(branch*3+twig));
+                    BotanicalLeaf(tool,stem,axis,across,r*(.32f-.09f*u),r*.069f,.003f,.80f+.12f*MathF.Sin(branch*3+twig),3);
                 }
-                BotanicalLeaf(tool,root+forward*r*.82f,forward,across,r*.24f,r*.04f,.007f,.90f);
+                BotanicalLeaf(tool,root+forward*r*.82f,forward,across,r*.24f,r*.04f,.007f,.90f,3);
             }
         }
         else
@@ -46,9 +46,9 @@ internal sealed partial class NatureModels
                     float sign=leaf%2==0?-1:1;
                     var axis=(forward*.65f+across*sign*.75f+Vector3.Up*.20f).Normalized();
                     var root=center+forward*(leaf/2)*.035f;
-                    BotanicalLeaf(tool,root,axis,axis.Cross(Vector3.Up).Normalized(),.082f+(i%5)*.004f,.027f,.004f,.78f+(i%7)*.055f);
+                    BotanicalLeaf(tool,root,axis,axis.Cross(Vector3.Up).Normalized(),.082f+(i%5)*.004f,.027f,.004f,.78f+(i%7)*.055f,3);
                 }
-                BotanicalLeaf(tool,center+forward*.065f,forward,across,.086f,.028f,.004f,1.02f);
+                BotanicalLeaf(tool,center+forward*.065f,forward,across,.086f,.028f,.004f,1.02f,3);
             }
         }
         tool.GenerateNormals();tool.Index();var mesh=WithScreenLods(tool.Commit());_meshes[key]=mesh;return mesh;

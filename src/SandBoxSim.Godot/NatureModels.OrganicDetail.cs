@@ -193,19 +193,22 @@ if(abs(det)>.0000000001)NORMAL=normalize(abs(det)*NORMAL-sign(det)*(dFdx(height)
             float width=(wolf?.059f:.060f)*leaf*(wolf?1.20f-.55f*t:1+.09f*MathF.Sin(t*MathF.PI));
             if(wolf)width=.072f*(1-t)*MathF.Pow(MathF.Sin(MathF.Min(1,t/.16f)*MathF.PI/2),.65f);
             float cup=(1-u*u)*MathF.Sin(t*MathF.PI);
-            float rim=.004f*MathF.Exp(-MathF.Pow((MathF.Abs(u)-.84f)/.14f,2))*MathF.Sin(t*MathF.PI);
-            float root=.006f*MathF.Exp(-MathF.Pow((t-.18f)/.13f,2))*(1-u*u);
+            float rim=.008f*MathF.Exp(-MathF.Pow((MathF.Abs(u)-.84f)/.14f,2))*MathF.Sin(t*MathF.PI);
+            float root=.010f*MathF.Exp(-MathF.Pow((t-.18f)/.13f,2))*(1-u*u);
             // A curled, thick cartilage rim surrounds a recessed concha; the
             // tip bends backwards instead of ending in a flat triangular plane.
-            float bend=.016f*t*t*t;
-            return new(u*width,t*(wolf?.145f:.21f),bend+(rear?.012f*cup+.004f*MathF.Sin(t*MathF.PI):.007f*cup-rim-root));
+            float bend=.024f*t*t*t;
+            // A Y-shaped cartilage fold crosses the lower concha. Its roots
+            // are broad and vanish into the rim instead of floating inside it.
+            float fold=.010f*MathF.Exp(-MathF.Pow((MathF.Abs(u)-(.18f+.34f*t))/.13f,2))*MathF.Exp(-MathF.Pow((t-.30f)/.24f,2));
+            return new(u*width,t*(wolf?.145f:.21f),bend+(rear?.032f*cup+.004f*MathF.Sin(t*MathF.PI):.027f*cup-rim-root-fold));
         }
         void Vertex(int r,int c,bool rear)
         {
             float t=r/(float)rows,u=c/(float)columns*2-1;
             float inset=rear?0:MathF.Pow(MathF.Max(0,1-u*u),.8f)*MathF.Sin(t*MathF.PI);
             float baseShade=MathF.Exp(-MathF.Pow((t-.23f)/.19f,2))*(1-u*u);
-            tool.SetColor(new Color(wolf?"#797b71":"#8c6445").Lerp(new Color("#bcb09c"),inset*.7f).Darkened(rear?0:baseShade*.13f));
+            tool.SetColor(new Color(wolf?"#797b71":"#8c6445").Lerp(new Color(wolf?"#b3a696":"#b9a88c"),inset*.62f).Darkened(rear?0:baseShade*.24f));
             tool.SetUV(new(c/(float)columns,t));tool.AddVertex(Point(r,c,rear));
         }
         foreach(bool rear in new[]{false,true})for(int r=0;r<rows;r++)for(int c=0;c<columns;c++)
@@ -254,6 +257,26 @@ if(abs(det)>.0000000001)NORMAL=normalize(abs(det)*NORMAL-sign(det)*(dFdx(height)
 
     private void ValidateOrganicDetails()
     {
+        // Back-face culling used to expose a pinhole at both hoof ends.
+        // Check geometric winding of both caps, not only finite vertex normals.
+        foreach(bool wolf in new[]{false,true})
+        {
+            var mesh=AnimalFoot(wolf);var data=mesh.SurfaceGetArrays(0);
+            var p=data[(int)Mesh.ArrayType.Vertex].AsVector3Array();var ix=data[(int)Mesh.ArrayType.Index].AsInt32Array();
+            float low=mesh.GetAabb().Position.Z,high=mesh.GetAabb().End.Z;int caps=0;
+            for(int t=0;t<ix.Length;t+=3)
+            {
+                var a=p[ix[t]];var b=p[ix[t+1]];var c=p[ix[t+2]];
+                bool front=MathF.Abs(a.Z-low)<1e-6f&&MathF.Abs(b.Z-low)<1e-6f&&MathF.Abs(c.Z-low)<1e-6f;
+                bool rear=MathF.Abs(a.Z-high)<1e-6f&&MathF.Abs(b.Z-high)<1e-6f&&MathF.Abs(c.Z-high)<1e-6f;
+                if(!front&&!rear)continue;
+                var normal=(c-a).Cross(b-a);
+                if(normal.LengthSquared()<1e-16f)continue;
+                if(normal.Z*(front?-1:1)<=0)throw new InvalidOperationException($"Animal foot cap faces inward: wolf={wolf}, front={front}, n={normal}, a={a}, b={b}, c={c}");
+                caps++;
+            }
+            if(caps<16)throw new InvalidOperationException("Animal foot lost its closed caps");
+        }
         foreach(var mesh in new[]{BootStitching(),BootTongue()})
         {
             var data=mesh.SurfaceGetArrays(0);var points=data[(int)Mesh.ArrayType.Vertex].AsVector3Array();

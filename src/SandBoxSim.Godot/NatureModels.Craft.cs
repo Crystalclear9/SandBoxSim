@@ -27,13 +27,21 @@ internal sealed partial class NatureModels
             float angle = side * MathF.Tau / sides; var p = profiles[ring];
             float crease=0;
             if(key=="tailored-sleeve")crease=.0025f*MathF.Sin(p.X*125+MathF.Sin(angle)*2)*MathF.Exp(-MathF.Pow((p.X-.23f)*18,2));
-            else if(key=="resident-trouser")crease=.002f*MathF.Sin(p.X*115+MathF.Cos(angle)*3)*MathF.Exp(-MathF.Pow((p.X-.28f)*17,2));
+            else if(key=="resident-trouser")
+            {
+                float knee=MathF.Exp(-MathF.Pow((p.X-.26f)/.055f,2));
+                float inner=MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),2);
+                crease=.0035f*knee*(.35f+.65f*inner)*MathF.Sin(p.X*126+MathF.Cos(angle)*4);
+                // The outer seam follows the grain, while loose cloth hangs
+                // diagonally from the hip. Both fade into the joint ends.
+                crease+=.0018f*MathF.Exp(-MathF.Pow(MathF.Sin(angle)/.10f,2))*MathF.Sin(Math.Clamp(p.X/.33f,0,1)*MathF.PI);
+                crease+=.0022f*MathF.Exp(-MathF.Pow((p.X-.12f)/.08f,2))*MathF.Sin(angle*3+p.X*23);
+            }
             else if(key=="resident-boot")crease=.0015f*MathF.Sin(p.X*150+MathF.Cos(angle)*2)*MathF.Exp(-MathF.Pow((p.X-.23f)*20,2));
             float sole=p.Y+MathF.Sin(angle)*(p.W+crease);
             if(key is "animal-paw" or "animal-hoof")sole=MathF.Max(.003f,sole);
-            if(key=="animal-paw"&&MathF.Sin(angle)>0&&p.X<-.035f)
-                sole-=.0018f*MathF.Exp(-MathF.Pow((p.X+.074f)*18,2))*MathF.Pow(MathF.Cos(MathF.Cos(angle)*p.Z*95),8);
-            return new Vector3(MathF.Cos(angle) * (p.Z+crease),sole,p.X);
+            float cross=key=="animal-hoof"?MathF.Sign(MathF.Cos(angle))*MathF.Pow(MathF.Abs(MathF.Cos(angle)),.65f):MathF.Cos(angle);
+            return new Vector3(cross * (p.Z+crease),sole,p.X);
         }
         void Vertex(int ring, int side)
         { tool.SetUV(new Vector2(side / (float)sides, ring / (float)(profiles.Length - 1))); tool.AddVertex(Point(ring, side)); }
@@ -41,8 +49,8 @@ internal sealed partial class NatureModels
         { Vertex(r,c); Vertex(r+1,c); Vertex(r,c+1); Vertex(r,c+1); Vertex(r+1,c); Vertex(r+1,c+1); }
         for(int side=0;side<sides;side++)
         {
-            tool.SetUV(new(.5f,.5f)); tool.AddVertex(new Vector3(0,profiles[0].Y,profiles[0].X)); Vertex(0,side+1); Vertex(0,side);
-            tool.SetUV(new(.5f,.5f)); tool.AddVertex(new Vector3(0,profiles[^1].Y,profiles[^1].X)); Vertex(profiles.Length-1,side); Vertex(profiles.Length-1,side+1);
+            tool.SetUV(new(.5f,.5f)); tool.AddVertex(new Vector3(0,profiles[0].Y,profiles[0].X)); Vertex(0,side); Vertex(0,side+1);
+            tool.SetUV(new(.5f,.5f)); tool.AddVertex(new Vector3(0,profiles[^1].Y,profiles[^1].X)); Vertex(profiles.Length-1,side+1); Vertex(profiles.Length-1,side);
         }
         tool.GenerateNormals(); tool.Index(); var mesh = tool.Commit(); _meshes[key] = mesh; return mesh;
     }
