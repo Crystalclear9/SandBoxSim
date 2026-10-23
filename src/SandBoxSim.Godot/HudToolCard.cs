@@ -8,23 +8,19 @@ internal partial class HudToolCard : Button
     public string Title {get;set;}="";
     public string Description {get;set;}="";
     public Texture2D Glyph {get;set;}=null!;
-    private Label? _description;
-    private bool _compact;
-    public bool Compact
-    {
-        get=>_compact;
-        set{if(_compact==value)return;_compact=value;CustomMinimumSize=new(158,value?48:86);if(_description!=null)_description.Visible=!value;}
-    }
     public override void _Ready()
     {
         var margin=new MarginContainer {MouseFilter=MouseFilterEnum.Ignore};margin.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         foreach(string side in new[]{"left","right","top","bottom"})margin.AddThemeConstantOverride("margin_"+side,10);
         AddChild(margin);
-        var body=new VBoxContainer {MouseFilter=MouseFilterEnum.Ignore};body.AddThemeConstantOverride("separation",6);margin.AddChild(body);
-        var heading=new HBoxContainer {MouseFilter=MouseFilterEnum.Ignore};heading.AddThemeConstantOverride("separation",8);body.AddChild(heading);
-        heading.AddChild(new TextureRect {Texture=Glyph,CustomMinimumSize=new(22,22),ExpandMode=TextureRect.ExpandModeEnum.IgnoreSize,StretchMode=TextureRect.StretchModeEnum.KeepAspectCentered,Modulate=HudStyle.Accent,MouseFilter=MouseFilterEnum.Ignore});
-        var title=HudStyle.Label(Title,14);title.MouseFilter=MouseFilterEnum.Ignore;heading.AddChild(title);
-        var description=HudStyle.Label(Description,12,true);_description=description;description.Visible=!_compact;description.AutowrapMode=TextServer.AutowrapMode.WordSmart;description.MouseFilter=MouseFilterEnum.Ignore;body.AddChild(description);
+        var row=new HBoxContainer {MouseFilter=MouseFilterEnum.Ignore};row.AddThemeConstantOverride("separation",12);margin.AddChild(row);
+        row.AddChild(new TextureRect {Texture=Glyph,CustomMinimumSize=new(28,28),ExpandMode=TextureRect.ExpandModeEnum.IgnoreSize,StretchMode=TextureRect.StretchModeEnum.KeepAspectCentered,MouseFilter=MouseFilterEnum.Ignore});
+        var body=new VBoxContainer {MouseFilter=MouseFilterEnum.Ignore,SizeFlagsHorizontal=SizeFlags.ExpandFill,SizeFlagsVertical=SizeFlags.ShrinkCenter};body.AddThemeConstantOverride("separation",3);row.AddChild(body);
+        var title=HudStyle.Label(Title,14);title.MouseFilter=MouseFilterEnum.Ignore;body.AddChild(title);
+        var description=HudStyle.Label(Description,12,true);description.TextOverrunBehavior=TextServer.OverrunBehavior.TrimEllipsis;description.MouseFilter=MouseFilterEnum.Ignore;body.AddChild(description);
+        var selected=HudStyle.Label("✓",14);selected.AddThemeColorOverride("font_color",HudStyle.Accent);selected.CustomMinimumSize=new(16,0);selected.MouseFilter=MouseFilterEnum.Ignore;row.AddChild(selected);
+        void Selection(){selected.Modulate=ButtonPressed?Colors.White:Colors.Transparent;}
+        Toggled+=_=>Selection();Draw+=Selection;Selection();
         MouseDefaultCursorShape=CursorShape.PointingHand;
     }
 }

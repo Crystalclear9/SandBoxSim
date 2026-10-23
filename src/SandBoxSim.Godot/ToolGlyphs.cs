@@ -50,7 +50,7 @@ internal static class ToolGlyphs
             _ => "<path d='M9 37h30M12 30l6-13 6 9 6-15 6 19'/>",
         };
         var image = new Image();
-        image.LoadSvgFromString("<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 48 48'><g fill='none' stroke='#edf1e8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'>" + paths + "</g></svg>");
+        image.LoadSvgFromString("<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 48 48'><g fill='none' stroke='#d5ceb9' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'>" + paths + "</g></svg>");
         texture = ImageTexture.CreateFromImage(image); Cache[tool] = texture; return texture;
     }
 }

@@ -300,14 +300,14 @@ public partial class MainGame : Control
         Theme.SetStylebox("tab_hovered", "TabContainer", HudStyle.Box(HudStyle.Wash, 2, 8, false));
         Theme.SetFontSize("normal_font_size", "RichTextLabel", 14); Theme.SetConstant("line_separation", "RichTextLabel", 5);
         Theme.SetColor("default_color", "RichTextLabel", HudStyle.Text);
-        Theme.SetColor("font_color", "TooltipLabel", HudStyle.Text);
-        var tooltip = HudStyle.Box(new Color("#202721"), 3, 12);
+        Theme.SetColor("font_color", "TooltipLabel", Colors.White);
+        var tooltip = HudStyle.Box(HudStyle.Surface, 6, 12);
         tooltip.BorderColor = new Color(HudStyle.Accent, .5f);
         Theme.SetStylebox("panel", "TooltipPanel", tooltip);
         Theme.SetFontSize("font_size", "TooltipLabel", 13);
         Theme.SetConstant("outline_size", "TooltipLabel", 0);
         Theme.SetColor("selection_color", "LineEdit", new Color(HudStyle.Accent, .28f));
-        Theme.SetStylebox("read_only", "LineEdit", HudStyle.Box(HudStyle.Ink, 3, 10));
+        Theme.SetStylebox("read_only", "LineEdit", HudStyle.Box(HudStyle.Wash, 3, 10));
         Theme.SetStylebox("scroll", "VScrollBar", HudStyle.Box(new Color(0, 0, 0, .18f), 2, 3, false));
         Theme.SetStylebox("grabber_pressed", "VScrollBar", HudStyle.Box(HudStyle.Accent.Lightened(.12f), 3, 3, false));
         Theme.SetStylebox("grabber", "VScrollBar", HudStyle.Box(new Color(HudStyle.Muted, .35f), 3, 3, false));
@@ -678,16 +678,16 @@ public partial class MainGame : Control
             }
         }
         _drawer.SetTabTitle(1, _selectedPersonId != 0 ? "人物" : _selectedAnimal >= 0 || _selectedWolf >= 0 ? "动物" : "土地");
-        _drawer.SetTabIcon(1,HudSymbols.For(_selectedPersonId!=0?"居民":"生态",16,"#697267"));
+        _drawer.SetTabIcon(1,HudSymbols.For(_selectedPersonId!=0?"居民":"生态",16,"#c5c4b6"));
         RefreshResidentVitals();
         _inspector.Text = FormatInspector(text.ToString());
         var history = new StringBuilder();
         for (int i = Sim.Events.Count - 1, count = 0; i >= 0 && count < 80; i--)
         {
             var ev = Sim.Events[i]; if (ev.Importance < SandBoxSim.Core.History.EventImportance.Normal) { continue; }
-            history.AppendLine($"[color=#806644]第 {ev.Tick / 1440} 天[/color]")
+            history.AppendLine($"[color=#d6c294]第 {ev.Tick / 1440} 天[/color]")
                 .AppendLine("[b]" + EscapeMarkup(ev.Description) + "[/b]")
-                .AppendLine("[color=#747866]" + EscapeMarkup(ev.Cause) + "[/color]").AppendLine(); count++;
+                .AppendLine("[color=#b8bbad]" + EscapeMarkup(ev.Cause) + "[/color]").AppendLine(); count++;
         }
         _history.Text = history.ToString();
     }

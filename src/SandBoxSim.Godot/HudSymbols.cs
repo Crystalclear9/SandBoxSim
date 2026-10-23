@@ -6,7 +6,7 @@ namespace SandBoxSim.Client;
 internal static class HudSymbols
 {
     private static readonly Dictionary<string, Texture2D> Cache = new();
-    public static Texture2D For(string name,int pixels=96,string stroke="#e9e3d6")
+    public static Texture2D For(string name,int pixels=96,string stroke="#d5ceb9")
     {
         string key=name+":"+pixels+":"+stroke;
         if (Cache.TryGetValue(key, out var texture)) return texture;

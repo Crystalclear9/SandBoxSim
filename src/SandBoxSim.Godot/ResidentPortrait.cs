@@ -66,13 +66,13 @@ internal partial class ResidentPortrait : SubViewportContainer
         AddChild(_viewport);
         _stage = new Node3D(); _viewport.AddChild(_stage);
         var environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color,
-            BackgroundColor = new Color("#202933"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
+            BackgroundColor = new Color("#262b26"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
             AmbientLightColor = new Color("#cbd0d5"), AmbientLightEnergy = .36f, TonemapMode = Godot.Environment.ToneMapper.Aces };
         _stage.AddChild(new WorldEnvironment { Environment = environment });
         var backdrop=new ShaderMaterial {Shader=new Shader {Code=@"shader_type spatial;
 render_mode unshaded,cull_disabled,fog_disabled;
 void fragment(){float halo=exp(-dot((UV-vec2(.48,.56))*vec2(1.4,1.0),(UV-vec2(.48,.56))*vec2(1.4,1.0))*30.0);
-ALBEDO=mix(vec3(.035,.047,.065),vec3(.135,.17,.20),halo);}"}};
+ALBEDO=mix(vec3(.045,.048,.040),vec3(.16,.17,.14),halo);}"}};
         _stage.AddChild(new MeshInstance3D {Mesh=new QuadMesh {Size=new(9,9)},Position=new(0,1.1f,2),MaterialOverride=backdrop,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off});
         _keyLight=new DirectionalLight3D { RotationDegrees = new Vector3(-32, -38, 0), LightColor = new Color("#f1e5d6"), LightEnergy = .85f,
             ShadowEnabled=false,DirectionalShadowMode=DirectionalLight3D.ShadowMode.Orthogonal,DirectionalShadowMaxDistance=6,ShadowBias=.05f,ShadowNormalBias=.2f };
@@ -85,7 +85,7 @@ ALBEDO=mix(vec3(.035,.047,.065),vec3(.135,.17,.20),halo);}"}};
         var controlPlate=new PanelContainer();
         controlPlate.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide);
         controlPlate.OffsetLeft=10;controlPlate.OffsetRight=-10;controlPlate.OffsetTop=-57;controlPlate.OffsetBottom=-10;
-        controlPlate.AddThemeStyleboxOverride("panel",HudStyle.Box(new Color(HudStyle.Ink,.96f),8,6));AddChild(controlPlate);
+        controlPlate.AddThemeStyleboxOverride("panel",HudStyle.Box(new Color(HudStyle.Surface,.98f),8,6));AddChild(controlPlate);
         var controls=new HBoxContainer();controls.AddThemeConstantOverride("separation",3);controlPlate.AddChild(controls);
         Godot.Button StudioButton(string title,string hint,Action action,int width=42)
         {
@@ -137,7 +137,7 @@ ALBEDO=mix(vec3(.035,.047,.065),vec3(.135,.17,.20),halo);}"}};
     internal object RenderQualityState()
     {
         var environment=_stage.GetChildren().OfType<WorldEnvironment>().Single().Environment;
-        return new {studio="textured-portrait-v5",backdrop="radial-unlit-v1",lensFov=_camera.Fov,msaa=_viewport.Msaa3D.ToString(),resolution=new[]{_viewport.Size.X,_viewport.Size.Y},
+        return new {studio="textured-portrait-v5",backdrop="natural-radial-v2",lensFov=_camera.Fov,msaa=_viewport.Msaa3D.ToString(),resolution=new[]{_viewport.Size.X,_viewport.Size.Y},
             background=environment.BackgroundColor.ToHtml(),ambient=environment.AmbientLightColor.ToHtml(),ambientEnergy=environment.AmbientLightEnergy,
             lights=_stage.GetChildren().OfType<DirectionalLight3D>().Select(light=>new {
                 color=light.LightColor.ToHtml(),energy=light.LightEnergy,rotation=new[]{light.RotationDegrees.X,light.RotationDegrees.Y,light.RotationDegrees.Z},shadows=light.ShadowEnabled,

@@ -2,15 +2,16 @@
 
 此目录保留项目说明使用的原生 Godot 截图和动作演示，随文档提交。图片反映采样版本，不代表所有驱动、视角或当前帧率，也不作为模型质量、效率或 RSI 的评分。项目正式名称为 SandBoxSim。
 
-本轮替换了左侧工具库、现场与人物手记、衣装、材质近景和建筑配图；工具动态演示保留此前的携带与作业切换采样。截图之外的能力边界见 [模型系统](../development/models.md)。
+最新一轮替换了创造工具库、现场与人物手记、展开人物观察窗配图，展示自然岩灰与苔色界面。模型专题及工具动态演示保留各自先前采样。截图之外的能力边界见 [模型系统](../development/models.md)。
 
 ## 当前配图
 
 | 文件 | 用途与采样入口 |
 |---|---|
-| `tool-palette.png` | 左侧搜索工具库、固定参数区及悬浮控制面板；`brush` |
+| `tool-palette.png` | 单列搜索工具库、固定分类与参数、连续顶底控制栏；`brush` |
 | `free-world-ui.png`、`ui-detail-refined.png` | 自由探索现场手记、人物手记；`field`、`person` |
-| `resident-portrait.png`、`resident-hand-inspector.png`、`resident-body-inspector.png` | 展开人物观察窗的面部、双手与全身；公开 `ui-portrait-window` 第 90/130/170 帧 |
+| `resident-portrait.png` | 当前展开人物观察窗；`person-expanded` |
+| `resident-hand-inspector.png`、`resident-body-inspector.png` | 较早的人物双手与全身；公开 `ui-portrait-window` 第 130/170 帧 |
 | `character-detail.png`、`resident-face-detail.png` | 人物、动物与面部；`characters`、`faces` |
 | `wardrobe-detail.png`、`resident-garment-actions.png` | 三种衣装的正背面与作业动作；`wardrobe`、`actions` |
 | `model-surface-detail.png` | 衣料、靴子、动物与建筑近景；`model-details` |
@@ -24,9 +25,9 @@
 
 ## 版本与复现
 
-当前建筑、人物动物、衣装、网格近景、生态、工具面板、现场与人物手记配图采于 2026-10-23，使用 1600×1000 原生 Godot 渲染、2.4 秒采样延迟。地形远近景来自同日公开 `visual-landscape` 的第 40/80 帧，种子 839102、40 人、零模拟步进。最新的工具库、手记、衣装、材质近景和建筑图展示可搜索工具库、悬浮 HUD、衣装折痕及门环；其他同日图片保留各自采样时的界面和模型，不代表最新布局。
+当前建筑、人物动物、衣装、网格近景、生态、工具面板、现场与人物手记配图采于 2026-10-23，使用 1600×1000 原生 Godot 渲染、2.4 秒采样延迟。地形远近景来自同日公开 `visual-landscape` 的第 40/80 帧，种子 839102、40 人、零模拟步进。最新工具库、现场与人物手记、展开观察窗图使用 `canvas-workspace-v5` 的自然色界面；其他同日模型图片保留各自采样时的界面，不代表最新布局。
 
-人物观察窗、面部、前臂、左右手和动作专题保留各自先前采样；较早的住房、农业、小径与世界生活图只说明对应玩法。未更新图片中的 UI 不代表当前布局。所有图片均来自实际客户端，没有用概念图替代模型。
+除上述四张界面图外，面部、前臂、左右手和动作专题保留各自先前采样；较早的住房、农业、小径与世界生活图只说明对应玩法。未更新图片中的 UI 不代表当前布局。所有图片均来自实际客户端，没有用概念图替代模型。
 
 复现入口见表格及 [渲染与视觉评测](../development/benchmark.md)。截图用于项目说明，不用于证明模型达到写实品质；效率对照必须使用同一场景、资产、渲染条件与版本标识。
 

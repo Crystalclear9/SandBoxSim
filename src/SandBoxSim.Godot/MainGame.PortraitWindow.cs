@@ -35,6 +35,10 @@ public partial class MainGame
     }
     public override void _Input(InputEvent input)
     {
+        if(input is InputEventKey {Pressed:true,Echo:false,Keycode:Key.K} search && (search.CtrlPressed||search.MetaPressed) && _portraitOverlay?.Visible!=true)
+        {
+            ShowTools(true);_toolSearch.GrabFocus();_toolSearch.SelectAll();GetViewport().SetInputAsHandled();return;
+        }
         if(_portraitOverlay?.Visible!=true||input is not InputEventKey {Pressed:true} key)return;
         var focused=GetViewport().GuiGetFocusOwner();
         if(focused==null||!_portraitWindow.IsAncestorOf(focused))_residentPortrait.GrabFocus();
@@ -61,7 +65,7 @@ public partial class MainGame
         _portraitOverlay.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);overlay.AddChild(_portraitOverlay);
         _portraitOverlay.GuiInput+=input=>{if(input is InputEventMouseButton {ButtonIndex:MouseButton.Left,Pressed:true})ShowPortraitWindow(false);};
         _portraitWindow=new PanelContainer {MouseFilter=MouseFilterEnum.Stop};
-        var paper=HudStyle.Box(new Color("#171e26"),12,20);paper.BorderColor=HudStyle.Border;paper.ShadowSize=28;
+        var paper=HudStyle.Box(HudStyle.Surface,10,20);paper.BorderColor=HudStyle.Border;paper.ShadowSize=28;
         _portraitWindow.AddThemeStyleboxOverride("panel",paper);_portraitOverlay.AddChild(_portraitWindow);
         var layout=new VBoxContainer();layout.AddThemeConstantOverride("separation",12);_portraitWindow.AddChild(layout);
         var header=new HBoxContainer();layout.AddChild(header);
@@ -88,7 +92,7 @@ public partial class MainGame
         string[] metricNames={"生命","饥饿","干渴","精力"};
         for(int i=0;i<4;i++)
         {
-            var tile=new PanelContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};tile.AddThemeStyleboxOverride("panel",HudStyle.Box(new Color("#212b35"),6,10,false));metrics.AddChild(tile);
+            var tile=new PanelContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};tile.AddThemeStyleboxOverride("panel",HudStyle.Box(HudStyle.Wash,6,10,false));metrics.AddChild(tile);
             var metric=new VBoxContainer();metric.AddThemeConstantOverride("separation",4);tile.AddChild(metric);metric.AddChild(PortraitPaperLabel(metricNames[i],11,true));
             _portraitFactLabels[i]=PortraitPaperLabel("",22);_portraitFactLabels[i].AddThemeFontOverride("font",HudStyle.NumericFont);metric.AddChild(_portraitFactLabels[i]);
             var bar=new ProgressBar {MaxValue=1,ShowPercentage=false,CustomMinimumSize=new(0,4),MouseFilter=MouseFilterEnum.Ignore};
