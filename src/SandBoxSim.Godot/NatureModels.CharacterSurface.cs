@@ -66,7 +66,7 @@ vec3 detail=texture(sculpt_normal,UV).rgb;
 float sculpt_trust=smoothstep(.625,.90,detail.b)*(1.0-temple*.65);
 detail=mix(vec3(.5,.5,1.0),detail,sculpt_trust);
 detail.xy+=vec2(pores,-pores)*.010;
-NORMAL_MAP=detail;NORMAL_MAP_DEPTH=.48;
+NORMAL_MAP=detail;NORMAL_MAP_DEPTH=.18;
 ROUGHNESS=clamp(.66-nose*.07+pores*.04,.56,.72);SPECULAR=.25;
 }"};
         var material=new ShaderMaterial {Shader=_anatomicalSkinShader};

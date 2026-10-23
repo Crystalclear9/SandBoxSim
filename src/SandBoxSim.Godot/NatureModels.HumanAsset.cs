@@ -59,7 +59,31 @@ internal sealed partial class NatureModels
             Vector(root.GetProperty("eyeCenter")),Vector(root.GetProperty("mouthCenter")),root.GetProperty("noseProbeY").GetSingle(),
             scalp.GetProperty("rows").GetInt32(),scalp.GetProperty("columns").GetInt32(),scalp.GetProperty("low").GetSingle(),scalp.GetProperty("high").GetSingle(),
             Floats(scalp.GetProperty("centers")),Floats(scalp.GetProperty("radii")),normalPath);
+        asset=asset with {Head=RepairHeadNormals(asset.Head)};
         _humanAssets[family]=asset;return asset;
+    }
+    private static HumanSurface RepairHeadNormals(HumanSurface source)
+    {
+        // UV splits must not turn a smooth face into disconnected highlights.
+        // Reconstruct geometric normals across coincident atlas vertices and
+        // repair authored normals that disagree with the exported surface.
+        (int,int,int) Key(Vector3 p)=>((int)MathF.Round(p.X*1000000),(int)MathF.Round(p.Y*1000000),(int)MathF.Round(p.Z*1000000));
+        var sums=new System.Collections.Generic.Dictionary<(int,int,int),Vector3>();
+        void Add(int vertex,Vector3 normal){var key=Key(source.Points[vertex]);sums.TryGetValue(key,out var value);sums[key]=value+normal;}
+        for(int i=0;i<source.Indices.Length;i+=3)
+        {
+            int a=source.Indices[i],b=source.Indices[i+1],c=source.Indices[i+2];
+            var normal=(source.Points[b]-source.Points[a]).Cross(source.Points[c]-source.Points[a]);
+            if(normal.Dot(source.Normals[a]+source.Normals[b]+source.Normals[c])<0)normal=-normal;
+            Add(a,normal);Add(b,normal);Add(c,normal);
+        }
+        var normals=(Vector3[])source.Normals.Clone();
+        for(int i=0;i<normals.Length;i++)
+        {
+            var normal=sums[Key(source.Points[i])];
+            if(normal.LengthSquared()>1e-20f){normal=normal.Normalized();if(normal.Dot(normals[i])<.966f)normals[i]=normal;}
+        }
+        return source with {Normals=normals};
     }
     private float HumanWidth(float y,out float derivative)
     {
@@ -173,6 +197,12 @@ internal sealed partial class NatureModels
     }
     private void ValidateHumanAsset()
     {
+        var seam=new HumanSurface(new[]{Vector3.Zero,Vector3.Right,Vector3.Up,Vector3.Zero,Vector3.Up,Vector3.Left},
+            new[]{Vector3.Right,Vector3.Back,Vector3.Back,Vector3.Right,Vector3.Back,Vector3.Back},
+            new Vector2[6],new Color[6],new[]{0,1,2,3,4,5});
+        var repaired=RepairHeadNormals(seam);
+        if(repaired.Normals[0].Dot(Vector3.Back)<.999f||repaired.Normals[3]!=repaired.Normals[0]||seam.Normals[0]!=Vector3.Right)
+            throw new InvalidOperationException("Head normal repair loses smooth UV seams or mutates the source");
         int previous=_faceVariant;
         if(!FileAccess.FileExists("res://assets/models/human/LICENSE.txt"))throw new InvalidOperationException("Missing human mesh attribution");
         for(int variant=0;variant<8;variant++)

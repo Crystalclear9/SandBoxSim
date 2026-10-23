@@ -59,6 +59,34 @@ internal sealed partial class NatureModels
             surface.SetUV(new(.5f,0));surface.AddVertex(center);
             Vertex(0,column);Vertex(0,column+1);
         }
+        // Broad, shallow overlapping locks break up the helmet silhouette.
+        // Each is a ribbon fitted to the same scalp, with a raised centre and
+        // a tapered tip; fine fibers below supply the smaller scale detail.
+        if(sides>=64)
+        for(int strand=0;strand<44;strand++)
+        {
+            float column=(strand+.3f*MathF.Sin(strand*7.1f))*sides/44f;
+            float start=.22f+(strand%5)*.045f,end=.88f+(strand%4)*.035f;
+            float width=(style==2?.0011f:.0018f)/.19f;
+            Vector3 Lock(float t,float cross)
+            {
+                float r=Mathf.Lerp(start,end,t),c=column+direction*MathF.Sin(t*MathF.PI*.7f)*(style==2?.8f:3.8f);
+                float angle=c*MathF.Tau/sides;
+                var p=Point(r*rings,c);
+                var radial=new Vector3(MathF.Cos(angle),.38f,MathF.Sin(angle)).Normalized();
+                var tangent=new Vector3(-MathF.Sin(angle),0,MathF.Cos(angle));
+                float taper=MathF.Pow(MathF.Max(0,MathF.Sin(MathF.PI*t)),.65f);
+                return p+tangent*(cross*width*taper)+radial*((.00025f+.00085f*(1-cross*cross))*taper/.20f);
+            }
+            surface.SetColor(new Color(.70f+(strand%5)*.018f,.70f+(strand%5)*.018f,.70f+(strand%5)*.018f,.45f));
+            for(int row=0;row<10;row++)for(int cross=0;cross<4;cross++)
+            {
+                float t=row/10f,v=(row+1)/10f,x=cross*.5f-1,y=(cross+1)*.5f-1;
+                var a=Lock(t,x);var b=Lock(v,x);var c=Lock(t,y);var d=Lock(v,y);
+                float angle=column*MathF.Tau/sides;var outward=new Vector3(MathF.Cos(angle),.5f,MathF.Sin(angle));
+                EquipmentTriangle(surface,a,b,c,outward);EquipmentTriangle(surface,c,b,d,outward);
+            }
+        }
         // Fine curved fibers cover a quiet fitted undercoat. Millimetre-wide
         // raised locks read as carved clay in a portrait; these strands are
         // 0.2–0.4 mm wide and follow the scalp through the part and hairline.

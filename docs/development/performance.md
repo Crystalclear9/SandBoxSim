@@ -50,7 +50,7 @@ python tools/evaluate.py compare runs/evaluation/baseline-1 runs/evaluation/cand
 
 ## 建筑与模型缓存
 
-人物观察窗复用档案中的 `ResidentPortrait` 和 3D 世界，只在界面容器间移动；关闭后返回原容器，不创建第二份角色或重复骨架。观察窗最大为 1120×800，附带实时状态栏；展开后的视口更大，像素填充和 MSAA 成本也更高，`renderQuality.portrait.resolution` 记录实际尺寸；展开样本与紧凑档案不能当作同条件性能比较。`ui-portrait-window` 用于交互回归与实际模型观察。
+人物观察窗复用档案中的 `ResidentPortrait` 和 3D 世界，只在界面容器间移动；关闭后返回原容器，不创建第二份角色或重复骨架。观察窗最大为 1200×800，附带实时状态栏；展开后的视口更大，像素填充和 MSAA 成本也更高，`renderQuality.portrait.resolution` 记录实际尺寸；展开样本与紧凑档案不能当作同条件性能比较。`ui-portrait-window` 用于交互回归与实际模型观察。
 
 [WorldView3D.Buildings.cs](../../src/SandBoxSim.Godot/WorldView3D.Buildings.cs) 按槽位、生成号、身份、种类及完工状态维护建筑节点。道路变化更新朝向，地形变化更新位置和贴地石基；四角深度不变时复用基座网格。拆除立即移除节点，换世界或读档清空缓存。
 
