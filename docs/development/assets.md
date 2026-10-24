@@ -25,7 +25,7 @@
 |---|---|
 | [OpenGameArt / CDmir](https://opengameart.org/content/old-deer-male) | 原作标注 CC0，含鹿体态、复杂鹿角、眼部、UV 贴图和骨架；本轮采用并转成运行蒙皮 |
 | [0 A.D. 美术许可](https://github.com/0ad/0ad/blob/61a3b9507d974084e6badb88a0826bd89a6d5b8b/binaries/data/mods/public/art/LICENSE.txt) | 美术按 CC BY-SA 3.0 提供；本轮采用狼网格和灰狼贴图，保留来源提交、署名及衍生资产同许可 |
-| [Poly Haven](https://polyhaven.com/license) | CC0 模型、HDRI 与贴图可再分发；已有六种环境模型与扫描表面继续使用，调整岩石偏色、反光和地表混合 |
+| [Poly Haven](https://polyhaven.com/license) | CC0 模型、HDRI 与贴图可再分发；已有六种环境模型与扫描表面继续使用，采用 Leafy Grass 地表，校准岩石反光与地表混合 |
 | [ambientCG](https://docs.ambientcg.com/license/) | 资产 CC0，可作为材质来源；当前已有扫描表面覆盖所需材料，本轮未再下载重复贴图 |
 | MakeHuman / Blender Studio | 已采用的人体拓扑、皮肤、头发及手臂分别记录在[人物素材](human-assets.md)，继续保留；本轮修改衣装贴合、肩颈比例及皮肤反光 |
 | [Sketchfab Download API](https://sketchfab.com/developers/download-api/guidelines) | 有候选写实动物，但下载及逐模型许可需按平台授权流程核对；未绕过账号流程下载 |
@@ -35,6 +35,16 @@
 | 商业模型商店与生成模型 | 逐项核对原始资产再分发及账号条款；静态生成模型仍需重拓扑、UV、绑定与动作。本轮未购买、未把展示图当成可再分发资源 |
 
 UI 的层级和画布工具组织参考见[观察与界面](../guides/gameplay-observation.md)。来源模型改善了轮廓与材质基础，不等同于已达到当代写实大作的毛发、面部和动画品质；实际图片与边界见[模型系统](models.md)。
+
+## 表现与交互依据
+
+| 参考 | 当前实现 |
+|---|---|
+| [NVIDIA GPU Gems：复杂地形](https://developer.nvidia.com/gpugems/gpugems3/part-i-geometry/chapter-1-generating-complex-procedural-terrains-using-gpu) | 三向材质的法线在各投影切线方向还原；米制细节与远景采样分开控制。项目仍使用共享高度曲面，没有声称实现该文的 GPU 体素地形 |
+| [Godot：Standard Material 3D](https://docs.godotengine.org/en/stable/tutorials/3d/standard_material_3d.html) | 依据透明裁切、法线和粗糙度的实际用途处理叶片／发片、皮革、木石；检查真实纹理缓存，避免仅有配置而没有 mip 链 |
+| [NN/g：渐进呈现](https://www.nngroup.com/articles/progressive-disclosure/) | 世界画面保留主要控件，工具与资料按需展开；页签共享间距、字重、选中与悬停反馈，原有鼠标和键盘操作保持可见 |
+
+这些资料用于明确实现方法；素材页、许可与作者记录用于实际资源来源。界面没有引入网页运行时或外部 UI 素材包。
 
 ## 当前材质与几何
 
@@ -52,7 +62,9 @@ UI 的层级和画布工具组织参考见[观察与界面](../guides/gameplay-o
 
 资源文件与相应 `.import` 描述一起提交，Godot 自动导入缓存 `.godot/` 不提交。修改图集布局需要同步格子索引、UV、材质和导入设置；文件路径区分大小写，移动后同步 `res://` 引用。模型源码移动时保留对应 `.uid`。非 Godot 资源类型的模型 JSON 和许可 TXT 必须进入导出预设的 `include_filter`，普通运行直接读取导出数据，不需要 Blender。
 
-原素材、来源记录和正式文档配图分别保存。本轮调试截图属于 `.tools/tmp/<主题>/`，不能当成游戏资源替换材质。正式配图见 [图片索引](../images/README.md)，原始要求与素材来源见 [来源资料](../archive/README.md)。不再加载的生态工程插画和旧配方已从运行资源中移除。
+原素材、来源记录和正式文档配图分别保存。开发采样位于 `.tools/tmp/<主题>/`，正式配图见[图片索引](../images/README.md)，原始要求与素材来源见[来源资料](../archive/README.md)。运行资源由模型和材质入口直接读取。
+
+纹理维护使用 `./tools/godot.ps1 -Mode test -ReimportTextures`，在实际编辑器生命周期中执行 `texture_import_guard`；独立包导出自动执行并要求真实 mip 链核验成功。只修改 `.import` 配置而保留旧导入缓存，可能使游戏仍使用没有 mipmap 的纹理。
 
 ## 检查
 

@@ -19,7 +19,7 @@
 | `ecology-detail.png` | 扫描树木、蕨类、岩石与程序草本、灌木；`ecology-details` |
 | `model-surface-detail.png` | 衣料、靴子、动物与建筑近景；`model-details` |
 | `resident-tool-motion.gif` | 当前携带、作业与收纳动作；`actions` 的 30 帧原生采样，覆盖约 7 秒循环 |
-| `terrain-modern.png`、`terrain-closeup.png` | 地形、植被与水岸；公开 `visual-landscape` 第 40/80 帧 |
+| `terrain-modern.png`、`terrain-closeup.png` | 普通世界与 `--view=near` 的地形、植被和水岸 |
 | `architecture-detail.png`、`resident-forearm-detail.png` | 建筑和连续前臂；`architecture`、`forearms` |
 | `resident-handedness.png` | 左右手与远近景模型；`handedness` |
 | `living-homes.png`、`living-farms.png`、`living-paths.png` | 住房生活、农业与逐渐累积的土地痕迹 |
@@ -28,9 +28,9 @@
 
 ## 版本与复现
 
-建筑、人物动物、面部、衣装、网格近景、生态、工具库、现场手记、人物手记和展开观察窗更新于 2026-10-24，均为原生 Godot 渲染、1600×1000、2 秒采样延迟。使用 `interface=floating-field-v7` 和 `animalPresentation=authored-wildlife-v1`。模型图册暂停模拟；世界界面使用种子 839102、40 人，不作预先天数推进，但截图等待期间仍按正常 4× 倍率运行。
+建筑、人物动物、面部、衣装、网格近景、生态、地形远近景、工具库、现场手记、人物手记和展开观察窗更新于 2026-10-24，均为原生 Godot 渲染、1600×1000、2 秒采样延迟。使用 `interface=field-notebook-v8`、`animalPresentation=authored-wildlife-v2` 和 `landscapeSurface=oriented-meadow-v4`。模型图册暂停模拟；世界界面使用种子 839102、40 人，不作预先天数推进，但截图等待期间仍按正常 4× 倍率运行。
 
-地形远近景仍来自 2026-10-23 公开 `visual-landscape` 的第 40/80 帧、种子 839102、40 人、零模拟步进，未冒充本轮地形画面。
+地形远景使用普通世界入口；近景加 `--view=near`。两图用于查看实际扫描草叶地面、山坡、岸线和贴地，属于普通客户端采样，不作为固定帧评测成绩。
 
 前臂、左右手和动作专题保留各自先前采样；较早的住房、农业、小径与世界生活图只说明对应玩法。未更新图片中的 UI 不代表当前布局。所有图片均来自实际客户端，没有用概念图替代模型。
 
@@ -38,4 +38,4 @@
 
 [模型说明](../development/models.md) · [美术资源](../development/assets.md) · [人物素材](../development/human-assets.md) · [环境素材](../development/environment-assets.md) · [目录职责](../development/repository-layout.md)
 
-临时截帧和试版留在本轮忽略目录，选定配图后清理；不将临时检查图作为正式资源。旧程序动物的毛束和眨眼说明不适用于当前授权动物。
+旧程序动物的毛束和眨眼说明不适用于当前授权动物。

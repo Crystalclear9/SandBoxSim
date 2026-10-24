@@ -7,6 +7,7 @@ internal partial class AnimalRig : Node3D
     public Node3D Body = null!, Head = null!, Tail = null!,Neck=null!;
     public bool Predator;
     internal Vector3[]? RestSoles;
+    internal Node3D? Jaw;
     internal ShaderMaterial? EyeMaterial,LidMaterial;
     internal float Blink {get;private set;}
     private float _blinkClock,_blinkDelay=2.8f;
@@ -95,6 +96,11 @@ internal partial class AnimalRig : Node3D
         Tail.Rotation = new Vector3(0, 0, MathF.Sin(_phase * .6f) * .12f);
         FurSkeleton?.SetBonePoseRotation(1,Head.Basis.GetRotationQuaternion());
         FurSkeleton?.SetBonePoseRotation(2,Tail.Basis.GetRotationQuaternion());
+        if(Jaw!=null)
+        {
+            Jaw.Rotation=new Vector3(Mathf.Lerp(.16f,.07f+MathF.Sin(_phase*.5f)*.025f,_stride),0,0);
+            FurSkeleton?.SetBonePoseRotation(14,Jaw.Basis.GetRotationQuaternion());
+        }
         for(int side=0;side<2;side++)
         {
             Ears[side].Rotation=EarRest[side]+new Vector3(MathF.Sin(_phase*.61f+side*1.7f)*.06f,MathF.Sin(_phase*.39f+side*2.1f)*.10f*(1-_stride),0);

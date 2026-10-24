@@ -114,6 +114,10 @@ $samplePath = Join-Path (Get-Location).Path 'runs/render-sample.json'
 
 连续世界代码实验在三平台 CI 执行两阶段非 LLM 夹具、旧能力回放和 HTML 报告，并归档证据；不要求夹具通过递归能力筛选线。入口见 [连续世界实验](stateful-rsi.md)。
 
+## 纹理导入维护
+
+使用 `./tools/godot.ps1 -Mode test -ReimportTextures` 可在真实编辑器生命周期中重建模型与扫描表面的 mip 链，并检查实际缓存；独立包导出也自动执行。它不要求 Blender，不修改原始 PNG/JPG 像素。
+
 ---
 
 [文档导航](../README.md) · [项目首页](../../README.md)

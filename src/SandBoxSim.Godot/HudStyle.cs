@@ -146,6 +146,20 @@ internal static class HudStyle
         foreach(string state in new[]{"grabber","grabber_highlight","grabber_pressed"})theme.SetStylebox(state,"VScrollBar",Box(state=="grabber"?Border:Muted,2,0,false));
         var rule=Box(new Color(Border,.55f),0,0,false);rule.ContentMarginTop=1;
         theme.SetStylebox("separator","HSeparator",rule);
+        foreach(string type in new[]{"TabBar","TabContainer"})
+        {
+            theme.SetFontSize("font_size",type,14);
+            theme.SetColor("font_selected_color",type,Text);theme.SetColor("font_unselected_color",type,Muted);
+            theme.SetColor("font_hovered_color",type,Text);
+            foreach(string state in new[]{"tab_selected","tab_unselected","tab_hovered","tab_disabled"})
+            {
+                var tab=Box(state=="tab_selected"?Wash:state=="tab_hovered"?new Color(Wash,.45f):Colors.Transparent,6,10,false);
+                tab.ContentMarginTop=10;tab.ContentMarginBottom=10;tab.ShadowSize=0;
+                if(state=="tab_selected"){tab.BorderWidthBottom=2;tab.BorderColor=Accent;}
+                theme.SetStylebox(state,type,tab);
+            }
+            theme.SetConstant("h_separation",type,7);
+        }
         return theme;
     }
     private static Texture2D? _unchecked, _checked;

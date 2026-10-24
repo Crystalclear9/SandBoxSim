@@ -1,4 +1,4 @@
-"""Convert attributed deer/wolf sources to the game's 14-joint skin and UV surfaces.
+"""Convert attributed deer/wolf sources to the game's articulated skin and UV surfaces.
 
 Blender --background --factory-startup --disable-autoexec --python this_file --
   --species deer --source .tools/sources/cdmir-deer/deer1.blend --output <animal resource folder>
@@ -45,6 +45,7 @@ groups = {'Hip': 0, 'Backbone': 0, 'Backbone.001': 0, 'Backbone.002': 11, 'Head'
           'Head_R.001': 12, 'Head_L.001': 13}
 if wolf:
     groups={'Bone':0,'Bone.005':0,'Bone.001':0,'Bone.012':0,'Neck1':11,'Neck2':11,'Neck3':1,'Head':1,'Jaw1':1,'Jaw2':1,**{f'Tail{i}':2 for i in range(1,5)}}
+    groups['Jaw2']=14
 for leg, name in enumerate(('Frontleg_R', 'Frontleg_L', 'Backleg_R', 'Backleg_L')):
     if wolf:
         suffix='R' if leg%2==0 else 'L'
@@ -64,6 +65,7 @@ for leg, name in enumerate(('Frontleg_R', 'Frontleg_L', 'Backleg_R', 'Backleg_L'
     sole.y = .007
     soles.append(rounded(sole))
 rest.extend((joint('Neck1'),point(Vector((-.18,-1.18,2.06))),point(Vector((.18,-1.18,2.06)))) if wolf else (joint('Backbone.002'), joint('Head_R.001'), joint('Head_L.001')))
+if wolf: rest.append(joint('Jaw2'))
 
 surfaces = {}
 for name in (('Wolf_mesh',) if wolf else ('Body', 'Head', 'Eyes', 'Horns')):

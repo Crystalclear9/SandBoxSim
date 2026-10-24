@@ -30,6 +30,7 @@ $stageRoot=[IO.Path]::GetFullPath((Join-Path $repositoryRoot '.tools/export-stag
 $stage=Join-Path $stageRoot ([Guid]::NewGuid().ToString('N'))
 [IO.Directory]::CreateDirectory($stage) | Out-Null
 $gameRoot=Join-Path $repositoryRoot 'src/SandBoxSim.Godot'
+Invoke-GodotTextureReimport -GodotPath $GodotPath -GameRoot $gameRoot -LogFile (Join-Path $repositoryRoot '.tools/texture-import.log') -TimeoutSeconds $TimeoutSeconds
 $preset=Join-Path $gameRoot 'export_presets.cfg'
 $original=[IO.File]::ReadAllBytes($preset)
 $log=Join-Path $repositoryRoot '.tools/game-export.log'

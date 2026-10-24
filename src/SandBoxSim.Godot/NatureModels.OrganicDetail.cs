@@ -141,7 +141,7 @@ pores/=1.0+pow(max(length(dFdx(point)),length(dFdy(point)))*1100.0,2.0);
 float wear=sin(point.z*57.0+point.x*21.0)*0.035;
 float grain=leather_noise(point*420.0);
 grain/=1.0+pow(max(length(dFdx(point)),length(dFdy(point)))*420.0,2.0);
-ALBEDO=dye.rgb*(0.88+pores*0.05+grain*.045+wear);ROUGHNESS=0.64+pores*0.06+grain*.06;SPECULAR=0.28;
+ALBEDO=dye.rgb*(0.88+pores*0.05+grain*.045+wear);ROUGHNESS=0.76+pores*0.04+grain*.04;SPECULAR=0.18;
 vec3 dx=dFdx(VERTEX),dy=dFdy(VERTEX),tx=cross(dy,NORMAL),ty=cross(NORMAL,dx);float det=dot(dx,tx);
 float height=grain*.00015+pores*.00004;
 if(abs(det)>.0000000001)NORMAL=normalize(abs(det)*NORMAL-sign(det)*(dFdx(height)*tx+dFdy(height)*ty));

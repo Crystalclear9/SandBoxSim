@@ -21,7 +21,13 @@ internal static class ScannedSurfaces
         if(!ResourceLoader.Exists(path))throw new InvalidOperationException("Missing scanned surface: "+path);
         texture=GD.Load<Texture2D>(path);
         if(texture.GetWidth()!=expected.X||texture.GetHeight()!=expected.Y)throw new InvalidOperationException("Unexpected surface resolution");
+        RequireMipmaps(texture);
         Textures[key]=texture;return texture;
+    }
+    internal static void RequireMipmaps(Texture2D texture)
+    {
+        using var image=texture.GetImage();
+        if(image==null||!image.HasMipmaps())throw new InvalidOperationException("Imported mip chain missing: "+texture.ResourcePath+". Run tools/godot.ps1 -Mode test -ReimportTextures.");
     }
     public static Texture2D NormalRoughness(Texture2D normalMap,Texture2D roughMap)
     {

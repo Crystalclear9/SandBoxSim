@@ -4,10 +4,12 @@ param(
     [string]$Mode = 'run',
     [string]$GodotPath = $env:GODOT_EXE,
     [ValidateSet('Debug', 'Release')]
-    [string]$Configuration = 'Debug'
+    [string]$Configuration = 'Debug',
+    [switch]$ReimportTextures
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if ($Mode -eq 'build' -and $ReimportTextures) { throw 'Use -Mode test, run or editor with -ReimportTextures.' }
 . (Join-Path $PSScriptRoot 'build-lib.ps1')
 $repositoryRoot = Split-Path $PSScriptRoot -Parent
 $gameRoot = Join-Path $repositoryRoot 'src/SandBoxSim.Godot'
@@ -34,6 +36,7 @@ $engineVersion = & $GodotPath --headless --version
 if ($LASTEXITCODE -ne 0 -or $engineVersion -notmatch "4\.7\.2.*mono") { throw "Godot 4.7.2 .NET executable required: $GodotPath" }
 & $GodotPath --log-file $engineLog --headless --path $gameRoot --editor --import --quit
 if ($LASTEXITCODE -ne 0) { throw "Godot asset import failed ($LASTEXITCODE)" }
+if ($ReimportTextures) { Invoke-GodotTextureReimport -GodotPath $GodotPath -GameRoot $gameRoot -LogFile (Join-Path $repositoryRoot '.tools/texture-import.log') }
 if ($Mode -eq 'editor') {
     & $GodotPath --log-file $engineLog --path $gameRoot --editor
 } elseif ($Mode -eq 'test') {

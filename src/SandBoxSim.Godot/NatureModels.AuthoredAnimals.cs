@@ -17,8 +17,8 @@ internal sealed partial class NatureModels
 uniform sampler2D albedo_map:source_color,filter_linear_mipmap_anisotropic;
 uniform sampler2D normal_map:hint_normal,filter_linear_mipmap_anisotropic;uniform bool has_normal=true;uniform float gain=1.0;
 void fragment(){ALBEDO=texture(albedo_map,UV).rgb*gain;NORMAL_MAP=has_normal?texture(normal_map,UV).rgb:vec3(.5,.5,1);NORMAL_MAP_DEPTH=.32;ROUGHNESS=.86;SPECULAR=.18;}"}};
-        material.SetShaderParameter("albedo_map",GD.Load<Texture2D>(folder+texture+".png"));
-        if(!wolf)material.SetShaderParameter("normal_map",GD.Load<Texture2D>(folder+texture+"-normal.png"));
+        var albedo=GD.Load<Texture2D>(folder+texture+".png");ScannedSurfaces.RequireMipmaps(albedo);material.SetShaderParameter("albedo_map",albedo);
+        if(!wolf){var normal=GD.Load<Texture2D>(folder+texture+"-normal.png");ScannedSurfaces.RequireMipmaps(normal);material.SetShaderParameter("normal_map",normal);}
         material.SetShaderParameter("has_normal",!wolf);
         material.SetShaderParameter("gain",wolf?.76f:.90f);
         return _residentMaterials[key]=material;
@@ -29,7 +29,7 @@ void fragment(){ALBEDO=texture(albedo_map,UV).rgb*gain;NORMAL_MAP=has_normal?tex
         string folder=AuthoredRoot(wolf);
         string raw=FileAccess.GetFileAsString(folder+(wolf?"wolf-authored.mesh.json":"deer-authored.mesh.json"));
         string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
-        if(hash!=(wolf?"19c72efc9c7f0e95248723e51a86c9f268937988db661e961332fac359deb303":"59c8a6ae08b32f185ab3670d64ebb05660cc369301f6911cb2c3a2f323b9e280"))throw new InvalidOperationException("Authored deer hash mismatch");
+        if(hash!=(wolf?"a1e1ce89988afefa3fd8af54ad46665f83a2f29cefe69e628678e0c11656327f":"59c8a6ae08b32f185ab3670d64ebb05660cc369301f6911cb2c3a2f323b9e280"))throw new InvalidOperationException("Authored animal hash mismatch");
         using var document=JsonDocument.Parse(raw);var root=document.RootElement;
         if(root.GetProperty("source").GetProperty("license").GetString()!=(wolf?"CC-BY-SA-3.0":"CC0-1.0")||!FileAccess.FileExists(folder+"LICENSE.txt"))throw new InvalidOperationException("Missing deer licence");
         float[] Floats(JsonElement e){var a=new float[e.GetArrayLength()];int i=0;foreach(var v in e.EnumerateArray())a[i++]=v.GetSingle();return a;}
@@ -64,7 +64,8 @@ void fragment(){ALBEDO=texture(albedo_map,UV).rgb*gain;NORMAL_MAP=has_normal?tex
             rig.RestSoles[i]=data.Soles[i]-data.Joints[4+i*2];
         }
         for(int i=0;i<2;i++){rig.Ears[i]=new Node3D {Name=i==0?"LeftEar":"RightEar",Position=data.Joints[12+i]-data.Joints[1]};rig.Head.AddChild(rig.Ears[i]);}
-        var nodes=new Node3D[14];AnimalBones(rig).CopyTo(nodes,0);nodes[12]=rig.Ears[0];nodes[13]=rig.Ears[1];
+        var nodes=new Node3D[data.Joints.Length];AnimalBones(rig).CopyTo(nodes,0);nodes[12]=rig.Ears[0];nodes[13]=rig.Ears[1];
+        if(wolf){rig.Jaw=new Node3D {Name="Jaw",Position=data.Joints[14]-data.Joints[1]};rig.Head.AddChild(rig.Jaw);nodes[14]=rig.Jaw;}
         var skeleton=rig.FurSkeleton=new Skeleton3D {Name="FurSkeleton"};rig.Body.AddChild(skeleton);var skin=new Skin();
         for(int i=0;i<nodes.Length;i++)skeleton.AddBone("AnimalBone"+i);
         for(int i=0;i<nodes.Length;i++)
@@ -83,13 +84,14 @@ void fragment(){ALBEDO=texture(albedo_map,UV).rgb*gain;NORMAL_MAP=has_normal?tex
         var rig=AuthoredAnimal(wolf);var peer=AuthoredAnimal(wolf);var mesh=rig.FurSkin!.Mesh;
         try
         {
-        if(mesh!=peer.FurSkin!.Mesh||rig.FurSkeleton!.GetBoneCount()!=14)throw new InvalidOperationException("Animal cache or skeleton mismatch");
+        int boneCount=wolf?15:14;
+        if(mesh!=peer.FurSkin!.Mesh||rig.FurSkeleton!.GetBoneCount()!=boneCount)throw new InvalidOperationException("Animal cache or skeleton mismatch");
         int triangles=0;
         for(int s=0;s<mesh.GetSurfaceCount();s++)
         {
             var a=mesh.SurfaceGetArrays(s);var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();var n=a[(int)Mesh.ArrayType.Normal].AsVector3Array();
             var bs=a[(int)Mesh.ArrayType.Bones].AsInt32Array();var ws=a[(int)Mesh.ArrayType.Weights].AsFloat32Array();triangles+=a[(int)Mesh.ArrayType.Index].AsInt32Array().Length/3;
-            for(int i=0;i<p.Length;i++){float sum=0;for(int k=0;k<4;k++){if(bs[i*4+k]<0||bs[i*4+k]>=14||ws[i*4+k]<0)throw new InvalidOperationException("Invalid deer binding");sum+=ws[i*4+k];}if(!p[i].IsFinite()||!n[i].IsFinite()||MathF.Abs(sum-1)>4f/65535f)throw new InvalidOperationException("Invalid authored deer surface");}
+            for(int i=0;i<p.Length;i++){float sum=0;for(int k=0;k<4;k++){if(bs[i*4+k]<0||bs[i*4+k]>=boneCount||ws[i*4+k]<0)throw new InvalidOperationException("Invalid animal binding");sum+=ws[i*4+k];}if(!p[i].IsFinite()||!n[i].IsFinite()||MathF.Abs(sum-1)>4f/65535f)throw new InvalidOperationException("Invalid authored animal surface");}
         }
         if(triangles>24000||triangles<10000)throw new InvalidOperationException("Deer surface budget changed");
         foreach(float slope in new[]{0f,.16f,-.16f})for(int frame=0;frame<24;frame++)
@@ -98,10 +100,11 @@ void fragment(){ALBEDO=texture(albedo_map,UV).rgb*gain;NORMAL_MAP=has_normal?tex
             rig.Pose(.04f,true,false,false,Ground);
             for(int leg=0;leg<4;leg++){var foot=rig.Body.Transform*(rig.Legs[leg].Transform*(rig.Knees[leg].Transform*rig.RestSoles![leg]));if(!foot.IsFinite()||foot.Y-Ground(foot)<-.035f||foot.Y-Ground(foot)>.14f)throw new InvalidOperationException($"Authored animal terrain contact: wolf={wolf}, slope={slope}, frame={frame}, leg={leg}, gap={foot.Y-Ground(foot)}");}
         }
-        var pose=rig.Head.Transform;rig.Pose(1,true,true);if(pose!=rig.Head.Transform)throw new InvalidOperationException("Paused authored deer moved");
+        if(wolf){var moving=rig.Jaw!.Rotation.X;for(int i=0;i<90;i++)rig.Pose(1f/60,false,false);if(rig.Jaw.Rotation.X<=moving||!rig.Jaw.Transform.IsFinite())throw new InvalidOperationException("Wolf jaw does not settle from moving to resting pose");}
+        var pose=rig.Head.Transform;var jaw=rig.Jaw?.Transform;rig.Pose(1,true,true);if(pose!=rig.Head.Transform||jaw!=rig.Jaw?.Transform)throw new InvalidOperationException("Paused authored animal moved");
         }
         finally {rig.Free();peer.Free();}
       }
-      GD.Print("AUTHORED_ANIMALS_PASS: CC0 deer/CC-BY-SA wolf surfaces, cache, 14 joints, weights, budgets, slopes and pause");
+      GD.Print("AUTHORED_ANIMALS_PASS: attributed surfaces, cache, 14/15 joints, weights, budgets, slopes, articulated jaw and pause");
     }
 }

@@ -130,4 +130,4 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 [文档导航](../README.md) · [项目首页](../../README.md)
 
-当前渲染元数据为 `animalPresentation=authored-wildlife-v1`、`interface=floating-field-v7`、`architecture=gable-truss-v5`、`garmentMaterial=fitted-linen-v4`。授权鹿狼、贴图、14 关节和界面布局均已改变，需重采相同场景的视觉和耗时基线；不能把换资产造成的耗时变化算作代码优化收益。正式动物与保留的程序校准动物检查分别运行。
+当前渲染元数据为 `animalPresentation=authored-wildlife-v2`、`interface=field-notebook-v8`、`architecture=weathered-craft-v6`、`garmentMaterial=fitted-leather-v5`、`landscapeSurface=oriented-meadow-v4`、`habitatDetail=two-sided-leaves-v4`。狼的下颌、14/15 关节、地表材质、法线投影、实际 mip 链和界面页签均已改变，需重采相同场景的视觉和耗时基线；不能把换资产造成的耗时变化算作代码优化收益。正式动物与保留的程序校准动物检查分别运行。

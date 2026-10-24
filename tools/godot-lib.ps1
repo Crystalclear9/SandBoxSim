@@ -34,6 +34,22 @@ function Assert-GodotExportLog {
         throw 'Godot export failed; inspect the project-local export log. Previous game package was preserved.'
     }
 }
+function Invoke-GodotTextureReimport {
+    param([string]$GodotPath,[string]$GameRoot,[string]$LogFile,[int]$TimeoutSeconds=180)
+    if ($GodotPath.EndsWith('_console.exe',[StringComparison]::OrdinalIgnoreCase)) {
+        $native=$GodotPath.Substring(0,$GodotPath.Length-'_console.exe'.Length)+'.exe'
+        if (Test-Path -LiteralPath $native -PathType Leaf) { $GodotPath=$native }
+    }
+    $options=@{FilePath=$GodotPath;PassThru=$true;ArgumentList=@('--headless','--editor','--path',"`"$GameRoot`"",'--log-file',"`"$LogFile`"",'--','--reimport-textures');RedirectStandardOutput=$LogFile+'.stdout';RedirectStandardError=$LogFile+'.stderr'}
+    if ($IsWindows) { $options.WindowStyle='Hidden' }
+    $process=Start-Process @options
+    if (-not $process.WaitForExit($TimeoutSeconds*1000)) {
+        $process.Kill($true);$process.WaitForExit();throw 'Texture import exceeded its time limit.'
+    }
+    $log=[IO.File]::ReadAllText($options.RedirectStandardOutput)+[IO.File]::ReadAllText($options.RedirectStandardError)
+    Assert-GodotExportLog -ExitCode $process.ExitCode -Log $log
+    if ($log -notmatch 'TEXTURE_REIMPORT_PASS: [1-9][0-9]* actual mip chains verified') { throw 'Texture import did not verify actual mip data.' }
+}
 function Resolve-GodotExecutable {
     param([string]$Explicit, [string]$InstallRoot = (Join-Path (Split-Path -Parent $PSScriptRoot) '.tools/godot-4.7.2'),
         [ValidateSet('windows','linux','macos')][string]$Platform = $(if ($IsWindows) {'windows'} elseif ($IsMacOS) {'macos'} else {'linux'}))

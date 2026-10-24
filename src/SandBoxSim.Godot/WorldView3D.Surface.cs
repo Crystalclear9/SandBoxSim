@@ -104,12 +104,20 @@ vec3 top_normal(vec3 sample_normal,vec3 base){
     vec3 bitangent=normalize(cross(tangent,base));
     return normalize(tangent*sample_normal.x+bitangent*sample_normal.y+base*max(.2,sample_normal.z));
 }
-vec3 rock_sample(sampler2D map,vec3 p,vec3 weights){
-    return texture(map,p.zy).rgb*weights.x+texture(map,p.xz).rgb*weights.y+texture(map,p.xy).rgb*weights.z;
+vec3 rock_sample(sampler2D map,vec3 p,vec3 weights,vec3 base){
+    vec3 side=sign(base+vec3(.000001));
+    return texture(map,vec2(p.z,p.y*side.x)).rgb*weights.x+texture(map,p.xz).rgb*weights.y+texture(map,vec2(p.x,-p.y*side.z)).rgb*weights.z;
 }
 vec3 decode_normal(vec3 packed){vec2 xy=packed.rg*2.0-1.0;return normalize(vec3(xy,sqrt(max(.01,1.0-dot(xy,xy)))));}
 vec2 tile_hash(vec2 p){return fract(sin(vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))))*43758.5453);}
-vec3 meadow_sample(sampler2D map,vec2 uv){
+vec3 meadow_cell(sampler2D map,vec2 uv,vec2 cell,vec2 dx,vec2 dy,bool normal_data){
+    vec2 random=tile_hash(cell);float angle=floor(random.x*4.0)*1.570796327;
+    mat2 rotate=mat2(vec2(cos(angle),sin(angle)),vec2(-sin(angle),cos(angle)));
+    vec3 value=textureGrad(map,rotate*uv+random*7.0,rotate*dx,rotate*dy).rgb;
+    if(normal_data)value.rg=transpose(rotate)*(value.rg*2.0-1.0)*.5+.5;
+    return value;
+}
+vec3 meadow_sample(sampler2D map,vec2 uv,bool normal_data){
     // Three offset samples on a triangular lattice remove the scanned lawn's
     // repeated rows. Explicit gradients retain mip levels across cell boundaries.
     vec2 skew=vec2(uv.x+uv.y*.57735027,uv.y*1.15470054)*.43;
@@ -118,9 +126,9 @@ vec3 meadow_sample(sampler2D map,vec2 uv){
     else{a=base+vec2(1);b=base+vec2(0,1);c=base+vec2(1,0);w=vec3(f.x+f.y-1.0,1.0-f.x,1.0-f.y);}
     w=w*w;w/=dot(w,vec3(1));
     vec2 dx=dFdx(uv),dy=dFdy(uv);
-    return textureGrad(map,uv+tile_hash(a)*7.0,dx,dy).rgb*w.x
-        +textureGrad(map,uv+tile_hash(b)*7.0,dx,dy).rgb*w.y
-        +textureGrad(map,uv+tile_hash(c)*7.0,dx,dy).rgb*w.z;
+    return meadow_cell(map,uv,a,dx,dy,normal_data)*w.x
+        +meadow_cell(map,uv,b,dx,dy,normal_data)*w.y
+        +meadow_cell(map,uv,c,dx,dy,normal_data)*w.z;
 }
 void fragment(){
     vec2 map_uv=clamp(world_position.xz*.5/map_size,vec2(0),vec2(1));
@@ -141,18 +149,19 @@ void fragment(){
     weights=mix(weights,vec4(0,0,0,1),sediment*.88);
     float wear=clamp(trail(grid)*.9+texture(material_map,map_uv).g*.12,0.0,.95);
     weights=mix(weights,vec4(0,0,0,1),wear);
-    vec2 grass_uv=world_position.xz/2.51;
+    vec2 grass_uv=world_position.xz/2.0;
     vec2 earth_uv=world_position.xz/1.3;
     vec2 forest_uv=world_position.xz*.22;
     vec3 rock_uv=world_position/2.7;
     vec3 projection=pow(abs(base),vec3(4));projection/=max(.001,projection.x+projection.y+projection.z);
     grass_uv=mat2(vec2(.819,.574),vec2(-.574,.819))*grass_uv;
-    vec3 grass=meadow_sample(grass_diffuse,grass_uv);
+    vec3 grass=meadow_sample(grass_diffuse,grass_uv,false);
+    grass=mix(grass,vec3(dot(grass,vec3(.2126,.7152,.0722))),.22)*.74;
     float meadow=noise2(world_position.xz*.17)+noise2(world_position.xz*.43)*.28;
     grass*=mix(vec3(.72,.90,.71),vec3(.97,.96,.82),smoothstep(.25,.95,meadow));
     vec3 forest=texture(forest_diffuse,forest_uv).rgb;
     vec3 earth=texture(earth_diffuse,earth_uv).rgb;
-    vec3 rock=rock_sample(rock_diffuse,rock_uv,projection);
+    vec3 rock=rock_sample(rock_diffuse,rock_uv,projection,base);
     // Dry mineral faces retain broad strata, without glittering pale flecks.
     float mineral=dot(rock,vec3(.2126,.7152,.0722));
     rock=mix(rock,vec3(mineral)*vec3(1.02,1.01,.96),.35);
@@ -171,19 +180,26 @@ void fragment(){
     float lava=special.z;colour=mix(colour,vec3(.065,.045,.035),lava);
     EMISSION=vec3(1.0,.10,.005)*pow(max(0.0,sin(world_position.x*5.0+world_position.z*3.0+noise2(world_position.xz*2.0)*4.0)),24.0)*lava*.7;
     ALBEDO=colour*clamp(texture(tint_map,map_uv).rgb/vec3(.9,.94,.85),vec3(0),vec3(2));
-    vec3 grass_data=meadow_sample(grass_nr,grass_uv),forest_data=texture(forest_nr,forest_uv).rgb;
-    vec3 earth_data=texture(earth_nr,earth_uv).rgb,rock_data=rock_sample(rock_nr,rock_uv,projection);
+    vec3 grass_data=meadow_sample(grass_nr,grass_uv,true),forest_data=texture(forest_nr,forest_uv).rgb;
+    vec3 side=sign(base+vec3(.000001));
+    vec3 rdx=texture(rock_nr,vec2(rock_uv.z,rock_uv.y*side.x)).rgb;
+    vec3 rdy=texture(rock_nr,rock_uv.xz).rgb;
+    vec3 rdz=texture(rock_nr,vec2(rock_uv.x,-rock_uv.y*side.z)).rgb;
+    vec3 earth_data=texture(earth_nr,earth_uv).rgb,rock_data=rdx*projection.x+rdy*projection.y+rdz*projection.z;
     float rough=grass_data.b*weights.x+forest_data.b*weights.y+rock_data.b*weights.z+earth_data.b*weights.w;
     ROUGHNESS=clamp(rough-shore*.10,.64,.98);SPECULAR=.16;
     vec3 gn=decode_normal(grass_data);gn.xy=mat2(vec2(.819,-.574),vec2(.574,.819))*gn.xy;
     vec3 grain=gn*weights.x+decode_normal(forest_data)*weights.y+decode_normal(earth_data)*weights.w;
-    vec3 rn=decode_normal(rock_data);
-    grain+=rn*weights.z;grain.xy*=mix(.30,.40,weights.z);
-    vec3 n=top_normal(grain,base);
+    // Decode each projection in its own tangent frame; packed RGB cannot
+    // be blended first and interpreted as a single upward-facing normal.
+    vec3 rx=decode_normal(rdx),ry=decode_normal(rdy),rz=decode_normal(rdz);
+    vec3 rock_detail=vec3(0,rx.y*side.x,rx.x)*projection.x+vec3(ry.x,0,ry.y)*projection.y+vec3(rz.x,-rz.y*side.z,0)*projection.z;
+    grain.z+=weights.z;grain.xy*=.26;
+    vec3 n=normalize(top_normal(grain,base)+rock_detail*weights.z*.32);
     NORMAL=normalize(mat3(VIEW_MATRIX)*n);
 }"};
         var material=new ShaderMaterial {Shader=shader};
-        foreach(var layer in new[]{("grass","grass_ground"),("earth","brown_mud_leaves_01"),("rock","rock_face_03")})
+        foreach(var layer in new[]{("grass","leafy_grass"),("earth","brown_mud_leaves_01"),("rock","rock_face_03")})
         {
             material.SetShaderParameter(layer.Item1+"_diffuse",ScannedSurfaces.Map(layer.Item2,"diffuse"));
             material.SetShaderParameter(layer.Item1+"_nr",ScannedSurfaces.NormalRoughness(ScannedSurfaces.Map(layer.Item2,"normal"),ScannedSurfaces.Map(layer.Item2,"roughness")));

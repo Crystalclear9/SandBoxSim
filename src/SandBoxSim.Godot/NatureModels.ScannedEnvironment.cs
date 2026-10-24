@@ -41,6 +41,7 @@ VERTEX.x+=(gust*.022+flutter*.004)*t*t*fade;VERTEX.z+=cos(TIME*.61+root.z*.21)*.
 }
 void fragment(){
 if(!FRONT_FACING){NORMAL=-NORMAL;}
+if(!FRONT_FACING){NORMAL=-NORMAL;}
 vec2 tex_uv=UV*uv_scale+uv_offset;
 vec3 root=(MODEL_MATRIX*vec4(0,0,0,1)).xyz;
 float variation=sin(root.x*1.73+root.z*2.41)*.035;

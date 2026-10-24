@@ -398,9 +398,9 @@ public partial class WorldView3D : MapView
         var quality=new Dictionary<string,object> { ["worldPresentationEnabled"]=WorldPresentationEnabled,["shadowMode"]=_sunlight.DirectionalShadowMode.ToString(),
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
-            ["landscapeSurface"]="mineral-meadow-v3",["habitatDetail"]="translucent-leaves-v3",
-            ["architecture"]="gable-truss-v5",["garmentMaterial"]="fitted-linen-v4",["interface"]="floating-field-v7",
-            ["animalPresentation"]="authored-wildlife-v1" };
+            ["landscapeSurface"]="oriented-meadow-v4",["habitatDetail"]="two-sided-leaves-v4",
+            ["architecture"]="weathered-craft-v6",["garmentMaterial"]="fitted-leather-v5",["interface"]="field-notebook-v8",
+            ["animalPresentation"]="authored-wildlife-v2" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
         return quality;
@@ -528,6 +528,7 @@ public partial class WorldView3D : MapView
         for(int y=0;y<=height;y++)for(int x=0;x<=width;x++)coarse[x,y]=VertexHeight(x,y);
         _groundHeights=new float[nx+1,ny+1];
         float Cubic(float a,float b,float c,float d,float t)=>.5f*(2*b+(c-a)*t+(2*a-5*b+4*c-d)*t*t+(-a+3*b-3*c+d)*t*t*t);
+        float CubicSlope(float a,float b,float c,float d,float t)=>.5f*((c-a)+2*(2*a-5*b+4*c-d)*t+3*(-a+3*b-3*c+d)*t*t);
         float Sample(int x,int y)=>coarse[Math.Clamp(x,0,width),Math.Clamp(y,0,height)];
         var waterWeights=new float[width,height];
         var foundation=new float[width+1,height+1];
@@ -555,7 +556,8 @@ public partial class WorldView3D : MapView
         {
             float fx=x/(float)GroundDetail,fy=y/(float)GroundDetail;int ix=(int)fx,iy=(int)fy;float u=fx-ix,v=fy-iy;
             float Row(int offset)=>Cubic(Sample(ix-1,iy+offset),Sample(ix,iy+offset),Sample(ix+1,iy+offset),Sample(ix+2,iy+offset),u);
-            float h=Cubic(Row(-1),Row(0),Row(1),Row(2),v);
+            float r0=Row(-1),r1=Row(0),r2=Row(1),r3=Row(2);
+            float h=Cubic(r0,r1,r2,r3,v);
             float wet=WaterMask(fx,fy);h=Mathf.Lerp(h,MathF.Min(h,-.25f),Math.Clamp(wet*1.7f,0,1));
             // Small stable relief; water and paved surfaces keep an even bed.
             var tile=Game.Sim.World.TileAt(Math.Min(ix,width-1),Math.Min(iy,height-1));
@@ -563,7 +565,11 @@ public partial class WorldView3D : MapView
             if(tile.Terrain==TerrainKind.Water)relief=0;
             float bank=Mathf.SmoothStep(.04f,.22f,wet)*(1-Mathf.SmoothStep(.42f,.60f,wet));
             float erosion=(TerrainNoise(fx*1.8f,fy*1.8f,Game.Sim.World.Seed)-.5f)*.14f*bank*relief;
-            _groundHeights[x,y]=h+erosion+relief*(1-wet)*(1-tile.FootTraffic*.65f)*NaturalRelief(fx,fy,Game.Sim.World.Seed);
+            float RowSlope(int offset)=>CubicSlope(Sample(ix-1,iy+offset),Sample(ix,iy+offset),Sample(ix+1,iy+offset),Sample(ix+2,iy+offset),u);
+            float slope=new Vector2(Cubic(RowSlope(-1),RowSlope(0),RowSlope(1),RowSlope(2),v),CubicSlope(r0,r1,r2,r3,v)).Length()*.5f;
+            float exposed=Mathf.SmoothStep(.18f,.7f,slope);
+            float rockRelief=(1-MathF.Abs(TerrainNoise(fx*1.1f+7,fy*1.1f-3,Game.Sim.World.Seed)*2-1)-.5f)*.16f*exposed;
+            _groundHeights[x,y]=h+erosion+relief*(1-wet)*(1-tile.FootTraffic*.65f)*(NaturalRelief(fx,fy,Game.Sim.World.Seed)+rockRelief);
         }
         for(int y=0;y<=ny;y++)for(int x=0;x<=nx;x++)
         {

@@ -177,9 +177,18 @@ ROUGHNESS = 0.93; SPECULAR = 0.18;
         if(job is JobType.Gatherer or JobType.Hunter or JobType.Trader)
         {
             rig.PackMount=new Node3D {Name="PackMount",Position=new(0,1.02f,TorsoSurface(0,1.02f,true).Z+.066f)};rig.Torso.AddChild(rig.PackMount);
-            Sculpt(rig.PackMount,Loft("leather-pack",new[]{new Vector4(-.145f,0,.10f,.045f),new(-.12f,0,.13f,.065f),new(.10f,0,.12f,.060f),new(.15f,0,.09f,.047f)}),Vector3.Zero,ResidentMaterial("#786346"),new(-MathF.PI/2,0,0));
-            Detail(rig.PackMount,"masonry",new(0,.11f,.053f),new(.22f,.09f,.025f),"#a18c68");
-            foreach(float x in new[]{-.075f,.075f})FineBeam(rig.PackMount,new(x,.10f,.065f),new(x,-.10f,.065f),.015f,"#514237");
+            Sculpt(rig.PackMount,PackBody(),Vector3.Zero,LeatherSurface("#665141"),new(-MathF.PI/2,0,0));
+            Sculpt(rig.PackMount,PackFlap(),Vector3.Zero,LeatherSurface("#76604a"));
+            foreach(int side in new[]{-1,1})
+            {
+                Sculpt(rig.PackMount,PackStrap(side),Vector3.Zero,LeatherSurface("#493b31"));
+                float x=side*.065f,y=-.018f,z=PackDepth(x,y)+.005f;
+                foreach(float edge in new[]{-1f,1f})
+                {
+                    Detail(rig.PackMount,"box",new(x+edge*.012f,y,z),new(.003f,.033f,.003f),"#8d8067");
+                    Detail(rig.PackMount,"box",new(x,y+edge*.015f,z),new(.027f,.003f,.003f),"#8d8067");
+                }
+            }
         }
     }
 }

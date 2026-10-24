@@ -56,7 +56,7 @@ python tools/evaluate.py verify runs/evaluation/visual-example
 
 `scenarios/visual-model-details.json` 提供衣料、靴子、鹿、狼和两类住房的实际共享网格近景，语义区域标注居民、鹿、狼及住房。它用于检查几何与材质表现，不包含专用展示模型或模拟任务。
 
-`scenarios/visual-animal-heads.json` 提供正式鹿狼模型的正侧面裁切；当前模型使用授权源 UV 与 14 关节，`animalPresentation=authored-wildlife-v1`。新旧资产需分别建立基线，不能将更换素材带来的耗时差异视为程序优化收益。
+`scenarios/visual-animal-heads.json` 提供正式鹿狼模型的正侧面裁切；当前模型使用授权源 UV，鹿 14 / 狼 15 关节，`animalPresentation=authored-wildlife-v2`。新旧资产需分别建立基线，不能将更换素材带来的耗时差异视为程序优化收益。
 
 `scenarios/visual-wardrobe.json` 用同一身份的实际职业网格展示三种剪裁的正背面，便于观察衣身轮廓、卷袖、背包和下摆。模型使用世界共用网格，图册不实例化模拟居民。
 

@@ -21,13 +21,15 @@
 
 岩石颜色向中性灰收束，降低金黄偏色与法线/高光；植物保留源颜色与透光，降低法线起伏。浆果地使用九组连枝复叶灌丛，叶片和叶柄具有真实连接；未重新下载或替换六种扫描网格。
 
+草地表面采用 Charlotte Baglioni 的 [Leafy Grass](https://polyhaven.com/a/leafy_grass)，颜色、OpenGL 法线与粗糙度 PNG/JPG 保留官方原始字节。随机旋转只在着色器中完成，法线方向同步转换，不重绘原贴图。
+
 ## 扫描表面材质
 
 地表、建筑与衣料使用独立的可平铺扫描表面，清单在 [materials/scanned/manifest.json](../../src/SandBoxSim.Godot/assets/materials/scanned/manifest.json)，署名在 [LICENSE.txt](../../src/SandBoxSim.Godot/assets/materials/scanned/LICENSE.txt)。八种素材均来自 Poly Haven、采用 CC0，保留 22 张 1K 原始贴图的官方 URL、尺寸、文件大小及 SHA-256：
 
 | 素材 | 用途 | 原始覆盖宽度 |
 |---|---|---:|
-| `grass_ground` | 草地颜色、法线、粗糙度 | 2.51 米 |
+| `leafy_grass` | 有草叶、落叶和细枝的草地颜色、法线、粗糙度 | 2 米 |
 | `brown_mud_leaves_01` | 土壤、湿岸与踩踏区域 | 1.3 米 |
 | `rock_face_03` | 裸坡与石作表面 | 2.7 米 |
 | `wood_planks_grey` | 木墙与梁柱 | 1.5 米 |

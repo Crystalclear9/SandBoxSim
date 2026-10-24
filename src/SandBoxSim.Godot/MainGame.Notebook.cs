@@ -7,7 +7,7 @@ public partial class MainGame
     {
         Color paper=HudStyle.Paper,ink=HudStyle.PaperInk,muted=HudStyle.PaperMuted,accent=HudStyle.PaperAccent;
         _journalPanel.Material=null;
-        var surface=HudStyle.Box(paper,5,18);surface.BorderColor=HudStyle.PaperLine;surface.BorderWidthLeft=1;surface.ShadowColor=new Color(0,0,0,.24f);surface.ShadowSize=16;
+        var surface=HudStyle.Box(paper,12,18);surface.BorderColor=HudStyle.PaperLine;surface.BorderWidthLeft=1;surface.ShadowColor=new Color(0,0,0,.24f);surface.ShadowSize=16;
         _journalPanel.AddThemeStyleboxOverride("panel",surface);_journalPanel.GetChild<HudBevel>(0).Visible=true;
         void Apply(Node node)
         {
@@ -49,14 +49,11 @@ public partial class MainGame
             foreach(Node child in node.GetChildren())Apply(child);
         }
         Apply(_journalPanel);
-        var tabbar=_drawer.GetTabBar();tabbar.AddThemeFontSizeOverride("font_size",13);tabbar.AddThemeConstantOverride("icon_max_width",16);tabbar.AddThemeConstantOverride("h_separation",6);
+        var tabbar=_drawer.GetTabBar();tabbar.AddThemeFontSizeOverride("font_size",14);tabbar.AddThemeConstantOverride("icon_max_width",16);tabbar.AddThemeConstantOverride("h_separation",7);
         var separator=HudStyle.Box(HudStyle.PaperLine,0,0,false);separator.ContentMarginTop=1;separator.ContentMarginBottom=1;
         void Separators(Node node){if(node is HSeparator line)line.AddThemeStyleboxOverride("separator",separator);foreach(Node child in node.GetChildren())Separators(child);}
         Separators(_journalPanel);
-        _drawer.AddThemeColorOverride("font_selected_color",accent);_drawer.AddThemeColorOverride("font_unselected_color",muted);
-        var selected=HudStyle.Box(HudStyle.PaperWash,2,6,false);selected.BorderWidthBottom=2;selected.BorderColor=accent;
-        _drawer.AddThemeStyleboxOverride("tab_selected",selected);
-        _drawer.AddThemeStyleboxOverride("tab_unselected",HudStyle.Box(new Color(0,0,0,0),2,6,false));
-        _drawer.AddThemeStyleboxOverride("tab_hovered",HudStyle.Box(HudStyle.PaperWash,2,8,false));
+        _drawer.AddThemeColorOverride("font_selected_color",ink);_drawer.AddThemeColorOverride("font_unselected_color",muted);
+        // Use the shared tab styles; equal padding keeps hover hit regions stable.
     }
 }

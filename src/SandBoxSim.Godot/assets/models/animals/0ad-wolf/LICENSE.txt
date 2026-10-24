@@ -20,7 +20,8 @@ SHA-256 mesh: 481ae8021e7e2624e2c20db01d2b17b89eb488a9749eb92e1952f55e4496cf3a
 SHA-256 skin: cca1ea8133ae1b51f7e2767b4c68eb7d5cd1c46668774b3e0ce72fb1c989bbb1
 
 SandBoxSim modifications: two surface subdivisions, unit/coordinate conversion,
-14-joint retargeting, ear articulation weights and tangent generation.
+15-joint retargeting with independently weighted lower jaw, ear articulation
+weights and tangent generation.
 The original skin PNG is unchanged. Exporter: tools/export_authored_animals.py.
 Source files are publicly available at the URL above; derived mesh and binding
 data are distributed in this folder under the same licence.

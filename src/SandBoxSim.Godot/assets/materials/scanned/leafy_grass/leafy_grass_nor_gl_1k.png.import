@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d3bk8ky63p0sf"
-path="res://.godot/imported/grass_ground_rough_1k.jpg-ffe3561ed60e031112cb86f628527191.ctex"
+uid="uid://ctshr3v7i3qo2"
+path="res://.godot/imported/leafy_grass_nor_gl_1k.png-7038f706364376edf62407419402a85f.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/materials/scanned/grass_ground/grass_ground_rough_1k.jpg"
-dest_files=["res://.godot/imported/grass_ground_rough_1k.jpg-ffe3561ed60e031112cb86f628527191.ctex"]
+source_file="res://assets/materials/scanned/leafy_grass/leafy_grass_nor_gl_1k.png"
+dest_files=["res://.godot/imported/leafy_grass_nor_gl_1k.png-7038f706364376edf62407419402a85f.ctex"]
 
 [params]
 

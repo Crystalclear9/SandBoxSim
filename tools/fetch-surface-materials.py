@@ -13,7 +13,7 @@ import struct
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
-ASSETS = ('grass_ground', 'brown_mud_leaves_01', 'wood_planks_grey', 'plastered_wall_03', 'coast_sand_01', 'rock_face_03', 'reed_roof_03', 'rough_linen')
+ASSETS = ('leafy_grass', 'brown_mud_leaves_01', 'wood_planks_grey', 'plastered_wall_03', 'coast_sand_01', 'rock_face_03', 'reed_roof_03', 'rough_linen')
 SOURCE = ROOT / '.tools/sources/surface-materials'
 OUTPUT = ROOT / 'src/SandBoxSim.Godot/assets/materials/scanned'
 

@@ -5,6 +5,9 @@ config/name="SandBoxSim"
 run/main_scene="res://Main.tscn"
 config/features=PackedStringArray("4.7", "C#", "GL Compatibility")
 
+[editor_plugins]
+enabled=PackedStringArray("res://addons/texture_import_guard/plugin.cfg")
+
 [display]
 window/size/viewport_width=1600
 window/size/viewport_height=1000

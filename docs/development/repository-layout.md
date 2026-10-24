@@ -19,8 +19,7 @@
 | `docs/archive/` | 原始任务书与素材生成来源 | 保留出处；不代替当前说明 |
 | `.tools/` | 当前项目的 SDK、Godot、可选 Blender、依赖及原始素材缓存 | 忽略提交；临时试版不混入正式资源 |
 | `runs/` | 本机模拟输出、日志、临时截图 | 除 `README.md` 与 `.gitkeep` 外忽略 |
-| `runs/archives/` | 完整实验与小型维护记录的压缩归档 | 忽略提交；恢复到原相对路径后检查 |
-| `待删除-*/` | 已确认可删除的临时输出，保留原相对路径，交由用户手动删除 | 忽略提交；移动不释放磁盘空间 |
+| `runs/archives/` | 用户保留的完整实验归档 | 忽略提交；恢复到原相对路径后检查 |
 | `artifacts/`、`bin/`、`obj/`、`.godot/` | 构建与导入缓存 | 忽略提交 |
 
 根目录保留项目入口、解决方案、统一配置、授权、贡献指南与更新记录。SDK、Godot 及开发依赖缓存保留在当前工作目录的 `.tools/`，由 Git 忽略，不提交到远程。Blender 如需下载也放在 `.tools/blender-版本/`。
@@ -44,24 +43,22 @@
 
 上衣采样源与成品读取在 `NatureModels.GarmentSkin.cs`，连续草束屋面在 `NatureModels.Thatch.cs`。`tools/bake-garments.ps1` 把维护用输入放在 `.tools/garment-sources/`，只将正式蒙皮与清单写入 `assets/models/garments/`；预览和失败试版不进入正式目录。
 
-动物连续表面由 `tools/bake_animal_surfaces.py` 烘焙，`NatureModels.OrganicAssets.cs` 校验并读取成品，`NatureModels.AnimalDetail.cs` 维护耳部、蹄爪等局部结构。动物细节图册使用 `animal-details` 场景，正式配图保存在 `docs/images/animal-detail.png`；临时截帧和试跑结果不作为正式资源保留。
+正式动物由 `tools/export_authored_animals.py` 转换，`NatureModels.AuthoredAnimals.cs` 校验并读取鹿 14 / 狼 15 关节的作者网格与贴图；`AnimalRig.cs` 驱动步态、坡面接地和下颌。程序动物构造器作为独立校准实现保留。动物图册使用 `animal-details`、`animal-heads` 场景，正式配图位于 `docs/images/`。`addons/texture_import_guard/` 为编辑器提供实际 mip 链维护，普通游戏不运行该插件。
 
 ## 运行资料与截图
 
-| 资料 | 建议位置 | 清理时的处理 |
+| 资料 | 位置 | 用途 |
 |---|---|---|
-| 临时查看、调试用的截图 | `runs/screenshots/` | 按明确文件名清理 |
-| 故障与性能日志 | `runs/logs/` | 保留需要定位问题的记录 |
-| 独立模拟实验 | `runs/experiments/<实验名>/` | 已有历史目录沿用原路径，保留存档、统计和对照数据 |
-| 完整评测与源码研究 | `runs/evaluation/<实验名>/` | 明确选择保留时，整体保留请求、候选、源码、日志和判分；不再使用的开发试验可整体清理 |
-| 独立 HTML / JSON 报告 | `runs/reports/<实验名>/` | 保留来源说明；不代替完整实验 |
-| 玩家存档 | 文件对话框所选位置 | 更新或截图清理时保留 |
-| 正式文档配图 | `docs/images/` | 随文档保留 |
-| 游戏纹理与插画 | `src/SandBoxSim.Godot/assets/` | 随游戏保留 |
+| 开发采样 | `.tools/tmp/<主题>/` | 当前开发过程的工作目录，不进入源码提交 |
+| 故障与性能日志 | `runs/logs/` | 定位运行问题与性能区段 |
+| 独立模拟实验 | `runs/experiments/<实验名>/` | 存档、统计和对照数据 |
+| 完整评测与源码研究 | `runs/evaluation/<实验名>/` | 请求、候选、源码、日志和判分的完整实验 |
+| 独立 HTML / JSON 报告 | `runs/reports/<实验名>/` | 完整实验的可读结果 |
+| 玩家存档 | 文件对话框所选位置 | 世界、会话与进度 |
+| 正式文档配图 | `docs/images/` | 当前项目和专题说明 |
+| 游戏纹理与插画 | `src/SandBoxSim.Godot/assets/` | 实际运行资源与来源信息 |
 
-目录被 Git 忽略并不代表可以整体删除。`runs/` 中可能包含存档、实验和诊断数据。清理临时截图不会删除文档图或游戏素材，也不使用针对整个仓库的 PNG 通配删除。
-
-开发过程中已有的 `.tools/` 临时截图、试版素材与检查日志属于本机输出，可在确认用途后清理；它们不是长期文档，也不为一次整理新建审计报告。下载来源与可重建脚本保留在正式清单和工具目录中。
+运行资料与源码目录有不同职责，实验请求、源码身份、判分和对照数据应在同一个实验目录内关联。来源清单和可复用转换工具分别位于正式资源目录与 `tools/`。
 
 ## 移动和新增文件
 
@@ -78,17 +75,13 @@ git diff --check
 
 ## 文档维护
 
-`README.md` 是项目概览，`docs/README.md` 是阅读导航，`CHANGELOG.md` 是用户和维护者的更新记录。功能行为写入对应指南；配置和存档变化写入开发文档。正式配图保留在 `docs/images/`；旧验收记录、重复指南与不再使用的旧界面配图移除。`docs/archive/` 只保留原始任务书与素材来源，不在当前主页重复放置阶段验收说明。
+`README.md` 是项目概览，`docs/README.md` 是阅读导航，`CHANGELOG.md` 是用户和维护者的更新记录。功能行为写入对应指南；配置和存档变化写入开发文档。正式配图位于 `docs/images/`，`docs/archive/` 保存原始任务书与素材来源。
 
-## 目录说明与本机整理
+## 项目入口
 
 [src](../../src/README.md)、[tools](../../tools/README.md)、[config](../../config/README.md)、[benchmarks](../../benchmarks/README.md) 各自提供职责与入口；[文档图](../images/README.md) 区分现行界面和专题记录。完整素材生成提示独立放在 `docs/archive/asset-generation.md`，当前美术说明专注实际资源、导入与扩展。
 
-`runs/` 根目录只保留说明与占位文件，继续使用的世界存档集中在 `saves/`。日常清理不长期保留审计清单、帮助输出、旧 GitHub 操作文本、开发截图、重复试验压缩包和临时 Git bundle，也不为清理新增一轮报告。运行工具按需要重新创建日志与实验输出目录。
-
-明确需要用于研究或复现的实验保持完整，归档属于可选维护方式；不再使用的开发试验可整体清理。玩家存档和个人备份保留，已冗余的开发备份可以移除。当前接口以 `benchmarks/interface.json` 与对应文档为准，本机输出不推送到远程。独立包、工具链和缓存的边界见 [本机存储维护](local-storage.md)。
-
-不为整理目录搬迁 C# 工程、Godot 资源或公共工具脚本；它们有工程编译、`res://`、CI 或外部调用契约。新增文件按职责落位，移除文件先检查用途和引用。
+当前接口以 `benchmarks/interface.json` 与对应文档为准。世界存档通常集中于 `saves/`，实验输出由运行工具按需创建。独立包、工具链和缓存的职责见[本地环境与运行目录](local-storage.md)。工程、资源和公共脚本路径同时用于编译、`res://`、CI 和外部调用。
 
 ---
 

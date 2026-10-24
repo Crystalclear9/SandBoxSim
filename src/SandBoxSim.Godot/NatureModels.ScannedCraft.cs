@@ -18,20 +18,21 @@ varying vec3 p;
 varying vec3 face_normal;
 void vertex(){p=VERTEX;face_normal=NORMAL;}
 void fragment(){
-    vec3 weights=pow(abs(normalize(face_normal)),vec3(6));weights/=max(.001,weights.x+weights.y+weights.z);
+    vec3 face=normalize(face_normal),side=sign(face+vec3(.000001));
+    vec3 weights=pow(abs(face),vec3(6));weights/=max(.001,weights.x+weights.y+weights.z);
     vec3 point=p/metres;
-    vec3 cx=texture(diffuse_map,point.zy).rgb,cy=texture(diffuse_map,point.xz).rgb,cz=texture(diffuse_map,point.xy).rgb;
-    vec3 nx=texture(packed_map,point.zy).rgb,ny=texture(packed_map,point.xz).rgb,nz=texture(packed_map,point.xy).rgb;
+    vec3 cx=texture(diffuse_map,vec2(point.z,point.y*side.x)).rgb,cy=texture(diffuse_map,point.xz).rgb,cz=texture(diffuse_map,vec2(point.x,-point.y*side.z)).rgb;
+    vec3 nx=texture(packed_map,vec2(point.z,point.y*side.x)).rgb,ny=texture(packed_map,point.xz).rgb,nz=texture(packed_map,vec2(point.x,-point.y*side.z)).rgb;
     vec3 colour=cx*weights.x+cy*weights.y+cz*weights.z;
     colour=mix(colour,vec3(dot(colour,vec3(.2126,.7152,.0722))),mineral_desaturation);
-    float variation=sin(dot(floor(p*vec3(2.5,8.0,2.5)),vec3(1.73,3.17,2.41)))*.035;
+    float variation=sin(p.x*2.73+sin(p.z*4.1+p.y*.6))*sin(p.y*3.71+sin(p.x*1.7))*.026;
     // Rain splash and low moss bind walls to their foundation, in metres after batching.
     float damp=(1.0-smoothstep(.12,.58,p.y))*(.60+.40*sin(p.x*7.3+p.z*4.1));
     vec3 aged=mix(colour,colour*vec3(.69,.76,.65),damp*.42);
     ALBEDO=aged*mix(vec3(1),pigment.rgb,tint_strength)*(1.0+variation)*gain;
     ROUGHNESS=clamp(nx.b*weights.x+ny.b*weights.y+nz.b*weights.z,.58,.98);SPECULAR=.21;
-    vec3 grain=vec3(0,nx.g*2.0-1.0,nx.r*2.0-1.0)*weights.x
-        +vec3(ny.r*2.0-1.0,0,ny.g*2.0-1.0)*weights.y+vec3(nz.r*2.0-1.0,nz.g*2.0-1.0,0)*weights.z;
+    vec3 grain=vec3(0,(nx.g*2.0-1.0)*side.x,nx.r*2.0-1.0)*weights.x
+        +vec3(ny.r*2.0-1.0,0,ny.g*2.0-1.0)*weights.y+vec3(nz.r*2.0-1.0,-(nz.g*2.0-1.0)*side.z,0)*weights.z;
     grain-=normalize(face_normal)*dot(grain,normalize(face_normal));
     NORMAL=normalize(NORMAL+mat3(VIEW_MATRIX*MODEL_MATRIX)*grain*.26);
 }"};
@@ -41,7 +42,7 @@ void fragment(){
             material.SetShaderParameter("diffuse_map",ScannedSurfaces.Map(asset,"diffuse"));
             material.SetShaderParameter("packed_map",ScannedSurfaces.NormalRoughness(ScannedSurfaces.Map(asset,"normal"),ScannedSurfaces.Map(asset,"roughness")));
             material.SetShaderParameter("pigment",new Color(tint));material.SetShaderParameter("metres",metres);_materials[index]=material;
-            material.SetShaderParameter("gain",index==1?1.5f:index==0?1.15f:1f);
+            material.SetShaderParameter("gain",index==1?1.15f:1f);
             material.SetShaderParameter("mineral_desaturation",index is 6 or 7?.65f:0f);
         }
         Assign(0,"wood_planks_grey","#8f8170",1.5f);
