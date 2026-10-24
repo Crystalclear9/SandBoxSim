@@ -272,6 +272,15 @@ internal sealed partial class NatureModels
         speaker.LidMaterial.SetShaderParameter("blink",1f);
         if(ReferenceEquals(speaker.LidMaterial,listener.LidMaterial)||listener.LidMaterial.GetShaderParameter("blink").AsSingle()!=0)
             throw new InvalidOperationException("Residents share eyelid animation state");
+        speaker.LashMaterial!.SetShaderParameter("blink",1f);
+        if(speaker.Lashes!.Mesh!=listener.Lashes!.Mesh||speaker.LashMaterial==listener.LashMaterial||listener.LashMaterial!.GetShaderParameter("blink").AsSingle()!=0)
+            throw new InvalidOperationException("Eyelash geometry is not shared or blink leaks between residents");
+        speaker.SetHeadDetail(false);if(speaker.Lashes.Visible)throw new InvalidOperationException("Distant resident keeps near eyelashes");speaker.SetHeadDetail(true);
+        speaker.PoseAction(.05f,ActionKind.None,ActionPhase.Idle,false,0);
+        if(speaker.LashMaterial.GetShaderParameter("blink").AsSingle()!=speaker.LidMaterial.GetShaderParameter("blink").AsSingle())
+            throw new InvalidOperationException("Eyelashes do not follow the actual eyelid blink");
+        float blinkBeforePause=speaker.LashMaterial.GetShaderParameter("blink").AsSingle();speaker.PoseAction(.3f,ActionKind.None,ActionPhase.Idle,true,0);
+        if(speaker.LashMaterial.GetShaderParameter("blink").AsSingle()!=blinkBeforePause)throw new InvalidOperationException("Paused eyelashes still animate");
         float mergedClosure=0;
         for(int surface=0;surface<speaker.HeadSkin.Mesh.GetSurfaceCount();surface++)
         {

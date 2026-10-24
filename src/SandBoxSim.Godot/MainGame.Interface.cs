@@ -17,6 +17,7 @@ public partial class MainGame
     private PanelContainer _timePanel = null!, _cameraPanel = null!, _dockPanel = null!;
     private PanelContainer _contextPanel=null!;
     private Label _cameraReadout=null!;
+    private Label _playStateLabel=null!;
     private Godot.Button _followCameraButton=null!;
     private Label _toolBadge = null!, _dayLabel = null!, _populationLabel = null!, _settlementLabel = null!, _buildingLabel = null!;
     private VBoxContainer _brushParameters=null!;
@@ -267,7 +268,10 @@ public partial class MainGame
         var timePanel = Surface(overlay, new Vector2(0, 1), new Vector2(16, -72), new Vector2(272, 64), 8); _timePanel = timePanel;
         timePanel.AddThemeStyleboxOverride("panel",HudStyle.Frame(10));
 
-        var timeBox = new VBoxContainer(); timeBox.AddThemeConstantOverride("separation", 4); timePanel.AddChild(timeBox); _dayLabel = HudStyle.Label("第 1 天", 14); timeBox.AddChild(_dayLabel);
+        var timeBox = new VBoxContainer(); timeBox.AddThemeConstantOverride("separation", 4); timePanel.AddChild(timeBox);
+        var timeHeading=new HBoxContainer();timeBox.AddChild(timeHeading);
+        _dayLabel=HudStyle.Label("第 1 天",14);_dayLabel.SizeFlagsHorizontal=SizeFlags.ExpandFill;timeHeading.AddChild(_dayLabel);
+        _playStateLabel=HudStyle.Label("",11,true);_playStateLabel.SizeFlagsVertical=SizeFlags.ShrinkCenter;timeHeading.AddChild(_playStateLabel);
         var timeRow = new HBoxContainer(); timeBox.AddChild(timeRow);
         foreach (int speed in new[] { 0, 1, 4, 8, 16, 32 })
         { int chosen = speed; var button = ActionButton(timeRow, speed == 0 ? "暂停" : speed + "×", () => SetSpeed(chosen)); button.ToggleMode = true; _speedButtons[speed] = button; } SetSpeed(_speed);
@@ -291,14 +295,18 @@ public partial class MainGame
         _status = HudStyle.Label("观察模式：左键拖动平移 · 右键拖动旋转/俯仰 · 滚轮缩放 · 单击选择", 11, true); HudStyle.Float(_status, new Vector2(.5f, 1), new Vector2(-430, -126), new Vector2(860, 18)); _status.HorizontalAlignment = HorizontalAlignment.Center; _status.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, .8f)); _status.AddThemeConstantOverride("shadow_offset_y", 1); overlay.AddChild(_status);
         _contextPanel=Surface(overlay,new Vector2(0,1),new Vector2(490,-172),new Vector2(620,76),8);
         _contextPanel.Visible=!IsModelGallery;
-        var context=new VBoxContainer();context.AddThemeConstantOverride("separation",3);_contextPanel.AddChild(context);
+        var contextRow=new HBoxContainer();contextRow.AddThemeConstantOverride("separation",14);_contextPanel.AddChild(contextRow);
+        contextRow.AddChild(HudStyle.IconWell(HudSymbols.For("观察"),36));
+        var context=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};context.AddThemeConstantOverride("separation",3);contextRow.AddChild(context);
         foreach(var label in new[]{_toolBadge,_status})
         {
             label.Reparent(context);label.SetAnchorsAndOffsetsPreset(LayoutPreset.TopLeft);label.SizeFlagsHorizontal=SizeFlags.ExpandFill;
             label.CustomMinimumSize=Vector2.Zero;label.ClipText=true;label.TextOverrunBehavior=TextServer.OverrunBehavior.TrimEllipsis;
+            label.HorizontalAlignment=HorizontalAlignment.Left;
             label.AddThemeColorOverride("font_shadow_color",Colors.Transparent);
         }
         _status.AutowrapMode=TextServer.AutowrapMode.WordSmart;_status.MaxLinesVisible=2;_status.MouseFilter=MouseFilterEnum.Pass;
+        _status.AddThemeFontSizeOverride("font_size",12);
         _toolBadge.CustomMinimumSize=new Vector2(0,20);_status.CustomMinimumSize=new Vector2(0,32);
         _save = Dialog(FileDialog.FileModeEnum.SaveFile); _save.FileSelected += SaveWorld; _load = Dialog(FileDialog.FileModeEnum.OpenFile); _load.FileSelected += LoadWorld;
         Resized += FitHud; FitHud();
@@ -521,7 +529,17 @@ public partial class MainGame
     }
     private static Godot.Button ActionButton(Container parent, string label, Action action)
     { var button = new Godot.Button { Text = label }; HudStyle.Button(button); parent.AddChild(button); button.Pressed += action; return button; }
-    private void SetSpeed(int speed) { if(speed>0)_resumeSpeed=speed;_speed = speed; foreach (var pair in _speedButtons) { pair.Value.SetPressedNoSignal(pair.Key == speed); } }
+    private void SetSpeed(int speed)
+    {
+        if(speed>0)_resumeSpeed=speed;_speed=speed;
+        foreach(var pair in _speedButtons)pair.Value.SetPressedNoSignal(pair.Key==speed);
+        if(_playStateLabel!=null)
+        {
+            _playStateLabel.Text=speed==0?"已暂停":speed+"× 流逝";
+            _playStateLabel.AddThemeColorOverride("font_color",speed==0?HudStyle.Accent:HudStyle.Muted);
+            _playStateLabel.TooltipText=speed==0?"模拟已暂停 · 空格继续":"世界以 "+speed+" 倍速演化 · 空格暂停";
+        }
+    }
     private void ShowCategory(string category)
     { bool close=_dockPanel.Visible && _category==category;SetCategory(category);ShowTools(!close); }
     private void ShowTools(bool visible)
@@ -697,9 +715,9 @@ public partial class MainGame
                 throw new InvalidOperationException("Scenario picker replaces the world before confirmation");
             _scenarioConfirm.Hide();
             SetSpeed(8);_UnhandledKeyInput(new InputEventKey {Pressed=true,Keycode=Key.Space});
-            if(_speed!=0)throw new InvalidOperationException("Space does not pause");
+            if(_speed!=0||_playStateLabel.Text!="已暂停")throw new InvalidOperationException("Space does not pause or update the time indicator");
             _UnhandledKeyInput(new InputEventKey {Pressed=true,Keycode=Key.Space});
-            if(_speed!=8)throw new InvalidOperationException("Resume loses the selected time multiplier");
+            if(_speed!=8||_playStateLabel.Text!="8× 流逝")throw new InvalidOperationException("Resume loses the selected time multiplier or time indicator");
         }
         finally{_radius.Value=radius;_strength.Value=strength;SetSpeed(speed);_resumeSpeed=resume;_scenarioConfirm.Hide();SelectTool(PlayerTool.Inspect);SetCategory("生命");}
         if(StateHash.ComputeDigest(Sim)!=digest)throw new InvalidOperationException("Browsing tools mutated the world");

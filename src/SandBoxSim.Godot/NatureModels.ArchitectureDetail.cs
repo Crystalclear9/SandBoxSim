@@ -1,9 +1,63 @@
+using System;
 using Godot;
 using SandBoxSim.Core.Environment;
 
 namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
+    private Mesh DripSill()
+    {
+        const string key="sloped-drip-sill";if(_meshes.TryGetValue(key,out var cached))return cached;
+        // Y/Z profile: outward fall, bevelled nose and an actual underside groove.
+        Vector2[] profile={new(-.08f,.032f),new(.078f,.016f),new(.086f,.009f),new(.083f,-.026f),
+            new(.054f,-.026f),new(.052f,-.014f),new(.045f,-.014f),new(.043f,-.026f),new(-.08f,-.026f)};
+        var triangles=Geometry2D.TriangulatePolygon(profile);
+        using var tool=new SurfaceTool();tool.Begin(Mesh.PrimitiveType.Triangles);tool.SetSmoothGroup(uint.MaxValue);
+        Vector3 Point(int i,float side)=>new(side*.24f,profile[i].Y,profile[i].X);
+        void Triangle(Vector3 a,Vector3 b,Vector3 c,Vector3 outward)
+        {
+            if((b-a).Cross(c-a).Dot(outward)>0)(b,c)=(c,b);
+            foreach(var p in new[]{a,b,c}){tool.SetUV(new(p.X/.48f+.5f,p.Z/.166f+.5f));tool.AddVertex(p);}
+        }
+        foreach(float side in new[]{-1f,1f})for(int i=0;i<triangles.Length;i+=3)
+            Triangle(Point(triangles[i],side),Point(triangles[i+1],side),Point(triangles[i+2],side),Vector3.Right*side);
+        for(int i=0;i<profile.Length;i++)
+        {
+            int next=(i+1)%profile.Length;var a=Point(i,-1);var b=Point(next,-1);var c=Point(i,1);var d=Point(next,1);
+            var edge=profile[next]-profile[i];var outward=new Vector3(0,edge.X,-edge.Y);
+            Triangle(a,b,c,outward);Triangle(b,d,c,outward);
+        }
+        tool.GenerateNormals();tool.Index();return _meshes[key]=tool.Commit();
+    }
+    private void ValidateCraftFinishes()
+    {
+        foreach(var mesh in new[]{DripSill(),AggregateBerry()})
+        {
+            var arrays=mesh.SurfaceGetArrays(0);var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var n=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
+            var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+            var ids=new System.Collections.Generic.Dictionary<(int,int,int),int>();
+            var edges=new System.Collections.Generic.Dictionary<(int,int),int>();
+            int Id(Vector3 point)
+            {
+                var key=((int)Mathf.Round(point.X*1000000),(int)Mathf.Round(point.Y*1000000),(int)Mathf.Round(point.Z*1000000));
+                if(!ids.TryGetValue(key,out int id)){id=ids.Count;ids.Add(key,id);}return id;
+            }
+            for(int i=0;i<p.Length;i++)if(!p[i].IsFinite()||!n[i].IsFinite()||MathF.Abs(n[i].Length()-1)>.01f)throw new System.InvalidOperationException("Invalid crafted finish geometry");
+            for(int i=0;i<indices.Length;i+=3)
+            {
+                int a=indices[i],b=indices[i+1],c=indices[i+2];var area=(p[c]-p[a]).Cross(p[b]-p[a]);
+                if(area.Dot(n[a]+n[b]+n[c])<=0)throw new System.InvalidOperationException("Crafted finish has reversed or degenerate triangles");
+                foreach(var edge in new[]{(Id(p[a]),Id(p[b])),(Id(p[b]),Id(p[c])),(Id(p[c]),Id(p[a]))})
+                {
+                    var key=edge.Item1<edge.Item2?edge:(edge.Item2,edge.Item1);edges.TryGetValue(key,out int count);edges[key]=count+1;
+                }
+            }
+            foreach(int count in edges.Values)if(count!=2)throw new System.InvalidOperationException("Crafted finish has an open or non-manifold edge");
+        }
+        if(DripSill()!=DripSill()||AggregateBerry()!=AggregateBerry()||AggregateBerry().GetAabb().Size.Length()>.07f)
+            throw new System.InvalidOperationException("Crafted finish cache or berry scale changed");
+        GD.Print("CRAFT_FINISHES_PASS: watertight sloped drip sill and aggregate fruit, outward winding, finite unit normals, metric size and shared caches");
+    }
     private void RoofCourses(Node3D model,float width,float depth,float height,int material)
     {
         if(material==15)

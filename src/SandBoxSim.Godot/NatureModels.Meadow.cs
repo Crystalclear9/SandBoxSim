@@ -20,18 +20,22 @@ internal sealed partial class NatureModels
                 var axis=(radial*sign+Vector3.Up*.24f).Normalized();
                 BotanicalLeaf(tool,Center(t),axis,axis.Cross(Vector3.Up).Normalized(),.25f-leaf*.025f,.014f,.018f,.72f+leaf*.075f);
             }
-            // Seed heads are tapered volumes, readable from every camera angle.
-            for(int ring=0;ring<5;ring++)
+            // Open panicles branch from the stem; solid clubs read as cattails.
+            var crown=Center(1);
+            for(int branch=0;branch<15;branch++)
             {
-                for(int edge=0;edge<8;edge++)
+                float t=(branch+.5f)/15,azimuth=branch*2.399963f+angle;
+                var direction=new Vector3(MathF.Cos(azimuth),0,MathF.Sin(azimuth));
+                var start=crown+Vector3.Up*(t*.16f);
+                float spread=.065f*MathF.Sin(t*MathF.PI)*(.85f+(branch%3)*.12f);
+                var tip=start+direction*spread+Vector3.Up*.045f;
+                BotanicalStem(tool,start,tip,.0007f);
+                for(int floret=0;floret<4;floret++)
                 {
-                    Vector3 P(int row,int col)
-                    {float v=row/4f,rad=.012f*MathF.Pow(MathF.Max(0,MathF.Sin(v*MathF.PI)),.5f)+.001f,a=col*MathF.Tau/8;return Center(1)+Vector3.Up*(.12f*v)+new Vector3(MathF.Cos(a),0,MathF.Sin(a))*rad;}
-                    if(ring==4)continue;
-                    tool.SetColor(new(1.30f,.74f,.42f));
-                    var a=P(ring,edge);var b=P(ring+1,edge);var c=P(ring,edge+1);var d=P(ring+1,edge+1);
-                    var n=new Vector3(a.X-Center(1).X,0,a.Z-Center(1).Z);
-                    EquipmentTriangle(tool,a,b,c,n);EquipmentTriangle(tool,c,b,d,n);
+                    var rootlet=start.Lerp(tip,(floret+1)/4f);
+                    var up=(direction*.35f+Vector3.Up).Normalized();
+                    var across=new Vector3(-direction.Z,0,direction.X);
+                    BotanicalLeaf(tool,rootlet,up,across,.018f,.0035f,.0015f,1.1f,3,new Color(2.0f,1.0f,.85f));
                 }
             }
         }

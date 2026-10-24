@@ -31,8 +31,10 @@ uniform sampler2D alpha_map:filter_linear_mipmap,repeat_enable;
 uniform vec2 uv_scale=vec2(1.0);uniform vec2 uv_offset=vec2(0.0);
 uniform bool wind=true;uniform bool cutout=false;uniform float plant_height=1.0;uniform bool grass=false;uniform bool mineral=false;
 uniform bool soil_bound=false;uniform sampler2D soil:filter_nearest,repeat_disable;uniform vec2 map_size=vec2(1.0);
+varying float plant_tip;
 void vertex(){
 vec3 root=(MODEL_MATRIX*vec4(0,0,0,1)).xyz;float t=clamp(VERTEX.y/plant_height,0.0,1.0);
+plant_tip=t;
 float fade=grass?1.0-smoothstep(24.0,32.0,distance(root,CAMERA_POSITION_WORLD)):1.0;
 float wear=grass&&soil_bound?texture(soil,clamp(root.xz*.5/map_size,vec2(0),vec2(1))).g:0.0;
 VERTEX.y*=fade*(1.0-wear*.85);
@@ -41,11 +43,11 @@ VERTEX.x+=(gust*.022+flutter*.004)*t*t*fade;VERTEX.z+=cos(TIME*.61+root.z*.21)*.
 }
 void fragment(){
 if(!FRONT_FACING){NORMAL=-NORMAL;}
-if(!FRONT_FACING){NORMAL=-NORMAL;}
 vec2 tex_uv=UV*uv_scale+uv_offset;
 vec3 root=(MODEL_MATRIX*vec4(0,0,0,1)).xyz;
 float variation=sin(root.x*1.73+root.z*2.41)*.035;
 ALBEDO=texture(diffuse_map,tex_uv).rgb*(1.0+variation);
+ALBEDO*=cutout?mix(.90,1.025,smoothstep(.02,.45,plant_tip)):1.0;
 float luminance=dot(ALBEDO,vec3(.2126,.7152,.0722));
 ALBEDO=mix(ALBEDO,vec3(luminance)*vec3(1.0,1.01,.99),mineral?.62:cutout?.10:0.0);
 // Thin leaves transmit a small amount of light; woody surfaces stay opaque.

@@ -2,6 +2,8 @@
 
 环境使用 Poly Haven 的 CC0 素材衍生网格及原始 PBR 贴图。来源和许可见 [Poly Haven](https://polyhaven.com/license)；记录保存在 [环境素材清单](../../src/SandBoxSim.Godot/assets/models/environment/manifest.json) 与 [LICENSE.txt](../../src/SandBoxSim.Godot/assets/models/environment/LICENSE.txt)。运行时直接读取仓库中的数据，不访问网络，也不需要 Blender。
 
+树木、蕨类和草丛的双面材质对背面法线只做一次翻转，修复重复翻转相互抵消的问题；透明裁切叶片增加轻微根梢明暗差，木质枝干保持原有表面。原扫描网格、UV 和贴图不变，继续使用分块批次与原有距离裁剪。芦苇花序和莓果属于项目程序几何，具体结构与依据见[美术资源](assets.md)。
+
 ## 当前模型
 
 | 素材 | 导出三角面 | 导出顶点 |

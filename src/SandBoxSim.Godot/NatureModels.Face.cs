@@ -5,7 +5,31 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
-    private Shader? _eyeShader;
+    private Shader? _eyeShader,_lashShader;
+    private Mesh Eyelashes()
+    {
+        string key="anatomical-lashes:"+_faceVariant;if(_meshes.TryGetValue(key,out var cached))return cached;
+        using var tool=new SurfaceTool();tool.Begin(Mesh.PrimitiveType.Triangles);
+        var data=HumanData();
+        for(int eye=0;eye<2;eye++)for(int hair=0;hair<26;hair++)
+        {
+            float u=(hair+.7f)/27;
+            var upper=data.UpperLids[eye];var lower=data.LowerLids[eye];
+            float sample=u*(upper.Length-1);int i=Math.Min((int)sample,upper.Length-2);float t=sample-i;
+            var root=HumanPoint(upper[i].Lerp(upper[i+1],t));
+            var closed=HumanPoint((upper[i].Lerp(upper[i+1],t)+lower[i].Lerp(lower[i+1],t))*.5f);
+            var closure=new Vector2(closed.Y-root.Y,closed.Z-root.Z);
+            float length=(.0011f+.0010f*MathF.Sin(u*MathF.PI))*(ChildHead?.8f:1);
+            Vector3 Point(float v,float side)=>root+new Vector3(side*.00012f*(1-v),length*(.20f*v+.23f*v*v),-.00018f-length*v);
+            void Vertex(float v,float side){tool.SetNormal(Vector3.Forward);tool.SetUV(new(u,v));tool.SetUV2(closure);tool.AddVertex(Point(v,side));}
+            for(int row=0;row<3;row++)
+            {
+                float a=row/3f,b=(row+1)/3f;
+                Vertex(a,-1);Vertex(b,-1);Vertex(a,1);Vertex(a,1);Vertex(b,-1);Vertex(b,1);
+            }
+        }
+        tool.Index();return _meshes[key]=tool.Commit();
+    }
     private Vector3[]? _facePoints;
     private int[]? _faceIndices;
     private readonly System.Collections.Generic.Dictionary<(int Variant,float X,float Y),float> _faceDepthSamples = new();
@@ -56,10 +80,18 @@ uniform vec2 gaze=vec2(0.0);
 uniform sampler2D eye_albedo:source_color,filter_linear_mipmap_anisotropic;
 void fragment(){
 vec4 eye=texture(eye_albedo,UV+gaze*.035);
-ALBEDO=eye.rgb*.85;ALPHA=eye.a;ALPHA_SCISSOR_THRESHOLD=.5;ROUGHNESS=.20;SPECULAR=.45;
+float iris=1.0-smoothstep(.16,.45,dot(eye.rgb,vec3(.2126,.7152,.0722)));
+ALBEDO=eye.rgb*.85;ALPHA=eye.a;ALPHA_SCISSOR_THRESHOLD=.5;ROUGHNESS=mix(.28,.15,iris);SPECULAR=.42;
 }"};
         rig.EyeMaterial=new ShaderMaterial {Shader=_eyeShader};
         rig.HasAnatomicalEyes=true;
+        _lashShader??=new Shader {Code=@"shader_type spatial;render_mode cull_disabled;
+uniform float blink=0.0;
+void vertex(){VERTEX.yz+=UV2*blink;}
+void fragment(){ALBEDO=vec3(.027,.022,.017);ROUGHNESS=.83;SPECULAR=.16;}"};
+        rig.LashMaterial=new ShaderMaterial {Shader=_lashShader};rig.LashMaterial.SetShaderParameter("blink",0f);
+        rig.Lashes=Sculpt(rig.Head,Eyelashes(),Vector3.Zero,rig.LashMaterial);
+        rig.Lashes.Name="AnatomicalLashes";rig.Lashes.CastShadow=GeometryInstance3D.ShadowCastingSetting.Off;
         rig.EyeMaterial.SetShaderParameter("eye_albedo",GD.Load<Texture2D>("res://assets/models/human/eye_albedo.png"));
         for(int eye=0;eye<2;eye++)
         {

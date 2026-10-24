@@ -410,9 +410,9 @@ public partial class WorldView3D : MapView
         var quality=new Dictionary<string,object> { ["worldPresentationEnabled"]=WorldPresentationEnabled,["shadowMode"]=_sunlight.DirectionalShadowMode.ToString(),
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
-            ["landscapeSurface"]="oriented-meadow-v4",["habitatDetail"]="rooted-riverbank-v5",
-            ["architecture"]="bound-thatch-v7",["garmentMaterial"]="fitted-leather-v5",["interface"]="context-workspace-v9",
-            ["animalPresentation"]="authored-wildlife-v2" };
+            ["landscapeSurface"]="oriented-meadow-v4",["habitatDetail"]="botanical-panicles-v6",
+            ["architecture"]="drip-joinery-v8",["garmentMaterial"]="fitted-leather-v5",["interface"]="legible-workspace-v10",
+            ["animalPresentation"]="authored-wildlife-v3",["residentSurface"]="anatomical-lashes-v1",["waterSurface"]="shore-ripples-v1" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
         return quality;

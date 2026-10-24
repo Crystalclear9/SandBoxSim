@@ -76,10 +76,10 @@ internal partial class ModelGallery : PanelContainer
         {
             body.GetChild<Label>(0).Text="野生动物 · 形体、耳廓与足部";
             Closeup(grid,"鹿 · 侧面体态与四肢",models.Animal(false),2.3f,new(0,1.05f,-.22f),new(3,.35f,-.3f),false);
-            Closeup(grid,"鹿 · 眼眶、耳根与口鼻",models.Animal(false),.62f,new(0,1.43f,-.84f),new(.9f,.08f,-2),false);
+            Closeup(grid,"鹿 · 眼眶与角膜贴合",models.Animal(false),.22f,new(.07f,1.421f,-.854f),new(1.8f,.08f,-1),false);
             Closeup(grid,"鹿 · 前肢与蹄部表面",models.Animal(false),.30f,new(-.13f,.095f,-.38f),new(-.3f,.25f,-2),false);
             Closeup(grid,"狼 · 肩背与后肢",models.Animal(true),1.65f,new(0,.65f,-.15f),new(3,.25f,-.35f),false);
-            Closeup(grid,"狼 · 眼位、口鼻与耳廓",models.Animal(true),.54f,new(0,.91f,-.73f),new(.9f,.08f,-2),false);
+            Closeup(grid,"狼 · 眼眶与角膜贴合",models.Animal(true),.18f,new(.061f,.901f,-.785f),new(1.8f,.08f,-1),false);
             Closeup(grid,"狼 · 前肢与足掌表面",models.Animal(true),.28f,new(-.135f,.065f,-.42f),new(-.18f,.38f,-2),false);
         }
         else if(Collection=="ecology-details")

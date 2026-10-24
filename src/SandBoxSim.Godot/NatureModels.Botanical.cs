@@ -5,7 +5,7 @@ namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
     // Clockwise folded leaf, with a shared midrib, tapered apex and leaf-local UV.
-    private static void BotanicalLeaf(SurfaceTool tool,Vector3 root,Vector3 axis,Vector3 across,float length,float width,float cup,float tone,int segments=8)
+    private static void BotanicalLeaf(SurfaceTool tool,Vector3 root,Vector3 axis,Vector3 across,float length,float width,float cup,float tone,int segments=8,Color? pigment=null)
     {
         var normal=across.Cross(axis).Normalized();if(normal.Y<0)normal=-normal;
         Vector3 Point(int row,int edge)
@@ -26,7 +26,7 @@ internal sealed partial class NatureModels
             foreach(var v in new[]{(ar,ae),(br,be),(cr,ce)})
             {
                 tool.SetNormal(n);tool.SetUV(new((v.Item2+1)*.5f,v.Item1/(float)segments));
-                float shade=tone*(.83f+.17f*v.Item1/(float)segments);tool.SetColor(new(shade,shade,shade,1));tool.AddVertex(Point(v.Item1,v.Item2));
+                float shade=tone*(.83f+.17f*v.Item1/(float)segments);tool.SetColor(new Color(shade,shade,shade,1)*(pigment??Colors.White));tool.AddVertex(Point(v.Item1,v.Item2));
             }
         }
         for(int row=0;row<segments;row++)foreach(int side in new[]{-1,1})

@@ -10,6 +10,7 @@ internal sealed partial class NatureModels
         foreach(bool fruit in new[]{true,false})for(int repeat=0;repeat<2;repeat++)
         {
             var bush=BerryShrub(fruit);var mesh=bush.GetChild<MeshInstance3D>(0).Mesh;
+            if(bush.GetChild<MeshInstance3D>(0).VisibilityRangeEnd!=42)throw new System.InvalidOperationException("Berry detail lacks its distance limit");
             if(mesh.GetAabb().Position.Y<-.01f||mesh.GetAabb().Size.Y<.5f)throw new System.InvalidOperationException("Berry canes are not rooted at ground level");
             for(int i=0;i<mesh.GetSurfaceCount();i++)if(mesh.SurfaceGetMaterial(i)==null)throw new System.InvalidOperationException("Cached berry shrub lost its material");
             bush.Free();
@@ -116,7 +117,7 @@ internal sealed partial class NatureModels
     internal Node3D BerryShrub(bool fruit)
     {
         var root=new Node3D();string key="berry-canes:"+fruit;
-        if(_meshes.TryGetValue(key,out var cached)){root.AddChild(new MeshInstance3D {Mesh=cached});return root;}
+        if(_meshes.TryGetValue(key,out var cached)){root.AddChild(new MeshInstance3D {Mesh=cached,VisibilityRangeEnd=42});return root;}
         using var leaves=new SurfaceTool();leaves.Begin(Mesh.PrimitiveType.Triangles);
         for(int cane=0;cane<9;cane++)
         {
@@ -145,13 +146,39 @@ internal sealed partial class NatureModels
             {
                 var stem=Center(.77f);var end=stem+across*((berry-1)*.035f)+outward*.045f-Vector3.Up*(.028f+berry*.012f);
                 FineBeam(root,stem,end,.002f,"#5f6141");
-                Detail(root,"finger-low",end-Vector3.Up*.016f,Vector3.One*.034f,"#50425c");
+                Sculpt(root,AggregateBerry(),end-Vector3.Up*.016f,ResidentMaterial("#463744",.48f));
+                for(int sepal=0;sepal<5;sepal++)
+                {
+                    float angle=sepal*Mathf.Tau/5;
+                    var axis=new Vector3(Mathf.Cos(angle),-.25f,Mathf.Sin(angle)).Normalized();
+                    BotanicalLeaf(leaves,end,axis,Vector3.Up.Cross(axis).Normalized(),.010f,.003f,.001f,.76f,3);
+                }
             }
         }
         leaves.GenerateNormals();leaves.Index();var leafMesh=leaves.Commit();leafMesh.SurfaceSetMaterial(0,Material(4));Sculpt(root,leafMesh,Vector3.Zero,Material(4));
         MergeResidentParts(root,key);
         // A leaf-only dormant bush has one mesh and needs the same cache path.
-        _meshes[key]=root.GetChild<MeshInstance3D>(0).Mesh;
+        var instance=root.GetChild<MeshInstance3D>(0);instance.Mesh=WithScreenLods(instance.Mesh);instance.VisibilityRangeEnd=42;
+        _meshes[key]=instance.Mesh;
         return root;
+    }
+    private Mesh AggregateBerry()
+    {
+        const string key="aggregate-berry";if(_meshes.TryGetValue(key,out var cached))return cached;
+        using var tool=new SurfaceTool();tool.Begin(Mesh.PrimitiveType.Triangles);
+        const int rows=5,sides=10;
+        for(int fruit=0;fruit<18;fruit++)
+        {
+            float y=1-2*(fruit+.5f)/18,angle=fruit*2.399963f,r=Mathf.Sqrt(1-y*y);
+            var center=new Vector3(Mathf.Cos(angle)*r*.010f,y*.013f,Mathf.Sin(angle)*r*.010f);
+            Vector3 Normal(int row,int col){float latitude=row*Mathf.Pi/rows,a=col*Mathf.Tau/sides;return new(Mathf.Sin(latitude)*Mathf.Cos(a),Mathf.Cos(latitude),Mathf.Sin(latitude)*Mathf.Sin(a));}
+            void Vertex(int row,int col){var n=Normal(row,col);tool.SetNormal(n);tool.SetUV(new(col/(float)sides,row/(float)rows));tool.AddVertex(center+n*.0058f);}
+            for(int row=0;row<rows;row++)for(int col=0;col<sides;col++)
+            {
+                if(row>0){Vertex(row,col);Vertex(row+1,col);Vertex(row,col+1);}
+                if(row<rows-1){Vertex(row,col+1);Vertex(row+1,col);Vertex(row+1,col+1);}
+            }
+        }
+        tool.Index();return _meshes[key]=tool.Commit();
     }
 }

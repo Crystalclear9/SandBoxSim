@@ -122,7 +122,8 @@ internal sealed partial class NatureModels
             }
             shutters.Add((shutterFirst,model.GetChildCount(),side));
         }
-        Part(model,"box",new(x,y-.23f,z+.095f),new(.48f,.055f,.16f),0);
+        if(_fineArchitecture)Sculpt(model,DripSill(),new(x,y-.23f,z+.095f),Material(6));
+        else Part(model,"box",new(x,y-.23f,z+.095f),new(.48f,.055f,.16f),0);
         Part(model,"box",new(x,y+.23f,z+.04f),new(.44f,.055f,.10f),0);
         // Enlarge the opening and joinery together, preserving the depth of the reveal.
         for(int i=first;i<model.GetChildCount();i++)

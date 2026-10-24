@@ -230,13 +230,16 @@ internal sealed partial class NatureModels
             if(data.Radii.Length!=data.Rows*data.Columns||data.Centers.Length!=data.Rows||data.High<=data.Low)
                 throw new InvalidOperationException("Incomplete scalp surface lookup");
             foreach(float radius in data.Radii)if(!float.IsFinite(radius)||radius<=0)throw new InvalidOperationException("Invalid scalp sample");
-            foreach(var mesh in new[]{HumanMesh("head"),HumanMesh("mouth"),HumanMesh("eye",0),HumanMesh("eye",1),HumanMesh("lod")})
+            foreach(var mesh in new[]{HumanMesh("head"),HumanMesh("mouth"),HumanMesh("eye",0),HumanMesh("eye",1),HumanMesh("lod"),Eyelashes()})
             {
                 var arrays=mesh.SurfaceGetArrays(0);var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
                 if(points.Length!=normals.Length)throw new InvalidOperationException("Human asset loses normals");
                 for(int i=0;i<points.Length;i++)if(!points[i].IsFinite()||!normals[i].IsFinite()||normals[i].LengthSquared()<.8f)
                     throw new InvalidOperationException("Invalid human asset geometry or normal");
             }
+            var lashes=Eyelashes().SurfaceGetArrays(0);var lashPoints=lashes[(int)Mesh.ArrayType.Vertex].AsVector3Array();var lashMorph=lashes[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
+            if(lashPoints.Length>936||lashMorph.Length!=lashPoints.Length||Eyelashes()!=Eyelashes())throw new InvalidOperationException("Eyelashes lose blink attributes, cache or budget");
+            foreach(var delta in lashMorph)if(!delta.IsFinite()||delta.Length()>.02f)throw new InvalidOperationException("Eyelashes detach during closure");
             if(data.Lod.Indices.Length>7200||HumanMesh("head").GetAabb().Position.DistanceTo(HumanMesh("lod").GetAabb().Position)>.06f
                 ||HumanMesh("head").GetAabb().Size.DistanceTo(HumanMesh("lod").GetAabb().Size)>.08f)
                 throw new InvalidOperationException("Distant anatomical head exceeds its budget or changes silhouette");

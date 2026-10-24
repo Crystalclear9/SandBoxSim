@@ -20,9 +20,16 @@ varying vec3 p;
 float wet(vec2 tile){return texture(material_map,(clamp(tile,vec2(0),map_size-vec2(1))+vec2(.5))/map_size).b;}
 float cubic(float a,float b,float c,float d,float t){return .5*(2.0*b+(c-a)*t+(2.0*a-5.0*b+4.0*c-d)*t*t+(-a+3.0*b-3.0*c+d)*t*t*t);}
 float row(vec2 base,float y,float u){return cubic(wet(base+vec2(-1,y)),wet(base+vec2(0,y)),wet(base+vec2(1,y)),wet(base+vec2(2,y)),u);}
+vec3 ripple(vec2 xz){
+    vec2 k1=vec2(.73,.41),k2=vec2(-.29,1.17),k3=vec2(2.7,-1.9);
+    float a=dot(xz,k1)+TIME*.7,b=dot(xz,k2)+TIME*.9,c=dot(xz,k3)-TIME*1.3;
+    vec2 gradient=cos(a)*.006*k1-sin(b)*.004*k2+cos(c)*.0009*k3;
+    return vec3(gradient.x,sin(a)*.006+cos(b)*.004+sin(c)*.0009,gradient.y);
+}
 void vertex(){
     p=VERTEX;
-    VERTEX.y+=sin(VERTEX.x*.73+VERTEX.z*.41+TIME*.7)*.006+cos(VERTEX.z*1.17-VERTEX.x*.29+TIME*.9)*.004;
+    float depth=max(0.0,.02-texture(bed_height,(p.xz*2.0+vec2(.5))/(map_size*4.0+vec2(1))).r);
+    VERTEX.y+=ripple(p.xz).y*smoothstep(.01,.20,depth);
     NORMAL=vec3(0,1,0);
 }
 void fragment(){
@@ -30,9 +37,8 @@ void fragment(){
     float bank=clamp(cubic(row(base,-1.0,f.x),row(base,0.0,f.x),row(base,1.0,f.x),row(base,2.0,f.x),f.y),0.0,1.0);
     if(bank<.48)discard;
     float depth=max(0.0,.02-texture(bed_height,(p.xz*2.0+vec2(.5))/(map_size*4.0+vec2(1))).r);
-    float bend=sin(p.z*.31+p.x*.47)*1.7+sin(p.x*.17-p.z*.53)*.9;
-    float w1=cos(p.x*1.73+p.z*1.19+bend+TIME*.7),w2=cos(p.x*3.11-p.z*2.47+bend*.7-TIME*.93),w3=cos(p.x*5.37+p.z*4.19+TIME*1.13);
-    vec3 n=normalize(vec3(w1*.008+w2*.004+w3*.002,1,w1*.006-w2*.003+w3*.0015));
+    vec3 waves=ripple(p.xz);float shore_fade=smoothstep(.01,.20,depth);
+    vec3 n=normalize(vec3(-waves.x*shore_fade,1,-waves.z*shore_fade));
     NORMAL=normalize(mat3(VIEW_MATRIX)*n);
     float fresnel=.02+.98*pow(1.0-clamp(dot(NORMAL,normalize(VIEW)),0.0,1.0),5.0);
     float bed_detail=sin(p.x*17.0+sin(p.z*7.0))*sin(p.z*21.0+p.x*3.0)*.012;

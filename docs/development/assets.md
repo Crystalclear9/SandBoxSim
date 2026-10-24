@@ -49,6 +49,19 @@ UI 的层级和画布工具组织参考见[观察与界面](../guides/gameplay-o
 
 这些资料用于明确实现方法；素材页、许可与作者记录用于实际资源来源。界面没有引入网页运行时或外部 UI 素材包。
 
+## 各类对象的表现依据
+
+| 对象 | 参考与当前处理 |
+|---|---|
+| 场景与水岸 | [Godot 空间着色器](https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/spatial_shader.html)：水面位移和光照法线使用同组波相位，临岸根据河床深度衰减；维持现有连续地形和实际落点采样 |
+| 建筑 | [Historic England 窗户维护](https://historicengland.org.uk/advice/your-home/maintain-repair/windows/)：保留门窗与墙体的构造层次，近景窗台有外倾顶面、前缘倒角和下缘滴水槽；这是项目几何表现，不模拟排水施工 |
+| 人物 | [MakeHuman 身体附件](https://ww.makehumancommunity.org/mpfb/docs/characters/bodyparts.html)：眼球、眼睑与睫毛分别处理。睫毛取根于现有眼裂曲线，和原眼睑共用闭合时序；眼球、嘴唇与皮肤分别控制粗糙度 |
+| 动物 | [British Deer Society 鹿类识别](https://bds.org.uk/information-advice/about-deer/deer-species/identify/)与[Wisconsin DNR 灰狼](https://dnr.wisconsin.gov/topic/WildlifeHabitat/wolf)：保留来源模型的分枝鹿角、头颈和短耳轮廓，细节使用来源表面定位；近景增加耳内短毛与角膜／虹膜，未替换成通用球眼 |
+| 植物 | [RHS 普通芦苇](https://www.rhs.org.uk/plants/54026/phragmites-australis/details)与[Kew 野莓](https://growwild.kew.org/plants/bramble)：芦苇采用分枝圆锥花序，莓果由多个小果粒组成并保留萼片；当前株高和斑块尺度仍为游戏表现比例，不作为物种识别真值 |
+| UI | [NN/g 系统状态可见性](https://www.nngroup.com/articles/visibility-system-status/)：时间组显示暂停或运行倍率；工具标题、用途和选中状态分别表达，提示卡左对齐并保持鼠标操作入口 |
+
+原树木、岩石、头脸与动物的源文件及许可继续沿用上方记录。细节增加并不代表所有资产已重新制作：狼的原始颜色贴图仍为 256×256，细分和程序虹膜无法补回来源贴图缺失的照片细节；当前没有完整动物眼睑闭合或毛发体积模拟。
+
 ## 当前材质与几何
 
 人物近景保留同源基础上的三套头颈、耳部与面部形体，独立眼球和唇部接入现有动作，近景发片按源重心关系拟合头部。门襟和系带使用实际衣身求交挂点，腰扣是开口网格。动物使用作者提供的皮毛 UV 与贴图、独立骨架和共享网格；原 PNG 保持原字节，导入开启 mipmap。

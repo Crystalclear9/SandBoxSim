@@ -2,7 +2,7 @@
 
 此目录保留项目说明使用的原生 Godot 截图和动作演示，随文档提交。图片反映采样版本，不代表所有驱动、视角或当前帧率，也不作为模型质量、效率或 RSI 的评分。项目正式名称为 SandBoxSim。
 
-最新配图展示厚茅草檐口、圆弧覆脊、深棕皮革肩带、河岸与悬浮提示界面；授权鹿狼、头脸和生态专题保留各自采样。工具动态演示和其他专题保留各自先前采样。截图之外的能力边界见 [模型系统](../development/models.md)。
+最新配图展示人物眼睑细节、鹿狼眼眶与耳廓、建筑窗台、芦苇花序、野莓果粒、水岸，以及有图标提示和明确时间状态的悬浮界面。工具动态演示和其他专题保留各自先前采样。截图之外的能力边界见 [模型系统](../development/models.md)。
 
 ## 当前配图
 
@@ -15,7 +15,7 @@
 | `character-detail.png`、`resident-face-detail.png` | 人物、动物与面部；`characters`、`faces` |
 | `wardrobe-detail.png`、`resident-garment-actions.png` | 三种衣装的正背面与作业动作；`wardrobe`、`actions` |
 | `animal-head-detail.png` | 鹿狼正面和侧面的眼位、耳根、额鼻及下颌轮廓；`animal-heads` |
-| `animal-detail.png` | 授权鹿狼侧面、耳廓、口鼻与源足部表面；`animal-details` |
+| `animal-detail.png` | 授权鹿狼侧面、独立眼眶近景与源足部表面；`animal-details` |
 | `ecology-detail.png` | 扫描树木、蕨类、岩石与程序草本、灌木；`ecology-details` |
 | `model-surface-detail.png` | 衣料、靴子、动物与建筑近景；`model-details` |
 | `resident-tool-motion.gif` | 当前携带、作业与收纳动作；`actions` 的 30 帧原生采样，覆盖约 7 秒循环 |
@@ -28,7 +28,7 @@
 
 ## 版本与复现
 
-建筑、衣装、网格近景、地形远近景、工具库、现场手记、人物手记和展开观察窗更新于 2026-10-24，均为原生 Godot 渲染、1600×1000、2 秒采样延迟。对应 `interface=context-workspace-v9`、`architecture=bound-thatch-v7`、`animalPresentation=authored-wildlife-v2` 和 `landscapeSurface=oriented-meadow-v4`；河岸选点标识为 `habitatDetail=rooted-riverbank-v5`。人物动物、面部与生态图册保留同日较早采样。模型图册暂停模拟；世界界面使用种子 839102、40 人，不作预先天数推进，但截图等待期间仍按正常 4× 倍率运行。
+建筑、人物动物、面部、衣装、生态、网格近景、地形远近景、工具库、现场手记、人物手记和展开观察窗更新于 2026-10-24，均为原生 Godot 渲染、1600×1000、2 秒采样延迟。对应 `interface=legible-workspace-v10`、`architecture=drip-joinery-v8`、`animalPresentation=authored-wildlife-v3` 和 `landscapeSurface=oriented-meadow-v4`；河岸选点标识为 `habitatDetail=botanical-panicles-v6`。人物睫毛与水波分别记录 `residentSurface=anatomical-lashes-v1`、`waterSurface=shore-ripples-v1`。模型图册暂停模拟；世界界面使用种子 839102、40 人，不作预先天数推进，但截图等待期间仍按正常 4× 倍率运行。
 
 地形远景使用普通世界入口；近景加 `--view=near`。两图用于查看实际扫描草叶地面、山坡、岸线和贴地，属于普通客户端采样，不作为固定帧评测成绩。
 
