@@ -17,7 +17,11 @@ float weight=exp(-pow(abs(VERTEX.x)/.023,4.0)-pow(abs(VERTEX.y)/.008,4.0))*(1.0-
 VERTEX.y+=(VERTEX.y>=0.0?1.0:-1.0)*speech*.0012*weight;VERTEX.z-=speech*.0002*weight;}
 void fragment(){
 ALBEDO=texture(skin_albedo,UV).rgb*.72*(tone.rgb/vec3(.667,.545,.471));
-ROUGHNESS=.48;SPECULAR=.30;}"};
+float crease=sin(lip_point.x*1900.0+sin(lip_point.y*700.0));
+crease/=1.0+pow(max(length(dFdx(lip_point)),length(dFdy(lip_point)))*1900.0,2.0);
+vec3 dx=dFdx(VERTEX),dy=dFdy(VERTEX),tx=cross(dy,NORMAL),ty=cross(NORMAL,dx);float det=dot(dx,tx),height=crease*.000007;
+if(abs(det)>.0000000001)NORMAL=normalize(abs(det)*NORMAL-sign(det)*(dFdx(height)*tx+dFdy(height)*ty));
+ROUGHNESS=.50+crease*.018;SPECULAR=.30;}"};
         var material=new ShaderMaterial {Shader=_lipShader};material.SetShaderParameter("tone",new Color(color));material.SetShaderParameter("speech",0f);material.SetShaderParameter("skin_albedo",GD.Load<Texture2D>(HeadAlbedoPath));
         return _residentMaterials[key]=material;
     }

@@ -34,7 +34,7 @@ Windows 导出使用与 Godot 4.7.2 .NET 编辑器匹配的 Mono 模板。将模
 ./tools/export-game.ps1 -GodotPath $env:GODOT_EXE -TemplatePath './.tools/godot-4.7.2/templates/windows_release_x86_64.exe'
 ```
 
-脚本解析 SDK 并设置子进程的 `PATH`/`DOTNET_ROOT`，在项目内的新暂存目录导出；结束后原样恢复导出预设。Godot 有时退出 0 但报告程序集构建失败，因此同时检查日志、完整数据目录和导出包的实际 `--self-test`。首次导出会解析并建立游戏自身的用户配置目录与编辑器快照子目录，不移动已有配置；编辑器进程有可配置的超时上限，避免包装进程退出后仍一直等待。只有通过后才将完整暂存包移入 `artifacts/game/windows/`；发布前把旧包移到同级备份，替换失败时恢复旧包，成功后删除备份，避免覆盖复制留下过期 DLL。此过程不支持并发导出，发布时请先退出游戏；进程被强制终止时可能留下同级 `.previous-*` 备份，目录切换并非断电事务。失败的导出不会替换现有游戏包，暂存目录随后清理。已知本机证书库诊断单独保留，其他导出错误和带警告的失败导出均拒绝发布。日志位于 `.tools/game-export*.log`。
+脚本解析 SDK 并设置子进程的 `PATH`/`DOTNET_ROOT`，在项目内的新暂存目录导出；结束后原样恢复导出预设。Godot 有时退出 0 但报告程序集构建失败，因此同时检查日志、完整数据目录和导出包的实际 `--self-test`。首次导出会解析并建立游戏自身的用户配置目录与编辑器快照子目录，不移动已有配置；编辑器进程有可配置的超时上限，避免包装进程退出后仍一直等待。只有通过后才将完整暂存包移入 `artifacts/game/windows/`；发布前把旧包移到同级备份，替换失败时恢复旧包，成功后删除备份，避免覆盖复制留下过期 DLL。此过程不支持并发导出，发布时请先退出游戏；进程被强制终止时可能留下同级 `.previous-*` 备份，目录切换并非断电事务。失败的导出不会替换现有游戏包，暂存目录随后清理。所有 `ERROR:`、程序集构建失败及带警告的失败导出均拒绝发布，不豁免证书错误。日志位于 `.tools/game-export*.log`。
 
 EXE 与相邻 `data_SandBoxSim.Godot_windows_x86_64/` 共同构成自包含游戏，不能只复制 EXE。网格、贴图与素材署名嵌入 PCK；普通游玩不依赖 SDK、编辑器或 Blender。`Play-3D.cmd` 优先启动该包；源码修改后需重新导出。
 
@@ -118,11 +118,15 @@ $samplePath = Join-Path (Get-Location).Path 'runs/render-sample.json'
 
 使用 `./tools/godot.ps1 -Mode test -ReimportTextures` 可在真实编辑器生命周期中重建模型与扫描表面的 mip 链，并检查实际缓存；独立包导出也自动执行。它不要求 Blender，不修改原始 PNG/JPG 像素。
 
-## 原生评测的启动诊断
+## 运行目录与 TLS 证书
 
-`evaluate.py` 对引擎日志中的 `ERROR:` 保持严格拒绝：进程退出码为 0、截图完整或完成阶段已记录，都不能把这一运行视为有效评测。Windows 主机若出现 `Failed to read the root certificate store`，需要检查运行账户的系统证书库访问；`Can't create shader cache folder` 则需要检查 Godot 报告的游戏用户目录与写入权限。它们与脚本／网格自检断言分开诊断，不应删除日志、改小判分范围或放宽错误检测来取得通过。
+Windows 的 `godot.ps1`、`export-game.ps1`、`evaluate.py` 和 `Play-3D.cmd` 将子进程的 `APPDATA`、`LOCALAPPDATA` 指向仓库 `.tools/godot-state/config` 与 `cache`。Linux 开发入口设置项目内 XDG config/data/cache；macOS 保留平台用户目录，不替换 HOME。这些设置不修改系统环境变量；PowerShell 入口在完成或报错时恢复调用者的相关环境变量，Python 入口使用子进程环境副本。游戏可只读回退到原 Windows 用户目录的 `interface.cfg`，保留原有动效偏好；新设置写入当前游戏用户目录，不移动旧配置或存档。
 
-当前独立包导出入口会解析并创建本项目正常的用户目录，保留已有设置；证书库访问属于主机环境，工具不会修改全局信任库。导出自检与严格视觉评测的日志规则不同，导出通过不能替代 `evaluate.py verify`。
+游戏显式读取随包提供的 Mozilla CA 证书包，文件、日期、数量、SHA-256、MPL 2.0 许可及对应固定版本源文件见[运行证书资源](../../src/SandBoxSim.Godot/assets/runtime/README.md)。TLS 验证保持启用，不安装系统根证书。证书包需要随安全维护更新；未来加入联网功能时，应明确私有／企业 CA 的配置要求。
+
+仓库内带 `_sc_` 标记的便携编辑器使用独立的编辑器 TLS 设置。工具为其空证书设置填入项目证书包，保留已有私人证书选择和其他偏好；不会修改项目外的共享编辑器。`setup-godot.ps1`、`godot.ps1` 和导出入口执行此配置。使用外部编辑器时，证书设置由该安装的使用者管理。
+
+`evaluate.py` 对引擎日志中的 `ERROR:` 继续严格拒绝：退出码为 0、截图完整或完成阶段已记录，都不能掩盖引擎错误。若手动绕过启动器而出现缓存目录或系统证书库访问错误，应检查实际运行目录和证书配置；不要放宽评测规则。`tools/test-godot-runtime.ps1` 检查配置范围、私人设置保留及证书完整性，客户端自检还核对实际证书解析和导出包内许可。
 
 ---
 

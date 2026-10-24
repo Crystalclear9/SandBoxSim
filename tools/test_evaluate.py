@@ -70,7 +70,7 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(summary["lastPhase"], last)
         self.assertEqual(provenance["phaseTimings"], [last])
         self.assertEqual(provenance["exitCode"], 124)
-        self.assertEqual(provenance["execution"], dict(maxFps=60, resolution="1440x900", disableVsync=True, audioDriver="Dummy"))
+        self.assertEqual(provenance["execution"], dict(maxFps=60, resolution="1440x900", disableVsync=True, audioDriver="Dummy", userDataPolicy="external"))
         self.assertEqual(evaluate.validate_artifacts(output)["status"], "completed")
 
     def test_engine_exit_does_not_wait_for_inherited_log_handles(self):
@@ -101,6 +101,36 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(native, 2)
         self.assertFalse(timed_out)
         self.assertIn(b'failed', logs)
+
+    def test_zero_exit_complete_artifacts_still_reject_runtime_errors(self):
+        root = self.folder / "error-runner"
+        assembly = root / "src/SandBoxSim.Godot/.godot/mono/temp/bin/Debug/SandBoxSim.Godot.dll"
+        assembly.parent.mkdir(parents=True)
+        assembly.write_bytes(b"game"); assembly.with_name("SandBoxSim.Core.dll").write_bytes(b"core")
+        evaluate.write(assembly.with_name("build-source.json"), dict(schemaVersion=1, configuration="Debug",
+            sourceFiles=evaluate.compiled_source_hashes(root), assemblySha256=evaluate.digest(assembly),
+            coreSha256=evaluate.digest(assembly.with_name("SandBoxSim.Core.dll"))))
+        for i, error in enumerate((b"ERROR: Failed to read the root certificate store.", b"ERROR: Can't create shader cache folder")):
+            with self.subTest(error=error):
+                output = root / ("result-" + str(i))
+                def failed_log(command, cwd, env, timeout):
+                    request = next(arg.split("=", 1)[1] for arg in command if arg.startswith("--evaluation="))
+                    shutil.copy2(request, output / "request.json")
+                    for name in ("image.png", "result.json", "questions.json", "answer-key.json"):
+                        shutil.copy2(self.folder / name, output / name)
+                    return 0, False, error
+                args = SimpleNamespace(scenario=self.folder / "request.json", output=output, engine=sys.executable,
+                    timeout=3, max_fps=60, resolution="1440x900", audio_driver="Dummy", label="error-test")
+                with mock.patch.object(evaluate, "ROOT", root), mock.patch.object(evaluate, "assert_dotnet_engine"), \
+                     mock.patch.object(evaluate, "tool_environment", return_value=os.environ.copy()), \
+                     mock.patch.object(evaluate, "dotnet_executable", return_value=None), \
+                     mock.patch.object(evaluate, "git", side_effect=lambda *a: "1" * 40 if a[0] == "rev-parse" else ""), \
+                     mock.patch.object(evaluate, "wait_for_engine", side_effect=failed_log), redirect_stdout(io.StringIO()):
+                    self.assertEqual(evaluate.run(args), 2)
+                provenance = evaluate.read(output / "provenance.json")
+                self.assertEqual(provenance["engineExitCode"], 0)
+                self.assertFalse(provenance["timedOut"])
+                self.assertEqual(provenance["artifactValidation"], "Engine reported an error")
 
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(); self.folder = Path(self.temp.name)

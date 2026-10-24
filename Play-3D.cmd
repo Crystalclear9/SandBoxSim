@@ -1,4 +1,10 @@
 @echo off
+setlocal
+if not defined SANDBOXSIM_ORIGINAL_APPDATA set "SANDBOXSIM_ORIGINAL_APPDATA=%APPDATA%"
+set "APPDATA=%~dp0.tools\godot-state\config"
+set "LOCALAPPDATA=%~dp0.tools\godot-state\cache"
+if not exist "%APPDATA%" mkdir "%APPDATA%"
+if not exist "%LOCALAPPDATA%" mkdir "%LOCALAPPDATA%"
 if exist "%~dp0artifacts\game\windows\SandBoxSim.exe" (
     start "SandBoxSim" /D "%~dp0artifacts\game\windows" "%~dp0artifacts\game\windows\SandBoxSim.exe"
     exit /b 0

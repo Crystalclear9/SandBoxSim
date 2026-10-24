@@ -79,11 +79,14 @@ public partial class MainGame : Control
             { FontNames = new[] { "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "WenQuanYi Zen Hei", "sans-serif" } } };
         var preferences = new ConfigFile();
         var preferenceResult=preferences.Load("user://interface.cfg");
+        string originalProfile=OS.GetEnvironment("SANDBOXSIM_ORIGINAL_APPDATA");
+        if(preferenceResult==Error.FileNotFound&&OS.GetName()=="Windows"&&!string.IsNullOrEmpty(originalProfile))
+            preferenceResult=preferences.Load(System.IO.Path.Combine(originalProfile,"Godot","app_userdata","SandBoxSim","interface.cfg"));
         if(preferenceResult==Error.FileNotFound)
         {
             // Renaming the project changes Godot's default user directory.
             // Read the old preference without moving or deleting user files.
-            string? parent=System.IO.Path.GetDirectoryName(OS.GetUserDataDir());
+            string? parent=OS.GetName()=="Windows"&&!string.IsNullOrEmpty(originalProfile)?System.IO.Path.Combine(originalProfile,"Godot","app_userdata"):System.IO.Path.GetDirectoryName(OS.GetUserDataDir());
             if(parent!=null)preferenceResult=preferences.Load(System.IO.Path.Combine(parent,"SandBoxSim · 河山","interface.cfg"));
         }
         HudStyle.MotionEnabled = preferenceResult != Error.Ok || preferences.GetValue("interface", "motion", true).AsBool();

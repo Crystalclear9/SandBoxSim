@@ -20,6 +20,9 @@ window/stretch/mode="disabled"
 [dotnet]
 project/assembly_name="SandBoxSim.Godot"
 
+[network]
+tls/certificate_bundle_override="res://assets/runtime/mozilla-ca.crt"
+
 [rendering]
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"

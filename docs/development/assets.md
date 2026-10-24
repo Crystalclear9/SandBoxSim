@@ -10,6 +10,7 @@
 | `models/human/` | 三套头脸与原生 2K 皮肤、发片图集、前臂、手部和手部 LOD；CC BY 4.0 / CC0 许可分别列明 |
 | `materials/scanned/` | 八种扫描表面、22 张 1K 原始贴图、哈希清单与许可 |
 | `models/animals/cdmir-deer/`、`models/animals/0ad-wolf/` | 正式鹿狼蒙皮、源 UV 贴图、成品/源哈希与 CC0 / CC BY-SA 3.0 署名 |
+| `runtime/` | Mozilla CA 证书包、固定源文件链接与哈希、MPL 2.0 许可；供游戏与项目内便携编辑器的 TLS 使用 |
 | `models/garments/` | 三种项目自有连续上衣蒙皮、源几何哈希和成品清单 |
 | `textures/natural-terrain.png` | 早期地形图集，保留二维地图入口；当前 3D 地表不使用 |
 | `textures/natural-materials.png` | 4×4 对象材质图集，结合木纹、石层、布料及肤发表面 |
@@ -41,6 +42,7 @@ UI 的层级和画布工具组织参考见[观察与界面](../guides/gameplay-o
 | 参考 | 当前实现 |
 |---|---|
 | [NVIDIA GPU Gems：复杂地形](https://developer.nvidia.com/gpugems/gpugems3/part-i-geometry/chapter-1-generating-complex-procedural-terrains-using-gpu) | 三向材质的法线在各投影切线方向还原；米制细节与远景采样分开控制。项目仍使用共享高度曲面，没有声称实现该文的 GPU 体素地形 |
+| [Boubekeur 与 Alexa：Phong Tessellation](https://perso.telecom-paristech.fr/boubek/papers/PhongTessellation/) | 借鉴顶点切平面投影思想，对选定动物头骨边进行一次性 CPU 细分；不是完整论文实现或硬件细分管线 |
 | [Godot：Lights and shadows](https://docs.godotengine.org/en/stable/tutorials/3d/lights_and_shadows.html) | 实机对照阴影自遮挡与接触投影，世界方向光深度偏移采用 2.4，保留级联阴影；具体值是当前场景的实现选择 |
 | [Blender：Bevel Modifier](https://docs.blender.org/manual/en/4.4/modeling/modifiers/generate/bevel.html) | 参考绝对尺寸与避免倒角相交的原则，运行时直接按米制尺寸构造木石边缘，不需要在玩家设备中安装 Blender |
 | [Godot：Spatial shaders](https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/spatial_shader.html) | 分清顶点、法线、切线和片元坐标空间；扫描植物的风摆同时更新表面框架。兼容渲染器使用有限薄层背光，不声明完整皮下散射 |

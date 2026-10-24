@@ -18,7 +18,8 @@ internal sealed partial class NatureModels
             float crown=thatch?.42f+.065f*MathF.Sin(v*44+u*.7f):.34f+.17f*MathF.Cos(v*MathF.PI)+.018f*MathF.Sin(u*9+v*3);
             float bevel=detailed&&!thatch?.12f*MathF.Pow(MathF.Max(MathF.Abs(u),MathF.Abs(v))*2,12):0;
             float nick=detailed&&!thatch?.018f*MathF.Exp(-MathF.Pow((v-.22f)*28,2))*edge:0;
-            return new(u+fray-nick,top?crown-bevel:-.4f+bevel,v);
+            float toe=detailed&&!thatch?.10f*MathF.Pow(MathF.Abs(v)*2,4)*Mathf.SmoothStep(.05f,.48f,u):0;
+            return new(u+fray-nick-toe,top?crown-bevel:-.4f+bevel,v);
         }
         void Triangle(Vector3 a,Vector3 b,Vector3 c,Vector3 outward)
         {

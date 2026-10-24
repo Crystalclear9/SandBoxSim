@@ -126,9 +126,11 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 构建身份记录与 Python 校验器共同使用仓库实际文件名 `NuGet.config`；改变包源配置会使旧构建身份失效，需要重新构建。PowerShell 与 Python 各有规范路径回归，避免 Windows 路径大小写宽容掩盖 Linux 上遗漏配置的差异。
 
+`execution.userDataPolicy` 记录项目内运行目录策略；旧结果缺少该字段时，比较器拒绝直接对照。`.crt` 文件进入源码身份记录，证书哈希、数量、可解析性和包内许可由客户端自检验证。运行器仍拒绝所有 `ERROR:`，包括证书与缓存错误；修复配置不等于过滤错误日志。
+
 ## 当前渲染版本
 
-当前渲染元数据为 `animalPresentation=muzzle-detail-v5`、`interface=context-observation-v12`、`architecture=metric-edges-v10`、`garmentMaterial=signed-linen-v6`、`landscapeSurface=moisture-meadow-v5`、`habitatDetail=floral-organs-v8`。另外记录 `residentSurface=calibrated-skin-v2`、`vegetationSurface=bent-frames-v1` 和 `waterSurface=shore-ripples-v1`。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。当前木石构件米制倒角、草花器官、植物风摆法线框架、动物触须／鼻镜微纹、人物皮肤分区、湿度草地色和全对象观察操作已改变，需重采相同场景的视觉和耗时基线；不能把换资产造成的耗时变化算作代码优化收益。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
+当前渲染元数据为 `animalPresentation=curved-skulls-v6`、`interface=context-facts-v13`、`architecture=rounded-tile-toes-v11`、`garmentMaterial=signed-linen-v6`、`landscapeSurface=moisture-meadow-v5`、`habitatDetail=floral-organs-v8`。另外记录 `residentSurface=lip-grain-v3`、`vegetationSurface=bent-frames-v1` 和 `waterSurface=shore-ripples-v1`。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。当前动物头骨细分、屋瓦下缘、人物唇面细纹和观察卡实时信息已改变，需重采相同场景的视觉和耗时基线；不能把换资产造成的耗时变化算作代码优化收益。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
 
 无窗口自检的花株接地检查使用 CPU 保存的实例位置；图形模式额外核对 GPU 实例变换。渲染服务器的占位读回不作为几何证据。快捷操作检查覆盖居民、鹿狼和土地的真实目标位置、失效实体身份拒绝、靠近的实际相机距离、人物观察窗／土地手记及观察纯度。
 

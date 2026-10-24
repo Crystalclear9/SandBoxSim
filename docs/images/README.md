@@ -2,7 +2,7 @@
 
 此目录保留项目说明使用的原生 Godot 截图和动作演示，随文档提交。图片反映采样版本，不代表所有驱动、视角或当前帧率，也不作为模型质量、效率或 RSI 的评分。项目正式名称为 SandBoxSim。
 
-最新配图展示覆盖人物、动物和土地的观察卡、米制木石边缘、皮肤与动物口鼻细节，以及含萼片、花丝和花药的花甸。扫描植物风摆同步更新表面方向，地表按湿度形成干草色斑块。动态演示与其他专题保留各自先前采样。截图之外的能力边界见 [模型系统](../development/models.md)。
+最新配图展示带实时对象信息的观察卡、圆角屋瓦下缘、细分后的动物头部、人物唇面细纹，以及含萼片、花丝和花药的花甸。扫描植物风摆同步更新表面方向，地表按湿度形成干草色斑块。动态演示与其他专题保留各自先前采样。截图之外的能力边界见 [模型系统](../development/models.md)。
 
 ## 当前配图
 
@@ -11,7 +11,7 @@
 | `tool-palette.png` | 416 像素工具库、分类和搜索、悬浮控制组；`tools` |
 | `free-world-ui.png`、`ui-detail-refined.png` | 自由探索现场手记、人物手记；`field`、`person` |
 | `resident-portrait.png` | 当前展开人物观察窗；`person-expanded` |
-| `resident-hand-inspector.png`、`resident-body-inspector.png` | 较早的人物双手与全身；公开 `ui-portrait-window` 第 130/170 帧 |
+| `resident-hand-inspector.png`、`resident-body-inspector.png` | 当前展开窗口中的人物双手与全身；公开 `ui-portrait-window` 第 130/170 帧 |
 | `character-detail.png`、`resident-face-detail.png` | 人物、动物与面部；`characters`、`faces` |
 | `wardrobe-detail.png`、`resident-garment-actions.png` | 三种衣装的正背面与作业动作；`wardrobe`、`actions` |
 | `animal-head-detail.png` | 鹿狼正面和侧面的眼位、耳根、额鼻及下颌轮廓；`animal-heads` |
@@ -29,7 +29,7 @@
 
 ## 版本与复现
 
-建筑、人物动物、面部、衣装、生态、网格近景、地形远近景、工具库、现场手记、人物手记、展开观察窗与花甸更新于 2026-10-24，均为原生 Godot 渲染、1600×1000、2 秒采样延迟。对应 `interface=context-observation-v12`、`architecture=metric-edges-v10`、`animalPresentation=muzzle-detail-v5` 和 `landscapeSurface=moisture-meadow-v5`；植物摆放标识为 `habitatDetail=floral-organs-v8`。人物皮肤、植物表面框架与水波分别记录 `residentSurface=calibrated-skin-v2`、`vegetationSurface=bent-frames-v1`、`waterSurface=shore-ripples-v1`。模型图册暂停模拟；世界界面使用种子 839102、40 人，不作预先天数推进，但普通界面截图等待期间按正常 4× 倍率运行；花甸预览暂停模拟。
+建筑、人物动物、面部、衣装、生态、网格近景、地形远近景、工具库、现场手记、人物手记、展开观察窗及其手部／全身视图与花甸更新于 2026-10-24，均为原生 Godot 渲染、1600×1000、2 秒采样延迟。对应 `interface=context-facts-v13`、`architecture=rounded-tile-toes-v11`、`animalPresentation=curved-skulls-v6` 和 `landscapeSurface=moisture-meadow-v5`；植物摆放标识为 `habitatDetail=floral-organs-v8`。人物皮肤、植物表面框架与水波分别记录 `residentSurface=lip-grain-v3`、`vegetationSurface=bent-frames-v1`、`waterSurface=shore-ripples-v1`。模型图册暂停模拟；世界界面使用种子 839102、40 人，不作预先天数推进，但普通界面截图等待期间按正常 4× 倍率运行；花甸预览暂停模拟。
 
 地形远景使用普通世界入口；近景加 `--view=near`。两图用于查看实际扫描草叶地面、山坡、岸线和贴地，属于普通客户端采样，不作为固定帧评测成绩。
 

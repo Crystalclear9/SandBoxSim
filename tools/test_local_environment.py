@@ -33,4 +33,43 @@ class LocalEnvironmentTests(unittest.TestCase):
             ready(client, process)
         self.assertEqual(client.request.call_count, 1)
 
+
+import tempfile
+from unittest import mock
+import local_environment
+
+class GodotEnvironmentTests(unittest.TestCase):
+    def test_platform_profiles_stay_local_and_keep_home_and_trust_settings(self):
+        for platform in ("win32", "linux", "darwin"):
+            with self.subTest(platform=platform), tempfile.TemporaryDirectory() as folder:
+                original = dict(HOME="original-home", USERPROFILE="original-profile", SSL_CERT_FILE="private-ca", APPDATA="original-appdata")
+                child = original.copy()
+                local_environment.godot_user_environment(child, Path(folder), platform)
+                self.assertEqual(original["APPDATA"], "original-appdata")
+                for name in ("HOME", "USERPROFILE", "SSL_CERT_FILE"):
+                    self.assertEqual(child[name], original[name])
+                if platform == "win32":
+                    self.assertEqual(child["SANDBOXSIM_ORIGINAL_APPDATA"], "original-appdata")
+                    self.assertEqual(Path(child["APPDATA"]), Path(folder) / ".tools/godot-state/config")
+                    self.assertTrue(Path(child["LOCALAPPDATA"]).is_dir())
+                elif platform == "linux":
+                    self.assertEqual(Path(child["XDG_DATA_HOME"]), Path(folder) / ".tools/godot-state/data")
+                else:
+                    self.assertEqual(child["APPDATA"], "original-appdata")
+
+    def test_normal_tools_do_not_redirect_game_profile(self):
+        with tempfile.TemporaryDirectory() as folder, mock.patch.object(local_environment, "ROOT", Path(folder)):
+            env = local_environment.tool_environment()
+            self.assertEqual(env.get("APPDATA"), os.environ.get("APPDATA"))
+            self.assertNotIn("SANDBOXSIM_GODOT_PROFILE_POLICY", env.keys() - os.environ.keys())
+
+    def test_game_environment_is_a_copy(self):
+        before = os.environ.copy()
+        with tempfile.TemporaryDirectory() as folder, mock.patch.object(local_environment, "ROOT", Path(folder)):
+            child = local_environment.tool_environment(godot=True)
+            self.assertIn("SANDBOXSIM_GODOT_PROFILE_POLICY", child)
+        self.assertEqual(os.environ.copy(), before)
+
+
+
 if __name__ == "__main__": unittest.main()

@@ -30,7 +30,11 @@ $manifest = @{ schemaVersion = 1; configuration = $Configuration; sourceFiles = 
 $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $binaryRoot 'build-source.json') -Encoding utf8
 if ($Mode -eq 'build') { exit 0 }
 . (Join-Path $PSScriptRoot 'godot-lib.ps1')
+$godotEnvironment=Get-GodotEnvironmentSnapshot
+try {
+Set-GodotProcessEnvironment -Root $repositoryRoot
 $GodotPath = Resolve-GodotExecutable -Explicit $GodotPath
+Set-GodotEditorTrust -Executable $GodotPath -Root $repositoryRoot
 $engineLog = Join-Path $repositoryRoot '.tools/godot-runtime.log'
 $engineVersion = & $GodotPath --headless --version
 if ($LASTEXITCODE -ne 0 -or $engineVersion -notmatch "4\.7\.2.*mono") { throw "Godot 4.7.2 .NET executable required: $GodotPath" }
@@ -45,3 +49,4 @@ if ($Mode -eq 'editor') {
     & $GodotPath --log-file $engineLog --path $gameRoot
 }
 if ($LASTEXITCODE -ne 0) { throw "Godot failed ($LASTEXITCODE)" }
+} finally { Restore-GodotEnvironment -Snapshot $godotEnvironment }

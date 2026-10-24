@@ -31,7 +31,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateCraftFinishes()
     {
-        foreach(var mesh in new[]{DripSill(),AggregateBerry(),MetricBoard(new(.155f,1.71f,.025f)),MetricBoard(new(.105f,.39f,.04f)),MetricBoard(new(2.8f,.065f,.075f)),MetricBoard(new(.7f,.35f,.55f),.012f)})
+        foreach(var mesh in new[]{DripSill(),AggregateBerry(),MetricBoard(new(.155f,1.71f,.025f)),MetricBoard(new(.105f,.39f,.04f)),MetricBoard(new(2.8f,.065f,.075f)),MetricBoard(new(.7f,.35f,.55f),.012f),RoofCourse(false,true),RoofCourse(false,false)})
         {
             var arrays=mesh.SurfaceGetArrays(0);var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var n=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
             var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();

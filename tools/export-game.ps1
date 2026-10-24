@@ -6,7 +6,11 @@ $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'godot-lib.ps1')
 if (-not $IsWindows) { throw 'This entry exports and executes the Windows package on Windows. Use the Linux/macOS presets on their respective hosts.' }
 $repositoryRoot=Split-Path -Parent $PSScriptRoot
+$godotEnvironment=Get-GodotEnvironmentSnapshot
+try {
+Set-GodotProcessEnvironment -Root $repositoryRoot
 $GodotPath=Resolve-GodotExecutable -Explicit $GodotPath
+Set-GodotEditorTrust -Executable $GodotPath -Root $repositoryRoot
 # The Windows console wrapper can remain waiting after the editor has exited.
 # Launch the actual editor binary and capture its streams directly.
 if ($GodotPath.EndsWith('_console.exe',[StringComparison]::OrdinalIgnoreCase)) {
@@ -78,3 +82,4 @@ try {
     if (-not $resolved.StartsWith($stageRoot+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)) { throw 'Export staging cleanup escaped project directory.' }
     if (Test-Path -LiteralPath $resolved) { Remove-Item -LiteralPath $resolved -Recurse -Force }
 }
+} finally { Restore-GodotEnvironment -Snapshot $godotEnvironment }

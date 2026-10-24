@@ -161,6 +161,19 @@ public partial class MainGame
     }
     private static void ValidateEvaluationContract()
     {
+        const string trustPath="res://assets/runtime/mozilla-ca.crt";
+        if(ProjectSettings.GetSetting("network/tls/certificate_bundle_override").AsString()!=trustPath)throw new Exception("Runtime trust bundle configuration changed");
+        var trustBytes=Godot.FileAccess.GetFileAsBytes(trustPath);
+        using(var manifest=JsonDocument.Parse(Godot.FileAccess.GetFileAsString("res://assets/runtime/manifest.json")))
+        {
+            var data=manifest.RootElement;
+            if(Convert.ToHexString(SHA256.HashData(trustBytes)).ToLowerInvariant()!=data.GetProperty("sha256").GetString()
+                ||System.Text.Encoding.ASCII.GetString(trustBytes).Split("-----BEGIN CERTIFICATE-----").Length-1!=data.GetProperty("certificates").GetInt32())
+                throw new Exception("Runtime trust bundle identity changed");
+        }
+        using(var trust=new X509Certificate())if(trust.Load(trustPath)!=Error.Ok)throw new Exception("Runtime trust bundle cannot be parsed");
+        if(!Godot.FileAccess.FileExists("res://assets/runtime/LICENSE.txt"))throw new Exception("Runtime trust license missing from package");
+        GD.Print("RUNTIME_TRUST_PASS: pinned Mozilla bundle hash/count, TLS configuration, certificate parsing and packaged license");
         var valid=new EvaluationSpec {CaptureFrames=new[]{3,60},Commands=new[]{new EvaluationCommand {Frame=4,Command="world.view",Value="top"}}};valid.Validate();
         foreach(var bad in new[]{new EvaluationSpec {TicksPerFrame=-1},new EvaluationSpec {CaptureFrames=new[]{3,3}},new EvaluationSpec {Commands=new[]{new EvaluationCommand {Frame=4,Command="execute"}}}})
         {bool rejected=false;try{bad.Validate();}catch(ArgumentException){rejected=true;}if(!rejected)throw new Exception("Invalid evaluation request accepted");}

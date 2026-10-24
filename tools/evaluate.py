@@ -189,7 +189,7 @@ def compare(baseline, candidate):
 
 def source_hashes():
     files = git("ls-files", "--cached", "--others", "--exclude-standard").splitlines()
-    suffixes = {".cs", ".csproj", ".godot", ".py", ".ps1", ".json", ".props"}
+    suffixes = {".cs", ".csproj", ".godot", ".py", ".ps1", ".json", ".props", ".crt"}
     return {name: digest(ROOT / name) for name in sorted(set(files)) if Path(name).suffix in suffixes and (ROOT / name).is_file()}
 
 def assert_dotnet_engine(executable, env):
@@ -250,7 +250,7 @@ def run(args):
     assembly = ROOT / "src/SandBoxSim.Godot/.godot/mono/temp/bin/Debug/SandBoxSim.Godot.dll"
     if not assembly.is_file(): raise ValueError("Debug client assembly missing; run tools/godot.ps1 -Mode build first")
     build_identity=validate_build(ROOT,assembly)
-    env = tool_environment(); dotnet = dotnet_executable()
+    env = tool_environment(godot=True); dotnet = dotnet_executable()
     if dotnet: env["PATH"] = str(Path(dotnet).parent) + os.pathsep + env.get("PATH", "")
     assert_dotnet_engine(executable, env)
     output.mkdir(parents=True, exist_ok=False)
@@ -264,7 +264,7 @@ def run(args):
     if args.audio_driver: command[command.index("--"):command.index("--")] = ["--audio-driver", args.audio_driver]
     provenance = {"schemaVersion": 1, "sourceCommit": git("rev-parse", "HEAD"), "sourceDirty": bool(git("status", "--porcelain")),
                   "runnerSha256": digest(__file__), "scenarioSha256": digest(args.scenario), "engineSha256": digest(executable),
-                  "sourceFiles": source_hashes(), "assemblySha256": digest(assembly), "execution": {"maxFps": args.max_fps, "resolution": args.resolution, "disableVsync": True, "audioDriver": args.audio_driver or "system-default"}, "candidateLabel": args.label, "python": platform.python_version(), "command": command, "startedUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+                  "sourceFiles": source_hashes(), "assemblySha256": digest(assembly), "execution": {"maxFps": args.max_fps, "resolution": args.resolution, "disableVsync": True, "audioDriver": args.audio_driver or "system-default", "userDataPolicy": env.get("SANDBOXSIM_GODOT_PROFILE_POLICY") or "external"}, "candidateLabel": args.label, "python": platform.python_version(), "command": command, "startedUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     started = time.monotonic()
     provenance['buildIdentity']=build_identity
     native_code, timed_out, logs = wait_for_engine(command, ROOT, env, args.timeout)

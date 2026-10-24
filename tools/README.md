@@ -8,7 +8,8 @@
 |---|---|
 | `install-sdk.ps1` | 安装 .NET 8 SDK 到 `.tools/net8/`，下载临时文件也留在 `.tools/` |
 | `setup-godot.ps1` | 按平台安装并校验 Godot 4.7.2 .NET 编辑器到 `.tools/`，启用便携模式 |
-| `local_environment.py` | Python 启动器共用的项目内依赖、CLI 状态与临时路径 |
+| `local_environment.py` | Python 启动器共用的项目内依赖、CLI 状态与临时路径；Godot 子进程的独立用户目录策略 |
+| `test_local_environment.py` / `test-godot-runtime.ps1` | 缓存环境不影响父进程、平台路径、便携编辑器证书配置范围、私人配置保留和证书完整性 |
 | `build.ps1` / `build-lib.ps1` | Core、Console、Tests 的 SDK/csc 构建与执行 |
 | `godot.ps1` / `godot-lib.ps1` | Godot 构建、导入、运行与自检；`-ReimportTextures` 通过编辑器插件重建并核验实际 mip 链 |
 | `test-godot-manifest.ps1` | 检查 NuGet.config 规范大小写与包源配置变化对构建身份的影响 |

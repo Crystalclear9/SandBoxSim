@@ -9,6 +9,7 @@ SandBoxSim 的源码、运行资源与正式文档由 Git 管理；开发工具�
 | `.tools/blender-4.5.14/` | 可选 Blender，供离线素材转换使用 |
 | `.tools/nuget-packages/` | 项目依赖包缓存 |
 | `.tools/sources/` | 来源网格、原图、许可及转换器需要的输入 |
+| `.tools/godot-state/` | 开发启动器与评测的缓存、运行目录和界面偏好；保留 `interface.cfg`，不要当作一次性采样删除 |
 | `.tools/tmp/` | 构建、素材转换与开发采样使用的工作目录 |
 | `artifacts/game/windows/` | Windows 独立游戏 EXE 与对应数据目录 |
 | `artifacts/Debug/`、`artifacts/Release/` | 控制台与内核构建产物 |
@@ -17,7 +18,7 @@ SandBoxSim 的源码、运行资源与正式文档由 Git 管理；开发工具�
 | `runs/` | 用户主动执行的实验输出与评测产物 |
 | `docs/images/` | 项目说明所引用的正式实机配图 |
 
-游戏通过 Godot 的 `user://` 保存界面偏好；实际位置由 `OS.GetUserDataDir()` 根据平台解析。世界和会话可通过游戏中的保存／载入入口管理，格式与兼容规则见[存档](saving.md)。独立包不依赖 Blender、源码或 `.tools/` 才能运行，具体构建方式见[构建与运行](build.md)。
+游戏通过 Godot 的 `user://` 保存界面偏好；实际位置由 `OS.GetUserDataDir()` 根据平台解析。Windows 项目启动器使用 `.tools/godot-state/config/Godot/app_userdata/SandBoxSim/`，并可只读加载原用户目录的界面动效设置；Linux 使用项目内 XDG 目录，macOS 沿用平台目录。世界和会话可通过游戏中的保存／载入入口管理，格式与兼容规则见[存档](saving.md)。独立包不依赖 Blender、源码或 `.tools/` 才能运行，具体构建方式见[构建与运行](build.md)。
 
 `-ReimportTextures` 会通过编辑器插件重建实际 mip 链，避免导入配置与缓存不一致；正式导出也执行该检查。通常运行不进行离线建模，只有重建素材时才使用 `.tools/sources/` 与 Blender。
 

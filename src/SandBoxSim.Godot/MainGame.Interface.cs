@@ -19,6 +19,7 @@ public partial class MainGame
     private Label _cameraReadout=null!;
     private Label _playStateLabel=null!;
     private Button _contextFocus=null!,_contextDetails=null!;
+    private Label _contextFacts=null!;
     private Godot.Button _followCameraButton=null!;
     private Label _toolBadge = null!, _dayLabel = null!, _populationLabel = null!, _settlementLabel = null!, _buildingLabel = null!;
     private VBoxContainer _brushParameters=null!;
@@ -294,7 +295,7 @@ public partial class MainGame
         _followCameraButton.ToggleMode=true;
         _toolBadge = HudStyle.Label("自由观察", 13); HudStyle.Float(_toolBadge, new Vector2(.5f, 1), new Vector2(-200, -180), new Vector2(400, 26)); _toolBadge.HorizontalAlignment = HorizontalAlignment.Center; _toolBadge.AddThemeColorOverride("font_color", new Color("#f3efe3")); _toolBadge.AddThemeColorOverride("font_shadow_color", new Color("#17241e")); _toolBadge.AddThemeConstantOverride("shadow_offset_y", 1); overlay.AddChild(_toolBadge);
         _status = HudStyle.Label("观察模式：左键拖动平移 · 右键拖动旋转/俯仰 · 滚轮缩放 · 单击选择", 11, true); HudStyle.Float(_status, new Vector2(.5f, 1), new Vector2(-430, -126), new Vector2(860, 18)); _status.HorizontalAlignment = HorizontalAlignment.Center; _status.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, .8f)); _status.AddThemeConstantOverride("shadow_offset_y", 1); overlay.AddChild(_status);
-        _contextPanel=Surface(overlay,new Vector2(0,1),new Vector2(490,-172),new Vector2(620,76),8);
+        _contextPanel=Surface(overlay,new Vector2(0,1),new Vector2(490,-184),new Vector2(620,88),8);
         _contextPanel.Visible=!IsModelGallery;
         var contextRow=new HBoxContainer();contextRow.AddThemeConstantOverride("separation",14);_contextPanel.AddChild(contextRow);
         contextRow.AddChild(HudStyle.IconWell(HudSymbols.For("观察"),36));
@@ -309,6 +310,10 @@ public partial class MainGame
         _status.AutowrapMode=TextServer.AutowrapMode.WordSmart;_status.MaxLinesVisible=2;_status.MouseFilter=MouseFilterEnum.Pass;
         _status.AddThemeFontSizeOverride("font_size",12);
         _toolBadge.CustomMinimumSize=new Vector2(0,20);_status.CustomMinimumSize=new Vector2(0,32);
+        _contextFacts=HudStyle.Label("",12,true);_contextFacts.SizeFlagsHorizontal=SizeFlags.ExpandFill;
+        _contextFacts.CustomMinimumSize=new(0,40);_contextFacts.AutowrapMode=TextServer.AutowrapMode.WordSmart;
+        _contextFacts.MaxLinesVisible=2;_contextFacts.ClipText=true;_contextFacts.TextOverrunBehavior=TextServer.OverrunBehavior.TrimEllipsis;
+        _contextFacts.MouseFilter=MouseFilterEnum.Pass;_contextFacts.Visible=false;context.AddChild(_contextFacts);
         var contextActions=new VBoxContainer {SizeFlagsVertical=SizeFlags.ShrinkCenter};contextActions.AddThemeConstantOverride("separation",2);contextRow.AddChild(contextActions);
         _contextFocus=ActionButton(contextActions,"靠近",()=>{
             if(ContextTarget(out int x,out int y,out _))_map.Focus(x,y,60);
@@ -361,7 +366,7 @@ public partial class MainGame
         float left=_dockPanel.Visible?_dockPanel.OffsetRight+16:322;
         float right=_journalPanel.Visible?size.X+_journalPanel.OffsetLeft-16:size.X-316;
         float width=MathF.Min(620,right-left),x=Math.Clamp((size.X-width)*.5f,left,right-width);
-        HudStyle.Float(_contextPanel,new Vector2(0,1),new Vector2(x,-172),new Vector2(width,76));
+        HudStyle.Float(_contextPanel,new Vector2(0,1),new Vector2(x,-184),new Vector2(width,88));
     }
     private void RefreshPresentationControls()
     {
@@ -374,6 +379,16 @@ public partial class MainGame
         _status.TooltipText=_status.Text;
         int slot=SelectedSlot;
         bool target=ContextTarget(out int x,out int y,out string title);
+        bool generic=_status.Text.StartsWith("观察模式：",StringComparison.Ordinal)||_status.Text.StartsWith(ToolNames[(int)PlayerTool.Inspect]+" · ",StringComparison.Ordinal);
+        _contextFacts.Visible=target&&Tool==PlayerTool.Inspect&&generic;_status.Visible=!_contextFacts.Visible;
+        if(_contextFacts.Visible)
+        {
+            if(slot>=0)_contextFacts.Text=JobName(Sim.Agents.JobOf(slot))+" · "+PhaseName(Sim.Agents.PhaseOf(slot))+"\n"+$"生命 {Sim.Agents.HealthOf(slot):P0} · 饥饿 {Sim.Agents.HungerOf(slot):P0} · 干渴 {Sim.Agents.ThirstOf(slot):P0}";
+            else if(_selectedAnimal>=0)_contextFacts.Text=$"年龄 {Sim.Wildlife.AgeDaysOf(_selectedAnimal)} 天 · "+ActionRegistry.DisplayNameOf(Sim.Wildlife.ActionOf(_selectedAnimal))+"\n"+$"能量 {Sim.Wildlife.EnergyOf(_selectedAnimal):P0} · 干渴 {Sim.Wildlife.ThirstOf(_selectedAnimal):P0}";
+            else if(_selectedWolf>=0){foreach(var wolf in Sim.Predators.Wolves)if(wolf.Id==_selectedWolf)_contextFacts.Text=$"年龄 {wolf.AgeDays} 天 · 狼\n能量 {wolf.Energy:P0} · 干渴 {wolf.Thirst:P0}";}
+            else{var tile=Sim.World.TileAt(x,y);_contextFacts.Text=$"湿度 {tile.Moisture:P0} · 肥力 {tile.Fertility:P0}\n植被 {tile.Vegetation:P0} · 踩踏 {tile.FootTraffic:P0}";}
+            _contextFacts.TooltipText=_contextFacts.Text+"\n左键拖动平移 · 右键旋转/俯仰 · 滚轮缩放";
+        }
         _contextFocus.Visible=_contextDetails.Visible=target&&Tool==PlayerTool.Inspect;
         _contextFocus.GetParent<Control>().Visible=_contextFocus.Visible;
         _contextDetails.Text=slot>=0?"档案":"手记";
@@ -721,12 +736,16 @@ public partial class MainGame
     private void ValidateContextActions()
     {
         var selection=(_selected,_selectedGeneration,_selectedAnimal,_selectedAnimalGeneration,_selectedWolf,_selectedX,_selectedY,_selectedPersonId);
-        string digest=StateHash.ComputeDigest(Sim);
+        string digest=StateHash.ComputeDigest(Sim),status=_status.Text;
         try
         {
-            ClickTile(0,0,true);RefreshPresentationControls();
+            _status.Text="观察模式：测试";ClickTile(0,0,true);RefreshPresentationControls();
             if(!_contextFocus.Visible||!_contextDetails.Visible||_contextDetails.Text!="手记"||!ContextTarget(out int x,out int y,out _)||x!=0||y!=0)
                 throw new InvalidOperationException("Land selection has no accurate context actions");
+            if(!_contextFacts.Visible||_status.Visible||!_contextFacts.Text.Contains("湿度"))throw new InvalidOperationException("Land context lacks live facts");
+            _status.Text="已保存测试世界";RefreshPresentationControls();
+            if(_contextFacts.Visible||!_status.Visible)throw new InvalidOperationException("Context facts hide action feedback");
+            _status.Text="观察模式：测试";RefreshPresentationControls();
             _contextFocus.EmitSignal(BaseButton.SignalName.Pressed);_contextDetails.EmitSignal(BaseButton.SignalName.Pressed);
             if(!_journalPanel.Visible||_drawer.CurrentTab!=1||_portraitOverlay.Visible)throw new InvalidOperationException("Land context opens the wrong observation surface");
             foreach(int animal in Sim.Wildlife.AliveIndices())
@@ -741,6 +760,7 @@ public partial class MainGame
         finally
         {
             (_selected,_selectedGeneration,_selectedAnimal,_selectedAnimalGeneration,_selectedWolf,_selectedX,_selectedY,_selectedPersonId)=selection;
+            _status.Text=status;
             RefreshPanels();
         }
         GD.Print("CONTEXT_ACTIONS_PASS: resident/animal/land targets, stale generation rejection, land notebook, camera proximity and read-only observation");

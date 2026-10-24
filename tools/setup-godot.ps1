@@ -24,6 +24,8 @@ if (Test-Path -LiteralPath $editorRoot) {
         $existingVersion = & $existingEditor.FullName --headless --version
         if ($LASTEXITCODE -ne 0 -or $existingVersion -notmatch ([regex]::Escape($Version) + '.*mono')) { throw 'Existing editor version mismatch' }
         New-Item -ItemType File -Path (Join-Path $existingEditor.DirectoryName '_sc_') -Force | Out-Null
+        . (Join-Path $PSScriptRoot 'godot-lib.ps1')
+        Set-GodotEditorTrust -Executable $existingEditor.FullName
         Write-Output $existingEditor.FullName
         exit 0
     }
@@ -49,6 +51,8 @@ if (-not $executable) { throw "Editor executable missing in $editorRoot" }
 if (-not $IsWindows) { & chmod +x $executable.FullName; if ($LASTEXITCODE -ne 0) { throw 'Cannot enable editor execution' } }
 # Portable editor mode: editor settings/templates stay beside this executable.
 New-Item -ItemType File -Path (Join-Path $executable.DirectoryName '_sc_') -Force | Out-Null
+. (Join-Path $PSScriptRoot 'godot-lib.ps1')
+Set-GodotEditorTrust -Executable $executable.FullName
 $versionOutput = & $executable.FullName --headless --version
 if ($LASTEXITCODE -ne 0 -or $versionOutput -notmatch ([regex]::Escape($Version) + '.*mono')) { throw 'Installed Godot version does not match the .NET project' }
 Write-Output $executable.FullName

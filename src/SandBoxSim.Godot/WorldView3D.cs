@@ -61,7 +61,8 @@ public partial class WorldView3D : MapView
         {
             view._Process(1.0 / 60);
             if (view.HasTerrain || view._props.GetChildCount() != 0 || view._actors.GetChildCount() != 0 ||
-                view._viewport.RenderTargetUpdateMode != SubViewport.UpdateMode.Disabled || view._container.Visible)
+                view._viewport.RenderTargetUpdateMode != SubViewport.UpdateMode.Disabled || view._container.Visible ||
+                view._weatherEnvironment.Sky!=null || view._sunlight.ShadowEnabled)
                 throw new InvalidOperationException("Model gallery constructed or rendered a background world");
         }
         finally { game.RemoveChild(view); view.Free(); }
@@ -131,14 +132,16 @@ public partial class WorldView3D : MapView
         _actors = new Node3D(); _scene.AddChild(_actors);
         _models = new NatureModels();
         BuildHazardVisuals();
+        // Hidden gallery backgrounds must not allocate sky radiance or shadow
+        // resources. They can be destroyed before ever reaching a render frame.
         var sky = new ProceduralSkyMaterial { SkyTopColor = new Color("#779ca9"), SkyHorizonColor = new Color("#d4d4b8"), GroundHorizonColor = new Color("#b8c2a0"), GroundBottomColor = new Color("#465346") };
         _weatherEnvironment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Sky,
-            Sky = new Sky { SkyMaterial = sky }, AmbientLightSource = Godot.Environment.AmbientSource.Sky,
+            Sky = WorldPresentationEnabled ? new Sky { SkyMaterial = sky } : null, AmbientLightSource = WorldPresentationEnabled ? Godot.Environment.AmbientSource.Sky : Godot.Environment.AmbientSource.Color,
             AmbientLightEnergy = .34f, TonemapMode = Godot.Environment.ToneMapper.Aces, TonemapExposure = .88f,
             FogEnabled = true, FogDensity = .0017f, FogLightColor = new Color("#c2d1bd") };
-        _scene.AddChild(new WorldEnvironment { Environment = _weatherEnvironment });
+        if(WorldPresentationEnabled)_scene.AddChild(new WorldEnvironment { Environment = _weatherEnvironment });
         _sunlight = new DirectionalLight3D { RotationDegrees = new Vector3(-48, -35, 0), LightColor = new Color("#f4eee0"),
-            LightEnergy = .9f, ShadowEnabled = true, ShadowBias=2.4f, DirectionalShadowMode=DirectionalLight3D.ShadowMode.Parallel4Splits, DirectionalShadowMaxDistance = 160 };
+            LightEnergy = .9f, ShadowEnabled = WorldPresentationEnabled, ShadowBias=2.4f, DirectionalShadowMode=DirectionalLight3D.ShadowMode.Parallel4Splits, DirectionalShadowMaxDistance = 160 };
         _scene.AddChild(_sunlight);
         _camera = new Camera3D { Current = true, Near = .15f, Far = 650, Fov = 52 }; _scene.AddChild(_camera);
         _routes = new MeshInstance3D { CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
@@ -414,8 +417,8 @@ public partial class WorldView3D : MapView
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="moisture-meadow-v5",["habitatDetail"]="floral-organs-v8",["vegetationSurface"]="bent-frames-v1",
-            ["architecture"]="metric-edges-v10",["garmentMaterial"]="signed-linen-v6",["interface"]="context-observation-v12",
-            ["animalPresentation"]="muzzle-detail-v5",["residentSurface"]="calibrated-skin-v2",["waterSurface"]="shore-ripples-v1" };
+            ["architecture"]="rounded-tile-toes-v11",["garmentMaterial"]="signed-linen-v6",["interface"]="context-facts-v13",
+            ["animalPresentation"]="curved-skulls-v6",["residentSurface"]="lip-grain-v3",["waterSurface"]="shore-ripples-v1" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
         return quality;

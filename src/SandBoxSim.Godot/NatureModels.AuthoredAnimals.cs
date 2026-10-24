@@ -90,6 +90,7 @@ BACKLIGHT=ALBEDO*vec3(.085,.045,.026)*COLOR.b;
             arrays[(int)Mesh.ArrayType.Vertex]=vertices;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.TexUV]=uv;
             arrays[(int)Mesh.ArrayType.Color]=detail;arrays[(int)Mesh.ArrayType.TexUV2]=eyeUv;
             arrays[(int)Mesh.ArrayType.Bones]=Ints(source.GetProperty("bones"));arrays[(int)Mesh.ArrayType.Weights]=Floats(source.GetProperty("weights"));arrays[(int)Mesh.ArrayType.Index]=Ints(source.GetProperty("indices"));
+            RefineAnimalHead(arrays,wolf,materialName);
             var part=new ArrayMesh();part.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);
             using var tool=new SurfaceTool();tool.CreateFrom(part,0);tool.GenerateTangents();tool.SetMaterial(AuthoredAnimalMaterial(wolf,source.GetProperty("material").GetString()!));tool.Commit(mesh);
         }
