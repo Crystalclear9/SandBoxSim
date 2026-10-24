@@ -31,7 +31,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateCraftFinishes()
     {
-        foreach(var mesh in new[]{DripSill(),AggregateBerry()})
+        foreach(var mesh in new[]{DripSill(),AggregateBerry(),MetricBoard(new(.155f,1.71f,.025f)),MetricBoard(new(.105f,.39f,.04f))})
         {
             var arrays=mesh.SurfaceGetArrays(0);var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var n=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
             var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
@@ -56,7 +56,7 @@ internal sealed partial class NatureModels
         }
         if(DripSill()!=DripSill()||AggregateBerry()!=AggregateBerry()||AggregateBerry().GetAabb().Size.Length()>.07f)
             throw new System.InvalidOperationException("Crafted finish cache or berry scale changed");
-        GD.Print("CRAFT_FINISHES_PASS: watertight sloped drip sill and aggregate fruit, outward winding, finite unit normals, metric size and shared caches");
+        GD.Print("CRAFT_FINISHES_PASS: closed drip sill, aggregate fruit and metric bevelled timber; outward winding, finite unit normals, metric size and shared caches");
     }
     private void RoofCourses(Node3D model,float width,float depth,float height,int material)
     {
@@ -149,7 +149,7 @@ internal sealed partial class NatureModels
             float doorHeight=kind==BuildingKind.Storage ? 1.85f : 1.75f, centerY=kind==BuildingKind.Storage ? 1.105f : 1.055f;
             float doorWidth=kind==BuildingKind.Storage ? .95f : .82f;
             // Individual planks, lintel, jambs, iron straps and latch.
-            for(int i=0;i<5;i++) Part(model,"box",new(doorX-doorWidth/2+(i+.5f)*doorWidth/5,centerY,z+.015f),new(doorWidth/5-.009f,doorHeight-.04f,.025f),1);
+            for(int i=0;i<5;i++) CraftBoard(model,new(doorX-doorWidth/2+(i+.5f)*doorWidth/5,centerY,z+.015f),new(doorWidth/5-.009f,doorHeight-.04f,.025f),1);
             foreach(float side in new[]{-1f,1f}) Part(model,"box",new(doorX+side*(doorWidth/2+.035f),centerY,z),new(.07f,doorHeight+.13f,.10f),0);
             Part(model,"box",new(doorX,centerY+doorHeight/2+.055f,z),new(doorWidth+.22f,.10f,.12f),0);
             foreach(float y in new[]{centerY-doorHeight*.29f,centerY+doorHeight*.29f})

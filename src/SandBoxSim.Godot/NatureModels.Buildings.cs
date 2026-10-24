@@ -114,7 +114,7 @@ internal sealed partial class NatureModels
         {
             Part(model,"box",new(x+side*.19f,y,z+.06f),new(.045f,.46f,.09f),0);
             int shutterFirst=model.GetChildCount();
-            Part(model,"box",new(x+side*.27f,y,z+.06f),new(.105f,.39f,.04f),1);
+            CraftBoard(model,new(x+side*.27f,y,z+.06f),new(.105f,.39f,.04f),1);
             if(_fineArchitecture)
             {
                 for(int slat=0;slat<4;slat++)Part(model,"box",new(x+side*.27f,y-.145f+slat*.096f,z+.085f),new(.10f,.078f,.015f),0);

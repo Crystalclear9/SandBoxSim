@@ -12,10 +12,8 @@ internal sealed partial class NatureModels
     {
         string folder=AuthoredRoot(wolf);string key="authored-animal:"+wolf+":"+name;if(_residentMaterials.TryGetValue(key,out var cached))return cached;
         if(name=="Eye")return _residentMaterials[key]=new ShaderMaterial {Shader=new Shader {Code=@"shader_type spatial;
-varying vec3 rest_point;
-void vertex(){rest_point=VERTEX;}
 void fragment(){
-vec2 p=vec2((rest_point.z+.85454)/.018,(rest_point.y-1.42125)/.018);
+vec2 p=UV2;
 float radius=length(p),angle=atan(p.y,p.x);
 float fiber=sin(angle*67.0+radius*49.0)/(1.0+pow(fwidth(angle)*67.0,2.0));
 float iris=1.0-smoothstep(.64,.77,radius);
@@ -36,7 +34,8 @@ float fibre=sin(coordinate)*sin(UV.y*310.0+UV.x*43.0);
 fibre/=1.0+pow(max(length(dFdx(UV)),length(dFdy(UV)))*2100.0,2.0);
 detail.xy+=(antler?vec2(0.0):vec2(fibre*.024,fibre*.010));
 NORMAL_MAP=detail;NORMAL_MAP_DEPTH=.32;
-ROUGHNESS=antler?.92:clamp(.83+fibre*.035,.75,.90);SPECULAR=antler?.12:.21;
+ROUGHNESS=antler?.92:mix(clamp(.83+fibre*.035,.75,.90),.28,COLOR.r);
+ROUGHNESS=mix(ROUGHNESS,.59,COLOR.g);SPECULAR=antler?.12:mix(.21,.38,COLOR.r);
 }"}};
         var albedo=GD.Load<Texture2D>(folder+texture+".png");ScannedSurfaces.RequireMipmaps(albedo);material.SetShaderParameter("albedo_map",albedo);
         if(!wolf){var normal=GD.Load<Texture2D>(folder+texture+"-normal.png");ScannedSurfaces.RequireMipmaps(normal);material.SetShaderParameter("normal_map",normal);}
@@ -62,10 +61,22 @@ ROUGHNESS=antler?.92:clamp(.83+fibre*.035,.75,.90);SPECULAR=antler?.12:.21;
         {
             var p=Floats(source.GetProperty("positions"));var n=Floats(source.GetProperty("normals"));var t=Floats(source.GetProperty("uv"));
             var vertices=new Vector3[p.Length/3];var normals=new Vector3[vertices.Length];var uv=new Vector2[vertices.Length];
+            var detail=new Color[vertices.Length];var eyeUv=new Vector2[vertices.Length];
             if(n.Length!=p.Length||t.Length!=vertices.Length*2)throw new InvalidOperationException("Invalid deer attributes");
             for(int i=0;i<vertices.Length;i++){vertices[i]=new(p[i*3],p[i*3+1],p[i*3+2]);normals[i]=new(n[i*3],n[i*3+1],n[i*3+2]);uv[i]=new(t[i*2],t[i*2+1]);}
+            string materialName=source.GetProperty("material").GetString()!;
+            for(int i=0;i<vertices.Length;i++)
+            {
+                var center=wolf?new Vector3(0,.826f,-.908f):new Vector3(0,1.370f,-1.106f);
+                var radius=wolf?new Vector3(.036f,.027f,.028f):new Vector3(.026f,.027f,.025f);
+                float nose=materialName is "Wolf" or "Head"?1-Mathf.SmoothStep(0,1,(((vertices[i]-center)/radius).Length()-.55f)/.60f):0;
+                float hoof=!wolf&&materialName=="Body"?1-Mathf.SmoothStep(0,1,(vertices[i].Y-.035f)/.075f):0;
+                detail[i]=new(nose,hoof,0,1);
+                if(materialName=="Eye")eyeUv[i]=new((vertices[i].Z+.85454f)/.018f,(vertices[i].Y-1.42125f)/.018f);
+            }
             var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);
             arrays[(int)Mesh.ArrayType.Vertex]=vertices;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.TexUV]=uv;
+            arrays[(int)Mesh.ArrayType.Color]=detail;arrays[(int)Mesh.ArrayType.TexUV2]=eyeUv;
             arrays[(int)Mesh.ArrayType.Bones]=Ints(source.GetProperty("bones"));arrays[(int)Mesh.ArrayType.Weights]=Floats(source.GetProperty("weights"));arrays[(int)Mesh.ArrayType.Index]=Ints(source.GetProperty("indices"));
             var part=new ArrayMesh();part.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);
             using var tool=new SurfaceTool();tool.CreateFrom(part,0);tool.GenerateTangents();tool.SetMaterial(AuthoredAnimalMaterial(wolf,source.GetProperty("material").GetString()!));tool.Commit(mesh);
@@ -249,13 +260,22 @@ ALBEDO=mix(pigment,texture(source_albedo,UV2).rgb*.76,edge);ROUGHNESS=mix(.15,.8
         }
         if(mesh!=peer.FurSkin!.Mesh||rig.FurSkeleton!.GetBoneCount()!=boneCount)throw new InvalidOperationException("Animal cache or skeleton mismatch");
         int triangles=0;
+        float maxNose=0,maxHoof=0;
         for(int s=0;s<mesh.GetSurfaceCount();s++)
         {
             var a=mesh.SurfaceGetArrays(s);var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();var n=a[(int)Mesh.ArrayType.Normal].AsVector3Array();
             var bs=a[(int)Mesh.ArrayType.Bones].AsInt32Array();var ws=a[(int)Mesh.ArrayType.Weights].AsFloat32Array();triangles+=a[(int)Mesh.ArrayType.Index].AsInt32Array().Length/3;
+            var masks=a[(int)Mesh.ArrayType.Color].AsColorArray();var anchors=a[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
+            if(masks.Length!=p.Length||anchors.Length!=p.Length)throw new InvalidOperationException("Animal loses bind-space surface attributes");
+            for(int i=0;i<p.Length;i++)
+            {
+                if(!anchors[i].IsFinite()||masks[i].R<0||masks[i].R>1||masks[i].G<0||masks[i].G>1)throw new InvalidOperationException("Invalid animal surface mask");
+                maxNose=MathF.Max(maxNose,masks[i].R);maxHoof=MathF.Max(maxHoof,masks[i].G);
+            }
             for(int i=0;i<p.Length;i++){float sum=0;for(int k=0;k<4;k++){if(bs[i*4+k]<0||bs[i*4+k]>=boneCount||ws[i*4+k]<0)throw new InvalidOperationException("Invalid animal binding");sum+=ws[i*4+k];}if(!p[i].IsFinite()||!n[i].IsFinite()||MathF.Abs(sum-1)>4f/65535f)throw new InvalidOperationException("Invalid authored animal surface");}
         }
         if(triangles>24000||triangles<10000)throw new InvalidOperationException("Deer surface budget changed");
+        if(maxNose<.5f||!wolf&&maxHoof<.9f)throw new InvalidOperationException("Animal nose or hoof loses its independent surface response");
         foreach(float slope in new[]{0f,.16f,-.16f})for(int frame=0;frame<24;frame++)
         {
             float Ground(Vector3 p)=>p.Z*slope;

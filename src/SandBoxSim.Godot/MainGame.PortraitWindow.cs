@@ -173,7 +173,11 @@ public partial class MainGame
         if(SelectedSlot<0)return;
         string before=StateHash.ComputeDigest(Sim);
         var state=System.Text.Json.JsonSerializer.Serialize(_residentPortrait.EvaluationState());
-        ShowJournal(true);_drawer.CurrentTab=1;_journalButton.GrabFocus();ShowPortraitWindow(true);
+        ShowJournal(true);_drawer.CurrentTab=1;_journalButton.GrabFocus();RefreshPresentationControls();
+        if(!_contextFocus.Visible||!_contextDetails.Visible||!_toolBadge.Text.Contains(Sim.Agents.NameOrOverride(SelectedSlot)))throw new InvalidOperationException("Selection card does not reflect the actual resident");
+        _contextFocus.EmitSignal(Godot.Button.SignalName.Pressed);
+        if(_map is WorldView3D world&&(world.CameraDistance<10||world.CameraDistance>12))throw new InvalidOperationException("Selection focus does not approach the resident");
+        _contextDetails.EmitSignal(Godot.Button.SignalName.Pressed);
         if(!_portraitOverlay.Visible||!_residentPortrait.Expanded||_residentPortrait.GetParent()!=_portraitWindowBody)
             throw new InvalidOperationException("Large portrait did not reuse the selected model viewport");
         if(state!=System.Text.Json.JsonSerializer.Serialize(_residentPortrait.EvaluationState()))

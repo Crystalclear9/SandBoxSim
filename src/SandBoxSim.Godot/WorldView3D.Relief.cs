@@ -4,6 +4,17 @@ using SandBoxSim.Core.Environment;
 namespace SandBoxSim.Client;
 public partial class WorldView3D
 {
+    private readonly System.Collections.Generic.List<(MultiMeshInstance3D Batch,System.Collections.Generic.List<Transform3D> Roots)> _flowerBatches=new();
+    private void SyncFlowerRoots()
+    {
+        foreach(var entry in _flowerBatches)
+        for(int i=0;i<entry.Roots.Count;i++)
+        {
+            var transform=entry.Roots[i];var p=transform.Origin;float height=GroundHeight(p.X,p.Z)-.012f;
+            if(MathF.Abs(p.Y-height)<.000001f)continue;
+            transform.Origin=new(p.X,height,p.Z);entry.Roots[i]=transform;entry.Batch.Multimesh.SetInstanceTransform(i,transform);
+        }
+    }
     private Transform3D RootedPlant(Vector3 point,Vector3 scale,float yaw)
     {
         var normal=GroundNormal(point);
@@ -22,6 +33,25 @@ public partial class WorldView3D
     {
         float height=GroundHeight(point.X,point.Z);
         return height>=-.06f&&height<=.58f&&GroundNormal(point).Y>=.80f;
+    }
+    private void ValidateGroundedFlowers()
+    {
+        SyncFlowerRoots();
+        int count=0;
+        foreach(var entry in _flowerBatches)
+        {
+            var batch=entry.Batch;
+            if(batch.VisibilityRangeEnd!=42||batch.CastShadow!=GeometryInstance3D.ShadowCastingSetting.Off)throw new InvalidOperationException("Flower batch loses its distance budget");
+            if(batch.Multimesh.InstanceCount!=entry.Roots.Count)throw new InvalidOperationException("Flower batch loses CPU placements");
+            for(int i=0;i<entry.Roots.Count;i++)
+            {
+                var transform=entry.Roots[i];var p=transform.Origin;
+                if(!transform.IsFinite()||MathF.Abs(p.Y-GroundHeight(p.X,p.Z)+.012f)>.0001f)throw new InvalidOperationException($"Flower root contact: origin={p}, ground={GroundHeight(p.X,p.Z)}, finite={transform.IsFinite()}");
+                if(DisplayServer.GetName()!="headless"&&batch.Multimesh.GetInstanceTransform(i).Origin.DistanceTo(p)>.0001f)throw new InvalidOperationException("Rendered flower transform differs from its CPU placement");
+                count++;
+            }
+        }
+        GD.Print("GROUNDED_FLOWERS_PASS: "+count+" CPU placements, finite transforms, terrain contact, bounded drawing range; GPU transforms checked with a graphics display");
     }
     private static float TerrainNoise(float x,float y,int seed)
     {

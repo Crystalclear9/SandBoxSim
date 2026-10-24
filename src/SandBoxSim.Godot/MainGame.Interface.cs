@@ -18,6 +18,7 @@ public partial class MainGame
     private PanelContainer _contextPanel=null!;
     private Label _cameraReadout=null!;
     private Label _playStateLabel=null!;
+    private Button _contextFocus=null!,_contextDetails=null!;
     private Godot.Button _followCameraButton=null!;
     private Label _toolBadge = null!, _dayLabel = null!, _populationLabel = null!, _settlementLabel = null!, _buildingLabel = null!;
     private VBoxContainer _brushParameters=null!;
@@ -308,6 +309,19 @@ public partial class MainGame
         _status.AutowrapMode=TextServer.AutowrapMode.WordSmart;_status.MaxLinesVisible=2;_status.MouseFilter=MouseFilterEnum.Pass;
         _status.AddThemeFontSizeOverride("font_size",12);
         _toolBadge.CustomMinimumSize=new Vector2(0,20);_status.CustomMinimumSize=new Vector2(0,32);
+        var contextActions=new VBoxContainer {SizeFlagsVertical=SizeFlags.ShrinkCenter};contextActions.AddThemeConstantOverride("separation",2);contextRow.AddChild(contextActions);
+        _contextFocus=ActionButton(contextActions,"靠近",()=>{
+            int slot=SelectedSlot;if(slot>=0)_map.Focus(Sim.Agents.XOf(slot),Sim.Agents.YOf(slot),60);
+            RefreshPresentationControls();
+        });
+        _contextDetails=ActionButton(contextActions,"档案",()=>{if(SelectedSlot>=0){ShowJournal(true);_drawer.CurrentTab=1;ShowPortraitWindow(true);}});
+        foreach(var button in new[]{_contextFocus,_contextDetails})
+        {
+            button.CustomMinimumSize=new(56,26);button.AddThemeFontSizeOverride("font_size",12);
+            foreach(string state in new[]{"normal","hover","pressed","hover_pressed","disabled"})
+            {var style=(StyleBoxFlat)button.GetThemeStylebox(state).Duplicate();style.ContentMarginTop=style.ContentMarginBottom=3;button.AddThemeStyleboxOverride(state,style);}
+        }
+        _contextFocus.TooltipText="靠近所选居民，保持鼠标旋转和缩放";_contextDetails.TooltipText="直接打开所选居民的独立观察窗";
         _save = Dialog(FileDialog.FileModeEnum.SaveFile); _save.FileSelected += SaveWorld; _load = Dialog(FileDialog.FileModeEnum.OpenFile); _load.FileSelected += LoadWorld;
         Resized += FitHud; FitHud();
         StyleNotebook();
@@ -353,6 +367,14 @@ public partial class MainGame
         _followCameraButton.SetPressedNoSignal(world.IsFollowing(SelectedSlot));
         _followCameraButton.TooltipText=SelectedSlot<0?"先选择一位居民，再跟随观察":world.IsFollowing(SelectedSlot)?"停止跟随，保留当前镜头":"跟随当前居民；再次点击停止";
         _status.TooltipText=_status.Text;
+        int slot=SelectedSlot;
+        _contextFocus.Visible=_contextDetails.Visible=slot>=0&&Tool==PlayerTool.Inspect;
+        _contextFocus.GetParent<Control>().Visible=_contextFocus.Visible;
+        if(Tool==PlayerTool.Inspect)
+        {
+            _toolBadge.Text=slot>=0?Sim.Agents.NameOrOverride(slot)+" · "+ActionRegistry.DisplayNameOf(Sim.Agents.ActionOf(slot)):"自由观察";
+            _toolBadge.TooltipText=slot>=0?JobName(Sim.Agents.JobOf(slot))+" · "+PhaseName(Sim.Agents.PhaseOf(slot)):"选择人物、动物或土地，观察世界变化";
+        }
         FitContextCard(Size);
     }
     private void FitToolLibrary(Vector2 size)

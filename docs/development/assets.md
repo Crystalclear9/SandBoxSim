@@ -49,6 +49,10 @@ UI 的层级和画布工具组织参考见[观察与界面](../guides/gameplay-o
 
 这些资料用于明确实现方法；素材页、许可与作者记录用于实际资源来源。界面没有引入网页运行时或外部 UI 素材包。
 
+衣料法线投影继续参考 [NVIDIA 三向法线说明](https://docs.omniverse.nvidia.com/extensions/latest/ext_material/ext_material-graph/nodes/Texturing_High_Level/triplannar_normalmap_texture.html)，按各投影方向和法线变换分别处理；具体数值是本项目参数。草花外观参考 [RHS 草地草花资料](https://www.rhs.org.uk/plants/7914/geranium-pratense/details) 的开放花冠层次，模型为通用五瓣造型，没有赋予该物种标签。
+
+选中居民的快捷操作参考 [NN/g 上下文操作组织](https://www.nngroup.com/articles/contextual-menus/)，把靠近和档案与当前居民放在一起，右键继续用于相机旋转。依据 [Godot RenderingServer 说明](https://docs.godotengine.org/en/stable/classes/class_renderingserver.html)，无窗口模式的部分渲染查询可能返回占位数据，因此实例位置在 CPU 维护，图形模式再校验 GPU 数据。
+
 ## 各类对象的表现依据
 
 | 对象 | 参考与当前处理 |

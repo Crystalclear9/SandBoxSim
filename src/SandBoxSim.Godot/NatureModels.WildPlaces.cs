@@ -7,6 +7,19 @@ internal sealed partial class NatureModels
 {
     public void ValidateWildPlaceMeshes()
     {
+        for(int variant=0;variant<3;variant++)foreach(bool flowering in new[]{false,true})
+        {
+            var mesh=WildflowerMesh(variant,flowering);
+            if(mesh!=WildflowerMesh(variant,flowering)||mesh.GetAabb().Position.Y<-.003f||mesh.GetAabb().Size.Y>.42f)throw new System.InvalidOperationException("Wildflower cache or metric scale changed");
+            int triangles=0;
+            for(int s=0;s<mesh.GetSurfaceCount();s++)
+            {
+                var a=mesh.SurfaceGetArrays(s);var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();var n=a[(int)Mesh.ArrayType.Normal].AsVector3Array();
+                triangles+=a[(int)Mesh.ArrayType.Index].AsInt32Array().Length/3;
+                for(int i=0;i<p.Length;i++)if(!p[i].IsFinite()||!n[i].IsFinite()||n[i].LengthSquared()<.85f)throw new System.InvalidOperationException("Invalid cupped flower surface");
+            }
+            if(triangles>1400)throw new System.InvalidOperationException("Wildflower exceeds its geometry budget");
+        }
         foreach(bool fruit in new[]{true,false})for(int repeat=0;repeat<2;repeat++)
         {
             var bush=BerryShrub(fruit);var mesh=bush.GetChild<MeshInstance3D>(0).Mesh;
@@ -81,17 +94,7 @@ internal sealed partial class NatureModels
                 for(int i=0;i<34;i++)
                 {
                     float a=i*2.39996f,r=.45f+Mathf.Sqrt(i/34f)*2.8f;
-                    var p=new Vector3(Mathf.Cos(a)*r,.19f,Mathf.Sin(a)*r);
-                    Part(node,"cylinder",p,new(.015f,.38f,.015f),4);
-                    if(phase<2)
-                    {
-                        string color=i%3==0 ? "#c4a9b3" : i%3==1 ? "#e0d5b8" : "#c9b172";
-                        for(int petal=0;petal<5;petal++)
-                        {
-                            float angle=petal*Mathf.Tau/5;
-                            Detail(node,"seed",p+new Vector3(Mathf.Cos(angle)*.06f,.19f,Mathf.Sin(angle)*.06f),new(.10f,.035f,.07f),color,new(0,-angle,0));
-                        }
-                    }
+                    node.AddChild(new MeshInstance3D {Mesh=WildflowerMesh(i%3,phase<2),Position=new(Mathf.Cos(a)*r,0,Mathf.Sin(a)*r),VisibilityRangeEnd=42});
                 }
                 break;
             case WildPlaceKind.Wetland:
@@ -113,6 +116,55 @@ internal sealed partial class NatureModels
         }
         MergeResidentParts(node,$"wild:{kind}:{phase}:{supplies}");
         return node;
+    }
+    internal Mesh WildflowerMesh(int variant,bool flowering)
+    {
+        string key=$"wildflower:{variant%3}:{flowering}";if(_meshes.TryGetValue(key,out var cached))return cached;
+        var model=new Node3D();using var green=new SurfaceTool();green.Begin(Mesh.PrimitiveType.Triangles);
+        Vector3 Stem(float t)=>new(.014f*Mathf.Sin(t*Mathf.Pi*.7f),.38f*t,.008f*t*t);
+        for(int row=0;row<12;row++)BotanicalStem(green,Stem(row/12f),Stem((row+1)/12f),.0018f);
+        for(int leaf=0;leaf<3;leaf++)
+        {
+            float a=leaf*2.39996f;var axis=new Vector3(Mathf.Cos(a),.25f,Mathf.Sin(a)).Normalized();
+            BotanicalLeaf(green,Stem(.20f+leaf*.19f),axis,Vector3.Up.Cross(axis).Normalized(),.085f,.014f,.008f,.87f);
+        }
+        green.GenerateNormals();green.Index();Sculpt(model,green.Commit(),Vector3.Zero,Material(4));
+        var crown=Stem(1);
+        if(flowering)
+        {
+            using var petals=new SurfaceTool();petals.Begin(Mesh.PrimitiveType.Triangles);petals.SetSmoothGroup(0);
+            for(int petal=0;petal<5;petal++)
+            {
+                float a=petal*Mathf.Tau/5;var radial=new Vector3(Mathf.Cos(a),0,Mathf.Sin(a));var across=new Vector3(-radial.Z,0,radial.X);
+                Vector3 Point(int row,int col)
+                {
+                    float u=row/8f,v=col/2f-1,span=Mathf.Pow(Mathf.Max(0,Mathf.Sin(u*Mathf.Pi)),.8f);
+                    return crown+radial*(.0035f+u*.024f)+across*(v*.011f*span)+Vector3.Up*(.004f*Mathf.Sin(u*Mathf.Pi)-.007f*u*u+.003f*v*v*span);
+                }
+                void Triangle(int r1,int c1,int r2,int c2,int r3,int c3)
+                {
+                    var pa=Point(r1,c1);var pb=Point(r2,c2);var pc=Point(r3,c3);
+                    if((pb-pa).Cross(pc-pa).LengthSquared()<1e-17f)return;
+                    if((pb-pa).Cross(pc-pa).Y>0){(r2,r3)=(r3,r2);(c2,c3)=(c3,c2);}
+                    foreach(var v in new[]{(r1,c1),(r2,c2),(r3,c3)}){petals.SetUV(new(v.Item2/4f,v.Item1/8f));petals.AddVertex(Point(v.Item1,v.Item2));}
+                }
+                for(int row=0;row<8;row++)for(int col=0;col<4;col++){Triangle(row,col,row+1,col,row,col+1);Triangle(row,col+1,row+1,col,row+1,col+1);}
+            }
+            petals.GenerateNormals();petals.Index();Sculpt(model,petals.Commit(),Vector3.Zero,FlowerPetalMaterial(variant%3));
+            Detail(model,"seed",crown+Vector3.Up*.001f,new(.011f,.006f,.011f),"#ab8947");
+        }
+        else Detail(model,"seed",crown,new(.009f,.016f,.009f),"#796346");
+        MergeResidentParts(model,key);var mesh=WithScreenLods(model.GetChild<MeshInstance3D>(0).Mesh);model.Free();return _meshes[key]=mesh;
+    }
+    private Material FlowerPetalMaterial(int variant)
+    {
+        string key="flower-petal:"+variant;if(_residentMaterials.TryGetValue(key,out var cached))return cached;
+        var material=new ShaderMaterial {Shader=new Shader {Code=@"shader_type spatial;render_mode cull_disabled;
+uniform vec4 pigment:source_color;
+void fragment(){if(!FRONT_FACING)NORMAL=-NORMAL;
+float vein=sin((UV.y-abs(UV.x-.5)*.3)*85.0)/(1.0+pow(fwidth(UV.y)*85.0,2.0));
+ALBEDO=pigment.rgb*(.86+smoothstep(.0,.8,UV.y)*.14+vein*.018);BACKLIGHT=ALBEDO*.055;ROUGHNESS=.79;SPECULAR=.16;}"}};
+        material.SetShaderParameter("pigment",new Color(new[]{"#bca5b2","#e0dac9","#cab277"}[variant]));return _residentMaterials[key]=material;
     }
     internal Node3D BerryShrub(bool fruit)
     {

@@ -77,6 +77,32 @@ internal sealed partial class NatureModels
         }
         tool.Index(); return tool.Commit();
     }
+    private Mesh MetricBoard(Vector3 size)
+    {
+        string key="metric-board:"+size;if(_meshes.TryGetValue(key,out var cached))return cached;
+        float bevel=MathF.Min(.003f,MathF.Min(size.X,MathF.Min(size.Y,size.Z))*.2f);
+        var half=size*.5f;var core=half-Vector3.One*bevel;
+        using var tool=new SurfaceTool();tool.Begin(Mesh.PrimitiveType.Triangles);
+        foreach(var normal in new[]{Vector3.Right,Vector3.Left,Vector3.Up,Vector3.Down,Vector3.Forward,Vector3.Back})
+        {
+            var u=MathF.Abs(normal.Y)>.5f?Vector3.Right:Vector3.Up;var v=normal.Cross(u);
+            float hu=half.Dot(u.Abs()),hv=half.Dot(v.Abs()),hn=half.Dot(normal.Abs());
+            float[] us={-hu,-hu+bevel,hu-bevel,hu},vs={-hv,-hv+bevel,hv-bevel,hv};
+            void Vertex(int x,int y)
+            {
+                var point=normal*hn+u*us[x]+v*vs[y];
+                var inside=new Vector3(Math.Clamp(point.X,-core.X,core.X),Math.Clamp(point.Y,-core.Y,core.Y),Math.Clamp(point.Z,-core.Z,core.Z));
+                var round=(point-inside).Normalized();tool.SetNormal(round);tool.SetUV(new(x/3f,y/3f));tool.AddVertex(inside+round*bevel);
+            }
+            for(int y=0;y<3;y++)for(int x=0;x<3;x++){Vertex(x,y);Vertex(x,y+1);Vertex(x+1,y);Vertex(x+1,y);Vertex(x,y+1);Vertex(x+1,y+1);}
+        }
+        tool.Index();return _meshes[key]=tool.Commit();
+    }
+    private void CraftBoard(Node3D model,Vector3 position,Vector3 size,int material=0,Vector3 rotation=default)
+    {
+        if(_fineArchitecture)Sculpt(model,MetricBoard(size),position,Material(material),rotation);
+        else Part(model,"box",position,size,material,rotation);
+    }
     private MeshInstance3D Sculpt(Node3D parent, Mesh mesh, Vector3 position, Material material, Vector3 rotation = default)
     {
         var node = new MeshInstance3D { Mesh = mesh, Position = position, Rotation = rotation, MaterialOverride = material };

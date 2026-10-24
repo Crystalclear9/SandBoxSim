@@ -2,7 +2,7 @@
 
 此目录保留项目说明使用的原生 Godot 截图和动作演示，随文档提交。图片反映采样版本，不代表所有驱动、视角或当前帧率，也不作为模型质量、效率或 RSI 的评分。项目正式名称为 SandBoxSim。
 
-最新配图展示人物眼睑细节、鹿狼眼眶与耳廓、建筑窗台、芦苇花序、野莓果粒、水岸，以及有图标提示和明确时间状态的悬浮界面。工具动态演示和其他专题保留各自先前采样。截图之外的能力边界见 [模型系统](../development/models.md)。
+最新配图展示带居民快捷操作的提示卡、门窗板材、衣料与动物表面，以及逐株贴地的花甸。其余专题保留各自采样。工具动态演示和其他专题保留各自先前采样。截图之外的能力边界见 [模型系统](../development/models.md)。
 
 ## 当前配图
 
@@ -23,12 +23,13 @@
 | `architecture-detail.png`、`resident-forearm-detail.png` | 建筑和连续前臂；`architecture`、`forearms` |
 | `resident-handedness.png` | 左右手与远近景模型；`handedness` |
 | `living-homes.png`、`living-farms.png`、`living-paths.png` | 住房生活、农业与逐渐累积的土地痕迹 |
-| `nature-detail.png`、`free-exploration.png`、`wild-meadow.png` | 自然模型、特殊地点和生态专题 |
+| `nature-detail.png`、`free-exploration.png` | 较早的自然模型与特殊地点专题 |
+| `wild-meadow.png` | 当前通用草花、逐株接地与真实世界花甸；`meadow` |
 | 其他 `resident-*.png`、`resident-*.gif` | 较早的人物、配件、手部与生活动作专题 |
 
 ## 版本与复现
 
-建筑、人物动物、面部、衣装、生态、网格近景、地形远近景、工具库、现场手记、人物手记和展开观察窗更新于 2026-10-24，均为原生 Godot 渲染、1600×1000、2 秒采样延迟。对应 `interface=legible-workspace-v10`、`architecture=drip-joinery-v8`、`animalPresentation=authored-wildlife-v3` 和 `landscapeSurface=oriented-meadow-v4`；河岸选点标识为 `habitatDetail=botanical-panicles-v6`。人物睫毛与水波分别记录 `residentSurface=anatomical-lashes-v1`、`waterSurface=shore-ripples-v1`。模型图册暂停模拟；世界界面使用种子 839102、40 人，不作预先天数推进，但截图等待期间仍按正常 4× 倍率运行。
+建筑、人物动物、面部、衣装、生态、网格近景、地形远近景、工具库、现场手记、人物手记、展开观察窗与花甸更新于 2026-10-24，均为原生 Godot 渲染、1600×1000、2 秒采样延迟。对应 `interface=selection-workspace-v11`、`architecture=bevelled-joinery-v9`、`animalPresentation=bound-surfaces-v4` 和 `landscapeSurface=oriented-meadow-v4`；植物摆放标识为 `habitatDetail=rooted-flowers-v7`。人物睫毛与水波分别记录 `residentSurface=anatomical-lashes-v1`、`waterSurface=shore-ripples-v1`。模型图册暂停模拟；世界界面使用种子 839102、40 人，不作预先天数推进，但普通界面截图等待期间按正常 4× 倍率运行；花甸预览暂停模拟。
 
 地形远景使用普通世界入口；近景加 `--view=near`。两图用于查看实际扫描草叶地面、山坡、岸线和贴地，属于普通客户端采样，不作为固定帧评测成绩。
 

@@ -143,14 +143,17 @@ internal sealed partial class NatureModels
         return bounds.Grow(.01f);
     }
     public void Batch(Node3D parent, string shape, int material, List<Transform3D> transforms, Material? surface=null, float range=0,bool preserveMaterials=false)
+        =>BatchMesh(parent,Shape(shape),transforms,preserveMaterials?null:surface??Material(material),range,shape!="grass",shape=="grass"?.03f:0,shape);
+    internal void BatchMesh(Node3D parent,Mesh mesh,List<Transform3D> transforms,Material? surface=null,float range=0,bool castShadows=true,float padding=0,string label="batch",List<(MultiMeshInstance3D Batch,List<Transform3D> Roots)>? register=null)
     {
         // Each chunk has its own bounds: a visible patch no longer draws the whole forest.
         foreach(var group in PartitionInstances(transforms).Values)
         {
-            var multi=new MultiMesh {TransformFormat=MultiMesh.TransformFormatEnum.Transform3D,Mesh=Shape(shape),InstanceCount=group.Count};
+            var multi=new MultiMesh {TransformFormat=MultiMesh.TransformFormatEnum.Transform3D,Mesh=mesh,InstanceCount=group.Count};
             for(int i=0;i<group.Count;i++)multi.SetInstanceTransform(i,group[i]);
-            multi.CustomAabb=InstanceBounds(group,multi.Mesh.GetAabb()).Grow(shape=="grass"?.03f:0);
-            parent.AddChild(new MultiMeshInstance3D {Multimesh=multi,MaterialOverride=preserveMaterials?null:surface??Material(material), VisibilityRangeEnd=range, CastShadow=shape=="grass"?GeometryInstance3D.ShadowCastingSetting.Off:GeometryInstance3D.ShadowCastingSetting.On});
+            multi.CustomAabb=InstanceBounds(group,multi.Mesh.GetAabb()).Grow(padding);
+            var instance=new MultiMeshInstance3D {Name=label,Multimesh=multi,MaterialOverride=surface, VisibilityRangeEnd=range, CastShadow=castShadows?GeometryInstance3D.ShadowCastingSetting.On:GeometryInstance3D.ShadowCastingSetting.Off};
+            parent.AddChild(instance);register?.Add((instance,group));
         }
     }
 

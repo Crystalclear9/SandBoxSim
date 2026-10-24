@@ -24,6 +24,7 @@ public partial class WorldView3D : MapView
     private Vector3 _target = new(92, 1, 100);
     private float _distance = 44, _yaw = -.45f, _pitch = .85f;
     public float CameraYaw => _yaw;
+    internal float CameraDistance=>_distance;
     internal string CameraReadout=>$"俯角 {Mathf.RadToDeg(_pitch):0}° · 距离 {_distance:0} m";
     internal bool IsFollowing(int slot)=>slot>=0&&_follow==slot&&Game.Sim.Agents.IsSlotAlive(slot)&&Game.Sim.Agents.GenerationOf(slot)==_followGeneration;
     internal void StopFollowing()=>_follow=-1;
@@ -74,6 +75,7 @@ public partial class WorldView3D : MapView
         foreach(var point in ground[(int)Mesh.ArrayType.Vertex].AsVector3Array())
             if(!point.IsFinite())throw new InvalidOperationException("Invalid subdivided terrain vertex");
         Vector3 target = _target; float distance = _distance, yaw = _yaw, pitch = _pitch;
+        ValidateGroundedFlowers();
         int following=_follow,generation=_followGeneration;
         try
         {
@@ -277,7 +279,7 @@ public partial class WorldView3D : MapView
         for(int i=0;i<Game.Sim.World.Tiles.Length;i++)
             _groundMapBytes[i*4+1]=(byte)Math.Clamp((int)(Game.Sim.World.Tiles[i].FootTraffic*255),0,255);
         _groundMap.SetData(Game.Sim.World.Width,Game.Sim.World.Height,false,Image.Format.Rgba8,_groundMapBytes);
-        _groundMapTexture.Update(_groundMap);
+        _groundMapTexture.Update(_groundMap);SyncFlowerRoots();
     }
     private Image GroundTintImage()
     {
@@ -317,6 +319,7 @@ public partial class WorldView3D : MapView
         CancelPointerGesture();
         _pickMeshes.Clear();_brushTile=new(-1,-1);_pendingTerrain=_pendingNature=_pendingBuildings=false;
         _world = Game.Sim; _follow = -1; Clear(_terrainRoot); Clear(_props); Clear(_actors);
+        _flowerBatches.Clear();
         _observerPaths = new SandBoxSim.Core.Pathing.AStarPathfinder(Game.Sim.World);
         _observedRoute = new Int2[Game.Sim.World.Tiles.Length]; _density = new int[Game.Sim.World.Tiles.Length];
         _routes.Mesh = null; _natureSignature = 0;
@@ -410,9 +413,9 @@ public partial class WorldView3D : MapView
         var quality=new Dictionary<string,object> { ["worldPresentationEnabled"]=WorldPresentationEnabled,["shadowMode"]=_sunlight.DirectionalShadowMode.ToString(),
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
-            ["landscapeSurface"]="oriented-meadow-v4",["habitatDetail"]="botanical-panicles-v6",
-            ["architecture"]="drip-joinery-v8",["garmentMaterial"]="fitted-leather-v5",["interface"]="legible-workspace-v10",
-            ["animalPresentation"]="authored-wildlife-v3",["residentSurface"]="anatomical-lashes-v1",["waterSurface"]="shore-ripples-v1" };
+            ["landscapeSurface"]="oriented-meadow-v4",["habitatDetail"]="rooted-flowers-v7",
+            ["architecture"]="bevelled-joinery-v9",["garmentMaterial"]="signed-linen-v6",["interface"]="selection-workspace-v11",
+            ["animalPresentation"]="bound-surfaces-v4",["residentSurface"]="anatomical-lashes-v1",["waterSurface"]="shore-ripples-v1" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
         return quality;
@@ -638,9 +641,12 @@ public partial class WorldView3D : MapView
         &&tile.Moisture>.30f&&tile.Terrain is TerrainKind.Grass or TerrainKind.Forest or TerrainKind.Sand;
     private void BuildNature()
     {
+        _flowerBatches.Clear();
         using var profile=RenderProfile.Measure("BuildNature");
         var leaves = new List<Transform3D>(); var pines = new List<Transform3D>();
         var grass = new List<Transform3D>(); var ferns = new List<Transform3D>(); var rocks = new List<Transform3D>(); var ores = new List<Transform3D>(); var bushes = new List<Transform3D>(); var pebbles=new List<Transform3D>();var reeds=new List<Transform3D>();
+        var flowers=new[]{new List<Transform3D>(),new List<Transform3D>(),new List<Transform3D>()};
+        int botanicalPhase=WildPlaces.Phase(Game.Sim.Clock/Game.Sim.Config.Clock.TicksPerDay);
         for (int y = 0; y < Game.Sim.World.Height; y++) for (int x = 0; x < Game.Sim.World.Width; x++)
         {
             var tile = Game.Sim.World.TileAt(x, y); uint h = unchecked((uint)(x * 73856093 ^ y * 19349663));
@@ -707,9 +713,25 @@ public partial class WorldView3D : MapView
         foreach (var place in Game.Wild.Places)
         {
             if (!Game.Sim.World.IsInBounds(place.X, place.Y) || !WildPlaces.IsLiving(Game.Sim, place)) continue;
+            if(place.Kind==WildPlaceKind.Meadow)
+            {
+                var center=PositionAt(place.X,place.Y);float maturity=.30f+.70f*WildPlaces.Maturity(Game.Sim,place);
+                for(int i=0;i<34;i++)
+                {
+                    float a=i*2.39996f,r=(.45f+Mathf.Sqrt(i/34f)*2.8f)*maturity;
+                    var point=center+new Vector3(Mathf.Cos(a)*r,0,Mathf.Sin(a)*r);
+                    int x=(int)MathF.Floor(point.X*.5f),y=(int)MathF.Floor(point.Z*.5f);if(!Game.Sim.World.IsInBounds(x,y))continue;
+                    var tile=Game.Sim.World.TileAt(x,y);
+                    if(tile.BuildingId!=0||tile.Fire==FireState.Burnt||tile.Terrain is TerrainKind.Water or TerrainKind.Lava or TerrainKind.Road)continue;
+                    flowers[i%3].Add(RootedPlant(point,Vector3.One*maturity,a));
+                }
+                continue;
+            }
             var model = _models.WildPlace(place.Kind, WildPlaces.Phase(Game.Sim.Clock / Game.Sim.Config.Clock.TicksPerDay), Game.Sim.GroundStocks.FindAt(place.X, place.Y) >= 0);
             model.Position = PositionAt(place.X, place.Y); if(place.Kind is WildPlaceKind.Meadow or WildPlaceKind.Berries or WildPlaceKind.Wetland)model.Scale=Vector3.One*(.30f+.70f*WildPlaces.Maturity(Game.Sim,place)); _props.AddChild(model);
         }
+        for(int variant=0;variant<3;variant++)if(flowers[variant].Count>0)
+            _models.BatchMesh(_props,_models.WildflowerMesh(variant,botanicalPhase<2),flowers[variant],range:42,castShadows:false,padding:.04f,label:"MeadowFlowers",register:_flowerBatches);
         _models.Batch(_props,"broad-tree",4,leaves,preserveMaterials:true);
         _models.Batch(_props,"conifer-tree",5,pines,preserveMaterials:true); _models.Batch(_props, "boulder", 6, rocks,preserveMaterials:true); _models.Batch(_props, "boulder", 7, ores,_models.RockSurface(true)); _models.Batch(_props,"foliage",4,bushes,preserveMaterials:true);
     }
