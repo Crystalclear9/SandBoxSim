@@ -29,7 +29,7 @@ uniform sampler2D normal_map:hint_normal,filter_linear_mipmap_anisotropic,repeat
 uniform sampler2D roughness_map:filter_linear_mipmap,repeat_enable;
 uniform sampler2D alpha_map:filter_linear_mipmap,repeat_enable;
 uniform vec2 uv_scale=vec2(1.0);uniform vec2 uv_offset=vec2(0.0);
-uniform bool wind=true;uniform bool cutout=false;uniform float plant_height=1.0;uniform bool grass=false;
+uniform bool wind=true;uniform bool cutout=false;uniform float plant_height=1.0;uniform bool grass=false;uniform bool mineral=false;
 uniform bool soil_bound=false;uniform sampler2D soil:filter_nearest,repeat_disable;uniform vec2 map_size=vec2(1.0);
 void vertex(){
 vec3 root=(MODEL_MATRIX*vec4(0,0,0,1)).xyz;float t=clamp(VERTEX.y/plant_height,0.0,1.0);
@@ -45,10 +45,12 @@ vec2 tex_uv=UV*uv_scale+uv_offset;
 vec3 root=(MODEL_MATRIX*vec4(0,0,0,1)).xyz;
 float variation=sin(root.x*1.73+root.z*2.41)*.035;
 ALBEDO=texture(diffuse_map,tex_uv).rgb*(1.0+variation);
+float luminance=dot(ALBEDO,vec3(.2126,.7152,.0722));
+ALBEDO=mix(ALBEDO,vec3(luminance)*vec3(1.0,1.01,.99),mineral?.62:cutout?.10:0.0);
 // Thin leaves transmit a small amount of light; woody surfaces stay opaque.
 BACKLIGHT=cutout?ALBEDO*vec3(.18,.23,.11):vec3(0.0);
-NORMAL_MAP=texture(normal_map,tex_uv).rgb;NORMAL_MAP_DEPTH=cutout?.40:.50;
-ROUGHNESS=clamp(texture(roughness_map,tex_uv).r,.62,1.0);SPECULAR=.18;
+NORMAL_MAP=texture(normal_map,tex_uv).rgb;NORMAL_MAP_DEPTH=mineral?.30:cutout?.40:.45;
+ROUGHNESS=clamp(texture(roughness_map,tex_uv).r,mineral?.82:.68,1.0);SPECULAR=mineral?.08:.14;
 ALPHA=cutout?texture(alpha_map,tex_uv).r:1.0;ALPHA_SCISSOR_THRESHOLD=mix(.45,.18,smoothstep(2.0,8.0,max(length(dFdx(UV)),length(dFdy(UV)))*1024.0));
 }"};
         var material=new ShaderMaterial {Shader=_sourceVegetationShader};
@@ -62,6 +64,7 @@ ALPHA=cutout?texture(alpha_map,tex_uv).r:1.0;ALPHA_SCISSOR_THRESHOLD=mix(.45,.18
         material.SetShaderParameter("cutout",maps.TryGetProperty("alpha",out _));
         if(name=="tree_small_02_branches"){material.SetShaderParameter("uv_scale",new Vector2(3,.6f));material.SetShaderParameter("uv_offset",new Vector2(0,.4f));}
         material.SetShaderParameter("wind",asset!="boulder_01");
+        material.SetShaderParameter("mineral",asset=="boulder_01");
         material.SetShaderParameter("plant_height",height);material.SetShaderParameter("grass",asset=="grass_medium_01");
         _sourceVegetationMaterials[key]=material;return material;
     }

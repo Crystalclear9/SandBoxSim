@@ -24,19 +24,30 @@ internal sealed partial class NatureModels
             var center=(p[ix[t]]+p[ix[t+1]]+p[ix[t+2]])/3;
             // Keep muzzle/eyes, paws and hooves readable. Ribbons are for coat,
             // not a replacement for the face or the underlying anatomy.
-            if(center.Y<.18f||center.Z<-.88f)continue;
+            if(center.Y<.18f)continue;
+            float eyeY=wolf?1.0388f:1.4865f,eyeZ=wolf?-.8675f:-.8684f;
+            float eyeZone=MathF.Pow((center.Y-eyeY)/.037f,2)+MathF.Pow((center.Z-eyeZ)/.050f,2);
+            if(center.Z<-.76f&&eyeZone<1.0f)continue;
+            float noseLimit=-.755f+AnimalMuzzlePoint(wolf,new(0,0,-.377f)).Z*(wolf?.90f:1.08f);
+            if(center.Z<noseLimit)continue;
             float weight=(p[ix[t+1]]-p[ix[t]]).Cross(p[ix[t+2]]-p[ix[t]]).Length();
             if(weight<.000001f)continue;
+            // Spend the fixed geometry budget where the coat changes silhouette.
+            float collar=wolf?MathF.Exp(-MathF.Pow((center.Z+.59f)/.23f,2)):0;
+            float tail=wolf?Math.Clamp((center.Z-.50f)/.20f,0,1):0;
+            float face=center.Z<-.78f&&center.Y>(wolf?.87f:1.25f)?1:0;
+            float mane=wolf?0:MathF.Exp(-MathF.Pow((center.Z+.65f)/.18f,2)-MathF.Pow((center.Y-1.22f)/.22f,2));
+            weight*=1+collar*2.4f+tail*.9f+face*3.5f+mane*5f;
             area+=weight;cumulative.Add(area);eligible.Add(t);
         }
         if(area<=0)throw new InvalidOperationException("Empty animal grooming surface");
         uint seed=wolf?76123u:19871u;
         float Random(){seed^=seed<<13;seed^=seed>>17;seed^=seed<<5;return (seed&0xFFFFFF)/16777216f;}
         using var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);
-        var coat=new ShaderMaterial {Shader=new Shader {Code=((ShaderMaterial)Fur(wolf)).Shader.Code.Replace("shader_type spatial;","shader_type spatial;render_mode cull_disabled;").Replace("void fragment(){","void fragment(){if(!FRONT_FACING){NORMAL=-NORMAL;}")}};
+        var coat=new ShaderMaterial {Shader=new Shader {Code=((ShaderMaterial)Fur(wolf)).Shader.Code.Replace("shader_type spatial;","shader_type spatial;render_mode cull_disabled;").Replace("void fragment(){","void fragment(){if(!FRONT_FACING){NORMAL=-NORMAL;}").Replace("ROUGHNESS=.93+guard*.04;SPECULAR=.13;","ROUGHNESS=.98;SPECULAR=.04;")}};
         foreach(string field in new[]{"coat","pale","predator"})coat.SetShaderParameter(field,((ShaderMaterial)Fur(wolf)).GetShaderParameter(field));
         surface.SetMaterial(coat);
-        int strands=wolf?3000:1800;
+        int strands=wolf?5000:3200;
         for(int strand=0;strand<strands;strand++)
         {
             float tone=.80f+Random()*.34f;
@@ -58,12 +69,18 @@ internal sealed partial class NatureModels
             var weights=new float[4];for(int k=0;k<4;k++)weights[k]=influence[bones[k]]/total;
             // Coat lays toward the rump and down the flanks. Shoulder guard
             // hairs stand slightly longer; the deer keeps a close summer coat.
-            var flow=root.Z<-.48f?new Vector3(0,-.85f,.25f):root.Y<.50f?Vector3.Down:new Vector3(0,-.35f,.9f);flow=(flow-normal*flow.Dot(normal)).Normalized();
+            bool face=root.Z<-.78f&&root.Y>(wolf?.87f:1.25f);
+            var flow=face?new Vector3(0,-.25f,-1):root.Z<-.48f?new Vector3(0,-.85f,.25f):root.Y<.50f?Vector3.Down:new Vector3(0,-.35f,.9f);flow=(flow-normal*flow.Dot(normal)).Normalized();
             if(flow.LengthSquared()<.5f)flow=normal.Cross(Vector3.Right).Normalized();
             var across=normal.Cross(flow).Normalized();
-            float ruff=wolf?MathF.Exp(-MathF.Pow((root.Z+.4f)/.25f,2)):0;
-            float length=(wolf?.018f:.004f)*(0.65f+Random()*.6f)*(1+ruff*.9f);
-            float width=wolf?.00042f:.00028f;
+            float ruff=wolf?MathF.Exp(-MathF.Pow((root.Z+.58f)/.23f,2)):0;
+            float tail=wolf?Math.Clamp((root.Z-.50f)/.20f,0,1):0;
+            float leg=Math.Clamp((root.Y-.20f)/.35f,0,1);
+            float mane=wolf?0:MathF.Exp(-MathF.Pow((root.Z+.65f)/.18f,2)-MathF.Pow((root.Y-1.22f)/.22f,2));
+            float length=(wolf?.010f:.0045f)*(0.65f+Random()*.6f)*(1+ruff*1.8f+tail*.65f)*(.40f+.60f*leg);
+            if(face)length=.003f+Random()*.002f;
+            if(mane>.15f){length+=mane*(.018f+Random()*.018f);flow=(Vector3.Down-normal*.15f).Normalized();}
+            float width=face?.00018f:wolf?.00030f+.00016f*ruff:.00025f+.00018f*mane;
             for(int plane=0;plane<2;plane++)
             {
                 var spread=plane==0?across:(across+normal*.5f).Normalized();

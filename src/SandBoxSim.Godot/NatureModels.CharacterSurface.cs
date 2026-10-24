@@ -46,7 +46,7 @@ pore/=1.0+pow(max(length(dFdx(skin_point)),length(dFdy(skin_point)))*2300.0,2.0)
 vec3 dx=dFdx(VERTEX),dy=dFdy(VERTEX),tx=cross(dy,NORMAL),ty=cross(NORMAL,dx);float det=dot(dx,tx);
 float height=pore*.000018;
 if(abs(det)>.0000000001)NORMAL=normalize(abs(det)*NORMAL-sign(det)*(dFdx(height)*tx+dFdy(height)*ty));
-ROUGHNESS=.66-nose*.12+pore*.025;SPECULAR=.28;
+ROUGHNESS=.60-nose*.08+pore*.025;SPECULAR=.25;
 }"};
         var material=new ShaderMaterial {Shader=_anatomicalSkinShader};
         material.SetShaderParameter("tone",new Color(color));

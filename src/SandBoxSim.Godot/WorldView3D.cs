@@ -399,7 +399,8 @@ public partial class WorldView3D : MapView
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="mineral-meadow-v3",["habitatDetail"]="translucent-leaves-v3",
-            ["architecture"]="forged-hardware-v4",["garmentMaterial"]="draped-linen-v3",["interface"]="crafted-workspace-v6" };
+            ["architecture"]="gable-truss-v5",["garmentMaterial"]="fitted-linen-v4",["interface"]="floating-field-v7",
+            ["animalPresentation"]="authored-wildlife-v1" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
         return quality;

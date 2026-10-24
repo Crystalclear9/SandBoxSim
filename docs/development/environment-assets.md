@@ -15,9 +15,11 @@
 
 [Tree Small 02](https://polyhaven.com/a/tree_small_02) 由 Rico Cilliers 制作。[Fir Sapling](https://polyhaven.com/a/fir_sapling)、[Fern 02](https://polyhaven.com/a/fern_02) 和 [Grass Medium 01](https://polyhaven.com/a/grass_medium_01) 的作者和摄影/扫描分工，以及 [Shrub Sorrel 01](https://polyhaven.com/a/shrub_sorrel_01) 的作者均记录在清单中。[Forest Ground 04](https://polyhaven.com/a/forest_ground_04) 为地面提供颜色、法线和粗糙度。全套运行贴图使用 1K，35 个文件保留原始字节，并记录官方 URL 和 SHA-256。
 
-[Boulder 01](https://polyhaven.com/a/boulder_01) 由 Rico Cilliers 制作，使用扫描几何与原始颜色、OpenGL 法线和粗糙度贴图。运行网格取 LOD2 简化为 6,000 三角面、高度 0.9 米，保留裂隙和矿物色斑；石块材质禁用植物风动。世界中的普通山石与图册共用它，矿石与小碎石仍使用项目程序网格。
+[Boulder 01](https://polyhaven.com/a/boulder_01) 由 Rico Cilliers 制作，使用扫描几何与原始颜色、OpenGL 法线和粗糙度贴图。运行网格取 LOD2 简化为 6,000 三角面、高度 0.9 米，保留裂隙和矿物色斑；石块材质禁用植物风动。世界中的普通山石与图册共用它，矿石复用扫描岩石几何并使用独立矿物材质，小碎石保留程序网格。
 
 树木高度分别归一化到 5.5 和 5.4 米；针叶树衍生自幼树素材，不代表增加新的成熟树种模拟。蕨类、草丛分别归一化为 0.43 和 0.34 米，灌木为 0.8 米。树、蕨类和草丛以地面根部为原点，灌木以几何中心为原点，以兼容现有灌木和特殊地点的放置方式。
+
+岩石颜色向中性灰收束，降低金黄偏色与法线/高光；植物保留源颜色与透光，降低法线起伏。浆果地使用九组连枝复叶灌丛，叶片和叶柄具有真实连接；未重新下载或替换六种扫描网格。
 
 ## 扫描表面材质
 

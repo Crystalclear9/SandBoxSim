@@ -41,6 +41,7 @@ internal sealed partial class NatureModels
         ValidateCeramics();
         ValidateCropModels();
         ValidateOrganicDetails();
+        ValidateAuthoredAnimals();
         ValidateBotanicalModels();
         ValidateEnvironmentSources();
         ValidateGarmentCuts();
@@ -148,14 +149,77 @@ internal sealed partial class NatureModels
             }
         foreach(bool wolf in new[]{false,true})
         {
-            var animal=(AnimalRig)Animal(wolf); animal.Pose(.2f,true,false);
+            var animal=DetailedAnimal(wolf); animal.Pose(.2f,true,false);
+            var earBounds=AnimalEar(wolf).GetAabb();
+            if(earBounds.Size.Y/earBounds.Size.X<(wolf?1.05f:1.85f))
+                throw new InvalidOperationException("Animal pinna loses its species-specific elongated silhouette");
+            foreach(var ear in animal.Ears)
+            {
+                var root=ear.Position;
+                float skull=AnimalSkullSurfaceX(wolf,root.Y,root.Z);
+                if(MathF.Abs(root.X)>skull-.002f)
+                    throw new InvalidOperationException("Animal ear root lies outside its actual skull surface");
+            }
+            foreach(float side in new[]{-1f,1f})
+            {
+                var eye=AnimalEyeSurface(wolf,side).SurfaceGetArrays(0);
+                var vertices=eye[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                var normals=eye[(int)Mesh.ArrayType.Normal].AsVector3Array();
+                foreach(var vertex in vertices)
+                {
+                    float gap=MathF.Abs(vertex.X)-AnimalSkullSurfaceX(wolf,vertex.Y,vertex.Z);
+                    if(!vertex.IsFinite()||gap<.0005f||gap>.0059f)
+                        throw new InvalidOperationException("Animal cornea intersects or separates from its actual eye socket");
+                }
+                foreach(var normal in normals)if(!normal.IsFinite()||normal.X*side<=0)
+                    throw new InvalidOperationException("Animal cornea faces inward");
+            }
+            // Verify the final batched surfaces carry closure vectors, not
+            // just the source mesh that can lose UV2 during consolidation.
+            foreach(Node child in animal.Head.GetChildren())if(child is MeshInstance3D part)
+            for(int surface=0;surface<part.Mesh.GetSurfaceCount();surface++)
+            {
+                if(part.GetActiveMaterial(surface) is not ShaderMaterial eyeMaterial || !eyeMaterial.HasMeta("AnimalEyePart"))continue;
+                var data=part.Mesh.SurfaceGetArrays(surface);var vertices=data[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                var closure=data[(int)Mesh.ArrayType.TexUV2].AsVector2Array();var uv=data[(int)Mesh.ArrayType.TexUV].AsVector2Array();
+                bool cornea=eyeMaterial.GetMeta("AnimalEyePart").AsString()=="cornea";
+                if(closure.Length!=vertices.Length)throw new InvalidOperationException("Animal eye lost closure vectors during batching");
+                for(int i=0;i<vertices.Length;i++)
+                {
+                    var closed=vertices[i]+new Vector3(closure[i].X,closure[i].Y,0);
+                    if(!closed.IsFinite())throw new InvalidOperationException("Animal eye closure is nonfinite");
+                    if(cornea||uv[i].Y<.0001f)
+                    {
+                        float seam=.038f+(closed.Z-AnimalEyeCenterZ(wolf))*.13f;
+                        if(MathF.Abs(closed.Y-seam)>.0001f)throw new InvalidOperationException("Animal upper and lower lids do not meet");
+                    }
+                }
+            }
+            var peer=DetailedAnimal(wolf);
+            if(animal.EyeMaterial==null||animal.LidMaterial==null||animal.EyeMaterial==peer.EyeMaterial||animal.LidMaterial==peer.LidMaterial)
+                throw new InvalidOperationException("Animal blink shares mutable material state");
+            animal.SetIdentity(0);animal.Pose(2.91f,false,false);
+            if(animal.Blink<.99f||animal.EyeMaterial.GetShaderParameter("blink").AsSingle()<.99f||peer.Blink!=0)
+                throw new InvalidOperationException("Animal blink does not close independently");
+            float closedBlink=animal.Blink;animal.Pose(1,false,true);
+            if(animal.Blink!=closedBlink)throw new InvalidOperationException("Paused animal blink moved");
+            animal.Pose(.22f,false,false);
+            if(animal.Blink!=0)throw new InvalidOperationException("Animal blink did not reopen");
+            peer.Free();animal.Pose(.2f,true,false);
+            if(wolf)
+            {
+                var claw=_meshes["canine-claw"].SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                float front=float.PositiveInfinity;foreach(var point in claw)front=MathF.Min(front,point.Z);
+                foreach(var point in claw)if(point.Z<front+.0001f&&MathF.Abs(point.X)>.0008f)
+                    throw new InvalidOperationException("Canine claw tip is blunted by a generic minimum radius");
+            }
             if(animal.FurSkeleton==null||animal.FurSkin==null||animal.FurSkeleton.GetBoneCount()!=12)throw new InvalidOperationException("Animal lacks a continuous skeletal surface");
             var grooming=animal.Body.GetNode<MeshInstance3D>("GuardHairCoat");
             if(grooming.Skin!=animal.FurSkin.Skin||grooming.Skeleton!=animal.FurSkin.Skeleton||grooming.VisibilityRangeEnd!=18)
                 throw new InvalidOperationException("Animal grooming loses shared articulation or distance limit");
             var groom=grooming.Mesh.SurfaceGetArrays(0);var groomPoints=groom[(int)Mesh.ArrayType.Vertex].AsVector3Array();
             var groomBones=groom[(int)Mesh.ArrayType.Bones].AsInt32Array();var groomWeights=groom[(int)Mesh.ArrayType.Weights].AsFloat32Array();
-            if(groom[(int)Mesh.ArrayType.Index].AsInt32Array().Length!=(wolf?3000:1800)*18)
+            if(groom[(int)Mesh.ArrayType.Index].AsInt32Array().Length!=(wolf?5000:3200)*18)
                 throw new InvalidOperationException("Animal grooming exceeds fixed strand budget");
             var strandColors=groom[(int)Mesh.ArrayType.Color].AsColorArray();float darkest=1,lightest=0;
             if(strandColors.Length!=groomPoints.Length)throw new InvalidOperationException("Animal coat lost strand colours");

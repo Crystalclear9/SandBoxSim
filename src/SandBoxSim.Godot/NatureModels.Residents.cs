@@ -39,13 +39,13 @@ internal sealed partial class NatureModels
         new[]{.63f,.665f,.73f,.82f,.97f,1.10f,1.19f,1.24f,1.28f},
         new[]{.535f,.570f,.73f,.82f,.97f,1.10f,1.19f,1.24f,1.28f}};
     private static readonly float[][] GarmentWidthProfiles={
-        new[]{.180f,.184f,.168f,.153f,.158f,.165f,.171f,.145f,.067f},
-        new[]{.173f,.178f,.168f,.153f,.158f,.165f,.171f,.145f,.067f},
-        new[]{.184f,.188f,.171f,.157f,.161f,.168f,.174f,.147f,.067f}};
+        new[]{.180f,.184f,.168f,.153f,.158f,.165f,.169f,.130f,.067f},
+        new[]{.173f,.178f,.168f,.153f,.158f,.165f,.169f,.130f,.067f},
+        new[]{.184f,.188f,.171f,.157f,.161f,.168f,.172f,.133f,.067f}};
     private static readonly float[][] GarmentDepthProfiles={
-        new[]{.114f,.118f,.108f,.101f,.101f,.103f,.099f,.084f,.084f},
-        new[]{.114f,.118f,.108f,.101f,.101f,.103f,.099f,.084f,.084f},
-        new[]{.128f,.132f,.113f,.105f,.104f,.107f,.102f,.085f,.084f}};
+        new[]{.114f,.118f,.108f,.101f,.101f,.103f,.099f,.078f,.073f},
+        new[]{.114f,.118f,.108f,.101f,.101f,.103f,.099f,.078f,.073f},
+        new[]{.128f,.132f,.113f,.105f,.104f,.107f,.102f,.080f,.073f}};
     private Vector3 GarmentPoint(float fraction,float angle)
     {
         var height=GarmentHeightProfiles[_garmentCut];

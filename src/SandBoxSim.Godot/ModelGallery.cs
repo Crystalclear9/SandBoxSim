@@ -64,15 +64,23 @@ internal partial class ModelGallery : PanelContainer
             for(int row=0;row<2;row++)for(int i=0;i<3;i++)
                 Closeup(grid,names[i]+(row==0?" · 正面":" · 背面"),models.Resident(17,false,jobs[i]),2.0f,new(0,.85f,0),new(.55f,.10f,3),row==0);
         }
+        else if(Collection=="animal-heads")
+        {
+            grid.Columns=2;body.GetChild<Label>(0).Text="动物头部 · 正面与侧面";
+            Closeup(grid,"鹿 · 正面眼位与耳根",models.Animal(false),.70f,new(0,1.43f,-.84f),new(0,.025f,-3),false);
+            Closeup(grid,"鹿 · 侧面额鼻与下颌",models.Animal(false),.70f,new(0,1.43f,-.84f),new(3,.025f,0),false);
+            Closeup(grid,"狼 · 正面眼位与耳根",models.Animal(true),.58f,new(0,.91f,-.73f),new(0,.025f,-3),false);
+            Closeup(grid,"狼 · 侧面额鼻与下颌",models.Animal(true),.58f,new(0,.91f,-.73f),new(3,.025f,0),false);
+        }
         else if(Collection=="animal-details")
         {
             body.GetChild<Label>(0).Text="野生动物 · 形体、耳廓与足部";
             Closeup(grid,"鹿 · 侧面体态与四肢",models.Animal(false),2.3f,new(0,1.05f,-.22f),new(3,.35f,-.3f),false);
-            Closeup(grid,"鹿 · 口鼻与凹面耳廓",models.Animal(false),.58f,new(0,1.48f,-.83f),new(.9f,.08f,-2),false);
-            Closeup(grid,"鹿 · 分瓣蹄与蹄尖",models.Animal(false),.30f,new(-.13f,.095f,-.38f),new(-.3f,.25f,-2),false);
+            Closeup(grid,"鹿 · 眼眶、耳根与口鼻",models.Animal(false),.62f,new(0,1.43f,-.84f),new(.9f,.08f,-2),false);
+            Closeup(grid,"鹿 · 前肢与蹄部表面",models.Animal(false),.30f,new(-.13f,.095f,-.38f),new(-.3f,.25f,-2),false);
             Closeup(grid,"狼 · 肩背与后肢",models.Animal(true),1.65f,new(0,.65f,-.15f),new(3,.25f,-.35f),false);
-            Closeup(grid,"狼 · 鼻镜、眼眶与耳窝",models.Animal(true),.52f,new(0,1.04f,-.86f),new(.9f,.08f,-2),false);
-            Closeup(grid,"狼 · 四趾与爪尖",models.Animal(true),.28f,new(-.135f,.065f,-.42f),new(-.18f,.38f,-2),false);
+            Closeup(grid,"狼 · 眼位、口鼻与耳廓",models.Animal(true),.54f,new(0,.91f,-.73f),new(.9f,.08f,-2),false);
+            Closeup(grid,"狼 · 前肢与足掌表面",models.Animal(true),.28f,new(-.135f,.065f,-.42f),new(-.18f,.38f,-2),false);
         }
         else if(Collection=="ecology-details")
         {
@@ -175,7 +183,7 @@ internal partial class ModelGallery : PanelContainer
         delta=EvaluationClock.Delta(delta);
         _elapsed+=(float)delta;
         float cycle=_elapsed%6.8f;
-        foreach(var animal in _animals)animal.Pose((float)delta,Collection is not ("model-details" or "animal-details")&&((int)(_elapsed/3)%3)!=0,false,Collection is not ("model-details" or "animal-details")&&((int)(_elapsed/3)%3)==0);
+        foreach(var animal in _animals)animal.Pose((float)delta,Collection is not ("model-details" or "animal-details" or "animal-heads")&&((int)(_elapsed/3)%3)!=0,false,Collection is not ("model-details" or "animal-details" or "animal-heads")&&((int)(_elapsed/3)%3)==0);
         foreach(var (rig,action) in _animated)rig.PoseAction((float)delta,action,cycle>.65f&&cycle<4.5f?ActionPhase.Executing:ActionPhase.Idle,false,0);
         foreach(var (rig,camera) in _handViews)
         {
@@ -231,7 +239,7 @@ internal partial class ModelGallery : PanelContainer
         card.AddThemeConstantOverride("separation",7); grid.AddChild(card);
         var view=new SubViewportContainer { Stretch=true,CustomMinimumSize=new(0,120),SizeFlagsVertical=SizeFlags.ExpandFill,MouseFilter=MouseFilterEnum.Ignore }; card.AddChild(view);
         int index=grid.GetChildCount()-1;
-        string semanticLabel=Collection=="animal-details"?(index<3?"deer":"wolf"):Collection=="forearms"?"resident":Collection=="ecology-details"?new[]{"tree","tree","fern","grass","rock","shrub"}[index]:model is ResidentRig?"resident":Collection=="model-details"?(index==2?"deer":index==3?"wolf":"house"):Collection=="architecture"?(index<5?"house":"storage"):Collection=="characters"?(index==4?"deer":"wolf"):index<2?"tree":index==2?"farm":index==3?"mine":index==4?"ruins":"grove";
+        string semanticLabel=Collection=="animal-heads"?(index<2?"deer":"wolf"):Collection=="animal-details"?(index<3?"deer":"wolf"):Collection=="forearms"?"resident":Collection=="ecology-details"?new[]{"tree","tree","fern","grass","rock","shrub"}[index]:model is ResidentRig?"resident":Collection=="model-details"?(index==2?"deer":index==3?"wolf":"house"):Collection=="architecture"?(index<5?"house":"storage"):Collection=="characters"?(index==4?"deer":"wolf"):index<2?"tree":index==2?"farm":index==3?"mine":index==4?"ruins":"grove";
         _evaluationRegions.Add((view,semanticLabel));
         var viewport=new SubViewport { OwnWorld3D=true,Size=new(420,280),Msaa3D=Viewport.Msaa.Msaa4X,RenderTargetUpdateMode=SubViewport.UpdateMode.Once }; view.AddChild(viewport);
         var stage=new Node3D(); viewport.AddChild(stage);

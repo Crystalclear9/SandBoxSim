@@ -156,12 +156,16 @@ void fragment(){
     // Dry mineral faces retain broad strata, without glittering pale flecks.
     float mineral=dot(rock,vec3(.2126,.7152,.0722));
     rock=mix(rock,vec3(mineral)*vec3(1.02,1.01,.96),.35);
+    float strata=noise2(vec2(world_position.x*.14+world_position.z*.11,world_position.y*3.2));
+    rock*=.88+strata*.18;
     vec3 colour=grass*weights.x+forest*weights.y+rock*weights.z+earth*weights.w;
     float sand=special.x;
     colour=mix(colour,texture(sand_diffuse,world_position.xz*.12).rgb,sand*(1.0-exposed)*(1.0-wear));
     float snow=special.y*(1.0-smoothstep(.10,.33,slope));
     colour=mix(colour,vec3(.75,.79,.80)*(0.95+noise2(world_position.xz*2.0)*.05),snow);
     colour*=mix(1.0,.68,shore*.72+moisture*.18);
+    float silt=shore*(1.0-smoothstep(.02,.18,world_position.y))*(.7+noise2(world_position.xz*2.4)*.3);
+    colour=mix(colour,earth*vec3(.68,.73,.66),silt*.38);
     colour*=.94+noise2(world_position.xz*.043)*.10;
     colour=mix(colour,colour*vec3(.15,.13,.12),special.w);
     float lava=special.z;colour=mix(colour,vec3(.065,.045,.035),lava);

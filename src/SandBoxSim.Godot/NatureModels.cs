@@ -166,5 +166,5 @@ internal sealed partial class NatureModels
         var node=DistantBuildingNode(kind,complete,identity);var mesh=node.GetChild<MeshInstance3D>(0).Mesh;node.Free();return mesh;
     }
     public Node3D Human(int slot, bool child, JobType job) => Resident(slot, child, job);
-    public Node3D Animal(bool wolf) => DetailedAnimal(wolf);
+    public Node3D Animal(bool wolf) => AuthoredAnimal(wolf);
 }

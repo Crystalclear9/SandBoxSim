@@ -118,7 +118,7 @@ internal sealed partial class NatureModels
         var root=new Node3D();string key="berry-canes:"+fruit;
         if(_meshes.TryGetValue(key,out var cached)){root.AddChild(new MeshInstance3D {Mesh=cached});return root;}
         using var leaves=new SurfaceTool();leaves.Begin(Mesh.PrimitiveType.Triangles);
-        for(int cane=0;cane<7;cane++)
+        for(int cane=0;cane<9;cane++)
         {
             float a=cane*2.39996f,height=.65f+(cane%3)*.10f;
             var outward=new Vector3(Mathf.Cos(a),0,Mathf.Sin(a));var across=new Vector3(-outward.Z,0,outward.X);
@@ -132,6 +132,13 @@ internal sealed partial class NatureModels
                     var origin=Center(t);var axis=(outward*.35f+across*side+Vector3.Up*.15f).Normalized();
                     BotanicalStem(leaves,origin,origin+axis*.04f,.0015f);
                     BotanicalLeaf(leaves,origin+axis*.03f,axis,outward,.12f,.035f,.008f,.9f+cane*.018f);
+                    foreach(float leaflet in new[]{-1f,1f})
+                    {
+                        var node=origin+axis*.055f;
+                        var direction=(axis*.50f+outward*leaflet*.70f+Vector3.Up*.12f).Normalized();
+                        BotanicalStem(leaves,node,node+direction*.025f,.0010f);
+                        BotanicalLeaf(leaves,node+direction*.020f,direction,across,.078f,.025f,.010f,.86f+cane*.012f);
+                    }
                 }
             }
             if(fruit)for(int berry=0;berry<3;berry++)

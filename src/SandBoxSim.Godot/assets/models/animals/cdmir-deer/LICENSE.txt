@@ -1,0 +1,13 @@
+Old Deer Male
+Author: CDmir; collaborator: TinyWorlds
+Source: https://opengameart.org/content/old-deer-male
+Licence: CC0 1.0 Universal
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Source deer1.blend SHA-256:
+729f47b10f29e13d128aa2e0a2a5ba47be40cb6593e1e86ac31e236e93bef003
+
+SandBoxSim modifications: one subdivision, coordinate and metre conversion,
+14-joint retargeting to runtime head/neck/ears and terrain-contact limbs,
+surface consolidation, original packed diffuse/normal maps extracted unchanged.
+This is an authored game asset, not a photogrammetry scan.

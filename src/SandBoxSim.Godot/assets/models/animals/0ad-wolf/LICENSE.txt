@@ -1,0 +1,26 @@
+Wolf mesh and grey wolf skin from 0 A.D.
+Attribution: Wildfire Games and the 0 A.D. contributors.
+Original art copyright notice: Copyright (C) 2009 Wildfire Games.
+Original author website: https://www.wildfiregames.com/
+Source commit: 61a3b9507d974084e6badb88a0826bd89a6d5b8b
+https://github.com/0ad/0ad/tree/61a3b9507d974084e6badb88a0826bd89a6d5b8b/binaries/data/mods/public/art
+Project: https://play0ad.com/
+Art-specific licence notice:
+https://github.com/0ad/0ad/blob/61a3b9507d974084e6badb88a0826bd89a6d5b8b/binaries/data/mods/public/art/LICENSE.txt
+
+Licence: Creative Commons Attribution-ShareAlike 3.0 Unported.
+https://creativecommons.org/licenses/by-sa/3.0/
+The wolf mesh, skin, and modified wolf data in this folder remain CC BY-SA 3.0.
+This asset licence does not replace the licences of unrelated project code/assets.
+
+Original paths:
+art/meshes/skeletal/wolf.dae
+art/textures/skins/skeletal/animal_wolf_grey.png
+SHA-256 mesh: 481ae8021e7e2624e2c20db01d2b17b89eb488a9749eb92e1952f55e4496cf3a
+SHA-256 skin: cca1ea8133ae1b51f7e2767b4c68eb7d5cd1c46668774b3e0ce72fb1c989bbb1
+
+SandBoxSim modifications: two surface subdivisions, unit/coordinate conversion,
+14-joint retargeting, ear articulation weights and tangent generation.
+The original skin PNG is unchanged. Exporter: tools/export_authored_animals.py.
+Source files are publicly available at the URL above; derived mesh and binding
+data are distributed in this folder under the same licence.

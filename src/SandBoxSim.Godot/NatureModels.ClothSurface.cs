@@ -29,7 +29,7 @@ float thread=dot(cx*w.x+cy*w.y+cz*w.z,vec3(.2126,.7152,.0722));
 ALBEDO=dye.rgb*.68*(clamp(thread/.55,.58,1.12)+yarn*.018+twill*.008+slub+dye_variation);
 vec3 grain=vec3(0,nx.g*2.0-1.0,nx.r*2.0-1.0)*w.x+vec3(ny.r*2.0-1.0,0,ny.g*2.0-1.0)*w.y+vec3(nz.r*2.0-1.0,nz.g*2.0-1.0,0)*w.z;
 grain-=normalize(cloth_normal)*dot(grain,normalize(cloth_normal));
-NORMAL=normalize(NORMAL+mat3(VIEW_MATRIX*MODEL_MATRIX)*grain*.40);
+NORMAL=normalize(NORMAL+mat3(VIEW_MATRIX*MODEL_MATRIX)*grain*.24);
 ROUGHNESS=clamp(nx.b*w.x+ny.b*w.y+nz.b*w.z,.78,.96);SPECULAR=.21;
 }" };
         var material = new ShaderMaterial { Shader = _fabricShader };material.SetShaderParameter("dye",new Color(color));

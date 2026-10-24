@@ -150,32 +150,55 @@ if(abs(det)>.0000000001)NORMAL=normalize(abs(det)*NORMAL-sign(det)*(dFdx(height)
         _residentMaterials[key]=material;return material;
     }
 
+    private readonly Material?[] _animalLidMaterials=new Material?[2];
+    private Material AnimalLidMaterial(bool wolf)
+    {
+        int index=wolf?1:0;if(_animalLidMaterials[index]!=null)return _animalLidMaterials[index]!;
+        // Use the same rest-space coat evaluation as the continuous head.
+        // A flat eyelid pigment left two pale patches when the animal blinked.
+        var fur=(ShaderMaterial)Fur(wolf);
+        string vertex=wolf
+            ?"void vertex(){VERTEX.xy+=UV2*blink;local=vec3(0,1.00,-.755)+VERTEX*vec3(.96,1.02,.90);coat_normal=NORMAL;}"
+            :"void vertex(){VERTEX.xy+=UV2*blink;local=vec3(0,1.45,-.755)+VERTEX*vec3(.98,.96,1.08);coat_normal=NORMAL;}";
+        string code=fur.Shader.Code.Replace("shader_type spatial;","shader_type spatial;uniform float blink=0.0;")
+            .Replace("void vertex(){ local=VERTEX;coat_normal=NORMAL; }",vertex)
+            .Replace("void fragment(){",@"void fragment(){
+if(blink>.01){
+vec3 geometric=cross(dFdx(VERTEX),dFdy(VERTEX));
+if(dot(geometric,geometric)>.000000000001){geometric=normalize(geometric);NORMAL=dot(geometric,NORMAL)<0.0?-geometric:geometric;}
+}
+").Replace("ROUGHNESS=.93+guard*.04;SPECULAR=.13;",
+                "float waterline=1.0-smoothstep(0.0,.12,UV.y);ALBEDO=mix(ALBEDO,vec3(.035,.028,.023),waterline*.68);ROUGHNESS=.93+guard*.04;SPECULAR=.13;");
+        var material=new ShaderMaterial {Shader=new Shader {Code=code}};
+        foreach(string field in new[]{"coat","pale","predator"})material.SetShaderParameter(field,fur.GetShaderParameter(field));
+        material.SetMeta("UsesAnimalEyeMorph",true);material.SetMeta("AnimalEyePart","lid");
+        return _animalLidMaterials[index]=material;
+    }
     private Mesh AnimalEyelid(bool wolf,float side)
     {
         string key=$"animal-lid:{wolf}:{side}";if(_meshes.TryGetValue(key,out var cached))return cached;
+        const int ring=64,bands=6;
+        var points=new Vector3[bands+1,ring+1];var closure=new Vector2[bands+1,ring+1];
+        for(int band=0;band<=bands;band++)for(int row=0;row<=ring;row++)
+        {
+            float t=row*MathF.Tau/ring,v=band/(float)bands;
+            var inner=AnimalEyeOpening(wolf,t,1);
+            float y=inner.X+MathF.Sin(t)*v*(MathF.Sin(t)>0?.0035f:.0018f);
+            float z=inner.Y+MathF.Cos(t)*v*.0020f;
+            float lift=.0005f+MathF.Sin(v*MathF.PI)*(.0006f+.0006f*MathF.Max(0,MathF.Sin(t)));
+            points[band,row]=new(side*(AnimalSkullSurfaceX(wolf,y,z)+lift),y,z);
+            float closedY=Mathf.Lerp(.038f+(z-AnimalEyeCenterZ(wolf))*.13f,y,v);
+            float closedX=side*(AnimalSkullSurfaceX(wolf,closedY,z)+lift);
+            closure[band,row]=new(closedX-points[band,row].X,closedY-y);
+        }
         using var tool=new SurfaceTool();tool.Begin(Mesh.PrimitiveType.Triangles);
-        const int ring=48,sides=6;
-        var sockets=new float[ring+1];
-        for(int row=0;row<=ring;row++)
+        void Triangle((int B,int R) a,(int B,int R) b,(int B,int R) c)
         {
-            float t=row*MathF.Tau/ring;
-            sockets[row]=AnimalSkullSurfaceX(wolf,.038f+MathF.Sin(t)*(.009f+.0025f*MathF.Max(0,MathF.Sin(t))),-.105f+MathF.Cos(t)*.026f)+.001f;
+            if((points[b.B,b.R]-points[a.B,a.R]).Cross(points[c.B,c.R]-points[a.B,a.R]).X*side>0)(b,c)=(c,b);
+            foreach(var v in new[]{a,b,c}){tool.SetColor(Colors.White);tool.SetUV(new(v.R/(float)ring,v.B/(float)bands));tool.SetUV2(closure[v.B,v.R]);tool.AddVertex(points[v.B,v.R]);}
         }
-        Vector3 Point(int row,int edge)
-        {
-            float t=row*MathF.Tau/ring,a=edge*MathF.Tau/sides;
-            float y=.038f+MathF.Sin(t)*(.009f+.0025f*MathF.Max(0,MathF.Sin(t)));
-            float z=-.105f+MathF.Cos(t)*.026f;
-            float x=sockets[row];
-            return new(side*(x+MathF.Cos(a)*.0022f),y+MathF.Sin(a)*MathF.Sin(t)*.0022f,z+MathF.Sin(a)*MathF.Cos(t)*.0022f);
-        }
-        for(int r=0;r<ring;r++)for(int e=0;e<sides;e++)
-        {
-            var a=Point(r,e);var b=Point(r+1,e);var c=Point(r,e+1);var d=Point(r+1,e+1);
-            float t=(r+.5f)*MathF.Tau/ring,section=(e+.5f)*MathF.Tau/sides;
-            var outward=new Vector3(side*MathF.Cos(section),MathF.Sin(section)*MathF.Sin(t),MathF.Sin(section)*MathF.Cos(t));
-            EquipmentTriangle(tool,a,b,c,outward);EquipmentTriangle(tool,c,b,d,outward);
-        }
+        for(int band=0;band<bands;band++)for(int row=0;row<ring;row++)
+        {Triangle((band,row),(band+1,row),(band,row+1));Triangle((band,row+1),(band+1,row),(band+1,row+1));}
         tool.GenerateNormals();tool.Index();var mesh=tool.Commit();_meshes[key]=mesh;return mesh;
     }
 
@@ -184,43 +207,77 @@ if(abs(det)>.0000000001)NORMAL=normalize(abs(det)*NORMAL-sign(det)*(dFdx(height)
     private Mesh AnimalEar(bool wolf)
     {
         string key="sculpted-ear:"+wolf;if(_meshes.TryGetValue(key,out var cached))return cached;
-        const int rows=28,columns=32;
+        const int rows=32,columns=32;
         using var tool=new SurfaceTool();tool.Begin(Mesh.PrimitiveType.Triangles);
-        Vector3 Point(int row,int column,bool rear)
+        Vector3 Point(float row,float column,bool rear)
         {
-            float t=row/(float)rows,u=column/(float)columns*2-1;
-            float leaf=MathF.Pow(MathF.Max(0,MathF.Sin(t*MathF.PI)),wolf?.78f:.68f);
-            float width=(wolf?.059f:.060f)*leaf*(wolf?1.20f-.55f*t:1+.09f*MathF.Sin(t*MathF.PI));
-            if(wolf)width=.072f*(1-t)*MathF.Pow(MathF.Sin(MathF.Min(1,t/.16f)*MathF.PI/2),.65f);
-            float cup=(1-u*u)*MathF.Sin(t*MathF.PI);
-            float rim=.008f*MathF.Exp(-MathF.Pow((MathF.Abs(u)-.84f)/.14f,2))*MathF.Sin(t*MathF.PI);
-            float root=.010f*MathF.Exp(-MathF.Pow((t-.18f)/.13f,2))*(1-u*u);
-            // A curled, thick cartilage rim surrounds a recessed concha; the
-            // tip bends backwards instead of ending in a flat triangular plane.
-            float bend=.024f*t*t*t;
-            // A Y-shaped cartilage fold crosses the lower concha. Its roots
-            // are broad and vanish into the rim instead of floating inside it.
-            float fold=.010f*MathF.Exp(-MathF.Pow((MathF.Abs(u)-(.18f+.34f*t))/.13f,2))*MathF.Exp(-MathF.Pow((t-.30f)/.24f,2));
-            return new(u*width,t*(wolf?.145f:.21f),bend+(rear?.032f*cup+.004f*MathF.Sin(t*MathF.PI):.027f*cup-rim-root-fold));
+            float t=row/rows,u=column/columns*2-1;
+            float sine=MathF.Max(0,MathF.Sin(t*MathF.PI));
+            float width=wolf?.050f*MathF.Pow(MathF.Max(0,1-t*t),.65f)*(1-.15f*t)*MathF.Pow(MathF.Sin(MathF.Min(1,t/.16f)*MathF.PI/2),.65f)+.019f*MathF.Pow(1-t,8)
+                :.047f*MathF.Pow(sine,.65f)*(1.15f-.35f*t)+.012f*MathF.Pow(1-t,6);
+            float cup=(1-u*u)*sine;
+            float rim=.004f*MathF.Exp(-MathF.Pow((MathF.Abs(u)-.88f)/.12f,2))*sine;
+            float canal=.012f*MathF.Exp(-MathF.Pow((t-.17f)/.14f,2))*(1-u*u);
+            // Root cartilage rolls into the skull; the tip leans back instead
+            // of leaving the entire pinna as a flat triangular plate.
+            float bend=.030f*t*t*t;
+            float rootRoll=.009f*MathF.Exp(-MathF.Pow((t-.10f)/.15f,2));
+            float cartilage=.005f*MathF.Exp(-MathF.Pow((u+.30f)/.18f,2)-MathF.Pow((t-.28f)/.18f,2));
+            float front=bend+.019f*cup+canal-rim-rootRoll-cartilage;
+            float thickness=.005f+.008f*sine*(1-u*u)+.005f*MathF.Pow(1-t,4);
+            float sweep=(wolf?.006f:.012f)*t*t;
+            return new(u*width+sweep,t*(wolf?.125f:.190f),rear?front+thickness:front);
         }
         void Vertex(int r,int c,bool rear)
-        {
-            float t=r/(float)rows,u=c/(float)columns*2-1;
-            float inset=rear?0:MathF.Pow(MathF.Max(0,1-u*u),.8f)*MathF.Sin(t*MathF.PI);
-            float baseShade=MathF.Exp(-MathF.Pow((t-.23f)/.19f,2))*(1-u*u);
-            tool.SetColor(new Color(wolf?"#797b71":"#8c6445").Lerp(new Color(wolf?"#b3a696":"#b9a88c"),inset*.62f).Darkened(rear?0:baseShade*.24f));
-            tool.SetUV(new(c/(float)columns,t));tool.AddVertex(Point(r,c,rear));
-        }
+        {float t=r/(float)rows;tool.SetColor(new Color(1,1,0,rear?0:1));tool.SetUV(new(c/(float)columns,t));tool.AddVertex(Point(r,c,rear));}
         foreach(bool rear in new[]{false,true})for(int r=0;r<rows;r++)for(int c=0;c<columns;c++)
         {
             if(rear){Vertex(r,c,rear);Vertex(r+1,c,rear);Vertex(r,c+1,rear);Vertex(r,c+1,rear);Vertex(r+1,c,rear);Vertex(r+1,c+1,rear);}
             else{Vertex(r,c,rear);Vertex(r,c+1,rear);Vertex(r+1,c,rear);Vertex(r,c+1,rear);Vertex(r+1,c+1,rear);Vertex(r+1,c,rear);}
         }
-        // Seal both narrow rims; front and rear faces meet at their endpoints.
         foreach(int c in new[]{0,columns})for(int r=0;r<rows;r++)
         {
             if(c==0){Vertex(r,c,false);Vertex(r+1,c,false);Vertex(r,c,true);Vertex(r,c,true);Vertex(r+1,c,false);Vertex(r+1,c,true);}
             else{Vertex(r,c,false);Vertex(r,c,true);Vertex(r+1,c,false);Vertex(r,c,true);Vertex(r+1,c,true);Vertex(r+1,c,false);}
+        }
+        foreach(int r in new[]{0,rows})for(int c=0;c<columns;c++)
+        {
+            if(r==0){Vertex(r,c,false);Vertex(r,c,true);Vertex(r,c+1,false);Vertex(r,c+1,false);Vertex(r,c,true);Vertex(r,c+1,true);}
+            else{Vertex(r,c,false);Vertex(r,c+1,false);Vertex(r,c,true);Vertex(r,c+1,false);Vertex(r,c+1,true);Vertex(r,c,true);}
+        }
+        // Fitted multi-segment ribbons remain above the pinna at every
+        // sample; long chords through the curved cup made the former dashes.
+        for(int strand=0;strand<72;strand++)
+        {
+            float start=.12f+(strand*.61803399f%1)*.48f;
+            float u=MathF.Sin(strand*2.39996f)*.70f;
+            float length=wolf?.095f:.110f;
+            Vector3 P(int row,float cross)
+            {
+                float t=start+row/3f*length;
+                var p=Point(t*rows,(u*.5f+.5f)*columns,false);
+                float width=.00045f*(1-row/3f);
+                return p+new Vector3(cross*width,0,-.0012f);
+            }
+            void V(int row,float cross)
+            {
+                float t=start+row/3f*length;
+                tool.SetColor(Colors.White);tool.SetUV(new(u*.5f+.5f,t));tool.AddVertex(P(row,cross));
+            }
+            for(int row=0;row<3;row++)
+            {V(row,-1);V(row,1);V(row+1,-1);V(row,1);V(row+1,1);V(row+1,-1);}
+        }
+        // Edge hairs break the silhouette; fine interior fibers remain in
+        // the filtered shader so they cannot intersect or flicker over the cup.
+        foreach(float side in new[]{-1f,1f})for(int hair=0;hair<64;hair++)
+        {
+            float t=.07f+hair/63f*.86f,u=side*.97f;
+            var root=Point(t*rows,(u*.5f+.5f)*columns,false)-new Vector3(0,0,.0004f);
+            float length=.0025f+.0015f*(.5f+.5f*MathF.Sin(hair*2.4f));
+            var across=new Vector3(0,.00025f,0);
+            var tip=root+new Vector3(side*.65f,.65f,-.12f).Normalized()*length;
+            tool.SetColor(new Color(1,1,0,1));tool.SetUV(new(u*.5f+.5f,t));
+            EquipmentTriangle(tool,root-across,root+across,tip,Vector3.Forward);
         }
         tool.GenerateNormals();tool.Index();var mesh=tool.Commit();_meshes[key]=mesh;return mesh;
     }
@@ -253,7 +310,27 @@ if(abs(det)>.0000000001)NORMAL=normalize(abs(det)*NORMAL-sign(det)*(dFdx(height)
         {Vertex(r,c);Vertex(r+1,c);Vertex(r,c+1);Vertex(r,c+1);Vertex(r+1,c);Vertex(r+1,c+1);}
         tool.GenerateNormals();tool.Index();var mesh=tool.Commit();_meshes[key]=mesh;return mesh;
     }
-    private readonly StandardMaterial3D _earMaterial=new() {VertexColorUseAsAlbedo=true,Roughness=.88f,MetallicSpecular=.18f};
+    private readonly Material?[] _animalEarMaterials=new Material?[2];
+    private Material AnimalEarMaterial(bool wolf)
+    {
+        int index=wolf?1:0;if(_animalEarMaterials[index]!=null)return _animalEarMaterials[index]!;
+        var material=new ShaderMaterial {Shader=new Shader {Code=@"shader_type spatial;
+uniform vec4 coat:source_color;
+uniform vec4 inner:source_color;
+varying vec3 ear;
+void vertex(){ear=VERTEX;}
+void fragment(){
+float t=UV.y,u=UV.x*2.0-1.0;
+float inset=pow(max(0.0,1.0-u*u),.6)*max(0.0,sin(t*3.14159265))*COLOR.a;
+float root=exp(-pow((t-.13)/.16,2.0))*max(0.0,1.0-u*u)*COLOR.a;
+float hair=sin(ear.y*2100.0+sin(ear.x*270.0)*2.0)*sin(ear.x*1700.0+ear.y*330.0);
+hair/=1.0+pow(max(length(dFdx(ear)),length(dFdy(ear)))*1800.0,2.0);
+ALBEDO=mix(coat.rgb,inner.rgb,min(.8,inset*.45+COLOR.b*.23))*(1.0-root*.18+hair*.04);ROUGHNESS=.91;SPECULAR=.13;
+}"}};
+        material.SetShaderParameter("coat",new Color(wolf?"#777a6d":"#896e50"));
+        material.SetShaderParameter("inner",new Color(wolf?"#b7b09b":"#c4b294"));
+        return _animalEarMaterials[index]=material;
+    }
 
     private void ValidateOrganicDetails()
     {
@@ -288,7 +365,7 @@ if(abs(det)>.0000000001)NORMAL=normalize(abs(det)*NORMAL-sign(det)*(dFdx(height)
                     throw new InvalidOperationException("Shoe stitching or tongue escapes the upper");
             }
         }
-        foreach(var mesh in new[]{BootLast(false),BootLast(true),AnimalEar(false),AnimalEar(true),
+        foreach(var mesh in new[]{AnimalNoseMesh(false),AnimalNoseMesh(true),BootLast(false),BootLast(true),AnimalEar(false),AnimalEar(true),
             AntlerBranch("antler-check",new[]{Vector3.Zero,new Vector3(.08f,.3f,.02f),new Vector3(.2f,.5f,.08f)},.018f)})
         {
             var data=mesh.SurfaceGetArrays(0);var vertices=data[(int)Mesh.ArrayType.Vertex].AsVector3Array();

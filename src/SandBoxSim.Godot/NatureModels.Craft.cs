@@ -18,7 +18,8 @@ internal sealed partial class NatureModels
             int i=Math.Min(r/subdivisions,profiles.Length-2); float t=(r-i*subdivisions)/(float)subdivisions;
             var a=profiles[Math.Max(0,i-1)]; var b=profiles[i]; var c=profiles[i+1]; var d=profiles[Math.Min(profiles.Length-1,i+2)];
             var v=(b*2+(c-a)*t+(a*2-b*5+c*4-d)*t*t+(-a+b*3-c*3+d)*t*t*t)*.5f;
-            v.Z=MathF.Max(.002f,v.Z); v.W=MathF.Max(.002f,v.W); dense[r]=v;
+            float minimumRadius=key=="canine-claw"?.00015f:.002f;
+            v.Z=MathF.Max(minimumRadius,v.Z); v.W=MathF.Max(minimumRadius,v.W); dense[r]=v;
         }
         profiles=dense;
         using var tool = new SurfaceTool(); tool.Begin(Mesh.PrimitiveType.Triangles); tool.SetSmoothGroup(0);
@@ -38,7 +39,9 @@ internal sealed partial class NatureModels
                 crease+=.0022f*MathF.Exp(-MathF.Pow((p.X-.12f)/.08f,2))*MathF.Sin(angle*3+p.X*23);
             }
             else if(key=="resident-boot")crease=.0015f*MathF.Sin(p.X*150+MathF.Cos(angle)*2)*MathF.Exp(-MathF.Pow((p.X-.23f)*20,2));
-            float sole=p.Y+MathF.Sin(angle)*(p.W+crease);
+            float vertical=MathF.Sin(angle);
+            if(key=="animal-hoof")vertical=MathF.Sign(vertical)*MathF.Pow(MathF.Abs(vertical),.65f);
+            float sole=p.Y+vertical*(p.W+crease);
             if(key is "animal-paw" or "animal-hoof")sole=MathF.Max(.003f,sole);
             float cross=key=="animal-hoof"?MathF.Sign(MathF.Cos(angle))*MathF.Pow(MathF.Abs(MathF.Cos(angle)),.65f):MathF.Cos(angle);
             return new Vector3(cross * (p.Z+crease),sole,p.X);

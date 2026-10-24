@@ -6,15 +6,15 @@ namespace SandBoxSim.Client;
 internal static class HudStyle
 {
     public static bool MotionEnabled { get; set; } = true;
-    public static readonly Color Ink = new("#20231f"), Surface = new("#292d28"), Text = new("#eeeade"),
-        Muted = new("#b8bbad"), Accent = new("#d6c294"), Border = new("#4f574b"), Wash = new("#373e34");
+    public static readonly Color Ink = new("#141c19"), Surface = new("#202a25"), Text = new("#f0ede2"),
+        Muted = new("#b8c0b3"), Accent = new("#d6c294"), Border = new("#45534a"), Wash = new("#303d33");
     public static readonly Color Paper=Surface,PaperInk=Text,PaperMuted=Muted,
         PaperLine=Border,PaperAccent=Accent,PaperWash=Wash;
     public static StyleBox Frame(int padding)
     {
-        var surface = Box(Surface, 9, padding);
+        var surface = Box(new Color(Surface,.97f), 12, padding);
         surface.BorderColor = Border;
-        surface.ShadowSize = 8; surface.ShadowOffset = new(0, 3);
+        surface.ShadowSize = 14; surface.ShadowOffset = new(0, 5);
         return surface;
     }
     private static readonly SystemFont DisplayFont = new() { FontNames = new[] { "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "sans-serif" } };

@@ -42,7 +42,7 @@ python tools/evaluate.py run benchmarks/scenarios/render-population.json --label
 |---|---|
 | `id`, `seed` | 实验名称（1–64 位字母/数字/点/下划线/短横线，首位为字母或数字）与世界种子 |
 | `agents`, `previewDays` | 人口 0–2000，初始预演 0–30 天 |
-| `panel` | `field`, `trails`, `homes`, `farms`, `person`, `person-hands`, `architecture`, `characters`, `model-details`, `animal-details`, `ecology-details`, `wardrobe`, `faces`, `equipment`, `actions`, `hands`, `naturemodels` |
+| `panel` | `field`, `trails`, `homes`, `farms`, `person`, `person-hands`, `architecture`, `characters`, `model-details`, `animal-details`, `animal-heads`, `ecology-details`, `wardrobe`, `faces`, `equipment`, `actions`, `hands`, `naturemodels` |
 | `warmupFrames`, `measuredFrames` | 预热 3–3600 帧，采样 2–36000 帧 |
 | `ticksPerFrame` | 每个逻辑帧推进 0–20 个模拟 tick，与本机快慢无关 |
 | `captureFrames` | 从 0 开始的逻辑帧索引；至少第 3 帧，最多 32 个，无重复，不能超过运行末帧 |
@@ -129,3 +129,5 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 ---
 
 [文档导航](../README.md) · [项目首页](../../README.md)
+
+当前渲染元数据为 `animalPresentation=authored-wildlife-v1`、`interface=floating-field-v7`、`architecture=gable-truss-v5`、`garmentMaterial=fitted-linen-v4`。授权鹿狼、贴图、14 关节和界面布局均已改变，需重采相同场景的视觉和耗时基线；不能把换资产造成的耗时变化算作代码优化收益。正式动物与保留的程序校准动物检查分别运行。

@@ -20,6 +20,7 @@
 | `.tools/` | 当前项目的 SDK、Godot、可选 Blender、依赖及原始素材缓存 | 忽略提交；临时试版不混入正式资源 |
 | `runs/` | 本机模拟输出、日志、临时截图 | 除 `README.md` 与 `.gitkeep` 外忽略 |
 | `runs/archives/` | 完整实验与小型维护记录的压缩归档 | 忽略提交；恢复到原相对路径后检查 |
+| `待删除-*/` | 已确认可删除的临时输出，保留原相对路径，交由用户手动删除 | 忽略提交；移动不释放磁盘空间 |
 | `artifacts/`、`bin/`、`obj/`、`.godot/` | 构建与导入缓存 | 忽略提交 |
 
 根目录保留项目入口、解决方案、统一配置、授权、贡献指南与更新记录。SDK、Godot 及开发依赖缓存保留在当前工作目录的 `.tools/`，由 Git 忽略，不提交到远程。Blender 如需下载也放在 `.tools/blender-版本/`。
@@ -29,6 +30,7 @@
 - `assets/models/environment/`：CC0 环境衍生网格、原始 PBR 贴图、许可与来源清单，普通运行直接读取。
 - `assets/models/human/`：授权头脸、前臂、手部及手部 LOD 衍生数据与署名，普通运行直接读取；原始 `.blend` 和 Blender 工具放在本机维护目录。
 - `assets/models/garments/`：项目自有三种缝片上衣、源几何哈希和运行清单，普通运行不需要原始导出或 Blender。
+- `assets/models/animals/`：鹿、狼的连续蒙皮网格及许可，普通运行直接读取；临时采样和烘焙输入不放入正式资源目录。
 - `assets/materials/scanned/`：可平铺扫描表面、原始贴图、许可与哈希清单；通过 `tools/fetch-surface-materials.py --verify` 离线核对。
 - `assets/textures/`：自然材质及早期地形/对象图集；3D 地表使用扫描表面，二维地图仍保留图集入口。
 
@@ -41,6 +43,8 @@
 地表与水面材质在 `WorldView3D.Surface.cs`，建筑扫描表面在 `NatureModels.ScannedCraft.cs`，原始纹理读取与法线/粗糙度打包共用 `ScannedSurfaces.cs`。素材下载只写入 `.tools/sources/surface-materials/` 与验证后的正式资源目录，普通运行不读取原始下载缓存。
 
 上衣采样源与成品读取在 `NatureModels.GarmentSkin.cs`，连续草束屋面在 `NatureModels.Thatch.cs`。`tools/bake-garments.ps1` 把维护用输入放在 `.tools/garment-sources/`，只将正式蒙皮与清单写入 `assets/models/garments/`；预览和失败试版不进入正式目录。
+
+动物连续表面由 `tools/bake_animal_surfaces.py` 烘焙，`NatureModels.OrganicAssets.cs` 校验并读取成品，`NatureModels.AnimalDetail.cs` 维护耳部、蹄爪等局部结构。动物细节图册使用 `animal-details` 场景，正式配图保存在 `docs/images/animal-detail.png`；临时截帧和试跑结果不作为正式资源保留。
 
 ## 运行资料与截图
 

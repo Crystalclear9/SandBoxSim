@@ -31,7 +31,9 @@ for name in ('deer','wolf'):
   shoulder=bell(z,-.38,.17)*bell(y,back+.055,.20)
   haunch=bell(z,.40,.13)*bell(y,back-.025,.17)
   tuck=bell(z,.14,.17)*bell(y,back-.07,.12)
-  relief=(shoulder*.012+haunch*.008-tuck*.005)*flank
+  ruff=bell(z,-.63,.17)*bell(y,back+.13,.21) if name=='wolf' else 0
+  brisket=bell(z,-.43,.15)*bell(y,back-.17,.10)
+  relief=(shoulder*.012+haunch*.008-tuck*.005+ruff*.020+brisket*.008)*flank
   v.co+=normal*relief
  obj.data.update()
  # Musculature displacement can fold tiny triangles where the shoulder meets

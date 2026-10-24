@@ -95,20 +95,11 @@ public partial class MainGame
         // The world occupies the whole window. No opaque rail or layout container resizes its viewport.
         _map = new WorldView3D { Game = this, WorldPresentationEnabled = !IsModelGallery }; _map.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(_map);
         var overlay = new Control { MouseFilter = MouseFilterEnum.Ignore,TextureFilter=TextureFilterEnum.LinearWithMipmaps }; overlay.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(overlay);
-        // One quiet frame groups global controls; content panels share its palette.
-        foreach(bool bottom in new[]{false,true})
-        {
-            var bar=new Panel {MouseFilter=MouseFilterEnum.Stop};
-            bar.AnchorRight=1;bar.AnchorTop=bar.AnchorBottom=bottom?1:0;
-            bar.OffsetTop=bottom?-76:0;bar.OffsetBottom=bottom?0:74;
-            var fill=HudStyle.Box(new Color(HudStyle.Surface,.96f),0,0,false);fill.BorderColor=HudStyle.Border;
-            fill.BorderWidthTop=bottom?1:0;fill.BorderWidthBottom=bottom?0:1;
-            bar.AddThemeStyleboxOverride("panel",fill);overlay.AddChild(bar);
-        }
+        // Compact islands leave the world visible and draggable between controls.
         var worldCard = Surface(overlay, new Vector2(0, 0), new Vector2(18, 4), new Vector2(318, 60), 4);
 
         _worldPanel=worldCard;
-        ClearSurface(worldCard);
+        worldCard.AddThemeStyleboxOverride("panel",HudStyle.Frame(10));
         var worldRow = new HBoxContainer(); worldRow.AddThemeConstantOverride("separation", 12); worldCard.AddChild(worldRow);
         worldRow.AddChild(HudStyle.IconWell(HudSymbols.For("crest"),34));
         var wordmark = HudStyle.Heading("SandBoxSim", 20); worldRow.AddChild(wordmark);
@@ -123,7 +114,7 @@ public partial class MainGame
         var stats = Surface(overlay, new Vector2(.5f, 0), new Vector2(-310, 20), new Vector2(620, 62), 4);
 
         _statsPanel=stats;
-        ClearSurface(stats);
+        stats.AddThemeStyleboxOverride("panel",HudStyle.Frame(10));
         var statsRow = new HBoxContainer(); statsRow.AddThemeConstantOverride("separation", 12); stats.AddChild(statsRow);
         _populationLabel = Metric(statsRow, "居民", "40", 20); _settlementLabel = Metric(statsRow, "聚落", "0", 20); _buildingLabel = Metric(statsRow, "建筑", "0", 20);
         _foodLabel = Metric(statsRow, "食物储备", "0", 20); _woodLabel = Metric(statsRow, "木材储备", "0", 20); _stoneLabel = Metric(statsRow, "石料储备", "0", 20);
@@ -133,7 +124,7 @@ public partial class MainGame
             resource.TooltipText = "居民携带 + 地面物资堆 + 仓库；不包含尚未采集的地表资源，也不保证所有居民都可到达。";
         _summary = new Label { Visible = false }; overlay.AddChild(_summary);
         var topActions = Surface(overlay, new Vector2(1, 0), new Vector2(-238, 12), new Vector2(210, 44), 4);
-        ClearSurface(topActions);
+        topActions.AddThemeStyleboxOverride("panel",HudStyle.Frame(6));
 
         var actions = new HBoxContainer(); actions.AddThemeConstantOverride("separation", 6); topActions.AddChild(actions);
         _settingsButton = ActionButton(actions, "世界设置", () => ShowSettings(!_settingsOpen)); _settingsButton.ToggleMode = true;
@@ -271,14 +262,14 @@ public partial class MainGame
         _inspectDockButton.SetPressedNoSignal(Tool==PlayerTool.Inspect);
 
         var timePanel = Surface(overlay, new Vector2(0, 1), new Vector2(16, -72), new Vector2(272, 64), 8); _timePanel = timePanel;
-        ClearSurface(timePanel);
+        timePanel.AddThemeStyleboxOverride("panel",HudStyle.Frame(10));
 
         var timeBox = new VBoxContainer(); timeBox.AddThemeConstantOverride("separation", 4); timePanel.AddChild(timeBox); _dayLabel = HudStyle.Label("第 1 天", 14); timeBox.AddChild(_dayLabel);
         var timeRow = new HBoxContainer(); timeBox.AddChild(timeRow);
         foreach (int speed in new[] { 0, 1, 4, 8, 16, 32 })
         { int chosen = speed; var button = ActionButton(timeRow, speed == 0 ? "暂停" : speed + "×", () => SetSpeed(chosen)); button.ToggleMode = true; _speedButtons[speed] = button; } SetSpeed(_speed);
         var cameraPanel = Surface(overlay, new Vector2(1, 1), new Vector2(-280, -72), new Vector2(264, 64), 8); _cameraPanel = cameraPanel;
-        ClearSurface(cameraPanel);
+        cameraPanel.AddThemeStyleboxOverride("panel",HudStyle.Frame(10));
 
         var cameraBox = new VBoxContainer(); cameraBox.AddThemeConstantOverride("separation", 4); cameraPanel.AddChild(cameraBox);
         var cameraHeading = new HBoxContainer(); cameraBox.AddChild(cameraHeading);
@@ -308,10 +299,10 @@ public partial class MainGame
     private void FitHudFor(Vector2 size)
     {
         FitToolLibrary(size);
-        HudStyle.Float(_timePanel, new Vector2(0, 1), new Vector2(16, -72), new Vector2(272, 64));
-        HudStyle.Float(_cameraPanel, new Vector2(1, 1), new Vector2(-280, -72), new Vector2(264, 64));
+        HudStyle.Float(_timePanel, new Vector2(0, 1), new Vector2(20, -88), new Vector2(286, 72));
+        HudStyle.Float(_cameraPanel, new Vector2(1, 1), new Vector2(-300, -88), new Vector2(280, 72));
         float statsWidth=Math.Clamp(size.X-760,480,620);
-        HudStyle.Float(_statsPanel,new Vector2(.5f,0),new Vector2(-statsWidth/2,3),new Vector2(statsWidth,62));
+        HudStyle.Float(_statsPanel,new Vector2(.5f,0),new Vector2(-statsWidth/2,12),new Vector2(statsWidth,64));
         float journalWidth=Math.Clamp(size.X*.26f,348,448);
         _journalPanel.OffsetLeft=-journalWidth-16;_journalPanel.OffsetRight=-16;
         _journalPanel.OffsetBottom = size.Y - 100;
@@ -323,7 +314,7 @@ public partial class MainGame
     {
         // Keep categories and parameters stationary while only the tool list scrolls.
         float height=Math.Min(size.Y-196,704);
-        HudStyle.Float(_dockPanel,Vector2.Zero,new Vector2(16,96),new Vector2(368,height));
+        HudStyle.Float(_dockPanel,Vector2.Zero,new Vector2(20,96),new Vector2(416,height));
     }
     private void ValidateHudLayout()
     {

@@ -64,6 +64,20 @@ internal sealed partial class NatureModels
         {
             int variant=(int)(identity%5);
             float height=kind==BuildingKind.Storage ? 2.2f : variant==3 ? 2.6f : variant==0 ? 2.05f : 2.15f;
+            if(_fineArchitecture&&kind==BuildingKind.House&&variant is 1 or 2 or 3)
+            {
+                // Exposed truss members stay above door and window openings.
+                void Strut(Vector3 start,Vector3 end,float thickness)
+                {
+                    var member=Part(model,"box",(start+end)*.5f,new(thickness,start.DistanceTo(end),thickness),0);
+                    member.Quaternion=new Quaternion(Vector3.Up,(end-start).Normalized());
+                }
+                float face=depth/2+.058f,peak=height+.18f+(width+.4f)*.215f;
+                Strut(new(-width*.40f,height+.24f,face),new(width*.40f,height+.24f,face),.075f);
+                Strut(new(0,height+.24f,face),new(0,peak,face),.072f);
+                foreach(float side in new[]{-1f,1f})
+                    Strut(new(side*width*.36f,height+.25f,face),new(side*.025f,peak-.06f,face),.060f);
+            }
             float z=depth/2+.1f, doorX=kind==BuildingKind.Storage ? 0 : variant is 0 or 4 ? -.28f : 0;
             float doorHeight=kind==BuildingKind.Storage ? 1.85f : 1.75f, centerY=kind==BuildingKind.Storage ? 1.105f : 1.055f;
             float doorWidth=kind==BuildingKind.Storage ? .95f : .82f;
