@@ -311,15 +311,20 @@ public partial class MainGame
         _toolBadge.CustomMinimumSize=new Vector2(0,20);_status.CustomMinimumSize=new Vector2(0,32);
         var contextActions=new VBoxContainer {SizeFlagsVertical=SizeFlags.ShrinkCenter};contextActions.AddThemeConstantOverride("separation",2);contextRow.AddChild(contextActions);
         _contextFocus=ActionButton(contextActions,"靠近",()=>{
-            int slot=SelectedSlot;if(slot>=0)_map.Focus(Sim.Agents.XOf(slot),Sim.Agents.YOf(slot),60);
+            if(ContextTarget(out int x,out int y,out _))_map.Focus(x,y,60);
             RefreshPresentationControls();
         });
-        _contextDetails=ActionButton(contextActions,"档案",()=>{if(SelectedSlot>=0){ShowJournal(true);_drawer.CurrentTab=1;ShowPortraitWindow(true);}});
+        _contextDetails=ActionButton(contextActions,"档案",()=>{
+            if(!ContextTarget(out _,out _,out _))return;
+            ShowJournal(true);_drawer.CurrentTab=1;RefreshPanels();if(SelectedSlot>=0)ShowPortraitWindow(true);
+        });
+        _contextFocus.Icon=HudSymbols.For("观察",12);_contextDetails.Icon=HudSymbols.For("手记",12);
         foreach(var button in new[]{_contextFocus,_contextDetails})
         {
-            button.CustomMinimumSize=new(56,26);button.AddThemeFontSizeOverride("font_size",12);
+            button.CustomMinimumSize=new(64,26);button.AddThemeFontSizeOverride("font_size",12);
             foreach(string state in new[]{"normal","hover","pressed","hover_pressed","disabled"})
             {var style=(StyleBoxFlat)button.GetThemeStylebox(state).Duplicate();style.ContentMarginTop=style.ContentMarginBottom=3;button.AddThemeStyleboxOverride(state,style);}
+            var normal=(StyleBoxFlat)button.GetThemeStylebox("normal").Duplicate();normal.BgColor=new Color(HudStyle.Wash,.60f);normal.ShadowSize=0;button.AddThemeStyleboxOverride("normal",normal);
         }
         _contextFocus.TooltipText="靠近所选居民，保持鼠标旋转和缩放";_contextDetails.TooltipText="直接打开所选居民的独立观察窗";
         _save = Dialog(FileDialog.FileModeEnum.SaveFile); _save.FileSelected += SaveWorld; _load = Dialog(FileDialog.FileModeEnum.OpenFile); _load.FileSelected += LoadWorld;
@@ -368,14 +373,33 @@ public partial class MainGame
         _followCameraButton.TooltipText=SelectedSlot<0?"先选择一位居民，再跟随观察":world.IsFollowing(SelectedSlot)?"停止跟随，保留当前镜头":"跟随当前居民；再次点击停止";
         _status.TooltipText=_status.Text;
         int slot=SelectedSlot;
-        _contextFocus.Visible=_contextDetails.Visible=slot>=0&&Tool==PlayerTool.Inspect;
+        bool target=ContextTarget(out int x,out int y,out string title);
+        _contextFocus.Visible=_contextDetails.Visible=target&&Tool==PlayerTool.Inspect;
         _contextFocus.GetParent<Control>().Visible=_contextFocus.Visible;
+        _contextDetails.Text=slot>=0?"档案":"手记";
+        _contextFocus.TooltipText="靠近当前选择，保留鼠标旋转与缩放";
+        _contextDetails.TooltipText=slot>=0?"展开居民观察窗":"查看所选动物或土地的详细手记";
         if(Tool==PlayerTool.Inspect)
         {
-            _toolBadge.Text=slot>=0?Sim.Agents.NameOrOverride(slot)+" · "+ActionRegistry.DisplayNameOf(Sim.Agents.ActionOf(slot)):"自由观察";
-            _toolBadge.TooltipText=slot>=0?JobName(Sim.Agents.JobOf(slot))+" · "+PhaseName(Sim.Agents.PhaseOf(slot)):"选择人物、动物或土地，观察世界变化";
+            _toolBadge.Text=slot>=0?title+" · "+ActionRegistry.DisplayNameOf(Sim.Agents.ActionOf(slot)):target?title+" · "+x+", "+y:"自由观察";
+            _toolBadge.TooltipText=slot>=0?JobName(Sim.Agents.JobOf(slot))+" · "+PhaseName(Sim.Agents.PhaseOf(slot)):target?"近看或打开手记；观察不会干预世界":"选择人物、动物或土地，观察世界变化";
         }
         FitContextCard(Size);
+    }
+    private bool ContextTarget(out int x,out int y,out string title)
+    {
+        x=_selectedX;y=_selectedY;title="";int slot=SelectedSlot;
+        if(slot>=0){x=Sim.Agents.XOf(slot);y=Sim.Agents.YOf(slot);title=Sim.Agents.NameOrOverride(slot);return true;}
+        if(_selected>=0)return false;
+        if(_selectedAnimal>=0)
+        {
+            if(!Sim.Wildlife.IsAlive(_selectedAnimal)||Sim.Wildlife.GenerationOf(_selectedAnimal)!=_selectedAnimalGeneration)return false;
+            x=Sim.Wildlife.XOf(_selectedAnimal);y=Sim.Wildlife.YOf(_selectedAnimal);title="鹿";return true;
+        }
+        if(_selectedWolf>=0)
+        {foreach(var wolf in Sim.Predators.Wolves)if(wolf.Id==_selectedWolf){x=wolf.X;y=wolf.Y;title="狼";return true;}return false;}
+        if(!Sim.World.IsInBounds(x,y))return false;
+        title=Wild.At(x,y)?.Name??TerrainLabel(Sim.World.TerrainAt(x,y));return true;
     }
     private void FitToolLibrary(Vector2 size)
     {
@@ -690,8 +714,36 @@ public partial class MainGame
                 { throw new InvalidOperationException("Reduced motion left a metric highlighted"); }
             if (_journalButton.GetChild<HudButtonDetail>(0).MouseFilter != MouseFilterEnum.Ignore)
                 { throw new InvalidOperationException("Decorative feedback intercepts input"); }
+            ValidateContextActions();
         }
         finally { HudStyle.MotionEnabled = enabled; }
+    }
+    private void ValidateContextActions()
+    {
+        var selection=(_selected,_selectedGeneration,_selectedAnimal,_selectedAnimalGeneration,_selectedWolf,_selectedX,_selectedY,_selectedPersonId);
+        string digest=StateHash.ComputeDigest(Sim);
+        try
+        {
+            ClickTile(0,0,true);RefreshPresentationControls();
+            if(!_contextFocus.Visible||!_contextDetails.Visible||_contextDetails.Text!="手记"||!ContextTarget(out int x,out int y,out _)||x!=0||y!=0)
+                throw new InvalidOperationException("Land selection has no accurate context actions");
+            _contextFocus.EmitSignal(BaseButton.SignalName.Pressed);_contextDetails.EmitSignal(BaseButton.SignalName.Pressed);
+            if(!_journalPanel.Visible||_drawer.CurrentTab!=1||_portraitOverlay.Visible)throw new InvalidOperationException("Land context opens the wrong observation surface");
+            foreach(int animal in Sim.Wildlife.AliveIndices())
+            {
+                InspectActor(-1,animal);RefreshPresentationControls();
+                if(!ContextTarget(out x,out y,out _)||x!=Sim.Wildlife.XOf(animal)||y!=Sim.Wildlife.YOf(animal))throw new InvalidOperationException("Animal context position is stale");
+                _selectedAnimalGeneration++;RefreshPresentationControls();
+                if(_contextFocus.Visible||_contextDetails.Visible)throw new InvalidOperationException("Stale animal identity retains context actions");break;
+            }
+            if(digest!=StateHash.ComputeDigest(Sim))throw new InvalidOperationException("Context actions modified simulation state");
+        }
+        finally
+        {
+            (_selected,_selectedGeneration,_selectedAnimal,_selectedAnimalGeneration,_selectedWolf,_selectedX,_selectedY,_selectedPersonId)=selection;
+            RefreshPanels();
+        }
+        GD.Print("CONTEXT_ACTIONS_PASS: resident/animal/land targets, stale generation rejection, land notebook, camera proximity and read-only observation");
     }
     private void ValidateToolLibrary()
     {

@@ -19,12 +19,12 @@
 
 ## 来源选择与调研
 
-选择按当前公开源码项目的再分发、真实轮廓、贴图、骨架和运行预算核对，不以“免费下载”代替许可确认。以下为 2026-10-24 本轮覆盖的主要渠道，不声称穷尽全部素材网站。
+选择按当前公开源码项目的再分发、真实轮廓、贴图、骨架和运行预算核对，不以“免费下载”代替许可确认。以下列出截至 2026-10-24 已核对的主要渠道，不声称穷尽全部素材网站。
 
 | 来源 | 核对结果与本项目取舍 |
 |---|---|
-| [OpenGameArt / CDmir](https://opengameart.org/content/old-deer-male) | 原作标注 CC0，含鹿体态、复杂鹿角、眼部、UV 贴图和骨架；本轮采用并转成运行蒙皮 |
-| [0 A.D. 美术许可](https://github.com/0ad/0ad/blob/61a3b9507d974084e6badb88a0826bd89a6d5b8b/binaries/data/mods/public/art/LICENSE.txt) | 美术按 CC BY-SA 3.0 提供；本轮采用狼网格和灰狼贴图，保留来源提交、署名及衍生资产同许可 |
+| [OpenGameArt / CDmir](https://opengameart.org/content/old-deer-male) | 原作标注 CC0，含鹿体态、复杂鹿角、眼部、UV 贴图和骨架；已采用并转成运行蒙皮 |
+| [0 A.D. 美术许可](https://github.com/0ad/0ad/blob/61a3b9507d974084e6badb88a0826bd89a6d5b8b/binaries/data/mods/public/art/LICENSE.txt) | 美术按 CC BY-SA 3.0 提供；已采用狼网格和灰狼贴图，保留来源提交、署名及衍生资产同许可 |
 | [Poly Haven](https://polyhaven.com/license) | CC0 模型、HDRI 与贴图可再分发；已有六种环境模型与扫描表面继续使用，采用 Leafy Grass 地表，校准岩石反光与地表混合 |
 | [ambientCG](https://docs.ambientcg.com/license/) | 资产 CC0，可作为材质来源；当前已有扫描表面覆盖所需材料，本轮未再下载重复贴图 |
 | MakeHuman / Blender Studio | 已采用的人体拓扑、皮肤、头发及手臂分别记录在[人物素材](human-assets.md)，继续保留；本轮修改衣装贴合、肩颈比例及皮肤反光 |
@@ -41,6 +41,11 @@ UI 的层级和画布工具组织参考见[观察与界面](../guides/gameplay-o
 | 参考 | 当前实现 |
 |---|---|
 | [NVIDIA GPU Gems：复杂地形](https://developer.nvidia.com/gpugems/gpugems3/part-i-geometry/chapter-1-generating-complex-procedural-terrains-using-gpu) | 三向材质的法线在各投影切线方向还原；米制细节与远景采样分开控制。项目仍使用共享高度曲面，没有声称实现该文的 GPU 体素地形 |
+| [Godot：Lights and shadows](https://docs.godotengine.org/en/stable/tutorials/3d/lights_and_shadows.html) | 实机对照阴影自遮挡与接触投影，世界方向光深度偏移采用 2.4，保留级联阴影；具体值是当前场景的实现选择 |
+| [Blender：Bevel Modifier](https://docs.blender.org/manual/en/4.4/modeling/modifiers/generate/bevel.html) | 参考绝对尺寸与避免倒角相交的原则，运行时直接按米制尺寸构造木石边缘，不需要在玩家设备中安装 Blender |
+| [Godot：Spatial shaders](https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/spatial_shader.html) | 分清顶点、法线、切线和片元坐标空间；扫描植物的风摆同时更新表面框架。兼容渲染器使用有限薄层背光，不声明完整皮下散射 |
+| [RHS：Parts of Flowering Plants](https://www.rhs.org.uk/education-learning/school-gardening/resources/curriculum-linked/flower-structure-diagram) | 区分萼片、花瓣、花丝和花药，在通用草花中分开建模；数量、尺度和简化属于项目取舍 |
+| [WDFW：Wolf identification](https://wdfw.wa.gov/species-habitats/at-risk/species-recovery/gray-wolf/identification) | 对照真实狼的口鼻、耳部与轮廓参考；保留授权源动物轮廓，补充短触须，没有声称复原完整毛发系统 |
 | [Godot：Standard Material 3D](https://docs.godotengine.org/en/stable/tutorials/3d/standard_material_3d.html) | 依据透明裁切、法线和粗糙度的实际用途处理叶片／发片、皮革、木石；检查真实纹理缓存，避免仅有配置而没有 mip 链 |
 | [NN/g：渐进呈现](https://www.nngroup.com/articles/progressive-disclosure/) | 世界画面保留主要控件，工具与资料按需展开；页签共享间距、字重、选中与悬停反馈，原有鼠标和键盘操作保持可见 |
 | [Historic England：茅草屋面](https://historicengland.org.uk/advice/technical-advice/buildings/thatching-advice) | 观察屋脊、檐口和山墙边缘的独立结构，采用厚坡面与圆弧覆脊；项目尺寸是视觉取舍，不作为传统工艺复原 |

@@ -162,9 +162,15 @@ void fragment(){
     vec3 projection=pow(abs(base),vec3(4));projection/=max(.001,projection.x+projection.y+projection.z);
     grass_uv=mat2(vec2(.819,.574),vec2(-.574,.819))*grass_uv;
     vec3 grass=meadow_sample(grass_diffuse,grass_uv,false);
-    grass=mix(grass,vec3(dot(grass,vec3(.2126,.7152,.0722))),.22)*.74;
+    float grass_luma=dot(grass,vec3(.2126,.7152,.0722));
+    // Compress the scan's broad contrast while retaining close leaf
+    // detail. Moisture and low-frequency patches carry the meadow colour.
+    grass=mix(grass,vec3(grass_luma),.32)*.74;
+    grass*=clamp(.30/max(.08,grass_luma),.76,1.22);
     float meadow=noise2(world_position.xz*.17)+noise2(world_position.xz*.43)*.28;
     grass*=mix(vec3(.72,.90,.71),vec3(.97,.96,.82),smoothstep(.25,.95,meadow));
+    float dry=smoothstep(.28,.78,1.0-moisture)*smoothstep(.38,.85,noise2(world_position.xz*.29+vec2(23,7)));
+    grass=mix(grass,grass*vec3(1.13,1.035,.82),dry*.52);
     vec3 forest=texture(forest_diffuse,forest_uv).rgb;
     vec3 earth=texture(earth_diffuse,earth_uv).rgb;
     vec3 rock=rock_sample(rock_diffuse,rock_uv,projection,base);

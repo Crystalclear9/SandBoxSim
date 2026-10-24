@@ -31,13 +31,16 @@ ROUGHNESS=.48;SPECULAR=.30;}"};
         _anatomicalSkinShader??=new Shader {Code=@"shader_type spatial;
 uniform vec4 tone:source_color;
 uniform sampler2D skin_albedo:source_color,filter_linear_mipmap_anisotropic;
+uniform vec3 nose_center=vec3(0.0);uniform vec3 mouth_center=vec3(0.0);
 uniform float blink=0.0;
 varying vec3 skin_point;
 void vertex(){VERTEX.yz+=UV2*blink;skin_point=VERTEX;}
 void fragment(){
 vec3 colour=texture(skin_albedo,UV).rgb;
 float front=1.0-smoothstep(-.05,-.015,skin_point.z);
-float nose=exp(-pow(skin_point.x/.018,2.0)-pow((skin_point.y+.018)/.032,2.0))*front;
+float nose=exp(-pow(skin_point.x/.018,2.0)-pow((skin_point.y-nose_center.y)/.032,2.0))*front;
+float forehead=exp(-pow(skin_point.x/.048,2.0)-pow((skin_point.y-nose_center.y-.070)/.035,2.0))*front;
+float lip_margin=exp(-pow((skin_point.y-mouth_center.y)/.010,2.0)-pow(skin_point.x/.030,4.0))*front;
 ALBEDO=colour*.72*(tone.rgb/vec3(.667,.545,.471));
 // Sub-millimetre skin grain is filtered by pixel footprint. It belongs
 // in shading, not swollen geometry around the eyes and mouth.
@@ -46,14 +49,18 @@ pore/=1.0+pow(max(length(dFdx(skin_point)),length(dFdy(skin_point)))*2300.0,2.0)
 vec3 dx=dFdx(VERTEX),dy=dFdy(VERTEX),tx=cross(dy,NORMAL),ty=cross(NORMAL,dx);float det=dot(dx,tx);
 float height=pore*.000018;
 if(abs(det)>.0000000001)NORMAL=normalize(abs(det)*NORMAL-sign(det)*(dFdx(height)*tx+dFdy(height)*ty));
-ROUGHNESS=.60-nose*.08+pore*.025;SPECULAR=.25;
-float thin=smoothstep(.30,.48,abs(skin_point.x))*(1.0-smoothstep(.03,.20,abs(skin_point.y)));
-BACKLIGHT=ALBEDO*vec3(.055,.020,.014)*thin;
+ROUGHNESS=.63-nose*.13-forehead*.055-lip_margin*.07+pore*.025;SPECULAR=.26;
+// Ear shells sit around 8 cm from the centre, not 30 cm. Keep the
+// transmission off the cheek and jaw and retain opaque facial shading.
+float thin=smoothstep(.070,.086,abs(skin_point.x))*(1.0-smoothstep(.035,.075,abs(skin_point.y-nose_center.y)));
+BACKLIGHT=ALBEDO*vec3(.13,.038,.025)*thin;
 }"};
         var material=new ShaderMaterial {Shader=_anatomicalSkinShader};
         material.SetShaderParameter("tone",new Color(color));
         material.SetShaderParameter("skin_albedo",GD.Load<Texture2D>(HeadAlbedoPath));
         material.SetShaderParameter("blink",0f);
+        material.SetShaderParameter("nose_center",new Vector3(0,HumanData().NoseY,0));
+        material.SetShaderParameter("mouth_center",HumanData().Mouth);
         material.SetMeta("UsesSkinAtlas",true);
         _residentMaterials[key]=material;return material;
     }

@@ -38,8 +38,19 @@ plant_tip=t;
 float fade=grass?1.0-smoothstep(24.0,32.0,distance(root,CAMERA_POSITION_WORLD)):1.0;
 float wear=grass&&soil_bound?texture(soil,clamp(root.xz*.5/map_size,vec2(0),vec2(1))).g:0.0;
 VERTEX.y*=fade*(1.0-wear*.85);
-if(wind){float gust=sin(TIME*.72+root.x*.19+root.z*.13),flutter=sin(TIME*2.3+VERTEX.x*9.0+VERTEX.z*7.0+root.x);
-VERTEX.x+=(gust*.022+flutter*.004)*t*t*fade;VERTEX.z+=cos(TIME*.61+root.z*.21)*.009*t*t*fade;}
+if(wind){
+float phase=TIME*.72+root.x*.19+root.z*.13;
+float bend_x=sin(phase)*.022,bend_z=cos(TIME*.61+root.z*.21)*.009;
+float flutter=sin(TIME*2.3+root.x+root.z*.37)*.004;
+VERTEX.x+=(bend_x+flutter)*t*t*fade;VERTEX.z+=bend_z*t*t*fade;
+// Inverse transpose of the bending Jacobian. A moving leaf's normal
+// must bend with it, rather than retaining the original rigid highlight.
+float vertical_scale=max(.025,fade*(1.0-wear*.85));
+vec2 derivative=2.0*t*fade/plant_height*vec2(bend_x+flutter,bend_z);
+TANGENT=normalize(vec3(TANGENT.x+derivative.x*TANGENT.y,TANGENT.y*vertical_scale,TANGENT.z+derivative.y*TANGENT.y));
+BINORMAL=normalize(vec3(BINORMAL.x+derivative.x*BINORMAL.y,BINORMAL.y*vertical_scale,BINORMAL.z+derivative.y*BINORMAL.y));
+NORMAL=normalize(vec3(NORMAL.x,(NORMAL.y-derivative.x*NORMAL.x-derivative.y*NORMAL.z)/vertical_scale,NORMAL.z));
+}
 }
 void fragment(){
 if(!FRONT_FACING){NORMAL=-NORMAL;}

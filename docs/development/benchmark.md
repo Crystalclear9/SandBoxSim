@@ -128,9 +128,9 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 ## 当前渲染版本
 
-当前渲染元数据为 `animalPresentation=bound-surfaces-v4`、`interface=selection-workspace-v11`、`architecture=bevelled-joinery-v9`、`garmentMaterial=signed-linen-v6`、`landscapeSurface=oriented-meadow-v4`、`habitatDetail=rooted-flowers-v7`。新增 `residentSurface=anatomical-lashes-v1` 和 `waterSurface=shore-ripples-v1`。当前门窗板材倒角、草花几何与分布、花株接地刷新、动物表面分区、衣料投影和人物快捷操作已改变，需重采相同场景的视觉和耗时基线；不能把换资产造成的耗时变化算作代码优化收益。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
+当前渲染元数据为 `animalPresentation=muzzle-detail-v5`、`interface=context-observation-v12`、`architecture=metric-edges-v10`、`garmentMaterial=signed-linen-v6`、`landscapeSurface=moisture-meadow-v5`、`habitatDetail=floral-organs-v8`。另外记录 `residentSurface=calibrated-skin-v2`、`vegetationSurface=bent-frames-v1` 和 `waterSurface=shore-ripples-v1`。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。当前木石构件米制倒角、草花器官、植物风摆法线框架、动物触须／鼻镜微纹、人物皮肤分区、湿度草地色和全对象观察操作已改变，需重采相同场景的视觉和耗时基线；不能把换资产造成的耗时变化算作代码优化收益。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
 
-无窗口自检的花株接地检查使用 CPU 保存的实例位置；图形模式额外核对 GPU 实例变换。渲染服务器的占位读回不作为几何证据。快捷操作检查覆盖靠近的实际相机距离、打开人物观察窗及观察纯度。
+无窗口自检的花株接地检查使用 CPU 保存的实例位置；图形模式额外核对 GPU 实例变换。渲染服务器的占位读回不作为几何证据。快捷操作检查覆盖居民、鹿狼和土地的真实目标位置、失效实体身份拒绝、靠近的实际相机距离、人物观察窗／土地手记及观察纯度。
 
 ---
 

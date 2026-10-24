@@ -117,7 +117,10 @@ internal sealed partial class NatureModels
     public MeshInstance3D Part(Node3D parent, string shape, Vector3 position, Vector3 scale, int material, Vector3? rotation = null)
     {
         if(!_fineArchitecture)shape=shape switch {"sphere"=>"finger-low","cylinder"=>"cylinder-low","capsule"=>"capsule-low",_=>shape};
-        var part = new MeshInstance3D { Mesh = Shape(shape == "box" && _fineArchitecture && material is 0 or 1 or 2 or 6 ? "masonry" : shape), Position = position, Scale = scale, MaterialOverride = shape=="foliage"?null:shape=="rock"?RockSurface(material==7):Material(material),
+        // Bevels are measured in metres, so a long beam doesn't acquire a
+        // huge rounded end simply because a unit cube was stretched.
+        bool metric=_fineArchitecture&&(shape is "box" or "masonry")&&material is 0 or 1 or 2 or 6&&scale.X>0&&scale.Y>0&&scale.Z>0;
+        var part = new MeshInstance3D { Mesh = metric?MetricBoard(scale,material==6?.012f:.003f):Shape(shape), Position = position, Scale = metric?Vector3.One:scale, MaterialOverride = shape=="foliage"?null:shape=="rock"?RockSurface(material==7):Material(material),
             CastShadow = GeometryInstance3D.ShadowCastingSetting.On };
         if (rotation.HasValue) { part.Rotation = rotation.Value; }
         parent.AddChild(part); return part;

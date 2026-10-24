@@ -36,6 +36,15 @@ detail.xy+=(antler?vec2(0.0):vec2(fibre*.024,fibre*.010));
 NORMAL_MAP=detail;NORMAL_MAP_DEPTH=.32;
 ROUGHNESS=antler?.92:mix(clamp(.83+fibre*.035,.75,.90),.28,COLOR.r);
 ROUGHNESS=mix(ROUGHNESS,.59,COLOR.g);SPECULAR=antler?.12:mix(.21,.38,COLOR.r);
+// Nose grain is metric and anchored before skinning. Its micrometre
+// relief fades with pixel footprint and never displaces the silhouette.
+vec2 coat_point=UV2;
+float pore=sin(coat_point.x*2100.0+sin(coat_point.y*1100.0))*sin(coat_point.y*1900.0-coat_point.x*900.0);
+pore/=1.0+pow(max(length(dFdx(coat_point)),length(dFdy(coat_point)))*2100.0,2.0);
+vec3 dx=dFdx(VERTEX),dy=dFdy(VERTEX),tx=cross(dy,NORMAL),ty=cross(NORMAL,dx);float det=dot(dx,tx);
+float height=pore*.000035*COLOR.r;
+if(abs(det)>.0000000001)NORMAL=normalize(abs(det)*NORMAL-sign(det)*(dFdx(height)*tx+dFdy(height)*ty));
+BACKLIGHT=ALBEDO*vec3(.085,.045,.026)*COLOR.b;
 }"}};
         var albedo=GD.Load<Texture2D>(folder+texture+".png");ScannedSurfaces.RequireMipmaps(albedo);material.SetShaderParameter("albedo_map",albedo);
         if(!wolf){var normal=GD.Load<Texture2D>(folder+texture+"-normal.png");ScannedSurfaces.RequireMipmaps(normal);material.SetShaderParameter("normal_map",normal);}
@@ -65,14 +74,17 @@ ROUGHNESS=mix(ROUGHNESS,.59,COLOR.g);SPECULAR=antler?.12:mix(.21,.38,COLOR.r);
             if(n.Length!=p.Length||t.Length!=vertices.Length*2)throw new InvalidOperationException("Invalid deer attributes");
             for(int i=0;i<vertices.Length;i++){vertices[i]=new(p[i*3],p[i*3+1],p[i*3+2]);normals[i]=new(n[i*3],n[i*3+1],n[i*3+2]);uv[i]=new(t[i*2],t[i*2+1]);}
             string materialName=source.GetProperty("material").GetString()!;
+            var sourceBones=source.GetProperty("bones");var sourceWeights=source.GetProperty("weights");
             for(int i=0;i<vertices.Length;i++)
             {
                 var center=wolf?new Vector3(0,.826f,-.908f):new Vector3(0,1.370f,-1.106f);
                 var radius=wolf?new Vector3(.036f,.027f,.028f):new Vector3(.026f,.027f,.025f);
                 float nose=materialName is "Wolf" or "Head"?1-Mathf.SmoothStep(0,1,(((vertices[i]-center)/radius).Length()-.55f)/.60f):0;
                 float hoof=!wolf&&materialName=="Body"?1-Mathf.SmoothStep(0,1,(vertices[i].Y-.035f)/.075f):0;
-                detail[i]=new(nose,hoof,0,1);
-                if(materialName=="Eye")eyeUv[i]=new((vertices[i].Z+.85454f)/.018f,(vertices[i].Y-1.42125f)/.018f);
+                float ear=0;
+                for(int b=0;b<4;b++)if(sourceBones[i*4+b].GetInt32() is 12 or 13)ear+=sourceWeights[i*4+b].GetSingle();
+                detail[i]=new(nose,hoof,Math.Clamp(ear,0,1),1);
+                eyeUv[i]=materialName=="Eye"?new((vertices[i].Z+.85454f)/.018f,(vertices[i].Y-1.42125f)/.018f):new(vertices[i].X,vertices[i].Y+vertices[i].Z*.65f);
             }
             var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);
             arrays[(int)Mesh.ArrayType.Vertex]=vertices;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.TexUV]=uv;
@@ -118,7 +130,48 @@ ROUGHNESS=mix(ROUGHNESS,.59,COLOR.g);SPECULAR=antler?.12:mix(.21,.38,COLOR.r);
             var eye=Sculpt(rig.Head,AuthoredWolfCornea(side),Vector3.Zero,AuthoredWolfEyeMaterial());eye.Name="Cornea"+side;
             eye.VisibilityRangeEnd=20;eye.CastShadow=GeometryInstance3D.ShadowCastingSetting.Off;
         }
+        var whiskers=Sculpt(rig.Head,AuthoredWhiskers(wolf),Vector3.Zero,ResidentMaterial(wolf?"#77756c":"#776b5b"));
+        whiskers.Name="MuzzleWhiskers";whiskers.VisibilityRangeEnd=14;whiskers.CastShadow=GeometryInstance3D.ShadowCastingSetting.Off;
         return rig;
+    }
+    private Mesh AuthoredWhiskers(bool wolf)
+    {
+        string key="authored-whiskers:"+wolf;if(_meshes.TryGetValue(key,out var cached))return cached;
+        var data=AuthoredAnimalData(wolf);var candidates=new System.Collections.Generic.List<(Vector3 P,Vector3 N)>();
+        for(int s=0;s<data.Mesh.GetSurfaceCount();s++)
+        {
+            var arrays=data.Mesh.SurfaceGetArrays(s);var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var n=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
+            var bones=arrays[(int)Mesh.ArrayType.Bones].AsInt32Array();var weights=arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();
+            for(int i=0;i<p.Length;i++)
+            {
+                float head=0;for(int b=0;b<4;b++)if(bones[i*4+b]==1)head+=weights[i*4+b];
+                if(head>.9999f&&MathF.Abs(n[i].X)>.3f)candidates.Add((p[i],n[i]));
+            }
+        }
+        using var tool=new SurfaceTool();tool.Begin(Mesh.PrimitiveType.Triangles);
+        foreach(int side in new[]{-1,1})
+        for(int hair=0;hair<(wolf?5:3);hair++)
+        {
+            var target=wolf?new Vector3(side*.045f,.821f+(hair%3)*.009f,-.869f+(hair/3)*.014f):new Vector3(side*.032f,1.362f+(hair%3)*.008f,-1.074f);
+            var source=candidates[0];float closest=float.PositiveInfinity;
+            foreach(var candidate in candidates)
+            {
+                if(candidate.P.X*side<=0||candidate.N.X*side<=.3f)continue;
+                float distance=candidate.P.DistanceSquaredTo(target);if(distance<closest){source=candidate;closest=distance;}
+            }
+            if(closest>.012f)throw new InvalidOperationException("No source-bound muzzle for tactile hair");
+            var origin=source.P-data.Joints[1]+source.N*.00010f;
+            var direction=(source.N*.65f+new Vector3(side*.3f,.08f+(hair%3)*.05f,-.28f)).Normalized();
+            var across=direction.Cross(Vector3.Up).Normalized();var up=direction.Cross(across).Normalized();float length=(wolf?.017f:.009f)*(1-hair*.06f);
+            void Vertex(int ring,int sector)
+            {
+                float t=ring/4f,a=sector*Mathf.Tau/4;var normal=across*Mathf.Cos(a)+up*Mathf.Sin(a);
+                tool.SetNormal(normal);tool.SetUV(new(sector/4f,t));tool.AddVertex(origin+direction*length*t+Vector3.Down*(length*.15f*t*t)+normal*(.00012f*(1-t)+.00001f));
+            }
+            for(int ring=0;ring<4;ring++)for(int sector=0;sector<4;sector++)
+            {Vertex(ring,sector);Vertex(ring+1,sector);Vertex(ring,sector+1);Vertex(ring,sector+1);Vertex(ring+1,sector);Vertex(ring+1,sector+1);}
+        }
+        tool.Index();return _meshes[key]=tool.Commit();
     }
     private Material AuthoredWolfEyeMaterial()
     {
@@ -228,6 +281,24 @@ ALBEDO=mix(pigment,texture(source_albedo,UV2).rgb*.76,edge);ROUGHNESS=mix(.15,.8
         try
         {
         int boneCount=wolf?15:14;
+        var whiskers=rig.Head.GetNode<MeshInstance3D>("MuzzleWhiskers");
+        if(whiskers.Mesh!=peer.Head.GetNode<MeshInstance3D>("MuzzleWhiskers").Mesh||whiskers.VisibilityRangeEnd!=14||whiskers.CastShadow!=GeometryInstance3D.ShadowCastingSetting.Off)
+            throw new InvalidOperationException("Tactile hair loses its shared mesh or close-range budget");
+        var hairArrays=whiskers.Mesh.SurfaceGetArrays(0);var hairPoints=hairArrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var hairUv=hairArrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();
+        var hairNormals=hairArrays[(int)Mesh.ArrayType.Normal].AsVector3Array();var hairIndex=hairArrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+        var sourcePoints=new System.Collections.Generic.List<Vector3>();var authored=AuthoredAnimalData(wolf);
+        for(int s=0;s<mesh.GetSurfaceCount();s++)sourcePoints.AddRange(mesh.SurfaceGetArrays(s)[(int)Mesh.ArrayType.Vertex].AsVector3Array());
+        if(hairIndex.Length/3>400)throw new InvalidOperationException("Tactile hair exceeds its geometry budget");
+        var local=InTorso(whiskers,rig.Body);
+        for(int i=0;i<hairPoints.Length;i++)
+        {
+            if(!hairPoints[i].IsFinite()||!hairNormals[i].IsFinite()||MathF.Abs(hairNormals[i].Length()-1)>.01f)throw new InvalidOperationException("Invalid tactile hair geometry");
+            if(hairUv[i].Y!=0)continue;
+            float gap=float.PositiveInfinity;foreach(var p in sourcePoints)gap=MathF.Min(gap,p.DistanceTo(local*hairPoints[i]));
+            if(gap>.00035f)throw new InvalidOperationException("Tactile hair root floats off the source muzzle: "+gap);
+        }
+        for(int i=0;i<hairIndex.Length;i+=3)
+        {int a=hairIndex[i],b=hairIndex[i+1],c=hairIndex[i+2];if((hairPoints[c]-hairPoints[a]).Cross(hairPoints[b]-hairPoints[a]).Dot(hairNormals[a]+hairNormals[b]+hairNormals[c])<=0)throw new InvalidOperationException("Reversed tactile hair surface");}
         if(wolf)
         {
             var source=AuthoredAnimalData(true).Mesh.SurfaceGetArrays(0);var p=source[(int)Mesh.ArrayType.Vertex].AsVector3Array();
@@ -260,7 +331,7 @@ ALBEDO=mix(pigment,texture(source_albedo,UV2).rgb*.76,edge);ROUGHNESS=mix(.15,.8
         }
         if(mesh!=peer.FurSkin!.Mesh||rig.FurSkeleton!.GetBoneCount()!=boneCount)throw new InvalidOperationException("Animal cache or skeleton mismatch");
         int triangles=0;
-        float maxNose=0,maxHoof=0;
+        float maxNose=0,maxHoof=0,maxEar=0;
         for(int s=0;s<mesh.GetSurfaceCount();s++)
         {
             var a=mesh.SurfaceGetArrays(s);var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();var n=a[(int)Mesh.ArrayType.Normal].AsVector3Array();
@@ -269,11 +340,12 @@ ALBEDO=mix(pigment,texture(source_albedo,UV2).rgb*.76,edge);ROUGHNESS=mix(.15,.8
             if(masks.Length!=p.Length||anchors.Length!=p.Length)throw new InvalidOperationException("Animal loses bind-space surface attributes");
             for(int i=0;i<p.Length;i++)
             {
-                if(!anchors[i].IsFinite()||masks[i].R<0||masks[i].R>1||masks[i].G<0||masks[i].G>1)throw new InvalidOperationException("Invalid animal surface mask");
-                maxNose=MathF.Max(maxNose,masks[i].R);maxHoof=MathF.Max(maxHoof,masks[i].G);
+                if(!anchors[i].IsFinite()||!float.IsFinite(masks[i].R)||!float.IsFinite(masks[i].G)||!float.IsFinite(masks[i].B)||masks[i].R<0||masks[i].R>1||masks[i].G<0||masks[i].G>1||masks[i].B<0||masks[i].B>1)throw new InvalidOperationException("Invalid animal surface mask");
+                maxNose=MathF.Max(maxNose,masks[i].R);maxHoof=MathF.Max(maxHoof,masks[i].G);maxEar=MathF.Max(maxEar,masks[i].B);
             }
             for(int i=0;i<p.Length;i++){float sum=0;for(int k=0;k<4;k++){if(bs[i*4+k]<0||bs[i*4+k]>=boneCount||ws[i*4+k]<0)throw new InvalidOperationException("Invalid animal binding");sum+=ws[i*4+k];}if(!p[i].IsFinite()||!n[i].IsFinite()||MathF.Abs(sum-1)>4f/65535f)throw new InvalidOperationException("Invalid authored animal surface");}
         }
+        if(maxEar<.9f)throw new InvalidOperationException("Animal ear transmission loses source-weight coverage");
         if(triangles>24000||triangles<10000)throw new InvalidOperationException("Deer surface budget changed");
         if(maxNose<.5f||!wolf&&maxHoof<.9f)throw new InvalidOperationException("Animal nose or hoof loses its independent surface response");
         foreach(float slope in new[]{0f,.16f,-.16f})for(int frame=0;frame<24;frame++)
@@ -287,6 +359,6 @@ ALBEDO=mix(pigment,texture(source_albedo,UV2).rgb*.76,edge);ROUGHNESS=mix(.15,.8
         }
         finally {rig.Free();peer.Free();}
       }
-      GD.Print("AUTHORED_ANIMALS_PASS: attributed surfaces, cache, 14/15 joints, weights, budgets, slopes, articulated jaw and pause");
+      GD.Print("AUTHORED_ANIMALS_PASS: attributed surfaces, source-bound tactile hair, finite outward geometry, cache/range, 14/15 joints, weights, budgets, slopes, articulated jaw and pause");
     }
 }

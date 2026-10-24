@@ -128,8 +128,13 @@ internal sealed partial class NatureModels
             float a=leaf*2.39996f;var axis=new Vector3(Mathf.Cos(a),.25f,Mathf.Sin(a)).Normalized();
             BotanicalLeaf(green,Stem(.20f+leaf*.19f),axis,Vector3.Up.Cross(axis).Normalized(),.085f,.014f,.008f,.87f);
         }
-        green.GenerateNormals();green.Index();Sculpt(model,green.Commit(),Vector3.Zero,Material(4));
         var crown=Stem(1);
+        if(flowering)for(int sepal=0;sepal<5;sepal++)
+        {
+            float a=(sepal+.5f)*Mathf.Tau/5;var radial=new Vector3(Mathf.Cos(a),-.3f,Mathf.Sin(a)).Normalized();
+            BotanicalLeaf(green,crown-Vector3.Up*.002f,radial,Vector3.Up.Cross(radial).Normalized(),.012f,.0028f,.001f,.90f,4);
+        }
+        green.GenerateNormals();green.Index();Sculpt(model,green.Commit(),Vector3.Zero,Material(4));
         if(flowering)
         {
             using var petals=new SurfaceTool();petals.Begin(Mesh.PrimitiveType.Triangles);petals.SetSmoothGroup(0);
@@ -152,6 +157,17 @@ internal sealed partial class NatureModels
             }
             petals.GenerateNormals();petals.Index();Sculpt(model,petals.Commit(),Vector3.Zero,FlowerPetalMaterial(variant%3));
             Detail(model,"seed",crown+Vector3.Up*.001f,new(.011f,.006f,.011f),"#ab8947");
+            using var stamens=new SurfaceTool();stamens.Begin(Mesh.PrimitiveType.Triangles);
+            for(int stamen=0;stamen<5;stamen++)
+            {
+                float angle=stamen*Mathf.Tau/5;var radial=new Vector3(Mathf.Cos(angle),0,Mathf.Sin(angle));
+                var tip=crown+radial*.0045f+Vector3.Up*(.006f+(stamen%2)*.001f);
+                BotanicalStem(stamens,crown+radial*.001f,tip,.00032f);
+                var axes=new[]{Vector3.Up*.0010f,radial*.0013f,Vector3.Up.Cross(radial)*.0007f};
+                foreach(int sy in new[]{-1,1})foreach(int sx in new[]{-1,1})foreach(int sz in new[]{-1,1})
+                    EquipmentTriangle(stamens,tip+axes[0]*sy,tip+axes[1]*sx,tip+axes[2]*sz,(axes[0]*sy+axes[1]*sx+axes[2]*sz).Normalized());
+            }
+            stamens.GenerateNormals();stamens.Index();Sculpt(model,stamens.Commit(),Vector3.Zero,ResidentMaterial("#c6a25c"));
         }
         else Detail(model,"seed",crown,new(.009f,.016f,.009f),"#796346");
         MergeResidentParts(model,key);var mesh=WithScreenLods(model.GetChild<MeshInstance3D>(0).Mesh);model.Free();return _meshes[key]=mesh;

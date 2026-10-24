@@ -118,6 +118,12 @@ $samplePath = Join-Path (Get-Location).Path 'runs/render-sample.json'
 
 使用 `./tools/godot.ps1 -Mode test -ReimportTextures` 可在真实编辑器生命周期中重建模型与扫描表面的 mip 链，并检查实际缓存；独立包导出也自动执行。它不要求 Blender，不修改原始 PNG/JPG 像素。
 
+## 原生评测的启动诊断
+
+`evaluate.py` 对引擎日志中的 `ERROR:` 保持严格拒绝：进程退出码为 0、截图完整或完成阶段已记录，都不能把这一运行视为有效评测。Windows 主机若出现 `Failed to read the root certificate store`，需要检查运行账户的系统证书库访问；`Can't create shader cache folder` 则需要检查 Godot 报告的游戏用户目录与写入权限。它们与脚本／网格自检断言分开诊断，不应删除日志、改小判分范围或放宽错误检测来取得通过。
+
+当前独立包导出入口会解析并创建本项目正常的用户目录，保留已有设置；证书库访问属于主机环境，工具不会修改全局信任库。导出自检与严格视觉评测的日志规则不同，导出通过不能替代 `evaluate.py verify`。
+
 ---
 
 [文档导航](../README.md) · [项目首页](../../README.md)

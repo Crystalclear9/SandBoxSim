@@ -16,7 +16,9 @@ uniform float gain=1.0;
 uniform float mineral_desaturation=0.0;
 varying vec3 p;
 varying vec3 face_normal;
-void vertex(){p=VERTEX;face_normal=NORMAL;}
+varying vec3 normal_axis_x;varying vec3 normal_axis_y;varying vec3 normal_axis_z;
+void vertex(){p=VERTEX;face_normal=NORMAL;
+normal_axis_x=MODELVIEW_NORMAL_MATRIX[0];normal_axis_y=MODELVIEW_NORMAL_MATRIX[1];normal_axis_z=MODELVIEW_NORMAL_MATRIX[2];}
 void fragment(){
     vec3 face=normalize(face_normal),side=sign(face+vec3(.000001));
     vec3 weights=pow(abs(face),vec3(6));weights/=max(.001,weights.x+weights.y+weights.z);
@@ -34,7 +36,7 @@ void fragment(){
     vec3 grain=vec3(0,(nx.g*2.0-1.0)*side.x,nx.r*2.0-1.0)*weights.x
         +vec3(ny.r*2.0-1.0,0,ny.g*2.0-1.0)*weights.y+vec3(nz.r*2.0-1.0,-(nz.g*2.0-1.0)*side.z,0)*weights.z;
     grain-=normalize(face_normal)*dot(grain,normalize(face_normal));
-    NORMAL=normalize(NORMAL+mat3(VIEW_MATRIX*MODEL_MATRIX)*grain*.26);
+    NORMAL=normalize(NORMAL+(normal_axis_x*grain.x+normal_axis_y*grain.y+normal_axis_z*grain.z)*.26);
 }"};
         void Assign(int index,string asset,string tint,float metres)
         {

@@ -138,7 +138,7 @@ public partial class WorldView3D : MapView
             FogEnabled = true, FogDensity = .0017f, FogLightColor = new Color("#c2d1bd") };
         _scene.AddChild(new WorldEnvironment { Environment = _weatherEnvironment });
         _sunlight = new DirectionalLight3D { RotationDegrees = new Vector3(-48, -35, 0), LightColor = new Color("#f4eee0"),
-            LightEnergy = .9f, ShadowEnabled = true, ShadowBias=1.2f, DirectionalShadowMode=DirectionalLight3D.ShadowMode.Parallel4Splits, DirectionalShadowMaxDistance = 160 };
+            LightEnergy = .9f, ShadowEnabled = true, ShadowBias=2.4f, DirectionalShadowMode=DirectionalLight3D.ShadowMode.Parallel4Splits, DirectionalShadowMaxDistance = 160 };
         _scene.AddChild(_sunlight);
         _camera = new Camera3D { Current = true, Near = .15f, Far = 650, Fov = 52 }; _scene.AddChild(_camera);
         _routes = new MeshInstance3D { CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
@@ -413,9 +413,9 @@ public partial class WorldView3D : MapView
         var quality=new Dictionary<string,object> { ["worldPresentationEnabled"]=WorldPresentationEnabled,["shadowMode"]=_sunlight.DirectionalShadowMode.ToString(),
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
-            ["landscapeSurface"]="oriented-meadow-v4",["habitatDetail"]="rooted-flowers-v7",
-            ["architecture"]="bevelled-joinery-v9",["garmentMaterial"]="signed-linen-v6",["interface"]="selection-workspace-v11",
-            ["animalPresentation"]="bound-surfaces-v4",["residentSurface"]="anatomical-lashes-v1",["waterSurface"]="shore-ripples-v1" };
+            ["landscapeSurface"]="moisture-meadow-v5",["habitatDetail"]="floral-organs-v8",["vegetationSurface"]="bent-frames-v1",
+            ["architecture"]="metric-edges-v10",["garmentMaterial"]="signed-linen-v6",["interface"]="context-observation-v12",
+            ["animalPresentation"]="muzzle-detail-v5",["residentSurface"]="calibrated-skin-v2",["waterSurface"]="shore-ripples-v1" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
         return quality;

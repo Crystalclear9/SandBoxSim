@@ -77,10 +77,10 @@ internal sealed partial class NatureModels
         }
         tool.Index(); return tool.Commit();
     }
-    private Mesh MetricBoard(Vector3 size)
+    private Mesh MetricBoard(Vector3 size,float edge=.003f)
     {
-        string key="metric-board:"+size;if(_meshes.TryGetValue(key,out var cached))return cached;
-        float bevel=MathF.Min(.003f,MathF.Min(size.X,MathF.Min(size.Y,size.Z))*.2f);
+        string key="metric-board:"+size+":"+edge;if(_meshes.TryGetValue(key,out var cached))return cached;
+        float bevel=MathF.Min(edge,MathF.Min(size.X,MathF.Min(size.Y,size.Z))*.2f);
         var half=size*.5f;var core=half-Vector3.One*bevel;
         using var tool=new SurfaceTool();tool.Begin(Mesh.PrimitiveType.Triangles);
         foreach(var normal in new[]{Vector3.Right,Vector3.Left,Vector3.Up,Vector3.Down,Vector3.Forward,Vector3.Back})
