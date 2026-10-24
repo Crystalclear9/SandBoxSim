@@ -24,6 +24,9 @@ public partial class WorldView3D : MapView
     private Vector3 _target = new(92, 1, 100);
     private float _distance = 44, _yaw = -.45f, _pitch = .85f;
     public float CameraYaw => _yaw;
+    internal string CameraReadout=>$"俯角 {Mathf.RadToDeg(_pitch):0}° · 距离 {_distance:0} m";
+    internal bool IsFollowing(int slot)=>slot>=0&&_follow==slot&&Game.Sim.Agents.IsSlotAlive(slot)&&Game.Sim.Agents.GenerationOf(slot)==_followGeneration;
+    internal void StopFollowing()=>_follow=-1;
     private bool _orbit, _pan, _painting, _leftHeld, _leftDragged;
     private Vector2 _leftStart;
     private bool _doubleClick;
@@ -71,6 +74,15 @@ public partial class WorldView3D : MapView
         foreach(var point in ground[(int)Mesh.ArrayType.Vertex].AsVector3Array())
             if(!point.IsFinite())throw new InvalidOperationException("Invalid subdivided terrain vertex");
         Vector3 target = _target; float distance = _distance, yaw = _yaw, pitch = _pitch;
+        int following=_follow,generation=_followGeneration;
+        try
+        {
+            int observed=Game.Sim.Agents.AliveSlots().First();
+            Follow(observed);if(!IsFollowing(observed))throw new InvalidOperationException("Camera follow indicator misses live resident");
+            StopFollowing();if(IsFollowing(observed))throw new InvalidOperationException("Stopping camera follow leaves indicator active");
+            if(_target!=target)throw new InvalidOperationException("Stopping camera follow jumps the target");
+        }
+        finally {_follow=following;_followGeneration=generation;_distance=distance;_pitch=pitch;}
         foreach (var view in new[] { "斜视", "俯视", "近景" })
         {
             SetPerspective(view);
@@ -398,8 +410,8 @@ public partial class WorldView3D : MapView
         var quality=new Dictionary<string,object> { ["worldPresentationEnabled"]=WorldPresentationEnabled,["shadowMode"]=_sunlight.DirectionalShadowMode.ToString(),
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
-            ["landscapeSurface"]="oriented-meadow-v4",["habitatDetail"]="two-sided-leaves-v4",
-            ["architecture"]="weathered-craft-v6",["garmentMaterial"]="fitted-leather-v5",["interface"]="field-notebook-v8",
+            ["landscapeSurface"]="oriented-meadow-v4",["habitatDetail"]="rooted-riverbank-v5",
+            ["architecture"]="bound-thatch-v7",["garmentMaterial"]="fitted-leather-v5",["interface"]="context-workspace-v9",
             ["animalPresentation"]="authored-wildlife-v2" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
@@ -645,14 +657,21 @@ public partial class WorldView3D : MapView
                 }
             }
             bool living=tile.BuildingId==0&&tile.Fire!=FireState.Burnt;
-            bool riverbank=false;
+            bool riverbank=false;var waterDirection=Vector2.Zero;
             if(HasRiverPlants(tile,h))
                 for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++)
-                    if(Game.Sim.World.IsInBounds(x+dx,y+dy)&&Game.Sim.World.TerrainAt(x+dx,y+dy)==TerrainKind.Water)riverbank=true;
+                    if(Game.Sim.World.IsInBounds(x+dx,y+dy)&&Game.Sim.World.TerrainAt(x+dx,y+dy)==TerrainKind.Water){riverbank=true;waterDirection+=new Vector2(dx,dy);}
             if(riverbank)
             {
-                float px=p.X+MathF.Sin(h%719)*.55f,pz=p.Z+MathF.Cos(h%431)*.55f;
-                reeds.Add(RootedPlant(new(px,0,pz),Vector3.One*(.72f+(h%7)*.06f),h%31));
+                waterDirection=waterDirection.Normalized();
+                for(int candidate=0;candidate<4;candidate++)
+                {
+                    float px=p.X+waterDirection.X*(.35f+candidate*.15f)+MathF.Sin(h%719)*.22f;
+                    float pz=p.Z+waterDirection.Y*(.35f+candidate*.15f)+MathF.Cos(h%431)*.22f;
+                    var point=new Vector3(px,0,pz);
+                    if(!SupportsReeds(point))continue;
+                    reeds.Add(RootedPlant(point,Vector3.One*(.72f+(h%7)*.06f),h%31));break;
+                }
             }
             if(living&&tile.Terrain==TerrainKind.Forest&&tile.Vegetation>.35f&&tile.Moisture>.2f&&h%9==0)
                 for(int fern=0;fern<2;fern++)

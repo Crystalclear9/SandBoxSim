@@ -9,6 +9,19 @@ internal sealed partial class NatureModels
         if(material==15)
         {
             foreach(float side in new[]{-1f,1f})Sculpt(model,ThatchPanel(width,depth,height,side),Vector3.Zero,Material(15));
+            Sculpt(model,ThatchRidge(width,depth,height),Vector3.Zero,Material(15));
+            if(_fineArchitecture)
+            {
+                int bands=(int)((depth+.3f)/.36f);
+                for(int band=0;band<=bands;band++)for(int arc=0;arc<16;arc++)
+                {
+                    float z=(band/(float)bands-.5f)*(depth+.30f);
+                    float a=-Mathf.Pi*.48f+arc/16f*Mathf.Pi*.96f,b=-Mathf.Pi*.48f+(arc+1)/16f*Mathf.Pi*.96f;
+                    var start=ThatchRidgePoint(width,height,a,z,false)+Vector3.Up*.002f;
+                    var end=ThatchRidgePoint(width,height,b,z,false)+Vector3.Up*.002f;
+                    FineBeam(model,start,end,.0045f,"#5e5039");
+                }
+            }
             return;
         }
         float half=(width+.4f)/2;int courses=_fineArchitecture?12:7,columns=_fineArchitecture?18:12;

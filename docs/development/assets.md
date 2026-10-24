@@ -43,6 +43,9 @@ UI 的层级和画布工具组织参考见[观察与界面](../guides/gameplay-o
 | [NVIDIA GPU Gems：复杂地形](https://developer.nvidia.com/gpugems/gpugems3/part-i-geometry/chapter-1-generating-complex-procedural-terrains-using-gpu) | 三向材质的法线在各投影切线方向还原；米制细节与远景采样分开控制。项目仍使用共享高度曲面，没有声称实现该文的 GPU 体素地形 |
 | [Godot：Standard Material 3D](https://docs.godotengine.org/en/stable/tutorials/3d/standard_material_3d.html) | 依据透明裁切、法线和粗糙度的实际用途处理叶片／发片、皮革、木石；检查真实纹理缓存，避免仅有配置而没有 mip 链 |
 | [NN/g：渐进呈现](https://www.nngroup.com/articles/progressive-disclosure/) | 世界画面保留主要控件，工具与资料按需展开；页签共享间距、字重、选中与悬停反馈，原有鼠标和键盘操作保持可见 |
+| [Historic England：茅草屋面](https://historicengland.org.uk/advice/technical-advice/buildings/thatching-advice) | 观察屋脊、檐口和山墙边缘的独立结构，采用厚坡面与圆弧覆脊；项目尺寸是视觉取舍，不作为传统工艺复原 |
+| [Missouri Department of Conservation：溪流岸缘](https://mdc.mo.gov/discover-nature/habitats/stream-edges) | 区分临水低岸与较高岸缘，普通河岸芦苇按实际高度和坡度选点；具体数值是项目表现参数 |
+| [NN/g：识别与回忆](https://www.nngroup.com/articles/recognition-and-recall/) | 操作提示靠近当前工作区，镜头角度、距离和跟随状态可直接查看；未选择居民时禁用跟随并说明原因 |
 
 这些资料用于明确实现方法；素材页、许可与作者记录用于实际资源来源。界面没有引入网页运行时或外部 UI 素材包。
 

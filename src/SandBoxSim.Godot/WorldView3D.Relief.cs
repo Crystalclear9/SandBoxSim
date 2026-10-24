@@ -6,13 +6,22 @@ public partial class WorldView3D
 {
     private Transform3D RootedPlant(Vector3 point,Vector3 scale,float yaw)
     {
-        const float radius=.18f;
-        var normal=new Vector3((GroundHeight(point.X-radius,point.Z)-GroundHeight(point.X+radius,point.Z))/(radius*2),1,
-            (GroundHeight(point.X,point.Z-radius)-GroundHeight(point.X,point.Z+radius))/(radius*2)).Normalized();
+        var normal=GroundNormal(point);
         var tilt=new Quaternion(Vector3.Up,normal);
         float angle=tilt.GetAngle();if(angle>.35f)tilt=Quaternion.Identity.Slerp(tilt,.35f/angle);
         point.Y=GroundHeight(point.X,point.Z)-.012f;
         return new Transform3D(new Basis(tilt)*new Basis(Vector3.Up,yaw)*Basis.FromScale(scale),point);
+    }
+    private Vector3 GroundNormal(Vector3 point)
+    {
+        const float radius=.18f;
+        return new Vector3((GroundHeight(point.X-radius,point.Z)-GroundHeight(point.X+radius,point.Z))/(radius*2),1,
+            (GroundHeight(point.X,point.Z-radius)-GroundHeight(point.X,point.Z+radius))/(radius*2)).Normalized();
+    }
+    private bool SupportsReeds(Vector3 point)
+    {
+        float height=GroundHeight(point.X,point.Z);
+        return height>=-.06f&&height<=.58f&&GroundNormal(point).Y>=.80f;
     }
     private static float TerrainNoise(float x,float y,int seed)
     {

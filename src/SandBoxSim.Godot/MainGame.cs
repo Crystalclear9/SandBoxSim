@@ -580,6 +580,7 @@ public partial class MainGame : Control
     {
         if (_summary == null) { return; }
         using var profile=RenderProfile.Measure("HudPanels");
+        RefreshPresentationControls();
         _summary.Text = $"第 {Sim.World.Calendar.Day} 天  ·  {Sim.Agents.LiveCount} 位居民  ·  {WeatherInfo.NameOf(Sim.World.Weather.Kind)}\n{Sim.Settlements.ActiveCount} 个聚落  ·  {Sim.Buildings.TotalCompleted} 栋建筑  ·  出生 {Sim.Stats.TotalBirths} / 死亡 {Sim.Stats.TotalDeaths}";
         _dayLabel.Text = "第 " + Sim.World.Calendar.Day + " 天 · " + WildPlaces.PhaseName(Sim.Clock / Sim.Config.Clock.TicksPerDay);
         UpdateMetric(_foodLabel, CollectedStock(ResourceKind.Food).ToString("0")); UpdateMetric(_woodLabel, CollectedStock(ResourceKind.Wood).ToString("0")); UpdateMetric(_stoneLabel, CollectedStock(ResourceKind.Stone).ToString("0"));

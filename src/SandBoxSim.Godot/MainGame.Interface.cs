@@ -15,6 +15,9 @@ public partial class MainGame
     private PanelContainer _settingsPanel = null!, _journalPanel = null!, _brushPanel = null!;
     private PanelContainer _worldPanel=null!,_statsPanel=null!;
     private PanelContainer _timePanel = null!, _cameraPanel = null!, _dockPanel = null!;
+    private PanelContainer _contextPanel=null!;
+    private Label _cameraReadout=null!;
+    private Godot.Button _followCameraButton=null!;
     private Label _toolBadge = null!, _dayLabel = null!, _populationLabel = null!, _settlementLabel = null!, _buildingLabel = null!;
     private VBoxContainer _brushParameters=null!;
     private HSlider _radiusSlider=null!,_strengthSlider=null!;
@@ -273,14 +276,30 @@ public partial class MainGame
 
         var cameraBox = new VBoxContainer(); cameraBox.AddThemeConstantOverride("separation", 4); cameraPanel.AddChild(cameraBox);
         var cameraHeading = new HBoxContainer(); cameraBox.AddChild(cameraHeading);
-        var cameraTitle = HudStyle.Label("观察视角", 11, true); cameraTitle.SizeFlagsHorizontal = SizeFlags.ExpandFill; cameraHeading.AddChild(cameraTitle);
+        var cameraTitle = _cameraReadout=HudStyle.Label("观察视角", 11, true); cameraTitle.SizeFlagsHorizontal = SizeFlags.ExpandFill; cameraHeading.AddChild(cameraTitle);
         cameraHeading.TooltipText = "罗盘铜色尖端指向地图北方，随鼠标旋转视角同步变化。";
         cameraHeading.AddChild(new HudCompass { View = (WorldView3D)_map });
         var views = new HBoxContainer(); cameraBox.AddChild(views); ActionButton(views, "全景", () => _map.Center());
         foreach (string label in new[] { "斜视", "俯视", "近景" }) { string view = label; ActionButton(views, label, () => ((WorldView3D)_map).SetPerspective(view)); }
-        ActionButton(views, "跟随", () => { if (SelectedSlot >= 0) { _map.Follow(SelectedSlot); } else { _status.Text = "选择一个人物后，跟随他的故事"; } });
+        _followCameraButton=ActionButton(views, "跟随", () => {
+            var world=(WorldView3D)_map;
+            if(world.IsFollowing(SelectedSlot))world.StopFollowing();else if(SelectedSlot>=0)_map.Follow(SelectedSlot);
+            RefreshPresentationControls();
+        });
+        _followCameraButton.ToggleMode=true;
         _toolBadge = HudStyle.Label("自由观察", 13); HudStyle.Float(_toolBadge, new Vector2(.5f, 1), new Vector2(-200, -180), new Vector2(400, 26)); _toolBadge.HorizontalAlignment = HorizontalAlignment.Center; _toolBadge.AddThemeColorOverride("font_color", new Color("#f3efe3")); _toolBadge.AddThemeColorOverride("font_shadow_color", new Color("#17241e")); _toolBadge.AddThemeConstantOverride("shadow_offset_y", 1); overlay.AddChild(_toolBadge);
         _status = HudStyle.Label("观察模式：左键拖动平移 · 右键拖动旋转/俯仰 · 滚轮缩放 · 单击选择", 11, true); HudStyle.Float(_status, new Vector2(.5f, 1), new Vector2(-430, -126), new Vector2(860, 18)); _status.HorizontalAlignment = HorizontalAlignment.Center; _status.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, .8f)); _status.AddThemeConstantOverride("shadow_offset_y", 1); overlay.AddChild(_status);
+        _contextPanel=Surface(overlay,new Vector2(0,1),new Vector2(490,-172),new Vector2(620,76),8);
+        _contextPanel.Visible=!IsModelGallery;
+        var context=new VBoxContainer();context.AddThemeConstantOverride("separation",3);_contextPanel.AddChild(context);
+        foreach(var label in new[]{_toolBadge,_status})
+        {
+            label.Reparent(context);label.SetAnchorsAndOffsetsPreset(LayoutPreset.TopLeft);label.SizeFlagsHorizontal=SizeFlags.ExpandFill;
+            label.CustomMinimumSize=Vector2.Zero;label.ClipText=true;label.TextOverrunBehavior=TextServer.OverrunBehavior.TrimEllipsis;
+            label.AddThemeColorOverride("font_shadow_color",Colors.Transparent);
+        }
+        _status.AutowrapMode=TextServer.AutowrapMode.WordSmart;_status.MaxLinesVisible=2;_status.MouseFilter=MouseFilterEnum.Pass;
+        _toolBadge.CustomMinimumSize=new Vector2(0,20);_status.CustomMinimumSize=new Vector2(0,32);
         _save = Dialog(FileDialog.FileModeEnum.SaveFile); _save.FileSelected += SaveWorld; _load = Dialog(FileDialog.FileModeEnum.OpenFile); _load.FileSelected += LoadWorld;
         Resized += FitHud; FitHud();
         StyleNotebook();
@@ -308,7 +327,25 @@ public partial class MainGame
         _journalPanel.OffsetBottom = size.Y - 100;
         _settingsPanel.OffsetBottom = Math.Min(size.Y - 280, 744);
         FitPortraitWindow(size);
-        _toolBadge.OffsetTop = -149; _toolBadge.OffsetBottom = -129;
+        FitContextCard(size);
+    }
+    private void FitContextCard(Vector2 size)
+    {
+        float left=_dockPanel.Visible?_dockPanel.OffsetRight+16:322;
+        float right=_journalPanel.Visible?size.X+_journalPanel.OffsetLeft-16:size.X-316;
+        float width=MathF.Min(620,right-left),x=Math.Clamp((size.X-width)*.5f,left,right-width);
+        HudStyle.Float(_contextPanel,new Vector2(0,1),new Vector2(x,-172),new Vector2(width,76));
+    }
+    private void RefreshPresentationControls()
+    {
+        if(_contextPanel==null)return;
+        var world=(WorldView3D)_map;
+        _cameraReadout.Text=world.CameraReadout;
+        _followCameraButton.Disabled=SelectedSlot<0;
+        _followCameraButton.SetPressedNoSignal(world.IsFollowing(SelectedSlot));
+        _followCameraButton.TooltipText=SelectedSlot<0?"先选择一位居民，再跟随观察":world.IsFollowing(SelectedSlot)?"停止跟随，保留当前镜头":"跟随当前居民；再次点击停止";
+        _status.TooltipText=_status.Text;
+        FitContextCard(Size);
     }
     private void FitToolLibrary(Vector2 size)
     {
@@ -349,6 +386,19 @@ public partial class MainGame
                     if (bounds.Position.X < 0 || bounds.Position.Y < 0 || bounds.End.X > size.X || bounds.End.Y > size.Y)
                         { throw new InvalidOperationException("HUD outside window at " + size); }
                 }
+                bool tools=_dockPanel.Visible,journal=_journalPanel.Visible;
+                try
+                {
+                    for(int state=0;state<4;state++)
+                    {
+                        _dockPanel.Visible=(state&1)!=0;_journalPanel.Visible=(state&2)!=0;FitContextCard(size);
+                        var context=Bounds(_contextPanel);
+                        if(context.Size.X<320||context.Position.X<0||context.End.X>size.X||context.End.Y>size.Y||context.Intersects(time)||context.Intersects(camera)||
+                            (_dockPanel.Visible&&context.Intersects(Bounds(_dockPanel)))||(_journalPanel.Visible&&context.Intersects(Bounds(_journalPanel))))
+                            throw new InvalidOperationException("Context card overlaps an open panel at "+size);
+                    }
+                }
+                finally {_dockPanel.Visible=tools;_journalPanel.Visible=journal;FitContextCard(size);}
             }
         }
         finally { FitHud(); }
@@ -483,9 +533,11 @@ public partial class MainGame
         _inspectDockButton.SetPressedNoSignal(!visible&&Tool==PlayerTool.Inspect);
         _toolsMenuButton.SetPressedNoSignal(visible);
         _toolBadge.Visible=!visible;_status.Visible=!visible;
+        if(_contextPanel!=null)_contextPanel.Visible=!visible&&!IsModelGallery;
         if(visible){((WorldView3D)_map).CancelPointerGesture();FadeIn(_dockPanel);}
+        RefreshPresentationControls();
     }
-    private void ShowJournal(bool visible) { if(visible&&Tool!=PlayerTool.Inspect)SelectTool(PlayerTool.Inspect);if(visible&&_dockPanel.Visible)ShowTools(false);_journalPanel.Visible = visible; _journalButton.SetPressedNoSignal(visible);_journalDockButton.SetPressedNoSignal(visible); if (_pulseButton != null) { _pulseButton.Visible = !visible; } if (visible) { FadeIn(_journalPanel); } }
+    private void ShowJournal(bool visible) { if(visible&&Tool!=PlayerTool.Inspect)SelectTool(PlayerTool.Inspect);if(visible&&_dockPanel.Visible)ShowTools(false);_journalPanel.Visible = visible; _journalButton.SetPressedNoSignal(visible);_journalDockButton.SetPressedNoSignal(visible); if (_pulseButton != null) { _pulseButton.Visible = !visible; } if (visible) { FadeIn(_journalPanel); } RefreshPresentationControls(); }
     private void ShowSettings(bool visible)
     { if(visible&&_dockPanel.Visible)ShowTools(false);_settingsOpen = visible; _settingsButton.SetPressedNoSignal(visible); _settingsPanel.Visible = visible; _brushPanel.Visible = !visible && Tool != PlayerTool.Inspect; if (visible) { FadeIn(_settingsPanel); } }
     private readonly Dictionary<Control, Tween> _panelTransitions = new();

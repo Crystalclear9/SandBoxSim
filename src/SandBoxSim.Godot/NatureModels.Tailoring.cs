@@ -96,8 +96,8 @@ internal sealed partial class NatureModels
         }
         if(job is JobType.Gatherer or JobType.Hunter or JobType.Trader)
         {
-            Sculpt(rig.Torso,FittedRibbon("shoulder-front",.81f,1.20f),Vector3.Zero,ResidentMaterial("#786346"));
-            Sculpt(rig.Torso,FittedRibbon("shoulder-back",.81f,1.20f,true),Vector3.Zero,ResidentMaterial("#786346"));
+            Sculpt(rig.Torso,FittedRibbon("shoulder-front",.81f,1.20f),Vector3.Zero,LeatherSurface("#665141"));
+            Sculpt(rig.Torso,FittedRibbon("shoulder-back",.81f,1.20f,true),Vector3.Zero,LeatherSurface("#665141"));
             var pouch=new Vector3(.23f,.80f,-.008f);
             Sculpt(rig.Torso,SatchelBody(),pouch,LeatherSurface("#786346"),new(-MathF.PI/2,0,0));
             Sculpt(rig.Torso,SatchelFlap(),pouch,LeatherSurface("#786346"));

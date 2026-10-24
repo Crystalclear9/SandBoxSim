@@ -42,7 +42,7 @@ void fragment(){
             float irregular=(MathF.Sin(z*19+.8f)*.014f+MathF.Sin(z*43)*.006f)*MathF.Pow(u,8);
             float x=u*half+irregular;
             float fibres=_fineArchitecture?(MathF.Sin(z*46+x*.4f)*.0002f+MathF.Sin(z*21+x)*.0003f):0;
-            float y=height+half*.48f-x*.495f+(top?.13f+MathF.Sin(u*MathF.PI)*.024f+fibres:.055f);
+            float y=height+half*.48f-x*.495f+(top?.23f+MathF.Sin(u*MathF.PI)*.035f+fibres:.055f);
             return new(side*x,y,z);
         }
         void Triangle(Vector3 a,Vector3 b,Vector3 c,Vector3 outward)
@@ -71,5 +71,62 @@ void fragment(){
             Triangle(left,tip,right,Vector3.Up);Triangle(left,right,tip,Vector3.Down);
         }
         tool.GenerateNormals();tool.Index();var mesh=tool.Commit();_meshes[key]=mesh;return mesh;
+    }
+    private static Vector3 ThatchRidgePoint(float width,float height,float angle,float z,bool inside)
+    {
+        float baseY=height+(width+.4f)*.24f+.23f;
+        return new(MathF.Sin(angle)*.28f,baseY-.135f+MathF.Cos(angle)*.23f-(inside?.045f:0),z);
+    }
+    private Mesh ThatchRidge(float width,float depth,float height)
+    {
+        string key=$"thatch-ridge:{width}:{depth}:{height}:{_fineArchitecture}";
+        if(_meshes.TryGetValue(key,out var cached))return cached;
+        int sides=_fineArchitecture?32:12,rows=_fineArchitecture?12:3;
+        using var tool=new SurfaceTool();tool.Begin(Mesh.PrimitiveType.Triangles);tool.SetSmoothGroup(0);
+        Vector3 Point(int c,int r,bool inside)=>ThatchRidgePoint(width,height,-MathF.PI*.5f+c/(float)sides*MathF.PI,(r/(float)rows-.5f)*(depth+.43f),inside);
+        foreach(bool inside in new[]{false,true})for(int c=0;c<sides;c++)for(int r=0;r<rows;r++)
+        {
+            var a=Point(c,r,inside);var b=Point(c+1,r,inside);var d=Point(c,r+1,inside);var e=Point(c+1,r+1,inside);
+            var outward=(inside?-1:1)*new Vector3((a.X+b.X)*.5f,MathF.Max(.03f,a.Y-height-(width+.4f)*.24f),0);
+            EquipmentTriangle(tool,a,b,d,outward);EquipmentTriangle(tool,b,e,d,outward);
+        }
+        foreach(int r in new[]{0,rows})for(int c=0;c<sides;c++)
+        {
+            var a=Point(c,r,false);var b=Point(c+1,r,false);var d=Point(c,r,true);var e=Point(c+1,r,true);
+            var outward=r==0?Vector3.Forward:Vector3.Back;
+            EquipmentTriangle(tool,a,d,b,outward);EquipmentTriangle(tool,b,d,e,outward);
+        }
+        foreach(int c in new[]{0,sides})for(int r=0;r<rows;r++)
+        {
+            var a=Point(c,r,false);var b=Point(c,r+1,false);var d=Point(c,r,true);var e=Point(c,r+1,true);
+            var outward=c==0?Vector3.Left:Vector3.Right;
+            EquipmentTriangle(tool,a,b,d,outward);EquipmentTriangle(tool,b,e,d,outward);
+        }
+        tool.GenerateNormals();tool.Index();var mesh=tool.Commit();_meshes[key]=mesh;return mesh;
+    }
+    private void ValidateThatch()
+    {
+        bool previous=_fineArchitecture;
+        try
+        {
+            foreach(bool fine in new[]{false,true})foreach(float width in new[]{3.65f,4.13f})
+            {
+                _fineArchitecture=fine;var mesh=ThatchRidge(width,3.4f,2.23f);
+                if(mesh!=ThatchRidge(width,3.4f,2.23f)||mesh.GetAabb().Size.Y<.26f)throw new InvalidOperationException("Thatch ridge loses thickness or cache");
+                foreach(var part in new[]{mesh,ThatchPanel(width,3.4f,2.23f,1),ThatchPanel(width,3.4f,2.23f,-1)})
+                {
+                    var a=part.SurfaceGetArrays(0);var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();var n=a[(int)Mesh.ArrayType.Normal].AsVector3Array();
+                    for(int i=0;i<p.Length;i++)if(!p[i].IsFinite()||!n[i].IsFinite()||MathF.Abs(n[i].Length()-1)>.015f)throw new InvalidOperationException("Invalid thick thatch geometry");
+                }
+                foreach(float side in new[]{-1f,1f})
+                {
+                    float edge=ThatchRidgePoint(width,2.23f,side*MathF.PI*.5f,0,false).Y;
+                    float panel=2.23f+(width+.4f)*.24f-.28f*.495f+.23f+MathF.Sin(.28f/((width+.4f)*.5f)*MathF.PI)*.035f;
+                    if(edge>panel||panel-edge>.04f)throw new InvalidOperationException("Thatch ridge edge detaches from roof");
+                }
+            }
+        }
+        finally {_fineArchitecture=previous;}
+        GD.Print("THATCH_JOINERY_PASS: thick near/far surfaces, enclosed ridge, finite normals, cache and embedded edge contact");
     }
 }
