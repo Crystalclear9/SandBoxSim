@@ -90,6 +90,17 @@ function Assert-GodotExportLog {
         throw 'Godot export failed; inspect the project-local export log. Previous game package was preserved.'
     }
 }
+function Assert-GodotRunLog {
+    param([int]$ExitCode,[string]$Log,[switch]$SelfTest)
+    # Godot can finish the scene self-test and return zero after a shader or
+    # script failed to compile. A success marker must not hide an engine error.
+    if ($ExitCode -ne 0 -or $Log -match '(?im)^\s*(ERROR|SCRIPT ERROR|SHADER ERROR):') {
+        throw 'Godot runtime failed; inspect the project-local engine log.'
+    }
+    if ($SelfTest -and $Log -notmatch '(?m)^GODOT_SELF_TEST_PASS:') {
+        throw 'Godot runtime did not complete its self-test.'
+    }
+}
 function Invoke-GodotTextureReimport {
     param([string]$GodotPath,[string]$GameRoot,[string]$LogFile,[int]$TimeoutSeconds=180)
     if ($GodotPath.EndsWith('_console.exe',[StringComparison]::OrdinalIgnoreCase)) {

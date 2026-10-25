@@ -29,11 +29,14 @@ vec3 p=cloth_position/.27;
 vec3 cx=texture(weave_map,vec2(p.z,p.y*side.x)).rgb,cy=texture(weave_map,p.xz).rgb,cz=texture(weave_map,vec2(p.x,-p.y*side.z)).rgb;
 vec3 nx=texture(fibre_map,vec2(p.z,p.y*side.x)).rgb,ny=texture(fibre_map,p.xz).rgb,nz=texture(fibre_map,vec2(p.x,-p.y*side.z)).rgb;
 float thread=dot(cx*w.x+cy*w.y+cz*w.z,vec3(.2126,.7152,.0722));
-ALBEDO=dye.rgb*.68*(clamp(thread/.55,.58,1.12)+yarn*.018+twill*.008+slub+dye_variation);
+// The pinned linen map has mean linear luminance .3962. Normalize in the
+// same colour space as texture sampling, retaining its photographed weave.
+float textile=clamp(1.0+(thread-.3962)*2.0/.3962,.65,1.25);
+ALBEDO=dye.rgb*.68*(textile+yarn*.018+twill*.008+slub+dye_variation);
 vec3 grain=vec3(0,(nx.g*2.0-1.0)*side.x,nx.r*2.0-1.0)*w.x+vec3(ny.r*2.0-1.0,0,ny.g*2.0-1.0)*w.y+vec3(nz.r*2.0-1.0,(nz.g*2.0-1.0)*-side.z,0)*w.z;
 grain-=base*dot(grain,base);
-NORMAL=normalize(NORMAL+(cloth_axis_x*grain.x+cloth_axis_y*grain.y+cloth_axis_z*grain.z)*.24);
-ROUGHNESS=clamp(nx.b*w.x+ny.b*w.y+nz.b*w.z,.78,.96);SPECULAR=.21;
+NORMAL=normalize(NORMAL+(cloth_axis_x*grain.x+cloth_axis_y*grain.y+cloth_axis_z*grain.z)*.35);
+ROUGHNESS=clamp(nx.b*w.x+ny.b*w.y+nz.b*w.z,.78,.96);SPECULAR=.21;RIM=.10;RIM_TINT=.72;
 }" };
         var material = new ShaderMaterial { Shader = _fabricShader };material.SetShaderParameter("dye",new Color(color));
         material.SetShaderParameter("weave_map",ScannedSurfaces.Map("rough_linen","diffuse"));

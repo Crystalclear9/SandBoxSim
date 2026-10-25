@@ -50,6 +50,11 @@ public partial class MainGame
     private readonly Dictionary<string, Godot.Button> _categoryButtons = new();
     private string _category = "生命";
     private bool _decisionDetails;
+    private int _residentPage;
+    private HBoxContainer _residentPages=null!;
+    private VBoxContainer _residentSummary=null!;
+    private readonly Button[] _residentPageButtons=new Button[3];
+    private readonly Label[] _residentStock=new Label[4];
     private VBoxContainer _residentVitals = null!;
     private bool _editingResidentName;
     private HBoxContainer _residentControls = null!, _residentNameControls = null!;
@@ -81,7 +86,7 @@ public partial class MainGame
     };
     private string FormatInspector(string plain)
     {
-        var result = new System.Text.StringBuilder(); bool first = !_residentVitals.Visible && !_landVitals.Visible, hidden = false;
+        var result = new System.Text.StringBuilder(); bool first = !_residentVitals.Visible && !_landVitals.Visible, hidden = _residentVitals.Visible&&_residentPage==2;
         string[] lines = plain.Replace("\r", "").Split('\n');
         for (int i = _residentVitals.Visible || _landVitals.Visible ? 2 : 0; i < lines.Length; i++)
         {
@@ -89,6 +94,7 @@ public partial class MainGame
             if (_residentVitals.Visible && (line.StartsWith("生命 ") || line.StartsWith("精力 ") || line.StartsWith("正在") || line.StartsWith("目的地 ") || line=="身体与需求" || line=="原地活动")) { continue; }
             bool section = line is "身体与需求" or "随身物资" or "性格倾向" or "居所与关系" or "个人历史" or "上次决策 / 效用" or "聚落历史";
             if (section) { hidden = !_decisionDetails && (line is "性格倾向" or "上次决策 / 效用"); }
+            if(section&&_residentVitals.Visible&&_residentPage==2)hidden=line is not ("性格倾向" or "上次决策 / 效用");
             if (hidden) { continue; }
             string escaped = EscapeMarkup(line);
             if (first && line.Length > 0) { result.AppendLine("[font_size=23][b]" + escaped + "[/b][/font_size]"); first = false; }
@@ -157,9 +163,16 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         _discovery = new DiscoveryPanel { Name = "现场", Game = this }; _drawer.AddChild(_discovery);
         var personScroll=new ScrollContainer {Name="人物",HorizontalScrollMode=ScrollContainer.ScrollMode.Disabled,SizeFlagsVertical=SizeFlags.ExpandFill};_drawer.AddChild(personScroll);
         var personPanel=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};personPanel.AddThemeConstantOverride("separation",8);personScroll.AddChild(personPanel);
+        _residentPages=new HBoxContainer();_residentPages.AddThemeConstantOverride("separation",4);personPanel.AddChild(_residentPages);
+        for(int i=0;i<3;i++)
+        {
+            int page=i;var button=ActionButton(_residentPages,new[]{"概览","生活","决策"}[i],()=>SetResidentPage(page));
+            button.ToggleMode=true;button.SizeFlagsHorizontal=SizeFlags.ExpandFill;_residentPageButtons[i]=button;
+            button.TooltipText=new[]{"肖像、当前行为、身体需求与随身物资","居所、关系与个人历史","性格倾向与上次决策效用"}[i];
+        }
         BuildResidentVitals(personPanel); BuildLandVitals(personPanel);
         var detailControls = new HBoxContainer(); _residentControls = detailControls; personPanel.AddChild(detailControls);
-        var details = ActionButton(detailControls, "决策与性格", () => { _decisionDetails = !_decisionDetails; RefreshPanels(); }); details.ToggleMode = true;
+        var model=ActionButton(detailControls,"观察模型  ↗",()=>ShowPortraitWindow(true));model.SizeFlagsHorizontal=SizeFlags.ExpandFill;
         _pinButton = ActionButton(detailControls, "关注", TogglePin);
         ActionButton(detailControls, "改名", () => { _editingResidentName = !_editingResidentName; _residentNameControls.Visible = _editingResidentName; });
         var nameControls = new HBoxContainer(); _residentNameControls = nameControls; personPanel.AddChild(nameControls);
@@ -504,24 +517,39 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
     {
         _residentVitals = new VBoxContainer { Visible = false }; _residentVitals.AddThemeConstantOverride("separation", 10); parent.AddChild(_residentVitals);
         _residentTitle = HudStyle.Heading("", 24); _residentSubtitle = HudStyle.Label("", 12, true);
-        var portraitFrame=new PanelContainer();_portraitHome=portraitFrame;portraitFrame.AddThemeStyleboxOverride("panel",HudStyle.Box(HudStyle.Wash,5,1,false));_residentVitals.AddChild(portraitFrame);
-        _residentPortrait = new ResidentPortrait { Compact = true, SizeFlagsHorizontal = SizeFlags.ExpandFill }; portraitFrame.AddChild(_residentPortrait);
         var identity = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; identity.AddThemeConstantOverride("separation", 3); _residentVitals.AddChild(identity);
-        identity.AddChild(_residentTitle); identity.AddChild(_residentSubtitle);_residentVitals.MoveChild(identity,0);
+        identity.AddChild(_residentTitle); identity.AddChild(_residentSubtitle);
+        _residentSummary=new VBoxContainer();_residentSummary.AddThemeConstantOverride("separation",10);_residentVitals.AddChild(_residentSummary);
+        var portraitFrame=new PanelContainer();_portraitHome=portraitFrame;portraitFrame.AddThemeStyleboxOverride("panel",HudStyle.Box(HudStyle.Ink,5,1,false));_residentSummary.AddChild(portraitFrame);
+        _residentPortrait = new ResidentPortrait { Compact = true, SizeFlagsHorizontal = SizeFlags.ExpandFill }; portraitFrame.AddChild(_residentPortrait);
         _residentTitle.AutowrapMode = TextServer.AutowrapMode.WordSmart; _residentSubtitle.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        var activity = new PanelContainer(); var activityStyle=HudStyle.Box(new Color(HudStyle.Wash,.65f),4,10,false);activityStyle.BorderWidthLeft=2;activityStyle.BorderColor=HudStyle.Accent;activity.AddThemeStyleboxOverride("panel",activityStyle);_residentVitals.AddChild(activity);
+        var activity = new PanelContainer(); var activityStyle=HudStyle.Box(new Color(HudStyle.Ink,.55f),4,10,false);activityStyle.BorderWidthLeft=2;activityStyle.BorderColor=HudStyle.Accent;activity.AddThemeStyleboxOverride("panel",activityStyle);_residentSummary.AddChild(activity);
         var activityBody=new VBoxContainer();activityBody.AddThemeConstantOverride("separation",2);activity.AddChild(activityBody);
         _residentAction=HudStyle.Label("",13);_residentActionPhase=HudStyle.Label("",11,true);activityBody.AddChild(_residentAction);activityBody.AddChild(_residentActionPhase);
-        var grid = new GridContainer { Columns = 2 }; grid.AddThemeConstantOverride("h_separation", 12); grid.AddThemeConstantOverride("v_separation", 8); _residentVitals.AddChild(grid);
+        var grid = new GridContainer { Columns = 2 }; grid.AddThemeConstantOverride("h_separation", 8); grid.AddThemeConstantOverride("v_separation", 8); _residentSummary.AddChild(grid);
         for (int i = 0; i < 4; i++)
         {
-            var item = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; item.AddThemeConstantOverride("separation", 4); grid.AddChild(item);
+            var tile=new PanelContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};tile.AddThemeStyleboxOverride("panel",HudStyle.Box(new Color(HudStyle.Wash,.50f),4,9,false));grid.AddChild(tile);
+            var item = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; item.AddThemeConstantOverride("separation", 6); tile.AddChild(item);
             _vitalLabels[i] = HudStyle.Label("", 12); item.AddChild(_vitalLabels[i]);
-            var bar = new ProgressBar { MaxValue = 1, ShowPercentage = false, CustomMinimumSize = new Vector2(125, 5), MouseFilter = MouseFilterEnum.Ignore };
-            bar.AddThemeStyleboxOverride("background", HudStyle.Box(HudStyle.Border, 1, 0, false));
+            var bar = new ProgressBar { MaxValue = 1, ShowPercentage = false, CustomMinimumSize = new Vector2(100, 4), MouseFilter = MouseFilterEnum.Ignore };
+            bar.AddThemeStyleboxOverride("background", HudStyle.Box(HudStyle.Ink, 1, 0, false));
             bar.AddThemeStyleboxOverride("fill", HudStyle.Box(HudStyle.Accent, 1, 0, false)); item.AddChild(bar); _vitalBars[i] = bar;
         }
-        _residentVitals.AddChild(new HSeparator());
+        _residentSummary.AddChild(HudStyle.Label("随身物资",11,true));
+        var inventory=new GridContainer {Columns=2};inventory.AddThemeConstantOverride("h_separation",12);inventory.AddThemeConstantOverride("v_separation",4);_residentSummary.AddChild(inventory);
+        string[] names={"食物","木材","石料","铁矿"};
+        for(int i=0;i<4;i++)
+        {
+            var row=new HBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};inventory.AddChild(row);
+            var label=HudStyle.Label(names[i],12,true);label.SizeFlagsHorizontal=SizeFlags.ExpandFill;row.AddChild(label);
+            var amount=_residentStock[i]=HudStyle.Label("",14);amount.AddThemeFontOverride("font",HudStyle.NumericFont);row.AddChild(amount);
+        }
+    }
+    private void SetResidentPage(int page)
+    {
+        _residentPage=Math.Clamp(page,0,2);_decisionDetails=_residentPage==2;
+        RefreshPanels();if(_inspector.Visible)FadeIn(_inspector);
     }
     private void BuildLandVitals(VBoxContainer parent)
     {
@@ -565,10 +593,14 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         _vitalTransition?.Kill();
         RefreshLandVitals();
         int slot = SelectedSlot; _residentVitals.Visible = slot >= 0;
+        _residentPages.Visible=slot>=0;_residentSummary.Visible=_residentPage==0;
+        _inspector.Visible=slot<0||_residentPage!=0;
+        for(int i=0;i<3;i++)_residentPageButtons[i].SetPressedNoSignal(_residentPage==i);
         _residentControls.Visible = _selectedPersonId != 0;
         _residentNameControls.Visible = _selectedPersonId != 0 && _editingResidentName;
         if (slot < 0) { ShowPortraitWindow(false);return; }
         var a = Sim.Agents;
+        for(int i=0;i<4;i++)_residentStock[i].Text=a.InventoryOf(slot,PortraitResources[i]).ToString("F1");
         _residentPortrait.ShowResident(Sim.Society.Identity(slot), slot, a.LifeStageOf(slot) == SandBoxSim.Core.Agents.LifeStage.Child, a.JobOf(slot));
         _residentPortrait.ShowActivity(a.ActionOf(slot),a.PhaseOf(slot),VisualPaused);
         ResourceKind cargoKind=ResourceKind.Food;float cargoAmount=0;
@@ -717,6 +749,18 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         bool enabled = HudStyle.MotionEnabled;
         try
         {
+            int page=_residentPage;string digest=StateHash.ComputeDigest(Sim);
+            if(SelectedSlot>=0)
+            {
+                _residentPageButtons[1].EmitSignal(BaseButton.SignalName.Pressed);
+                if(!_inspector.Visible||_residentSummary.Visible||!_inspector.Text.Contains("居所与关系"))throw new InvalidOperationException("Resident life page loses actual relationship records");
+                _residentPageButtons[2].EmitSignal(BaseButton.SignalName.Pressed);
+                if(!_inspector.Visible||_residentSummary.Visible||!_inspector.Text.Contains("性格倾向")||_inspector.Text.Contains("居所与关系"))throw new InvalidOperationException("Resident decision page mixes in unrelated biography");
+                _residentPageButtons[0].EmitSignal(BaseButton.SignalName.Pressed);
+                if(_inspector.Visible||!_residentSummary.Visible)throw new InvalidOperationException("Resident overview repeats long inspector prose");
+                SetResidentPage(page);
+                if(StateHash.ComputeDigest(Sim)!=digest)throw new InvalidOperationException("Resident page navigation changes world state");
+            }
             HudStyle.MotionEnabled = true;
             ShowJournal(true);ShowSettings(false);
             ShowCategory("生态");_toolButtons[PlayerTool.MeadowSeeds].EmitSignal(BaseButton.SignalName.Pressed);

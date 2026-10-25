@@ -49,6 +49,8 @@ internal partial class ResidentPortrait : SubViewportContainer
     private MeshInstance3D _portraitGround=null!;
     private Camera3D _camera = null!;
     private DirectionalLight3D _keyLight=null!;
+    private DirectionalLight3D _fillLight=null!,_rimLight=null!;
+    internal int Lighting {get;private set;}
     private ResidentRig? _resident;
     private long _identity = -1;
     private JobType _job;
@@ -66,19 +68,20 @@ internal partial class ResidentPortrait : SubViewportContainer
         AddChild(_viewport);
         _stage = new Node3D(); _viewport.AddChild(_stage);
         var environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color,
-            BackgroundColor = new Color("#262b26"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
+            BackgroundColor = new Color("#252d2d"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
             AmbientLightColor = new Color("#cbd0d5"), AmbientLightEnergy = .36f, TonemapMode = Godot.Environment.ToneMapper.Aces };
         _stage.AddChild(new WorldEnvironment { Environment = environment });
         var backdrop=new ShaderMaterial {Shader=new Shader {Code=@"shader_type spatial;
 render_mode unshaded,cull_disabled,fog_disabled;
 void fragment(){float halo=exp(-dot((UV-vec2(.48,.56))*vec2(1.4,1.0),(UV-vec2(.48,.56))*vec2(1.4,1.0))*30.0);
-ALBEDO=mix(vec3(.055,.064,.059),vec3(.22,.235,.205),halo);}"}};
+ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         _stage.AddChild(new MeshInstance3D {Mesh=new QuadMesh {Size=new(9,9)},Position=new(0,1.1f,2),MaterialOverride=backdrop,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off});
         _keyLight=new DirectionalLight3D { RotationDegrees = new Vector3(-32, -38, 0), LightColor = new Color("#f1e5d6"), LightEnergy = .85f,
             ShadowEnabled=false,DirectionalShadowMode=DirectionalLight3D.ShadowMode.Orthogonal,DirectionalShadowMaxDistance=6,ShadowBias=.05f,ShadowNormalBias=.2f };
         _stage.AddChild(_keyLight);
-        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-8, 70, 0), LightColor = new Color("#c5d3df"), LightEnergy = .30f });
-        _stage.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-28, -150, 0), LightColor = new Color("#d7e6ef"), LightEnergy = .28f });
+        _fillLight=new DirectionalLight3D { RotationDegrees = new Vector3(-8, 70, 0), LightColor = new Color("#c5d3df"), LightEnergy = .42f };_stage.AddChild(_fillLight);
+        _rimLight=new DirectionalLight3D { RotationDegrees = new Vector3(-28, -150, 0), LightColor = new Color("#d7e6ef"), LightEnergy = .32f };_stage.AddChild(_rimLight);
+        SetLighting(0);
         _portraitGround=new MeshInstance3D { Mesh = new CylinderMesh {TopRadius=.62f,BottomRadius=.62f,Height=.004f,RadialSegments=64},Position=new(0,-.006f,0),
             CastShadow=GeometryInstance3D.ShadowCastingSetting.Off,MaterialOverride = new StandardMaterial3D { AlbedoColor = new("#293930"), Roughness = 1 },Visible=false };_stage.AddChild(_portraitGround);
         _camera = new Camera3D { Current = true, Fov = 26 }; _stage.AddChild(_camera); Aim();
@@ -133,7 +136,14 @@ ALBEDO=mix(vec3(.055,.064,.059),vec3(.22,.235,.205),halo);}"}};
     public bool FinishingGesture=>_resident?.CompletionVisible==true;
     public void ShowCargo(bool hasCargo, SandBoxSim.Core.Environment.ResourceKind resource) => _resident?.ShowCargo(hasCargo,resource);
     public void ShowActivity(ActionKind action,ActionPhase phase,bool paused) { _action=action;_actionPhase=phase;_worldPaused=paused; }
-    internal object EvaluationState()=>new {framing=_framing.ToString().ToLowerInvariant(),yaw=_yaw,pitch=_pitch,distance=_distance,dragging=_drag};
+    internal object EvaluationState()=>new {framing=_framing.ToString().ToLowerInvariant(),yaw=_yaw,pitch=_pitch,distance=_distance,dragging=_drag,lighting=Lighting==0?"soft":"raking"};
+    internal void SetLighting(int mode)
+    {
+        Lighting=Math.Clamp(mode,0,1);
+        _keyLight.RotationDegrees=Lighting==0?new(-24,-24,0):new(-18,-66,0);
+        _keyLight.LightEnergy=Lighting==0?.95f:1.08f;
+        _fillLight.LightEnergy=Lighting==0?.42f:.20f;_rimLight.LightEnergy=Lighting==0?.32f:.40f;
+    }
     internal object RenderQualityState()
     {
         var environment=_stage.GetChildren().OfType<WorldEnvironment>().Single().Environment;
@@ -202,6 +212,10 @@ ALBEDO=mix(vec3(.055,.064,.059),vec3(.22,.235,.205),halo);}"}};
     public void ValidatePresentation()
     {
         if (_resident == null) { throw new InvalidOperationException("Selected resident has no portrait"); }
+        int lighting=Lighting;float yaw=_yaw,distance=_distance;var frame=_framing;var model=_resident;var key=_keyLight.Rotation;
+        SetLighting(1);
+        if(_keyLight.Rotation==key||_fillLight.LightEnergy>=.3f||_yaw!=yaw||_distance!=distance||_framing!=frame||model!=_resident)throw new InvalidOperationException("Studio lighting does not change real lights or resets the inspected model/view");
+        SetLighting(lighting);
         bool motion=HudStyle.MotionEnabled;
         try
         {

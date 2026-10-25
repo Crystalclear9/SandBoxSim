@@ -22,7 +22,8 @@ internal sealed partial class NatureModels
             var end=profile[(i+1)%profile.Length];var next=profile[(i+2)%profile.Length];
             var p=start.CubicInterpolate(end,previous,next,t);float a=column*MathF.Tau/sides;
             float neckline=key=="turned-neckline"?.009f*MathF.Pow(MathF.Max(0,-MathF.Sin(a)),4):0;
-            return new(MathF.Cos(a)*p.X,p.Y-neckline,MathF.Sin(a)*p.Z);
+            float throat=key=="turned-neckline"?.021f*MathF.Pow(MathF.Max(0,-MathF.Sin(a)),4):0;
+            return new(MathF.Cos(a)*p.X,p.Y-neckline,MathF.Sin(a)*p.Z-throat);
         }
         void Triangle(int ra,int ca,int rb,int cb,int rc,int cc)
         {

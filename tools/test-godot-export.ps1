@@ -1,6 +1,21 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'godot-lib.ps1')
+$pass='GODOT_SELF_TEST_PASS: fixture completed'
+foreach($case in @(
+    @{ExitCode=1;Log=$pass},
+    @{ExitCode=0;Log=''},
+    @{ExitCode=0;Log="SHADER ERROR: Unknown identifier`n$pass"},
+    @{ExitCode=0;Log="SCRIPT ERROR: Invalid call`n$pass"},
+    @{ExitCode=0;Log="ERROR: Shader compilation failed.`n$pass"}
+)) {
+    $rejected=$false
+    try { Assert-GodotRunLog @case -SelfTest } catch { $rejected=$true }
+    if(-not $rejected){throw 'Runtime validation accepted an incomplete self-test or a zero-exit engine error.'}
+}
+Assert-GodotRunLog -ExitCode 0 -Log $pass -SelfTest
+Assert-GodotRunLog -ExitCode 0 -Log 'Import complete'
+Write-Host 'GODOT_RUNTIME_LOG_PASS: shader/script errors override a zero exit and success marker; self-test completion required'
 foreach ($case in @(
     @{ExitCode=1;Log=''},
     @{ExitCode=0;Log='ERROR: .NET Sdk not found.'},

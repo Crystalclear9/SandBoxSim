@@ -39,7 +39,7 @@ $engineLog = Join-Path $repositoryRoot '.tools/godot-runtime.log'
 $engineVersion = & $GodotPath --headless --version
 if ($LASTEXITCODE -ne 0 -or $engineVersion -notmatch "4\.7\.2.*mono") { throw "Godot 4.7.2 .NET executable required: $GodotPath" }
 & $GodotPath --log-file $engineLog --headless --path $gameRoot --editor --import --quit
-if ($LASTEXITCODE -ne 0) { throw "Godot asset import failed ($LASTEXITCODE)" }
+Assert-GodotRunLog -ExitCode $LASTEXITCODE -Log ([IO.File]::ReadAllText($engineLog))
 if ($ReimportTextures) { Invoke-GodotTextureReimport -GodotPath $GodotPath -GameRoot $gameRoot -LogFile (Join-Path $repositoryRoot '.tools/texture-import.log') }
 if ($Mode -eq 'editor') {
     & $GodotPath --log-file $engineLog --path $gameRoot --editor
@@ -48,5 +48,5 @@ if ($Mode -eq 'editor') {
 } else {
     & $GodotPath --log-file $engineLog --path $gameRoot
 }
-if ($LASTEXITCODE -ne 0) { throw "Godot failed ($LASTEXITCODE)" }
+Assert-GodotRunLog -ExitCode $LASTEXITCODE -Log ([IO.File]::ReadAllText($engineLog)) -SelfTest:($Mode -eq 'test')
 } finally { Restore-GodotEnvironment -Snapshot $godotEnvironment }

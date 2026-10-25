@@ -84,3 +84,7 @@ python -m unittest discover -s tools -p test_human_assets.py
 [LICENSE.txt](../../src/SandBoxSim.Godot/assets/models/human/LICENSE.txt) 区分 CC0 头脸／贴图与 CC BY 4.0 手臂，并附 [MakeHuman 资产许可](../../src/SandBoxSim.Godot/assets/models/human/MAKEHUMAN-LICENSE.txt)。手掌、前臂和手部 LOD 继续保留 Julien Kaspar 的署名及修改说明。软件许可不替代素材许可。
 
 Godot 三平台导出包含模型 JSON、许可文本与导入纹理；发行包自检实际读取成品。原始工具与素材缓存不是运行依赖。
+
+## 眼部与领口的运行细化
+
+眼球继续使用同源纹理与拓扑，`NatureModels.EyeOptics.cs` 只在中央加入有界角膜起伏并修正法线；没有替换为通用球体。头颈保留原有形体，衣服前领为喉部留出开口并重新烘焙三套服装，面部解剖与动作挂点仍来自同一来源。角膜网格由变体缓存复用，详见[模型系统](models.md)。观察窗的柔光与侧光仅切换隔离场景的真实灯光，不消耗模拟状态或替换人物。

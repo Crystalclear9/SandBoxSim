@@ -113,7 +113,8 @@ uniform sampler2D eye_albedo:source_color,filter_linear_mipmap_anisotropic;
 void fragment(){
 vec4 eye=texture(eye_albedo,UV+gaze*.035);
 float iris=1.0-smoothstep(.16,.45,dot(eye.rgb,vec3(.2126,.7152,.0722)));
-ALBEDO=eye.rgb*.85;ALPHA=eye.a;ALPHA_SCISSOR_THRESHOLD=.5;ROUGHNESS=mix(.28,.15,iris);SPECULAR=.42;
+ALBEDO=eye.rgb*.95;ALPHA=eye.a;ALPHA_SCISSOR_THRESHOLD=.5;ROUGHNESS=mix(.25,.11,iris);SPECULAR=.50;
+CLEARCOAT=.65;CLEARCOAT_ROUGHNESS=.12;
 }"};
         rig.EyeMaterial=new ShaderMaterial {Shader=_eyeShader};
         rig.HasAnatomicalEyes=true;

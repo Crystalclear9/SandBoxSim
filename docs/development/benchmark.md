@@ -130,9 +130,13 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 ## 当前渲染版本
 
-当前渲染元数据为 `animalPresentation=guard-coat-v7`、`interface=field-chrome-v14`、`architecture=rounded-tile-toes-v11`、`garmentMaterial=signed-linen-v6`、`landscapeSurface=moisture-meadow-v5`、`habitatDetail=floral-organs-v8`。另外记录 `residentSurface=tearline-skin-v4`、`vegetationSurface=bent-frames-v1` 和 `waterSurface=fine-ripples-v2`。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。当前近景护毛、毛皮色阶、人物湿润眼缘、细波法线与顶栏布局已改变，需重采相同场景的视觉和耗时基线；不能把换资产造成的耗时变化算作代码优化收益。`renderQuality.interfaceVisible` 标识界面是否显示，公开评测场景默认显示；沉浸观察不会自动成为新的评测指令。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
+当前渲染元数据为 `animalPresentation=wet-eye-nose-v8`、`interface=resident-pages-v15`、`architecture=rounded-tile-toes-v11`、`garmentMaterial=calibrated-linen-v7`、`landscapeSurface=moisture-meadow-v5`、`habitatDetail=floral-organs-v8`。另外记录 `residentSurface=corneal-skin-v5`、`vegetationSurface=bent-frames-v1` 和 `waterSurface=fine-ripples-v2`。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。当前眼部反光、角膜几何、领口、织物与人物分区布局已改变，需重采相同场景的视觉和耗时基线；不能把换资产造成的耗时变化算作代码优化收益。`renderQuality.interfaceVisible` 标识界面是否显示，公开评测场景默认显示；沉浸观察不会自动成为新的评测指令。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
 
 无窗口自检的花株接地检查使用 CPU 保存的实例位置；图形模式额外核对 GPU 实例变换。渲染服务器的占位读回不作为几何证据。快捷操作检查覆盖居民、鹿狼和土地的真实目标位置、失效实体身份拒绝、靠近的实际相机距离、人物观察窗／土地手记及观察纯度。
+
+## 人物观察状态
+
+评测结果 `state.portrait.lighting` 记录 `soft` 或 `raking`，对应隔离人物观察窗的柔光与侧光；它是附加的呈现状态，不是模拟规则或 RSI 指标。现有公开指令仍保留，未加入新的 HTTP 控制动作。改变人物资料页面或观察灯光不应改变模拟摘要；客户端自检与实际鼠标回放均检查页面与选中状态。使用视觉或时间基线时需要固定光线和构图，不能混合两个预设的图像分布。
 
 ---
 

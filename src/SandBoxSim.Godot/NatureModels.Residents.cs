@@ -99,7 +99,10 @@ internal sealed partial class NatureModels
         float chest=MathF.Exp(-MathF.Pow((y-1.10f)/.10f,2));
         float volume=chest*front*.002f+shoulderBlade*.003f-sternum*.003f;
         float neckline=MathF.Exp(-MathF.Pow((y-1.28f)/.022f,2))*front*.009f;
-        return new Vector3(MathF.Sign(MathF.Cos(angle))*MathF.Pow(MathF.Abs(MathF.Cos(angle)),.96f)*Profile(width)*fold,y+vent-neckline,MathF.Sign(MathF.Sin(angle))*MathF.Pow(MathF.Abs(MathF.Sin(angle)),.96f)*(Profile(depth)*fold+volume));
+        // Make room in the garment for the authored throat, instead of
+        // shrinking the anatomy or hiding the collision under a solid collar.
+        float neckRoom=.028f*Mathf.SmoothStep(1.215f,1.28f,y)*front;
+        return new Vector3(MathF.Sign(MathF.Cos(angle))*MathF.Pow(MathF.Abs(MathF.Cos(angle)),.96f)*Profile(width)*fold,y+vent-neckline,MathF.Sign(MathF.Sin(angle))*MathF.Pow(MathF.Abs(MathF.Sin(angle)),.96f)*(Profile(depth)*fold+volume)-neckRoom);
     }
     private Mesh Garment()
     {

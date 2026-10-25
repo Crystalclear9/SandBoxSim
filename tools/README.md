@@ -13,7 +13,7 @@
 | `build.ps1` / `build-lib.ps1` | Core、Console、Tests 的 SDK/csc 构建与执行 |
 | `godot.ps1` / `godot-lib.ps1` | Godot 构建、导入、运行与自检；`-ReimportTextures` 通过编辑器插件重建并核验实际 mip 链 |
 | `test-godot-manifest.ps1` | 检查 NuGet.config 规范大小写与包源配置变化对构建身份的影响 |
-| `export-game.ps1` / `test-godot-export.ps1` | Windows 项目本地模板导出、零退出码错误防护、成品自检后更新与日志判定回归 |
+| `export-game.ps1` / `test-godot-export.ps1` | Windows 项目本地模板导出、零退出码错误防护、成品自检后更新与日志判定回归；同时验证运行自检不能被脚本／着色器错误或缺失完成标记蒙混通过 |
 | `bake-models.ps1` | 重建人体解剖手部与保留的程序动物校准网格；不是当前授权动物导出入口 |
 | `export_authored_animals.py` | 在项目本地 Blender 中核对源哈希、转换 CC0 鹿 / CC BY-SA 狼、转移鹿 14 / 狼 15 关节权重并导出运行 UV 表面；用法与许可见 [模型系统](../docs/development/models.md) |
 | `bake-garments.ps1` / `garment_pattern.py` / `bake_garment_surfaces.py` | 导出三种衣片采样，共顶点生成袖片与左右权重，在项目本地 Blender 中统一面朝向并校验成品/源哈希 |

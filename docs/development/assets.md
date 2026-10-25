@@ -28,12 +28,14 @@
 | [0 A.D. 美术许可](https://github.com/0ad/0ad/blob/61a3b9507d974084e6badb88a0826bd89a6d5b8b/binaries/data/mods/public/art/LICENSE.txt) | 美术按 CC BY-SA 3.0 提供；已采用狼网格和灰狼贴图，保留来源提交、署名及衍生资产同许可 |
 | [Poly Haven](https://polyhaven.com/license) | CC0 模型、HDRI 与贴图可再分发；已有六种环境模型与扫描表面继续使用，采用 Leafy Grass 地表，校准岩石反光与地表混合 |
 | [ambientCG](https://docs.ambientcg.com/license/) | 资产 CC0，可作为材质来源；当前已有扫描表面覆盖所需材料，本轮未再下载重复贴图 |
-| MakeHuman / Blender Studio | 已采用的人体拓扑、皮肤、头发及手臂分别记录在[人物素材](human-assets.md)，继续保留；本轮修改衣装贴合、肩颈比例及皮肤反光 |
+| MakeHuman / Blender Studio | 已采用的人体拓扑、皮肤、头发及手臂分别记录在[人物素材](human-assets.md)，继续保留；当前衣领按人体留出开口，调整衣装贴合及皮肤反光 |
 | [Sketchfab Download API](https://sketchfab.com/developers/download-api/guidelines) | 有候选写实动物，但下载及逐模型许可需按平台授权流程核对；未绕过账号流程下载 |
 | [BlendSwap wolf fur](https://blendswap.com/blend/13997) | 具体候选标注 CC BY-SA，约 21.6 MB，使用 Blender 2.7 粒子毛发；下载有账号流程，粒子表现不能直接代替 Godot 运行网格，未导入 |
 | [Open Wolf](https://opengameart.org/content/open-wolf) | 静态网格，标注 LGPL 2.1 / 3.0；缺少直接替换所需的骨架与近景优势，未采用 |
 | [Blendkit 许可](https://www.blendkit.com/docs/licenses/) | 区分 CC0 与 Royalty Free；选用时需确认具体资产许可，不能把“可商业使用”当作可公开分发源文件 |
-| [Dire Wolf Lite](https://literock-studios.itch.io/direwolf-lite) | 可用于商业游戏，但作者禁止重新上传资产本身；不适合直接放入当前公开源码资源目录，未采用 |
+| [Dire Wolf Lite](https://literock-studios.itch.io/direwolf-lite) | 作者列出 35 骨骼、9,991 面和 2K PBR，可用于游戏但禁止重新上传资产本身；不适合放入公开源码资源目录，未采用 |
+| [Innerscene Gray wolf](https://www.innerscene.com/tools/library/3d-parts/gray-wolf-c0fab254) | 原站标注 CC0；核对可下载 GLB 后为 32 个网格、没有 skin 或动画，不能直接替换现有运动动物，未采用 |
+| [NewDLC 3d wolf](https://opengameart.org/content/3d-wolf) | 原站 CC0，提供带骨架 Blender/FBX；核对原颜色图后为手绘卡通毛色，不符合当前自然写实方向，未采用 |
 | [Kenney UI Pack](https://kenney.nl/assets/ui-pack) | CC0 可用，但该套视觉风格与本项目自然写实方向不符；保留项目自己的图标和 Godot 控件 |
 | 商业模型商店与生成模型 | 逐项核对原始资产再分发及账号条款；静态生成模型仍需重拓扑、UV、绑定与动作。本轮未购买、未把展示图当成可再分发资源 |
 
@@ -112,6 +114,12 @@ UI 的层级和画布工具组织参考见[观察与界面](../guides/gameplay-o
 上衣重建使用 `./tools/bake-garments.ps1`，原始导出在 `.tools/garment-sources/`，正式 JSON 和哈希清单进入 `assets/models/garments/`；普通构建不执行 Blender。改变剪裁采样或 `tools/garment_pattern.py` 缝片构造后必须重新烘焙，不能只修改运行代码并继续使用旧蒙皮。动作、服装配件和近远景均需一同检查，细节见 [模型系统](models.md)。
 
 通过 `./tools/godot.ps1 -Mode test` 构建、导入并检查网格、法线、UV、缓存与握持，再查看真实窗口中的近景和远景。无头几何检查不能判断美感，图像识别准确率也不能替代材质与解剖质量检查。
+
+## 分区与光照参考
+
+[NN/g 视觉层级](https://www.nngroup.com/articles/visual-hierarchy-ux-definition/)用于区分居民概览与生活、决策资料，公共身份和操作保留，避免重复堆叠。人物柔光／侧光使用同一隔离场景的灯，实际切换可用于查看形体和材质，不改变模拟。
+
+湿润表面的第二反光层依据 [Godot 材质说明](https://docs.godotengine.org/en/stable/tutorials/3d/standard_material_3d.html)，实际变量按 [4.7.2 引擎着色器定义](https://github.com/godotengine/godot/blob/4.7.2-stable/servers/rendering/shader_types.cpp) 中的 `CLEARCOAT_ROUGHNESS` 使用；没有采用文档中与当前引擎不一致的旧变量名。原人脸、眼部、动物和亚麻纹理仍保留各自来源和许可，没有把低分辨率纹理描述为新扫描素材。
 
 ---
 

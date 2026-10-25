@@ -19,7 +19,7 @@ float fiber=sin(angle*67.0+radius*49.0)/(1.0+pow(fwidth(angle)*67.0,2.0));
 float iris=1.0-smoothstep(.64,.77,radius);
 float pupil=1.0-smoothstep(.90,1.05,length(p/vec2(.49,.14)));
 ALBEDO=mix(vec3(.009,.007,.005),vec3(.052,.030,.012)*(1.0+fiber*.12),iris);
-ALBEDO=mix(ALBEDO,vec3(.002,.0025,.002),pupil);ROUGHNESS=.14;SPECULAR=.38;
+ALBEDO=mix(ALBEDO,vec3(.002,.0025,.002),pupil);ROUGHNESS=.12;SPECULAR=.50;CLEARCOAT=.65;CLEARCOAT_ROUGHNESS=.12;
 }"}};
         string texture=wolf?"wolf-grey":name=="Body"?"deer-body":name=="Antlers"?"deer-antlers":"deer-head";
         var material=new ShaderMaterial {Shader=new Shader {Code=@"shader_type spatial;
@@ -40,6 +40,7 @@ detail.xy+=(antler?vec2(0.0):vec2(fibre*.024,fibre*.010));
 NORMAL_MAP=detail;NORMAL_MAP_DEPTH=.32;
 ROUGHNESS=antler?.92:mix(clamp(.83+fibre*.035,.75,.90),.28,COLOR.r);
 ROUGHNESS=mix(ROUGHNESS,.59,COLOR.g);SPECULAR=antler?.12:mix(.21,.38,COLOR.r);
+CLEARCOAT=COLOR.r*.45;CLEARCOAT_ROUGHNESS=.22;
 // Nose grain is metric and anchored before skinning. Its micrometre
 // relief fades with pixel footprint and never displaces the silhouette.
 vec2 coat_point=UV2;
@@ -193,7 +194,8 @@ float iris=1.0-smoothstep(.44,.48,radius),pupil=1.0-smoothstep(.14,.17,radius);
 vec3 pigment=mix(vec3(.008,.006,.003),vec3(.30,.19,.060)*(1.0+fibre*.14),iris);
 pigment=mix(pigment,vec3(.002,.0025,.002),pupil);
 float edge=smoothstep(.80,1.0,length((UV-vec2(.5))*2.0));
-ALBEDO=mix(pigment,wolf_eye_backing(coat_grade(texture(source_albedo,UV2).rgb,true)*.86,UV2),edge);ROUGHNESS=mix(.10,.83,edge);SPECULAR=mix(.38,.18,edge);
+ALBEDO=mix(pigment,wolf_eye_backing(coat_grade(texture(source_albedo,UV2).rgb,true)*.86,UV2),edge);ROUGHNESS=mix(.10,.83,edge);SPECULAR=mix(.50,.18,edge);
+CLEARCOAT=(1.0-edge)*.65;CLEARCOAT_ROUGHNESS=.12;
 }"}};
         material.SetShaderParameter("source_albedo",GD.Load<Texture2D>(AuthoredRoot(true)+"wolf-grey.png"));return _residentMaterials[key]=material;
     }

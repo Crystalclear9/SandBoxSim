@@ -128,6 +128,10 @@ Windows 的 `godot.ps1`、`export-game.ps1`、`evaluate.py` 和 `Play-3D.cmd` �
 
 `evaluate.py` 对引擎日志中的 `ERROR:` 继续严格拒绝：退出码为 0、截图完整或完成阶段已记录，都不能掩盖引擎错误。若手动绕过启动器而出现缓存目录或系统证书库访问错误，应检查实际运行目录和证书配置；不要放宽评测规则。`tools/test-godot-runtime.ps1` 检查配置范围、私人设置保留及证书完整性，客户端自检还核对实际证书解析和导出包内许可。
 
+## 引擎日志与自检完成
+
+`godot.ps1` 对资源导入和结束后的引擎日志同时检查退出码与错误行。即使退出为 0 或已打印成功标记，`ERROR:`、`SCRIPT ERROR:`、`SHADER ERROR:` 仍判定失败；`-Mode test` 还必须包含 `GODOT_SELF_TEST_PASS:`。这避免着色器编译失败被后续几何自检掩盖。对应回归随 `./tools/test-godot-export.ps1` 运行，不影响玩家存档。
+
 ---
 
 [文档导航](../README.md) · [项目首页](../../README.md)

@@ -182,6 +182,10 @@ internal sealed partial class NatureModels
             else
             {
                 points[i]=p-origin;normals[i]=n;
+                if(kind=="eye")
+                {
+                    var cornea=CornealSurface(points[i],normals[i]);points[i]=cornea.Point;normals[i]=cornea.Normal;
+                }
             }
         }
         var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);
@@ -236,6 +240,21 @@ internal sealed partial class NatureModels
                 if(points.Length!=normals.Length)throw new InvalidOperationException("Human asset loses normals");
                 for(int i=0;i<points.Length;i++)if(!points[i].IsFinite()||!normals[i].IsFinite()||normals[i].LengthSquared()<.8f)
                     throw new InvalidOperationException("Invalid human asset geometry or normal");
+            }
+            for(int eye=0;eye<2;eye++)
+            {
+                var eyeMesh=HumanMesh("eye",eye);var attributes=eyeMesh.SurfaceGetArrays(0);
+                var points=attributes[(int)Mesh.ArrayType.Vertex].AsVector3Array();var source=data.Eyes[eye];
+                if(HumanMesh("eye",eye)!=eyeMesh||points.Length!=source.Points.Length)throw new InvalidOperationException("Cornea replaces eye topology or loses mesh reuse");
+                float raised=0;
+                for(int i=0;i<points.Length;i++)
+                {
+                    var rest=HumanPoint(source.Points[i])-HumanEyeCenter(eye);var delta=points[i]-rest;
+                    if(MathF.Abs(delta.X)+MathF.Abs(delta.Y)>.000001f||delta.Z>0||delta.Length()>.000351f)throw new InvalidOperationException("Cornea exceeds its metric displacement bound");
+                    if(new Vector2(rest.X,rest.Y).Length()>=.008f&&delta.Length()>.000001f)throw new InvalidOperationException("Cornea moves the source sclera or lid contact");
+                    raised=MathF.Max(raised,delta.Length());
+                }
+                if(raised<.0001f)throw new InvalidOperationException("Corneal geometry is absent");
             }
             var lashes=Eyelashes().SurfaceGetArrays(0);var lashPoints=lashes[(int)Mesh.ArrayType.Vertex].AsVector3Array();var lashMorph=lashes[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
             if(lashPoints.Length>936||lashMorph.Length!=lashPoints.Length||Eyelashes()!=Eyelashes())throw new InvalidOperationException("Eyelashes lose blink attributes, cache or budget");

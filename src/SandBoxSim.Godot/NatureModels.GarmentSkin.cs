@@ -63,6 +63,27 @@ internal sealed partial class NatureModels
             var points=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();var indices=a[(int)Mesh.ArrayType.Index].AsInt32Array();
             var bones=a[(int)Mesh.ArrayType.Bones].AsInt32Array();var weights=a[(int)Mesh.ArrayType.Weights].AsFloat32Array();
             if(indices.Length>30000||ContinuousGarment()!=mesh)throw new InvalidOperationException("Garment budget/cache regression");
+            // Rays through the actual throat opening must not encounter a
+            // shoulder panel or cap near the collar, for any of the three cuts.
+            foreach(var ray in new[]{new Vector2(0,-.088f),new(.020f,-.084f),new(-.020f,-.084f)})
+            for(int i=0;i<indices.Length;i+=3)
+            {
+                var pa=points[indices[i]];var pb=points[indices[i+1]];var pc=points[indices[i+2]];
+                if(MathF.Max(pa.Y,MathF.Max(pb.Y,pc.Y))<ResidentRig.BodyY(1.255f))continue;
+                var ab=new Vector2(pb.X-pa.X,pb.Z-pa.Z);var ac=new Vector2(pc.X-pa.X,pc.Z-pa.Z);float det=ab.Cross(ac);if(MathF.Abs(det)<1e-10f)continue;
+                var hit=ray-new Vector2(pa.X,pa.Z);float v=hit.Cross(ac)/det,w=ab.Cross(hit)/det;
+                if(v<0||w<0||v+w>1)continue;float y=pa.Y*(1-v-w)+pb.Y*v+pc.Y*w;
+                if(y>=ResidentRig.BodyY(1.255f))throw new InvalidOperationException("Cloth crosses the anatomical throat opening");
+            }
+            float throatFront=float.PositiveInfinity;
+            for(int i=0;i<indices.Length;i+=3)
+            {
+                var pa=points[indices[i]];var pb=points[indices[i+1]];var pc=points[indices[i+2]];
+                var ab=new Vector2(pb.X-pa.X,pb.Y-pa.Y);var ac=new Vector2(pc.X-pa.X,pc.Y-pa.Y);float det=ab.Cross(ac);if(MathF.Abs(det)<1e-10f)continue;
+                var ray=new Vector2(-pa.X,1.31f-pa.Y);float v=ray.Cross(ac)/det,w=ab.Cross(ray)/det;
+                if(v>=0&&w>=0&&v+w<=1)throatFront=MathF.Min(throatFront,pa.Z*(1-v-w)+pb.Z*v+pc.Z*w);
+            }
+            if(!float.IsFinite(throatFront)||throatFront>-.092f)throw new InvalidOperationException("Front yoke is too shallow for the source throat at 1.31 m");
             var parent=new int[points.Length];for(int i=0;i<parent.Length;i++)parent[i]=i;
             int Root(int i){while(parent[i]!=i){parent[i]=parent[parent[i]];i=parent[i];}return i;}
             for(int i=0;i<indices.Length;i+=3){parent[Root(indices[i+1])]=Root(indices[i]);parent[Root(indices[i+2])]=Root(indices[i]);}

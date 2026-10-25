@@ -6,8 +6,8 @@ namespace SandBoxSim.Client;
 internal static class HudStyle
 {
     public static bool MotionEnabled { get; set; } = true;
-    public static readonly Color Ink = new("#171c19"), Surface = new("#252a25"), Text = new("#f3efe5"),
-        Muted = new("#bec3b7"), Accent = new("#d5bd89"), Border = new("#4a5146"), Wash = new("#343b32");
+    public static readonly Color Ink = new("#151b1b"), Surface = new("#232b2a"), Text = new("#f2f0e9"),
+        Muted = new("#b5c0ba"), Accent = new("#d8c398"), Border = new("#475651"), Wash = new("#303d38");
     public static readonly Color Paper=Surface,PaperInk=Text,PaperMuted=Muted,
         PaperLine=Border,PaperAccent=Accent,PaperWash=Wash;
     public static StyleBox Frame(int padding)

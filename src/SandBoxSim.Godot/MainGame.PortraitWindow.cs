@@ -20,6 +20,7 @@ public partial class MainGame
     private Godot.Button _portraitPin=null!;
     private Godot.Button _portraitPrevious=null!,_portraitNext=null!;
     private Label _portraitIndex=null!;
+    private readonly Button[] _portraitLighting=new Button[2];
     private static readonly ResourceKind[] PortraitResources={ResourceKind.Food,ResourceKind.Wood,ResourceKind.Stone,ResourceKind.Iron};
     private static Label PortraitPaperLabel(string text,int size=13,bool muted=false)
     {var label=HudStyle.Label(text,size);label.AddThemeColorOverride("font_color",muted?HudStyle.Muted:HudStyle.Text);return label;}
@@ -70,6 +71,17 @@ public partial class MainGame
         var layout=new VBoxContainer();layout.AddThemeConstantOverride("separation",12);_portraitWindow.AddChild(layout);
         var header=new HBoxContainer();layout.AddChild(header);
         var title=PortraitPaperLabel("居民档案",18);title.SizeFlagsHorizontal=SizeFlags.ExpandFill;header.AddChild(title);
+        var lighting=new HBoxContainer();lighting.AddThemeConstantOverride("separation",6);header.AddChild(lighting);
+        for(int i=0;i<2;i++)
+        {
+            int mode=i;var button=PortraitPaperButton(i==0?"柔光":"侧光",()=>{_residentPortrait.SetLighting(mode);RefreshPortraitFacts();});
+            button.ToggleMode=true;button.CustomMinimumSize=new(56,32);
+            var chosen=HudStyle.Box(HudStyle.Wash.Lightened(.08f),4,10,false);chosen.BorderWidthBottom=2;chosen.BorderColor=HudStyle.Accent;
+            button.AddThemeStyleboxOverride("pressed",chosen);button.AddThemeStyleboxOverride("hover_pressed",chosen);
+            button.TooltipText=i==0?"均匀观察肤色和衣料，不改变世界光照":"从侧面检查面部、手部与衣褶起伏";
+            lighting.AddChild(button);_portraitLighting[i]=button;
+        }
+        header.AddChild(new VSeparator {MouseFilter=MouseFilterEnum.Ignore});
         _portraitPrevious=PortraitPaperButton("‹ 上一位",()=>BrowsePortraitResident(-1));header.AddChild(_portraitPrevious);
         _portraitIndex=PortraitPaperLabel("",12,true);_portraitIndex.CustomMinimumSize=new(64,0);_portraitIndex.HorizontalAlignment=HorizontalAlignment.Center;header.AddChild(_portraitIndex);
         _portraitNext=PortraitPaperButton("下一位 ›",()=>BrowsePortraitResident(1));header.AddChild(_portraitNext);
@@ -151,6 +163,7 @@ public partial class MainGame
     }
     private void RefreshPortraitFacts()
     {
+        for(int i=0;i<2;i++)_portraitLighting[i].SetPressedNoSignal(_residentPortrait.Lighting==i);
         int slot=SelectedSlot;if(slot<0||_portraitFactAction==null)return;
         _portraitWindowTitle.Text=_residentTitle.Text;
         _portraitWindowActivity.Text=_residentSubtitle.Text;
@@ -182,6 +195,9 @@ public partial class MainGame
             throw new InvalidOperationException("Large portrait did not reuse the selected model viewport");
         if(state!=System.Text.Json.JsonSerializer.Serialize(_residentPortrait.EvaluationState()))
             throw new InvalidOperationException("Expanding a portrait reset its framing or orbit");
+        _portraitLighting[1].EmitSignal(BaseButton.SignalName.Pressed);
+        if(_residentPortrait.Lighting!=1||!_portraitLighting[1].ButtonPressed||_portraitLighting[0].ButtonPressed)throw new InvalidOperationException("Studio lighting toggle has no visible selected state");
+        _portraitLighting[0].EmitSignal(BaseButton.SignalName.Pressed);
         if(GetViewport().GuiGetFocusOwner()!=_residentPortrait)throw new InvalidOperationException("Portrait inherited background keyboard focus");
         if(Sim.Agents.LiveCount>1)
         {
