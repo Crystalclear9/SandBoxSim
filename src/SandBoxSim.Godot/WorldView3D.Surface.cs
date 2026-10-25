@@ -38,7 +38,13 @@ void fragment(){
     if(bank<.48)discard;
     float depth=max(0.0,.02-texture(bed_height,(p.xz*2.0+vec2(.5))/(map_size*4.0+vec2(1))).r);
     vec3 waves=ripple(p.xz);float shore_fade=smoothstep(.01,.20,depth);
-    vec3 n=normalize(vec3(-waves.x*shore_fade,1,-waves.z*shore_fade));
+    // Millimetre surface ripples affect light, not the shoreline silhouette.
+    // Explicit footprint filtering prevents distant highlights from crawling.
+    float footprint=max(length(dFdx(p.xz)),length(dFdy(p.xz)));
+    float detail_fade=1.0/(1.0+pow(footprint*60.0,2.0));
+    vec2 k4=vec2(43.0,27.0),k5=vec2(-19.0,61.0);
+    vec2 small=(cos(dot(p.xz,k4)-TIME*2.3)*.0007*k4+cos(dot(p.xz,k5)+TIME*1.7)*.00045*k5)*detail_fade;
+    vec3 n=normalize(vec3(-(waves.x+small.x)*shore_fade,1,-(waves.z+small.y)*shore_fade));
     NORMAL=normalize(mat3(VIEW_MATRIX)*n);
     float fresnel=.02+.98*pow(1.0-clamp(dot(NORMAL,normalize(VIEW)),0.0,1.0),5.0);
     float bed_detail=sin(p.x*17.0+sin(p.z*7.0))*sin(p.z*21.0+p.x*3.0)*.012;

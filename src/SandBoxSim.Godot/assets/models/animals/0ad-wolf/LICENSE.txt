@@ -25,3 +25,5 @@ weights and tangent generation.
 The original skin PNG is unchanged. Exporter: tools/export_authored_animals.py.
 Source files are publicly available at the URL above; derived mesh and binding
 data are distributed in this folder under the same licence.
+
+The source-bound wolf guard-coat mesh generated at runtime from this asset is also a derivative under CC BY-SA 3.0.

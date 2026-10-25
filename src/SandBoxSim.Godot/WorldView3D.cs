@@ -417,8 +417,8 @@ public partial class WorldView3D : MapView
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="moisture-meadow-v5",["habitatDetail"]="floral-organs-v8",["vegetationSurface"]="bent-frames-v1",
-            ["architecture"]="rounded-tile-toes-v11",["garmentMaterial"]="signed-linen-v6",["interface"]="context-facts-v13",
-            ["animalPresentation"]="curved-skulls-v6",["residentSurface"]="lip-grain-v3",["waterSurface"]="shore-ripples-v1" };
+            ["architecture"]="rounded-tile-toes-v11",["garmentMaterial"]="signed-linen-v6",["interface"]="field-chrome-v14",["interfaceVisible"]=Game.InterfaceVisible,
+            ["animalPresentation"]="guard-coat-v7",["residentSurface"]="tearline-skin-v4",["waterSurface"]="fine-ripples-v2" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
         return quality;

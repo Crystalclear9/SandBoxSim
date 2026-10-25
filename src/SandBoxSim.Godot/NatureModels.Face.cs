@@ -14,10 +14,11 @@ internal sealed partial class NatureModels
         for(int eye=0;eye<2;eye++)for(int hair=0;hair<26;hair++)
         {
             float u=(hair+.7f)/27;
-            var upper=data.UpperLids[eye];var lower=data.LowerLids[eye];
+            var upper=data.UpperLids[eye];
             float sample=u*(upper.Length-1);int i=Math.Min((int)sample,upper.Length-2);float t=sample-i;
-            var root=HumanPoint(upper[i].Lerp(upper[i+1],t));
-            var closed=HumanPoint((upper[i].Lerp(upper[i+1],t)+lower[i].Lerp(lower[i+1],t))*.5f);
+            var anchorA=AttachLid(eye,i,true);var anchorB=AttachLid(eye,i+1,true);
+            var rest=anchorA.Point.Lerp(anchorB.Point,t);var delta=anchorA.Delta.Lerp(anchorB.Delta,t);
+            var root=HumanPoint(rest);var closed=HumanPoint(rest+delta);
             var closure=new Vector2(closed.Y-root.Y,closed.Z-root.Z);
             float length=(.0011f+.0010f*MathF.Sin(u*MathF.PI))*(ChildHead?.8f:1);
             Vector3 Point(float v,float side)=>root+new Vector3(side*.00012f*(1-v),length*(.20f*v+.23f*v*v),-.00018f-length*v);
@@ -29,6 +30,37 @@ internal sealed partial class NatureModels
             }
         }
         tool.Index();return _meshes[key]=tool.Commit();
+    }
+    private Mesh TearMeniscus()
+    {
+        string key="anatomical-tearline:"+_faceVariant;if(_meshes.TryGetValue(key,out var cached))return cached;
+        using var tool=new SurfaceTool();tool.Begin(Mesh.PrimitiveType.Triangles);var data=HumanData();
+        for(int eye=0;eye<2;eye++)
+        {
+            var lower=data.LowerLids[eye];
+            void Vertex(int i,int section)
+            {
+                float u=i/(float)(lower.Length-1),angle=section*Mathf.Pi/4;
+                var anchor=AttachLid(eye,i,false);var root=HumanPoint(anchor.Point);var closed=HumanPoint(anchor.Point+anchor.Delta);
+                var normal=Vector3.Forward*Mathf.Sin(angle)+Vector3.Up*Mathf.Cos(angle);
+                float radius=.00018f*MathF.Sqrt(MathF.Max(.02f,MathF.Sin(u*Mathf.Pi)));
+                tool.SetNormal(normal);tool.SetUV(new(u,eye));tool.SetUV2(new(closed.Y-root.Y,closed.Z-root.Z));
+                tool.AddVertex(root+Vector3.Forward*.00010f+normal*radius);
+            }
+            for(int i=0;i<lower.Length-1;i++)for(int section=0;section<4;section++)
+            {
+                // The left and right aperture arrays can run in opposite directions.
+                // Build indexed vertices first, then orient against their own normals.
+                Vertex(i,section);Vertex(i+1,section);Vertex(i,section+1);
+                Vertex(i,section+1);Vertex(i+1,section);Vertex(i+1,section+1);
+            }
+        }
+        using var mesh=tool.Commit();var arrays=mesh.SurfaceGetArrays(0);
+        var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var n=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
+        var indices=new int[p.Length];for(int i=0;i<indices.Length;i+=3)
+        {indices[i]=i;indices[i+1]=i+1;indices[i+2]=i+2;if((p[i+2]-p[i]).Cross(p[i+1]-p[i]).Dot(n[i]+n[i+1]+n[i+2])<0)(indices[i+1],indices[i+2])=(indices[i+2],indices[i+1]);}
+        arrays[(int)Mesh.ArrayType.Index]=indices;var result=new ArrayMesh();result.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);
+        return _meshes[key]=result;
     }
     private Vector3[]? _facePoints;
     private int[]? _faceIndices;
@@ -92,6 +124,13 @@ void fragment(){ALBEDO=vec3(.027,.022,.017);ROUGHNESS=.83;SPECULAR=.16;}"};
         rig.LashMaterial=new ShaderMaterial {Shader=_lashShader};rig.LashMaterial.SetShaderParameter("blink",0f);
         rig.Lashes=Sculpt(rig.Head,Eyelashes(),Vector3.Zero,rig.LashMaterial);
         rig.Lashes.Name="AnatomicalLashes";rig.Lashes.CastShadow=GeometryInstance3D.ShadowCastingSetting.Off;
+        rig.TearMaterial=new ShaderMaterial {Shader=new Shader {Code=@"shader_type spatial;
+uniform float blink=0.0;uniform vec4 tone:source_color;
+void vertex(){VERTEX.yz+=UV2*blink;}
+void fragment(){ALBEDO=mix(tone.rgb,vec3(.25,.075,.055),.32);ROUGHNESS=.13;SPECULAR=.42;}"}};
+        rig.TearMaterial.SetShaderParameter("tone",new Color(skin));rig.TearMaterial.SetShaderParameter("blink",0f);
+        rig.TearLine=Sculpt(rig.Head,TearMeniscus(),Vector3.Zero,rig.TearMaterial);rig.TearLine.Name="AnatomicalTearMeniscus";
+        rig.TearLine.CastShadow=GeometryInstance3D.ShadowCastingSetting.Off;
         rig.EyeMaterial.SetShaderParameter("eye_albedo",GD.Load<Texture2D>("res://assets/models/human/eye_albedo.png"));
         for(int eye=0;eye<2;eye++)
         {

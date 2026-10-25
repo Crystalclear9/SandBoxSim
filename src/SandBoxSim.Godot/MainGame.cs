@@ -484,6 +484,8 @@ public partial class MainGame : Control
     {
         if (input is InputEventKey key && key.Pressed && !key.Echo)
         {
+            if(key.Keycode==Key.F10){SetImmersive(!_immersive);GetViewport().SetInputAsHandled();return;}
+            if(key.Keycode==Key.Escape&&_immersive){SetImmersive(false);GetViewport().SetInputAsHandled();return;}
             if (key.Keycode == Key.Space) { SetSpeed(_speed == 0 ? _resumeSpeed : 0);GetViewport().SetInputAsHandled(); }
             if (key.Keycode == Key.F && !_portraitOverlay.Visible) { _map.Center(); }
             if (key.Keycode == Key.Escape)

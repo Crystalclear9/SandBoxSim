@@ -38,7 +38,7 @@ internal partial class ResidentPortrait : SubViewportContainer
     internal void SetExpanded(bool expanded)
     {
         Expanded=expanded;_drag=false;
-        CustomMinimumSize=expanded?new Vector2(270,400):Compact?new Vector2(0,256):new Vector2(270,224);
+        CustomMinimumSize=expanded?new Vector2(270,400):Compact?new Vector2(0,224):new Vector2(270,224);
         SizeFlagsVertical=expanded?SizeFlags.ExpandFill:SizeFlags.Fill;
         _expandButton.Visible=!expanded;
         _expandedControls.Visible=expanded;
@@ -58,7 +58,7 @@ internal partial class ResidentPortrait : SubViewportContainer
     private float _yaw = -.28f, _distance = FaceDistance;
     public override void _Ready()
     {
-        Stretch = true; CustomMinimumSize = Compact ? new Vector2(0, 256) : new Vector2(270, 224);
+        Stretch = true; CustomMinimumSize = Compact ? new Vector2(0, 224) : new Vector2(270, 224);
         TooltipText = "拖动左右旋转与上下俯仰 · 滚轮缩放 · 双击复位";
         MouseFilter = MouseFilterEnum.Stop;FocusMode=FocusModeEnum.All;
         _viewport = new SubViewport { Size = Compact ? new Vector2I(624, 512) : new Vector2I(540, 448), OwnWorld3D = true, Msaa3D = Viewport.Msaa.Msaa4X,
@@ -72,7 +72,7 @@ internal partial class ResidentPortrait : SubViewportContainer
         var backdrop=new ShaderMaterial {Shader=new Shader {Code=@"shader_type spatial;
 render_mode unshaded,cull_disabled,fog_disabled;
 void fragment(){float halo=exp(-dot((UV-vec2(.48,.56))*vec2(1.4,1.0),(UV-vec2(.48,.56))*vec2(1.4,1.0))*30.0);
-ALBEDO=mix(vec3(.045,.048,.040),vec3(.16,.17,.14),halo);}"}};
+ALBEDO=mix(vec3(.055,.064,.059),vec3(.22,.235,.205),halo);}"}};
         _stage.AddChild(new MeshInstance3D {Mesh=new QuadMesh {Size=new(9,9)},Position=new(0,1.1f,2),MaterialOverride=backdrop,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off});
         _keyLight=new DirectionalLight3D { RotationDegrees = new Vector3(-32, -38, 0), LightColor = new Color("#f1e5d6"), LightEnergy = .85f,
             ShadowEnabled=false,DirectionalShadowMode=DirectionalLight3D.ShadowMode.Orthogonal,DirectionalShadowMaxDistance=6,ShadowBias=.05f,ShadowNormalBias=.2f };

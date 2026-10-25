@@ -36,7 +36,8 @@ internal partial class ResidentRig : Node3D
     public ShaderMaterial EyeMaterial=null!;
     public ShaderMaterial LidMaterial=null!;
     internal ShaderMaterial? LashMaterial;
-    internal MeshInstance3D? Lashes;
+    internal MeshInstance3D? Lashes,TearLine;
+    internal ShaderMaterial? TearMaterial;
     public ShaderMaterial MouthMaterial=null!;
     private bool _detailedHead=true,_returning;
     private float _faceTime;
@@ -49,7 +50,7 @@ internal partial class ResidentRig : Node3D
     public void SetHeadDetail(bool detailed)
     {
         if(_detailedHead==detailed)return;_detailedHead=detailed;HeadSkin.Visible=detailed;HeadProxy.Visible=!detailed;Mouth.Visible=detailed;
-        if(Lashes!=null)Lashes.Visible=detailed;
+        if(Lashes!=null)Lashes.Visible=detailed;if(TearLine!=null)TearLine.Visible=detailed;
         for(int i=0;i<2;i++){Eyes[i].Visible=detailed;Eyelids[i].Visible=detailed;}
     }
     public void UpdateDistanceDetail(float distanceSquared)
@@ -201,7 +202,7 @@ internal partial class ResidentRig : Node3D
             float blinkPhase=(_faceTime+1.1f+identityPhase*2.3f)%4.7f;
             float blink=blinkPhase<.28f?MathF.Sin(blinkPhase/.28f*MathF.PI):0;
             LidMaterial.SetShaderParameter("blink",blink);
-            LashMaterial?.SetShaderParameter("blink",blink);
+            LashMaterial?.SetShaderParameter("blink",blink);TearMaterial?.SetShaderParameter("blink",blink);
             for(int eye=0;eye<2;eye++){Eyes[eye].Scale=HasAnatomicalEyes?Vector3.One:new(1,MathF.Max(.02f,1-blink),1);Eyes[eye].Rotation=Vector3.Zero;}
             float attention=MathF.Floor(_faceTime*.55f+identityPhase*.37f);
             var targetGaze=new Vector2(MathF.Sin(attention*12.989f+identityPhase)*.052f,MathF.Sin(attention*7.137f+identityPhase*.71f)*.010f);

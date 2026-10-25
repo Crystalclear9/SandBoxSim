@@ -20,7 +20,7 @@
 
 ## 来源选择与调研
 
-选择按当前公开源码项目的再分发、真实轮廓、贴图、骨架和运行预算核对，不以“免费下载”代替许可确认。以下列出截至 2026-10-24 已核对的主要渠道，不声称穷尽全部素材网站。
+选择按当前公开源码项目的再分发、真实轮廓、贴图、骨架和运行预算核对，不以“免费下载”代替许可确认。以下列出截至 2026-10-25 已核对的主要渠道，不声称穷尽全部素材网站。
 
 | 来源 | 核对结果与本项目取舍 |
 |---|---|
@@ -30,7 +30,9 @@
 | [ambientCG](https://docs.ambientcg.com/license/) | 资产 CC0，可作为材质来源；当前已有扫描表面覆盖所需材料，本轮未再下载重复贴图 |
 | MakeHuman / Blender Studio | 已采用的人体拓扑、皮肤、头发及手臂分别记录在[人物素材](human-assets.md)，继续保留；本轮修改衣装贴合、肩颈比例及皮肤反光 |
 | [Sketchfab Download API](https://sketchfab.com/developers/download-api/guidelines) | 有候选写实动物，但下载及逐模型许可需按平台授权流程核对；未绕过账号流程下载 |
-| [BlendSwap](https://blendswap.com/about) | 每项许可可能为 CC0、CC BY、CC BY-SA 或其他条款，下载需账号；本轮未导入未经核对的候选 |
+| [BlendSwap wolf fur](https://blendswap.com/blend/13997) | 具体候选标注 CC BY-SA，约 21.6 MB，使用 Blender 2.7 粒子毛发；下载有账号流程，粒子表现不能直接代替 Godot 运行网格，未导入 |
+| [Open Wolf](https://opengameart.org/content/open-wolf) | 静态网格，标注 LGPL 2.1 / 3.0；缺少直接替换所需的骨架与近景优势，未采用 |
+| [Blendkit 许可](https://www.blendkit.com/docs/licenses/) | 区分 CC0 与 Royalty Free；选用时需确认具体资产许可，不能把“可商业使用”当作可公开分发源文件 |
 | [Dire Wolf Lite](https://literock-studios.itch.io/direwolf-lite) | 可用于商业游戏，但作者禁止重新上传资产本身；不适合直接放入当前公开源码资源目录，未采用 |
 | [Kenney UI Pack](https://kenney.nl/assets/ui-pack) | CC0 可用，但该套视觉风格与本项目自然写实方向不符；保留项目自己的图标和 Godot 控件 |
 | 商业模型商店与生成模型 | 逐项核对原始资产再分发及账号条款；静态生成模型仍需重拓扑、UV、绑定与动作。本轮未购买、未把展示图当成可再分发资源 |
@@ -84,6 +86,18 @@ UI 的层级和画布工具组织参考见[观察与界面](../guides/gameplay-o
 `NatureModels.ScannedEnvironment.cs` 管理专业环境网格、透明叶片遮罩、法线与粗糙度材质，来源和转换见 [环境素材](environment-assets.md)。世界与图册共享这些网格和屏幕 LOD。`NatureModels.Botanical.cs` 保留程序植物辅助结构及几何检查。`WorldView3D.Relief.cs` 为地面提供稳定的小尺度噪声起伏。
 
 `WorldView3D.Surface.cs` 混合扫描地形、临水色差与压实，水色读取实际河床深度，河床和水面共享连续岸线采样。`ScannedSurfaces.cs` 缓存贴图及打包法线/粗糙度，`NatureModels.ScannedCraft.cs` 管理建筑扫描表面。近景使用授权草丛网格，读取共享压实贴图伏低并随距离缩退；`NatureModels.Meadow.cs` 保留程序构造器。CPU 网格缓存和空间批次的维护见 [性能说明](performance.md)。
+
+## 近景表现与界面参考
+
+| 第一方资料 | 本项目的采用方式 |
+|---|---|
+| [Wisconsin DNR 狼生物学资料](https://dnr.wisconsin.gov/topic/WildlifeHabitat/wolf) | 结合源模型辨认灰褐、黑色混杂的毛色层次及颈肩毛被，调整过强的黑白色阶；形态资料不作为新资产许可 |
+| [NPS 鹿类季节与毛被](https://www.nps.gov/grsm/learn/nature/elk.htm) | 区分贴体底毛与较长护毛；当前使用通用鹿表现，不按特定物种复原或新增季节模拟 |
+| [Godot `source_color`](https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/shading_language.html#using-source-color) | 颜色贴图和肤色参考采用一致的色彩语义，法线与粗糙度保持数据采样 |
+| [NVIDIA GPU Gems：水面模型](https://developer.nvidia.com/gpugems/gpugems/part-i-natural-effects/chapter-1-effective-water-simulation-physical-models) | 分开处理较长几何波与细波法线，使用解析梯度；当前是简化的叠加波形，不复刻完整章节系统 |
+| [《庄园领主》官方画面](https://store.steampowered.com/app/1363080/Manor_Lords/)与 [NN/g 渐进呈现](https://www.nngroup.com/articles/progressive-disclosure/) | 减少重复的悬浮卡片，全局信息置顶、对象详情按需打开，提供沉浸观察；未复制原游戏素材 |
+
+护毛是从既有授权表面派生的运行网格，沿用对应鹿、狼许可；程序代码、其他模型和界面仍按各自许可管理。本次表现调整不新增第三方运行依赖。
 
 ## 新增与移动资源
 

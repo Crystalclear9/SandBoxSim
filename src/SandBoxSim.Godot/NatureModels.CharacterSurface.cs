@@ -11,18 +11,18 @@ internal sealed partial class NatureModels
     {
         string key="lips:"+color+":"+HumanFamily+":"+ChildHead;if(_residentMaterials.TryGetValue(key,out var cached))return cached;
         _lipShader??=new Shader {Code=@"shader_type spatial;
-uniform vec4 tone:source_color;uniform sampler2D skin_albedo:source_color,filter_linear_mipmap_anisotropic;uniform float speech=0.0;varying vec3 lip_point;
+uniform vec4 tone:source_color;uniform vec4 reference_tone:source_color;uniform sampler2D skin_albedo:source_color,filter_linear_mipmap_anisotropic;uniform float speech=0.0;varying vec3 lip_point;
 void vertex(){lip_point=VERTEX;
 float weight=exp(-pow(abs(VERTEX.x)/.023,4.0)-pow(abs(VERTEX.y)/.008,4.0))*(1.0-smoothstep(-.006,.006,VERTEX.z))*COLOR.a;
 VERTEX.y+=(VERTEX.y>=0.0?1.0:-1.0)*speech*.0012*weight;VERTEX.z-=speech*.0002*weight;}
 void fragment(){
-ALBEDO=texture(skin_albedo,UV).rgb*.72*(tone.rgb/vec3(.667,.545,.471));
+ALBEDO=texture(skin_albedo,UV).rgb*.88*(tone.rgb/max(vec3(.001),reference_tone.rgb));
 float crease=sin(lip_point.x*1900.0+sin(lip_point.y*700.0));
 crease/=1.0+pow(max(length(dFdx(lip_point)),length(dFdy(lip_point)))*1900.0,2.0);
 vec3 dx=dFdx(VERTEX),dy=dFdy(VERTEX),tx=cross(dy,NORMAL),ty=cross(NORMAL,dx);float det=dot(dx,tx),height=crease*.000007;
 if(abs(det)>.0000000001)NORMAL=normalize(abs(det)*NORMAL-sign(det)*(dFdx(height)*tx+dFdy(height)*ty));
 ROUGHNESS=.50+crease*.018;SPECULAR=.30;}"};
-        var material=new ShaderMaterial {Shader=_lipShader};material.SetShaderParameter("tone",new Color(color));material.SetShaderParameter("speech",0f);material.SetShaderParameter("skin_albedo",GD.Load<Texture2D>(HeadAlbedoPath));
+        var material=new ShaderMaterial {Shader=_lipShader};material.SetShaderParameter("tone",new Color(color));material.SetShaderParameter("speech",0f);material.SetShaderParameter("skin_albedo",GD.Load<Texture2D>(HeadAlbedoPath));material.SetShaderParameter("reference_tone",new Color("#aa8b78"));
         return _residentMaterials[key]=material;
     }
     private Shader? _anatomicalSkinShader;
@@ -33,7 +33,7 @@ ROUGHNESS=.50+crease*.018;SPECULAR=.30;}"};
         string key="anatomical-face:"+color+":"+_faceVariant;
         if(_residentMaterials.TryGetValue(key,out var cached))return cached;
         _anatomicalSkinShader??=new Shader {Code=@"shader_type spatial;
-uniform vec4 tone:source_color;
+uniform vec4 tone:source_color;uniform vec4 reference_tone:source_color;
 uniform sampler2D skin_albedo:source_color,filter_linear_mipmap_anisotropic;
 uniform vec3 nose_center=vec3(0.0);uniform vec3 mouth_center=vec3(0.0);
 uniform float blink=0.0;
@@ -45,7 +45,7 @@ float front=1.0-smoothstep(-.05,-.015,skin_point.z);
 float nose=exp(-pow(skin_point.x/.018,2.0)-pow((skin_point.y-nose_center.y)/.032,2.0))*front;
 float forehead=exp(-pow(skin_point.x/.048,2.0)-pow((skin_point.y-nose_center.y-.070)/.035,2.0))*front;
 float lip_margin=exp(-pow((skin_point.y-mouth_center.y)/.010,2.0)-pow(skin_point.x/.030,4.0))*front;
-ALBEDO=colour*.72*(tone.rgb/vec3(.667,.545,.471));
+ALBEDO=colour*.88*(tone.rgb/max(vec3(.001),reference_tone.rgb));
 // Sub-millimetre skin grain is filtered by pixel footprint. It belongs
 // in shading, not swollen geometry around the eyes and mouth.
 float pore=sin(skin_point.x*2600.0+sin(skin_point.y*1100.0))*sin(skin_point.y*2300.0+skin_point.z*1700.0);
@@ -61,7 +61,7 @@ BACKLIGHT=ALBEDO*vec3(.13,.038,.025)*thin;
 }"};
         var material=new ShaderMaterial {Shader=_anatomicalSkinShader};
         material.SetShaderParameter("tone",new Color(color));
-        material.SetShaderParameter("skin_albedo",GD.Load<Texture2D>(HeadAlbedoPath));
+        material.SetShaderParameter("skin_albedo",GD.Load<Texture2D>(HeadAlbedoPath));material.SetShaderParameter("reference_tone",new Color("#aa8b78"));
         material.SetShaderParameter("blink",0f);
         material.SetShaderParameter("nose_center",new Vector3(0,HumanData().NoseY,0));
         material.SetShaderParameter("mouth_center",HumanData().Mouth);

@@ -131,7 +131,7 @@ public partial class MainGame
         if(_portraitOverlay==null||visible==_portraitOverlay.Visible)return;
         if(visible)
         {
-            if(SelectedSlot<0)return;
+            if(SelectedSlot<0)return;SetImmersive(false);
             _portraitReturnFocus=GetViewport().GuiGetFocusOwner();
             if(_map is WorldView3D world)world.CancelPointerGesture();
             RefreshResidentVitals();

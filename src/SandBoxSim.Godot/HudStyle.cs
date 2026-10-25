@@ -6,15 +6,15 @@ namespace SandBoxSim.Client;
 internal static class HudStyle
 {
     public static bool MotionEnabled { get; set; } = true;
-    public static readonly Color Ink = new("#141c19"), Surface = new("#202a25"), Text = new("#f0ede2"),
-        Muted = new("#b8c0b3"), Accent = new("#d6c294"), Border = new("#45534a"), Wash = new("#303d33");
+    public static readonly Color Ink = new("#171c19"), Surface = new("#252a25"), Text = new("#f3efe5"),
+        Muted = new("#bec3b7"), Accent = new("#d5bd89"), Border = new("#4a5146"), Wash = new("#343b32");
     public static readonly Color Paper=Surface,PaperInk=Text,PaperMuted=Muted,
         PaperLine=Border,PaperAccent=Accent,PaperWash=Wash;
     public static StyleBox Frame(int padding)
     {
-        var surface = Box(new Color(Surface,.97f), 12, padding);
-        surface.BorderColor = Border;
-        surface.ShadowSize = 14; surface.ShadowOffset = new(0, 5);
+        var surface = Box(new Color(Surface,.98f), 5, padding);
+        surface.BorderColor = new Color(Border,.66f);
+        surface.ShadowSize = 12; surface.ShadowOffset = new(0, 4);
         return surface;
     }
     private static readonly SystemFont DisplayFont = new() { FontNames = new[] { "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "sans-serif" } };
@@ -77,6 +77,17 @@ internal static class HudStyle
         item.AnchorLeft = item.AnchorRight = anchor.X; item.AnchorTop = item.AnchorBottom = anchor.Y;
         item.OffsetLeft = offset.X; item.OffsetRight = offset.X + size.X; item.OffsetTop = offset.Y; item.OffsetBottom = offset.Y + size.Y;
     }
+    public static void QuietButton(Godot.Button button,int size=13)
+    {
+        button.AddThemeFontSizeOverride("font_size",size);button.CustomMinimumSize=new(button.CustomMinimumSize.X,26);
+        foreach(string state in new[]{"normal","hover","pressed","hover_pressed","disabled"})
+        {
+            var box=Box(state=="normal"||state=="disabled"?Colors.Transparent:new Color(Wash,.62f),3,4,false);
+            box.ContentMarginLeft=7;box.ContentMarginRight=7;box.ShadowSize=0;button.AddThemeStyleboxOverride(state,box);
+        }
+    }
+    public static void HeaderSurface(PanelContainer panel,int padding)
+    {panel.AddThemeStyleboxOverride("panel",Box(Colors.Transparent,0,padding,false));}
     public static void LightButton(Godot.Button button)
     {
         button.SetMeta("notebook",true);

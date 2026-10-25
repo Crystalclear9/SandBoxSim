@@ -20,6 +20,9 @@ public partial class MainGame
     private Label _playStateLabel=null!;
     private Button _contextFocus=null!,_contextDetails=null!;
     private Label _contextFacts=null!;
+    private string _contextStatus="";private ulong _contextStatusAt;
+    private Control _hudOverlay=null!;private Button _immersiveHint=null!;private bool _immersive;
+    internal bool InterfaceVisible=>!_immersive;
     private Godot.Button _followCameraButton=null!;
     private Label _toolBadge = null!, _dayLabel = null!, _populationLabel = null!, _settlementLabel = null!, _buildingLabel = null!;
     private VBoxContainer _brushParameters=null!;
@@ -100,18 +103,21 @@ public partial class MainGame
         Theme=HudStyle.InterfaceTheme();
         // The world occupies the whole window. No opaque rail or layout container resizes its viewport.
         _map = new WorldView3D { Game = this, WorldPresentationEnabled = !IsModelGallery }; _map.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(_map);
-        var overlay = new Control { MouseFilter = MouseFilterEnum.Ignore,TextureFilter=TextureFilterEnum.LinearWithMipmaps }; overlay.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(overlay);
-        // Compact islands leave the world visible and draggable between controls.
-        var worldCard = Surface(overlay, new Vector2(0, 0), new Vector2(18, 4), new Vector2(318, 60), 4);
+        var overlay = _hudOverlay = new Control { MouseFilter = MouseFilterEnum.Ignore,TextureFilter=TextureFilterEnum.LinearWithMipmaps }; overlay.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); AddChild(overlay);
+        var headerShade=new ColorRect {MouseFilter=MouseFilterEnum.Ignore,Material=new ShaderMaterial {Shader=new Shader {Code=@"shader_type canvas_item;
+void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065,.080,.067,opacity);}"}}};
+        headerShade.SetAnchorsAndOffsetsPreset(LayoutPreset.TopWide);headerShade.OffsetBottom=104;overlay.AddChild(headerShade);
+        // A single quiet header keeps the world readable between the controls.
+        var worldCard = Surface(overlay, new Vector2(0, 0), new Vector2(18, 6), new Vector2(250, 64), 4);
 
         _worldPanel=worldCard;
-        worldCard.AddThemeStyleboxOverride("panel",HudStyle.Frame(10));
-        var worldRow = new HBoxContainer(); worldRow.AddThemeConstantOverride("separation", 12); worldCard.AddChild(worldRow);
-        worldRow.AddChild(HudStyle.IconWell(HudSymbols.For("crest"),34));
-        var wordmark = HudStyle.Heading("SandBoxSim", 20); worldRow.AddChild(wordmark);
+        HudStyle.HeaderSurface(worldCard,6);
+        var worldRow = new HBoxContainer(); worldRow.AddThemeConstantOverride("separation", 9); worldCard.AddChild(worldRow);
+        worldRow.AddChild(HudStyle.IconWell(HudSymbols.For("crest"),28));
+        var wordmark = HudStyle.Heading("SandBoxSim", 18);
         var worldInfo = new VBoxContainer(); worldInfo.AddThemeConstantOverride("separation", 0); worldRow.AddChild(worldInfo);
-        worldInfo.AddChild(HudStyle.Label("自由世界 · 持续演化", 10, true));
-        var scenario = new OptionButton { Flat = true, CustomMinimumSize = new Vector2(113, 31) }; _scenarioPicker = scenario; HudStyle.Button(scenario);
+        worldInfo.AddChild(wordmark);
+        var scenario = new OptionButton { Flat = true, CustomMinimumSize = new Vector2(174, 24) }; _scenarioPicker = scenario; HudStyle.Button(scenario);HudStyle.QuietButton(scenario,12);
         foreach (string name in SandboxScenarios.Names) { scenario.AddItem(name); } worldInfo.AddChild(scenario);
         _scenarioConfirm=new ConfirmationDialog {Title="切换世界",DialogText="切换场景会替换当前世界。未保存的进展将丢失。",OkButtonText="切换世界",CancelButtonText="保留当前世界"};AddChild(_scenarioConfirm);
         scenario.ItemSelected+=index=>{_pendingScenario=(int)index;scenario.Select(Scenario);if(_pendingScenario!=Scenario)_scenarioConfirm.PopupCentered(new Vector2I(440,160));};
@@ -120,21 +126,22 @@ public partial class MainGame
         var stats = Surface(overlay, new Vector2(.5f, 0), new Vector2(-310, 20), new Vector2(620, 62), 4);
 
         _statsPanel=stats;
-        stats.AddThemeStyleboxOverride("panel",HudStyle.Frame(10));
+        HudStyle.HeaderSurface(stats,6);
         var statsRow = new HBoxContainer(); statsRow.AddThemeConstantOverride("separation", 12); stats.AddChild(statsRow);
-        _populationLabel = Metric(statsRow, "居民", "40", 20); _settlementLabel = Metric(statsRow, "聚落", "0", 20); _buildingLabel = Metric(statsRow, "建筑", "0", 20);
-        _foodLabel = Metric(statsRow, "食物储备", "0", 20); _woodLabel = Metric(statsRow, "木材储备", "0", 20); _stoneLabel = Metric(statsRow, "石料储备", "0", 20);
+        _populationLabel = Metric(statsRow, "居民", "40", 18); _settlementLabel = Metric(statsRow, "聚落", "0", 18); _buildingLabel = Metric(statsRow, "建筑", "0", 18);
+        _foodLabel = Metric(statsRow, "食物储备", "0", 18); _woodLabel = Metric(statsRow, "木材储备", "0", 18); _stoneLabel = Metric(statsRow, "石料储备", "0", 18);
         var resourceDivider=new VSeparator {SizeFlagsVertical=SizeFlags.ShrinkCenter,CustomMinimumSize=new(1,30),MouseFilter=MouseFilterEnum.Ignore};
         statsRow.AddChild(resourceDivider);statsRow.MoveChild(resourceDivider,3);
         foreach (var resource in new[] { _foodLabel, _woodLabel, _stoneLabel })
             resource.TooltipText = "居民携带 + 地面物资堆 + 仓库；不包含尚未采集的地表资源，也不保证所有居民都可到达。";
         _summary = new Label { Visible = false }; overlay.AddChild(_summary);
-        var topActions = Surface(overlay, new Vector2(1, 0), new Vector2(-238, 12), new Vector2(210, 44), 4);
-        topActions.AddThemeStyleboxOverride("panel",HudStyle.Frame(6));
+        var topActions = Surface(overlay, new Vector2(1, 0), new Vector2(-228, 18), new Vector2(210, 40), 4);
+        HudStyle.HeaderSurface(topActions,2);
 
-        var actions = new HBoxContainer(); actions.AddThemeConstantOverride("separation", 6); topActions.AddChild(actions);
+        var actions = new HBoxContainer {Alignment=BoxContainer.AlignmentMode.End}; actions.AddThemeConstantOverride("separation", 6); topActions.AddChild(actions);
         _settingsButton = ActionButton(actions, "世界设置", () => ShowSettings(!_settingsOpen)); _settingsButton.ToggleMode = true;
-        _journalButton = ActionButton(actions, "世界手记", () => ShowJournal(!_journalPanel.Visible)); _journalButton.ToggleMode = true;
+        _journalButton = ActionButton(actions, "世界手记", () => ShowJournal(!_journalPanel.Visible)); _journalButton.ToggleMode = true;HudStyle.QuietButton(_settingsButton);HudStyle.QuietButton(_journalButton);
+        var immersive=ActionButton(actions,"沉浸",()=>SetImmersive(true));HudStyle.QuietButton(immersive);immersive.Visible=!IsModelGallery;immersive.TooltipText="沉浸观察 · F10 隐藏界面，F10 / Esc 返回；鼠标视角与空格暂停继续可用。";
 
         _journalPanel = Surface(overlay, new Vector2(1, 0), new Vector2(-372, 92), new Vector2(348, 600), 18);
         var journal = new VBoxContainer(); journal.AddThemeConstantOverride("separation", 10); _journalPanel.AddChild(journal);
@@ -249,7 +256,7 @@ public partial class MainGame
         SetCategory("生命");
         _dockPanel.Visible = false;
         _commandPanel = Surface(overlay, new Vector2(.5f, 1), new Vector2(-180, -65), new Vector2(360, 50), 6);
-        var commandSurface=HudStyle.Box(HudStyle.Wash,8,5,false);commandSurface.BorderColor=new Color(HudStyle.Border,.5f);
+        var commandSurface=HudStyle.Box(new Color(HudStyle.Ink,.96f),5,5);commandSurface.BorderColor=new Color(HudStyle.Border,.5f);
         _commandPanel.AddThemeStyleboxOverride("panel",commandSurface);_commandPanel.GetChild<HudBevel>(0).Visible=false;
 
         var commands = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center }; commands.AddThemeConstantOverride("separation", 6); _commandPanel.AddChild(commands);
@@ -339,6 +346,9 @@ public partial class MainGame
         _drawer.CurrentTab = 0;
         BuildWorldPulse(overlay);
         BuildPortraitWindow(overlay);
+        _immersiveHint=new Button {Text="返回界面 · F10 / Esc",Visible=false,Alignment=HorizontalAlignment.Left};HudStyle.Button(_immersiveHint);HudStyle.QuietButton(_immersiveHint,12);_immersiveHint.Pressed+=()=>SetImmersive(false);
+        _immersiveHint.AddThemeColorOverride("font_shadow_color",Colors.Black);_immersiveHint.AddThemeConstantOverride("shadow_offset_y",1);
+        HudStyle.Float(_immersiveHint,new(0,1),new(20,-40),new(210,26));AddChild(_immersiveHint);
         ShowJournal(false);
         if (_capture.Length > 0)
         {
@@ -346,15 +356,25 @@ public partial class MainGame
             captureShield.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect); overlay.AddChild(captureShield);
         }
     }
+    private void SetImmersive(bool enabled)
+    {
+        if(enabled==_immersive||enabled&&(IsModelGallery||_scenarioConfirm.Visible))return;
+        if(enabled)
+        {
+            ShowPortraitWindow(false);ShowSettings(false);ShowTools(false);SelectTool(PlayerTool.Inspect);
+            if(_map is WorldView3D world)world.CancelPointerGesture();GetViewport().GuiGetFocusOwner()?.ReleaseFocus();
+        }
+        _immersive=enabled;_hudOverlay.Visible=!enabled;_immersiveHint.Visible=enabled;
+    }
     private void FitHud() => FitHudFor(Size);
     private void FitHudFor(Vector2 size)
     {
         FitToolLibrary(size);
         HudStyle.Float(_timePanel, new Vector2(0, 1), new Vector2(20, -88), new Vector2(286, 72));
         HudStyle.Float(_cameraPanel, new Vector2(1, 1), new Vector2(-300, -88), new Vector2(280, 72));
-        float statsWidth=Math.Clamp(size.X-760,480,620);
-        HudStyle.Float(_statsPanel,new Vector2(.5f,0),new Vector2(-statsWidth/2,12),new Vector2(statsWidth,64));
-        float journalWidth=Math.Clamp(size.X*.26f,348,448);
+        float statsWidth=Math.Clamp(size.X-600,600,740);
+        HudStyle.Float(_statsPanel,new Vector2(.5f,0),new Vector2(-statsWidth/2,8),new Vector2(statsWidth,62));
+        float journalWidth=Math.Clamp(size.X*.25f,348,396);
         _journalPanel.OffsetLeft=-journalWidth-16;_journalPanel.OffsetRight=-16;
         _journalPanel.OffsetBottom = size.Y - 100;
         _settingsPanel.OffsetBottom = Math.Min(size.Y - 280, 744);
@@ -379,15 +399,16 @@ public partial class MainGame
         _status.TooltipText=_status.Text;
         int slot=SelectedSlot;
         bool target=ContextTarget(out int x,out int y,out string title);
+        ulong now=Time.GetTicksMsec();if(_contextStatus!=_status.Text){_contextStatus=_status.Text;_contextStatusAt=now;}
         bool generic=_status.Text.StartsWith("观察模式：",StringComparison.Ordinal)||_status.Text.StartsWith(ToolNames[(int)PlayerTool.Inspect]+" · ",StringComparison.Ordinal);
-        _contextFacts.Visible=target&&Tool==PlayerTool.Inspect&&generic;_status.Visible=!_contextFacts.Visible;
+        _contextFacts.Visible=target&&Tool==PlayerTool.Inspect&&(generic||now-_contextStatusAt>=6000);_status.Visible=!_contextFacts.Visible;
         if(_contextFacts.Visible)
         {
             if(slot>=0)_contextFacts.Text=JobName(Sim.Agents.JobOf(slot))+" · "+PhaseName(Sim.Agents.PhaseOf(slot))+"\n"+$"生命 {Sim.Agents.HealthOf(slot):P0} · 饥饿 {Sim.Agents.HungerOf(slot):P0} · 干渴 {Sim.Agents.ThirstOf(slot):P0}";
             else if(_selectedAnimal>=0)_contextFacts.Text=$"年龄 {Sim.Wildlife.AgeDaysOf(_selectedAnimal)} 天 · "+ActionRegistry.DisplayNameOf(Sim.Wildlife.ActionOf(_selectedAnimal))+"\n"+$"能量 {Sim.Wildlife.EnergyOf(_selectedAnimal):P0} · 干渴 {Sim.Wildlife.ThirstOf(_selectedAnimal):P0}";
             else if(_selectedWolf>=0){foreach(var wolf in Sim.Predators.Wolves)if(wolf.Id==_selectedWolf)_contextFacts.Text=$"年龄 {wolf.AgeDays} 天 · 狼\n能量 {wolf.Energy:P0} · 干渴 {wolf.Thirst:P0}";}
             else{var tile=Sim.World.TileAt(x,y);_contextFacts.Text=$"湿度 {tile.Moisture:P0} · 肥力 {tile.Fertility:P0}\n植被 {tile.Vegetation:P0} · 踩踏 {tile.FootTraffic:P0}";}
-            _contextFacts.TooltipText=_contextFacts.Text+"\n左键拖动平移 · 右键旋转/俯仰 · 滚轮缩放";
+            _contextFacts.TooltipText=_contextFacts.Text+"\n左键拖动平移 · 右键旋转/俯仰 · 滚轮缩放"+(generic?"":"\n上次操作："+_status.Text);
         }
         _contextFocus.Visible=_contextDetails.Visible=target&&Tool==PlayerTool.Inspect;
         _contextFocus.GetParent<Control>().Visible=_contextFocus.Visible;
@@ -486,7 +507,7 @@ public partial class MainGame
         var portraitFrame=new PanelContainer();_portraitHome=portraitFrame;portraitFrame.AddThemeStyleboxOverride("panel",HudStyle.Box(HudStyle.Wash,5,1,false));_residentVitals.AddChild(portraitFrame);
         _residentPortrait = new ResidentPortrait { Compact = true, SizeFlagsHorizontal = SizeFlags.ExpandFill }; portraitFrame.AddChild(_residentPortrait);
         var identity = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; identity.AddThemeConstantOverride("separation", 3); _residentVitals.AddChild(identity);
-        identity.AddChild(_residentTitle); identity.AddChild(_residentSubtitle);
+        identity.AddChild(_residentTitle); identity.AddChild(_residentSubtitle);_residentVitals.MoveChild(identity,0);
         _residentTitle.AutowrapMode = TextServer.AutowrapMode.WordSmart; _residentSubtitle.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         var activity = new PanelContainer(); var activityStyle=HudStyle.Box(new Color(HudStyle.Wash,.65f),4,10,false);activityStyle.BorderWidthLeft=2;activityStyle.BorderColor=HudStyle.Accent;activity.AddThemeStyleboxOverride("panel",activityStyle);_residentVitals.AddChild(activity);
         var activityBody=new VBoxContainer();activityBody.AddThemeConstantOverride("separation",2);activity.AddChild(activityBody);
@@ -584,7 +605,7 @@ public partial class MainGame
     private static Label Metric(HBoxContainer row, string title, string value, int size)
     {
         var item = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; item.AddThemeConstantOverride("separation", 7); row.AddChild(item);
-        item.AddChild(new TextureRect { Texture = HudSymbols.For(title), CustomMinimumSize = new Vector2(21, 30), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered, Modulate = Colors.White });
+        item.AddChild(new TextureRect { Texture = HudSymbols.For(title), CustomMinimumSize = new Vector2(18, 28), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered, Modulate = Colors.White });
         var stack = new VBoxContainer(); stack.AddThemeConstantOverride("separation", 0); item.AddChild(stack); stack.AddChild(HudStyle.Label(title.Replace("储备", ""), 11, true));
         var metric = HudStyle.Label(value, size); metric.AddThemeFontOverride("font",HudStyle.NumericFont); stack.AddChild(metric); var trail=new HudMetricTrail();stack.AddChild(trail);trail.Sample(value);metric.SetMeta("trend",trail);item.TooltipText="最近 32 次数值变化；折线按当前范围缩放。";return metric;
     }
@@ -605,6 +626,7 @@ public partial class MainGame
     { bool close=_dockPanel.Visible && _category==category;SetCategory(category);ShowTools(!close); }
     private void ShowTools(bool visible)
     {
+        if(visible)SetImmersive(false);
         if(visible&&_journalPanel.Visible)ShowJournal(false);
         if(visible&&_settingsOpen)ShowSettings(false);
         _dockPanel.Visible=visible;
@@ -616,9 +638,9 @@ public partial class MainGame
         if(visible){((WorldView3D)_map).CancelPointerGesture();FadeIn(_dockPanel);}
         RefreshPresentationControls();
     }
-    private void ShowJournal(bool visible) { if(visible&&Tool!=PlayerTool.Inspect)SelectTool(PlayerTool.Inspect);if(visible&&_dockPanel.Visible)ShowTools(false);_journalPanel.Visible = visible; _journalButton.SetPressedNoSignal(visible);_journalDockButton.SetPressedNoSignal(visible); if (_pulseButton != null) { _pulseButton.Visible = !visible; } if (visible) { FadeIn(_journalPanel); } RefreshPresentationControls(); }
+    private void ShowJournal(bool visible) { if(visible)SetImmersive(false);if(visible&&Tool!=PlayerTool.Inspect)SelectTool(PlayerTool.Inspect);if(visible&&_dockPanel.Visible)ShowTools(false);_journalPanel.Visible = visible; _journalButton.SetPressedNoSignal(visible);_journalDockButton.SetPressedNoSignal(visible); if (_pulseButton != null) { _pulseButton.Visible = !visible; } if (visible) { FadeIn(_journalPanel); } RefreshPresentationControls(); }
     private void ShowSettings(bool visible)
-    { if(visible&&_dockPanel.Visible)ShowTools(false);_settingsOpen = visible; _settingsButton.SetPressedNoSignal(visible); _settingsPanel.Visible = visible; _brushPanel.Visible = !visible && Tool != PlayerTool.Inspect; if (visible) { FadeIn(_settingsPanel); } }
+    { if(visible)SetImmersive(false); if(visible&&_dockPanel.Visible)ShowTools(false);_settingsOpen = visible; _settingsButton.SetPressedNoSignal(visible); _settingsPanel.Visible = visible; _brushPanel.Visible = !visible && Tool != PlayerTool.Inspect; if (visible) { FadeIn(_settingsPanel); } }
     private readonly Dictionary<Control, Tween> _panelTransitions = new();
     private void FadeIn(Control panel)
     {
@@ -717,6 +739,16 @@ public partial class MainGame
             _panelTransitions[_journalPanel].CustomStep(1);
             if (_journalPanel.Scale != Vector2.One || _journalPanel.Modulate.A != 1)
                 { throw new InvalidOperationException("Interrupted journal transition did not settle"); }
+            string immersiveDigest=StateHash.ComputeDigest(Sim);var mapBounds=_map.GetRect();
+            _UnhandledKeyInput(new InputEventKey {Keycode=Key.F10,Pressed=true});
+            if(!_immersive||_hudOverlay.Visible||!_immersiveHint.Visible||_map.GetRect()!=mapBounds||Tool!=PlayerTool.Inspect)throw new InvalidOperationException("Immersive view changes the world rectangle or retains intervention UI");
+            _UnhandledKeyInput(new InputEventKey {Keycode=Key.Escape,Pressed=true});
+            if(_immersive||!_hudOverlay.Visible||_immersiveHint.Visible||!_journalPanel.Visible)throw new InvalidOperationException("Escape loses the previous notebook when returning from immersive view");
+            SetImmersive(true);_immersiveHint.EmitSignal(BaseButton.SignalName.Pressed);
+            if(_immersive||!_hudOverlay.Visible)throw new InvalidOperationException("Immersive return control cannot restore the mouse-driven interface");
+            SetImmersive(true);_Input(new InputEventKey {Keycode=Key.K,CtrlPressed=true,Pressed=true});
+            if(_immersive||!_hudOverlay.Visible||!_dockPanel.Visible||GetViewport().GuiGetFocusOwner()!=_toolSearch||StateHash.ComputeDigest(Sim)!=immersiveDigest)throw new InvalidOperationException("Immersive search fails to restore visible, focused controls or changes the simulation");
+            ShowTools(false);SelectTool(PlayerTool.Inspect);ShowJournal(true);
             _drawer.CurrentTab = 1; RevealJournalPage(); _pageTransition?.CustomStep(1);
             if (_drawer.GetCurrentTabControl().Modulate.A != 1)
                 { throw new InvalidOperationException("Journal page remained transparent"); }
@@ -745,6 +777,8 @@ public partial class MainGame
             if(!_contextFacts.Visible||_status.Visible||!_contextFacts.Text.Contains("湿度"))throw new InvalidOperationException("Land context lacks live facts");
             _status.Text="已保存测试世界";RefreshPresentationControls();
             if(_contextFacts.Visible||!_status.Visible)throw new InvalidOperationException("Context facts hide action feedback");
+            _contextStatusAt=Time.GetTicksMsec()-6000;RefreshPresentationControls();
+            if(!_contextFacts.Visible||!_contextFacts.TooltipText.Contains("已保存测试世界")||_status.Text!="已保存测试世界")throw new InvalidOperationException("Transient feedback blocks live facts or loses its accessible history");
             _status.Text="观察模式：测试";RefreshPresentationControls();
             _contextFocus.EmitSignal(BaseButton.SignalName.Pressed);_contextDetails.EmitSignal(BaseButton.SignalName.Pressed);
             if(!_journalPanel.Visible||_drawer.CurrentTab!=1||_portraitOverlay.Visible)throw new InvalidOperationException("Land context opens the wrong observation surface");

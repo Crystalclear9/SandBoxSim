@@ -230,7 +230,7 @@ internal sealed partial class NatureModels
             if(data.Radii.Length!=data.Rows*data.Columns||data.Centers.Length!=data.Rows||data.High<=data.Low)
                 throw new InvalidOperationException("Incomplete scalp surface lookup");
             foreach(float radius in data.Radii)if(!float.IsFinite(radius)||radius<=0)throw new InvalidOperationException("Invalid scalp sample");
-            foreach(var mesh in new[]{HumanMesh("head"),HumanMesh("mouth"),HumanMesh("eye",0),HumanMesh("eye",1),HumanMesh("lod"),Eyelashes()})
+            foreach(var mesh in new[]{HumanMesh("head"),HumanMesh("mouth"),HumanMesh("eye",0),HumanMesh("eye",1),HumanMesh("lod"),Eyelashes(),TearMeniscus()})
             {
                 var arrays=mesh.SurfaceGetArrays(0);var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
                 if(points.Length!=normals.Length)throw new InvalidOperationException("Human asset loses normals");
@@ -240,6 +240,15 @@ internal sealed partial class NatureModels
             var lashes=Eyelashes().SurfaceGetArrays(0);var lashPoints=lashes[(int)Mesh.ArrayType.Vertex].AsVector3Array();var lashMorph=lashes[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
             if(lashPoints.Length>936||lashMorph.Length!=lashPoints.Length||Eyelashes()!=Eyelashes())throw new InvalidOperationException("Eyelashes lose blink attributes, cache or budget");
             foreach(var delta in lashMorph)if(!delta.IsFinite()||delta.Length()>.02f)throw new InvalidOperationException("Eyelashes detach during closure");
+            var wet=TearMeniscus().SurfaceGetArrays(0);var wetP=wet[(int)Mesh.ArrayType.Vertex].AsVector3Array();var wetUv=wet[(int)Mesh.ArrayType.TexUV].AsVector2Array();var wetMorph=wet[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
+            if(wet[(int)Mesh.ArrayType.Index].AsInt32Array().Length>2400||TearMeniscus()!=TearMeniscus())throw new InvalidOperationException("Eye meniscus loses its shared budget");
+            for(int i=0;i<wetP.Length;i++)
+            {
+                int side=(int)wetUv[i].Y,sample=(int)MathF.Round(wetUv[i].X*48);var anchor=AttachLid(side,sample,false);
+                var lower=Vector3.Zero;var closed=Vector3.Zero;var vertices=new[]{anchor.A,anchor.B,anchor.C};var bary=new[]{anchor.Bary.X,anchor.Bary.Y,anchor.Bary.Z};
+                for(int k=0;k<3;k++){var point=data.Head.Points[vertices[k]];var rest=HumanPoint(point);var moved=HumanPoint(point+data.Head.Blink![vertices[k]])-rest;lower+=rest*bary[k];closed+=(rest+new Vector3(0,moved.Y,moved.Z))*bary[k];}
+                if(wetP[i].DistanceTo(lower)>.0005f||(wetP[i]+new Vector3(0,wetMorph[i].X,wetMorph[i].Y)).DistanceTo(closed)>.0005f)throw new InvalidOperationException("Eye meniscus detaches from the source lid while blinking");
+            }
             if(data.Lod.Indices.Length>7200||HumanMesh("head").GetAabb().Position.DistanceTo(HumanMesh("lod").GetAabb().Position)>.06f
                 ||HumanMesh("head").GetAabb().Size.DistanceTo(HumanMesh("lod").GetAabb().Size)>.08f)
                 throw new InvalidOperationException("Distant anatomical head exceeds its budget or changes silhouette");
