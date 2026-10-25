@@ -108,7 +108,7 @@ ALPHA_SCISSOR_THRESHOLD=.5;
         _authoredHairShader??=new Shader {Code=@"shader_type spatial;render_mode cull_disabled;
 uniform sampler2D hair_albedo:source_color,filter_linear_mipmap_anisotropic;
 uniform vec4 tone:source_color;uniform float atlas_mean=.2;
-void fragment(){if(!FRONT_FACING){NORMAL=-NORMAL;}vec4 strand=texture(hair_albedo,UV);float fibre=dot(strand.rgb,vec3(.2126,.7152,.0722));
+void fragment(){if(!OUTPUT_IS_SRGB&&!FRONT_FACING){NORMAL=-NORMAL;}vec4 strand=texture(hair_albedo,UV);float fibre=dot(strand.rgb,vec3(.2126,.7152,.0722));
 ALBEDO=tone.rgb*clamp(fibre/max(.025,atlas_mean),.25,1.6)*.55;
 ALPHA=strand.a;ALPHA_SCISSOR_THRESHOLD=.38;ROUGHNESS=.78;SPECULAR=.16;}"};
         var material=new ShaderMaterial {Shader=_authoredHairShader};

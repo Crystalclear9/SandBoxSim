@@ -2,7 +2,7 @@
 
 此目录保留项目说明使用的原生 Godot 截图和动作演示，随文档提交。图片反映采样版本，不代表所有驱动、视角或当前帧率，也不作为模型质量、效率或 RSI 的评分。项目正式名称为 SandBoxSim。
 
-最新配图展示轻量顶栏、概览／生活／决策人物页、柔光／侧光观察、沉浸观察、源表面护毛及更新的眼周与织物材质。近景水面使用与长波分开的细波法线；建筑、植被和地形图同时反映当前客户端。动态演示与其他专题保留各自先前采样。截图之外的能力边界见 [模型系统](../development/models.md)。
+最新配图展示按需显示趋势的顶栏、行式需求与可展开物资、概览／生活／决策人物页、柔光／侧光观察、真实眼球转动、折面弯叶、错缝搭接屋瓦和贴合地形的水岸。近景水面使用与长波分开的细波法线；建筑、植被和地形图同时反映当前客户端。动态演示与其他专题保留各自先前采样。截图之外的能力边界见 [模型系统](../development/models.md)。
 
 ## 当前配图
 
@@ -32,7 +32,9 @@
 
 ## 版本与复现
 
-建筑、人物动物、面部、衣装、生态、网格近景、地形远近景、工具库、现场手记、人物手记、展开观察窗及其手部／全身视图与花甸更新于 2026-10-25，均为原生 Godot 渲染、1600×1000；常规预览采用 2 秒采样延迟，手部与全身分别使用公开评测的第 130 / 170 帧。字体策略为 `fontProfile=noto-packaged-v1`。对应 `interface=resident-pages-v16`、`architecture=rounded-tile-toes-v11`、`animalPresentation=wet-eye-nose-v8` 和 `landscapeSurface=moisture-meadow-v5`；植物摆放标识为 `habitatDetail=floral-organs-v8`。人物皮肤、植物表面框架与水波分别记录 `residentSurface=corneal-skin-v5`、`vegetationSurface=bent-frames-v1`、`waterSurface=fine-ripples-v2`，织物为 `garmentMaterial=calibrated-linen-v7`。新增生活／决策／侧光图在真实鼠标回放的第 115／150／230 帧采样；同一回放第 80 帧按空格暂停世界。沉浸图在第 325 帧发出 F10，并在第 340 帧截图；模型图册暂停模拟；世界界面使用种子 839102、40 人，不作预先天数推进，但普通界面截图等待期间按正常 4× 倍率运行；花甸预览暂停模拟。
+建筑、人物动物、面部、衣装、生态、网格近景、地形远近景、工具库、现场手记、人物手记、展开观察窗及其手部／全身视图与花甸更新于 2026-10-25，均为原生 Godot 渲染、1600×1000。图册使用实际游戏网格、独立展示环境，模拟暂停，等待 120 帧后采样；普通世界预览等待 2 秒。生活／决策／侧光、物资与工具状态由真实鼠标事件回放后采样，回放先用空格暂停世界；沉浸图使用 F10 后采样。手部与全身分别来自公开 `ui-portrait-window` 场景第 130／170 帧。界面和普通世界使用种子 839102、40 人，无预先天数推进；花甸预览暂停模拟。
+
+字体策略为 `fontProfile=noto-packaged-v1`。对应 `interface=resident-workspace-v17`、`architecture=double-lap-tiles-v12`、`animalPresentation=source-eyelids-v9`、`landscapeSurface=moisture-meadow-v5`、`habitatDetail=curved-meadow-v9`、`residentSurface=orbital-gaze-v6`、`vegetationSurface=engine-faced-v2`、`waterSurface=terrain-shore-v3` 和 `garmentMaterial=engine-faced-linen-v8`。动物半闭眼／全闭眼的强制参数图仅用于本地检查，不替代这里的正常运行配图。
 
 地形远景使用普通世界入口；近景加 `--view=near`。两图用于查看实际扫描草叶地面、山坡、岸线和贴地，属于普通客户端采样，不作为固定帧评测成绩。
 

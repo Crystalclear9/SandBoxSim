@@ -177,7 +177,7 @@ internal sealed partial class NatureModels
         string key="flower-petal:"+variant;if(_residentMaterials.TryGetValue(key,out var cached))return cached;
         var material=new ShaderMaterial {Shader=new Shader {Code=@"shader_type spatial;render_mode cull_disabled;
 uniform vec4 pigment:source_color;
-void fragment(){if(!FRONT_FACING)NORMAL=-NORMAL;
+void fragment(){if(!OUTPUT_IS_SRGB&&!FRONT_FACING)NORMAL=-NORMAL;
 float vein=sin((UV.y-abs(UV.x-.5)*.3)*85.0)/(1.0+pow(fwidth(UV.y)*85.0,2.0));
 ALBEDO=pigment.rgb*(.86+smoothstep(.0,.8,UV.y)*.14+vein*.018);BACKLIGHT=ALBEDO*.055;ROUGHNESS=.79;SPECULAR=.16;}"}};
         material.SetShaderParameter("pigment",new Color(new[]{"#bca5b2","#e0dac9","#cab277"}[variant]));return _residentMaterials[key]=material;

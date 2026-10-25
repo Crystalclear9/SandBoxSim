@@ -9,6 +9,7 @@ internal partial class AnimalRig : Node3D
     internal Vector3[]? RestSoles;
     internal Node3D? Jaw;
     internal ShaderMaterial? EyeMaterial,LidMaterial;
+    internal MeshInstance3D? AuthoredEyelids;
     internal float Blink {get;private set;}
     private float _blinkClock,_blinkDelay=2.8f;
     private int _blinkSequence;
@@ -78,6 +79,7 @@ internal partial class AnimalRig : Node3D
         }
         if(MathF.Abs(next-Blink)<.00001f)return;
         Blink=next;EyeMaterial?.SetShaderParameter("blink",Blink);LidMaterial?.SetShaderParameter("blink",Blink);
+        if(AuthoredEyelids!=null)AuthoredEyelids.Visible=Blink>.001f;
     }
     public void Pose(float delta, bool moving, bool paused,bool grazing=false,Func<Vector3,float>? ground=null)
     {

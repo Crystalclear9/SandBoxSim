@@ -139,7 +139,7 @@ BACKLIGHT=ALBEDO*vec3(.085,.045,.026)*COLOR.b;
         }
         var whiskers=Sculpt(rig.Head,AuthoredWhiskers(wolf),Vector3.Zero,ResidentMaterial(wolf?"#77756c":"#776b5b"));
         whiskers.Name="MuzzleWhiskers";whiskers.VisibilityRangeEnd=14;whiskers.CastShadow=GeometryInstance3D.ShadowCastingSetting.Off;
-        return rig;
+        InstallAuthoredEyelids(rig,wolf);return rig;
     }
     private Mesh AuthoredWhiskers(bool wolf)
     {
@@ -377,6 +377,9 @@ CLEARCOAT=(1.0-edge)*.65;CLEARCOAT_ROUGHNESS=.12;
         int presented=PresentationTriangles(rig);if(presented>24000)throw new InvalidOperationException("Complete authored animal exceeds 24,000 triangles including close-range details");
         GD.Print($"AUTHORED_PRESENTATION_TRIANGLES: {(wolf?"wolf":"deer")} {presented}, including guard coat, eyes, ear fibres and whiskers");
         if(maxNose<.5f||!wolf&&maxHoof<.9f)throw new InvalidOperationException("Animal nose or hoof loses its independent surface response");
+        // The source-contact checks above require the bind/rest pose. Eye
+        // animation validation deliberately poses this instance afterwards.
+        ValidateAuthoredEyelids(rig,peer,wolf);
         foreach(float slope in new[]{0f,.16f,-.16f})for(int frame=0;frame<24;frame++)
         {
             float Ground(Vector3 p)=>p.Z*slope;

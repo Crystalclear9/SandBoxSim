@@ -108,10 +108,9 @@ internal sealed partial class NatureModels
             rig.HeadSkin.SetSurfaceOverrideMaterial(surface,rig.LidMaterial);
         }
         _eyeShader??=new Shader {Code=@"shader_type spatial;
-uniform vec2 gaze=vec2(0.0);
 uniform sampler2D eye_albedo:source_color,filter_linear_mipmap_anisotropic;
 void fragment(){
-vec4 eye=texture(eye_albedo,UV+gaze*.035);
+vec4 eye=texture(eye_albedo,UV);
 float iris=1.0-smoothstep(.16,.45,dot(eye.rgb,vec3(.2126,.7152,.0722)));
 ALBEDO=eye.rgb*.95;ALPHA=eye.a;ALPHA_SCISSOR_THRESHOLD=.5;ROUGHNESS=mix(.25,.11,iris);SPECULAR=.50;
 CLEARCOAT=.65;CLEARCOAT_ROUGHNESS=.12;

@@ -20,7 +20,7 @@ internal sealed partial class NatureModels
         if(!_residentMaterials.TryGetValue(key,out var material))
         {
             var source=(ShaderMaterial)ResidentMaterial(cloth);
-            _shoulderFabric??=new Shader {Code=source.Shader.Code.Replace("shader_type spatial;","shader_type spatial; render_mode cull_disabled;").Replace("void fragment(){","void fragment(){if(!FRONT_FACING){NORMAL=-NORMAL;}")};
+            _shoulderFabric??=new Shader {Code=source.Shader.Code.Replace("shader_type spatial;","shader_type spatial; render_mode cull_disabled;").Replace("void fragment(){","void fragment(){if(!OUTPUT_IS_SRGB&&!FRONT_FACING){NORMAL=-NORMAL;}")};
             // Preserve every material parameter, especially scanned colour and
             // normal/roughness maps. Copying shader text alone leaves white samplers.
             var fabric=(ShaderMaterial)source.Duplicate();fabric.Shader=_shoulderFabric;

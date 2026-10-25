@@ -279,11 +279,19 @@ internal sealed partial class NatureModels
         if(speaker.Lashes!.Mesh!=listener.Lashes!.Mesh||speaker.LashMaterial==listener.LashMaterial||listener.LashMaterial!.GetShaderParameter("blink").AsSingle()!=0)
             throw new InvalidOperationException("Eyelash geometry is not shared or blink leaks between residents");
         speaker.SetHeadDetail(false);if(speaker.Lashes.Visible)throw new InvalidOperationException("Distant resident keeps near eyelashes");speaker.SetHeadDetail(true);
-        speaker.PoseAction(.05f,ActionKind.None,ActionPhase.Idle,false,0);
+        // A nonzero identity phase requests a real off-centre target on the
+        // first step; phase zero deliberately looks straight ahead initially.
+        speaker.PoseAction(.05f,ActionKind.None,ActionPhase.Idle,false,.73f);
         if(speaker.LashMaterial.GetShaderParameter("blink").AsSingle()!=speaker.LidMaterial.GetShaderParameter("blink").AsSingle())
             throw new InvalidOperationException("Eyelashes do not follow the actual eyelid blink");
+        float BasisGap(Basis a,Basis b)=>MathF.Max(a.X.DistanceTo(b.X),MathF.Max(a.Y.DistanceTo(b.Y),a.Z.DistanceTo(b.Z)));
+        float moved=BasisGap(speaker.Eyes[0].Basis,Basis.Identity),synchronized=BasisGap(speaker.Eyes[0].Basis,speaker.Eyes[1].Basis),leaked=BasisGap(listener.Eyes[0].Basis,Basis.Identity);
+        if(moved<.00001f||synchronized>.00001f||leaked>.0000001f)
+            throw new InvalidOperationException($"Resident eye-basis gaze failed: displacement={moved}, binocular difference={synchronized}, peer displacement={leaked}");
+        var eyeBeforePause=speaker.Eyes[0].Transform;
         float blinkBeforePause=speaker.LashMaterial.GetShaderParameter("blink").AsSingle();speaker.PoseAction(.3f,ActionKind.None,ActionPhase.Idle,true,0);
         if(speaker.LashMaterial.GetShaderParameter("blink").AsSingle()!=blinkBeforePause)throw new InvalidOperationException("Paused eyelashes still animate");
+        if(speaker.Eyes[0].Transform!=eyeBeforePause)throw new InvalidOperationException("Paused resident gaze moves");
         float mergedClosure=0;
         for(int surface=0;surface<speaker.HeadSkin.Mesh.GetSurfaceCount();surface++)
         {

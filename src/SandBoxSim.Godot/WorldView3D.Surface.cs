@@ -17,9 +17,20 @@ uniform sampler2D material_map:filter_nearest,repeat_disable;
 uniform sampler2D bed_height:filter_linear,repeat_disable;
 uniform vec2 map_size;
 varying vec3 p;
-float wet(vec2 tile){return texture(material_map,(clamp(tile,vec2(0),map_size-vec2(1))+vec2(.5))/map_size).b;}
-float cubic(float a,float b,float c,float d,float t){return .5*(2.0*b+(c-a)*t+(2.0*a-5.0*b+4.0*c-d)*t*t+(-a+3.0*b-3.0*c+d)*t*t*t);}
-float row(vec2 base,float y,float u){return cubic(wet(base+vec2(-1,y)),wet(base+vec2(0,y)),wet(base+vec2(1,y)),wet(base+vec2(2,y)),u);}
+float bed_vertex(ivec2 vertex){
+    vec2 uv=clamp(vec2(vertex)/4.0/map_size,vec2(0),vec2(1));
+    return texelFetch(bed_height,vertex,0).r-texture(material_map,uv).g*.024;
+}
+float actual_bed(vec2 position){
+    // Use the very same two triangles as GroundHeight and the physical mesh.
+    // A blurred logical water mask cannot define a geometric shoreline.
+    ivec2 dimensions=textureSize(bed_height,0);
+    vec2 grid=clamp(position*2.0,vec2(0),vec2(dimensions-ivec2(1)));
+    ivec2 cell=min(ivec2(floor(grid)),dimensions-ivec2(2));vec2 f=grid-vec2(cell);
+    float a=bed_vertex(cell),b=bed_vertex(cell+ivec2(1,0));
+    float c=bed_vertex(cell+ivec2(0,1)),d=bed_vertex(cell+ivec2(1));
+    return f.x+f.y<=1.0?a+(b-a)*f.x+(c-a)*f.y:d+(c-d)*(1.0-f.x)+(b-d)*(1.0-f.y);
+}
 vec3 ripple(vec2 xz){
     vec2 k1=vec2(.73,.41),k2=vec2(-.29,1.17),k3=vec2(2.7,-1.9);
     float a=dot(xz,k1)+TIME*.7,b=dot(xz,k2)+TIME*.9,c=dot(xz,k3)-TIME*1.3;
@@ -28,15 +39,13 @@ vec3 ripple(vec2 xz){
 }
 void vertex(){
     p=VERTEX;
-    float depth=max(0.0,.02-texture(bed_height,(p.xz*2.0+vec2(.5))/(map_size*4.0+vec2(1))).r);
+    float depth=max(0.0,.02-actual_bed(p.xz));
     VERTEX.y+=ripple(p.xz).y*smoothstep(.01,.20,depth);
     NORMAL=vec3(0,1,0);
 }
 void fragment(){
-    vec2 grid=p.xz*.5-vec2(.5),base=floor(grid),f=fract(grid);
-    float bank=clamp(cubic(row(base,-1.0,f.x),row(base,0.0,f.x),row(base,1.0,f.x),row(base,2.0,f.x),f.y),0.0,1.0);
-    if(bank<.48)discard;
-    float depth=max(0.0,.02-texture(bed_height,(p.xz*2.0+vec2(.5))/(map_size*4.0+vec2(1))).r);
+    float depth=max(0.0,.02-actual_bed(p.xz));
+    if(depth<=.001)discard;
     vec3 waves=ripple(p.xz);float shore_fade=smoothstep(.01,.20,depth);
     // Millimetre surface ripples affect light, not the shoreline silhouette.
     // Explicit footprint filtering prevents distant highlights from crawling.

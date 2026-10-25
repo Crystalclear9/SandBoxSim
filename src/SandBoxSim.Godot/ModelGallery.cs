@@ -89,9 +89,9 @@ internal partial class ModelGallery : PanelContainer
             Card(grid,"针叶树 · 真实枝梢与针叶",models.Tree(true),6.1f,false);
             var fern=new Node3D();fern.AddChild(new MeshInstance3D {Mesh=models.Shape("fern")});
             Closeup(grid,"林下蕨类 · 扫描叶片与弯曲叶轴",fern,.72f,new(0,.17f,0),new(.8f,.4f,2),false);
-            var grass=new Node3D();grass.AddChild(new MeshInstance3D {Mesh=models.Shape("grass"),Position=new(-.22f,0,.05f)});
+            var grass=new Node3D();grass.AddChild(new MeshInstance3D {Mesh=models.MeadowTurf(),Position=new(-.22f,0,.05f)});
             models.Part(grass,"reeds",new(.10f,0,0),Vector3.One,4);
-            Closeup(grid,"河岸草本 · 弯曲叶片与立体种穗",grass,1.18f,new(0,.47f,0),new(.4f,.2f,2),false);
+            Closeup(grid,"草甸与河岸 · 折面弯叶与立体种穗",grass,1.18f,new(0,.47f,0),new(.4f,.2f,2),false);
             var rock=new Node3D();rock.AddChild(new MeshInstance3D {Mesh=models.Shape("boulder")});
             Closeup(grid,"扫描岩石 · 裂隙、苔斑与风化表面",rock,1.45f,new(0,.42f,0),new(.9f,.5f,2),false);
             Closeup(grid,"浆果灌丛 · 连枝叶片与带梗果簇",models.BerryShrub(true),1.18f,new(0,.42f,0),new(.9f,.4f,2),false);

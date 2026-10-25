@@ -279,10 +279,15 @@ public partial class WorldView3D : MapView
     private void UpdateGroundWear()
     {
         if(_groundMap==null || _groundMapTexture==null)return;
+        var changedTiles=new HashSet<int>();
         for(int i=0;i<Game.Sim.World.Tiles.Length;i++)
-            _groundMapBytes[i*4+1]=(byte)Math.Clamp((int)(Game.Sim.World.Tiles[i].FootTraffic*255),0,255);
+        {
+            byte wear=(byte)Math.Clamp((int)(Game.Sim.World.Tiles[i].FootTraffic*255),0,255);
+            if(_groundMapBytes[i*4+1]!=wear)changedTiles.Add(i);
+            _groundMapBytes[i*4+1]=wear;
+        }
         _groundMap.SetData(Game.Sim.World.Width,Game.Sim.World.Height,false,Image.Format.Rgba8,_groundMapBytes);
-        _groundMapTexture.Update(_groundMap);SyncFlowerRoots();
+        _groundMapTexture.Update(_groundMap);SyncFlowerRoots();SyncMeadowRoots(changedTiles);
     }
     private Image GroundTintImage()
     {
@@ -344,7 +349,7 @@ public partial class WorldView3D : MapView
             int flags=(decoration%5==0&&tile.Terrain==TerrainKind.Forest&&tile.Vegetation>.12f&&tile.Fire!=FireState.Burnt?1:0)
                 +(decoration%17==0&&tile.Resource.Kind==ResourceKind.Food&&tile.Resource.Amount>5?2:0)
                 +(decoration%9==0&&tile.Terrain==TerrainKind.Mountain&&tile.Resource.Kind==ResourceKind.Iron?4:0)
-                +(HasMeadow(tile,decoration)?8:0);
+                +(MeadowCandidateMask(tile,tx,ty,decoration)<<8);
             if(tile.BuildingId>0)flags|=128;
             if(decoration%9==0&&tile.Terrain==TerrainKind.Forest&&tile.Vegetation>.35f&&tile.Moisture>.2f&&tile.Fire!=FireState.Burnt)flags|=16;
             if(HasRiverPlants(tile,decoration))flags|=32;
@@ -416,9 +421,9 @@ public partial class WorldView3D : MapView
         var quality=new Dictionary<string,object> { ["worldPresentationEnabled"]=WorldPresentationEnabled,["shadowMode"]=_sunlight.DirectionalShadowMode.ToString(),
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
-            ["landscapeSurface"]="moisture-meadow-v5",["habitatDetail"]="floral-organs-v8",["vegetationSurface"]="bent-frames-v1",
-            ["architecture"]="rounded-tile-toes-v11",["garmentMaterial"]="calibrated-linen-v7",["interface"]="resident-pages-v16",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
-            ["animalPresentation"]="wet-eye-nose-v8",["residentSurface"]="corneal-skin-v5",["waterSurface"]="fine-ripples-v2" };
+            ["landscapeSurface"]="moisture-meadow-v5",["habitatDetail"]="curved-meadow-v9",["vegetationSurface"]="engine-faced-v2",
+            ["architecture"]="double-lap-tiles-v12",["garmentMaterial"]="engine-faced-linen-v8",["interface"]="resident-workspace-v17",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
+            ["animalPresentation"]="source-eyelids-v9",["residentSurface"]="orbital-gaze-v6",["waterSurface"]="terrain-shore-v3" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
         return quality;
@@ -463,6 +468,7 @@ public partial class WorldView3D : MapView
         }
         finally {world.Tiles[index]=original;CheckTerrain();}
         if(StateHash.ComputeDigest(Game.Sim)!=digest)throw new InvalidOperationException("Ground presentation validation changed simulation");
+        ValidateMeadowPresentation();
         GD.Print("GROUND_PRESENTATION_PASS: texture-only overlays, byte-precision wear and unchanged simulation");
     }
     public void ValidateWorldDimensions()
@@ -638,7 +644,7 @@ public partial class WorldView3D : MapView
         if (Overlay == 6) { int count = _density[y * Game.Sim.World.Width + x]; return new Color(.5f + Math.Clamp(count / 20f, 0, .5f), .55f, .5f); }
         return new Color(.9f, .94f, .85f);
     }
-    private static bool HasMeadow(Tile tile,uint hash)=>hash%4==1 && tile.BuildingId==0 && tile.Fire!=FireState.Burnt
+    private static bool HasMeadow(Tile tile,uint hash)=>tile.BuildingId==0 && tile.Fire!=FireState.Burnt
         && tile.Vegetation>.2f && tile.Terrain is TerrainKind.Grass or TerrainKind.Forest;
     private static bool HasRiverPlants(Tile tile,uint hash)=>hash%3!=0&&tile.BuildingId==0&&tile.Fire!=FireState.Burnt
         &&tile.Moisture>.30f&&tile.Terrain is TerrainKind.Grass or TerrainKind.Forest or TerrainKind.Sand;
@@ -689,13 +695,16 @@ public partial class WorldView3D : MapView
                     float scale=size*(.65f+fern*.21f);
                     ferns.Add(RootedPlant(new(px,0,pz),Vector3.One*scale,h%19+fern));
                 }
-            if(HasMeadow(tile,h))for(int tuft=0;tuft<4;tuft++)
+            int meadowMask=MeadowCandidateMask(tile,x,y,h);
+            for(int tuft=0;tuft<2;tuft++)
             {
-                float px=p.X+MathF.Sin(h%719+tuft*2.399f)*(.30f+tuft*.19f);
-                float pz=p.Z+MathF.Cos(h%431+tuft*2.399f)*(.30f+tuft*.19f);
-                float patch=TerrainNoise(x*.15f,y*.15f,Game.Sim.World.Seed);
-                float variation=(.48f+patch*.78f)*(.72f+((h>>(tuft*4))%11)*.045f);
-                grass.Add(RootedPlant(new(px,0,pz),new Vector3(size,variation,size),h%31+tuft*1.7f));
+                if((meadowMask&(1<<tuft))==0)continue;
+                uint sample=MeadowSample(h,tuft);
+                float patch=TerrainNoise(x*.12f,y*.12f,Game.Sim.World.Seed);
+                float px=p.X+((sample>>8)&255)/255f*1.60f-.80f;
+                float pz=p.Z+((sample>>16)&255)/255f*1.60f-.80f;
+                float variation=.62f+patch*.48f+((sample>>24)&255)/255f*.30f;
+                if(TryMeadowPlacement(new(px,0,pz),new Vector3(size,variation,size),(sample%1000)*.006283185f,out var placement))grass.Add(placement);
             }
             if (tile.BuildingId==0&&tile.Terrain == TerrainKind.Forest && tile.Vegetation > .12f && tile.Fire != FireState.Burnt && h % 5 == 0)
             {
@@ -710,7 +719,10 @@ public partial class WorldView3D : MapView
         }
         if(_groundMapTexture!=null)_models.BindEnvironmentGround(_groundMapTexture,new Vector2(Game.Sim.World.Width,Game.Sim.World.Height));
         _models.Batch(_props,"pebble",6,pebbles,_models.RockSurface(false),28);
-        _models.Batch(_props,"grass",5,grass,null,34,true);
+        if(_groundMapTexture!=null)_models.BindMeadowGround(_groundMapTexture,new Vector2(Game.Sim.World.Width,Game.Sim.World.Height));
+        _meadowBatches.Clear();
+        _meadowSeeds.Clear();
+        _models.BatchMesh(_props,_models.MeadowTurf(),grass,range:34,castShadows:false,padding:.04f,label:"MeadowTurf",register:_meadowBatches);
         _models.Batch(_props,"fern",4,ferns,null,38,true);
         _models.Batch(_props,"reeds",4,reeds,null,42);
         foreach (var place in Game.Wild.Places)

@@ -203,11 +203,17 @@ internal partial class ResidentRig : Node3D
             float blink=blinkPhase<.28f?MathF.Sin(blinkPhase/.28f*MathF.PI):0;
             LidMaterial.SetShaderParameter("blink",blink);
             LashMaterial?.SetShaderParameter("blink",blink);TearMaterial?.SetShaderParameter("blink",blink);
-            for(int eye=0;eye<2;eye++){Eyes[eye].Scale=HasAnatomicalEyes?Vector3.One:new(1,MathF.Max(.02f,1-blink),1);Eyes[eye].Rotation=Vector3.Zero;}
             float attention=MathF.Floor(_faceTime*.55f+identityPhase*.37f);
             var targetGaze=new Vector2(MathF.Sin(attention*12.989f+identityPhase)*.052f,MathF.Sin(attention*7.137f+identityPhase*.71f)*.010f);
             if(executing)targetGaze*=.35f;
-            _gaze=_gaze.Lerp(targetGaze,1-MathF.Exp(-delta*18));EyeMaterial.SetShaderParameter("gaze",_gaze);
+            _gaze=_gaze.Lerp(targetGaze,1-MathF.Exp(-delta*18));
+            // Iris pigment and the corneal dome move as one eye around its
+            // authored centre. Sliding only the UV leaves a stationary lens.
+            for(int eye=0;eye<2;eye++)
+            {
+                Eyes[eye].Scale=HasAnatomicalEyes?Vector3.One:new(1,MathF.Max(.02f,1-blink),1);
+                Eyes[eye].Rotation=HasAnatomicalEyes?new Vector3(_gaze.Y,_gaze.X,0):Vector3.Zero;
+            }
             float speech=executing&&action is ActionKind.Eat or ActionKind.Drink or ActionKind.Socialize ? MathF.Abs(MathF.Sin(_faceTime*5)) : 0;
             Mouth.Position=MouthRest;Mouth.Scale=Vector3.One;MouthMaterial.SetShaderParameter("speech",speech);
         }

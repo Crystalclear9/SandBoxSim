@@ -54,7 +54,7 @@ vec3 coat_grade(vec3 colour,bool canine){
         uint seed=wolf?982451653u:961748941u;float Random(){seed^=seed<<13;seed^=seed>>17;seed^=seed<<5;return (seed&0xffffff)/16777216f;}
         using var tool=new SurfaceTool();tool.Begin(Mesh.PrimitiveType.Triangles);
         var material=new ShaderMaterial {Shader=new Shader {Code="shader_type spatial;render_mode cull_disabled;\nuniform sampler2D albedo_map:source_color,filter_linear_mipmap_anisotropic;uniform bool predator;\n"+CoatGradingShader+@"
-void fragment(){if(!FRONT_FACING)NORMAL=-NORMAL;ALBEDO=coat_grade(texture(albedo_map,UV).rgb,predator)*(predator?.86:.90)*(1.0+UV2.y*.07);ROUGHNESS=.91;SPECULAR=.15;}
+void fragment(){if(!OUTPUT_IS_SRGB&&!FRONT_FACING)NORMAL=-NORMAL;ALBEDO=coat_grade(texture(albedo_map,UV).rgb,predator)*(predator?.86:.90)*(1.0+UV2.y*.07);ROUGHNESS=.91;SPECULAR=.15;}
 "}};
         material.SetShaderParameter("predator",wolf);material.SetShaderParameter("albedo_map",GD.Load<Texture2D>(AuthoredRoot(wolf)+(wolf?"wolf-grey.png":"deer-body.png")));tool.SetMaterial(material);
         int count=wolf?640:400,boneCount=wolf?15:14;

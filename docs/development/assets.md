@@ -75,7 +75,28 @@ UI 的层级和画布工具组织参考见[观察与界面](../guides/gameplay-o
 | 植物 | [RHS 普通芦苇](https://www.rhs.org.uk/plants/54026/phragmites-australis/details)与[Kew 野莓](https://growwild.kew.org/plants/bramble)：芦苇采用分枝圆锥花序，莓果由多个小果粒组成并保留萼片；当前株高和斑块尺度仍为游戏表现比例，不作为物种识别真值 |
 | UI | [NN/g 系统状态可见性](https://www.nngroup.com/articles/visibility-system-status/)：时间组显示暂停或运行倍率；工具标题、用途和选中状态分别表达，提示卡左对齐并保持鼠标操作入口 |
 
-原树木、岩石、头脸与动物的源文件及许可继续沿用上方记录。细节增加并不代表所有资产已重新制作：狼的原始颜色贴图仍为 256×256，细分和程序虹膜无法补回来源贴图缺失的照片细节；当前没有完整动物眼睑闭合或毛发体积模拟。
+原树木、岩石、头脸与动物的源文件及许可继续沿用上方记录。细节增加并不代表所有资产已重新制作：狼的原始颜色贴图仍为 256×256，细分和程序虹膜无法补回来源贴图缺失的照片细节；当前近景有来源眼表面上的程序闭眼覆盖，仍没有完整动物眼睑解剖绑定或毛发体积模拟。
+
+## 渲染颜色与双面表面
+
+草甸的顶点色是线性反射率；Compatibility 渲染器在自定义片元结束后会把 `ALBEDO` 从 sRGB 转回线性。因此草在 `OUTPUT_IS_SRGB` 时先作一次分段线性→sRGB编码，薄叶背光仍保留线性输入，避免绿色被重复压暗或透光被过度放大。依据是固定引擎的 [GLES3 场景着色器](https://github.com/godotengine/godot/blob/4.7.2-stable/drivers/gles3/shaders/scene.glsl)。
+
+同一渲染器对 `cull_disabled` 已在自定义片元之前翻转背面法线；植物、发片、动物护毛和衣装薄片在这一后端不再手工重复翻转。其他后端保留原有处理；这不是增加照明或把材质改成自发光。启用方式见固定版本的[材质编译映射](https://github.com/godotengine/godot/blob/4.7.2-stable/drivers/gles3/storage/material_storage.cpp)。
+
+## 造型、结构与界面依据
+
+当前实现以形体、装配、材质和观察交互分别处理，增加面数不作为质量证明。来源素材及许可沿用上表，程序新增几何不替代原资产署名。
+
+| 参考 | 项目中的实际处理与边界 |
+|---|---|
+| [NEI 眼部结构](https://www.nei.nih.gov/eye-health-information/healthy-vision/nei-for-kids/about-eye)与[AAPOS 眼球解剖](https://aapos.org/glossary/anatomy-of-the-eye) | 虹膜与角膜围绕同一来源眼心作细微转动，替代只滑贴图；没有实现完整眼外肌系统 |
+| [SPAB 平瓦屋面](https://www.spab.org.uk/advice/clay-plain-tiled-roofs) | 瓦片采用双搭接、半瓦错缝和轻微色差，保留封闭弧面；不是建筑施工或排水模拟 |
+| [Iowa 州立大学草本资料](https://yardandgarden.extension.iastate.edu/how-to/selecting-ornamental-grasses-your-landscape) | 草甸以狭长、渐尖、带折面的弯叶表现，落点核对实际外围根顶点、避开过陡或凹凸过大的地面；24 片共 336 三角面，通用造型不作为物种识别真值 |
+| [Godot MultiMesh](https://docs.godotengine.org/en/stable/tutorials/performance/using_multimesh.html) | 草叶沿用 24 米空间分块和距离裁剪，避免用覆盖全图的单批次替代可见性管理 |
+| [NN/g 渐进披露](https://www.nngroup.com/articles/progressive-disclosure/)与[视觉层次](https://www.nngroup.com/articles/visual-hierarchy-ux-definition/) | 需求改为对齐行条，物资明细按需展开，近看居民作为主操作；不增加任务或游玩步骤 |
+| [Xbox XAG 101](https://learn.microsoft.com/en-us/xbox/accessibility/xbox-accessibility-guidelines/101)与[XAG 102](https://learn.microsoft.com/en-us/xbox/accessibility/xbox-accessibility-guidelines/102) | 保留名称、百分比、焦点与状态文字，上一位／下一位／关闭的命中区至少 40×40；未宣称整体通过无障碍认证 |
+
+水岸显示以实际地形高度而不是模糊逻辑水格确定：水面和拾取使用同一三角插值及踩踏修正，模拟水格、寻路、地形基础高度保持原有契约。动物闭眼覆盖贴合来源眼表面并取邻近皮毛，不重塑原眼眶或夸大为完整动物面部重建。
 
 ## 当前材质与几何
 

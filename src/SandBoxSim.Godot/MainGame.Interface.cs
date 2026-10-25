@@ -46,6 +46,8 @@ public partial class MainGame
     private Label _foodLabel = null!, _woodLabel = null!, _stoneLabel = null!;
     private readonly Dictionary<PlayerTool, Godot.Button> _toolButtons = new();
     private readonly Dictionary<int, Godot.Button> _speedButtons = new();
+    private readonly Dictionary<HudMetricTrail,Control> _historyHoverOwners=new();
+    private readonly Dictionary<HudMetricTrail,Tween> _historyHoverTransitions=new();
     private int _resumeSpeed=1;
     private readonly Dictionary<string, Godot.Button> _categoryButtons = new();
     private string _category = "生命";
@@ -61,7 +63,11 @@ public partial class MainGame
     private ResidentPortrait _residentPortrait = null!;
     private Label _residentTitle = null!, _residentSubtitle = null!, _residentAction = null!, _residentActionPhase = null!;
     private readonly Label[] _vitalLabels = new Label[4];
+    private readonly Label[] _vitalValues = new Label[4];
     private readonly ProgressBar[] _vitalBars = new ProgressBar[4];
+    private VBoxContainer _residentInventory=null!;
+    private Button _residentInventoryToggle=null!;
+    private bool _inventoryExpanded;
     private Tween? _vitalTransition, _landTransition;
     private VBoxContainer _landVitals = null!;
     private Label _landTitle = null!, _landSubtitle = null!;
@@ -162,18 +168,20 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         _drawer.AddThemeStyleboxOverride("panel", HudStyle.Box(new Color(0, 0, 0, 0), 0, 0, false));
         _discovery = new DiscoveryPanel { Name = "现场", Game = this }; _drawer.AddChild(_discovery);
         var personPage=new VBoxContainer {Name="人物",SizeFlagsVertical=SizeFlags.ExpandFill};personPage.AddThemeConstantOverride("separation",8);_drawer.AddChild(personPage);
-        var personScroll=new ScrollContainer {HorizontalScrollMode=ScrollContainer.ScrollMode.Disabled,SizeFlagsVertical=SizeFlags.ExpandFill};personPage.AddChild(personScroll);
+        var personScroll=new ScrollContainer {HorizontalScrollMode=ScrollContainer.ScrollMode.Disabled,FollowFocus=true,SizeFlagsVertical=SizeFlags.ExpandFill};personPage.AddChild(personScroll);
         var personPanel=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};personPanel.AddThemeConstantOverride("separation",8);personScroll.AddChild(personPanel);
         _residentPages=new HBoxContainer();_residentPages.AddThemeConstantOverride("separation",4);personPage.AddChild(_residentPages);personPage.MoveChild(_residentPages,0);
         for(int i=0;i<3;i++)
         {
             int page=i;var button=ActionButton(_residentPages,new[]{"概览","生活","决策"}[i],()=>SetResidentPage(page));
             button.ToggleMode=true;button.SizeFlagsHorizontal=SizeFlags.ExpandFill;_residentPageButtons[i]=button;
+            HudStyle.QuietButton(button,13);
             button.TooltipText=new[]{"肖像、当前行为、身体需求与随身物资","居所、关系与个人历史","性格倾向与上次决策效用"}[i];
         }
         BuildResidentVitals(personPanel); BuildLandVitals(personPanel);
         var detailControls = new HBoxContainer(); _residentControls = detailControls; personPage.AddChild(detailControls);
-        var model=ActionButton(detailControls,"观察模型  ↗",()=>ShowPortraitWindow(true));model.SizeFlagsHorizontal=SizeFlags.ExpandFill;
+        var model=ActionButton(detailControls,"近看居民  ↗",()=>ShowPortraitWindow(true),true);model.SizeFlagsHorizontal=SizeFlags.ExpandFill;
+        model.TooltipText="打开居民肖像 · 拖动旋转、滚轮缩放；保留世界中的真实动作";
         _pinButton = ActionButton(detailControls, "关注", TogglePin);
         ActionButton(detailControls, "改名", () => { _editingResidentName = !_editingResidentName; _residentNameControls.Visible = _editingResidentName; });
         var nameControls = new HBoxContainer(); _residentNameControls = nameControls; personPage.AddChild(nameControls);
@@ -536,24 +544,52 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         var activity = new PanelContainer(); var activityStyle=HudStyle.Box(new Color(HudStyle.Ink,.55f),4,10,false);activityStyle.BorderWidthLeft=2;activityStyle.BorderColor=HudStyle.Accent;activity.AddThemeStyleboxOverride("panel",activityStyle);_residentSummary.AddChild(activity);
         var activityBody=new VBoxContainer();activityBody.AddThemeConstantOverride("separation",2);activity.AddChild(activityBody);
         _residentAction=HudStyle.Label("",13);_residentActionPhase=HudStyle.Label("",11,true);activityBody.AddChild(_residentAction);activityBody.AddChild(_residentActionPhase);
-        var grid = new GridContainer { Columns = 2 }; grid.AddThemeConstantOverride("h_separation", 8); grid.AddThemeConstantOverride("v_separation", 8); _residentSummary.AddChild(grid);
+        var needs=new VBoxContainer();needs.AddThemeConstantOverride("separation",9);_residentSummary.AddChild(needs);
+        var needsHeading=HudStyle.Label("身体与需求",12,true);needs.AddChild(needsHeading);
         for (int i = 0; i < 4; i++)
         {
-            var tile=new PanelContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};tile.AddThemeStyleboxOverride("panel",HudStyle.Box(new Color(HudStyle.Wash,.50f),4,9,false));grid.AddChild(tile);
-            var item = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; item.AddThemeConstantOverride("separation", 6); tile.AddChild(item);
-            _vitalLabels[i] = HudStyle.Label("", 12); item.AddChild(_vitalLabels[i]);
-            var bar = new ProgressBar { MaxValue = 1, ShowPercentage = false, CustomMinimumSize = new Vector2(100, 4), MouseFilter = MouseFilterEnum.Ignore };
-            bar.AddThemeStyleboxOverride("background", HudStyle.Box(HudStyle.Ink, 1, 0, false));
-            bar.AddThemeStyleboxOverride("fill", HudStyle.Box(HudStyle.Accent, 1, 0, false)); item.AddChild(bar); _vitalBars[i] = bar;
+            var row=new HBoxContainer();row.AddThemeConstantOverride("separation",12);needs.AddChild(row);
+            _vitalLabels[i]=HudStyle.Label("",13);_vitalLabels[i].CustomMinimumSize=new(40,24);row.AddChild(_vitalLabels[i]);
+            var bar = new ProgressBar { MaxValue = 1, ShowPercentage = false, CustomMinimumSize = new Vector2(56, 4), SizeFlagsHorizontal=SizeFlags.ExpandFill, SizeFlagsVertical=SizeFlags.ShrinkCenter, MouseFilter = MouseFilterEnum.Ignore };
+            bar.AddThemeStyleboxOverride("background", HudStyle.Box(HudStyle.Border, 2, 0, false));
+            bar.AddThemeStyleboxOverride("fill", HudStyle.Box(HudStyle.Accent, 2, 0, false)); row.AddChild(bar); _vitalBars[i] = bar;
+            var value=_vitalValues[i]=HudStyle.Label("",14);value.AddThemeFontOverride("font",HudStyle.NumericFont);value.CustomMinimumSize=new(48,24);value.HorizontalAlignment=HorizontalAlignment.Right;row.AddChild(value);
         }
-        _residentSummary.AddChild(HudStyle.Label("随身物资",11,true));
-        var inventory=new GridContainer {Columns=2};inventory.AddThemeConstantOverride("h_separation",12);inventory.AddThemeConstantOverride("v_separation",4);_residentSummary.AddChild(inventory);
+        _residentSummary.AddChild(new HSeparator());
+        _residentInventoryToggle=ActionButton(_residentSummary,"随身物资",()=>SetInventoryExpanded(!_inventoryExpanded));
+        _residentInventoryToggle.Alignment=HorizontalAlignment.Left;HudStyle.QuietButton(_residentInventoryToggle,13);
+        _residentInventory=new VBoxContainer {Visible=false};_residentInventory.AddThemeConstantOverride("separation",6);_residentSummary.AddChild(_residentInventory);
+        var inventory=new GridContainer {Columns=2};inventory.AddThemeConstantOverride("h_separation",12);inventory.AddThemeConstantOverride("v_separation",4);_residentInventory.AddChild(inventory);
         string[] names={"食物","木材","石料","铁矿"};
         for(int i=0;i<4;i++)
         {
             var row=new HBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};inventory.AddChild(row);
             var label=HudStyle.Label(names[i],12,true);label.SizeFlagsHorizontal=SizeFlags.ExpandFill;row.AddChild(label);
             var amount=_residentStock[i]=HudStyle.Label("",14);amount.AddThemeFontOverride("font",HudStyle.NumericFont);row.AddChild(amount);
+        }
+    }
+    private void SetInventoryExpanded(bool expanded)
+    {
+        _inventoryExpanded=expanded;RefreshInventoryDisclosure();
+    }
+    private void RefreshInventoryDisclosure()
+    {
+        int slot=SelectedSlot;if(slot<0)return;
+        var carried=new List<string>();
+        string[] names={"食物","木材","石料","铁矿"};
+        for(int i=0;i<4;i++)
+        {
+            float amount=Sim.Agents.InventoryOf(slot,PortraitResources[i]);
+            if(amount>.01f)carried.Add(names[i]+" "+amount.ToString("0.#"));
+        }
+        string summary=carried.Count==0?"未携带物资":string.Join(" · ",carried);
+        string label="随身物资 · "+(carried.Count==0?"空":carried.Count+" 类")+(_inventoryExpanded?"   收起":"   展开");
+        _residentInventoryToggle.Text=label;_residentInventoryToggle.TooltipText=summary;
+        _residentInventory.Visible=_inventoryExpanded;
+        if(_portraitInventoryToggle!=null)
+        {
+            _portraitInventoryToggle.Text=label;_portraitInventoryToggle.TooltipText=summary;
+            _portraitInventory.Visible=_inventoryExpanded;
         }
     }
     private void SetResidentPage(int page)
@@ -611,6 +647,7 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         if (slot < 0) { ShowPortraitWindow(false);return; }
         var a = Sim.Agents;
         for(int i=0;i<4;i++)_residentStock[i].Text=a.InventoryOf(slot,PortraitResources[i]).ToString("F1");
+        RefreshInventoryDisclosure();
         _residentPortrait.ShowResident(Sim.Society.Identity(slot), slot, a.LifeStageOf(slot) == SandBoxSim.Core.Agents.LifeStage.Child, a.JobOf(slot));
         _residentPortrait.ShowActivity(a.ActionOf(slot),a.PhaseOf(slot),VisualPaused);
         ResourceKind cargoKind=ResourceKind.Food;float cargoAmount=0;
@@ -627,7 +664,8 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         for (int i = 0; i < values.Length; i++)
         {
             bool danger = i is 1 or 2 ? values[i] > .7f : values[i] < .35f;
-            _vitalLabels[i].Text = names[i] + "   " + values[i].ToString("P0");
+            _vitalLabels[i].Text = names[i];_vitalValues[i].Text=values[i].ToString("P0");
+            _vitalLabels[i].GetParent<Control>().TooltipText=names[i]+" "+values[i].ToString("P0")+(i is 1 or 2?" · 数值越高，需求越强":" · 数值越高，状态越好");
             if (HudStyle.MotionEnabled) { _vitalTransition!.TweenProperty(_vitalBars[i], "value", values[i], .18); }
             else { _vitalBars[i].Value = values[i]; }
             ((StyleBoxFlat)_vitalBars[i].GetThemeStylebox("fill")).BgColor = danger ? new Color("#d58c70") : i==0?new Color("#a4b69a"):i==2?new Color("#9fbac0"):HudStyle.Accent;
@@ -644,15 +682,28 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         var range=slider;range.ValueChanged+=v=>spin.Value=v;spin.ValueChanged+=v=>range.SetValueNoSignal(v);
         return spin;
     }
-    private static Label Metric(HBoxContainer row, string title, string value, int size)
+    private Label Metric(HBoxContainer row, string title, string value, int size)
     {
         var item = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; item.AddThemeConstantOverride("separation", 7); row.AddChild(item);
         item.AddChild(new TextureRect { Texture = HudSymbols.For(title), CustomMinimumSize = new Vector2(18, 28), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered, Modulate = Colors.White });
         var stack = new VBoxContainer(); stack.AddThemeConstantOverride("separation", 0); item.AddChild(stack); stack.AddChild(HudStyle.Label(title.Replace("储备", ""), 11, true));
-        var metric = HudStyle.Label(value, size); metric.AddThemeFontOverride("font",HudStyle.NumericFont); stack.AddChild(metric); var trail=new HudMetricTrail();stack.AddChild(trail);trail.Sample(value);metric.SetMeta("trend",trail);item.TooltipText="最近 32 次数值变化；折线按当前范围缩放。";return metric;
+        var metric = HudStyle.Label(value, size); metric.AddThemeFontOverride("font",HudStyle.NumericFont); stack.AddChild(metric);
+        var trail=new HudMetricTrail {Modulate=Colors.Transparent};stack.AddChild(trail);trail.Sample(value);metric.SetMeta("trend",trail);
+        _historyHoverOwners[trail]=item;
+        // Keep actual history available on hover without six competing traces
+        // permanently cutting through the quiet world header.
+        void RevealHistory(bool visible)
+        {
+            if(_historyHoverTransitions.Remove(trail,out var prior))prior.Kill();
+            if(!HudStyle.MotionEnabled){trail.Modulate=visible?Colors.White:Colors.Transparent;return;}
+            var historyFade=trail.CreateTween();_historyHoverTransitions[trail]=historyFade;
+            historyFade.TweenProperty(trail,"modulate",visible?Colors.White:Colors.Transparent,.14);
+        }
+        item.MouseEntered+=()=>RevealHistory(true);item.MouseExited+=()=>RevealHistory(false);
+        item.TooltipText=title+" · 悬停查看最近 32 次实际数值变化；完整趋势见手记的曲线页。";return metric;
     }
-    private static Godot.Button ActionButton(Container parent, string label, Action action)
-    { var button = new Godot.Button { Text = label }; HudStyle.Button(button); parent.AddChild(button); button.Pressed += action; return button; }
+    private static Godot.Button ActionButton(Container parent, string label, Action action,bool prominent=false)
+    { var button = new Godot.Button { Text = label }; HudStyle.Button(button,prominent); parent.AddChild(button); button.Pressed += action; return button; }
     private void SetSpeed(int speed)
     {
         if(speed>0)_resumeSpeed=speed;_speed=speed;
@@ -749,6 +800,9 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         foreach(var node in GetTree().GetNodesInGroup("hud_button_motion"))if(node is HudButtonDetail detail)detail.Settle();
         foreach (var pair in _panelTransitions) { pair.Value.Kill(); pair.Key.Scale = Vector2.One; pair.Key.Modulate = Colors.White; }
         foreach (var pair in _metricTransitions) { pair.Value.Kill(); pair.Key.Modulate = Colors.White; }
+        foreach(var transition in _historyHoverTransitions.Values)transition.Kill();_historyHoverTransitions.Clear();
+        foreach(var pair in _historyHoverOwners)
+            pair.Key.Modulate=pair.Value.IsVisibleInTree()&&pair.Value.GetGlobalRect().HasPoint(pair.Value.GetGlobalMousePosition())?Colors.White:Colors.Transparent;
         _pageTransition?.Kill();
         _vitalTransition?.Kill(); _landTransition?.Kill();
         foreach (Node child in _drawer.GetChildren()) { if (child is Control content) { content.Modulate = Colors.White; } }
@@ -769,6 +823,18 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
                 if(!_inspector.Visible||_residentSummary.Visible||!_inspector.Text.Contains("性格倾向")||_inspector.Text.Contains("居所与关系"))throw new InvalidOperationException("Resident decision page mixes in unrelated biography");
                 _residentPageButtons[0].EmitSignal(BaseButton.SignalName.Pressed);
                 if(_inspector.Visible||!_residentSummary.Visible)throw new InvalidOperationException("Resident overview repeats long inspector prose");
+                bool inventoryExpanded=_inventoryExpanded;
+                try
+                {
+                    SetInventoryExpanded(false);_residentInventoryToggle.EmitSignal(BaseButton.SignalName.Pressed);
+                    if(!_inventoryExpanded||!_residentInventory.Visible||!_portraitInventory.Visible||_residentInventoryToggle.Text!=_portraitInventoryToggle.Text)
+                        throw new InvalidOperationException("Resident inventory disclosure differs between notebook and portrait");
+                    _residentPageButtons[1].EmitSignal(BaseButton.SignalName.Pressed);_residentPageButtons[0].EmitSignal(BaseButton.SignalName.Pressed);
+                    if(!_residentInventory.Visible)throw new InvalidOperationException("Page navigation loses expanded carried inventory");
+                    _portraitInventoryToggle.EmitSignal(BaseButton.SignalName.Pressed);
+                    if(_inventoryExpanded||_residentInventory.Visible||_portraitInventory.Visible)throw new InvalidOperationException("Portrait inventory does not collapse its notebook counterpart");
+                }
+                finally {SetInventoryExpanded(inventoryExpanded);}
                 SetResidentPage(page);
                 if(StateHash.ComputeDigest(Sim)!=digest)throw new InvalidOperationException("Resident page navigation changes world state");
             }
@@ -808,7 +874,13 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
             if (_drawer.GetCurrentTabControl().Modulate.A != 1)
                 { throw new InvalidOperationException("Journal page remained transparent"); }
             FadeIn(_settingsPanel);
+            var history=(HudMetricTrail)_populationLabel.GetMeta("trend").AsGodotObject();
+            _historyHoverOwners[history].EmitSignal(Control.SignalName.MouseEntered);
+            if(!_historyHoverTransitions.TryGetValue(history,out var interruptedHistory))throw new InvalidOperationException("Metric history does not respond to pointer entry");
             HudStyle.MotionEnabled = false; ResetHudMotion();
+            if(_historyHoverTransitions.Count!=0||interruptedHistory.IsRunning())throw new InvalidOperationException("Reduced motion leaves a metric hover fade running");
+            Color expectedHistory=_historyHoverOwners[history].IsVisibleInTree()&&_historyHoverOwners[history].GetGlobalRect().HasPoint(_historyHoverOwners[history].GetGlobalMousePosition())?Colors.White:Colors.Transparent;
+            if(history.Modulate!=expectedHistory)throw new InvalidOperationException("Interrupted metric hover does not settle to its actual pointer state");
             if (_settingsPanel.Scale != Vector2.One || _settingsPanel.Modulate.A != 1)
                 { throw new InvalidOperationException("Reduced motion failed to restore panel"); }
             UpdateMetric(_populationLabel, Sim.Agents.LiveCount.ToString());

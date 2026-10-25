@@ -78,18 +78,26 @@ internal sealed partial class NatureModels
             }
             return;
         }
-        float half=(width+.4f)/2;int courses=_fineArchitecture?12:7,columns=_fineArchitecture?18:12;
+        float half=(width+.4f)/2;int courses=_fineArchitecture?16:8,columns=_fineArchitecture?18:12;
         foreach(float side in new[]{-1f,1f})
         {
-            for(int row=0;row<courses;row++) for(int col=0;col<columns;col++)
+            for(int row=0;row<courses;row++) for(int col=0;col<columns+(row%2);col++)
             {
                 float x=(row+.5f)*half/courses;
-                float step=(depth+.4f)/columns,z=-(depth+.4f)/2+(col+.5f)*step;
-                z+=row%2==0?0:step*.22f;
-                z=Mathf.Clamp(z,-(depth+.4f)/2+step*.44f,(depth+.4f)/2-step*.44f);
+                float step=(depth+.4f)/columns,extent=(depth+.4f)/2;
+                // Alternate half-width verge tiles, instead of sliding complete
+                // tiles into one another at the gable edge.
+                float left=MathF.Max(-extent,-extent+(col-row%2*.5f)*step);
+                float right=MathF.Min(extent,-extent+(col+1-row%2*.5f)*step);
+                float z=(left+right)*.5f;
                 float irregular=_fineArchitecture?Mathf.Sin(row*17.13f+col*3.71f+side)*.004f:0;
-                Part(model,(material==15?"thatch-course":"tile-course")+(_fineArchitecture?"":"-far"),new(side*x,height+half*.48f-x*.495f+.13f+(1-(row+.5f)/courses)*.048f+irregular,z),
-                    new(half/courses*1.20f,.024f,(depth+.4f)/columns*(.96f-((row+col)%3)*.008f)),material,new(irregular,0,-side*.46f));
+                // A tail covers two courses below (double lap); both LODs stop
+                // at the same 8 cm overhang, so switching cannot grow the eave.
+                float tileLength=MathF.Min(half/courses*2.5f,MathF.Min((x+.08f)*2,(half+.08f-x)*2));
+                uint hash=unchecked((uint)(row*73856093^col*19349663^(side<0?83492791:0)));hash^=hash>>13;
+                var tile=Sculpt(model,WeatheredRoofTile(_fineArchitecture,(int)(hash%6)),
+                    new(side*x,height+half*.48f-x*.495f+.13f+(1-(row+.5f)/courses)*.048f+irregular,z),Material(material),new(irregular,0,-side*.46f));
+                tile.Scale=new(tileLength,.018f,(right-left)*.98f);
             }
             foreach(float z in new[]{-(depth+.43f)/2,(depth+.43f)/2})
                 Part(model,"box",new(side*half/2,height+half*.25f,z),new(half*1.15f,.075f,.085f),0,new(0,0,-side*.46f));

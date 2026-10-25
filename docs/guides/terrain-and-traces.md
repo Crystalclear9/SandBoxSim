@@ -64,7 +64,7 @@
 
 世界方向光深度偏移为 2.4，用于抑制连续坡地自遮挡条纹；保留四级联、原来的动态阴影距离与法线偏移。视觉评测同时记录这些实际参数，改动后应重新建立画质与耗时基线。
 
-视觉评测记录 `landscapeSurface=moisture-meadow-v5` 与 `habitatDetail=floral-organs-v8`。草地纹理采样和河岸植被分布会改变图形负载，比较性能时应重新建立同场景基线。
+视觉评测记录 `landscapeSurface=moisture-meadow-v5` 与 `habitatDetail=curved-meadow-v9`。水岸按实际地形三角面确定显示边界，草甸以弯曲叶片和稳定群落噪声分布；水面版本为 `waterSurface=terrain-shore-v3`。草地纹理采样和河岸植被分布会改变图形负载，比较性能时应重新建立同场景基线。
 
 ![当前河岸、草丛与居民近景](../images/terrain-closeup.png)
 

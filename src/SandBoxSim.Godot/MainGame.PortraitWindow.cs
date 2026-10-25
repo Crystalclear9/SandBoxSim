@@ -17,6 +17,8 @@ public partial class MainGame
     private readonly ProgressBar[] _portraitFactBars=new ProgressBar[4];
     private Label _portraitFactAction=null!;
     private readonly Label[] _portraitInventoryValues=new Label[4];
+    private GridContainer _portraitInventory=null!;
+    private Button _portraitInventoryToggle=null!;
     private Godot.Button _portraitPin=null!;
     private Godot.Button _portraitPrevious=null!,_portraitNext=null!;
     private Label _portraitIndex=null!;
@@ -70,22 +72,22 @@ public partial class MainGame
         _portraitWindow.AddThemeStyleboxOverride("panel",paper);_portraitOverlay.AddChild(_portraitWindow);
         var layout=new VBoxContainer();layout.AddThemeConstantOverride("separation",12);_portraitWindow.AddChild(layout);
         var header=new HBoxContainer();layout.AddChild(header);
-        var title=PortraitPaperLabel("居民档案",18);title.SizeFlagsHorizontal=SizeFlags.ExpandFill;header.AddChild(title);
+        var title=HudStyle.Heading("居民肖像",19);title.SizeFlagsHorizontal=SizeFlags.ExpandFill;header.AddChild(title);
         var lighting=new HBoxContainer();lighting.AddThemeConstantOverride("separation",6);header.AddChild(lighting);
         for(int i=0;i<2;i++)
         {
             int mode=i;var button=PortraitPaperButton(i==0?"柔光":"侧光",()=>{_residentPortrait.SetLighting(mode);RefreshPortraitFacts();});
-            button.ToggleMode=true;button.CustomMinimumSize=new(56,32);
+            button.ToggleMode=true;HudStyle.QuietButton(button,13);button.CustomMinimumSize=new(56,36);
             var chosen=HudStyle.Box(HudStyle.Wash.Lightened(.08f),4,10,false);chosen.BorderWidthBottom=2;chosen.BorderColor=HudStyle.Accent;
             button.AddThemeStyleboxOverride("pressed",chosen);button.AddThemeStyleboxOverride("hover_pressed",chosen);
             button.TooltipText=i==0?"均匀观察肤色和衣料，不改变世界光照":"从侧面检查面部、手部与衣褶起伏";
             lighting.AddChild(button);_portraitLighting[i]=button;
         }
         header.AddChild(new VSeparator {MouseFilter=MouseFilterEnum.Ignore});
-        _portraitPrevious=PortraitPaperButton("‹ 上一位",()=>BrowsePortraitResident(-1));header.AddChild(_portraitPrevious);
+        _portraitPrevious=PortraitPaperButton("‹",()=>BrowsePortraitResident(-1));_portraitPrevious.TooltipText="观察上一位居民";_portraitPrevious.CustomMinimumSize=new(40,40);header.AddChild(_portraitPrevious);
         _portraitIndex=PortraitPaperLabel("",12,true);_portraitIndex.CustomMinimumSize=new(64,0);_portraitIndex.HorizontalAlignment=HorizontalAlignment.Center;header.AddChild(_portraitIndex);
-        _portraitNext=PortraitPaperButton("下一位 ›",()=>BrowsePortraitResident(1));header.AddChild(_portraitNext);
-        var close=PortraitPaperButton("返回手记  ×",()=>ShowPortraitWindow(false));header.AddChild(close);
+        _portraitNext=PortraitPaperButton("›",()=>BrowsePortraitResident(1));_portraitNext.TooltipText="观察下一位居民";_portraitNext.CustomMinimumSize=new(40,40);header.AddChild(_portraitNext);
+        var close=PortraitPaperButton("×",()=>ShowPortraitWindow(false));close.TooltipText="返回世界手记 · Esc";close.CustomMinimumSize=new(40,40);header.AddChild(close);
         var content=new HBoxContainer {SizeFlagsVertical=SizeFlags.ExpandFill};content.AddThemeConstantOverride("separation",24);layout.AddChild(content);
         _portraitWindowBody=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill,SizeFlagsVertical=SizeFlags.ExpandFill};content.AddChild(_portraitWindowBody);
         var factsPanel=new PanelContainer {CustomMinimumSize=new(284,0)};
@@ -99,19 +101,22 @@ public partial class MainGame
         _portraitWindowActivity=PortraitPaperLabel("",12,true);_portraitWindowActivity.AutowrapMode=TextServer.AutowrapMode.WordSmart;facts.AddChild(_portraitWindowActivity);
         facts.AddChild(new HSeparator());
         facts.AddChild(PortraitPaperLabel("当前行为",11,true));_portraitFactAction=PortraitPaperLabel("",15);_portraitFactAction.AutowrapMode=TextServer.AutowrapMode.WordSmart;facts.AddChild(_portraitFactAction);
-        facts.AddChild(new HSeparator());facts.AddChild(PortraitPaperLabel("身体与需求",11,true));
-        var metrics=new GridContainer {Columns=2};metrics.AddThemeConstantOverride("h_separation",8);metrics.AddThemeConstantOverride("v_separation",8);facts.AddChild(metrics);
+        facts.AddChild(new HSeparator());facts.AddChild(PortraitPaperLabel("身体与需求",12,true));
+        var metrics=new VBoxContainer();metrics.AddThemeConstantOverride("separation",14);facts.AddChild(metrics);
         string[] metricNames={"生命","饥饿","干渴","精力"};
         for(int i=0;i<4;i++)
         {
-            var tile=new PanelContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};tile.AddThemeStyleboxOverride("panel",HudStyle.Box(HudStyle.Wash,6,10,false));metrics.AddChild(tile);
-            var metric=new VBoxContainer();metric.AddThemeConstantOverride("separation",4);tile.AddChild(metric);metric.AddChild(PortraitPaperLabel(metricNames[i],11,true));
-            _portraitFactLabels[i]=PortraitPaperLabel("",22);_portraitFactLabels[i].AddThemeFontOverride("font",HudStyle.NumericFont);metric.AddChild(_portraitFactLabels[i]);
-            var bar=new ProgressBar {MaxValue=1,ShowPercentage=false,CustomMinimumSize=new(0,4),MouseFilter=MouseFilterEnum.Ignore};
-            bar.AddThemeStyleboxOverride("background",HudStyle.Box(HudStyle.Wash,2,0,false));bar.AddThemeStyleboxOverride("fill",HudStyle.Box(HudStyle.Accent,2,0,false));metric.AddChild(bar);_portraitFactBars[i]=bar;
+            var row=new HBoxContainer();row.AddThemeConstantOverride("separation",12);metrics.AddChild(row);
+            var label=PortraitPaperLabel(metricNames[i],13);label.CustomMinimumSize=new(40,24);row.AddChild(label);
+            var bar=new ProgressBar {MaxValue=1,ShowPercentage=false,CustomMinimumSize=new(56,4),SizeFlagsHorizontal=SizeFlags.ExpandFill,SizeFlagsVertical=SizeFlags.ShrinkCenter,MouseFilter=MouseFilterEnum.Ignore};
+            bar.AddThemeStyleboxOverride("background",HudStyle.Box(HudStyle.Border,2,0,false));bar.AddThemeStyleboxOverride("fill",HudStyle.Box(HudStyle.Accent,2,0,false));row.AddChild(bar);_portraitFactBars[i]=bar;
+            _portraitFactLabels[i]=PortraitPaperLabel("",15);_portraitFactLabels[i].AddThemeFontOverride("font",HudStyle.NumericFont);_portraitFactLabels[i].CustomMinimumSize=new(48,24);_portraitFactLabels[i].HorizontalAlignment=HorizontalAlignment.Right;row.AddChild(_portraitFactLabels[i]);
+            row.TooltipText=i is 1 or 2?"数值越高，需求越强":"数值越高，状态越好";
         }
-        facts.AddChild(new HSeparator());facts.AddChild(PortraitPaperLabel("随身物资",11,true));
-        var inventory=new GridContainer {Columns=2};inventory.AddThemeConstantOverride("h_separation",18);inventory.AddThemeConstantOverride("v_separation",12);facts.AddChild(inventory);
+        facts.AddChild(new HSeparator());
+        _portraitInventoryToggle=PortraitPaperButton("随身物资",()=>SetInventoryExpanded(!_inventoryExpanded));_portraitInventoryToggle.Alignment=HorizontalAlignment.Left;
+        HudStyle.QuietButton(_portraitInventoryToggle,13);facts.AddChild(_portraitInventoryToggle);
+        var inventory=_portraitInventory=new GridContainer {Columns=2,Visible=false};inventory.AddThemeConstantOverride("h_separation",18);inventory.AddThemeConstantOverride("v_separation",12);facts.AddChild(inventory);
         string[] resources={"食物","木材","石料","铁矿"};
         for(int i=0;i<4;i++)
         {
@@ -120,7 +125,7 @@ public partial class MainGame
         }
         sideLayout.AddChild(PortraitPaperButton("在世界中跟随  →",()=>{int slot=SelectedSlot;if(slot<0)return;ShowPortraitWindow(false);_map.Follow(slot);},true));
         _portraitPin=PortraitPaperButton("关注此居民",()=>{TogglePin();RefreshPortraitFacts();});sideLayout.AddChild(_portraitPin);
-        var guide=PortraitPaperLabel("拖动旋转 · 滚轮缩放\n双击复位 · Esc 返回",11,true);sideLayout.AddChild(guide);
+        var guide=PortraitPaperLabel("拖动旋转 · 滚轮缩放\n双击复位 · Esc 返回",12,true);sideLayout.AddChild(guide);
         foreach(Node child in facts.GetChildren())if(child is HSeparator line)line.AddThemeStyleboxOverride("separator",HudStyle.Box(HudStyle.Border,0,0,false));
         _residentPortrait.ExpandRequested+=()=>ShowPortraitWindow(!_portraitOverlay.Visible);
         FitPortraitWindow(Size);
@@ -179,6 +184,7 @@ public partial class MainGame
             ((StyleBoxFlat)_portraitFactBars[i].GetThemeStylebox("fill")).BgColor=danger?new Color("#d88c79"):i==0?new Color("#aabf9d"):i==2?new Color("#9cbfcf"):HudStyle.Accent;
         }
         for(int i=0;i<4;i++)_portraitInventoryValues[i].Text=agents.InventoryOf(slot,PortraitResources[i]).ToString("0.0");
+        RefreshInventoryDisclosure();
         _portraitPin.Text=PinnedPerson!=0&&PinnedPerson==_selectedPersonId?"已关注 · 取消关注":"关注此居民";
     }
     private void ValidatePortraitWindow()

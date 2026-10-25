@@ -8,7 +8,9 @@ internal sealed partial class NatureModels
     private Mesh RoofCourse(bool thatch,bool detailed)
     {
         string key=(thatch?"thatch-course":"tile-course")+(detailed?"":"-far");if(_meshes.TryGetValue(key,out var cached))return cached;
-        int columns=detailed?7:1,rows=detailed?7:2;
+        // More actual tiles, fewer subdivisions on their gently cambered faces.
+        // Silhouette and the closed edge carry more detail than a dense flat grid.
+        int columns=detailed?4:1,rows=detailed?4:2;
         var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);surface.SetSmoothGroup(0);
         Vector3 Point(int x,int z,bool top)
         {
@@ -42,5 +44,17 @@ internal sealed partial class NatureModels
             var outward=z==0?Vector3.Forward:Vector3.Back;Triangle(a,b,c,outward);Triangle(b,d,c,outward);
         }
         surface.GenerateNormals();surface.Index();var mesh=surface.Commit();_meshes[key]=mesh;return mesh;
+    }
+    private Mesh WeatheredRoofTile(bool detailed,int tone)
+    {
+        string key=$"weathered-tile:{detailed}:{tone}";
+        if(_meshes.TryGetValue(key,out var cached))return cached;
+        var source=RoofCourse(false,detailed);var arrays=source.SurfaceGetArrays(0);
+        int count=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array().Length;
+        float value=.89f+tone*.04f;
+        var tint=tone is 1 or 4?new Color(value*1.025f,value*.98f,value*.94f):new Color(value,value,value);
+        var colours=new Color[count];Array.Fill(colours,tint);arrays[(int)Mesh.ArrayType.Color]=colours;
+        var mesh=new ArrayMesh();mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);
+        _meshes[key]=mesh;return mesh;
     }
 }

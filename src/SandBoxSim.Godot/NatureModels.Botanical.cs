@@ -64,6 +64,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateBotanicalModels()
     {
+        ValidateMeadowTurf();
         foreach(string kind in new[]{"foliage","pine","fern","grass","reeds","rock"})
         {
             var mesh=Shape(kind);if(mesh!=Shape(kind))throw new InvalidOperationException("Botanical mesh cache is unstable");
@@ -93,7 +94,7 @@ uniform vec4 pigment:source_color;
 varying vec3 leaf_position;
 void vertex(){leaf_position=VERTEX;VERTEX.x+=sin(TIME*.9+VERTEX.x*5.0+VERTEX.z*4.0)*.003*max(0.0,VERTEX.y+.5);}
 void fragment(){
-if(!FRONT_FACING){NORMAL=-NORMAL;}
+if(!OUTPUT_IS_SRGB&&!FRONT_FACING){NORMAL=-NORMAL;}
 float ridge=exp(-pow((UV.x-.5)*44.0,2.0));
 float veins=cos((UV.y-abs(UV.x-.5)*.5)*74.0)/(1.0+pow(fwidth(UV.y)*74.0,2.0));
 float edge=pow(abs(UV.x*2.0-1.0),5.0);

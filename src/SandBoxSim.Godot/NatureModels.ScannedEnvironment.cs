@@ -53,7 +53,7 @@ NORMAL=normalize(vec3(NORMAL.x,(NORMAL.y-derivative.x*NORMAL.x-derivative.y*NORM
 }
 }
 void fragment(){
-if(!FRONT_FACING){NORMAL=-NORMAL;}
+if(!OUTPUT_IS_SRGB&&!FRONT_FACING){NORMAL=-NORMAL;}
 vec2 tex_uv=UV*uv_scale+uv_offset;
 vec3 root=(MODEL_MATRIX*vec4(0,0,0,1)).xyz;
 float variation=sin(root.x*1.73+root.z*2.41)*.035;

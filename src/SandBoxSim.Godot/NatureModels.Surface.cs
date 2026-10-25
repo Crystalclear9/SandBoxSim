@@ -24,7 +24,7 @@ float footprint=max(length(dFdx(local)),length(dFdy(local)))*115.0;
 pores/=1.0+footprint*footprint;
 float joint=pow(1.0-abs(sin(UV.y*3.14159)),16.0)*stone*0.045;
 float patina=dot(texture(detail_atlas,(clamp(UV,vec2(0.02),vec2(0.98))+cell)/4.0).rgb,vec3(0.2126,0.7152,0.0722))-0.5;
-ALBEDO=pigment.rgb*(0.96+weather+pores*grain-joint+patina*texture_amount+strata*stone*.025-damp);
+ALBEDO=pigment.rgb*COLOR.rgb*(0.96+weather+pores*grain-joint+patina*texture_amount+strata*stone*.025-damp);
 ROUGHNESS=0.83+pores*0.04+stone*0.07; SPECULAR=0.21;
 vec3 dx=dFdx(VERTEX),dy=dFdy(VERTEX),tx=cross(dy,NORMAL),ty=cross(NORMAL,dx);float determinant=dot(dx,tx);
 float height=pores*.0006+strata*stone*.0012;if(abs(determinant)>.0000000001)NORMAL=normalize(abs(determinant)*NORMAL-sign(determinant)*(dFdx(height)*tx+dFdy(height)*ty));
@@ -62,7 +62,7 @@ float height=mix(grain,rings,end_grain)*.0007;if(abs(determinant)>.0000000001)NO
             if(atlas!=null)material.SetShaderParameter("detail_atlas",atlas);
             material.SetShaderParameter("cell",new Vector2(id%4,id/4));_materials[id]=material;
         }
-        Assign(2,"#74665d",.018f,1);
+        Assign(2,"#7d6253",.018f,1);
         Assign(3,"#b8b7aa",.014f);
         Assign(6,"#777c77",.04f,1);
         Assign(7,"#626c68",.045f,1);

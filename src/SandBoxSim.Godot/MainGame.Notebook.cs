@@ -25,7 +25,7 @@ public partial class MainGame
                 label.AddThemeColorOverride("font_color",soft?muted:ink);
             }
             if(node is RichTextLabel text)text.AddThemeColorOverride("default_color",ink);
-            if(node is Godot.Button button)
+            if(node is Godot.Button button&&!(button.HasMeta("filled_action")&&button.GetMeta("filled_action").AsBool()))
             {
                 button.SetMeta("notebook",true);
                 var focus=HudStyle.Box(new Color(0,0,0,0),3,9);focus.BorderColor=accent;focus.ShadowSize=0;button.AddThemeStyleboxOverride("focus",focus);

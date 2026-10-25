@@ -44,7 +44,7 @@ internal sealed partial class NatureModels
         uint seed=wolf?76123u:19871u;
         float Random(){seed^=seed<<13;seed^=seed>>17;seed^=seed<<5;return (seed&0xFFFFFF)/16777216f;}
         using var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);
-        var coat=new ShaderMaterial {Shader=new Shader {Code=((ShaderMaterial)Fur(wolf)).Shader.Code.Replace("shader_type spatial;","shader_type spatial;render_mode cull_disabled;").Replace("void fragment(){","void fragment(){if(!FRONT_FACING){NORMAL=-NORMAL;}").Replace("ROUGHNESS=.93+guard*.04;SPECULAR=.13;","ROUGHNESS=.98;SPECULAR=.04;")}};
+        var coat=new ShaderMaterial {Shader=new Shader {Code=((ShaderMaterial)Fur(wolf)).Shader.Code.Replace("shader_type spatial;","shader_type spatial;render_mode cull_disabled;").Replace("void fragment(){","void fragment(){if(!OUTPUT_IS_SRGB&&!FRONT_FACING){NORMAL=-NORMAL;}").Replace("ROUGHNESS=.93+guard*.04;SPECULAR=.13;","ROUGHNESS=.98;SPECULAR=.04;")}};
         foreach(string field in new[]{"coat","pale","predator"})coat.SetShaderParameter(field,((ShaderMaterial)Fur(wolf)).GetShaderParameter(field));
         surface.SetMaterial(coat);
         int strands=wolf?5000:3200;
