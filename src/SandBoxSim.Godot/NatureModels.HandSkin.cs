@@ -72,19 +72,24 @@ internal sealed partial class NatureModels
             }
             else{sourceMap=new int[points.Length];for(int i=0;i<sourceMap.Length;i++)sourceMap[i]=i;}
             var vertices=new Vector3[sourceMap.Length];var surfaceNormals=new Vector3[sourceMap.Length];var surfaceUv=new Vector2[sourceMap.Length];
+            var detailUv=new Vector2[sourceMap.Length];var detailMask=new Color[sourceMap.Length];
             var surfaceBones=new int[sourceMap.Length*4];var surfaceWeights=new float[sourceMap.Length*4];
             for(int i=0;i<sourceMap.Length;i++)
             {
                 int source=sourceMap[i];vertices[i]=points[source];surfaceNormals[i]=normals[source];surfaceUv[i]=uv[source];
+                var canonical=new Vector3(p[source*3],p[source*3+1],p[source*3+2]);
+                detailUv[i]=nail?HandNailCoordinates(canonical):new Vector2(canonical.X,canonical.Y);
+                detailMask[i]=new Color(Math.Clamp(n[source*3+2]*.5f+.5f,0,1),1,1,1);
                 for(int b=0;b<4;b++){surfaceBones[i*4+b]=bones[source*4+b];surfaceWeights[i*4+b]=weights[source*4+b];}
             }
             var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);
             arrays[(int)Mesh.ArrayType.Vertex]=vertices;arrays[(int)Mesh.ArrayType.Normal]=surfaceNormals;arrays[(int)Mesh.ArrayType.TexUV]=surfaceUv;
+            arrays[(int)Mesh.ArrayType.TexUV2]=detailUv;arrays[(int)Mesh.ArrayType.Color]=detailMask;
             arrays[(int)Mesh.ArrayType.Bones]=surfaceBones;arrays[(int)Mesh.ArrayType.Weights]=surfaceWeights;arrays[(int)Mesh.ArrayType.Index]=indices;
             mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);mesh.SurfaceSetMaterial(mesh.GetSurfaceCount()-1,material);
         }
-        Surface("indices",FaceSurfaceMaterial(skin),false);
-        Surface("nailIndices",new StandardMaterial3D {AlbedoColor=new Color(skin).Lerp(new Color("#c5afa0"),.26f),Roughness=.54f,MetallicSpecular=.16f},true);
+        Surface("indices",HandSurfaceMaterial(skin,lowDetail),false);
+        Surface("nailIndices",NailSurfaceMaterial(skin,lowDetail),true);
         _meshes[key]=mesh;return mesh;
     }
 }

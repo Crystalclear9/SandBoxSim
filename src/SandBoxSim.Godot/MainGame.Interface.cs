@@ -55,6 +55,7 @@ public partial class MainGame
     private int _residentPage;
     private HBoxContainer _residentPages=null!;
     private VBoxContainer _residentSummary=null!;
+    private Button _residentPortraitLink=null!;
     private readonly Button[] _residentPageButtons=new Button[3];
     private readonly Label[] _residentStock=new Label[4];
     private VBoxContainer _residentVitals = null!;
@@ -156,6 +157,7 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         var immersive=ActionButton(actions,"沉浸",()=>SetImmersive(true));HudStyle.QuietButton(immersive);immersive.Visible=!IsModelGallery;immersive.TooltipText="沉浸观察 · F10 隐藏界面，F10 / Esc 返回；鼠标视角与空格暂停继续可用。";
 
         _journalPanel = Surface(overlay, new Vector2(1, 0), new Vector2(-372, 92), new Vector2(348, 600), 18);
+        _journalPanel.Name="WorldNotebook";
         var journal = new VBoxContainer(); journal.AddThemeConstantOverride("separation", 10); _journalPanel.AddChild(journal);
         var journalHeading = new PanelContainer(); journalHeading.SetMeta("journal_heading",true);
         var headingBox=HudStyle.Box(new Color(0,0,0,0),0,0,false);journalHeading.AddThemeStyleboxOverride("panel",headingBox);journal.AddChild(journalHeading);
@@ -180,8 +182,7 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         }
         BuildResidentVitals(personPanel); BuildLandVitals(personPanel);
         var detailControls = new HBoxContainer(); _residentControls = detailControls; personPage.AddChild(detailControls);
-        var model=ActionButton(detailControls,"近看居民  ↗",()=>ShowPortraitWindow(true),true);model.SizeFlagsHorizontal=SizeFlags.ExpandFill;
-        model.TooltipText="打开居民肖像 · 拖动旋转、滚轮缩放；保留世界中的真实动作";
+        var personalActions=HudStyle.Label("个人记录",12,true);personalActions.SizeFlagsHorizontal=SizeFlags.ExpandFill;personalActions.SizeFlagsVertical=SizeFlags.ShrinkCenter;detailControls.AddChild(personalActions);
         _pinButton = ActionButton(detailControls, "关注", TogglePin);
         ActionButton(detailControls, "改名", () => { _editingResidentName = !_editingResidentName; _residentNameControls.Visible = _editingResidentName; });
         var nameControls = new HBoxContainer(); _residentNameControls = nameControls; personPage.AddChild(nameControls);
@@ -245,7 +246,7 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         ActionButton(tools, "记录实验起点", () => { _checkpoint = EncodeClientWorld(); _experimentLabel = $"第 {Sim.World.Calendar.Day} 天 · {Sim.Agents.LiveCount} 人"; _status.Text = "已记录 " + _experimentLabel; });
         ActionButton(tools, "回到实验起点", RestoreCheckpoint);
 
-        var dock = Surface(overlay, Vector2.Zero, new Vector2(16, 96), new Vector2(368, 624), 14); _dockPanel = dock;
+        var dock = Surface(overlay, Vector2.Zero, new Vector2(16, 96), new Vector2(368, 624), 14); _dockPanel = dock;dock.Name="ToolLibrary";
         var dockContents = new VBoxContainer(); dockContents.AddThemeConstantOverride("separation", 8); dock.AddChild(dockContents);
         var paletteHeading=new HBoxContainer();paletteHeading.AddThemeConstantOverride("separation",12);dockContents.AddChild(paletteHeading);
         var paletteWell=HudStyle.IconWell(ToolGlyphs.For(PlayerTool.Human),36);_paletteGlyph=paletteWell.GetChild<TextureRect>(0);paletteHeading.AddChild(paletteWell);
@@ -533,27 +534,42 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
     { panel.AddThemeStyleboxOverride("panel", HudStyle.Box(new Color(0, 0, 0, 0), 0, 8, false)); panel.GetChild<HudBevel>(0).Visible = false; }
     private void BuildResidentVitals(VBoxContainer parent)
     {
-        _residentVitals = new VBoxContainer { Visible = false }; _residentVitals.AddThemeConstantOverride("separation", 10); parent.AddChild(_residentVitals);
-        _residentTitle = HudStyle.Heading("", 24); _residentSubtitle = HudStyle.Label("", 12, true);
-        var identity = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; identity.AddThemeConstantOverride("separation", 3); _residentVitals.AddChild(identity);
+        _residentVitals = new VBoxContainer { Visible = false }; _residentVitals.AddThemeConstantOverride("separation", 12); parent.AddChild(_residentVitals);
+        var residentHeader=new HBoxContainer();residentHeader.AddThemeConstantOverride("separation",14);_residentVitals.AddChild(residentHeader);
+        var portraitFrame=new PanelContainer {CustomMinimumSize=new(108,138),SizeFlagsHorizontal=SizeFlags.Fill,SizeFlagsVertical=SizeFlags.ShrinkBegin};_portraitHome=portraitFrame;
+        portraitFrame.AddThemeStyleboxOverride("panel",HudStyle.Box(HudStyle.Ink,5,0,false));residentHeader.AddChild(portraitFrame);
+        _residentPortrait = new ResidentPortrait { Compact = true,NotebookThumbnail=true, SizeFlagsHorizontal = SizeFlags.ExpandFill };portraitFrame.AddChild(_residentPortrait);
+        _residentPortraitLink=new Button {Name="ResidentPortraitLink",Text="近看居民  ↗",CustomMinimumSize=new(108,138),TooltipText="点击近看居民 · 展开后可拖动旋转、滚轮缩放；Enter / 空格也可打开"};
+        HudStyle.Button(_residentPortraitLink);_residentPortraitLink.SetMeta("portrait_link",true);_residentPortraitLink.AddThemeFontSizeOverride("font_size",12);
+        _residentPortraitLink.AddThemeColorOverride("font_shadow_color",HudStyle.Ink);_residentPortraitLink.AddThemeConstantOverride("shadow_offset_y",1);_residentPortraitLink.AddThemeConstantOverride("outline_size",2);
+        foreach(string state in new[]{"normal","hover","pressed","hover_pressed","disabled"})
+        {
+            var box=HudStyle.Box(state is "hover" or "pressed"?new Color(HudStyle.Accent,.07f):Colors.Transparent,5,4,false);
+            box.ContentMarginTop=108;box.ContentMarginBottom=8;box.BorderColor=new Color(HudStyle.Accent,state=="normal"?.25f:.8f);box.BorderWidthLeft=box.BorderWidthRight=box.BorderWidthTop=box.BorderWidthBottom=1;
+            _residentPortraitLink.AddThemeStyleboxOverride(state,box);
+        }
+        portraitFrame.AddChild(_residentPortraitLink);_residentPortraitLink.Pressed+=()=>ShowPortraitWindow(true);
+        _residentTitle = HudStyle.Heading("", 22); _residentSubtitle = HudStyle.Label("", 11, true);
+        var identity = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill }; identity.AddThemeConstantOverride("separation", 4); residentHeader.AddChild(identity);
         identity.AddChild(_residentTitle); identity.AddChild(_residentSubtitle);
-        _residentSummary=new VBoxContainer();_residentSummary.AddThemeConstantOverride("separation",10);_residentVitals.AddChild(_residentSummary);
-        var portraitFrame=new PanelContainer();_portraitHome=portraitFrame;portraitFrame.AddThemeStyleboxOverride("panel",HudStyle.Box(HudStyle.Ink,5,1,false));_residentSummary.AddChild(portraitFrame);
-        _residentPortrait = new ResidentPortrait { Compact = true, SizeFlagsHorizontal = SizeFlags.ExpandFill }; portraitFrame.AddChild(_residentPortrait);
-        _residentTitle.AutowrapMode = TextServer.AutowrapMode.WordSmart; _residentSubtitle.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        var activity = new PanelContainer(); var activityStyle=HudStyle.Box(new Color(HudStyle.Ink,.55f),4,10,false);activityStyle.BorderWidthLeft=2;activityStyle.BorderColor=HudStyle.Accent;activity.AddThemeStyleboxOverride("panel",activityStyle);_residentSummary.AddChild(activity);
-        var activityBody=new VBoxContainer();activityBody.AddThemeConstantOverride("separation",2);activity.AddChild(activityBody);
-        _residentAction=HudStyle.Label("",13);_residentActionPhase=HudStyle.Label("",11,true);activityBody.AddChild(_residentAction);activityBody.AddChild(_residentActionPhase);
-        var needs=new VBoxContainer();needs.AddThemeConstantOverride("separation",9);_residentSummary.AddChild(needs);
+        _residentTitle.AutowrapMode = TextServer.AutowrapMode.WordSmart;_residentTitle.MaxLinesVisible=2;_residentTitle.TextOverrunBehavior=TextServer.OverrunBehavior.TrimEllipsis;
+        _residentSubtitle.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        var activityBody=new VBoxContainer();activityBody.AddThemeConstantOverride("separation",2);identity.AddChild(activityBody);
+        activityBody.AddChild(HudStyle.Label("当前行为",11,true));
+        _residentAction=HudStyle.Heading("",14);_residentActionPhase=HudStyle.Label("",11,true);
+        _residentAction.AutowrapMode=_residentActionPhase.AutowrapMode=TextServer.AutowrapMode.WordSmart;
+        activityBody.AddChild(_residentAction);activityBody.AddChild(_residentActionPhase);
+        _residentSummary=new VBoxContainer();_residentSummary.AddThemeConstantOverride("separation",8);_residentVitals.AddChild(_residentSummary);
+        var needs=new VBoxContainer();needs.AddThemeConstantOverride("separation",5);_residentSummary.AddChild(needs);
         var needsHeading=HudStyle.Label("身体与需求",12,true);needs.AddChild(needsHeading);
         for (int i = 0; i < 4; i++)
         {
             var row=new HBoxContainer();row.AddThemeConstantOverride("separation",12);needs.AddChild(row);
-            _vitalLabels[i]=HudStyle.Label("",13);_vitalLabels[i].CustomMinimumSize=new(40,24);row.AddChild(_vitalLabels[i]);
+            _vitalLabels[i]=HudStyle.Label("",13);_vitalLabels[i].CustomMinimumSize=new(40,22);row.AddChild(_vitalLabels[i]);
             var bar = new ProgressBar { MaxValue = 1, ShowPercentage = false, CustomMinimumSize = new Vector2(56, 4), SizeFlagsHorizontal=SizeFlags.ExpandFill, SizeFlagsVertical=SizeFlags.ShrinkCenter, MouseFilter = MouseFilterEnum.Ignore };
             bar.AddThemeStyleboxOverride("background", HudStyle.Box(HudStyle.Border, 2, 0, false));
             bar.AddThemeStyleboxOverride("fill", HudStyle.Box(HudStyle.Accent, 2, 0, false)); row.AddChild(bar); _vitalBars[i] = bar;
-            var value=_vitalValues[i]=HudStyle.Label("",14);value.AddThemeFontOverride("font",HudStyle.NumericFont);value.CustomMinimumSize=new(48,24);value.HorizontalAlignment=HorizontalAlignment.Right;row.AddChild(value);
+            var value=_vitalValues[i]=HudStyle.Label("",14);value.AddThemeFontOverride("font",HudStyle.NumericFont);value.CustomMinimumSize=new(48,22);value.HorizontalAlignment=HorizontalAlignment.Right;row.AddChild(value);
         }
         _residentSummary.AddChild(new HSeparator());
         _residentInventoryToggle=ActionButton(_residentSummary,"随身物资",()=>SetInventoryExpanded(!_inventoryExpanded));
@@ -656,6 +672,7 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         _residentAction.Text = a.ActionOf(slot)==ActionKind.None?"休息与观察":ActionRegistry.DisplayNameOf(a.ActionOf(slot));
         _residentActionPhase.Text = (a.PhaseOf(slot)==ActionPhase.Moving?"行进中":a.PhaseOf(slot)==ActionPhase.Done&&_residentPortrait.FinishingGesture?"已完成 · 动作收尾":PhaseName(a.PhaseOf(slot)))+(a.PhaseOf(slot) is ActionPhase.Moving or ActionPhase.Executing ? "  ·  目的地 "+a.TargetOf(slot):"");
         _residentTitle.Text = a.NameOrOverride(slot);
+        _residentTitle.TooltipText=_residentTitle.Text;
         _residentSubtitle.Text = $"{a.AgeDaysOf(slot)} 天  /  {LifeStageName(a.LifeStageOf(slot))}  /  {JobName(a.JobOf(slot))}  ·  {a.PositionOf(slot)}";
         if(_portraitOverlay?.Visible==true)RefreshPortraitFacts();
         float[] values = { a.HealthOf(slot), a.HungerOf(slot), a.ThirstOf(slot), 1 - a.FatigueOf(slot) };

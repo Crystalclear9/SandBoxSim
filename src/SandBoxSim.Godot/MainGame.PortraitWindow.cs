@@ -160,7 +160,7 @@ public partial class MainGame
         }
         else
         {
-            _residentPortrait.Reparent(_portraitHome,false);_residentPortrait.SetExpanded(false);_portraitOverlay.Visible=false;
+            _residentPortrait.Reparent(_portraitHome,false);_portraitHome.MoveChild(_residentPortrait,0);_residentPortrait.SetExpanded(false);_portraitOverlay.Visible=false;
             if(_portraitReturnFocus!=null&&GodotObject.IsInstanceValid(_portraitReturnFocus)&&_portraitReturnFocus.IsVisibleInTree()&&_portraitReturnFocus.FocusMode!=FocusModeEnum.None)
                 _portraitReturnFocus.GrabFocus();
             _portraitReturnFocus=null;
@@ -191,7 +191,7 @@ public partial class MainGame
     {
         if(SelectedSlot<0)return;
         string before=StateHash.ComputeDigest(Sim);
-        var state=System.Text.Json.JsonSerializer.Serialize(_residentPortrait.EvaluationState());
+        var state=System.Text.Json.JsonSerializer.Serialize(_residentPortrait.InspectionState());
         ShowJournal(true);_drawer.CurrentTab=1;_journalButton.GrabFocus();RefreshPresentationControls();
         if(!_contextFocus.Visible||!_contextDetails.Visible||!_toolBadge.Text.Contains(Sim.Agents.NameOrOverride(SelectedSlot)))throw new InvalidOperationException("Selection card does not reflect the actual resident");
         _contextFocus.EmitSignal(Godot.Button.SignalName.Pressed);
@@ -199,7 +199,7 @@ public partial class MainGame
         _contextDetails.EmitSignal(Godot.Button.SignalName.Pressed);
         if(!_portraitOverlay.Visible||!_residentPortrait.Expanded||_residentPortrait.GetParent()!=_portraitWindowBody)
             throw new InvalidOperationException("Large portrait did not reuse the selected model viewport");
-        if(state!=System.Text.Json.JsonSerializer.Serialize(_residentPortrait.EvaluationState()))
+        if(state!=System.Text.Json.JsonSerializer.Serialize(_residentPortrait.InspectionState()))
             throw new InvalidOperationException("Expanding a portrait reset its framing or orbit");
         _portraitLighting[1].EmitSignal(BaseButton.SignalName.Pressed);
         if(_residentPortrait.Lighting!=1||!_portraitLighting[1].ButtonPressed||_portraitLighting[0].ButtonPressed)throw new InvalidOperationException("Studio lighting toggle has no visible selected state");
@@ -211,7 +211,7 @@ public partial class MainGame
             _portraitNext.EmitSignal(Godot.Button.SignalName.Pressed);
             if(_selectedPersonId==original||!_portraitOverlay.Visible)throw new InvalidOperationException("Resident browsing did not change the real selection inside the modal");
             _portraitPrevious.EmitSignal(Godot.Button.SignalName.Pressed);
-            if(_selectedPersonId!=original||state!=System.Text.Json.JsonSerializer.Serialize(_residentPortrait.EvaluationState()))throw new InvalidOperationException("Resident browsing did not restore selection or preserve framing");
+            if(_selectedPersonId!=original||state!=System.Text.Json.JsonSerializer.Serialize(_residentPortrait.InspectionState()))throw new InvalidOperationException("Resident browsing did not restore selection or preserve framing");
         }
         bool previousDisabled=_portraitPrevious.Disabled,nextDisabled=_portraitNext.Disabled;
         try
@@ -241,7 +241,14 @@ public partial class MainGame
         if(_portraitOverlay.Visible||!_journalPanel.Visible||_residentPortrait.GetParent()!=_portraitHome||_residentPortrait.Expanded)
             throw new InvalidOperationException("Closing portrait did not restore the notebook");
         if(GetViewport().GuiGetFocusOwner()!=_journalButton)throw new InvalidOperationException("Portrait did not restore keyboard focus");
+        _residentPortraitLink.GrabFocus();_residentPortraitLink.EmitSignal(BaseButton.SignalName.Pressed);
+        if(!_portraitOverlay.Visible||_residentPortrait.GetParent()!=_portraitWindowBody||_residentPortraitLink.FocusMode!=FocusModeEnum.All)
+            throw new InvalidOperationException("Notebook portrait thumbnail does not open the shared resident viewport");
+        ShowPortraitWindow(false);
+        if(_residentPortrait.GetParent()!=_portraitHome||!_residentPortrait.NotebookThumbnail||GetViewport().GuiGetFocusOwner()!=_residentPortraitLink)
+            throw new InvalidOperationException("Portrait does not return to its thumbnail and original keyboard target");
+        _journalButton.GrabFocus();
         if(before!=StateHash.ComputeDigest(Sim))throw new InvalidOperationException("Portrait expansion changed simulation state");
-        GD.Print("PORTRAIT_WINDOW_PASS: shared model/view, preserved framing, pin/unpin, initial/repeated/directional focus isolation and restore, Escape priority, notebook return and observation purity");
+        GD.Print("PORTRAIT_WINDOW_PASS: shared model/view, thumbnail entry/return, preserved framing, pin/unpin, initial/repeated/directional focus isolation and restore, Escape priority, notebook return and observation purity");
     }
 }

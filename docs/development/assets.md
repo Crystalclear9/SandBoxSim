@@ -95,8 +95,11 @@ UI 的层级和画布工具组织参考见[观察与界面](../guides/gameplay-o
 | [Godot MultiMesh](https://docs.godotengine.org/en/stable/tutorials/performance/using_multimesh.html) | 草叶沿用 24 米空间分块和距离裁剪，避免用覆盖全图的单批次替代可见性管理 |
 | [NN/g 渐进披露](https://www.nngroup.com/articles/progressive-disclosure/)与[视觉层次](https://www.nngroup.com/articles/visual-hierarchy-ux-definition/) | 需求改为对齐行条，物资明细按需展开，近看居民作为主操作；不增加任务或游玩步骤 |
 | [Xbox XAG 101](https://learn.microsoft.com/en-us/xbox/accessibility/xbox-accessibility-guidelines/101)与[XAG 102](https://learn.microsoft.com/en-us/xbox/accessibility/xbox-accessibility-guidelines/102) | 保留名称、百分比、焦点与状态文字，上一位／下一位／关闭的命中区至少 40×40；未宣称整体通过无障碍认证 |
+| [Leeds 指甲组织结构](https://histology.leeds.ac.uk/home/skin/nails/)与[掌纹分析研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC2998791/) | 在原手部绑定坐标上区分掌纹、屈曲折痕、甲床、短游离缘与角质边；没有下载人体照片作为新纹理，也不把通用掌纹当作个体生物识别数据 |
+| [NN/g 识别与回忆](https://www.nngroup.com/articles/recognition-and-recall/)与[Xbox XAG 112](https://learn.microsoft.com/en-us/xbox/accessibility/xbox-accessibility-guidelines/112) | 用可点击的居民肖像承接近看入口，身份与行为并排；同一入口支持鼠标、键盘及关闭后的焦点恢复 |
+| [NSW 河岸带资料](https://www.nsw.gov.au/regional-and-primary-industries/natural-resource-management/protecting-waterways-on-farms/managing-riparian-areas-on-private-property)与[NPS 草本资料](https://www.nps.gov/noca/learn/nature/grasses.htm) | 参考河岸地表过渡与草本层次，修正实际水陆支撑、露土斑块及草丛高矮比例；不增加特定物种、侵蚀或河流动力学规则 |
 
-水岸显示以实际地形高度而不是模糊逻辑水格确定：水面和拾取使用同一三角插值及踩踏修正，模拟水格、寻路、地形基础高度保持原有契约。动物闭眼覆盖贴合来源眼表面并取邻近皮毛，不重塑原眼眶或夸大为完整动物面部重建。
+水岸显示先按逻辑水陆分类生成共同支撑的地形，再用实际三角面及踩踏修正确定可见水面，避免固定显示阈值把可行走旱地压到水下；存档海拔、模拟水格和寻路契约不变。手部表面使用现有授权数据，没有新扫描或新人体贴图。动物闭眼覆盖贴合来源眼表面并取邻近皮毛，不重塑原眼眶或夸大为完整动物面部重建。
 
 ## 当前材质与几何
 
@@ -108,7 +111,7 @@ UI 的层级和画布工具组织参考见[观察与界面](../guides/gameplay-o
 
 `NatureModels.ScannedEnvironment.cs` 管理专业环境网格、透明叶片遮罩、法线与粗糙度材质，来源和转换见 [环境素材](environment-assets.md)。世界与图册共享这些网格和屏幕 LOD。`NatureModels.Botanical.cs` 保留程序植物辅助结构及几何检查。`WorldView3D.Relief.cs` 为地面提供稳定的小尺度噪声起伏。
 
-`WorldView3D.Surface.cs` 混合扫描地形、临水色差与压实，水色读取实际河床深度，河床和水面共享连续岸线采样。`ScannedSurfaces.cs` 缓存贴图及打包法线/粗糙度，`NatureModels.ScannedCraft.cs` 管理建筑扫描表面。近景使用授权草丛网格，读取共享压实贴图伏低并随距离缩退；`NatureModels.Meadow.cs` 保留程序构造器。CPU 网格缓存和空间批次的维护见 [性能说明](performance.md)。
+`WorldView3D.Surface.cs` 混合扫描地形、临水色差与压实，水色读取实际河床深度；`WorldView3D.Shoreline.cs` 约束水陆交界的真实支撑网格。地表 tint 的 alpha 复用实际植被量形成露土斑块。`ScannedSurfaces.cs` 缓存贴图及打包法线/粗糙度，`NatureModels.ScannedCraft.cs` 管理建筑扫描表面。当前近景草甸使用 `NatureModels.MeadowTurf.cs` 的弯叶网格，`WorldView3D.Meadow.cs` 管理根部与候选刷新，原扫描草来源仍保留。CPU 网格缓存和空间批次的维护见 [性能说明](performance.md)。
 
 ## 近景表现与界面参考
 

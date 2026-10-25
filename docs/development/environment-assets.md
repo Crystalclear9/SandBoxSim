@@ -76,6 +76,8 @@ $environmentBlender = './.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64
 
 世界中的树、蕨类与图册共用网格；草甸改用项目自有的 24 片折面弯叶，原扫描草资源保留，空间批次保留网格自身的多材质表面；不会用单一绿色覆盖树皮和叶片。树木保留导出叶片的原索引，避免自动塌缩 LOD 让树冠丢失面积；透明裁切阈值随纹理覆盖调整。扫描蕨类和灌木继续使用屏幕 LOD。当前草甸每丛 336 三角面，少于原扫描草的 403；按稳定群落噪声、实际植被量和坡度选点，24 米分块、34 米裁剪，叶尖在远处平滑收缩。新增河岸芦苇为项目自建网格，使用项目许可，形体和分布见 [模型系统](models.md)。草丛、蕨类、芦苇和灌木在稳定平面位置上按地形坡度贴合，根部略埋；扫描灌木取消旧模型的 28 厘米抬高，树干稍埋但保持竖直。火灾清理和模拟随机流保持原规则。
 
+草甸原有两个候选分别采用宽矮与窄高比例，不增加候选数或单簇面数。地表材质从既有 tint 的 alpha 读取实际植被量，按 16 档外观变化刷新露土斑块，不增加采样器或地表节点；扫描颜色和法线原文件不变。`WorldView3D.Shoreline.cs` 按实际水陆分类生成支撑曲面，避免归一化海拔的固定阈值与世界水域分位分类错配。水岸与草本层次参考 [NSW 河岸带资料](https://www.nsw.gov.au/regional-and-primary-industries/natural-resource-management/protecting-waterways-on-farms/managing-riparian-areas-on-private-property)和[NPS 草本资料](https://www.nps.gov/noca/learn/nature/grasses.htm)，仅影响显示，不新增特定物种、生态规则或侵蚀模拟。
+
 阔叶树和针叶树的顶点预算分别为 220,000 和 190,000，其余环境模型为 150,000；纹理/法线接缝会分裂导出顶点。提高树冠密度需要重新采样实际性能，不能仅以几何检查替代帧率记录。
 
 `ENVIRONMENT_SOURCES_PASS` 检查六种素材的数据哈希、材质资源、有限顶点/法线、属性长度、缓存和预算；植物几何与暂停、地面观察纯度由其他自检覆盖。近景回放见 [visual-ecology-details.json](../../benchmarks/scenarios/visual-ecology-details.json)，大规模采样说明见 [性能说明](performance.md)。

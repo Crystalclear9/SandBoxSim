@@ -19,6 +19,20 @@ internal sealed partial class NatureModels
         if(points.Length<6000)throw new InvalidOperationException("Anatomical hand detail missing");
         for(int i=0;i<points.Length;i++)
             if(!points[i].IsFinite()||!normals[i].IsFinite()||normals[i].LengthSquared()<.98f)throw new InvalidOperationException("Invalid anatomical hand vertex or normal");
+        for(int surface=0;surface<mesh.GetSurfaceCount();surface++)
+        {
+            var attributes=mesh.SurfaceGetArrays(surface);var vertices=attributes[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            var region=attributes[(int)Mesh.ArrayType.TexUV2].AsVector2Array();var masks=attributes[(int)Mesh.ArrayType.Color].AsColorArray();
+            if(region.Length!=vertices.Length||masks.Length!=vertices.Length||mesh.SurfaceGetMaterial(surface) is not ShaderMaterial material||!material.HasMeta("HandSurfaceProfile"))
+                throw new InvalidOperationException("Hand loses its source-bound skin/nail surface attributes");
+            for(int i=0;i<vertices.Length;i++)
+            {
+                if(!region[i].IsFinite()||!float.IsFinite(masks[i].R)||masks[i].R<0||masks[i].R>1)
+                    throw new InvalidOperationException("Nonfinite anatomical hand surface region");
+                if(surface==0&&(MathF.Abs(MathF.Abs(region[i].X)-MathF.Abs(vertices[i].X))>.000001f||MathF.Abs(region[i].Y-vertices[i].Y)>.000001f))
+                    throw new InvalidOperationException("Hand flexion lines are not anchored to the original rest surface");
+            }
+        }
         var weights=arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();var bones=arrays[(int)Mesh.ArrayType.Bones].AsInt32Array();
         for(int i=0;i<points.Length;i++)
         {
@@ -61,10 +75,16 @@ internal sealed partial class NatureModels
             var l=left.SurfaceGetArrays(0);var r=right.SurfaceGetArrays(0);
             var lp=l[(int)Mesh.ArrayType.Vertex].AsVector3Array();var rp=r[(int)Mesh.ArrayType.Vertex].AsVector3Array();
             var ln=l[(int)Mesh.ArrayType.Normal].AsVector3Array();var rn=r[(int)Mesh.ArrayType.Normal].AsVector3Array();
+            var lu=l[(int)Mesh.ArrayType.TexUV].AsVector2Array();var ru=r[(int)Mesh.ArrayType.TexUV].AsVector2Array();
+            var ld=l[(int)Mesh.ArrayType.TexUV2].AsVector2Array();var rd=r[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
+            var lc=l[(int)Mesh.ArrayType.Color].AsColorArray();var rc=r[(int)Mesh.ArrayType.Color].AsColorArray();
             var li=l[(int)Mesh.ArrayType.Index].AsInt32Array();var ri=r[(int)Mesh.ArrayType.Index].AsInt32Array();
             if(lp.Length!=rp.Length||li.Length!=ri.Length)throw new InvalidOperationException("Left/right topology does not correspond");
             for(int i=0;i<lp.Length;i++)
+            {
                 if(ReflectHand(lp[i]).DistanceTo(rp[i])>.00001f||ReflectHand(ln[i]).DistanceTo(rn[i])>.002f)throw new InvalidOperationException("Hand contour or normal is not mirrored");
+                if(lu[i]!=ru[i]||ld[i]!=rd[i]||lc[i]!=rc[i])throw new InvalidOperationException("Hand mirroring changes source UVs or anatomical surface regions");
+            }
             for(int i=0;i<li.Length;i+=3)
                 if(li[i]!=ri[i]||li[i+1]!=ri[i+2]||li[i+2]!=ri[i+1])throw new InvalidOperationException("Mirrored hand winding is inverted");
             if(skinned)

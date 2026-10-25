@@ -269,12 +269,22 @@ public partial class WorldView3D : MapView
     private float HeightAt(int x, int y)
     {
         var tile = Game.Sim.World.TileAtClamped(x, y);
-        return tile.Terrain == TerrainKind.Water ? -.25f : (tile.Height+.006f*tile.FootTraffic - .25f) * 12;
+        if(tile.Terrain==TerrainKind.Water)return -.25f;
+        // Logical water is selected by a per-world quantile, not Height < .25.
+        // A walkable tile must therefore have an actual dry supporting surface.
+        float land=.12f+MathF.Max(0,(tile.Height+.006f*tile.FootTraffic-.25f)*12);
+        if(tile.Terrain==TerrainKind.Mountain)return land;
+        int distance=Game.Sim.World.DistanceToWater(Math.Clamp(x,0,Game.Sim.World.Width-1),Math.Clamp(y,0,Game.Sim.World.Height-1),4);
+        float inland=Mathf.SmoothStep(1,4,distance);
+        float lowBank=.16f+MathF.Min(.40f,land*.18f);
+        return Mathf.Lerp(lowBank,land,inland);
     }
     private float VertexHeight(int x, int y)
     { return (HeightAt(x, y) + HeightAt(x - 1, y) + HeightAt(x, y - 1) + HeightAt(x - 1, y - 1)) * .25f; }
     private float[,]? _groundHeights;
     private ImageTexture? _groundTintTexture;
+    private Image? _groundTintImage;
+    private long _groundTintUploadRevision;
     private Image? _groundMap;private ImageTexture? _groundMapTexture;private byte[] _groundMapBytes=Array.Empty<byte>();private long _wearSignature;
     private void UpdateGroundWear()
     {
@@ -291,9 +301,18 @@ public partial class WorldView3D : MapView
     }
     private Image GroundTintImage()
     {
-        var world=Game.Sim.World;var image=Image.CreateEmpty(world.Width,world.Height,false,Image.Format.Rgb8);
-        for(int y=0;y<world.Height;y++)for(int x=0;x<world.Width;x++)image.SetPixel(x,y,TerrainTint(x,y,world.TileAt(x,y)));
+        var world=Game.Sim.World;var image=Image.CreateEmpty(world.Width,world.Height,false,Image.Format.Rgba8);
+        for(int y=0;y<world.Height;y++)for(int x=0;x<world.Width;x++)
+        {
+            var tile=world.TileAt(x,y);var tint=TerrainTint(x,y,tile);tint.A=Math.Clamp(tile.Vegetation,0,1);image.SetPixel(x,y,tint);
+        }
         return image;
+    }
+    private void UploadGroundTint(bool create=false)
+    {
+        var image=GroundTintImage();
+        if(create)_groundTintTexture=ImageTexture.CreateFromImage(image);else _groundTintTexture!.Update(image);
+        _groundTintImage?.Dispose();_groundTintImage=image;_groundTintUploadRevision++;
     }
     private void UpdateGroundAppearance()
     {
@@ -308,7 +327,7 @@ public partial class WorldView3D : MapView
         }
         _groundMap.SetData(Game.Sim.World.Width,Game.Sim.World.Height,false,Image.Format.Rgba8,_groundMapBytes);
         _groundMapTexture.Update(_groundMap);
-        using var tint=GroundTintImage();_groundTintTexture.Update(tint);
+        UploadGroundTint();
     }
     private const int GroundDetail=4;
     private Vector2I _groundGridSize;
@@ -344,7 +363,7 @@ public partial class WorldView3D : MapView
             int tx=tileIndex%Game.Sim.World.Width,ty=tileIndex++/Game.Sim.World.Width;
             uint decoration=unchecked((uint)(tx*73856093^ty*19349663));
             signature = unchecked(signature * 31 + (int)tile.Terrain * 3 + (int)MathF.Round((tile.Height+.006f*tile.FootTraffic)*1000));
-            appearance=unchecked(appearance*31+(int)tile.Fire*17+(int)(tile.Moisture*16));
+            appearance=unchecked(appearance*31+(int)tile.Fire*17+(int)(tile.Moisture*16)+(int)(tile.Vegetation*16)*257);
             wear=unchecked(wear*31+(int)(tile.FootTraffic*255));
             int flags=(decoration%5==0&&tile.Terrain==TerrainKind.Forest&&tile.Vegetation>.12f&&tile.Fire!=FireState.Burnt?1:0)
                 +(decoration%17==0&&tile.Resource.Kind==ResourceKind.Food&&tile.Resource.Amount>5?2:0)
@@ -421,9 +440,9 @@ public partial class WorldView3D : MapView
         var quality=new Dictionary<string,object> { ["worldPresentationEnabled"]=WorldPresentationEnabled,["shadowMode"]=_sunlight.DirectionalShadowMode.ToString(),
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
-            ["landscapeSurface"]="moisture-meadow-v5",["habitatDetail"]="curved-meadow-v9",["vegetationSurface"]="engine-faced-v2",
-            ["architecture"]="double-lap-tiles-v12",["garmentMaterial"]="engine-faced-linen-v8",["interface"]="resident-workspace-v17",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
-            ["animalPresentation"]="source-eyelids-v9",["residentSurface"]="orbital-gaze-v6",["waterSurface"]="terrain-shore-v3" };
+            ["landscapeSurface"]="coverage-mosaic-v6",["habitatDetail"]="stratified-meadow-v10",["vegetationSurface"]="engine-faced-v2",
+            ["architecture"]="double-lap-tiles-v12",["garmentMaterial"]="engine-faced-linen-v8",["interface"]="resident-thumbnail-v18",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
+            ["animalPresentation"]="source-eyelids-v9",["residentSurface"]="orbital-gaze-v6",["handSurface"]="anatomical-regions-v1",["waterSurface"]="logical-bank-v4" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
         return quality;
@@ -469,6 +488,7 @@ public partial class WorldView3D : MapView
         finally {world.Tiles[index]=original;CheckTerrain();}
         if(StateHash.ComputeDigest(Game.Sim)!=digest)throw new InvalidOperationException("Ground presentation validation changed simulation");
         ValidateMeadowPresentation();
+        ValidateLogicalShoreline();
         GD.Print("GROUND_PRESENTATION_PASS: texture-only overlays, byte-precision wear and unchanged simulation");
     }
     public void ValidateWorldDimensions()
@@ -582,7 +602,7 @@ public partial class WorldView3D : MapView
             float Row(int offset)=>Cubic(Sample(ix-1,iy+offset),Sample(ix,iy+offset),Sample(ix+1,iy+offset),Sample(ix+2,iy+offset),u);
             float r0=Row(-1),r1=Row(0),r2=Row(1),r3=Row(2);
             float h=Cubic(r0,r1,r2,r3,v);
-            float wet=WaterMask(fx,fy);h=Mathf.Lerp(h,MathF.Min(h,-.25f),Math.Clamp(wet*1.7f,0,1));
+            float wet=WaterMask(fx,fy);
             // Small stable relief; water and paved surfaces keep an even bed.
             var tile=Game.Sim.World.TileAt(Math.Min(ix,width-1),Math.Min(iy,height-1));
             float relief=1-Mathf.Lerp(Mathf.Lerp(foundation[ix,iy],foundation[Math.Min(ix+1,width),iy],u),Mathf.Lerp(foundation[ix,Math.Min(iy+1,height)],foundation[Math.Min(ix+1,width),Math.Min(iy+1,height)],u),v);
@@ -593,7 +613,8 @@ public partial class WorldView3D : MapView
             float slope=new Vector2(Cubic(RowSlope(-1),RowSlope(0),RowSlope(1),RowSlope(2),v),CubicSlope(r0,r1,r2,r3,v)).Length()*.5f;
             float exposed=Mathf.SmoothStep(.18f,.7f,slope);
             float rockRelief=(1-MathF.Abs(TerrainNoise(fx*1.1f+7,fy*1.1f-3,Game.Sim.World.Seed)*2-1)-.5f)*.16f*exposed;
-            _groundHeights[x,y]=h+erosion+relief*(1-wet)*(1-tile.FootTraffic*.65f)*(NaturalRelief(fx,fy,Game.Sim.World.Seed)+rockRelief);
+            float sculpted=h+erosion+relief*(1-wet)*(1-tile.FootTraffic*.65f)*(NaturalRelief(fx,fy,Game.Sim.World.Seed)+rockRelief);
+            _groundHeights[x,y]=ShoreSupportedHeight(fx,fy,sculpted);
         }
         for(int y=0;y<=ny;y++)for(int x=0;x<=nx;x++)
         {
@@ -621,7 +642,7 @@ public partial class WorldView3D : MapView
         var material=CreateGroundMaterial();
         _groundMap=materialMap;_groundMapBytes=materialMap.GetData();_groundMapTexture=ImageTexture.CreateFromImage(materialMap);
         material.SetShaderParameter("material_map", _groundMapTexture);material.SetShaderParameter("hydrology_map",_groundMapTexture);
-        _groundTintTexture=ImageTexture.CreateFromImage(GroundTintImage());material.SetShaderParameter("tint_map",_groundTintTexture);
+        UploadGroundTint(true);material.SetShaderParameter("tint_map",_groundTintTexture);
         material.SetShaderParameter("map_size", new Vector2(width, Game.Sim.World.Height));
         _terrainRoot.AddChild(new MeshInstance3D { Mesh = terrain, MaterialOverride = material });
         if (waterV.Count > 0)
@@ -704,7 +725,8 @@ public partial class WorldView3D : MapView
                 float px=p.X+((sample>>8)&255)/255f*1.60f-.80f;
                 float pz=p.Z+((sample>>16)&255)/255f*1.60f-.80f;
                 float variation=.62f+patch*.48f+((sample>>24)&255)/255f*.30f;
-                if(TryMeadowPlacement(new(px,0,pz),new Vector3(size,variation,size),(sample%1000)*.006283185f,out var placement))grass.Add(placement);
+                var clumpScale=tuft==0?new Vector3(size*1.12f,variation*.65f,size*1.12f):new Vector3(size*.90f,variation*1.10f,size*.90f);
+                if(TryMeadowPlacement(new(px,0,pz),clumpScale,(sample%1000)*.006283185f,out var placement))grass.Add(placement);
             }
             if (tile.BuildingId==0&&tile.Terrain == TerrainKind.Forest && tile.Vegetation > .12f && tile.Fire != FireState.Burnt && h % 5 == 0)
             {

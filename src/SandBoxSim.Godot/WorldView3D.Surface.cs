@@ -162,6 +162,7 @@ void fragment(){
     vec4 special=mix(mix(special_layers(ids.x),special_layers(ids.y),blend.x),mix(special_layers(ids.z),special_layers(ids.w),blend.x),blend.y);
     vec3 base=normalize(terrain_normal);
     float slope=1.0-clamp(base.y,0.0,1.0);
+    vec4 habitat=texture(tint_map,map_uv);
     float damp=texture(hydrology_map,map_uv).b,moisture=texture(hydrology_map,map_uv).a;
     float shore=smoothstep(.12,.42,damp)*(1.0-smoothstep(.60,.86,damp));
     float exposed=smoothstep(.08,.32,slope)*.9;
@@ -170,6 +171,12 @@ void fragment(){
     weights=mix(weights,vec4(0,0,0,1),sediment*.88);
     float wear=clamp(trail(grid)*.9+texture(material_map,map_uv).g*.12,0.0,.95);
     weights=mix(weights,vec4(0,0,0,1),wear);
+    // Current vegetation controls gaps in the scanned turf, rather than
+    // colouring every dry tile as a uniformly mown lawn. Reuse tint alpha;
+    // this does not add a sampler, texture lookup or scene node.
+    float openings=smoothstep(.39,.78,noise2(world_position.xz*.31+vec2(11,29)))*(1.0-habitat.a);
+    float loose_soil=openings*.68*weights.x*(1.0-shore)*(1.0-exposed);
+    weights=mix(weights,vec4(0,0,0,1),loose_soil);
     vec2 grass_uv=world_position.xz/2.0;
     vec2 earth_uv=world_position.xz/1.3;
     vec2 forest_uv=world_position.xz*.22;
@@ -206,7 +213,7 @@ void fragment(){
     colour=mix(colour,colour*vec3(.15,.13,.12),special.w);
     float lava=special.z;colour=mix(colour,vec3(.065,.045,.035),lava);
     EMISSION=vec3(1.0,.10,.005)*pow(max(0.0,sin(world_position.x*5.0+world_position.z*3.0+noise2(world_position.xz*2.0)*4.0)),24.0)*lava*.7;
-    ALBEDO=colour*clamp(texture(tint_map,map_uv).rgb/vec3(.9,.94,.85),vec3(0),vec3(2));
+    ALBEDO=colour*clamp(habitat.rgb/vec3(.9,.94,.85),vec3(0),vec3(2));
     vec3 grass_data=meadow_sample(grass_nr,grass_uv,true),forest_data=texture(forest_nr,forest_uv).rgb;
     vec3 side=sign(base+vec3(.000001));
     vec3 rdx=texture(rock_nr,vec2(rock_uv.z,rock_uv.y*side.x)).rgb;

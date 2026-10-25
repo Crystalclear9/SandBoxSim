@@ -16,6 +16,9 @@ internal partial class ResidentPortrait : SubViewportContainer
     private Vector3 _viewCenter;
     private bool _centerReady;
     public bool Compact { get; set; }
+    internal bool NotebookThumbnail { get; set; }
+    private bool IsThumbnail=>Compact&&NotebookThumbnail&&!Expanded;
+    private PanelContainer _controlPlate=null!;
     public event Action? ExpandRequested;
     private Godot.Button _expandButton=null!;
     private HBoxContainer _expandedControls=null!;
@@ -24,6 +27,7 @@ internal partial class ResidentPortrait : SubViewportContainer
     private void Hint(float alpha)
     {
         _hintTransition?.Kill();
+        if(IsThumbnail){_gestureHint.Modulate=new Color(1,1,1,0);return;}
         if(!HudStyle.MotionEnabled){_gestureHint.Modulate=new Color(1,1,1,alpha);return;}
         _hintTransition=_gestureHint.CreateTween();_hintTransition.TweenProperty(_gestureHint,"modulate:a",alpha,.16);
     }
@@ -38,10 +42,15 @@ internal partial class ResidentPortrait : SubViewportContainer
     internal void SetExpanded(bool expanded)
     {
         Expanded=expanded;_drag=false;
-        CustomMinimumSize=expanded?new Vector2(270,400):Compact?new Vector2(0,224):new Vector2(270,224);
+        CustomMinimumSize=expanded?new Vector2(270,400):Compact?new Vector2(0,IsThumbnail?138:224):new Vector2(270,224);
         SizeFlagsVertical=expanded?SizeFlags.ExpandFill:SizeFlags.Fill;
-        _expandButton.Visible=!expanded;
+        _expandButton.Visible=!expanded&&!IsThumbnail;
         _expandedControls.Visible=expanded;
+        _controlPlate.Visible=!IsThumbnail;
+        _gestureHint.Visible=!IsThumbnail;
+        FocusMode=IsThumbnail?FocusModeEnum.None:FocusModeEnum.All;
+        MouseFilter=IsThumbnail?MouseFilterEnum.Ignore:MouseFilterEnum.Stop;
+        if(_camera!=null)Aim();
     }
     private readonly NatureModels _models = new();
     private SubViewport _viewport = null!;
@@ -60,7 +69,7 @@ internal partial class ResidentPortrait : SubViewportContainer
     private float _yaw = -.28f, _distance = FaceDistance;
     public override void _Ready()
     {
-        Stretch = true; CustomMinimumSize = Compact ? new Vector2(0, 224) : new Vector2(270, 224);
+        Stretch = true; CustomMinimumSize = Compact ? new Vector2(0,IsThumbnail?138:224) : new Vector2(270, 224);
         TooltipText = "拖动左右旋转与上下俯仰 · 滚轮缩放 · 双击复位";
         MouseFilter = MouseFilterEnum.Stop;FocusMode=FocusModeEnum.All;
         _viewport = new SubViewport { Size = Compact ? new Vector2I(624, 512) : new Vector2I(540, 448), OwnWorld3D = true, Msaa3D = Viewport.Msaa.Msaa4X,
@@ -85,7 +94,7 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         _portraitGround=new MeshInstance3D { Mesh = new CylinderMesh {TopRadius=.62f,BottomRadius=.62f,Height=.004f,RadialSegments=64},Position=new(0,-.006f,0),
             CastShadow=GeometryInstance3D.ShadowCastingSetting.Off,MaterialOverride = new StandardMaterial3D { AlbedoColor = new("#293930"), Roughness = 1 },Visible=false };_stage.AddChild(_portraitGround);
         _camera = new Camera3D { Current = true, Fov = 26 }; _stage.AddChild(_camera); Aim();
-        var controlPlate=new PanelContainer();
+        var controlPlate=_controlPlate=new PanelContainer();
         controlPlate.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide);
         controlPlate.OffsetLeft=10;controlPlate.OffsetRight=-10;controlPlate.OffsetTop=-57;controlPlate.OffsetBottom=-10;
         controlPlate.AddThemeStyleboxOverride("panel",HudStyle.Box(new Color(HudStyle.Surface,.98f),8,6));AddChild(controlPlate);
@@ -119,6 +128,7 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         caption.MouseFilter=MouseFilterEnum.Ignore;caption.SetAnchorsAndOffsetsPreset(LayoutPreset.TopWide);
         caption.OffsetTop=12;caption.OffsetBottom=34;caption.OffsetLeft=14;AddChild(caption);caption.Modulate=new Color(1,1,1,0);
         MouseEntered+=()=>Hint(1);MouseExited+=()=>Hint(0);
+        SetExpanded(Expanded);
     }
     private void ZoomBy(float amount){_distance=Math.Clamp(_distance+amount,.50f,3.8f);Aim();}
     private void SetAngle(float angle)
@@ -136,7 +146,8 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
     public bool FinishingGesture=>_resident?.CompletionVisible==true;
     public void ShowCargo(bool hasCargo, SandBoxSim.Core.Environment.ResourceKind resource) => _resident?.ShowCargo(hasCargo,resource);
     public void ShowActivity(ActionKind action,ActionPhase phase,bool paused) { _action=action;_actionPhase=phase;_worldPaused=paused; }
-    internal object EvaluationState()=>new {framing=_framing.ToString().ToLowerInvariant(),yaw=_yaw,pitch=_pitch,distance=_distance,dragging=_drag,lighting=Lighting==0?"soft":"raking"};
+    internal object EvaluationState()=>new {framing=_framing.ToString().ToLowerInvariant(),yaw=_yaw,pitch=_pitch,distance=_distance,dragging=_drag,lighting=Lighting==0?"soft":"raking",thumbnail=IsThumbnail};
+    internal object InspectionState()=>new {framing=_framing.ToString().ToLowerInvariant(),yaw=_yaw,pitch=_pitch,distance=_distance,dragging=_drag,lighting=Lighting==0?"soft":"raking"};
     internal void SetLighting(int mode)
     {
         Lighting=Math.Clamp(mode,0,1);
@@ -147,7 +158,7 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
     internal object RenderQualityState()
     {
         var environment=_stage.GetChildren().OfType<WorldEnvironment>().Single().Environment;
-        return new {studio="textured-portrait-v5",backdrop="natural-radial-v2",lensFov=_camera.Fov,msaa=_viewport.Msaa3D.ToString(),resolution=new[]{_viewport.Size.X,_viewport.Size.Y},
+        return new {studio="thumbnail-portrait-v6",backdrop="natural-radial-v2",thumbnail=IsThumbnail,lensFov=_camera.Fov,msaa=_viewport.Msaa3D.ToString(),resolution=new[]{_viewport.Size.X,_viewport.Size.Y},
             background=environment.BackgroundColor.ToHtml(),ambient=environment.AmbientLightColor.ToHtml(),ambientEnergy=environment.AmbientLightEnergy,
             lights=_stage.GetChildren().OfType<DirectionalLight3D>().Select(light=>new {
                 color=light.LightColor.ToHtml(),energy=light.LightEnergy,rotation=new[]{light.RotationDegrees.X,light.RotationDegrees.Y,light.RotationDegrees.Z},shadows=light.ShadowEnabled,
@@ -178,7 +189,8 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         var center = _fullBody ? new Vector3(0,_child?.50f:.80f,0) : _resident != null ? _resident.Head.GlobalPosition - new Vector3(0, Compact ? .055f : .19f, 0) : new Vector3(0, 1.4f, 0);
         if(_framing==Framing.Hands&&_resident!=null)center=(_resident.Hands[0].GlobalPosition+_resident.Hands[1].GlobalPosition)*.5f+new Vector3(0,-.03f,0);
         _viewCenter=!_centerReady||delta==0||!HudStyle.MotionEnabled?center:_viewCenter.Lerp(center,1-MathF.Exp(-delta*9));_centerReady=true;
-        _camera.Position = _viewCenter + new Vector3(0, .035f+MathF.Sin(_pitch)*_viewDistance, -MathF.Cos(_pitch)*_viewDistance);
+        float shownDistance=IsThumbnail&&_framing==Framing.Face?_viewDistance*.9f:_viewDistance;
+        _camera.Position = _viewCenter + new Vector3(0, .035f+MathF.Sin(_pitch)*shownDistance, -MathF.Cos(_pitch)*shownDistance);
         _camera.LookAt(_viewCenter);
     }
     public override void _Process(double delta)
@@ -219,9 +231,15 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         bool motion=HudStyle.MotionEnabled;
         try
         {
-            HudStyle.MotionEnabled=true;Hint(1);_hintTransition!.CustomStep(.08);
+            HudStyle.MotionEnabled=true;Hint(1);
+            if(IsThumbnail)
+            {
+                if(_gestureHint.Modulate.A!=0||_hintTransition?.IsRunning()==true||_controlPlate.Visible||FocusMode!=FocusModeEnum.None||MouseFilter!=MouseFilterEnum.Ignore)
+                    throw new InvalidOperationException("Notebook thumbnail exposes hidden studio controls or hint motion");
+            }
+            else _hintTransition!.CustomStep(.08);
             HudStyle.MotionEnabled=false;SettleMotion();
-            if(_hintTransition.IsRunning()||_gestureHint.Modulate.A!=0||_viewDistance!=_distance)
+            if(_hintTransition?.IsRunning()==true||_gestureHint.Modulate.A!=0||_viewDistance!=_distance)
                 throw new InvalidOperationException("Reduced motion left portrait interpolation or hint running");
         }
         finally{HudStyle.MotionEnabled=motion;}
