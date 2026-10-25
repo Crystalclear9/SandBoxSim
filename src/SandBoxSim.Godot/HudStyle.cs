@@ -17,9 +17,9 @@ internal static class HudStyle
         surface.ShadowSize = 12; surface.ShadowOffset = new(0, 4);
         return surface;
     }
-    private static readonly SystemFont DisplayFont = new() { FontNames = new[] { "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "sans-serif" } };
-    private static readonly SystemFont HeadingFont = new() { FontNames = new[] { "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "sans-serif" }, FontWeight=600 };
-    internal static readonly SystemFont NumericFont=new() {FontNames=new[]{"Bahnschrift","Inter","Segoe UI","sans-serif"}};
+    private static readonly Font DisplayFont=InterfaceFonts.Regular;
+    private static readonly Font HeadingFont=InterfaceFonts.Heading;
+    internal static readonly Font NumericFont=InterfaceFonts.Numeric;
     public static Label Heading(string text, int size)
     { var label = Label(text, size); label.AddThemeFontOverride("font", HeadingFont); return label; }
     public static PanelContainer IconWell(Texture2D texture,int size=36)
@@ -120,6 +120,9 @@ internal static class HudStyle
     public static Theme InterfaceTheme()
     {
         var theme=new Theme {DefaultFont=DisplayFont,DefaultFontSize=14};
+        foreach(string type in new[]{"Label","Button","OptionButton","PopupMenu","LineEdit","CheckBox","SpinBox","TabBar","TabContainer","TextEdit","TooltipLabel"})theme.SetFont("font",type,DisplayFont);
+        theme.SetFont("normal_font","RichTextLabel",DisplayFont);theme.SetFont("bold_font","RichTextLabel",HeadingFont);
+        theme.SetFont("italics_font","RichTextLabel",DisplayFont);theme.SetFont("bold_italics_font","RichTextLabel",HeadingFont);theme.SetFont("mono_font","RichTextLabel",NumericFont);
         foreach(string type in new[]{"Label","Button","OptionButton","PopupMenu","LineEdit","CheckBox","SpinBox"})
         {theme.SetColor("font_color",type,Text);theme.SetColor("font_disabled_color",type,Muted);}
         var popup=Box(Surface,7,12);popup.BorderColor=Border;

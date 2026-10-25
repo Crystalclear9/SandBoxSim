@@ -58,7 +58,7 @@ UI 的层级和画布工具组织参考见[观察与界面](../guides/gameplay-o
 | [Missouri Department of Conservation：溪流岸缘](https://mdc.mo.gov/discover-nature/habitats/stream-edges) | 区分临水低岸与较高岸缘，普通河岸芦苇按实际高度和坡度选点；具体数值是项目表现参数 |
 | [NN/g：识别与回忆](https://www.nngroup.com/articles/recognition-and-recall/) | 操作提示靠近当前工作区，镜头角度、距离和跟随状态可直接查看；未选择居民时禁用跟随并说明原因 |
 
-这些资料用于明确实现方法；素材页、许可与作者记录用于实际资源来源。界面没有引入网页运行时或外部 UI 素材包。
+这些资料用于明确实现方法；素材页、许可与作者记录用于实际资源来源。界面没有引入网页运行时；字体作为带许可的正式资源随包提供。
 
 衣料法线投影继续参考 [NVIDIA 三向法线说明](https://docs.omniverse.nvidia.com/extensions/latest/ext_material/ext_material-graph/nodes/Texturing_High_Level/triplannar_normalmap_texture.html)，按各投影方向和法线变换分别处理；具体数值是本项目参数。草花外观参考 [RHS 草地草花资料](https://www.rhs.org.uk/plants/7914/geranium-pratense/details) 的开放花冠层次，模型为通用五瓣造型，没有赋予该物种标签。
 
@@ -99,7 +99,7 @@ UI 的层级和画布工具组织参考见[观察与界面](../guides/gameplay-o
 | [NVIDIA GPU Gems：水面模型](https://developer.nvidia.com/gpugems/gpugems/part-i-natural-effects/chapter-1-effective-water-simulation-physical-models) | 分开处理较长几何波与细波法线，使用解析梯度；当前是简化的叠加波形，不复刻完整章节系统 |
 | [《庄园领主》官方画面](https://store.steampowered.com/app/1363080/Manor_Lords/)与 [NN/g 渐进呈现](https://www.nngroup.com/articles/progressive-disclosure/) | 减少重复的悬浮卡片，全局信息置顶、对象详情按需打开，提供沉浸观察；未复制原游戏素材 |
 
-护毛是从既有授权表面派生的运行网格，沿用对应鹿、狼许可；程序代码、其他模型和界面仍按各自许可管理。本次表现调整不新增第三方运行依赖。
+护毛是从既有授权表面派生的运行网格，沿用对应鹿、狼许可；程序代码、其他模型和界面仍按各自许可管理。客户端继续使用 Godot 原生材质与文字系统，字体资源随包提供，不增加外部渲染运行库。
 
 ## 新增与移动资源
 
@@ -120,6 +120,12 @@ UI 的层级和画布工具组织参考见[观察与界面](../guides/gameplay-o
 [NN/g 视觉层级](https://www.nngroup.com/articles/visual-hierarchy-ux-definition/)用于区分居民概览与生活、决策资料，公共身份和操作保留，避免重复堆叠。人物柔光／侧光使用同一隔离场景的灯，实际切换可用于查看形体和材质，不改变模拟。
 
 湿润表面的第二反光层依据 [Godot 材质说明](https://docs.godotengine.org/en/stable/tutorials/3d/standard_material_3d.html)，实际变量按 [4.7.2 引擎着色器定义](https://github.com/godotengine/godot/blob/4.7.2-stable/servers/rendering/shader_types.cpp) 中的 `CLEARCOAT_ROUGHNESS` 使用；没有采用文档中与当前引擎不一致的旧变量名。原人脸、眼部、动物和亚麻纹理仍保留各自来源和许可，没有把低分辨率纹理描述为新扫描素材。
+
+## 随包界面字体
+
+界面、数字和世界标签使用正式资源中的 Noto Sans SC 可变字体及 Noto Sans Symbols 2，来源为 [Google Fonts 固定提交](https://github.com/google/fonts/tree/e7db6ca603fd4862010383ff17ffd6cc4ffac1c0/ofl/notosanssc)。两个未修改字体分别保留 SIL Open Font License 1.1，来源提交、下载地址与 SHA-256 见[字体清单](../../src/SandBoxSim.Godot/assets/fonts/manifest.json)。字体是运行资源，不需要安装到操作系统。
+
+正文使用常规字重，标题使用 600，数字使用 500 与等宽数字特性。`InterfaceFonts.cs` 统一缓存字体，显式关闭系统回退，并以随包符号字库处理快捷键和箭头。导出包自检检查原始字体与许可哈希、代表性中英文／符号字形、数字列宽及实际文本排版；不依赖主机安装微软、苹果或 Linux 中文字体。
 
 ---
 

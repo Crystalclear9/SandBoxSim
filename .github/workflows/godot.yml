@@ -52,7 +52,7 @@ jobs:
         run: ./tools/godot.ps1 -Mode test
       - name: Install software display for visual interface smoke
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y xvfb libgl1-mesa-dri fonts-noto-cjk
+        run: sudo apt-get update && sudo apt-get install -y xvfb libgl1-mesa-dri
       - name: Native visual evaluation interface smoke
         if: runner.os == 'Linux'
         env:

@@ -22,7 +22,7 @@ SandBoxSim 是一款以自然生态与居民自主行为为核心的 3D 沙盒�
 
 Windows 本机已有独立导出包时，双击 [Play-3D.cmd](Play-3D.cmd) 即可游玩，不需要开发工具链。启动器优先使用 `artifacts/game/windows/` 中的完整游戏包；发行文件不提交到源码仓库。包的导出和更新见 [构建与运行](docs/development/build.md)，工具链与临时文件的管理见 [本机存储维护](docs/development/local-storage.md)。
 
-源码运行环境为 **PowerShell 7、.NET 8 SDK、Godot 4.7.2 .NET**。从仓库根目录执行：
+源码运行环境为 **PowerShell 7、.NET 8 SDK、Godot 4.7.2 .NET**；中文和符号字体随包提供，无需安装系统字库。从仓库根目录执行：
 
 ```powershell
 ./tools/install-sdk.ps1

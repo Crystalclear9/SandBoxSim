@@ -161,9 +161,10 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         _drawer = new TabContainer { SizeFlagsVertical = SizeFlags.ExpandFill }; journal.AddChild(_drawer);
         _drawer.AddThemeStyleboxOverride("panel", HudStyle.Box(new Color(0, 0, 0, 0), 0, 0, false));
         _discovery = new DiscoveryPanel { Name = "现场", Game = this }; _drawer.AddChild(_discovery);
-        var personScroll=new ScrollContainer {Name="人物",HorizontalScrollMode=ScrollContainer.ScrollMode.Disabled,SizeFlagsVertical=SizeFlags.ExpandFill};_drawer.AddChild(personScroll);
+        var personPage=new VBoxContainer {Name="人物",SizeFlagsVertical=SizeFlags.ExpandFill};personPage.AddThemeConstantOverride("separation",8);_drawer.AddChild(personPage);
+        var personScroll=new ScrollContainer {HorizontalScrollMode=ScrollContainer.ScrollMode.Disabled,SizeFlagsVertical=SizeFlags.ExpandFill};personPage.AddChild(personScroll);
         var personPanel=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};personPanel.AddThemeConstantOverride("separation",8);personScroll.AddChild(personPanel);
-        _residentPages=new HBoxContainer();_residentPages.AddThemeConstantOverride("separation",4);personPanel.AddChild(_residentPages);
+        _residentPages=new HBoxContainer();_residentPages.AddThemeConstantOverride("separation",4);personPage.AddChild(_residentPages);personPage.MoveChild(_residentPages,0);
         for(int i=0;i<3;i++)
         {
             int page=i;var button=ActionButton(_residentPages,new[]{"概览","生活","决策"}[i],()=>SetResidentPage(page));
@@ -171,11 +172,11 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
             button.TooltipText=new[]{"肖像、当前行为、身体需求与随身物资","居所、关系与个人历史","性格倾向与上次决策效用"}[i];
         }
         BuildResidentVitals(personPanel); BuildLandVitals(personPanel);
-        var detailControls = new HBoxContainer(); _residentControls = detailControls; personPanel.AddChild(detailControls);
+        var detailControls = new HBoxContainer(); _residentControls = detailControls; personPage.AddChild(detailControls);
         var model=ActionButton(detailControls,"观察模型  ↗",()=>ShowPortraitWindow(true));model.SizeFlagsHorizontal=SizeFlags.ExpandFill;
         _pinButton = ActionButton(detailControls, "关注", TogglePin);
         ActionButton(detailControls, "改名", () => { _editingResidentName = !_editingResidentName; _residentNameControls.Visible = _editingResidentName; });
-        var nameControls = new HBoxContainer(); _residentNameControls = nameControls; personPanel.AddChild(nameControls);
+        var nameControls = new HBoxContainer(); _residentNameControls = nameControls; personPage.AddChild(nameControls);
         _residentName = new LineEdit { PlaceholderText = "给这个居民起个名字", MaxLength = 24, SizeFlagsHorizontal = SizeFlags.ExpandFill };
         nameControls.AddChild(_residentName); ActionButton(nameControls, "命名", RenameResident);
         _inspector = TextPanel("人物详情"); _inspector.FitContent=true;_inspector.ScrollActive=false;_inspector.SizeFlagsVertical=SizeFlags.Fill;personPanel.AddChild(_inspector); _history = TextPanel("历史"); _drawer.AddChild(_history);
@@ -184,7 +185,7 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         _drawer.TabChanged += _ => RevealJournalPage();
 
         _brushPanel = Surface(overlay, new Vector2(0, 0), new Vector2(24, 104), new Vector2(245, 230), 18);
-        var brush = new VBoxContainer(); brush.AddThemeConstantOverride("separation", 6); _brushPanel.AddChild(brush);
+        var brush = new VBoxContainer(); brush.AddThemeConstantOverride("separation", 4); _brushPanel.AddChild(brush);
         var brushHeading=new HBoxContainer();brush.AddChild(brushHeading);
         _brushTitle = HudStyle.Heading("自由观察", 21);_brushTitle.SizeFlagsHorizontal=SizeFlags.ExpandFill;brushHeading.AddChild(_brushTitle);
         var closeBrush=ActionButton(brushHeading,"×",()=>{SelectTool(PlayerTool.Inspect);ShowTools(false);});
@@ -249,21 +250,21 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         _toolSearch.TextChanged+=_=>PopulateTools();
         _toolSearch.GuiInput+=HandleToolSearchInput;
         var browser=new HBoxContainer {SizeFlagsVertical=SizeFlags.ExpandFill};browser.AddThemeConstantOverride("separation",10);dockContents.AddChild(browser);
-        var categories=new VBoxContainer();categories.AddThemeConstantOverride("separation",4);browser.AddChild(categories);
+        var categories=new VBoxContainer();categories.AddThemeConstantOverride("separation",2);browser.AddChild(categories);
         foreach (string category in new[] { "生命", "生态", "地貌", "资源", "灾害", "祝福" })
         {
             string chosen=category;var button=ActionButton(categories,category,()=>SetCategory(chosen));
-            button.ToggleMode=true;button.CustomMinimumSize=new(70,40);button.AddThemeFontSizeOverride("font_size",12);
+            button.ToggleMode=true;HudStyle.QuietButton(button,12);button.CustomMinimumSize=new(70,38);
             button.Icon=ToolGlyphs.For(CategoryGlyph(category));button.ExpandIcon=true;button.AddThemeConstantOverride("icon_max_width",16);button.AddThemeConstantOverride("h_separation",5);button.Alignment=HorizontalAlignment.Left;
             _categoryButtons[category]=button;
         }
         browser.AddChild(new VSeparator {MouseFilter=MouseFilterEnum.Ignore});
-        _toolScroll=new ScrollContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill,SizeFlagsVertical=SizeFlags.ExpandFill,HorizontalScrollMode=ScrollContainer.ScrollMode.Disabled,CustomMinimumSize=new(0,260)};browser.AddChild(_toolScroll);
+        _toolScroll=new ScrollContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill,SizeFlagsVertical=SizeFlags.ExpandFill,HorizontalScrollMode=ScrollContainer.ScrollMode.Disabled,CustomMinimumSize=new(0,238)};browser.AddChild(_toolScroll);
         var library=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};_toolScroll.AddChild(library);
         _paletteRow = new GridContainer { Columns = 1,SizeFlagsHorizontal=SizeFlags.ExpandFill };library.AddChild(_paletteRow);
         _emptyTools=HudStyle.Label("没有匹配的工具，试试其他关键词。",13,true);_emptyTools.AutowrapMode=TextServer.AutowrapMode.WordSmart;library.AddChild(_emptyTools);
         _brushPanel.Reparent(dockContents);_brushPanel.SetAnchorsAndOffsetsPreset(LayoutPreset.TopLeft);_brushPanel.CustomMinimumSize=Vector2.Zero;
-        var brushSurface=HudStyle.Box(HudStyle.Wash,6,10,false);_brushPanel.AddThemeStyleboxOverride("panel",brushSurface);_brushPanel.GetChild<HudBevel>(0).Visible=false;
+        var brushSurface=HudStyle.Box(HudStyle.Wash,6,8,false);_brushPanel.AddThemeStyleboxOverride("panel",brushSurface);_brushPanel.GetChild<HudBevel>(0).Visible=false;
         _brushTitle.AddThemeFontSizeOverride("font_size",14);_brushHint.AddThemeFontSizeOverride("font_size",12);
         _brushControlsHint=HudStyle.Label("左键施加  ·  Shift + 滚轮调范围  ·  Esc 退出",11,true);brush.AddChild(_brushControlsHint);
         SetCategory("生命");
@@ -329,9 +330,10 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         }
         _status.AutowrapMode=TextServer.AutowrapMode.WordSmart;_status.MaxLinesVisible=2;_status.MouseFilter=MouseFilterEnum.Pass;
         _status.AddThemeFontSizeOverride("font_size",12);
-        _toolBadge.CustomMinimumSize=new Vector2(0,20);_status.CustomMinimumSize=new Vector2(0,32);
+        float twoLines=Mathf.Ceil(_status.GetThemeFont("font").GetHeight(12)*2+_status.GetThemeConstant("line_spacing"));
+        _toolBadge.CustomMinimumSize=new Vector2(0,20);_status.CustomMinimumSize=new Vector2(0,twoLines);
         _contextFacts=HudStyle.Label("",12,true);_contextFacts.SizeFlagsHorizontal=SizeFlags.ExpandFill;
-        _contextFacts.CustomMinimumSize=new(0,40);_contextFacts.AutowrapMode=TextServer.AutowrapMode.WordSmart;
+        _contextFacts.CustomMinimumSize=new(0,twoLines);_contextFacts.AutowrapMode=TextServer.AutowrapMode.WordSmart;
         _contextFacts.MaxLinesVisible=2;_contextFacts.ClipText=true;_contextFacts.TextOverrunBehavior=TextServer.OverrunBehavior.TrimEllipsis;
         _contextFacts.MouseFilter=MouseFilterEnum.Pass;_contextFacts.Visible=false;context.AddChild(_contextFacts);
         var contextActions=new VBoxContainer {SizeFlagsVertical=SizeFlags.ShrinkCenter};contextActions.AddThemeConstantOverride("separation",2);contextRow.AddChild(contextActions);
@@ -383,10 +385,14 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
     private void FitHudFor(Vector2 size)
     {
         FitToolLibrary(size);
-        HudStyle.Float(_timePanel, new Vector2(0, 1), new Vector2(20, -88), new Vector2(286, 72));
-        HudStyle.Float(_cameraPanel, new Vector2(1, 1), new Vector2(-300, -88), new Vector2(280, 72));
+        var timeSize=_timePanel.GetCombinedMinimumSize().Max(new Vector2(286,72));
+        var cameraSize=_cameraPanel.GetCombinedMinimumSize().Max(new Vector2(280,72));
+        var commandSize=_commandPanel.GetCombinedMinimumSize().Max(new Vector2(360,50));
+        HudStyle.Float(_timePanel,new(0,1),new(20,-16-timeSize.Y),timeSize);
+        HudStyle.Float(_cameraPanel,new(1,1),new(-16-cameraSize.X,-16-cameraSize.Y),cameraSize);
+        HudStyle.Float(_commandPanel,new(.5f,1),new(-commandSize.X/2,-16-commandSize.Y),commandSize);
         float statsWidth=Math.Clamp(size.X-600,600,740);
-        HudStyle.Float(_statsPanel,new Vector2(.5f,0),new Vector2(-statsWidth/2,8),new Vector2(statsWidth,62));
+        HudStyle.Float(_statsPanel,new Vector2(.5f,0),new Vector2(-statsWidth/2,8),new Vector2(statsWidth,Mathf.Max(62,_statsPanel.GetCombinedMinimumSize().Y)));
         float journalWidth=Math.Clamp(size.X*.25f,348,396);
         _journalPanel.OffsetLeft=-journalWidth-16;_journalPanel.OffsetRight=-16;
         _journalPanel.OffsetBottom = size.Y - 100;
@@ -399,7 +405,9 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         float left=_dockPanel.Visible?_dockPanel.OffsetRight+16:322;
         float right=_journalPanel.Visible?size.X+_journalPanel.OffsetLeft-16:size.X-316;
         float width=MathF.Min(620,right-left),x=Math.Clamp((size.X-width)*.5f,left,right-width);
-        HudStyle.Float(_contextPanel,new Vector2(0,1),new Vector2(x,-184),new Vector2(width,88));
+        float height=Mathf.Max(88,_contextPanel.GetCombinedMinimumSize().Y);
+        float aboveControls=Mathf.Max(-_timePanel.OffsetTop,Mathf.Max(-_cameraPanel.OffsetTop,-_commandPanel.OffsetTop))+8;
+        HudStyle.Float(_contextPanel,new Vector2(0,1),new Vector2(x,-aboveControls-height),new Vector2(width,height));
     }
     private void RefreshPresentationControls()
     {
@@ -453,7 +461,9 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
     private void FitToolLibrary(Vector2 size)
     {
         // Keep categories and parameters stationary while only the tool list scrolls.
-        float height=Math.Min(size.Y-196,704);
+        float controls=Mathf.Max(72,Mathf.Max(_timePanel?.GetCombinedMinimumSize().Y??0,_cameraPanel?.GetCombinedMinimumSize().Y??0));
+        controls=Mathf.Max(controls,_commandPanel?.GetCombinedMinimumSize().Y??0);
+        float height=Math.Min(size.Y-96-16-controls-12,704);
         HudStyle.Float(_dockPanel,Vector2.Zero,new Vector2(20,96),new Vector2(416,height));
     }
     private void ValidateHudLayout()
@@ -746,6 +756,7 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
     }
     private void ValidateHudMotion()
     {
+        InterfaceFonts.Validate();
         bool enabled = HudStyle.MotionEnabled;
         try
         {
@@ -872,7 +883,7 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
             _toolButtons[PlayerTool.River].EmitSignal(BaseButton.SignalName.Pressed);
             if(Tool!=PlayerTool.River||!_brushPanel.IsVisibleInTree())throw new InvalidOperationException("Selected brush has no visible parameter editor");
             var minimum=_dockPanel.GetCombinedMinimumSize();
-            if(minimum.X>368.5f||minimum.Y>Size.Y-196+.5f)
+            if(minimum.X>368.5f||minimum.Y>_dockPanel.OffsetBottom-_dockPanel.OffsetTop+.5f)
                 throw new InvalidOperationException("Brush controls exceed the authored library size: "+minimum);
             _radiusSlider.Value=7;_strengthSlider.Value=31;
             if(_radius.Value!=7||_strength.Value!=31)throw new InvalidOperationException("Brush slider and numeric fields diverge");

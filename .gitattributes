@@ -14,9 +14,13 @@
 
 # 二进制
 *.png       binary
+*.ttf       binary
 *.dll       binary
 *.exe       binary
 *.simsave   binary
+
+# 保留上游授权原文及其校验值（原文含行尾空格）
+src/SandBoxSim.Godot/assets/fonts/*-OFL.txt whitespace=-blank-at-eol
 
 # 语系统计：不要在生成文件上统计语言占比
 bin/**      linguist-vendored

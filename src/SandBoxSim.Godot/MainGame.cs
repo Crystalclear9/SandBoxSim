@@ -75,8 +75,7 @@ public partial class MainGame : Control
         try { System.IO.Directory.CreateDirectory(OS.GetUserDataDir()); }
         catch(System.IO.IOException ex){GD.PushWarning("Game preferences directory unavailable: "+ex.Message);}
         catch(UnauthorizedAccessException ex){GD.PushWarning("Game preferences directory unavailable: "+ex.Message);}
-        Theme = new Theme { DefaultFontSize = 16, DefaultFont = new SystemFont
-            { FontNames = new[] { "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "WenQuanYi Zen Hei", "sans-serif" } } };
+        Theme = new Theme { DefaultFontSize = 16, DefaultFont = InterfaceFonts.Regular };
         var preferences = new ConfigFile();
         var preferenceResult=preferences.Load("user://interface.cfg");
         string originalProfile=OS.GetEnvironment("SANDBOXSIM_ORIGINAL_APPDATA");

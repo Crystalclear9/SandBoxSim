@@ -32,7 +32,7 @@
 
 ## 版本与复现
 
-建筑、人物动物、面部、衣装、生态、网格近景、地形远近景、工具库、现场手记、人物手记、展开观察窗及其手部／全身视图与花甸更新于 2026-10-25，均为原生 Godot 渲染、1600×1000；常规预览采用 2 秒采样延迟，手部与全身分别使用公开评测的第 130 / 170 帧。对应 `interface=resident-pages-v15`、`architecture=rounded-tile-toes-v11`、`animalPresentation=wet-eye-nose-v8` 和 `landscapeSurface=moisture-meadow-v5`；植物摆放标识为 `habitatDetail=floral-organs-v8`。人物皮肤、植物表面框架与水波分别记录 `residentSurface=corneal-skin-v5`、`vegetationSurface=bent-frames-v1`、`waterSurface=fine-ripples-v2`，织物为 `garmentMaterial=calibrated-linen-v7`。新增生活／决策／侧光图在真实鼠标回放的第 115／150／230 帧采样；同一回放第 80 帧按空格暂停世界。沉浸图在第 325 帧发出 F10，并在第 340 帧截图；模型图册暂停模拟；世界界面使用种子 839102、40 人，不作预先天数推进，但普通界面截图等待期间按正常 4× 倍率运行；花甸预览暂停模拟。
+建筑、人物动物、面部、衣装、生态、网格近景、地形远近景、工具库、现场手记、人物手记、展开观察窗及其手部／全身视图与花甸更新于 2026-10-25，均为原生 Godot 渲染、1600×1000；常规预览采用 2 秒采样延迟，手部与全身分别使用公开评测的第 130 / 170 帧。字体策略为 `fontProfile=noto-packaged-v1`。对应 `interface=resident-pages-v16`、`architecture=rounded-tile-toes-v11`、`animalPresentation=wet-eye-nose-v8` 和 `landscapeSurface=moisture-meadow-v5`；植物摆放标识为 `habitatDetail=floral-organs-v8`。人物皮肤、植物表面框架与水波分别记录 `residentSurface=corneal-skin-v5`、`vegetationSurface=bent-frames-v1`、`waterSurface=fine-ripples-v2`，织物为 `garmentMaterial=calibrated-linen-v7`。新增生活／决策／侧光图在真实鼠标回放的第 115／150／230 帧采样；同一回放第 80 帧按空格暂停世界。沉浸图在第 325 帧发出 F10，并在第 340 帧截图；模型图册暂停模拟；世界界面使用种子 839102、40 人，不作预先天数推进，但普通界面截图等待期间按正常 4× 倍率运行；花甸预览暂停模拟。
 
 地形远景使用普通世界入口；近景加 `--view=near`。两图用于查看实际扫描草叶地面、山坡、岸线和贴地，属于普通客户端采样，不作为固定帧评测成绩。
 

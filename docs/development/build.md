@@ -132,6 +132,10 @@ Windows 的 `godot.ps1`、`export-game.ps1`、`evaluate.py` 和 `Play-3D.cmd` �
 
 `godot.ps1` 对资源导入和结束后的引擎日志同时检查退出码与错误行。即使退出为 0 或已打印成功标记，`ERROR:`、`SCRIPT ERROR:`、`SHADER ERROR:` 仍判定失败；`-Mode test` 还必须包含 `GODOT_SELF_TEST_PASS:`。这避免着色器编译失败被后续几何自检掩盖。对应回归随 `./tools/test-godot-export.ps1` 运行，不影响玩家存档。
 
+## 字体与跨平台启动
+
+中文和符号字体随项目和导出包提供，运行不需要安装系统中文字体。Godot 导入字体资源后，正文、标题、数字和世界标签均使用同一组带许可的文件；字体的系统回退关闭。Linux 原生视觉 CI 只安装软件显示和 Mesa，不额外安装中文字体。`INTERFACE_FONTS_PASS` 表示实际字形、文本排版、等宽数字与资源哈希检查通过，后续错误日志仍会使运行失败。
+
 ---
 
 [文档导航](../README.md) · [项目首页](../../README.md)
