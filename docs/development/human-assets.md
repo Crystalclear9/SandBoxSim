@@ -22,7 +22,7 @@
 
 下眼睑另有读取同一 49 点源眼裂的湿润细边：0.18 毫米半径、768 面，携带最近源三角面重心插值后的实际闭合位移，与眼睑和睫毛同步眨眼；采样按来源族和眼裂位置缓存，不在每帧搜索。近景共享网格、每人独立材质，远景随头部细节隐藏。皮肤和唇部的染色参考也标记为 `source_color`，避免与纹理使用不同色彩基准；原照片与八种身份、儿童变换继续共用原流程。
 
-近景头发采用 `short01`、`short02`、`ponytail01` 三种带透明发梢的发片，按源 MHCLO 的重心权重和偏移拟合到当前头部，束发采用露出额头和双眼的轮廓。材质保留发丝明暗并按居民发色染色。眉毛仍为贴合面部的细弧面。远景头脸从同一头颈、眼球和唇部减面到最多 2,400 三角面，结合简化头皮轮廓与单材质；不显示近景皮肤纹理和细发片。
+近景头发采用 `short01`、`short02`、`ponytail01` 三种带透明发梢的发片，按源 MHCLO 的重心权重和偏移拟合到当前头部，束发采用露出额头和双眼的轮廓。材质保留发丝明暗并按居民发色染色。`NatureModels.Hairline.cs` 按来源族缓存帽体物理根边和米制距离／弧长，仅在约 1.5 毫米根带调整短束覆盖；游离片和马尾使用排除标记，源 Alpha 文件、顶点、UV 与索引不变。`MeshBatching` 对该度量保持原单位，避免复用眼睑位移缩放。眉毛仍为贴合面部的细弧面。远景头脸从同一头颈、眼球和唇部减面到最多 2,400 三角面，结合简化头皮轮廓与单材质；不显示近景皮肤纹理和细发片。
 
 来源、文件大小与 SHA-256 位于 [head-sources.json](../../src/SandBoxSim.Godot/assets/models/human/head-sources.json)，每套模型也记录实际输入和纹理哈希。普通构建及 CI 不运行 Blender、不联网。
 
@@ -35,6 +35,8 @@
 [NatureModels.Forearm.cs](../../src/SandBoxSim.Godot/NatureModels.Forearm.cs) 校验成品哈希并缓存左右网格，镜像时同时处理顶点、法线和三角面朝向。近景前臂与手掌通过共顶点过渡环连成单张蒙皮，前臂顶点使用现有腕部补偿骨，抵消手腕转动而保持肘部挂接；指骨仍驱动手指。远景使用静态前臂和手部 LOD，腕端保留埋入重叠。自检检查连续性、边界位置、左右镜像，并在实际工具动作中检查变形后的手腕仍与前臂截面一致。
 
 `--panel=forearms` 是本地维护预览，展示相同模型的左右掌侧/背侧。它不扩展 HTTP 控制或评测请求协议；公开评测面板列表保持原有定义。
+
+发根表现参考 [MakeHuman 官方材质](https://static.makehumancommunity.org/assets/creatingassets/makeclothes/makeclothes_materials.html)和[Godot 透明材质](https://docs.godotengine.org/en/stable/tutorials/3d/standard_material_3d.html)。当前固定 Compatibility 路径仍使用原 Scissor；没有声称启用 Alpha-to-Coverage，也没有新增扫描或全部毛发几何。
 
 ## 解剖手部
 

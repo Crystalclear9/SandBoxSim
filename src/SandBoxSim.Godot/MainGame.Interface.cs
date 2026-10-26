@@ -69,6 +69,8 @@ public partial class MainGame
     private VBoxContainer _residentInventory=null!;
     private Button _residentInventoryToggle=null!;
     private bool _inventoryExpanded;
+    private ulong _portraitInventoryScrollRequest;
+    private long _portraitInventoryIdentity;
     private Tween? _vitalTransition, _landTransition;
     private VBoxContainer _landVitals = null!;
     private Label _landTitle = null!, _landSubtitle = null!;
@@ -603,10 +605,31 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
     private void SetInventoryExpanded(bool expanded)
     {
         _inventoryExpanded=expanded;RefreshInventoryDisclosure();
+        ulong request=++_portraitInventoryScrollRequest;
+        if(expanded&&_portraitOverlay?.Visible==true)
+            RevealPortraitInventoryAfterLayout(request,_selectedPersonId);
+    }
+    private async void RevealPortraitInventoryAfterLayout(ulong request,long identity)
+    {
+        bool Current()=>GodotObject.IsInstanceValid(this)&&IsInsideTree()
+            &&request==_portraitInventoryScrollRequest&&_inventoryExpanded&&_selectedPersonId==identity&&SelectedSlot>=0
+            &&GodotObject.IsInstanceValid(_portraitOverlay)&&_portraitOverlay.Visible
+            &&GodotObject.IsInstanceValid(_portraitFactsScroll)&&_portraitFactsScroll.IsVisibleInTree()
+            &&GodotObject.IsInstanceValid(_portraitInventory)&&_portraitInventory.IsVisibleInTree();
+        // Container minimum sizes and the scroll range settle after the expanded
+        // grid is shown. A same-frame deferred call can still see the old range.
+        for(int frame=0;frame<2;frame++)
+        {
+            if(!Current())return;
+            await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
+        }
+        if(Current())_portraitFactsScroll.EnsureControlVisible(_portraitInventory);
     }
     private void RefreshInventoryDisclosure()
     {
         int slot=SelectedSlot;if(slot<0)return;
+        if(_portraitInventoryIdentity!=_selectedPersonId)
+        {_portraitInventoryIdentity=_selectedPersonId;_portraitInventoryScrollRequest++;}
         var carried=new List<string>();
         string[] names={"食物","木材","石料","铁矿"};
         for(int i=0;i<4;i++)
@@ -622,6 +645,7 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         {
             _portraitInventoryToggle.Text=label;_portraitInventoryToggle.TooltipText=summary;
             _portraitInventory.Visible=_inventoryExpanded;
+            if(_portraitCarrySummary!=null){_portraitCarrySummary.Text=summary;_portraitCarrySummary.TooltipText=summary;}
         }
     }
     private void SetResidentPage(int page)

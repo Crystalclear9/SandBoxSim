@@ -65,6 +65,7 @@ internal sealed partial class NatureModels
     private void ValidateBotanicalModels()
     {
         ValidateMeadowTurf();
+        ValidateReedPanicles();
         foreach(string kind in new[]{"foliage","pine","fern","grass","reeds","rock"})
         {
             var mesh=Shape(kind);if(mesh!=Shape(kind))throw new InvalidOperationException("Botanical mesh cache is unstable");

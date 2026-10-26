@@ -192,6 +192,7 @@ internal sealed partial class NatureModels
         arrays[(int)Mesh.ArrayType.Vertex]=points;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.TexUV]=uv;
         arrays[(int)Mesh.ArrayType.Color]=colors;arrays[(int)Mesh.ArrayType.Index]=source.Indices;
         if(source.Blink!=null)arrays[(int)Mesh.ArrayType.TexUV2]=blinkUv;
+        if(kind=="hair")arrays[(int)Mesh.ArrayType.TexUV2]=HairlineSource().Metrics;
         var mesh=new ArrayMesh();mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);_meshes[key]=mesh;return mesh;
     }
     private Vector3 WrapHumanHair(Vector3 p,float angle,bool center=false)
@@ -231,6 +232,7 @@ internal sealed partial class NatureModels
         {
             _faceVariant=variant;_facePoints=null;_faceIndices=null;
             var data=HumanData();
+            ValidateHairlineSource();
             if(data.Radii.Length!=data.Rows*data.Columns||data.Centers.Length!=data.Rows||data.High<=data.Low)
                 throw new InvalidOperationException("Incomplete scalp surface lookup");
             foreach(float radius in data.Radii)if(!float.IsFinite(radius)||radius<=0)throw new InvalidOperationException("Invalid scalp sample");

@@ -22,7 +22,6 @@ internal partial class ResidentPortrait : SubViewportContainer
     private PanelContainer _controlPlate=null!;
     public event Action? ExpandRequested;
     private Godot.Button _expandButton=null!;
-    private HBoxContainer _expandedControls=null!;
     private Label _gestureHint=null!;
     private Tween? _hintTransition;
     private void Hint(float alpha)
@@ -46,7 +45,7 @@ internal partial class ResidentPortrait : SubViewportContainer
         CustomMinimumSize=expanded?new Vector2(270,400):Compact?new Vector2(0,IsThumbnail?138:224):new Vector2(270,224);
         SizeFlagsVertical=expanded?SizeFlags.ExpandFill:SizeFlags.Fill;
         _expandButton.Visible=!expanded&&!IsThumbnail;
-        _expandedControls.Visible=expanded;
+        SetStudioControlsExpanded(expanded);
         _controlPlate.Visible=!IsThumbnail;
         _gestureHint.Visible=!IsThumbnail;
         FocusMode=IsThumbnail?FocusModeEnum.None:FocusModeEnum.All;
@@ -76,7 +75,7 @@ internal partial class ResidentPortrait : SubViewportContainer
     public override void _Ready()
     {
         Stretch = true; CustomMinimumSize = Compact ? new Vector2(0,IsThumbnail?138:224) : new Vector2(270, 224);
-        TooltipText = "拖动左右旋转与上下俯仰 · 滚轮缩放 · 双击复位";
+        TooltipText = "拖动旋转与俯仰 · 滚轮缩放 · Shift + 滚轮精调 · 双击复位";
         MouseFilter = MouseFilterEnum.Stop;FocusMode=FocusModeEnum.All;
         _viewport = new SubViewport { Size = Compact ? new Vector2I(624, 512) : new Vector2I(540, 448), OwnWorld3D = true, Msaa3D = Viewport.Msaa.Msaa4X,
             RenderTargetUpdateMode = SubViewport.UpdateMode.WhenVisible, HandleInputLocally = false };
@@ -100,46 +99,17 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         _portraitGround=new MeshInstance3D { Mesh = new CylinderMesh {TopRadius=.62f,BottomRadius=.62f,Height=.004f,RadialSegments=64},Position=new(0,-.006f,0),
             CastShadow=GeometryInstance3D.ShadowCastingSetting.Off,MaterialOverride = new StandardMaterial3D { AlbedoColor = new("#293930"), Roughness = 1 },Visible=false };_stage.AddChild(_portraitGround);
         _camera = new Camera3D { Current = true, Fov = 26 }; _stage.AddChild(_camera); Aim();
-        var controlPlate=_controlPlate=new PanelContainer();
-        controlPlate.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide);
-        controlPlate.OffsetLeft=10;controlPlate.OffsetRight=-10;controlPlate.OffsetTop=-57;controlPlate.OffsetBottom=-10;
-        controlPlate.AddThemeStyleboxOverride("panel",HudStyle.Box(new Color(HudStyle.Surface,.98f),8,6));AddChild(controlPlate);
-        var controls=new HBoxContainer();controls.AddThemeConstantOverride("separation",3);controlPlate.AddChild(controls);
-        Godot.Button StudioButton(string title,string hint,Action action,int width=42)
-        {
-            var button=new Godot.Button {Text=title,CustomMinimumSize=new(width,32)};HudStyle.Button(button);
-            button.AddThemeFontSizeOverride("font_size",12);button.TooltipText=hint;controls.AddChild(button);button.Pressed+=action;return button;
-        }
-        foreach(var (mode,title) in new[]{(Framing.Face,"面部"),(Framing.Hands,"手部"),(Framing.Body,"全身")})
-        {
-            var button=StudioButton(title,"聚焦"+title+" · 保留当前旋转角度",()=>SetFraming(mode));
-            button.ToggleMode=true;_frameButtons[mode]=button;
-        }
-        _frameButtons[Framing.Face].SetPressedNoSignal(true);
-        controls.AddChild(new Control {SizeFlagsHorizontal=SizeFlags.ExpandFill,MouseFilter=MouseFilterEnum.Ignore});
-        _expandedControls=new HBoxContainer {Visible=Expanded};_expandedControls.AddThemeConstantOverride("separation",3);controls.AddChild(_expandedControls);
-        foreach(var (title,angle) in new[]{("正面",0f),("三刻",-.65f),("背面",MathF.PI)})
-        {
-            var preset=new Godot.Button {Text=title,CustomMinimumSize=new(46,32)};HudStyle.Button(preset);preset.AddThemeFontSizeOverride("font_size",12);
-            preset.TooltipText="切换观察角度，保留聚焦和缩放";_expandedControls.AddChild(preset);preset.Pressed+=()=>SetAngle(angle);
-        }
-        foreach(var (title,step) in new[]{("−",.15f),("+",-.15f)})
-        {
-            var zoom=new Godot.Button {Text=title,CustomMinimumSize=new(32,32)};HudStyle.Button(zoom);zoom.TooltipText=step<0?"拉近模型":"拉远模型";
-            _expandedControls.AddChild(zoom);zoom.Pressed+=()=>ZoomBy(step);
-        }
-        StudioButton("复位","恢复当前构图 · 也可双击画面",ResetView);
-        _expandButton=StudioButton("放大","打开独立人物观察窗",()=>ExpandRequested?.Invoke());_expandButton.Visible=!Expanded;
-        var caption=_gestureHint=HudStyle.Label("拖动旋转 · 滚轮缩放 · 双击复位",11,true);
+        BuildStudioControls();
+        var caption=_gestureHint=HudStyle.Label("拖动旋转 · 滚轮缩放 · Shift 精调 · 双击复位",11,true);
         caption.MouseFilter=MouseFilterEnum.Ignore;caption.SetAnchorsAndOffsetsPreset(LayoutPreset.TopWide);
         caption.OffsetTop=12;caption.OffsetBottom=34;caption.OffsetLeft=14;AddChild(caption);caption.Modulate=new Color(1,1,1,0);
         MouseEntered+=()=>Hint(1);MouseExited+=()=>Hint(0);
         SetExpanded(Expanded);
     }
-    private void ZoomBy(float amount){_distance=Math.Clamp(_distance+amount,.50f,3.8f);Aim();}
+    private void ZoomBy(float amount){_distance=Math.Clamp(_distance*MathF.Exp(amount),.50f,4.5f);UpdateStudioReadout();Aim();}
     private void SetAngle(float angle)
     {
-        _yaw=angle;_pitch=0;_drag=false;
+        _yaw=angle;_pitch=0;_drag=false;UpdateStudioReadout();
         if(!HudStyle.MotionEnabled&&_resident!=null)_resident.Rotation=new(0,_yaw,0);
     }
     public void ShowResident(long identity, int slot, bool child, JobType job)
@@ -164,7 +134,7 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
     internal object RenderQualityState()
     {
         var environment=_stage.GetChildren().OfType<WorldEnvironment>().Single().Environment;
-        return new {studio="identity-thumbnail-v7",backdrop="natural-radial-v2",thumbnail=IsThumbnail,thumbnailFraming=IsThumbnail?"face":null,lensFov=_camera.Fov,msaa=_viewport.Msaa3D.ToString(),resolution=new[]{_viewport.Size.X,_viewport.Size.Y},
+        return new {studio="grouped-inspector-v8",backdrop="natural-radial-v2",thumbnail=IsThumbnail,thumbnailFraming=IsThumbnail?"face":null,lensFov=_camera.Fov,msaa=_viewport.Msaa3D.ToString(),resolution=new[]{_viewport.Size.X,_viewport.Size.Y},
             background=environment.BackgroundColor.ToHtml(),ambient=environment.AmbientLightColor.ToHtml(),ambientEnergy=environment.AmbientLightEnergy,
             lights=_stage.GetChildren().OfType<DirectionalLight3D>().Select(light=>new {
                 color=light.LightColor.ToHtml(),energy=light.LightEnergy,rotation=new[]{light.RotationDegrees.X,light.RotationDegrees.Y,light.RotationDegrees.Z},shadows=light.ShadowEnabled,
@@ -178,10 +148,13 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         _framing=mode;_fullBody=mode==Framing.Body;
         // Close detail framing avoids unstable submillimetre shadow-map facets;
         // the full-body studio retains the ground contact shadow.
-        _distance=mode==Framing.Body?3.6f:mode==Framing.Hands?.68f:FaceDistance;
+        // Leave room below the soles for the grouped camera toolbar, including
+        // the minimum supported window and the transition from a close detail.
+        _distance=mode==Framing.Body?4.1f:mode==Framing.Hands?.68f:FaceDistance;
         ApplyFramingDisplay();
         foreach(var pair in _frameButtons)pair.Value.SetPressedNoSignal(pair.Key==mode);
         if(!HudStyle.MotionEnabled)_viewDistance=_distance;
+        UpdateStudioReadout();
     }
     private void ApplyFramingDisplay()
     {
@@ -227,11 +200,11 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
             if(button.ButtonIndex==MouseButton.Left&&button.Pressed&&button.DoubleClick){ResetView();AcceptEvent();return;}
             if (button.ButtonIndex == MouseButton.Left) { _drag = button.Pressed; }
             if (button.Pressed && button.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
-            { ZoomBy(button.ButtonIndex == MouseButton.WheelUp ? -.2f : .2f); }
+            { ZoomBy((button.ButtonIndex == MouseButton.WheelUp ? -1 : 1)*(button.ShiftPressed?.03f:.10f)); }
             AcceptEvent();
         }
         if (input is InputEventMouseMotion motion && _drag && _resident != null)
-        { _yaw += motion.Relative.X * .012f;_pitch=Math.Clamp(_pitch+motion.Relative.Y*.008f,-.45f,.60f); AcceptEvent(); }
+        { _yaw += motion.Relative.X * .012f;_pitch=Math.Clamp(_pitch+motion.Relative.Y*.008f,-.45f,.60f); UpdateStudioReadout();AcceptEvent(); }
     }
     public override void _Input(InputEvent input)
     { if (input is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false } || input is InputEventMouseMotion { ButtonMask: 0 }) { _drag = false; } }
@@ -276,6 +249,9 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         float beforeZoom=_distance;
         _GuiInput(new InputEventMouseButton { ButtonIndex = MouseButton.WheelUp, Pressed = true });
         if (_distance >= beforeZoom) { throw new InvalidOperationException("Portrait zoom failed"); }
+        float normalZoom=beforeZoom-_distance;_distance=beforeZoom;
+        _GuiInput(new InputEventMouseButton {ButtonIndex=MouseButton.WheelUp,Pressed=true,ShiftPressed=true});
+        if(beforeZoom-_distance<=0||beforeZoom-_distance>=normalZoom)throw new InvalidOperationException("Shift wheel does not refine the portrait zoom step");
         _GuiInput(new InputEventMouseButton {ButtonIndex=MouseButton.Left,Pressed=true});
         _GuiInput(new InputEventMouseMotion {Relative=new(0,30)});
         if(_pitch<=0)throw new InvalidOperationException("Portrait pitch failed");
@@ -283,7 +259,13 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         if(_keyLight.ShadowEnabled)throw new InvalidOperationException("Detail studio left coarse self-shadows enabled");
         SetFraming(Framing.Body);if(!_keyLight.ShadowEnabled)throw new InvalidOperationException("Body studio lost its contact shadow");SetFraming(Framing.Hands);
         float handDistance=_distance;SetAngle(MathF.PI);
-        if(_distance!=handDistance||_framing!=Framing.Hands||_drag||_yaw!=MathF.PI)throw new InvalidOperationException("Angle preset reset the inspected detail or continued a gesture");
+        if(_distance!=handDistance||_framing!=Framing.Hands||_drag||_yaw!=MathF.PI||!_angleButtons[MathF.PI].ButtonPressed)throw new InvalidOperationException("Angle preset reset the inspected detail, lost its state or continued a gesture");
+        _GuiInput(new InputEventMouseButton {ButtonIndex=MouseButton.Left,Pressed=true});
+        _GuiInput(new InputEventMouseMotion {Relative=new(10,0)});
+        if(_angleButtons.Values.Any(button=>button.ButtonPressed))throw new InvalidOperationException("Custom orbit retains a misleading preset selection");
+        _Input(new InputEventMouseButton {ButtonIndex=MouseButton.Left,Pressed=false});
+        ZoomBy(-10);if(!_zoomIn.Disabled||_zoomOut.Disabled)throw new InvalidOperationException("Close zoom bound has no disabled control feedback");
+        ZoomBy(10);if(!_zoomOut.Disabled||_zoomIn.Disabled)throw new InvalidOperationException("Far zoom bound has no disabled control feedback");
         _GuiInput(new InputEventMouseButton {ButtonIndex=MouseButton.Left,Pressed=true,DoubleClick=true});
         if(_pitch!=0||_drag)throw new InvalidOperationException("Portrait reset did not release orbit");
         SetFraming(Framing.Face);_viewDistance=FaceDistance;

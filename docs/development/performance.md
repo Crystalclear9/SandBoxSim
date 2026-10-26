@@ -58,7 +58,7 @@ python tools/evaluate.py compare runs/evaluation/baseline-1 runs/evaluation/cand
 
 ## 建筑与模型缓存
 
-人物观察窗复用档案中的 `ResidentPortrait` 和 3D 世界，只在界面容器间移动；关闭后返回原容器，不创建第二份角色或重复骨架。观察窗最大为 1200×800，附带实时状态栏；展开后的视口更大，像素填充和 MSAA 成本也更高，`renderQuality.portrait.resolution` 记录实际尺寸；展开样本与紧凑档案不能当作同条件性能比较。`ui-portrait-window` 用于交互回归与实际模型观察。
+人物观察窗复用档案中的 `ResidentPortrait` 和 3D 世界，只在界面容器间移动；关闭后返回原容器，不创建第二份角色或重复骨架。观察窗最大为 1320×860，附带实时状态栏；展开后的视口更大，像素填充和 MSAA 成本也更高，`renderQuality.portrait.resolution` 记录实际尺寸；展开样本与紧凑档案不能当作同条件性能比较。`ui-portrait-window` 用于交互回归与实际模型观察。
 
 [WorldView3D.Buildings.cs](../../src/SandBoxSim.Godot/WorldView3D.Buildings.cs) 按槽位、生成号、身份、种类及完工状态维护建筑节点。道路变化更新朝向，地形变化更新位置和贴地石基；四角深度不变时复用基座网格。拆除立即移除节点，换世界或读档清空缓存。
 
@@ -134,6 +134,12 @@ python tools/fetch-surface-materials.py --verify
 `WorldView3D.Shoreline.cs` 在 `BuildTerrain` 重建时预计算九邻域水陆掩码，复用 16 种细网格相位的紧支撑权重；`HeightAt` 的临水距离查询复用核心缓存。重建包含掩码与混合计算，实际成本需查看同场景 profile，不新增逐帧全地形重建。地表 tint 从 RGB 改 RGBA，以既有 alpha 携带植被量并复用原片元采样，16 档外观签名约有 6% 量化间隔；没有新增采样器、场景节点或 draw call。草甸只改变原两个候选的宽矮／窄高比例，分块、单簇面数与距离预算不变，仍应重建视觉和耗时基线。
 
 `WorldView3D.ActorGrounding.cs` 对安全相邻移动保留指数插值。未知跨步同步逻辑中心；仅近岸追加实际脚区支撑查询，使用缓存读取委托，不维护无限轨迹队列或逐帧扫描全图。该保护增加局部高度查询，高倍速可观察到位置同步，不能称为平滑回放全部逻辑路径或帧率提升。
+
+## 发根与穗轴
+
+发根闭环、连通域与距离在每个模型构造器的来源族缓存中计算，逐帧不运行图搜索；原发片面数、表面数和贴图不增加。根带着色仍有片元成本，原始纹理 Alpha 和 Scissor 保留。芦苇单丛由 5,824 降为 5,068 三角形，同时增加实际连接的穗轴；形体已变，不能把不同画面负载当作配对帧率收益。
+
+观察窗最大区域扩大到 1320×860，MSAA 子视口会增加像素负载；分组工具栏、固定物资操作区与滚动正文改变界面布局。比较耗时应固定新构图、窗口和渲染版本。
 
 ## 字体缓存
 

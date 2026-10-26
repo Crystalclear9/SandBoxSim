@@ -110,7 +110,18 @@ uniform sampler2D hair_albedo:source_color,filter_linear_mipmap_anisotropic;
 uniform vec4 tone:source_color;uniform float atlas_mean=.2;
 void fragment(){if(!OUTPUT_IS_SRGB&&!FRONT_FACING){NORMAL=-NORMAL;}vec4 strand=texture(hair_albedo,UV);float fibre=dot(strand.rgb,vec3(.2126,.7152,.0722));
 ALBEDO=tone.rgb*clamp(fibre/max(.025,atlas_mean),.25,1.6)*.55;
-ALPHA=strand.a;ALPHA_SCISSOR_THRESHOLD=.38;ROUGHNESS=.78;SPECULAR=.16;}"};
+float root=1.0;
+if(UV2.x>=0.0){
+ // Deterministic short locks along the actual source root, confined to a
+ // 1.5 mm band. Interior coverage and free hair cards retain source alpha.
+ float phase=UV2.y*9500.0;
+ float lock=.5+.5*cos(phase)/(1.0+pow(fwidth(phase),2.0));
+ float edge=.00015+.00120*lock;
+ float width=max(.00012,fwidth(UV2.x)*.65);
+ root=smoothstep(edge-width,edge+width,UV2.x);
+}
+ALPHA=strand.a*root;ALPHA_SCISSOR_THRESHOLD=.38;
+ROUGHNESS=.78;SPECULAR=.16;}"};
         var material=new ShaderMaterial {Shader=_authoredHairShader};
         material.SetShaderParameter("hair_albedo",GD.Load<Texture2D>(HumanData().HairPath));
         material.SetShaderParameter("atlas_mean",HumanData().HairLuminance);

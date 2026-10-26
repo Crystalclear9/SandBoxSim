@@ -12,6 +12,7 @@ internal sealed partial class NatureModels
         // individual fibers). Dropping it here erased their authored variation.
         var colors=new List<Color>();
         bool animalEyeMorph=material.HasMeta("UsesAnimalEyeMorph");
+        bool hairMetric=material.HasMeta("UsesHairAtlas");
         foreach(var part in parts)
         {
             var arrays=part.Mesh.SurfaceGetArrays(0);
@@ -27,7 +28,9 @@ internal sealed partial class NatureModels
                 vertices.Add(transform*points[i]);normals.Add((normalBasis*sourceNormals[i]).Normalized());uv.Add(sourceUv.Length>i?sourceUv[i]:Vector2.Zero);
                 colors.Add(sourceColors.Length>i?sourceColors[i]:Colors.White);
                 var morph=sourceUv2.Length>i?transform.Basis*(animalEyeMorph?new Vector3(sourceUv2[i].X,sourceUv2[i].Y,0):new Vector3(0,sourceUv2[i].X,sourceUv2[i].Y)):Vector3.Zero;
-                uv2.Add(animalEyeMorph?new(morph.X,morph.Y):new(morph.Y,morph.Z));
+                // Source hair UV2 stores metric root distance and arc length,
+                // not an eyelid displacement vector. Preserve those units.
+                uv2.Add(hairMetric&&sourceUv2.Length>i?sourceUv2[i]:animalEyeMorph?new(morph.X,morph.Y):new(morph.Y,morph.Z));
             }
             if(sourceIndices.Length>0)foreach(int i in sourceIndices)indices.Add(offset+i);
             else for(int i=0;i<points.Length;i++)indices.Add(offset+i);

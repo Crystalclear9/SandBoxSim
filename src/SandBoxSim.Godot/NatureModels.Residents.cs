@@ -350,7 +350,12 @@ internal sealed partial class NatureModels
                     foreach(float v in tangent)if(!float.IsFinite(v))throw new InvalidOperationException("Invalid sculpt tangent frame");
                     skinTangents=true;
                 }
-                if(material.HasMeta("UsesHairAtlas"))hairAtlas=true;
+                if(material.HasMeta("UsesHairAtlas"))
+                {
+                    hairAtlas=true;var metric=arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array();var expected=HairlineSource().Metrics;
+                    if(metric.Length!=expected.Length)throw new InvalidOperationException("Merged hair loses its root-distance attributes");
+                    for(int i=0;i<metric.Length;i++)if(metric[i]!=expected[i])throw new InvalidOperationException("Hair root metres/arc length were transformed as blink displacements during batching");
+                }
                 if(arrays[(int)Mesh.ArrayType.Color].VariantType==Variant.Type.Nil)continue;
                 foreach(var color in arrays[(int)Mesh.ArrayType.Color].AsColorArray())
                 {

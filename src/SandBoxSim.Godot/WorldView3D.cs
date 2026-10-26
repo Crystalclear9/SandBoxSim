@@ -441,8 +441,9 @@ public partial class WorldView3D : MapView
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="coverage-mosaic-v6",["habitatDetail"]="stratified-meadow-v10",["vegetationSurface"]="engine-faced-v2",
-            ["architecture"]="double-lap-tiles-v12",["garmentMaterial"]="engine-faced-linen-v8",["interface"]="context-vitals-v19",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
-            ["animalPresentation"]="source-eyelids-v9",["residentSurface"]="orbital-gaze-v6",["handSurface"]="anatomical-regions-v1",["waterSurface"]="continuous-bank-v5",["wristContour"]="source-oval-v1" };
+            ["architecture"]="double-lap-tiles-v12",["garmentMaterial"]="engine-faced-linen-v8",["interface"]="grouped-inspector-v20",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
+            ["animalPresentation"]="source-eyelids-v9",["residentSurface"]="orbital-gaze-v6",["handSurface"]="anatomical-regions-v1",["waterSurface"]="continuous-bank-v5",["wristContour"]="source-oval-v1",
+            ["hairline"]="source-root-v1",["reedPanicle"]="connected-axis-v1" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
         return quality;
