@@ -46,7 +46,11 @@ internal sealed partial class NatureModels
         int[] Integers(string name){var e=root.GetProperty(name);var f=new int[e.GetArrayLength()];int i=0;foreach(var item in e.EnumerateArray())f[i++]=item.GetInt32();return f;}
         var p=Floats("positions");var n=Floats("normals");var tex=Floats("uv");var points=new Vector3[p.Length/3];var normals=new Vector3[points.Length];var uv=new Vector2[points.Length];
         float mirror=ResidentRig.HandMirror(side);
-        for(int i=0;i<points.Length;i++){points[i]=new(p[i*3]*mirror,p[i*3+1],p[i*3+2]);normals[i]=new(n[i*3]*mirror,n[i*3+1],n[i*3+2]);uv[i]=new(tex[i*2],tex[i*2+1]);}
+        for(int i=0;i<points.Length;i++)
+        {
+            var fitted=RefineWristContour(new(p[i*3],p[i*3+1],p[i*3+2]),new(n[i*3],n[i*3+1],n[i*3+2]));
+            points[i]=new(fitted.Point.X*mirror,fitted.Point.Y,fitted.Point.Z);normals[i]=new(fitted.Normal.X*mirror,fitted.Normal.Y,fitted.Normal.Z);uv[i]=new(tex[i*2],tex[i*2+1]);
+        }
         var bones=Integers("bones");var weights=Floats("weights");var mesh=new ArrayMesh();
         void Surface(string indicesName,Material material,bool nail)
         {

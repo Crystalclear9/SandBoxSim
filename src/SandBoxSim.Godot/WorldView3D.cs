@@ -441,8 +441,8 @@ public partial class WorldView3D : MapView
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="coverage-mosaic-v6",["habitatDetail"]="stratified-meadow-v10",["vegetationSurface"]="engine-faced-v2",
-            ["architecture"]="double-lap-tiles-v12",["garmentMaterial"]="engine-faced-linen-v8",["interface"]="resident-thumbnail-v18",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
-            ["animalPresentation"]="source-eyelids-v9",["residentSurface"]="orbital-gaze-v6",["handSurface"]="anatomical-regions-v1",["waterSurface"]="logical-bank-v4" };
+            ["architecture"]="double-lap-tiles-v12",["garmentMaterial"]="engine-faced-linen-v8",["interface"]="context-vitals-v19",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
+            ["animalPresentation"]="source-eyelids-v9",["residentSurface"]="orbital-gaze-v6",["handSurface"]="anatomical-regions-v1",["waterSurface"]="continuous-bank-v5",["wristContour"]="source-oval-v1" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
         return quality;
@@ -571,6 +571,7 @@ public partial class WorldView3D : MapView
         var coarse=new float[width+1,height+1];
         for(int y=0;y<=height;y++)for(int x=0;x<=width;x++)coarse[x,y]=VertexHeight(x,y);
         _groundHeights=new float[nx+1,ny+1];
+        var shoreMasks=BuildShoreNeighbourMasks();
         float Cubic(float a,float b,float c,float d,float t)=>.5f*(2*b+(c-a)*t+(2*a-5*b+4*c-d)*t*t+(-a+3*b-3*c+d)*t*t*t);
         float CubicSlope(float a,float b,float c,float d,float t)=>.5f*((c-a)+2*(2*a-5*b+4*c-d)*t+3*(-a+3*b-3*c+d)*t*t);
         float Sample(int x,int y)=>coarse[Math.Clamp(x,0,width),Math.Clamp(y,0,height)];
@@ -614,7 +615,7 @@ public partial class WorldView3D : MapView
             float exposed=Mathf.SmoothStep(.18f,.7f,slope);
             float rockRelief=(1-MathF.Abs(TerrainNoise(fx*1.1f+7,fy*1.1f-3,Game.Sim.World.Seed)*2-1)-.5f)*.16f*exposed;
             float sculpted=h+erosion+relief*(1-wet)*(1-tile.FootTraffic*.65f)*(NaturalRelief(fx,fy,Game.Sim.World.Seed)+rockRelief);
-            _groundHeights[x,y]=ShoreSupportedHeight(fx,fy,sculpted);
+            _groundHeights[x,y]=ShoreSupportedHeight(fx,fy,sculpted,shoreMasks[ix,iy]);
         }
         for(int y=0;y<=ny;y++)for(int x=0;x<=nx;x++)
         {
@@ -642,7 +643,7 @@ public partial class WorldView3D : MapView
         var material=CreateGroundMaterial();
         _groundMap=materialMap;_groundMapBytes=materialMap.GetData();_groundMapTexture=ImageTexture.CreateFromImage(materialMap);
         material.SetShaderParameter("material_map", _groundMapTexture);material.SetShaderParameter("hydrology_map",_groundMapTexture);
-        UploadGroundTint(true);material.SetShaderParameter("tint_map",_groundTintTexture);
+        UploadGroundTint(true);material.SetShaderParameter("tint_map",_groundTintTexture??throw new InvalidOperationException("Ground tint upload did not create its texture"));
         material.SetShaderParameter("map_size", new Vector2(width, Game.Sim.World.Height));
         _terrainRoot.AddChild(new MeshInstance3D { Mesh = terrain, MaterialOverride = material });
         if (waterV.Count > 0)
@@ -826,8 +827,7 @@ public partial class WorldView3D : MapView
             var node = pair.Value; Vector3 target = PositionAt(sim.Agents.XOf(slot), sim.Agents.YOf(slot));
             var current=node.Position;Vector3 direction = target-current;
             bool moving = sim.Agents.PhaseOf(slot) == ActionPhase.Moving;
-            var rendered=Game.VisualPaused?current:current.Lerp(target,1-MathF.Exp(-delta*10));
-            if(!Game.VisualPaused)rendered.Y=GroundHeight(rendered.X,rendered.Z);
+            var rendered=GroundedActorPosition(current,target,delta,10,Game.VisualPaused);
             if(direction.LengthSquared()>.000001f)node.Position=rendered;
             bool visible=ActorInView(rendered+Vector3.Up*.9f,frustum);
             if(node.Visible!=visible)node.Visible=visible;
@@ -863,7 +863,7 @@ public partial class WorldView3D : MapView
     {
         if(Game.VisualPaused)return;
         Vector3 direction = target - node.Position;
-        var location=node.Position.Lerp(target,1-MathF.Exp(-delta*8));location.Y=GroundHeight(location.X,location.Z);node.Position=location;
+        var location=GroundedActorPosition(node.Position,target,delta,8,Game.VisualPaused);node.Position=location;
         if (direction.LengthSquared() > .02f) { node.Rotation = new Vector3(0, Mathf.LerpAngle(node.Rotation.Y,MathF.Atan2(direction.X, direction.Z) + MathF.PI,1-MathF.Exp(-delta*9)), 0); }
         if(_camera.Position.DistanceSquaredTo(node.Position)<24*24)
         {

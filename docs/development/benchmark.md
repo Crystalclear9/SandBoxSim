@@ -130,7 +130,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 ## 当前渲染版本
 
-当前渲染元数据为 `animalPresentation=source-eyelids-v9`、`interface=resident-thumbnail-v18`、`architecture=double-lap-tiles-v12`、`garmentMaterial=engine-faced-linen-v8`、`landscapeSurface=coverage-mosaic-v6`、`habitatDetail=stratified-meadow-v10`。另外记录 `residentSurface=orbital-gaze-v6`、`vegetationSurface=engine-faced-v2`、`waterSurface=logical-bank-v4` 和 `handSurface=anatomical-regions-v1`。人物肖像的 `renderQuality.portrait.studio=thumbnail-portrait-v6`，并记录实际 `thumbnail` 布尔值。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。手部表面、旱地与岸线支撑、植被露土斑块及人物缩略入口已改变，需重采相同场景的视觉和耗时基线；不能把不同像素覆盖与布局造成的耗时变化算作代码优化收益。`renderQuality.fontProfile=noto-packaged-v1` 记录随包字库策略，字体变化需要新视觉与耗时基线。`renderQuality.interfaceVisible` 标识界面是否显示，公开评测场景默认显示；沉浸观察不会自动成为新的评测指令。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
+当前渲染元数据为 `animalPresentation=source-eyelids-v9`、`interface=context-vitals-v19`、`architecture=double-lap-tiles-v12`、`garmentMaterial=engine-faced-linen-v8`、`landscapeSurface=coverage-mosaic-v6`、`habitatDetail=stratified-meadow-v10`。另外记录 `residentSurface=orbital-gaze-v6`、`vegetationSurface=engine-faced-v2`、`waterSurface=continuous-bank-v5`、`wristContour=source-oval-v1` 和 `handSurface=anatomical-regions-v1`。人物肖像的 `renderQuality.portrait.studio=identity-thumbnail-v7`，并记录实际 `thumbnail` 布尔值。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。手部表面、旱地与岸线支撑、植被露土斑块及人物缩略入口已改变，需重采相同场景的视觉和耗时基线；不能把不同像素覆盖与布局造成的耗时变化算作代码优化收益。`renderQuality.fontProfile=noto-packaged-v1` 记录随包字库策略，字体变化需要新视觉与耗时基线。`renderQuality.interfaceVisible` 标识界面是否显示，公开评测场景默认显示；沉浸观察不会自动成为新的评测指令。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
 
 无窗口自检的花株接地检查使用 CPU 保存的实例位置；图形模式额外核对 GPU 实例变换。渲染服务器的占位读回不作为几何证据。快捷操作检查覆盖居民、鹿狼和土地的真实目标位置、失效实体身份拒绝、靠近的实际相机距离、人物观察窗／土地手记及观察纯度。
 
@@ -138,7 +138,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 评测结果 `state.portrait.lighting` 记录 `soft` 或 `raking`，对应隔离人物观察窗的柔光与侧光；它是附加的呈现状态，不是模拟规则或 RSI 指标。现有公开指令仍保留，未加入新的 HTTP 控制动作。改变人物资料页面或观察灯光不应改变模拟摘要；客户端自检与实际鼠标回放均检查页面与选中状态。使用视觉或时间基线时需要固定光线和构图，不能混合两个预设的图像分布。
 
-`state.portrait.thumbnail` 是新增布尔呈现字段：人物手记中的缩略状态为 `true`，独立观察窗为 `false`。缩略图与观察窗复用同一视口，展开不重置已有聚焦、旋转、缩放或灯光；关闭后恢复入口焦点。该字段不增加请求指令或修改 `schemaVersion: 1`，更不代表模型审美、输入命中能力或 RSI 得分。语义回放不能替代真实鼠标／键盘检查。
+`state.portrait.thumbnail` 是新增布尔呈现字段：人物手记中的缩略状态为 `true`，独立观察窗为 `false`。缩略图与观察窗复用同一视口，展开不重置已有聚焦、旋转、缩放或灯光；关闭后缩略显示固定面部，保存的工作模式仍在 `state.portrait.framing` 等原字段中；重新展开恢复工作视角。`renderQuality.portrait.thumbnailFraming=face` 仅描述实际缩略构图，非缩略状态为 null。关闭后恢复入口焦点。该字段不增加请求指令或修改 `schemaVersion: 1`，更不代表模型审美、输入命中能力或 RSI 得分。语义回放不能替代真实鼠标／键盘检查。
 
 ---
 

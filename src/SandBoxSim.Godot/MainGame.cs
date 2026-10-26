@@ -491,6 +491,7 @@ public partial class MainGame : Control
             {
                 if(_portraitOverlay.Visible)ShowPortraitWindow(false);
                 else if(_settingsPanel.Visible)ShowSettings(false);
+                else if(_editingResidentName)SetNameEditing(false);
                 else if(_journalPanel.Visible)ShowJournal(false);
                 else{SelectTool(PlayerTool.Inspect);ShowTools(false);}
                 GetViewport().SetInputAsHandled();
@@ -746,7 +747,9 @@ public partial class MainGame : Control
             if (before != StateHash.ComputeDigest(Sim)) { throw new Exception("Inspector mutated simulation"); }
             if (observed >= 0)
             {
-                _residentName.Text = "林溪[一]"; RenameResident();
+                ShowJournal(true);_drawer.CurrentTab=1;SetNameEditing(true);_residentName.Text = "  林溪[一]  ";
+                GetViewport().PushInput(new InputEventKey {Keycode=Key.Enter,PhysicalKeycode=Key.Enter,Pressed=true},true);
+                GetViewport().PushInput(new InputEventKey {Keycode=Key.Enter,PhysicalKeycode=Key.Enter,Pressed=false},true);
                 if (Sim.Society.Find(PinnedPerson)?.Name != "林溪[一]") { throw new Exception("Resident naming lost stable identity"); }
             }
             string wildMetadata = Wild.Encode().ToJson();

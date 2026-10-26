@@ -32,7 +32,10 @@ internal sealed partial class NatureModels
         float mirror=ResidentRig.HandMirror(side);
         for(int i=0;i<count;i++)
         {
-            points[i]=new(p[i*3]*mirror,p[i*3+1],p[i*3+2]);normals[i]=new(n[i*3]*mirror,n[i*3+1],n[i*3+2]);uv[i]=new(tex[i*2],tex[i*2+1]);
+            var origin=new Vector3(0,.255f,.010f);
+            var fitted=RefineWristContour(new Vector3(p[i*3],p[i*3+1],p[i*3+2])+origin,new(n[i*3],n[i*3+1],n[i*3+2]));
+            var local=fitted.Point-origin;
+            points[i]=new(local.X*mirror,local.Y,local.Z);normals[i]=new(fitted.Normal.X*mirror,fitted.Normal.Y,fitted.Normal.Z);uv[i]=new(tex[i*2],tex[i*2+1]);
             if(!points[i].IsFinite()||!normals[i].IsFinite()||MathF.Abs(normals[i].Length()-1)>.01f)
                 throw new InvalidOperationException("Non-finite anatomical forearm");
         }
@@ -59,6 +62,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateForearmSurfaces()
     {
+        ValidateWristContour();
         var left=AnatomicalForearm(0);var right=AnatomicalForearm(1);
         var l=left.SurfaceGetArrays(0);var r=right.SurfaceGetArrays(0);
         var p=l[(int)Mesh.ArrayType.Vertex].AsVector3Array();var q=r[(int)Mesh.ArrayType.Vertex].AsVector3Array();
@@ -89,7 +93,7 @@ internal sealed partial class NatureModels
             {
                 if(MathF.Abs(p[v].Y+.210f)<.00001f)
                 {
-                    float oval=p[v].X*p[v].X/(.027f*.027f)+p[v].Z*p[v].Z/(.024f*.024f);
+                    float oval=p[v].X*p[v].X/(WristHalfWidth*WristHalfWidth)+p[v].Z*p[v].Z/(WristHalfDepth*WristHalfDepth);
                     if(MathF.Abs(oval-1)>.0001f)throw new InvalidOperationException("Forearm wrist does not match the hand ring");
                     wrist++;
                 }

@@ -101,15 +101,17 @@ public partial class MainGame
         _portraitWindowActivity=PortraitPaperLabel("",12,true);_portraitWindowActivity.AutowrapMode=TextServer.AutowrapMode.WordSmart;facts.AddChild(_portraitWindowActivity);
         facts.AddChild(new HSeparator());
         facts.AddChild(PortraitPaperLabel("当前行为",11,true));_portraitFactAction=PortraitPaperLabel("",15);_portraitFactAction.AutowrapMode=TextServer.AutowrapMode.WordSmart;facts.AddChild(_portraitFactAction);
-        facts.AddChild(new HSeparator());facts.AddChild(PortraitPaperLabel("身体与需求",12,true));
-        var metrics=new VBoxContainer();metrics.AddThemeConstantOverride("separation",14);facts.AddChild(metrics);
+        facts.AddChild(new HSeparator());facts.AddChild(PortraitPaperLabel("身体状态 · 越高越好",11,true));
+        var metrics=new VBoxContainer();metrics.AddThemeConstantOverride("separation",6);facts.AddChild(metrics);
         string[] metricNames={"生命","饥饿","干渴","精力"};
-        for(int i=0;i<4;i++)
+        foreach(int i in new[]{0,3,1,2})
         {
-            var row=new HBoxContainer();row.AddThemeConstantOverride("separation",12);metrics.AddChild(row);
+            if(i==1)metrics.AddChild(PortraitPaperLabel("生理需求 · 越低越好",11,true));
+            var row=new HBoxContainer();row.AddThemeConstantOverride("separation",8);metrics.AddChild(row);
             var label=PortraitPaperLabel(metricNames[i],13);label.CustomMinimumSize=new(40,24);row.AddChild(label);
             var bar=new ProgressBar {MaxValue=1,ShowPercentage=false,CustomMinimumSize=new(56,4),SizeFlagsHorizontal=SizeFlags.ExpandFill,SizeFlagsVertical=SizeFlags.ShrinkCenter,MouseFilter=MouseFilterEnum.Ignore};
             bar.AddThemeStyleboxOverride("background",HudStyle.Box(HudStyle.Border,2,0,false));bar.AddThemeStyleboxOverride("fill",HudStyle.Box(HudStyle.Accent,2,0,false));row.AddChild(bar);_portraitFactBars[i]=bar;
+            var state=_portraitFactStates[i]=PortraitPaperLabel("",11,true);state.CustomMinimumSize=new(48,24);state.HorizontalAlignment=HorizontalAlignment.Right;row.AddChild(state);
             _portraitFactLabels[i]=PortraitPaperLabel("",15);_portraitFactLabels[i].AddThemeFontOverride("font",HudStyle.NumericFont);_portraitFactLabels[i].CustomMinimumSize=new(48,24);_portraitFactLabels[i].HorizontalAlignment=HorizontalAlignment.Right;row.AddChild(_portraitFactLabels[i]);
             row.TooltipText=i is 1 or 2?"数值越高，需求越强":"数值越高，状态越好";
         }
@@ -180,8 +182,10 @@ public partial class MainGame
         for(int i=0;i<4;i++)
         {
             _portraitFactLabels[i].Text=values[i].ToString("P0");_portraitFactBars[i].Value=values[i];
-            bool danger=i is 1 or 2?values[i]>.7f:values[i]<.35f;
-            ((StyleBoxFlat)_portraitFactBars[i].GetThemeStylebox("fill")).BgColor=danger?new Color("#d88c79"):i==0?new Color("#aabf9d"):i==2?new Color("#9cbfcf"):HudStyle.Accent;
+            var readout=DescribeVital(i,values[i]);
+            _portraitFactStates[i].Text=readout.State;_portraitFactStates[i].AddThemeColorOverride("font_color",readout.Tint);
+            _portraitFactLabels[i].GetParent<Control>().TooltipText=readout.Hint;
+            ((StyleBoxFlat)_portraitFactBars[i].GetThemeStylebox("fill")).BgColor=readout.Tint;
         }
         for(int i=0;i<4;i++)_portraitInventoryValues[i].Text=agents.InventoryOf(slot,PortraitResources[i]).ToString("0.0");
         RefreshInventoryDisclosure();
@@ -194,9 +198,19 @@ public partial class MainGame
         var state=System.Text.Json.JsonSerializer.Serialize(_residentPortrait.InspectionState());
         ShowJournal(true);_drawer.CurrentTab=1;_journalButton.GrabFocus();RefreshPresentationControls();
         if(!_contextFocus.Visible||!_contextDetails.Visible||!_toolBadge.Text.Contains(Sim.Agents.NameOrOverride(SelectedSlot)))throw new InvalidOperationException("Selection card does not reflect the actual resident");
-        _contextFocus.EmitSignal(Godot.Button.SignalName.Pressed);
+        string status=_status.Text;_status.Text="观察模式：查看所选居民";RefreshPresentationControls();
+        if(_contextPanel.Visible)throw new InvalidOperationException("Open resident notebook repeats its facts in a world-obscuring context card");
+        _drawer.CurrentTab=3;RefreshPresentationControls();
+        if(!_contextPanel.Visible)throw new InvalidOperationException("History/chart inspection removes the selected resident's context actions");
+        _drawer.CurrentTab=1;_status.Text="已保存观察记录";RefreshPresentationControls();
+        if(!_contextPanel.Visible||!_status.Visible)throw new InvalidOperationException("Notebook suppresses fresh operation feedback");
+        RefreshPresentationControlsAt(_contextStatusAt+6001);
+        if(_contextPanel.Visible)throw new InvalidOperationException("Expired notebook feedback keeps the duplicate context card visible");
+        _status.Text=status;ShowJournal(false);RefreshPresentationControls();
+        if(!_contextPanel.Visible)throw new InvalidOperationException("Closing the notebook does not return the selected world context");
+        FocusContextSelection();
         if(_map is WorldView3D world&&(world.CameraDistance<10||world.CameraDistance>12))throw new InvalidOperationException("Selection focus does not approach the resident");
-        _contextDetails.EmitSignal(Godot.Button.SignalName.Pressed);
+        OpenContextDetails();
         if(!_portraitOverlay.Visible||!_residentPortrait.Expanded||_residentPortrait.GetParent()!=_portraitWindowBody)
             throw new InvalidOperationException("Large portrait did not reuse the selected model viewport");
         if(state!=System.Text.Json.JsonSerializer.Serialize(_residentPortrait.InspectionState()))

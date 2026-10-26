@@ -45,10 +45,10 @@ internal partial class ModelGallery : PanelContainer
         }
         else if(Collection=="forearms")
         {
-            grid.Columns=2;body.GetChild<Label>(0).Text="肘部、前臂与手腕 · 实际连续解剖表面";
-            for(int view=0;view<2;view++)for(int side=0;side<2;side++)
-                Closeup(grid,(side==0?"左臂":"右臂")+(view==0?" · 掌侧肌腱与腕口":" · 背侧肘部与腕骨"),
-                    models.ForearmStudy(side),.46f,new(0,.17f,0),new(.18f,.04f,view==0?-2:2),false);
+            grid.Columns=3;body.GetChild<Label>(0).Text="肘部、前臂与手腕 · 连续形体与侧面轮廓";
+            for(int side=0;side<2;side++)for(int view=0;view<3;view++)
+                Closeup(grid,(side==0?"左臂":"右臂")+(view==0?" · 掌侧肌腱与腕口":view==1?" · 背侧肘部与腕骨":" · 侧面掌腕过渡"),
+                    models.ForearmStudy(side),.46f,new(0,.17f,0),view==2?new(2,.04f,.18f):new(.18f,.04f,view==0?-2:2),false);
         }
         else if(Collection=="social")
         {

@@ -82,7 +82,7 @@ public partial class WorldView3D
         // on large maps. Clamp cell indices explicitly, including outside probes.
         int ix=Math.Min((int)gx,_groundHeights.GetLength(0)-2),iz=Math.Min((int)gz,_groundHeights.GetLength(1)-2);float u=gx-ix,v=gz-iz;
         float a=GroundVertex(ix,iz),b=GroundVertex(ix+1,iz),c=GroundVertex(ix,iz+1),d=GroundVertex(ix+1,iz+1);
-        return u+v<=1?a+(b-a)*u+(c-a)*v:d+(c-d)*(1-u)+(b-d)*(1-v);
+        return GroundTriangleHeight(a,b,c,d,u,v);
     }
     private Vector2I? Pick(Vector2 screen)
     {
@@ -121,7 +121,7 @@ public partial class WorldView3D
         {
             float t=(.02f-origin.Y)/ray.Y;var w=origin+ray*t;
             if(t>=enter&&t<=exit&&Game.Sim.World.IsInBounds((int)MathF.Floor(w.X*.5f),(int)MathF.Floor(w.Z*.5f))
-                &&Game.Sim.World.TerrainAt((int)(w.X*.5f),(int)(w.Z*.5f))==TerrainKind.Water)water=t;
+                &&GroundHeight(w.X,w.Z)<.019f)water=t;
         }
         for(int guard=0;guard<=nx+nz;guard++)
         {

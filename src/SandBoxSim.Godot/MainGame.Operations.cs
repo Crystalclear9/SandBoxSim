@@ -5,6 +5,26 @@ public partial class MainGame
 {
     private Godot.Button _pinButton = null!, _pulseButton = null!;
     private LineEdit _residentName = null!;
+    private Button _renameButton=null!;
+    private long _nameEditingPersonId;
+    private void SetNameEditing(bool editing,bool restoreFocus=true)
+    {
+        var person=Sim.Society.Find(_selectedPersonId);
+        if(editing&&person==null)return;
+        _editingResidentName=editing;_nameEditingPersonId=editing?_selectedPersonId:0;
+        _residentNameControls.Visible=editing;
+        if(editing)
+        {
+            _residentName.Text=person!.Name;_residentName.GrabFocus();_residentName.SelectAll();
+        }
+        else
+        {
+            var focused=GetViewport().GuiGetFocusOwner();
+            if(focused!=null&&_residentNameControls.IsAncestorOf(focused))focused.ReleaseFocus();
+            _residentName.Text="";
+            if(restoreFocus&&_renameButton.IsVisibleInTree())_renameButton.GrabFocus();
+        }
+    }
     private void BuildWorldPulse(Control overlay)
     {
         _pulseButton=new Godot.Button { Text="世界 · 田野手记", Alignment=HorizontalAlignment.Left };
@@ -14,12 +34,18 @@ public partial class MainGame
     }
     private void RenameResident()
     {
+        if(_editingResidentName&&_nameEditingPersonId!=_selectedPersonId){SetNameEditing(false,false);return;}
         var person=Sim.Society.Find(_selectedPersonId); string name=_residentName.Text.Trim();
-        if(person==null || name.Length==0) { _status.Text="选择人物后可以为他命名";return; }
-        _editingResidentName=false;
+        if(person==null){_status.Text="所选居民已不可用，请重新选择。";RefreshPresentationControls();return;}
+        if(name.Length==0)
+        {
+            _status.Text="名字不能为空；输入后按 Enter 保存，或 Esc 取消。";
+            _residentName.GrabFocus();RefreshPresentationControls();return;
+        }
+        SetNameEditing(false);
         string previous=person.Name;person.Name=name;
         if(person.Alive)Sim.Agents.SetNameOverride(person.Slot,name);
-        Sim.InterveneRecordAuxiliary("居民命名："+previous+" → "+name);RefreshPanels();_discovery.Refresh();
+        Sim.InterveneRecordAuxiliary("居民命名："+previous+" → "+name);_status.Text="已将 "+previous+" 更名为 "+name;RefreshPanels();_discovery.Refresh();
     }
     public void FocusLocation(int x,int y){if(Sim.World.IsInBounds(x,y))_map.Focus(x,y,20);}
     public void FocusPinned()

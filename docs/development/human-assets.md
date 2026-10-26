@@ -46,6 +46,8 @@
 
 造型参考 [Leeds 指甲组织说明](https://histology.leeds.ac.uk/home/skin/nails/)及[掌纹分析研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC2998791/)，用于区分一般表面区域，不是医学复原、指纹模板或新扫描。没有下载新的人体照片、替换原手部许可，亦没有增加软组织或肌腱物理；材质不能补回原网格中不存在的几何细节。
 
+`NatureModels.WristContour.cs` 在加载时对原近圆腕环作局部椭圆拟合：54×48 毫米调整为项目美术选用的 54×37 毫米，并以 C2 过渡延续前臂与掌根。近手、前臂、远手共用映射，法线包含纵向形变导数；源文件和哈希、拓扑、UV、骨权重不变，手指、甲面与握柄区不移动。参考 [AO Foundation 远端前臂解剖](https://surgeryreference.aofoundation.org/orthopedic-trauma/adult-trauma/distal-forearm/approach/anatomy-of-the-distal-forearm) 保留掌背结构差异；37 毫米不是该资料提供的医学尺寸。
+
 近景、远景、指根和拇指骨骼共用 `ResidentRig.HandMirror` 的左右约定。远景张手与握拳网格按左右独立缓存，镜像时同步反转法线、切线手性和三角面朝向；拇指轮廓位于食指一侧并露出掌缘，避免默认视距把两只手显示成同一侧。`--panel=handedness` 可并排查看同一角色的左右掌心、手背以及远景简模。自检覆盖镜像拓扑、拇指方向、骨骼张合、LOD 切换，以及主手和支撑手的实际蒙皮与工具轴间距。
 
 远景手部使用 [human-hand-lod.mesh.json](../../src/SandBoxSim.Godot/assets/models/human/human-hand-lod.mesh.json)：从同一文件的手部区域提取、减面得到 708 个顶点、1,400 个三角面，保留指缝、不同指长与拇指掌根。转换按最近源三角面的重心坐标转移 UV、法线和四权重；运行时沿用近景指节角度，缓存张手与握柄两种静态姿势。远景不更新手部骨架，也不再使用独立椭球拼成的手型；远景省略独立甲面材质。左右仍分别缓存并校验镜像朝向，握柄简模也检查实际手柄间距。

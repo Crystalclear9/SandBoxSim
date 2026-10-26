@@ -12,6 +12,7 @@ internal partial class ResidentPortrait : SubViewportContainer
     private Framing _framing;
     private readonly System.Collections.Generic.Dictionary<Framing,Godot.Button> _frameButtons=new();
     private const float FaceDistance=1.0f;
+    private const float ThumbnailYaw=-.28f;
     private float _pitch,_viewDistance=FaceDistance;
     private Vector3 _viewCenter;
     private bool _centerReady;
@@ -35,7 +36,7 @@ internal partial class ResidentPortrait : SubViewportContainer
     {
         _hintTransition?.Kill();_gestureHint.Modulate=new Color(1,1,1,0);
         _viewDistance=_distance;
-        if(_resident!=null)_resident.Rotation=new(0,_yaw,0);
+        if(_resident!=null)_resident.Rotation=new(0,IsThumbnail?ThumbnailYaw:_yaw,0);
         Aim();
     }
     internal bool Expanded {get;private set;}
@@ -50,7 +51,12 @@ internal partial class ResidentPortrait : SubViewportContainer
         _gestureHint.Visible=!IsThumbnail;
         FocusMode=IsThumbnail?FocusModeEnum.None:FocusModeEnum.All;
         MouseFilter=IsThumbnail?MouseFilterEnum.Ignore:MouseFilterEnum.Stop;
-        if(_camera!=null)Aim();
+        if(_camera!=null)
+        {
+            ApplyFramingDisplay();
+            if(_resident!=null)_resident.Rotation=new(0,IsThumbnail?ThumbnailYaw:_yaw,0);
+            Aim();
+        }
     }
     private readonly NatureModels _models = new();
     private SubViewport _viewport = null!;
@@ -141,7 +147,7 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         if (identity == _identity && child == _child && job == _job) { return; }
         _resident?.QueueFree(); _identity = identity; _child = child; _job = job;
         _resident = _models.Resident(slot, child, job); _stage.AddChild(_resident);
-        _resident.Rotation = new Vector3(0, _yaw, 0); Aim();
+        _resident.Rotation = new Vector3(0, IsThumbnail?ThumbnailYaw:_yaw, 0); Aim();
     }
     public bool FinishingGesture=>_resident?.CompletionVisible==true;
     public void ShowCargo(bool hasCargo, SandBoxSim.Core.Environment.ResourceKind resource) => _resident?.ShowCargo(hasCargo,resource);
@@ -158,7 +164,7 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
     internal object RenderQualityState()
     {
         var environment=_stage.GetChildren().OfType<WorldEnvironment>().Single().Environment;
-        return new {studio="thumbnail-portrait-v6",backdrop="natural-radial-v2",thumbnail=IsThumbnail,lensFov=_camera.Fov,msaa=_viewport.Msaa3D.ToString(),resolution=new[]{_viewport.Size.X,_viewport.Size.Y},
+        return new {studio="identity-thumbnail-v7",backdrop="natural-radial-v2",thumbnail=IsThumbnail,thumbnailFraming=IsThumbnail?"face":null,lensFov=_camera.Fov,msaa=_viewport.Msaa3D.ToString(),resolution=new[]{_viewport.Size.X,_viewport.Size.Y},
             background=environment.BackgroundColor.ToHtml(),ambient=environment.AmbientLightColor.ToHtml(),ambientEnergy=environment.AmbientLightEnergy,
             lights=_stage.GetChildren().OfType<DirectionalLight3D>().Select(light=>new {
                 color=light.LightColor.ToHtml(),energy=light.LightEnergy,rotation=new[]{light.RotationDegrees.X,light.RotationDegrees.Y,light.RotationDegrees.Z},shadows=light.ShadowEnabled,
@@ -169,28 +175,37 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
     public void FocusHands()=>SetFraming(Framing.Hands);
     private void SetFraming(Framing mode)
     {
-        _framing=mode;_fullBody=mode==Framing.Body;_portraitGround.Visible=_fullBody;
+        _framing=mode;_fullBody=mode==Framing.Body;
         // Close detail framing avoids unstable submillimetre shadow-map facets;
         // the full-body studio retains the ground contact shadow.
-        _keyLight.ShadowEnabled=_fullBody;
         _distance=mode==Framing.Body?3.6f:mode==Framing.Hands?.68f:FaceDistance;
-        _camera.Fov=mode==Framing.Face?26:34;
+        ApplyFramingDisplay();
         foreach(var pair in _frameButtons)pair.Value.SetPressedNoSignal(pair.Key==mode);
         if(!HudStyle.MotionEnabled)_viewDistance=_distance;
+    }
+    private void ApplyFramingDisplay()
+    {
+        // The notebook entry identifies a person. Inspecting their hands or
+        // back must not turn that entry into a crop of their waist or hair.
+        // Keep the user's inspection state and override only its presentation.
+        _portraitGround.Visible=!IsThumbnail&&_fullBody;
+        _keyLight.ShadowEnabled=!IsThumbnail&&_fullBody;
+        _camera.Fov=IsThumbnail||_framing==Framing.Face?26:34;
     }
     private void ResetView()
     {
         _yaw=-.28f;_pitch=0;_drag=false;SetFraming(_framing);
-        if(!HudStyle.MotionEnabled&&_resident!=null)_resident.Rotation=new(0,_yaw,0);
+        if(!HudStyle.MotionEnabled&&_resident!=null)_resident.Rotation=new(0,IsThumbnail?ThumbnailYaw:_yaw,0);
         Aim();
     }
     private void Aim(float delta=0)
     {
-        var center = _fullBody ? new Vector3(0,_child?.50f:.80f,0) : _resident != null ? _resident.Head.GlobalPosition - new Vector3(0, Compact ? .055f : .19f, 0) : new Vector3(0, 1.4f, 0);
-        if(_framing==Framing.Hands&&_resident!=null)center=(_resident.Hands[0].GlobalPosition+_resident.Hands[1].GlobalPosition)*.5f+new Vector3(0,-.03f,0);
+        var center = _fullBody&&!IsThumbnail ? new Vector3(0,_child?.50f:.80f,0) : _resident != null ? _resident.Head.GlobalPosition - new Vector3(0, Compact ? .055f : .19f, 0) : new Vector3(0, 1.4f, 0);
+        if(_framing==Framing.Hands&&!IsThumbnail&&_resident!=null)center=(_resident.Hands[0].GlobalPosition+_resident.Hands[1].GlobalPosition)*.5f+new Vector3(0,-.03f,0);
         _viewCenter=!_centerReady||delta==0||!HudStyle.MotionEnabled?center:_viewCenter.Lerp(center,1-MathF.Exp(-delta*9));_centerReady=true;
-        float shownDistance=IsThumbnail&&_framing==Framing.Face?_viewDistance*.9f:_viewDistance;
-        _camera.Position = _viewCenter + new Vector3(0, .035f+MathF.Sin(_pitch)*shownDistance, -MathF.Cos(_pitch)*shownDistance);
+        float shownDistance=IsThumbnail?FaceDistance*.9f:_viewDistance;
+        float shownPitch=IsThumbnail?0:_pitch;
+        _camera.Position = _viewCenter + new Vector3(0, .035f+MathF.Sin(shownPitch)*shownDistance, -MathF.Cos(shownPitch)*shownDistance);
         _camera.LookAt(_viewCenter);
     }
     public override void _Process(double delta)
@@ -200,7 +215,8 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         if (IsVisibleInTree() && _resident != null)
         {
             _resident.PresentAction((float)delta, _action, _actionPhase, _worldPaused, (float)(_identity % 11));
-            _resident.Rotation = new Vector3(0, HudStyle.MotionEnabled?Mathf.LerpAngle(_resident.Rotation.Y, _yaw, 1 - MathF.Exp(-(float)delta * 12)):_yaw, 0);
+            float shownYaw=IsThumbnail?ThumbnailYaw:_yaw;
+            _resident.Rotation = new Vector3(0, HudStyle.MotionEnabled?Mathf.LerpAngle(_resident.Rotation.Y, shownYaw, 1 - MathF.Exp(-(float)delta * 12)):shownYaw, 0);
             _viewDistance=HudStyle.MotionEnabled?Mathf.Lerp(_viewDistance,_distance,1-MathF.Exp(-(float)delta*10)):_distance;Aim((float)delta);
         }
     }
@@ -250,6 +266,7 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         Transform3D frozen = _resident.Legs[0].Transform;
         _resident.Pose(.5f, false, true, false, true, 0);
         if (_resident.Legs[0].Transform != frozen) { throw new InvalidOperationException("Paused world pose changed"); }
+        bool expanded=Expanded;SetExpanded(true);
         _GuiInput(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true });
         _GuiInput(new InputEventMouseMotion { Relative = new Vector2(20, 0) });
         float turned = _yaw;
@@ -271,5 +288,36 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         if(_pitch!=0||_drag)throw new InvalidOperationException("Portrait reset did not release orbit");
         SetFraming(Framing.Face);_viewDistance=FaceDistance;
         _distance = FaceDistance; _yaw = -.28f; _resident.Rotation = new Vector3(0, _yaw, 0); Aim();
+        SetExpanded(expanded);ValidateThumbnailIdentity();
+    }
+    private void ValidateThumbnailIdentity()
+    {
+        if(!Compact||!NotebookThumbnail||_resident==null)return;
+        bool expanded=Expanded;var framing=_framing;
+        float yaw=_yaw,pitch=_pitch,distance=_distance,viewDistance=_viewDistance;
+        try
+        {
+            foreach(var mode in new[]{Framing.Hands,Framing.Body})
+            {
+                SetExpanded(true);SetFraming(mode);_yaw=2.3f;_pitch=.31f;_distance*=.85f;SettleMotion();
+                float inspectionDistance=_distance;var model=_resident;
+                SetExpanded(false);SettleMotion();
+                var head=_resident.Head.GlobalPosition-new Vector3(0,.055f,0);
+                var camera=head+new Vector3(0,.035f,-FaceDistance*.9f);
+                if(_camera.Position.DistanceTo(camera)>.00001f||_camera.Fov!=26||MathF.Abs(_resident.Rotation.Y-ThumbnailYaw)>.00001f
+                    ||_portraitGround.Visible||_keyLight.ShadowEnabled||_resident!=model)
+                    throw new InvalidOperationException("Inspection detail/back view replaces the notebook's identifying face thumbnail");
+                SetExpanded(true);SettleMotion();
+                if(_framing!=mode||_yaw!=2.3f||_pitch!=.31f||_distance!=inspectionDistance||_camera.Fov!=34
+                    ||MathF.Abs(_resident.Rotation.Y-2.3f)>.00001f||_portraitGround.Visible!=(mode==Framing.Body)||_resident!=model)
+                    throw new InvalidOperationException("Identity thumbnail resets the saved inspection framing, orbit or zoom");
+            }
+        }
+        finally
+        {
+            SetFraming(framing);_yaw=yaw;_pitch=pitch;_distance=distance;_viewDistance=viewDistance;
+            SetExpanded(expanded);Aim();
+        }
+        GD.Print("PORTRAIT_IDENTITY_PASS: face-only thumbnail after hand/body/back inspection; reused model and preserved framing/orbit/zoom");
     }
 }

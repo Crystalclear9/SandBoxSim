@@ -184,14 +184,17 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         var detailControls = new HBoxContainer(); _residentControls = detailControls; personPage.AddChild(detailControls);
         var personalActions=HudStyle.Label("个人记录",12,true);personalActions.SizeFlagsHorizontal=SizeFlags.ExpandFill;personalActions.SizeFlagsVertical=SizeFlags.ShrinkCenter;detailControls.AddChild(personalActions);
         _pinButton = ActionButton(detailControls, "关注", TogglePin);
-        ActionButton(detailControls, "改名", () => { _editingResidentName = !_editingResidentName; _residentNameControls.Visible = _editingResidentName; });
+        _renameButton=ActionButton(detailControls, "改名", () => SetNameEditing(!_editingResidentName));
         var nameControls = new HBoxContainer(); _residentNameControls = nameControls; personPage.AddChild(nameControls);
-        _residentName = new LineEdit { PlaceholderText = "给这个居民起个名字", MaxLength = 24, SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        nameControls.AddChild(_residentName); ActionButton(nameControls, "命名", RenameResident);
+        _residentName = new LineEdit { Name="ResidentNameEditor",PlaceholderText = "给这个居民起个名字", MaxLength = 24, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _residentName.TooltipText="Enter 保存 · Esc 取消草稿";
+        _residentName.TextSubmitted+=_=>RenameResident();
+        _residentName.GuiInput+=input=>{if(input is InputEventKey {Pressed:true,Echo:false,Keycode:Key.Escape}){SetNameEditing(false);_residentName.AcceptEvent();}};
+        nameControls.AddChild(_residentName); ActionButton(nameControls, "保存", RenameResident);ActionButton(nameControls,"取消",()=>SetNameEditing(false));
         _inspector = TextPanel("人物详情"); _inspector.FitContent=true;_inspector.ScrollActive=false;_inspector.SizeFlagsVertical=SizeFlags.Fill;personPanel.AddChild(_inspector); _history = TextPanel("历史"); _drawer.AddChild(_history);
         _chart = new StatisticsView { Name = "曲线", Game = this }; _drawer.AddChild(_chart);
         foreach(var (tab,glyph) in new[]{(0,"观察"),(1,"居民"),(2,"手记"),(3,"曲线")})_drawer.SetTabIcon(tab,HudSymbols.For(glyph,16,"#c5c4b6"));
-        _drawer.TabChanged += _ => RevealJournalPage();
+        _drawer.TabChanged += _ => {RevealJournalPage();RefreshPresentationControls();};
 
         _brushPanel = Surface(overlay, new Vector2(0, 0), new Vector2(24, 104), new Vector2(245, 230), 18);
         var brush = new VBoxContainer(); brush.AddThemeConstantOverride("separation", 4); _brushPanel.AddChild(brush);
@@ -326,6 +329,7 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         _toolBadge = HudStyle.Label("自由观察", 13); HudStyle.Float(_toolBadge, new Vector2(.5f, 1), new Vector2(-200, -180), new Vector2(400, 26)); _toolBadge.HorizontalAlignment = HorizontalAlignment.Center; _toolBadge.AddThemeColorOverride("font_color", new Color("#f3efe3")); _toolBadge.AddThemeColorOverride("font_shadow_color", new Color("#17241e")); _toolBadge.AddThemeConstantOverride("shadow_offset_y", 1); overlay.AddChild(_toolBadge);
         _status = HudStyle.Label("观察模式：左键拖动平移 · 右键拖动旋转/俯仰 · 滚轮缩放 · 单击选择", 11, true); HudStyle.Float(_status, new Vector2(.5f, 1), new Vector2(-430, -126), new Vector2(860, 18)); _status.HorizontalAlignment = HorizontalAlignment.Center; _status.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, .8f)); _status.AddThemeConstantOverride("shadow_offset_y", 1); overlay.AddChild(_status);
         _contextPanel=Surface(overlay,new Vector2(0,1),new Vector2(490,-184),new Vector2(620,88),8);
+        _contextPanel.Name="SelectionContext";
         _contextPanel.Visible=!IsModelGallery;
         var contextRow=new HBoxContainer();contextRow.AddThemeConstantOverride("separation",14);_contextPanel.AddChild(contextRow);
         contextRow.AddChild(HudStyle.IconWell(HudSymbols.For("观察"),36));
@@ -346,14 +350,8 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         _contextFacts.MaxLinesVisible=2;_contextFacts.ClipText=true;_contextFacts.TextOverrunBehavior=TextServer.OverrunBehavior.TrimEllipsis;
         _contextFacts.MouseFilter=MouseFilterEnum.Pass;_contextFacts.Visible=false;context.AddChild(_contextFacts);
         var contextActions=new VBoxContainer {SizeFlagsVertical=SizeFlags.ShrinkCenter};contextActions.AddThemeConstantOverride("separation",2);contextRow.AddChild(contextActions);
-        _contextFocus=ActionButton(contextActions,"靠近",()=>{
-            if(ContextTarget(out int x,out int y,out _))_map.Focus(x,y,60);
-            RefreshPresentationControls();
-        });
-        _contextDetails=ActionButton(contextActions,"档案",()=>{
-            if(!ContextTarget(out _,out _,out _))return;
-            ShowJournal(true);_drawer.CurrentTab=1;RefreshPanels();if(SelectedSlot>=0)ShowPortraitWindow(true);
-        });
+        _contextFocus=ActionButton(contextActions,"靠近",FocusContextSelection);
+        _contextDetails=ActionButton(contextActions,"档案",OpenContextDetails);
         _contextFocus.Icon=HudSymbols.For("观察",12);_contextDetails.Icon=HudSymbols.For("手记",12);
         foreach(var button in new[]{_contextFocus,_contextDetails})
         {
@@ -418,7 +416,8 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         float aboveControls=Mathf.Max(-_timePanel.OffsetTop,Mathf.Max(-_cameraPanel.OffsetTop,-_commandPanel.OffsetTop))+8;
         HudStyle.Float(_contextPanel,new Vector2(0,1),new Vector2(x,-aboveControls-height),new Vector2(width,height));
     }
-    private void RefreshPresentationControls()
+    private void RefreshPresentationControls()=>RefreshPresentationControlsAt(Time.GetTicksMsec());
+    private void RefreshPresentationControlsAt(ulong now)
     {
         if(_contextPanel==null)return;
         var world=(WorldView3D)_map;
@@ -429,8 +428,13 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         _status.TooltipText=_status.Text;
         int slot=SelectedSlot;
         bool target=ContextTarget(out int x,out int y,out string title);
-        ulong now=Time.GetTicksMsec();if(_contextStatus!=_status.Text){_contextStatus=_status.Text;_contextStatusAt=now;}
+        if(_contextStatus!=_status.Text){_contextStatus=_status.Text;_contextStatusAt=now;}
         bool generic=_status.Text.StartsWith("观察模式：",StringComparison.Ordinal)||_status.Text.StartsWith(ToolNames[(int)PlayerTool.Inspect]+" · ",StringComparison.Ordinal);
+        bool freshFeedback=!generic&&now-_contextStatusAt<6000;
+        bool notebookShowsSelection=_journalPanel.Visible&&_drawer.CurrentTab==1&&target;
+        // The notebook owns these facts while its selection page is open. Keep
+        // fresh action feedback, and retain the card on history/chart pages.
+        _contextPanel.Visible=!_dockPanel.Visible&&!IsModelGallery&&(!notebookShowsSelection||freshFeedback);
         _contextFacts.Visible=target&&Tool==PlayerTool.Inspect&&(generic||now-_contextStatusAt>=6000);_status.Visible=!_contextFacts.Visible;
         if(_contextFacts.Visible)
         {
@@ -466,6 +470,16 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         {foreach(var wolf in Sim.Predators.Wolves)if(wolf.Id==_selectedWolf){x=wolf.X;y=wolf.Y;title="狼";return true;}return false;}
         if(!Sim.World.IsInBounds(x,y))return false;
         title=Wild.At(x,y)?.Name??TerrainLabel(Sim.World.TerrainAt(x,y));return true;
+    }
+    private void FocusContextSelection()
+    {
+        if(ContextTarget(out int x,out int y,out _))_map.Focus(x,y,60);
+        RefreshPresentationControls();
+    }
+    private void OpenContextDetails()
+    {
+        if(!ContextTarget(out _,out _,out _))return;
+        ShowJournal(true);_drawer.CurrentTab=1;RefreshPanels();if(SelectedSlot>=0)ShowPortraitWindow(true);
     }
     private void FitToolLibrary(Vector2 size)
     {
@@ -560,15 +574,17 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         _residentAction.AutowrapMode=_residentActionPhase.AutowrapMode=TextServer.AutowrapMode.WordSmart;
         activityBody.AddChild(_residentAction);activityBody.AddChild(_residentActionPhase);
         _residentSummary=new VBoxContainer();_residentSummary.AddThemeConstantOverride("separation",8);_residentVitals.AddChild(_residentSummary);
-        var needs=new VBoxContainer();needs.AddThemeConstantOverride("separation",5);_residentSummary.AddChild(needs);
-        var needsHeading=HudStyle.Label("身体与需求",12,true);needs.AddChild(needsHeading);
-        for (int i = 0; i < 4; i++)
+        var needs=new VBoxContainer();needs.AddThemeConstantOverride("separation",3);_residentSummary.AddChild(needs);
+        var needsHeading=HudStyle.Label("身体状态 · 越高越好",11,true);needs.AddChild(needsHeading);
+        foreach(int i in new[]{0,3,1,2})
         {
-            var row=new HBoxContainer();row.AddThemeConstantOverride("separation",12);needs.AddChild(row);
+            if(i==1)needs.AddChild(HudStyle.Label("生理需求 · 越低越好",11,true));
+            var row=new HBoxContainer();row.AddThemeConstantOverride("separation",8);needs.AddChild(row);
             _vitalLabels[i]=HudStyle.Label("",13);_vitalLabels[i].CustomMinimumSize=new(40,22);row.AddChild(_vitalLabels[i]);
             var bar = new ProgressBar { MaxValue = 1, ShowPercentage = false, CustomMinimumSize = new Vector2(56, 4), SizeFlagsHorizontal=SizeFlags.ExpandFill, SizeFlagsVertical=SizeFlags.ShrinkCenter, MouseFilter = MouseFilterEnum.Ignore };
             bar.AddThemeStyleboxOverride("background", HudStyle.Box(HudStyle.Border, 2, 0, false));
             bar.AddThemeStyleboxOverride("fill", HudStyle.Box(HudStyle.Accent, 2, 0, false)); row.AddChild(bar); _vitalBars[i] = bar;
+            var state=_vitalStates[i]=HudStyle.Label("",11,true);state.CustomMinimumSize=new(48,22);state.HorizontalAlignment=HorizontalAlignment.Right;row.AddChild(state);
             var value=_vitalValues[i]=HudStyle.Label("",14);value.AddThemeFontOverride("font",HudStyle.NumericFont);value.CustomMinimumSize=new(48,22);value.HorizontalAlignment=HorizontalAlignment.Right;row.AddChild(value);
         }
         _residentSummary.AddChild(new HSeparator());
@@ -652,6 +668,7 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
     }
     private void RefreshResidentVitals()
     {
+        if(_editingResidentName&&_nameEditingPersonId!=_selectedPersonId)SetNameEditing(false,false);
         _vitalTransition?.Kill();
         RefreshLandVitals();
         int slot = SelectedSlot; _residentVitals.Visible = slot >= 0;
@@ -680,12 +697,13 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         _vitalTransition = HudStyle.MotionEnabled ? CreateTween().SetParallel().SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.Out) : null;
         for (int i = 0; i < values.Length; i++)
         {
-            bool danger = i is 1 or 2 ? values[i] > .7f : values[i] < .35f;
+            var readout=DescribeVital(i,values[i]);
             _vitalLabels[i].Text = names[i];_vitalValues[i].Text=values[i].ToString("P0");
-            _vitalLabels[i].GetParent<Control>().TooltipText=names[i]+" "+values[i].ToString("P0")+(i is 1 or 2?" · 数值越高，需求越强":" · 数值越高，状态越好");
+            _vitalLabels[i].GetParent<Control>().TooltipText=readout.Hint;
+            _vitalStates[i].Text=readout.State;_vitalStates[i].AddThemeColorOverride("font_color",readout.Tint);
             if (HudStyle.MotionEnabled) { _vitalTransition!.TweenProperty(_vitalBars[i], "value", values[i], .18); }
             else { _vitalBars[i].Value = values[i]; }
-            ((StyleBoxFlat)_vitalBars[i].GetThemeStylebox("fill")).BgColor = danger ? new Color("#d58c70") : i==0?new Color("#a4b69a"):i==2?new Color("#9fbac0"):HudStyle.Accent;
+            ((StyleBoxFlat)_vitalBars[i].GetThemeStylebox("fill")).BgColor = readout.Tint;
         }
     }
     private static PlayerTool CategoryGlyph(string category)=>category switch
@@ -905,7 +923,7 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
                 { throw new InvalidOperationException("Reduced motion left a metric highlighted"); }
             if (_journalButton.GetChild<HudButtonDetail>(0).MouseFilter != MouseFilterEnum.Ignore)
                 { throw new InvalidOperationException("Decorative feedback intercepts input"); }
-            ValidateContextActions();
+            ValidateContextActions();ValidateResidentEditing();
         }
         finally { HudStyle.MotionEnabled = enabled; }
     }
@@ -916,15 +934,16 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         try
         {
             _status.Text="观察模式：测试";ClickTile(0,0,true);RefreshPresentationControls();
+            ShowJournal(false);
             if(!_contextFocus.Visible||!_contextDetails.Visible||_contextDetails.Text!="手记"||!ContextTarget(out int x,out int y,out _)||x!=0||y!=0)
                 throw new InvalidOperationException("Land selection has no accurate context actions");
             if(!_contextFacts.Visible||_status.Visible||!_contextFacts.Text.Contains("湿度"))throw new InvalidOperationException("Land context lacks live facts");
             _status.Text="已保存测试世界";RefreshPresentationControls();
             if(_contextFacts.Visible||!_status.Visible)throw new InvalidOperationException("Context facts hide action feedback");
-            _contextStatusAt=Time.GetTicksMsec()-6000;RefreshPresentationControls();
+            RefreshPresentationControlsAt(_contextStatusAt+6000);
             if(!_contextFacts.Visible||!_contextFacts.TooltipText.Contains("已保存测试世界")||_status.Text!="已保存测试世界")throw new InvalidOperationException("Transient feedback blocks live facts or loses its accessible history");
             _status.Text="观察模式：测试";RefreshPresentationControls();
-            _contextFocus.EmitSignal(BaseButton.SignalName.Pressed);_contextDetails.EmitSignal(BaseButton.SignalName.Pressed);
+            FocusContextSelection();OpenContextDetails();
             if(!_journalPanel.Visible||_drawer.CurrentTab!=1||_portraitOverlay.Visible)throw new InvalidOperationException("Land context opens the wrong observation surface");
             foreach(int animal in Sim.Wildlife.AliveIndices())
             {
