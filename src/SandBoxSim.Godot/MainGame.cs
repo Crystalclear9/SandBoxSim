@@ -490,6 +490,7 @@ public partial class MainGame : Control
             if (key.Keycode == Key.Escape)
             {
                 if(_cameraOptions.Visible)ShowCameraOptions(false,true);
+                else if(_portraitRoster.Visible)ShowPortraitRoster(false,true);
                 else if(_portraitOverlay.Visible)ShowPortraitWindow(false);
                 else if(_settingsPanel.Visible)ShowSettings(false);
                 else if(_editingResidentName)SetNameEditing(false);
@@ -736,7 +737,7 @@ public partial class MainGame : Control
                 finally { Sim.Agents.SetInventory(observed, ResourceKind.Food, originalFood); RefreshPanels(); }
             }
             if (observed >= 0) { _residentPortrait.ValidatePresentation(); }
-            if (observed >= 0) { ValidatePortraitWindow(); }
+            if (observed >= 0) { ValidatePortraitWindow();ValidatePortraitRoster(); }
             _discovery.ValidateNavigation();
             if (observed >= 0) { TogglePin(); if (PinnedPerson != Sim.Society.Identity(observed)) { throw new Exception("Resident pin lost stable identity"); } }
             _discovery.Refresh();

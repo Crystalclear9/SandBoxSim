@@ -2,7 +2,7 @@
 
 此目录保留项目说明使用的原生 Godot 截图和动作演示，随文档提交。图片反映采样版本，不代表所有驱动、视角或当前帧率，也不作为模型质量、效率或 RSI 的评分。项目正式名称为 SandBoxSim。
 
-最新配图包含按需展开的世界镜头预设与鼠标说明、轮廓连续的肩袖、局部眼周修复和回嵌门窗；展示身份与可点击缩略肖像并排的居民手记、行式需求与可展开物资、概览／生活／决策人物页、柔光／侧光观察，以及带掌背分区的手部表面。地形图反映实际连续岸坡、植被露土斑块和高矮草丛；前臂图册增加侧面观察。居民状态分组显示读数方向和文字状态，手记收起重复选择卡；人物工作室使用分组镜头工具、宽幅状态条和固定物资入口，近景发根与连接的芦苇花序采用当前运行网格。近景水面使用与长波分开的细波法线；建筑、植被和地形图同时反映当前客户端。动态演示与其他专题保留各自先前采样。截图之外的能力边界见 [模型系统](../development/models.md)。
+最新配图包含可搜索的居民名录、按需展开的世界镜头预设与鼠标说明、随动作连续变形的肩袖、狼足四趾和鹿蹄分瓣，以及回嵌门窗；展示身份与可点击缩略肖像并排的居民手记、行式需求与可展开物资、概览／生活／决策人物页、柔光／侧光观察，以及带掌背分区的手部表面。地形图反映较宽连续覆盖场形成的岸坡、植被露土斑块和高矮草丛；前臂图册增加侧面观察。居民状态分组显示读数方向和文字状态，手记收起重复选择卡；人物工作室使用分组镜头工具、宽幅状态条和固定物资入口，近景发根与连接的芦苇花序采用当前运行网格。近景水面使用与长波分开的细波法线；建筑、植被和地形图同时反映当前客户端。动态演示与其他专题保留各自先前采样。截图之外的能力边界见 [模型系统](../development/models.md)。
 
 ## 当前配图
 
@@ -12,6 +12,7 @@
 | `tool-palette.png` | 416 像素工具库、分类和搜索、悬浮控制组；`tools` |
 | `free-world-ui.png`、`ui-detail-refined.png` | 自由探索现场手记、人物手记；`field`、`person` |
 | `resident-portrait.png` | 当前展开人物观察窗；`person-expanded` |
+| `resident-roster.png` | 实际打开居民名录后的搜索、当前身份与可点击整行；名录在模型区域临时展开 |
 | `resident-life.png`、`resident-decision.png` | 实际鼠标切换的生活／决策人物页 |
 | `resident-raking.png` | 实际鼠标切换侧光后的同一人物模型 |
 | `resident-hand-inspector.png`、`resident-body-inspector.png` | 当前展开窗口中的人物双手与全身；公开 `ui-portrait-window` 第 130/170 帧 |
@@ -36,11 +37,11 @@
 
 建筑、人物动物、面部、衣装、生态、网格近景、地形远近景、工具库、现场手记、人物手记、镜头面板、展开观察窗及其手部／全身视图更新于 2026-10-27；花甸专题保留 2026-10-26 采样，均为原生 Godot 渲染、1600×1000。镜头面板另检查实际按钮焦点下的空格暂停／继续、Esc 返回和全景平移后的选中反馈。图册使用实际游戏网格、独立展示环境，模拟暂停，等待 120 帧后采样；普通世界预览等待 2 秒。生活／决策／侧光、物资与工具状态由实际命中检查的鼠标事件回放后采样，回放先用空格暂停世界，并核对工具库实际可见、手记收起；缩略入口另检查 Enter 打开、Esc 焦点返回，以及手部背面观察关闭后仍显示面部；改名检查实际键盘保存、取消和换居民丢弃草稿。沉浸图使用 F10 后采样。手部与全身分别来自公开 `ui-portrait-window` 场景第 130／170 帧。界面和普通世界使用种子 839102、40 人，无预先天数推进；花甸预览暂停模拟。
 
-字体策略为 `fontProfile=noto-packaged-v1`。对应 `interface=world-camera-palette-v21`、`architecture=inset-joinery-v13`、`animalPresentation=source-eye-atlas-v10`、`landscapeSurface=coverage-mosaic-v6`、`habitatDetail=stratified-meadow-v10`、`residentSurface=orbital-gaze-v6`、`vegetationSurface=engine-faced-v2`、`waterSurface=continuous-bank-v5`、`handSurface=anatomical-regions-v1`、`portrait.studio=grouped-inspector-v8`、`wristContour=source-oval-v1` 、`hairline=source-root-v1`、`reedPanicle=connected-axis-v1` 和 `garmentMaterial=draped-sleeve-linen-v9`。动物半闭眼／全闭眼的强制参数图仅用于本地检查，不替代这里的正常运行配图。
+字体策略为 `fontProfile=noto-packaged-v1`。对应 `interface=searchable-residents-v22`、`architecture=inset-joinery-v13`、`animalPresentation=source-paw-contours-v11`、`landscapeSurface=coverage-mosaic-v6`、`habitatDetail=stratified-meadow-v10`、`residentSurface=orbital-gaze-v6`、`vegetationSurface=engine-faced-v2`、`waterSurface=constrained-bank-v6`、`handSurface=anatomical-regions-v1`、`portrait.studio=grouped-inspector-v8`、`wristContour=source-oval-v1` 、`hairline=source-root-v1`、`reedPanicle=connected-axis-v1` 和 `garmentMaterial=articulated-sleeve-linen-v10`。动物半闭眼／全闭眼的强制参数图仅用于本地检查，不替代这里的正常运行配图。
 
 地形远景使用普通世界入口；近景加 `--view=near`。两图用于查看实际扫描草叶地面、山坡、岸线和贴地，属于普通客户端采样，不作为固定帧评测成绩。
 
-前臂、左右手专题随当前手部表面重采；动作专题保留先前采样；较早的住房、农业、小径与世界生活图只说明对应玩法。未更新图片中的 UI 不代表当前布局。所有图片均来自实际客户端，没有用概念图替代模型。
+前臂、左右手与动作静态专题随当前模型重采；动作 GIF 保留先前采样；较早的住房、农业、小径与世界生活图只说明对应玩法。未更新图片中的 UI 不代表当前布局。所有图片均来自实际客户端，没有用概念图替代模型。
 
 复现入口见表格及 [渲染与视觉评测](../development/benchmark.md)。截图用于项目说明，不用于证明模型达到写实品质；效率对照必须使用同一场景、资产、渲染条件与版本标识。
 

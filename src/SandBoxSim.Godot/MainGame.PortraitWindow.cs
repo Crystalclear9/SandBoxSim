@@ -43,6 +43,7 @@ public partial class MainGame
     {
         HandleCameraOptionsInput(input);
         if(HandleWorldControlKey(input))return;
+        if(HandlePortraitRosterInput(input))return;
         if(input is InputEventKey {Pressed:true,Echo:false,Keycode:Key.K} search && (search.CtrlPressed||search.MetaPressed) && _portraitOverlay?.Visible!=true)
         {
             ShowTools(true);_toolSearch.GrabFocus();_toolSearch.SelectAll();GetViewport().SetInputAsHandled();return;
@@ -77,6 +78,7 @@ public partial class MainGame
         _portraitWindow.AddThemeStyleboxOverride("panel",paper);_portraitOverlay.AddChild(_portraitWindow);
         var layout=new VBoxContainer();layout.AddThemeConstantOverride("separation",12);_portraitWindow.AddChild(layout);
         var header=new HBoxContainer();layout.AddChild(header);
+        BuildPortraitRoster(header);
         var title=HudStyle.Heading("居民肖像",19);title.SizeFlagsHorizontal=SizeFlags.ExpandFill;header.AddChild(title);
         var lighting=new HBoxContainer();lighting.AddThemeConstantOverride("separation",6);header.AddChild(lighting);
         lighting.AddChild(PortraitPaperLabel("布光",11,true));
@@ -153,6 +155,7 @@ public partial class MainGame
         if(_portraitWindow==null)return;
         var dimensions=new Vector2(MathF.Min(1320,size.X-48),MathF.Min(860,size.Y-64));
         HudStyle.Float(_portraitWindow,new(.5f,.5f),-dimensions*.5f,dimensions);
+        FitPortraitRoster(size);
     }
     private void BrowsePortraitResident(int direction)
     {
@@ -179,6 +182,7 @@ public partial class MainGame
         }
         else
         {
+            ShowPortraitRoster(false);
             _portraitInventoryScrollRequest++;
             _residentPortrait.Reparent(_portraitHome,false);_portraitHome.MoveChild(_residentPortrait,0);_residentPortrait.SetExpanded(false);_portraitOverlay.Visible=false;
             if(_portraitReturnFocus!=null&&GodotObject.IsInstanceValid(_portraitReturnFocus)&&_portraitReturnFocus.IsVisibleInTree()&&_portraitReturnFocus.FocusMode!=FocusModeEnum.None)
@@ -188,6 +192,7 @@ public partial class MainGame
     }
     private void RefreshPortraitFacts()
     {
+        RefreshPortraitRoster();
         for(int i=0;i<2;i++)_portraitLighting[i].SetPressedNoSignal(_residentPortrait.Lighting==i);
         int slot=SelectedSlot;if(slot<0||_portraitFactAction==null)return;
         _portraitWindowTitle.Text=_residentTitle.Text;

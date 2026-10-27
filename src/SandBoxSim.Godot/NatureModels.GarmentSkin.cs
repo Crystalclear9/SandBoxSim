@@ -7,6 +7,15 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
+    // Same metre-space support field as tools/garment_pattern.py. The baked
+    // surface is checked against it below. Apply it to the attached clothing
+    // too, so a moving side-chest cannot leave a rigid shoulder strap behind.
+    private static float GarmentTorsoShoulderWeight(Vector3 point)
+    {
+        float along=ResidentRig.BodyY(1.18f)-point.Y;
+        return Mathf.SmoothStep(.04f,.18f,MathF.Abs(point.X))*Mathf.SmoothStep(-.015f,.085f,along)
+            *(1-Mathf.SmoothStep(.095f,.30f,along));
+    }
     public void ExportGarmentSources(string folder)
     {
         System.IO.Directory.CreateDirectory(folder);
@@ -62,6 +71,7 @@ internal sealed partial class NatureModels
             SelectGarmentCut(cut);var mesh=ContinuousGarment();var a=mesh.SurfaceGetArrays(0);
             var points=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();var indices=a[(int)Mesh.ArrayType.Index].AsInt32Array();
             var bones=a[(int)Mesh.ArrayType.Bones].AsInt32Array();var weights=a[(int)Mesh.ArrayType.Weights].AsFloat32Array();
+            var seam=a[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
             if(indices.Length>30000||ContinuousGarment()!=mesh)throw new InvalidOperationException("Garment budget/cache regression");
             // Rays through the actual throat opening must not encounter a
             // shoulder panel or cap near the collar, for any of the three cuts.
@@ -91,6 +101,12 @@ internal sealed partial class NatureModels
             for(int i=0;i<points.Length;i++)
             {
                 if(Root(i)!=root)throw new InvalidOperationException("Disconnected sewn garment");
+                float ring=Math.Clamp(seam[i].X/(.263f*.48f),0,1);ring=ring*ring*(3-2*ring);
+                float local=GarmentTorsoShoulderWeight(points[i]);
+                float expected=seam[i].X>0?1-(1-ring)*(1-local):local;
+                float actual=weights[i*4+1]+weights[i*4+2];
+                if(MathF.Abs(expected-actual)>.00002f)
+                    throw new InvalidOperationException("Baked garment and attached clothing use different shoulder support fields");
                 for(int j=0;j<4;j++)if(weights[i*4+j]>.9f)influence[bones[i*4+j]]++;
             }
             if(influence[0]<100||influence[1]<50||influence[2]<50||mesh.GetAabb().Size.X<.48f)
@@ -118,6 +134,7 @@ internal sealed partial class NatureModels
                     throw new InvalidOperationException("Rendered skinned garment lost its scanned material: "+sampler);
         }
         finally{resident.Free();SelectGarmentCut(previous);}
+        ValidateGarmentMotion();SelectGarmentCut(previous);
         GD.Print("CONTINUOUS_GARMENT_PASS: connected surfaces, mirrored weights, hashes, budget and scanned textures on final skinned body");
     }
     private void RemoveSeparateSleeves(ResidentRig rig,string cloth)

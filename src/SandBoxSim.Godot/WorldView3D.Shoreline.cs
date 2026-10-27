@@ -8,20 +8,23 @@ namespace SandBoxSim.Client;
 public partial class WorldView3D
 {
     private static readonly float[][] ShoreKernel=CreateShoreKernel();
+    private const int ShoreMaskAll=(1<<25)-1,ShoreMaskCentre=1<<12;
+    private const float ShoreDryCoverageLimit=.425f,ShoreVariation=.025f;
     private static float[][] CreateShoreKernel()
     {
-        // Compact C2 radial weights retain the dry/wet centre classification.
-        // The 1.4-tile radius rounds the stair-step outline across corners;
-        // centre heights are blended, not exact interpolation of old heights.
+        // A wider compact C2 reconstruction removes the two-metre stair-step
+        // frequency, rather than merely rounding each repeated right angle.
+        // Explicit vertex constraints below retain dry feet/routes and water
+        // centres; a broad low-pass alone would erase single-tile channels.
         // Cache all fine-grid phases: no per-vertex square roots or allocations.
         var phases=new float[GroundDetail*GroundDetail][];
         for(int py=0;py<GroundDetail;py++)for(int px=0;px<GroundDetail;px++)
         {
-            var weights=new float[9];float sum=0;int index=0;
-            for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++)
+            var weights=new float[25];float sum=0;int index=0;
+            for(int y=-2;y<=2;y++)for(int x=-2;x<=2;x++)
             {
                 float dx=x+.5f-px/(float)GroundDetail,dy=y+.5f-py/(float)GroundDetail;
-                float r=MathF.Sqrt(dx*dx+dy*dy)/1.40f,t=MathF.Max(0,1-r);
+                float r=MathF.Sqrt(dx*dx+dy*dy)/2.10f,t=MathF.Max(0,1-r);
                 float weight=t*t*t*t*(4*r+1);weights[index++]=weight;sum+=weight;
             }
             if(sum<=0)throw new InvalidOperationException("Shore kernel leaves an uncovered point");
@@ -36,7 +39,7 @@ public partial class WorldView3D
         for(int y=0;y<=height;y++)for(int x=0;x<=width;x++)
         {
             int mask=0,index=0;
-            for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++,index++)
+            for(int dy=-2;dy<=2;dy++)for(int dx=-2;dx<=2;dx++,index++)
             {
                 int sx=x+dx,sy=y+dy;
                 bool outside=sx<0||sy<0||sx>=width||sy>=height;
@@ -53,11 +56,25 @@ public partial class WorldView3D
         for(int i=0;i<water.Length;i++)water[i]=world.Tiles[i].Terrain==TerrainKind.Water;
         return ShoreNeighbourMasks(water,world.Width,world.Height);
     }
-    private static float ShoreCoverage(int mask,int px,int py)
+    private static float ShoreCoverage(int mask,int px,int py,float variation=0)
     {
-        if(mask==0)return 0;if(mask==511)return 1;
+        if(mask==0)return 0;if(mask==ShoreMaskAll)return 1;
         var weights=ShoreKernel[py*GroundDetail+px];float coverage=0;
         for(int i=0;i<weights.Length;i++)if((mask&(1<<i))!=0)coverage+=weights[i];
+        coverage+=Math.Clamp(variation,-ShoreVariation,ShoreVariation);
+        // At the current 50 cm sampling, a 28 cm foot square uses the nine
+        // vertices surrounding its logical dry centre. At a tile boundary,
+        // support continues only when the adjacent centre is also dry; the
+        // four-way condition preserves allowed, no-corner-cut diagonals.
+        // Thus every required triangle vertex remains >= .0489 m before the
+        // maximum .024 m compaction, without pinning all dry corners to land.
+        int support=ShoreMaskCentre;
+        if(px==0)support|=1<<11;
+        if(py==0)support|=1<<7;
+        if(px==0&&py==0)support|=1<<6;
+        if((mask&support)==0)coverage=MathF.Min(coverage,ShoreDryCoverageLimit);
+        if(px==GroundDetail/2&&py==GroundDetail/2&&(mask&ShoreMaskCentre)!=0)
+            coverage=MathF.Max(coverage,.65f);
         return Math.Clamp(coverage,0,1);
     }
     private static float ContinuousShoreHeight(float coverage,float sculpted)
@@ -67,8 +84,11 @@ public partial class WorldView3D
         float inland=1-Mathf.SmoothStep(.02f,.35f,coverage);
         return bed+MathF.Max(0,sculpted-.08f)*inland;
     }
-    private static float ShoreSupportedHeight(float x,float y,float sculpted,int mask)
-        =>ContinuousShoreHeight(ShoreCoverage(mask,(int)(x*GroundDetail)%GroundDetail,(int)(y*GroundDetail)%GroundDetail),sculpted);
+    private float ShoreSupportedHeight(float x,float y,float sculpted,int mask)
+    {
+        float variation=mask is 0 or ShoreMaskAll?0:(TerrainNoise(x*.13f+31,y*.13f-17,Game.Sim.World.Seed)-.5f)*(ShoreVariation*2);
+        return ContinuousShoreHeight(ShoreCoverage(mask,(int)(x*GroundDetail)%GroundDetail,(int)(y*GroundDetail)%GroundDetail,variation),sculpted);
+    }
     private static float GroundTriangleHeight(float a,float b,float c,float d,float u,float v)
         =>u+v<=1?a+(b-a)*u+(c-a)*v:d+(c-d)*(1-u)+(b-d)*(1-v);
     private void ValidateLogicalShoreline()
@@ -114,13 +134,13 @@ public partial class WorldView3D
     {
         if(_shoreLayoutsValidated)return;
         int layouts=0,samples=0;
-        void Fixture(int layout,int width,int height,bool outsideWet)
+        void Fixture(int layout,int width,int height,bool outsideWet,float variation=0)
         {
             var water=new bool[width*height];for(int i=0;i<water.Length;i++)water[i]=(layout&(1<<i))!=0;
             var masks=ShoreNeighbourMasks(water,width,height,outsideWet);
             int nx=width*GroundDetail,ny=height*GroundDetail;var grid=new float[nx+1,ny+1];
             for(int y=0;y<=ny;y++)for(int x=0;x<=nx;x++)
-                grid[x,y]=ContinuousShoreHeight(ShoreCoverage(masks[x/GroundDetail,y/GroundDetail],x%GroundDetail,y%GroundDetail),.08f)-.024f;
+                grid[x,y]=ContinuousShoreHeight(ShoreCoverage(masks[x/GroundDetail,y/GroundDetail],x%GroundDetail,y%GroundDetail,variation),.08f)-.024f;
             float Sample(float x,float z)
             {
                 float gx=Math.Clamp(x*GroundDetail*.5f,0,nx),gy=Math.Clamp(z*GroundDetail*.5f,0,ny);
@@ -159,8 +179,53 @@ public partial class WorldView3D
             for(int width=1;width<=2;width++)for(int height=1;height<=3;height++)
                 for(int layout=0;layout<(1<<(width*height));layout++)Fixture(layout,width,height,outsideWet);
         }
-        _shoreLayoutsValidated=true;
         GD.Print($"SHORE_LAYOUTS_PASS: {layouts} exhaustive interior/edge/corner layouts, {samples} actual triangle samples at maximum compaction, 28 cm feet and no-corner-cut diagonal routes");
+        int referenceLayouts=layouts,referenceSamples=samples;
+        // The safety envelope must also hold for the extrema of the bounded
+        // low-frequency variation and for neighbours beyond the former 3x3.
+        foreach(float variation in new[]{-ShoreVariation,ShoreVariation})
+        foreach(bool outsideWet in new[]{false,true})
+        {
+            for(int layout=0;layout<512;layout++)Fixture(layout,3,3,outsideWet,variation);
+            uint pattern=0x5e7a91u;
+            for(int fixture=0;fixture<128;fixture++)
+            {
+                pattern^=pattern<<13;pattern^=pattern>>17;pattern^=pattern<<5;
+                Fixture((int)(pattern&ShoreMaskAll),5,5,outsideWet,variation);
+            }
+        }
+        ValidateShoreFairing();
+        _shoreLayoutsValidated=true;
+        GD.Print($"SHORE_ENVELOPE_PASS: {layouts-referenceLayouts} additional bounded-variation/5x5 layouts, {samples-referenceSamples} unchanged-threshold triangle samples; original exhaustive checks retained");
+    }
+    private static void ValidateShoreFairing()
+    {
+        const int width=26,height=26;
+        var water=new bool[width*height];
+        for(int y=0;y<height;y++)for(int x=3+y/2;x<6+y/2;x++)water[y*width+x]=true;
+        var masks=ShoreNeighbourMasks(water,width,height);
+        int nx=width*GroundDetail,ny=height*GroundDetail;float previous=0,previousSlope=0,sum=0,maximum=0;int samples=0;
+        for(int y=8;y<ny-8;y++)
+        {
+            float before=ContinuousShoreHeight(ShoreCoverage(masks[0,y/GroundDetail],0,y%GroundDetail),.08f),crossing=float.NaN;
+            for(int x=1;x<=nx;x++)
+            {
+                float after=ContinuousShoreHeight(ShoreCoverage(masks[x/GroundDetail,y/GroundDetail],x%GroundDetail,y%GroundDetail),.08f);
+                if(before>=.019f&&after<.019f)
+                {crossing=(x-1+(before-.019f)/(before-after))*2f/GroundDetail;break;}
+                before=after;
+            }
+            if(!float.IsFinite(crossing))throw new InvalidOperationException("Faired staircase fixture lost its continuous channel");
+            float slope=crossing-previous;
+            if(y>9){float second=slope-previousSlope;sum+=second*second;maximum=MathF.Max(maximum,MathF.Abs(second));samples++;}
+            previous=crossing;previousSlope=slope;
+        }
+        float rms=MathF.Sqrt(sum/samples);
+        // Measured on the actual piecewise-linear water-height intersections.
+        // The former 1.4-cell reconstruction gives .374 m RMS / .867 m max;
+        // these bounds reject restoring its repeated right-angle staircase.
+        if(rms>=.24f||maximum>=.55f)throw new InvalidOperationException($"Shore contour retains staircase corrugation: rms={rms}, max={maximum}");
+        GD.Print($"SHORE_FAIRING_PASS: actual grid-edge water intersections, second difference rms={rms:0.000} m, max={maximum:0.000} m; fixed logical centres, unchanged topology");
     }
     private void ValidateHabitatCoverage()
     {

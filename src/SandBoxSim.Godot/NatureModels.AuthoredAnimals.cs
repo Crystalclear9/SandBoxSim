@@ -46,8 +46,29 @@ CLEARCOAT=COLOR.r*.45;CLEARCOAT_ROUGHNESS=.22;
 vec2 coat_point=UV2;
 float pore=sin(coat_point.x*2100.0+sin(coat_point.y*1100.0))*sin(coat_point.y*1900.0-coat_point.x*900.0);
 pore/=1.0+pow(max(length(dFdx(coat_point)),length(dFdy(coat_point)))*2100.0,2.0);
+// Alpha is an opaque, bind-space foot mask, not transparency. These metric
+// coordinates are written only on the four existing lower-leg skin regions.
+float foot=1.0-COLOR.a;
+float toe_crease=0.0;
+if(foot>.001){
+    float fore=1.0-smoothstep(.025,.075,coat_point.y);
+    float middle=exp(-pow(coat_point.x/(predator?.0038:.0065),2.0));
+    if(predator){
+        // Three shallow fur divisions match the four lobes in the geometry.
+        float sides=exp(-pow((abs(coat_point.x)-.0224)/.0038,2.0));
+        toe_crease=(middle+sides)*fore*foot;
+        ALBEDO*=1.0-toe_crease*.22;
+    }else{
+        toe_crease=middle*fore*foot;
+        // Keep the source pattern but give the keratin a readable dark brown
+        // floor. Black source texels previously erased the cloven silhouette.
+        ALBEDO=mix(ALBEDO,max(ALBEDO,vec3(.10,.082,.060)),foot*.90);
+        ALBEDO*=1.0-toe_crease*.42;
+        ROUGHNESS=mix(ROUGHNESS,.64,foot);SPECULAR=mix(SPECULAR,.26,foot);
+    }
+}
 vec3 dx=dFdx(VERTEX),dy=dFdy(VERTEX),tx=cross(dy,NORMAL),ty=cross(NORMAL,dx);float det=dot(dx,tx);
-float height=pore*.000035*COLOR.r;
+float height=pore*.000035*COLOR.r-toe_crease*.00035;
 if(abs(det)>.0000000001)NORMAL=normalize(abs(det)*NORMAL-sign(det)*(dFdx(height)*tx+dFdy(height)*ty));
 BACKLIGHT=ALBEDO*vec3(.085,.045,.026)*COLOR.b;
 }"}};
@@ -96,6 +117,7 @@ BACKLIGHT=ALBEDO*vec3(.085,.045,.026)*COLOR.b;
             arrays[(int)Mesh.ArrayType.Vertex]=vertices;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.TexUV]=uv;
             arrays[(int)Mesh.ArrayType.Color]=detail;arrays[(int)Mesh.ArrayType.TexUV2]=eyeUv;
             arrays[(int)Mesh.ArrayType.Bones]=Ints(source.GetProperty("bones"));arrays[(int)Mesh.ArrayType.Weights]=Floats(source.GetProperty("weights"));arrays[(int)Mesh.ArrayType.Index]=Ints(source.GetProperty("indices"));
+            RefineAuthoredFeet(arrays,wolf,materialName);
             RefineAnimalHead(arrays,wolf,materialName);
             var part=new ArrayMesh();part.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);
             using var tool=new SurfaceTool();tool.CreateFrom(part,0);tool.GenerateTangents();tool.SetMaterial(AuthoredAnimalMaterial(wolf,source.GetProperty("material").GetString()!));tool.Commit(mesh);
@@ -298,6 +320,7 @@ CLEARCOAT=(1.0-edge)*.10;CLEARCOAT_ROUGHNESS=.24;
         var rig=AuthoredAnimal(wolf);var peer=AuthoredAnimal(wolf);var mesh=rig.FurSkin!.Mesh;
         try
         {
+        ValidateAuthoredFeet(rig,wolf);
         if(wolf)ValidateWolfEyeAtlas(mesh);
         int boneCount=wolf?15:14;
         var guard=rig.Body.GetNode<MeshInstance3D>("AuthoredGuardCoat");var guardArrays=guard.Mesh.SurfaceGetArrays(0);

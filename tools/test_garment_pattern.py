@@ -15,7 +15,7 @@ class GarmentPatternTests(unittest.TestCase):
         for name,digest in manifest['sha256'].items():
             with self.subTest(cut=name):
                 raw=(ROOT/name).read_bytes();self.assertEqual(hashlib.sha256(raw).hexdigest(),digest)
-                d=json.loads(raw);self.assertEqual(d['construction'],'draped-sleeve-v3')
+                d=json.loads(raw);self.assertEqual(d['construction'],'articulated-sleeve-v4')
                 points=list(zip(*[iter(d['positions'])]*3));ids=d['indices']
                 self.assertLessEqual(len(ids)//3,10000)
                 self.assertEqual(set(ids),set(range(len(points))))
@@ -110,6 +110,43 @@ class GarmentPatternTests(unittest.TestCase):
                 self.assertGreaterEqual(len(angles),20)
                 self.assertLess(max(angles),25.)
                 self.assertLess(sum(angles)/len(angles),12.)
+
+    def test_shipped_dynamic_axilla_binding(self):
+        for cut in range(3):
+            d=json.loads((ROOT/f'garment-{cut}.skin.json').read_text())
+            p=list(zip(*[iter(d['positions'])]*3));uv=list(zip(*[iter(d['detailUv'])]*2))
+            w=[d['weights'][i*4:i*4+3] for i in range(len(p))]
+            edges=set()
+            for a,b,c in zip(*[iter(d['indices'])]*3):
+                edges.update(tuple(sorted(e)) for e in ((a,b),(b,c),(c,a)))
+            def distance(a,b):return math.sqrt(sum((x-y)**2 for x,y in zip(a,b)))
+            for axis,angle in (('abduct',math.pi/2),('forward',-math.pi*5/12)):
+                with self.subTest(cut=cut,pose=axis):
+                    posed=[]
+                    for (x,y,z),weight in zip(p,w):
+                        q=[v*weight[0] for v in (x,y,z)]
+                        for b in (1,2):
+                            pivot=-.202 if b==1 else .202
+                            a=-angle if b==1 and axis=='abduct' else angle
+                            s,c=math.sin(a),math.cos(a);dx=x-pivot;dy=y-1.23
+                            v=(pivot+c*dx-s*dy,1.23+s*dx+c*dy,z) if axis=='abduct' else (x,1.23+c*dy-s*z,s*dy+c*z)
+                            for j in range(3):q[j]+=v[j]*weight[b]
+                        posed.append(q)
+                    ratios=[]
+                    for a,b in edges:
+                        rest=distance(p[a],p[b])
+                        if rest>1e-5 and min(p[a][1],p[b][1])>1.:
+                            ratios.append(distance(posed[a],posed[b])/rest)
+                    # The previous t-only cap binding reached >20x here.
+                    # This is a strain bound on the actual shipped triangles,
+                    # not a test of the weight-field implementation itself.
+                    self.assertLess(max(ratios),3.3)
+                    for before,after,weight,detail in zip(p,posed,w,uv):
+                        if abs(before[0])<.04 or before[1]<.90 or (before[1]>1.25 and detail[0]<=0):
+                            self.assertAlmostEqual(distance(before,after),0.,places=6)
+            lower=[sum(weight[1:]) for point,weight,detail in zip(p,w,uv) if detail[0]==0 and point[1]<1.17 and abs(point[0])>.14]
+            self.assertGreater(len(lower),10)
+            self.assertGreater(sum(lower)/len(lower),.65)
 
     def test_reject_old_or_incomplete_pattern(self):
         with self.assertRaises(ValueError):build_pattern({'schemaVersion':1})

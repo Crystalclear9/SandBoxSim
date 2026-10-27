@@ -7,6 +7,22 @@ Coordinates are in the client's proportioned rest space (metres, Y up).
 import math
 
 
+def torso_shoulder_weight(point, shoulder):
+    """Local side-chest support; neckline, centre front and belt stay fixed.
+
+    A sleeve's lower armhole is already below the shoulder joint in bind
+    space. Pinning it to the chest creates a sheet when the upper arm lifts.
+    Spread that pull over the neighbouring side chest instead of assigning
+    every point of the non-planar armhole the same zero shoulder influence.
+    """
+    def smooth(a,b,x):
+        t=min(1,max(0,(x-a)/(b-a)))
+        return t*t*(3-2*t)
+    x,y,_=point
+    along=shoulder-y
+    return smooth(.04,.18,abs(x))*smooth(-.015,.085,along)*(1-smooth(.095,.30,along))
+
+
 def build_pattern(data, include_details=False):
     if data['schemaVersion'] != 2:
         raise ValueError('Expected sampled garment pattern schema 2')
@@ -15,13 +31,16 @@ def build_pattern(data, include_details=False):
     if len(values) != (rows+1)*cols*3 or cols % 4:
         raise ValueError('Invalid pattern dimensions')
     points = [tuple(values[i:i+3]) for i in range(0,len(values),3)]
-    weights = [(1.,0.,0.) for _ in points]
+    shoulder = data['shoulder']
+    weights=[]
+    for p in points:
+        w=torso_shoulder_weight(p,shoulder)
+        weights.append((1-w,w if p[0]<0 else 0.,w if p[0]>=0 else 0.))
     # Metres along the sleeve and across its underarm seam. Non-sleeve
     # vertices use a negative sentinel, so trimming cannot mark the torso.
     details = [(-1.,0.) for _ in points]
     faces = []
     idx = lambda r,c: r*cols+c%cols
-    shoulder = data['shoulder']
     # The armhole reaches the shoulder slope, leaving the neckline untouched.
     low = min(range(rows),key=lambda r:abs(points[idx(r,0)][1]-(shoulder-.085)))
     high = min(range(rows),key=lambda r:abs(points[idx(r,0)][1]-(shoulder+.047)))
@@ -96,8 +115,11 @@ def build_pattern(data, include_details=False):
                 ring.append(len(points));points.append(q)
                 details.append((t*.263,abs(math.remainder(phase-math.pi,math.tau))*(rx+rz)*.5))
                 # The seam stays anchored to the torso while the hanging
-                # fabric takes the shoulder rotation. Cuff weights remain 1.
+                # fabric takes the shoulder rotation. Its lower, already
+                # axillary points share the side chest's local shoulder pull.
+                # Upper cap support is lower; cuff weights remain exactly 1.
                 w=min(1,t/.48);w=w*w*(3-2*w)
+                w=1-(1-w)*(1-torso_shoulder_weight(q,shoulder))
                 weights.append((1-w,w if bone==1 else 0.,w if bone==2 else 0.))
             for j in range(len(loop)):
                 k=(j+1)%len(loop);faces.append((prev[j],prev[k],ring[k],ring[j]))

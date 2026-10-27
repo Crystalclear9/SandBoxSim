@@ -59,6 +59,9 @@ UI 的层级和画布工具组织参考见[观察与界面](../guides/gameplay-o
 | [V&A：可定制衬衫纸样](https://www.vam.ac.uk/articles/sew-your-own-customisable-shirt)与[British Museum EA17173](https://www.britishmuseum.org/collection/object/Y_EA17173) | 用于理解袖窿、袖片、缝边和折边，项目重塑连续肩袖与受约束的宽折谷，未复制馆藏图像或加入布料物理 |
 | [UC Berkeley：瞳孔形状与生态位](https://news.berkeley.edu/2015/08/07/pupil-shape-and-ecological-niche/) | 鹿保留横向瞳孔，狼使用圆瞳；源绘眼周边与新角膜分开处理，不把材质细化当作新增动物扫描 |
 | [New Forest National Park：木构与屋架](https://www.newforestnpa.gov.uk/document/timber-frames-and-roofs/) | 房屋梁柱避开开口，阁楼窗补承边，窗框与窗台回嵌墙体；属于视觉构造，不是结构力学或完整传统工艺模拟 |
+| [Kavan 等：Geometric Skinning with Approximate Dual Quaternion Blending](https://users.cs.utah.edu/~ladislav/kavan08geometric/kavan08geometric.pdf) | 用于理解线性混合蒙皮中的变形问题；项目按绑定坐标修正肩袖和侧胸权重，保留原三骨 LBS，并未实现论文的双四元数蒙皮 |
+| [Parks Canada：食肉动物足迹](https://parks.canada.ca/pn-np/ab/banff/nature/faune-wildlife/mammal/carnivores/pistes-carnivore-tracks)与[Illinois Natural History Survey：鹿生态](https://hunt.inhs.illinois.edu/hunting-trapping/deer-hunting/deer-ecology/) | 参考狼四趾和鹿双瓣蹄的轮廓，沿源足部细化，保留原脚底高度；具体毫米值为模型取舍，不作为医学尺寸 |
+| [JCGT：SurfaceNets for Multi-Label Segmentations with Preservation of Sharp Boundaries](https://jcgt.org/published/0011/01/03/)与[Red Blob Games：Noisy Edges](https://www.redblobgames.com/maps/noisy-edges/) | 借鉴保持几何约束及有界边界变化的思想；项目用宽覆盖场和平面支撑限制改善河岸，没有实现完整 Surface Nets 或新流体模拟 |
 | [NN/g：识别与回忆](https://www.nngroup.com/articles/recognition-and-recall/) | 操作提示靠近当前工作区，镜头角度、距离和跟随状态可直接查看；未选择居民时禁用跟随并说明原因 |
 
 这些资料用于明确实现方法；素材页、许可与作者记录用于实际资源来源。界面没有引入网页运行时；字体作为带许可的正式资源随包提供。
@@ -144,7 +147,7 @@ UI 的层级和画布工具组织参考见[观察与界面](../guides/gameplay-o
 
 ## 检查
 
-上衣重建使用 `./tools/bake-garments.ps1`，原始导出在 `.tools/garment-sources/`，正式 JSON 和哈希清单进入 `assets/models/garments/`；普通构建不执行 Blender。当前三套上衣使用 `draped-sleeve-v3` 构造并保存 `detailUv` 米制缝线坐标。改变剪裁采样或 `tools/garment_pattern.py` 缝片构造后必须重新烘焙，不能只修改运行代码并继续使用旧蒙皮。动作、服装配件和近远景均需一同检查，细节见 [模型系统](models.md)。
+上衣重建使用 `./tools/bake-garments.ps1`，原始导出在 `.tools/garment-sources/`，正式 JSON 和哈希清单进入 `assets/models/garments/`；普通构建不执行 Blender。当前三套上衣使用 `articulated-sleeve-v4` 构造并保存 `detailUv` 米制缝线坐标。改变剪裁采样或 `tools/garment_pattern.py` 缝片构造后必须重新烘焙，不能只修改运行代码并继续使用旧蒙皮。动作、服装配件和近远景均需一同检查，细节见 [模型系统](models.md)。
 
 通过 `./tools/godot.ps1 -Mode test` 构建、导入并检查网格、法线、UV、缓存与握持，再查看真实窗口中的近景和远景。无头几何检查不能判断美感，图像识别准确率也不能替代材质与解剖质量检查。
 

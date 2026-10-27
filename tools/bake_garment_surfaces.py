@@ -27,7 +27,7 @@ for cut in range(3):
     bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces));bm.to_mesh(mesh);bm.free()
     mesh.calc_loop_triangles()
     if len(mesh.loop_triangles)>10000:raise RuntimeError('Garment triangle budget exceeded')
-    result={'schemaVersion':1,'construction':'draped-sleeve-v3','sourceSha256':hashlib.sha256(raw).hexdigest(),'positions':[],'normals':[],'uv':[],'detailUv':[],'bones':[],'weights':[],'indices':[]}
+    result={'schemaVersion':1,'construction':'articulated-sleeve-v4','sourceSha256':hashlib.sha256(raw).hexdigest(),'positions':[],'normals':[],'uv':[],'detailUv':[],'bones':[],'weights':[],'indices':[]}
     for v,w,detail in zip(mesh.vertices,weights,details):
         result['positions'].extend(round(x,7) for x in v.co)
         result['normals'].extend(round(x,7) for x in v.normal.normalized())

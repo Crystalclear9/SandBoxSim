@@ -70,7 +70,12 @@ internal sealed partial class NatureModels
                         var b=garmentBones;var w=garmentWeights;
                         surface.SetBones(new[]{b[v*4],b[v*4+1],b[v*4+2],b[v*4+3]});surface.SetWeights(new[]{w[v*4],w[v*4+1],w[v*4+2],w[v*4+3]});
                     }
-                    else{surface.SetBones(new[]{0,0,0,0});surface.SetWeights(new[]{1f,0f,0f,0f});}
+                    else
+                    {
+                        float influence=GarmentTorsoShoulderWeight(points[v]);
+                        surface.SetBones(new[]{0,points[v].X<0?1:2,0,0});
+                        surface.SetWeights(new[]{1-influence,influence,0f,0f});
+                    }
                     surface.SetUV(uv[v]);surface.SetUV2(garment?garmentDetails[v]:new Vector2(-1,0));surface.SetNormal(normals[v]);surface.AddVertex(points[v]);
                 }
             }

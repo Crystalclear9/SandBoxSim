@@ -19,6 +19,7 @@
 | [《庄园领主》官方游戏画面](https://store.steampowered.com/app/1363080/Manor_Lords/) | 全局资源置顶，世界画面保持主体，对象资料按选择展开 | 轻量顶栏、稳定的边缘操作与独立对象手记，未使用原作图标或素材 |
 | [NN/g：Progressive Disclosure](https://www.nngroup.com/articles/progressive-disclosure/) | 常用信息直接可见，专门功能按需展开 | 资源与当前选择常驻，镜头预设／操作说明、创造工具、对象观察窗与复杂设置按需打开 |
 | [NN/g：Recognition and Recall](https://www.nngroup.com/articles/recognition-and-recall/)与[Xbox XAG 112](https://learn.microsoft.com/en-us/xbox/accessibility/xbox-accessibility-guidelines/112) | 让对象本身提供可识别入口，导航与返回焦点保持一致 | 整张居民缩略肖像可点击或键盘激活，进入和关闭复用同一视口，不必记忆隐藏的放大路径 |
+| [NN/g：Drop-Down Menus](https://www.nngroup.com/articles/drop-down-menus/)与[Xbox XAG 113：UI navigation](https://learn.microsoft.com/en-us/xbox/accessibility/xbox-accessibility-guidelines/113) | 长选择集提供查找；键盘焦点、确认与返回形成完整路径 | 居民名录支持跨页搜索和显式确认，Esc 收起并返回入口；浏览行时不提前切换人物 |
 | [Linear：2026 UI refresh](https://linear.app/changelog/2026-03-12-ui-refresh) | 一致的标题、导航和视图控制；降低侧栏的视觉竞争 | 全局信息集中到顶部；创造、手记、人物观察共用色彩和按钮状态 |
 | [Figma：Our approach to designing UI3](https://www.figma.com/blog/our-approach-to-designing-ui3/) | 控件位置稳定，关键属性直接可见；设计应保留熟悉的操作路径 | 分类与参数保持固定，仅工具列表滚动；工具用途和数值直接显示，不靠悬停才能辨认 |
 | [Figma：Inside the redesigned Figma](https://www.figma.com/blog/behind-our-redesign-ui3/) | 精简底部主工具入口、让主要内容成为中心 | 底部只保留观察、创造、手记三种入口，六种工具分类只在创造面板出现 |
@@ -65,6 +66,12 @@
 展开时键盘焦点进入模型区域；Tab 长按重复、方向键的控件导航均留在窗内，方向键不移动镜头。返回时恢复此前仍可用的控件焦点。关闭柔和界面动效会同时停止肖像操作提示的淡入淡出，并让缩放与旋转立即到达当前目标。
 
 ![展开的人物观察窗](../images/resident-portrait.png)
+
+观察窗顶部“居民名录”打开可搜索列表，Ctrl / ⌘ F 直接聚焦；再次使用快捷键保留并全选当前查询。姓名、职业、人生阶段可组合搜索，匹配不区分大小写；每行显示姓名、阶段、职业、年龄及当前／关注状态。每页最多 64 人，搜索始终覆盖所有存活居民，打开时自动定位当前居民所在页。列表在左侧模型区域临时展开，右侧资料保持可读。
+
+向上／向下、Home／End 和 Page Up／Page Down 浏览当前页，Enter 或点击行才切换人物；搜索框中 Home／End、左右键仍用于文字编辑。Tab 在名录控件内移动。Esc 先收起名录并返回触发按钮，再次按 Esc 关闭观察窗；点击外部收起名录并继续实际点击。列表按当前世界和稳定身份选择人物，已失效的条目不会选中复用槽位或另一个世界的人物。名录只影响观察界面。
+
+![可搜索的居民名录](../images/resident-roster.png)
 
 土地页展示湿度、肥力、植被与资源，现场页保留玩家自选地点和世界故事。历史与曲线记录实际变化，没有完成百分比。
 
