@@ -42,7 +42,7 @@ python tools/evaluate.py run benchmarks/scenarios/render-population.json --label
 |---|---|
 | `id`, `seed` | 实验名称（1–64 位字母/数字/点/下划线/短横线，首位为字母或数字）与世界种子 |
 | `agents`, `previewDays` | 人口 0–2000，初始预演 0–30 天 |
-| `panel` | `field`, `trails`, `homes`, `farms`, `person`, `person-hands`, `architecture`, `characters`, `model-details`, `animal-details`, `animal-heads`, `ecology-details`, `wardrobe`, `faces`, `equipment`, `actions`, `hands`, `naturemodels` |
+| `panel` | `field`, `tools`, `trails`, `homes`, `farms`, `person`, `person-hands`, `architecture`, `characters`, `model-details`, `animal-details`, `animal-heads`, `ecology-details`, `wardrobe`, `faces`, `equipment`, `actions`, `hands`, `naturemodels` |
 | `warmupFrames`, `measuredFrames` | 预热 3–3600 帧，采样 2–36000 帧 |
 | `ticksPerFrame` | 每个逻辑帧推进 0–20 个模拟 tick，与本机快慢无关 |
 | `captureFrames` | 从 0 开始的逻辑帧索引；至少第 3 帧，最多 32 个，无重复，不能超过运行末帧 |
@@ -82,6 +82,10 @@ python tools/evaluate.py verify runs/evaluation/candidate
 CLI 输出使用 UTF-8；`python tools/evaluate.py --json-errors <子命令> ...` 将输入或用法错误作为 JSON 写到 stderr，包含 `schemaVersion`、`error.code` 和 `error.message`。引擎异常的原始退出码保留在溯源中，运行器统一返回接口定义的错误码。验证会核对请求 ID、帧预算、截图排程、状态门槛以及 PNG 结构/CRC，不能把缺少截图的运行视为完成。
 
 退出码：0 为完成且满足设定门槛；1 为低于性能门槛，结果仍保存；2 为协议/产物/对照错误；运行器 124 为超时。`artifactValidation: passed` 只说明产物及回放检查有效，不能替代进程正常退出或性能门槛结果。即使产物完整，真实进程超时也继续返回 124。
+
+截图需要真实的 `frame_post_draw`。截图开始时若评测自己的窗口被最小化且绘制循环开启，客户端将其恢复为窗口模式，等待新绘制帧，并在阶段日志记录 `capture_window_restored`。结果的可选整数 `captureWindowRestores` 记录恢复次数；旧结果缺省为零，验证要求次数不超过截图数。恢复样本可供视觉检查，`compare` 拒绝将其用于耗时对比，需要在稳定窗口条件下重新采样。
+
+客户端在等待新绘制信号超过 15 秒时记录 `capture_wait_timeout`、当前窗口模式与绘制循环状态，并以 2 退出，不保存旧帧充当当前截图。该保护覆盖逻辑仍运行但没有绘制帧的等待；主线程或 GPU 读回整体阻塞仍由运行器的总超时终止进程树。关闭绘制循环不会通过恢复窗口伪造成功。正常游戏的窗口偏好不受此评测逻辑修改。
 
 原生日志在 Windows 上仍被占用时，运行器先保存捕获输出到 `engine.log`，继续写入实际退出码、超时阶段与产物验证；溯源用 `nativeLogRetained`、`nativeLogCleanupError` 记录保留路径及异常类别，避免日志文件操作覆盖真正失败原因。该情况不会把超时或失败判成通过。
 
@@ -132,7 +136,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 ## 当前渲染版本
 
-当前渲染元数据为 `animalPresentation=source-paw-contours-v11`、`interface=continuous-studio-v23`、`architecture=inset-joinery-v13`、`garmentMaterial=sewn-neckline-linen-v11`、`landscapeSurface=coverage-mosaic-v6`、`habitatDetail=stratified-meadow-v10`。另外记录 `residentSurface=orbital-gaze-v6`、`vegetationSurface=engine-faced-v2`、`waterSurface=constrained-bank-v6`、`wristContour=source-oval-v1` 、`hairline=source-root-v1`、`reedPanicle=connected-axis-v1` 和 `handSurface=anatomical-regions-v1`。人物肖像的 `renderQuality.portrait.studio=continuous-inspector-v9`，并记录实际 `thumbnail` 布尔值。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。衣装领口与肩袖、人物布光、动物足部、建筑门窗接合及连续观察控件已改变，需重采相同场景的视觉和耗时基线；不能把不同像素覆盖与布局造成的耗时变化算作代码优化收益。`renderQuality.fontProfile=noto-packaged-v1` 记录随包字库策略，字体变化需要新视觉与耗时基线。`renderQuality.interfaceVisible` 标识界面是否显示，公开评测场景默认显示；沉浸观察不会自动成为新的评测指令。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
+当前渲染元数据为 `animalPresentation=source-paw-contours-v11`、`interface=recent-tool-library-v24`、`architecture=inset-joinery-v13`、`garmentMaterial=sewn-neckline-linen-v11`、`landscapeSurface=coverage-mosaic-v6`、`habitatDetail=stratified-meadow-v10`。另外记录 `residentSurface=orbital-gaze-v6`、`vegetationSurface=engine-faced-v2`、`wildFlora=arched-bramble-v1`、`waterSurface=constrained-bank-v6`、`wristContour=source-oval-v1` 、`hairline=source-root-v1`、`reedPanicle=connected-axis-v1` 和 `handSurface=anatomical-regions-v1`。人物肖像的 `renderQuality.portrait.studio=continuous-inspector-v9`，并记录实际 `thumbnail` 布尔值。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。衣装领口与肩袖、人物布光、动物足部、建筑门窗接合及连续观察控件已改变，需重采相同场景的视觉和耗时基线；不能把不同像素覆盖与布局造成的耗时变化算作代码优化收益。`renderQuality.fontProfile=noto-packaged-v1` 记录随包字库策略，字体变化需要新视觉与耗时基线。`renderQuality.interfaceVisible` 标识界面是否显示，公开评测场景默认显示；沉浸观察不会自动成为新的评测指令。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
 
 无窗口自检的花株接地检查使用 CPU 保存的实例位置；图形模式额外核对 GPU 实例变换。渲染服务器的占位读回不作为几何证据。快捷操作检查覆盖居民、鹿狼和土地的真实目标位置、失效实体身份拒绝、靠近的实际相机距离、人物观察窗／土地手记及观察纯度。
 

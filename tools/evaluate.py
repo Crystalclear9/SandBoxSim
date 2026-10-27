@@ -115,6 +115,8 @@ def validate_artifacts(folder):
     if result.get("status") != expected_status: raise ValueError("Result status disagrees with FPS threshold")
     captures = result["captures"]
     if not isinstance(captures, list): raise ValueError("Captures must be an array")
+    restores=result.get("captureWindowRestores",0)
+    if type(restores) is not int or not 0<=restores<=len(captures): raise ValueError("Invalid capture window restoration count")
     frames = [object_value(c, "Capture")["frame"] for c in captures]
     if len(frames) != len(set(frames)) or set(frames) != set(request.get("captureFrames", [])):
         raise ValueError("Capture schedule incomplete or duplicated")
@@ -181,6 +183,7 @@ def compare(baseline, candidate):
         if old[key] != new[key]: reasons.append(key + " differs")
     if read(Path(baseline) / "provenance.json")["execution"] != read(Path(candidate) / "provenance.json")["execution"]: reasons.append("runner execution options differ")
     if old.get("renderQuality") != new.get("renderQuality"): reasons.append("render quality differs")
+    if old.get("captureWindowRestores",0) or new.get("captureWindowRestores",0): reasons.append("capture window was restored; recapture a stable window for timing")
     if old["state"]["digest"] != new["state"]["digest"]: reasons.append("simulation digest differs")
     return {"schemaVersion": 1, "comparable": not reasons, "reasons": reasons,
             "fpsRatio": new["averageFps"] / old["averageFps"] if not reasons and old["averageFps"] > 0 else None,

@@ -35,6 +35,11 @@
       "type": "number",
       "minimum": 0
     },
+    "captureWindowRestores": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 32
+    },
     "wallSeconds": {
       "type": "number",
       "exclusiveMinimum": 0

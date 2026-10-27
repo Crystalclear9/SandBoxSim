@@ -36,6 +36,7 @@
       "type": "string",
       "enum": [
         "field",
+        "tools",
         "person",
         "person-hands",
         "architecture",

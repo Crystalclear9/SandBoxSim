@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "ui-tool-library",
+  "seed": 839102,
+  "agents": 40,
+  "previewDays": 0,
+  "panel": "tools",
+  "warmupFrames": 60,
+  "measuredFrames": 120,
+  "ticksPerFrame": 0,
+  "minimumFps": 0,
+  "outputDirectory": "runs/evaluation/ui-tool-library",
+  "captureFrames": [90, 150],
+  "commands": [
+    { "frame": 120, "command": "escape", "value": "" }
+  ]
+}

@@ -82,8 +82,10 @@ internal partial class ResidentPortrait
         _orbitButton.Disabled=!HudStyle.MotionEnabled;
         _orbitButton.TooltipText=HudStyle.MotionEnabled?"缓慢环视当前居民；再次点击、拖动或选择角度即可停止":"启用柔和界面动效后可使用环视";
         _zoomOut.Disabled=_distance>=4.4999f;_zoomIn.Disabled=_distance<=.5001f;
-        foreach(var pair in _angleButtons)pair.Value.SetPressedNoSignal(MathF.Abs(Mathf.Wrap(_yaw-pair.Key,-MathF.PI,MathF.PI))<.025f&&MathF.Abs(_pitch)<.025f);
+        UpdateAngleReadout();
     }
+    private void UpdateAngleReadout()
+    {foreach(var pair in _angleButtons)pair.Value.SetPressedNoSignal(!_orbiting&&MathF.Abs(Mathf.Wrap(_yaw-pair.Key,-MathF.PI,MathF.PI))<.025f&&MathF.Abs(_pitch)<.025f);}
     private static float DistancePosition(float distance)=>MathF.Log(Math.Clamp(distance,.5f,4.5f)/.5f)/MathF.Log(9);
     private void SetDistance(float distance)
     {
@@ -95,6 +97,7 @@ internal partial class ResidentPortrait
         _orbiting=enabled&&Expanded&&HudStyle.MotionEnabled&&IsVisibleInTree();
         if(_orbitButton==null)return;
         _orbitButton.SetPressedNoSignal(_orbiting);_orbitButton.Text=_orbiting?"停止":"环视";_orbitButton.Disabled=!HudStyle.MotionEnabled;
+        UpdateAngleReadout();
     }
     private void AdvanceOrbit(float delta)
     {
@@ -102,7 +105,7 @@ internal partial class ResidentPortrait
         if(!Expanded||!IsVisibleInTree()||!HudStyle.MotionEnabled){SetOrbiting(false);return;}
         // View-only, opt-in motion. It does not advance the paused simulation
         // or integrate a large angle after a stall/focus interruption.
-        _yaw=Mathf.Wrap(_yaw+Math.Clamp(delta,0,.05f)*.20f,-MathF.PI,MathF.PI);UpdateStudioReadout();
+        _yaw=Mathf.Wrap(_yaw+Math.Clamp(delta,0,.05f)*.20f,-MathF.PI,MathF.PI);
     }
     internal void ValidateStudioControls()
     {

@@ -252,7 +252,7 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         ActionButton(tools, "回到实验起点", RestoreCheckpoint);
 
         var dock = Surface(overlay, Vector2.Zero, new Vector2(16, 96), new Vector2(368, 624), 14); _dockPanel = dock;dock.Name="ToolLibrary";
-        var dockContents = new VBoxContainer(); dockContents.AddThemeConstantOverride("separation", 8); dock.AddChild(dockContents);
+        var dockContents = new VBoxContainer(); dockContents.AddThemeConstantOverride("separation", 6); dock.AddChild(dockContents);
         var paletteHeading=new HBoxContainer();paletteHeading.AddThemeConstantOverride("separation",12);dockContents.AddChild(paletteHeading);
         var paletteWell=HudStyle.IconWell(ToolGlyphs.For(PlayerTool.Human),36);_paletteGlyph=paletteWell.GetChild<TextureRect>(0);paletteHeading.AddChild(paletteWell);
         dock.GetChild<HudBevel>(0).Visible=true;
@@ -263,17 +263,18 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         _toolSearch=new LineEdit {PlaceholderText="搜索工具与用途…",ClearButtonEnabled=true,SizeFlagsHorizontal=SizeFlags.ExpandFill,CustomMinimumSize=new(0,38)};searchRow.AddChild(_toolSearch);searchRow.AddChild(HudStyle.Keycap(OS.GetName()=="macOS"?"⌘ K":"Ctrl K"));
         _toolSearch.TextChanged+=_=>PopulateTools();
         _toolSearch.GuiInput+=HandleToolSearchInput;
+        BuildRecentTools(dockContents,paletteHeading);
         var browser=new HBoxContainer {SizeFlagsVertical=SizeFlags.ExpandFill};browser.AddThemeConstantOverride("separation",10);dockContents.AddChild(browser);
         var categories=new VBoxContainer();categories.AddThemeConstantOverride("separation",2);browser.AddChild(categories);
         foreach (string category in new[] { "生命", "生态", "地貌", "资源", "灾害", "祝福" })
         {
             string chosen=category;var button=ActionButton(categories,category,()=>SetCategory(chosen));
-            button.ToggleMode=true;HudStyle.QuietButton(button,12);button.CustomMinimumSize=new(70,38);
+            button.ToggleMode=true;HudStyle.QuietButton(button,12);button.CustomMinimumSize=new(70,36);
             button.Icon=ToolGlyphs.For(CategoryGlyph(category));button.ExpandIcon=true;button.AddThemeConstantOverride("icon_max_width",16);button.AddThemeConstantOverride("h_separation",5);button.Alignment=HorizontalAlignment.Left;
             _categoryButtons[category]=button;
         }
         browser.AddChild(new VSeparator {MouseFilter=MouseFilterEnum.Ignore});
-        _toolScroll=new ScrollContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill,SizeFlagsVertical=SizeFlags.ExpandFill,HorizontalScrollMode=ScrollContainer.ScrollMode.Disabled,CustomMinimumSize=new(0,238)};browser.AddChild(_toolScroll);
+        _toolScroll=new ScrollContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill,SizeFlagsVertical=SizeFlags.ExpandFill,HorizontalScrollMode=ScrollContainer.ScrollMode.Disabled,CustomMinimumSize=new(0,204)};browser.AddChild(_toolScroll);
         var library=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};_toolScroll.AddChild(library);
         _paletteRow = new GridContainer { Columns = 1,SizeFlagsHorizontal=SizeFlags.ExpandFill };library.AddChild(_paletteRow);
         _emptyTools=HudStyle.Label("没有匹配的工具，试试其他关键词。",13,true);_emptyTools.AutowrapMode=TextServer.AutowrapMode.WordSmart;library.AddChild(_emptyTools);
@@ -470,6 +471,7 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
     }
     private void FitToolLibrary(Vector2 size)
     {
+        FitRecentTools(size);
         // Keep categories and parameters stationary while only the tool list scrolls.
         float controls=Mathf.Max(72,Mathf.Max(_timePanel?.GetCombinedMinimumSize().Y??0,_cameraPanel?.GetCombinedMinimumSize().Y??0));
         controls=Mathf.Max(controls,_commandPanel?.GetCombinedMinimumSize().Y??0);
@@ -768,7 +770,7 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
     { bool close=_dockPanel.Visible && _category==category;SetCategory(category);ShowTools(!close); }
     private void ShowTools(bool visible)
     {
-        if(visible){SetImmersive(false);ShowCameraOptions(false);}
+        if(visible){SetImmersive(false);ShowCameraOptions(false);RefreshRecentTools(true);}
         if(visible&&_journalPanel.Visible)ShowJournal(false);
         if(visible&&_settingsOpen)ShowSettings(false);
         _dockPanel.Visible=visible;
@@ -1027,6 +1029,7 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         finally{_radius.Value=radius;_strength.Value=strength;SetSpeed(speed);_resumeSpeed=resume;_scenarioConfirm.Hide();SelectTool(PlayerTool.Inspect);SetCategory("生命");}
         if(StateHash.ComputeDigest(Sim)!=digest)throw new InvalidOperationException("Browsing tools mutated the world");
         GD.Print("TOOL_LIBRARY_PASS: keyboard search/activation, category and mode states, empty/filter reset, attached parameters, slider/numeric synchronization, radius bounds, safe close, Escape and scenario replacement confirmation");
+        ValidateRecentTools();
     }
     private void SetCategory(string category)
     {

@@ -42,7 +42,7 @@ internal sealed class EvaluationSpec
     public void Validate()
     {
         if(SchemaVersion!=1||(Id==null||!System.Text.RegularExpressions.Regex.IsMatch(Id,"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"))||Agents<0||Agents>2000||PreviewDays<0||PreviewDays>30||WarmupFrames<3||WarmupFrames>3600||MeasuredFrames<2||MeasuredFrames>36000||TicksPerFrame<0||TicksPerFrame>20||!double.IsFinite(MinimumFps)||MinimumFps<0||MinimumFps>10000||string.IsNullOrWhiteSpace(OutputDirectory))throw new ArgumentException("Invalid evaluation limits");
-        if(!new[]{"field","trails","homes","farms","person","person-hands","architecture","characters","faces","equipment","actions","hands","naturemodels","model-details","ecology-details","animal-details","animal-heads","wardrobe"}.Contains(Panel))throw new ArgumentException("Unknown evaluation panel");
+        if(!new[]{"field","tools","trails","homes","farms","person","person-hands","architecture","characters","faces","equipment","actions","hands","naturemodels","model-details","ecology-details","animal-details","animal-heads","wardrobe"}.Contains(Panel))throw new ArgumentException("Unknown evaluation panel");
         if(CaptureFrames==null||Commands==null||Commands.Length>4096||CaptureFrames.Length>32||CaptureFrames.Distinct().Count()!=CaptureFrames.Length||CaptureFrames.Any(f=>f<3||f>=WarmupFrames+MeasuredFrames))throw new ArgumentException("Invalid capture schedule");
         if((Panel is "person" or "person-hands")&&Agents==0)throw new ArgumentException("Resident panel requires a population");
         foreach(var e in Commands)
@@ -63,6 +63,11 @@ public partial class MainGame
     private readonly List<double> _evaluationTimes=new();
     private readonly List<object> _evaluationCaptures=new(),_evaluationCommands=new(),_evaluationQuestions=new(),_evaluationAnswers=new();
     private bool _evaluationPending,_evaluationFinishing;
+    private bool _evaluationWaitingForDraw;
+    private long _evaluationDrawWaitStarted;
+    private int _evaluationCaptureFrame;
+    private int _evaluationCaptureWindowRestores;
+    private const int CaptureDrawWaitSeconds=15;
     private double _evaluationDrawCalls,_evaluationPrimitives;
     private void LoadEvaluation(string path)
     {
@@ -107,7 +112,18 @@ public partial class MainGame
     }
     private void StepEvaluation()
     {
-        if(_evaluation==null||_evaluationFinishing||_evaluationPending)return;
+        if(_evaluation==null||_evaluationFinishing)return;
+        if(_evaluationPending)
+        {
+            if(_evaluationWaitingForDraw&&Stopwatch.GetTimestamp()-_evaluationDrawWaitStarted>CaptureDrawWaitSeconds*Stopwatch.Frequency)
+            {
+                _evaluationFinishing=true;
+                TraceEvaluationPhase("capture_wait_timeout",_evaluationCaptureFrame);
+                GD.PrintErr($"No rendered frame for capture {_evaluationCaptureFrame} within {CaptureDrawWaitSeconds}s; window={DisplayServer.WindowGetMode()}, renderLoop={RenderingServer.RenderLoopEnabled}. Capture failed; no stale image is accepted.");
+                GetTree().Quit(2);
+            }
+            return;
+        }
         int frame=_evaluationFrame;long now=Stopwatch.GetTimestamp();
         if(frame==_evaluation.WarmupFrames){RenderProfile.Reset();_evaluationStart=now;_evaluationLast=now;TraceEvaluationPhase("warmup_complete",frame);}
         else if(frame>_evaluation.WarmupFrames)
@@ -128,7 +144,16 @@ public partial class MainGame
         try
         {
             TraceEvaluationPhase("capture_started",frame);
-            await ToSignal(RenderingServer.Singleton,RenderingServer.SignalName.FramePostDraw);
+            _evaluationCaptureFrame=frame;_evaluationDrawWaitStarted=Stopwatch.GetTimestamp();_evaluationWaitingForDraw=true;
+            var drawn=ToSignal(RenderingServer.Singleton,RenderingServer.SignalName.FramePostDraw);
+            if(RenderingServer.RenderLoopEnabled&&DisplayServer.WindowGetMode()==DisplayServer.WindowMode.Minimized)
+            {
+                GetWindow().Mode=Window.ModeEnum.Windowed;_evaluationCaptureWindowRestores++;
+                TraceEvaluationPhase("capture_window_restored",frame);
+            }
+            await drawn;
+            _evaluationWaitingForDraw=false;
+            if(_evaluationFinishing)return;
             var image=GetViewport().GetTexture().GetImage();string name=$"frame-{frame:D5}.png",path=Path.Combine(_evaluation!.OutputDirectory,name);
             if(image==null||image.IsEmpty()||image.SavePng(path)!=Error.Ok)throw new IOException("Evaluation capture failed; use a graphical renderer");
             _evaluationCaptures.Add(new {frame,image=name,sha256=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant(),state=EvaluationState()});
@@ -147,14 +172,14 @@ public partial class MainGame
             TraceEvaluationPhase("capture_complete",frame);
         }
         catch(Exception ex){GD.PrintErr(ex.Message);TraceEvaluationPhase("quit_requested");GetTree().Quit(2);}
-        finally{_evaluationPending=false;}
+        finally{_evaluationWaitingForDraw=false;_evaluationPending=false;}
     }
     private void FinishEvaluation(long now)
     {
         _evaluationFinishing=true;double seconds=(now-_evaluationStart)/(double)Stopwatch.Frequency,fps=_evaluationTimes.Count/seconds;
         var ordered=_evaluationTimes.OrderBy(v=>v).ToArray();double Percentile(double p)=>ordered[Math.Clamp((int)Math.Ceiling(p*ordered.Length)-1,0,ordered.Length-1)];
         bool pass=fps>=_evaluation!.MinimumFps;
-        var result=new {schemaVersion=1,id=_evaluation.Id,status=pass?"completed":"performance_threshold_failed",timing="monotonic-wall-clock; render submission intervals include capture IO",engine=Engine.GetVersionInfo()["string"].AsString(),renderer=RenderingServer.GetCurrentRenderingMethod(),renderQuality=((WorldView3D)_map).RenderQualityState(GetChildren().OfType<ModelGallery>().Select(g=>g.RenderQualityState()).ToArray(),_residentPortrait.IsVisibleInTree()?_residentPortrait.RenderQualityState():null),vsync=DisplayServer.WindowGetVsyncMode().ToString(),os=OS.GetName(),processor=OS.GetProcessorName(),videoAdapter=RenderingServer.GetVideoAdapterName(),resolution=new[]{DisplayServer.WindowGetSize().X,DisplayServer.WindowGetSize().Y},logicalResolution=new[]{GetViewport().GetVisibleRect().Size.X,GetViewport().GetVisibleRect().Size.Y},fixedVisualDelta=1.0/60,seed=_evaluation.Seed,warmupFrames=_evaluation.WarmupFrames,measuredFrames=_evaluationTimes.Count,ticksPerFrame=_evaluation.TicksPerFrame,wallSeconds=seconds,averageFps=fps,frameMs=new {p50=Percentile(.5),p95=Percentile(.95),p99=Percentile(.99),max=ordered[^1],over33MsCount=ordered.Count(ms=>ms>1000.0/30),over50MsCount=ordered.Count(ms=>ms>50)},averageDrawCalls=_evaluationDrawCalls/ordered.Length,averagePrimitives=_evaluationPrimitives/ordered.Length,managedMemoryBytes=GC.GetTotalMemory(false),cpuScopes=RenderProfile.Report(),state=EvaluationState(),captures=_evaluationCaptures,commands=_evaluationCommands};
+        var result=new {schemaVersion=1,id=_evaluation.Id,status=pass?"completed":"performance_threshold_failed",captureWindowRestores=_evaluationCaptureWindowRestores,timing="monotonic-wall-clock; render submission intervals include capture IO",engine=Engine.GetVersionInfo()["string"].AsString(),renderer=RenderingServer.GetCurrentRenderingMethod(),renderQuality=((WorldView3D)_map).RenderQualityState(GetChildren().OfType<ModelGallery>().Select(g=>g.RenderQualityState()).ToArray(),_residentPortrait.IsVisibleInTree()?_residentPortrait.RenderQualityState():null),vsync=DisplayServer.WindowGetVsyncMode().ToString(),os=OS.GetName(),processor=OS.GetProcessorName(),videoAdapter=RenderingServer.GetVideoAdapterName(),resolution=new[]{DisplayServer.WindowGetSize().X,DisplayServer.WindowGetSize().Y},logicalResolution=new[]{GetViewport().GetVisibleRect().Size.X,GetViewport().GetVisibleRect().Size.Y},fixedVisualDelta=1.0/60,seed=_evaluation.Seed,warmupFrames=_evaluation.WarmupFrames,measuredFrames=_evaluationTimes.Count,ticksPerFrame=_evaluation.TicksPerFrame,wallSeconds=seconds,averageFps=fps,frameMs=new {p50=Percentile(.5),p95=Percentile(.95),p99=Percentile(.99),max=ordered[^1],over33MsCount=ordered.Count(ms=>ms>1000.0/30),over50MsCount=ordered.Count(ms=>ms>50)},averageDrawCalls=_evaluationDrawCalls/ordered.Length,averagePrimitives=_evaluationPrimitives/ordered.Length,managedMemoryBytes=GC.GetTotalMemory(false),cpuScopes=RenderProfile.Report(),state=EvaluationState(),captures=_evaluationCaptures,commands=_evaluationCommands};
         foreach(var (file,data) in new[]{("result.json",(object)result),("questions.json",_evaluationQuestions),("answer-key.json",_evaluationAnswers)})
             File.WriteAllText(Path.Combine(_evaluation.OutputDirectory,file),JsonSerializer.Serialize(data,EvaluationSpec.Json));
         GD.Print("EVALUATION_COMPLETE "+_evaluation.OutputDirectory);TraceEvaluationPhase("quit_requested");GetTree().Quit(pass?0:1);

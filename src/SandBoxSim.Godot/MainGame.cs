@@ -208,6 +208,7 @@ public partial class MainGame : Control
         _toolDescription.Text = hint; _status.Text = ToolNames[(int)tool] + " · " + hint;
         _toolBadge.Text = ToolNames[(int)tool] + (tool == PlayerTool.Inspect ? "" : $"  ·  半径 {Radius}");
         UpdateHudSelection(hint);
+        RememberTool(tool);
     }
     internal void AdjustBrushRadius(int delta)
     {

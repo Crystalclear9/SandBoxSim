@@ -84,6 +84,25 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(retained.read_text(encoding="utf-8"), "native engine log")
         self.assertIn("quit_requested", (output / "engine.log").read_text(encoding="utf-8"))
 
+    def test_window_restoration_count_is_bounded_and_typed(self):
+        for invalid in (True,-1,2,.5,"1",None):
+            with self.subTest(invalid=invalid):
+                self.result["captureWindowRestores"]=invalid;self.save_result()
+                with self.assertRaisesRegex(ValueError,"window restoration"):evaluate.validate_artifacts(self.folder)
+        self.result["captureWindowRestores"]=1;self.save_result()
+        self.assertEqual(evaluate.validate_artifacts(self.folder)["captureWindowRestores"],1)
+
+    def test_restored_capture_is_valid_for_vision_but_not_timing_comparison(self):
+        with tempfile.TemporaryDirectory(dir=self.folder) as temporary:
+            other=Path(temporary)
+            for path in self.folder.iterdir():
+                if path.is_file():shutil.copy2(path,other/path.name)
+            candidate=evaluate.read(other/"result.json");candidate["captureWindowRestores"]=1
+            evaluate.write(other/"result.json",candidate)
+            result=evaluate.compare(self.folder,other)
+            self.assertFalse(result["comparable"]);self.assertIsNone(result["fpsRatio"])
+            self.assertIn("capture window was restored; recapture a stable window for timing",result["reasons"])
+
     def test_engine_exit_does_not_wait_for_inherited_log_handles(self):
         # A real descendant retains both handles after the engine stand-in exits.
         # communicate(PIPE) would time out; the engine itself exits successfully.

@@ -156,6 +156,10 @@
 
 ![植物和岩石的实际网格](../images/ecology-detail.png)
 
+`NatureModels.Bramble.cs` 构造七根拱垂主枝和交错的三／五小叶；每片叶有 20×4 分段，叶面弯曲、叶尖下垂，边缘使用真实锯齿轮廓。复叶的小叶通过短叶柄连到同一节点，主枝补短刺；14 枚果实通过分叉果梗下垂，每枚由 21 个小果粒组成。果实与叶柄在合并后的同一局部坐标中使用共享风动函数，避免枝条摆动时果实停在原处。结果／无果模型共 31,616／16,608 三角形，使用原材质缓存、屏幕 LOD 和 42 米显示距离。结构参考 Kew／RHS 的荆棘类灌木资料，来源与视觉尺度见[环境素材](environment-assets.md)；模拟中的食物、季节和采集规则不变。
+
+![同一灌丛的原生叶果近景](../images/bramble-detail.png)
+
 ## 源码入口
 
 | 文件 | 作用 |
@@ -188,6 +192,7 @@
 | `NatureModels.Animals.cs`、`NatureModels.AnimalDetail.cs` | 保留的程序动物校准造型与几何检查；不是当前世界外观 |
 | `NatureModels.Meadow.cs` | 保留的程序草叶构造器；当前草甸入口为 `NatureModels.MeadowTurf.cs` |
 | `NatureModels.Botanical.cs` | 程序植物辅助结构、材料与植物几何检查 |
+| `NatureModels.Bramble.cs` | 拱垂野果灌丛、复叶、短刺、果梗、聚合果与共享风动 |
 | `NatureModels.ScannedEnvironment.cs` | 专业环境素材读取、哈希、多材质与地面绑定 |
 | `WorldView3D.Relief.cs` | 地形的稳定噪声起伏 |
 | `WorldView3D.Surface.cs` | 扫描地表混合、坡面投影与读取河床深度的水面 |

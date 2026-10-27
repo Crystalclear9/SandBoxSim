@@ -94,7 +94,7 @@ internal partial class ModelGallery : PanelContainer
             Closeup(grid,"草甸与河岸 · 折面弯叶与立体种穗",grass,1.18f,new(0,.47f,0),new(.4f,.2f,2),false);
             var rock=new Node3D();rock.AddChild(new MeshInstance3D {Mesh=models.Shape("boulder")});
             Closeup(grid,"扫描岩石 · 裂隙、苔斑与风化表面",rock,1.45f,new(0,.42f,0),new(.9f,.5f,2),false);
-            Closeup(grid,"浆果灌丛 · 连枝叶片与带梗果簇",models.BerryShrub(true),1.18f,new(0,.42f,0),new(.9f,.4f,2),false);
+            Closeup(grid,"浆果灌丛 · 拱垂枝条、复叶与带梗果簇",models.BerryShrub(true),1.18f,new(0,.42f,0),new(.9f,.4f,2),false);
         }
         else if(Collection=="model-details")
         {

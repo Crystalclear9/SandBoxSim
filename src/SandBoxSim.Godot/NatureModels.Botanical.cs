@@ -4,6 +4,7 @@ using Godot;
 namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
+    private const string BotanicalWindFunction=@"vec3 botanical_wind(vec3 point){return vec3(sin(TIME*.9+point.x*5.0+point.z*4.0)*.003*max(0.0,point.y+.5),0.0,0.0);}";
     // Clockwise folded leaf, with a shared midrib, tapered apex and leaf-local UV.
     private static void BotanicalLeaf(SurfaceTool tool,Vector3 root,Vector3 axis,Vector3 across,float length,float width,float cup,float tone,int segments=8,Color? pigment=null)
     {
@@ -32,14 +33,14 @@ internal sealed partial class NatureModels
         for(int row=0;row<segments;row++)foreach(int side in new[]{-1,1})
         {Triangle(row,0,row,side,row+1,0);Triangle(row,side,row+1,side,row+1,0);}
     }
-    private static void BotanicalStem(SurfaceTool tool,Vector3 start,Vector3 end,float radius)
+    private static void BotanicalStem(SurfaceTool tool,Vector3 start,Vector3 end,float radius,float endRatio=.72f)
     {
         var axis=(end-start).Normalized();var across=axis.Cross(MathF.Abs(axis.Y)>.95f?Vector3.Right:Vector3.Up).Normalized();var up=axis.Cross(across).Normalized();
         void Vertex(int ring,int side)
         {
             float a=side*MathF.Tau/6;var normal=across*MathF.Cos(a)+up*MathF.Sin(a);
             tool.SetColor(new(1.35f,.65f,.40f,1));tool.SetNormal(normal);tool.SetUV(new(side/6f,ring));
-            tool.AddVertex((ring==0?start:end)+normal*radius*(ring==0?1:.72f));
+            tool.AddVertex((ring==0?start:end)+normal*radius*(ring==0?1:endRatio));
         }
         for(int side=0;side<6;side++){Vertex(0,side);Vertex(1,side);Vertex(0,side+1);Vertex(0,side+1);Vertex(1,side);Vertex(1,side+1);}
     }
@@ -93,7 +94,8 @@ internal sealed partial class NatureModels
 render_mode cull_disabled;
 uniform vec4 pigment:source_color;
 varying vec3 leaf_position;
-void vertex(){leaf_position=VERTEX;VERTEX.x+=sin(TIME*.9+VERTEX.x*5.0+VERTEX.z*4.0)*.003*max(0.0,VERTEX.y+.5);}
+"+BotanicalWindFunction+@"
+void vertex(){leaf_position=VERTEX;VERTEX+=botanical_wind(VERTEX);}
 void fragment(){
 if(!OUTPUT_IS_SRGB&&!FRONT_FACING){NORMAL=-NORMAL;}
 float ridge=exp(-pow((UV.x-.5)*44.0,2.0));
