@@ -62,11 +62,7 @@ internal sealed partial class NatureModels
         Part(model, "box", new(0, .12f, 0), new(width + .1f, .24f, depth + .1f), 6);
         HouseWallShell(model,width,depth,height,variant,walls);
         if(variant==1 || variant==3)
-        {
-            foreach(float x in new[]{-width*.28f,0f,width*.28f})
-                Part(model,"box",new(x,height/2+.18f,depth/2+.033f),new(.08f,height,.075f),0);
-            Part(model,"box",new(0,height*.66f+.18f,depth/2+.036f),new(width,.09f,.075f),0);
-        }
+            HouseFacadeFrame(model,width,depth,height,variant);
         if (variant == 4)
             Part(model, "box", new(0, height + .4f, 0), new(width + .4f, .16f, depth + .4f), 1, new(0, 0, .18f));
         else
@@ -86,8 +82,12 @@ internal sealed partial class NatureModels
             Part(model, "box", new(-.5f, height + .72f, -.4f), new(.32f, 1.14f, .36f), 6);
         if (variant == 0 || variant == 4)
         {
-            Part(model, "box", new(0, 2.09f, depth / 2 + .27f), new(width * .8f, .1f, .55f), 1, new(.12f, 0, 0));
-            foreach (float side in new[] { -1f, 1f }) Part(model, "cylinder", new(side * width * .35f, 1.02f, depth / 2 + .46f), new(.06f, 2.04f, .06f), 0);
+            // The porch columns align with the solid corner bays, not with
+            // the window centres (the old .35 * width almost equalled the
+            // .355 * width window position). The canopy reaches both posts
+            // while staying inside the main roof's 20 cm side overhang.
+            Part(model, "box", new(0, 2.09f, depth / 2 + .27f), new(width + .12f, .1f, .55f), 1, new(.12f, 0, 0));
+            foreach (float side in new[] { -1f, 1f }) Part(model, "cylinder", new(side * (width / 2 - .06f), 1.02f, depth / 2 + .46f), new(.06f, 2.04f, .06f), 0);
         }
         Part(model, "cylinder", new(width / 2 - .13f, .2f, -depth / 2 - .07f), new(.25f, .4f, .25f), 1);
         return FinishArchitecture(model, kind, complete, identity, width, depth);
@@ -100,19 +100,23 @@ internal sealed partial class NatureModels
         RoofCourses(model, width, depth, height, material);
         Part(model, "box", new(0, height + half * .48f, 0), new(.12f, .12f, depth + .4f), 0);
     }
-    private void Window(Node3D model, float x, float y, float z)
+    private (MeshInstance3D Glass,MeshInstance3D[] Jambs,MeshInstance3D[] Mullions,MeshInstance3D Sill,MeshInstance3D Lintel) Window(Node3D model, float x, float y, float z)
     {
         int first = model.GetChildCount();
         var shutters=new List<(int First,int End,float Side)>();
+        var jambs=new List<MeshInstance3D>(2);
         // Recessed glazing and a dark reveal sit inside a real wall opening.
         // The mullions and shutters remain proud of the facade.
         Detail(model,"box",new(x,y,z-.155f),new(.32f,.40f,.008f),"#202923");
-        Part(model, "box", new(x, y, z-.092f), new(.30f, .38f, .008f), 9);
-        Part(model, "box", new(x, y, z-.015f), new(.022f, .42f, .045f), 1);
-        Part(model, "box", new(x, y, z-.015f), new(.34f, .022f, .045f), 1);
+        var glass=Part(model, "box", new(x, y, z-.092f), new(.30f, .38f, .008f), 9);
+        var upright=Part(model, "box", new(x, y, z-.077f), new(.022f, .42f, .045f), 1);
+        var crossbar=Part(model, "box", new(x, y, z-.077f), new(.34f, .022f, .045f), 1);
         foreach(float side in new[] {-1f,1f})
         {
-            Part(model,"box",new(x+side*.19f,y,z+.06f),new(.045f,.46f,.09f),0);
+            // The jamb reaches back into the wall and overlaps the edge of
+            // the glazing. Its front face still meets the shutter hinge.
+            // Previously the complete frame stood 8.5 cm clear of the wall.
+            jambs.Add(Part(model,"box",new(x+side*.18f,y,z-.04f),new(.065f,.46f,.16f),0));
             int shutterFirst=model.GetChildCount();
             CraftBoard(model,new(x+side*.27f,y,z+.06f),new(.105f,.39f,.04f),1);
             if(_fineArchitecture)
@@ -122,9 +126,9 @@ internal sealed partial class NatureModels
             }
             shutters.Add((shutterFirst,model.GetChildCount(),side));
         }
-        if(_fineArchitecture)Sculpt(model,DripSill(),new(x,y-.23f,z+.095f),Material(6));
-        else Part(model,"box",new(x,y-.23f,z+.095f),new(.48f,.055f,.16f),0);
-        Part(model,"box",new(x,y+.23f,z+.04f),new(.44f,.055f,.10f),0);
+        var sill=_fineArchitecture?Sculpt(model,DripSill(),new(x,y-.215f,z-.025f),Material(6)):
+            Part(model,"box",new(x,y-.215f,z-.025f),new(.48f,.065f,.16f),0);
+        var lintel=Part(model,"box",new(x,y+.215f,z-.04f),new(.44f,.07f,.16f),0);
         // Enlarge the opening and joinery together, preserving the depth of the reveal.
         for(int i=first;i<model.GetChildCount();i++)
         {
@@ -141,6 +145,7 @@ internal sealed partial class NatureModels
             var rotate=new Transform3D(new Basis(Vector3.Up,-shutter.Side*.65f),hinge)*new Transform3D(Basis.Identity,-hinge);
             for(int i=shutter.First;i<shutter.End;i++){var part=model.GetChild<Node3D>(i);part.Transform=rotate*part.Transform;}
         }
+        return(glass,jambs.ToArray(),new[]{upright,crossbar},sill,lintel);
     }
     private static Rect2[] HouseOpenings(float width,int variant)
     {
@@ -183,8 +188,33 @@ internal sealed partial class NatureModels
         }
         Part(model,"box",new(0,.205f,0),new(width-.28f,.05f,depth-.28f),0);
     }
+    private void HouseFacadeFrame(Node3D model,float width,float depth,float height,int variant)
+    {
+        // Studs and rails meet the opening joinery instead of continuing across
+        // the closed door or the attic glazing. Use the same cuts as the wall:
+        // a decorative facade must not accidentally fill its own apertures.
+        var openings=HouseOpenings(width,variant);
+        void Member(Rect2 section,float front)
+        {
+            foreach(var patch in WallPatches(section,openings))
+                Part(model,"box",new(patch.GetCenter().X,patch.GetCenter().Y,front),new(patch.Size.X,patch.Size.Y,.075f),0);
+        }
+        foreach(float x in new[]{-width*.28f,0f,width*.28f})
+            Member(new(x-.04f,.18f,.08f,height),depth/2+.033f);
+        Member(new(-width/2,height*.66f+.18f-.045f,width,.09f),depth/2+.036f);
+        if(variant==3)
+        {
+            // The upper opening is framed by two short studs, a sill and a
+            // lintel; the king post above still bears on the gable tie.
+            foreach(float side in new[]{-1f,1f})
+                Part(model,"box",new(side*.285f,2.45f,depth/2+.033f),new(.08f,.68f,.075f),0);
+            foreach(float y in new[]{2.105f,2.80f})
+                Part(model,"box",new(0,y,depth/2+.033f),new(.65f,.09f,.075f),0);
+        }
+    }
     private void ValidateWindowRecesses()
     {
+        int rays=0;
         for(uint variant=0;variant<5;variant++)
         {
             var model=Building(BuildingKind.House,true,variant);
@@ -192,29 +222,69 @@ internal sealed partial class NatureModels
             {
                 var footprint=BuildingFootprint(variant);float width=footprint.X,depth=footprint.Y;
                 var mesh=model.GetChild<MeshInstance3D>(0).Mesh;
-                float x=width*.355f+.08f,y=1.35f,nearest=float.NegativeInfinity;
-                Material? hit=null;
-                for(int s=0;s<mesh.GetSurfaceCount();s++)
+                void GlazingRay(float x,float y,bool sideFace=false,float side=1)
                 {
-                    var a=mesh.SurfaceGetArrays(s);var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();var ids=a[(int)Mesh.ArrayType.Index].AsInt32Array();
-                    for(int i=0;i<ids.Length;i+=3)
+                    float nearest=float.NegativeInfinity;Material? hit=null;
+                    for(int s=0;s<mesh.GetSurfaceCount();s++)
                     {
-                        var a0=p[ids[i]];var b=p[ids[i+1]];var c=p[ids[i+2]];
-                        float d=(b.Y-c.Y)*(a0.X-c.X)+(c.X-b.X)*(a0.Y-c.Y);
-                        if(Godot.Mathf.Abs(d)<.00000001f)continue;
-                        float u=((b.Y-c.Y)*(x-c.X)+(c.X-b.X)*(y-c.Y))/d;
-                        float v=((c.Y-a0.Y)*(x-c.X)+(a0.X-c.X)*(y-c.Y))/d;
-                        if(u<0||v<0||u+v>1)continue;
-                        float z=u*a0.Z+v*b.Z+(1-u-v)*c.Z;
-                        if(z>nearest){nearest=z;hit=mesh.SurfaceGetMaterial(s);}
+                        var a=mesh.SurfaceGetArrays(s);var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();var ids=a[(int)Mesh.ArrayType.Index].AsInt32Array();
+                        for(int i=0;i<ids.Length;i+=3)
+                        {
+                            Vector3 Project(Vector3 v)=>sideFace?new(v.Z,v.Y,v.X*side):v;
+                            var a0=Project(p[ids[i]]);var b=Project(p[ids[i+1]]);var c=Project(p[ids[i+2]]);
+                            float d=(b.Y-c.Y)*(a0.X-c.X)+(c.X-b.X)*(a0.Y-c.Y);
+                            if(Godot.Mathf.Abs(d)<.00000001f)continue;
+                            float u=((b.Y-c.Y)*(x-c.X)+(c.X-b.X)*(y-c.Y))/d;
+                            float v=((c.Y-a0.Y)*(x-c.X)+(a0.X-c.X)*(y-c.Y))/d;
+                            if(u<0||v<0||u+v>1)continue;
+                            float z=u*a0.Z+v*b.Z+(1-u-v)*c.Z;
+                            if(z>nearest){nearest=z;hit=mesh.SurfaceGetMaterial(s);}
+                        }
                     }
+                    float wall=sideFace?width/2:depth/2;
+                    if(hit!=Material(9)||nearest>=wall-.008f||nearest<wall-.05f)
+                        throw new System.InvalidOperationException($"Window reveal is covered by facade geometry or sits outside its opening: variant {variant}, side {sideFace}/{side}, ray ({x}, {y}), depth {nearest}, wall {wall}, material {System.Array.IndexOf(_materials,hit)} ({hit?.GetClass()})");
+                    rays++;
                 }
-                if(hit!=Material(9)||nearest>=depth/2-.008f||nearest<depth/2-.05f)
-                    throw new System.InvalidOperationException("Window reveal is covered by facade geometry or sits outside its opening: "+variant);
+                foreach(var window in HouseOpenings(width,(int)variant))
+                {
+                    if(window.Size.Y>1)continue; // Doors are intentionally opaque.
+                    var center=window.GetCenter();
+                    foreach(float x in new[]{-.12f,-.028f,.028f,.12f})
+                    foreach(float y in new[]{-.08f,.08f})GlazingRay(center.X+x,center.Y+y);
+                }
+                if(_fineArchitecture)
+                    foreach(float side in new[]{-1f,1f})
+                    foreach(float offset in new[]{-.12f,-.028f,.028f,.12f})
+                    foreach(float y in new[]{-.08f,.08f})GlazingRay(depth*.13f+offset,1.25f+y,true,side);
             }
             finally{model.Free();}
         }
-        GD.Print("WINDOW_RECESSES_PASS: actual front-window rays reach recessed glazing in all five house variants");
+        ValidateWindowJoinery();
+        GD.Print($"WINDOW_RECESSES_PASS: {rays} actual front/attic/side aperture rays reach recessed glazing in all five house variants; inset joinery remains attached");
+    }
+    private void ValidateWindowJoinery()
+    {
+        // Inspect the actual generated pieces after their common 1.5 sizing,
+        // rather than rechecking the unscaled constants in the builder.
+        var sample=new Node3D();
+        try
+        {
+            var window=Window(sample,0,1.27f,.07f);
+            Aabb Bounds(MeshInstance3D part)=>part.Transform*part.Mesh.GetAabb();
+            var glass=Bounds(window.Glass);var head=Bounds(window.Lintel);var sill=Bounds(window.Sill);
+            foreach(var part in window.Jambs)
+            {
+                var jamb=Bounds(part);
+                if(jamb.Position.Z>=0||jamb.End.Z<=0||!jamb.Intersects(glass)||!jamb.Intersects(head)||!jamb.Intersects(sill))
+                    throw new System.InvalidOperationException("Window jamb no longer bridges wall, glazing, sill and lintel");
+            }
+            foreach(var part in window.Mullions)
+                if(!Bounds(part).Intersects(glass))throw new System.InvalidOperationException("Window mullion floats clear of its glazing");
+            if(sill.Position.Z>=0||!sill.Intersects(glass)||head.Position.Z>=0||!head.Intersects(glass))
+                throw new System.InvalidOperationException("Window sill or lintel floats clear of its wall/glazing");
+        }
+        finally {sample.Free();}
     }
     private void GableWalls(Node3D model, float width, float depth, float height, int material)
     {

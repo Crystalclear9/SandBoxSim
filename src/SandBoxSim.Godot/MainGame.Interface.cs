@@ -302,39 +302,15 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         }
         _inspectDockButton.SetPressedNoSignal(Tool==PlayerTool.Inspect);
 
-        var timePanel = Surface(overlay, new Vector2(0, 1), new Vector2(16, -72), new Vector2(272, 64), 8); _timePanel = timePanel;
-        timePanel.AddThemeStyleboxOverride("panel",HudStyle.Frame(10));
-
-        var timeBox = new VBoxContainer(); timeBox.AddThemeConstantOverride("separation", 4); timePanel.AddChild(timeBox);
-        var timeHeading=new HBoxContainer();timeBox.AddChild(timeHeading);
-        _dayLabel=HudStyle.Label("第 1 天",14);_dayLabel.SizeFlagsHorizontal=SizeFlags.ExpandFill;timeHeading.AddChild(_dayLabel);
-        _playStateLabel=HudStyle.Label("",11,true);_playStateLabel.SizeFlagsVertical=SizeFlags.ShrinkCenter;timeHeading.AddChild(_playStateLabel);
-        var timeRow = new HBoxContainer(); timeBox.AddChild(timeRow);
-        foreach (int speed in new[] { 0, 1, 4, 8, 16, 32 })
-        { int chosen = speed; var button = ActionButton(timeRow, speed == 0 ? "暂停" : speed + "×", () => SetSpeed(chosen)); button.ToggleMode = true; _speedButtons[speed] = button; } SetSpeed(_speed);
-        var cameraPanel = Surface(overlay, new Vector2(1, 1), new Vector2(-280, -72), new Vector2(264, 64), 8); _cameraPanel = cameraPanel;
-        cameraPanel.AddThemeStyleboxOverride("panel",HudStyle.Frame(10));
-
-        var cameraBox = new VBoxContainer(); cameraBox.AddThemeConstantOverride("separation", 4); cameraPanel.AddChild(cameraBox);
-        var cameraHeading = new HBoxContainer(); cameraBox.AddChild(cameraHeading);
-        var cameraTitle = _cameraReadout=HudStyle.Label("观察视角", 11, true); cameraTitle.SizeFlagsHorizontal = SizeFlags.ExpandFill; cameraHeading.AddChild(cameraTitle);
-        cameraHeading.TooltipText = "罗盘铜色尖端指向地图北方，随鼠标旋转视角同步变化。";
-        cameraHeading.AddChild(new HudCompass { View = (WorldView3D)_map });
-        var views = new HBoxContainer(); cameraBox.AddChild(views); ActionButton(views, "全景", () => _map.Center());
-        foreach (string label in new[] { "斜视", "俯视", "近景" }) { string view = label; ActionButton(views, label, () => ((WorldView3D)_map).SetPerspective(view)); }
-        _followCameraButton=ActionButton(views, "跟随", () => {
-            var world=(WorldView3D)_map;
-            if(world.IsFollowing(SelectedSlot))world.StopFollowing();else if(SelectedSlot>=0)_map.Follow(SelectedSlot);
-            RefreshPresentationControls();
-        });
-        _followCameraButton.ToggleMode=true;
-        _toolBadge = HudStyle.Label("自由观察", 13); HudStyle.Float(_toolBadge, new Vector2(.5f, 1), new Vector2(-200, -180), new Vector2(400, 26)); _toolBadge.HorizontalAlignment = HorizontalAlignment.Center; _toolBadge.AddThemeColorOverride("font_color", new Color("#f3efe3")); _toolBadge.AddThemeColorOverride("font_shadow_color", new Color("#17241e")); _toolBadge.AddThemeConstantOverride("shadow_offset_y", 1); overlay.AddChild(_toolBadge);
+        BuildWorldControls(overlay);
+        _toolBadge = HudStyle.Heading("自由观察", 16); HudStyle.Float(_toolBadge, new Vector2(.5f, 1), new Vector2(-200, -180), new Vector2(400, 26)); _toolBadge.HorizontalAlignment = HorizontalAlignment.Center; _toolBadge.AddThemeColorOverride("font_color", new Color("#f3efe3")); _toolBadge.AddThemeColorOverride("font_shadow_color", new Color("#17241e")); _toolBadge.AddThemeConstantOverride("shadow_offset_y", 1); overlay.AddChild(_toolBadge);
         _status = HudStyle.Label("观察模式：左键拖动平移 · 右键拖动旋转/俯仰 · 滚轮缩放 · 单击选择", 11, true); HudStyle.Float(_status, new Vector2(.5f, 1), new Vector2(-430, -126), new Vector2(860, 18)); _status.HorizontalAlignment = HorizontalAlignment.Center; _status.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, .8f)); _status.AddThemeConstantOverride("shadow_offset_y", 1); overlay.AddChild(_status);
-        _contextPanel=Surface(overlay,new Vector2(0,1),new Vector2(490,-184),new Vector2(620,88),8);
+        _contextPanel=Surface(overlay,new Vector2(0,1),new Vector2(490,-184),new Vector2(560,96),12);
         _contextPanel.Name="SelectionContext";
         _contextPanel.Visible=!IsModelGallery;
         var contextRow=new HBoxContainer();contextRow.AddThemeConstantOverride("separation",14);_contextPanel.AddChild(contextRow);
-        contextRow.AddChild(HudStyle.IconWell(HudSymbols.For("观察"),36));
+        var contextWell=HudStyle.IconWell(HudSymbols.For("观察"),36);
+        _contextGlyph=contextWell.GetChild<TextureRect>(0);contextRow.AddChild(contextWell);
         var context=new VBoxContainer {SizeFlagsHorizontal=SizeFlags.ExpandFill};context.AddThemeConstantOverride("separation",3);contextRow.AddChild(context);
         foreach(var label in new[]{_toolBadge,_status})
         {
@@ -343,6 +319,7 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
             label.HorizontalAlignment=HorizontalAlignment.Left;
             label.AddThemeColorOverride("font_shadow_color",Colors.Transparent);
         }
+        _toolBadge.AddThemeFontSizeOverride("font_size",16);
         _status.AutowrapMode=TextServer.AutowrapMode.WordSmart;_status.MaxLinesVisible=2;_status.MouseFilter=MouseFilterEnum.Pass;
         _status.AddThemeFontSizeOverride("font_size",12);
         float twoLines=Mathf.Ceil(_status.GetThemeFont("font").GetHeight(12)*2+_status.GetThemeConstant("line_spacing"));
@@ -353,15 +330,21 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         _contextFacts.MouseFilter=MouseFilterEnum.Pass;_contextFacts.Visible=false;context.AddChild(_contextFacts);
         var contextActions=new VBoxContainer {SizeFlagsVertical=SizeFlags.ShrinkCenter};contextActions.AddThemeConstantOverride("separation",2);contextRow.AddChild(contextActions);
         _contextFocus=ActionButton(contextActions,"靠近",FocusContextSelection);
-        _contextDetails=ActionButton(contextActions,"档案",OpenContextDetails);
+        _contextDetails=ActionButton(contextActions,"档案",OpenContextDetails,true);
         _contextFocus.Icon=HudSymbols.For("观察",12);_contextDetails.Icon=HudSymbols.For("手记",12);
         foreach(var button in new[]{_contextFocus,_contextDetails})
         {
-            button.CustomMinimumSize=new(64,26);button.AddThemeFontSizeOverride("font_size",12);
+            button.CustomMinimumSize=new(64,36);button.AddThemeFontSizeOverride("font_size",12);
             foreach(string state in new[]{"normal","hover","pressed","hover_pressed","disabled"})
             {var style=(StyleBoxFlat)button.GetThemeStylebox(state).Duplicate();style.ContentMarginTop=style.ContentMarginBottom=3;button.AddThemeStyleboxOverride(state,style);}
             var normal=(StyleBoxFlat)button.GetThemeStylebox("normal").Duplicate();normal.BgColor=new Color(HudStyle.Wash,.60f);normal.ShadowSize=0;button.AddThemeStyleboxOverride("normal",normal);
         }
+        _contextFocus.AddThemeStyleboxOverride("normal",HudStyle.Box(Colors.Transparent,5,9,false));
+        _contextDetails.AddThemeStyleboxOverride("normal",HudStyle.Box(HudStyle.Accent,5,9,false));
+        foreach(string state in new[]{"hover","pressed","hover_pressed"})
+            _contextDetails.AddThemeStyleboxOverride(state,HudStyle.Box(HudStyle.Accent.Lightened(.08f),5,9,false));
+        foreach(string state in new[]{"font_color","font_focus_color","font_hover_color","font_pressed_color","icon_normal_color","icon_hover_color","icon_pressed_color"})
+            _contextDetails.AddThemeColorOverride(state,HudStyle.Ink);
         _contextFocus.TooltipText="靠近所选居民，保持鼠标旋转和缩放";_contextDetails.TooltipText="直接打开所选居民的独立观察窗";
         _save = Dialog(FileDialog.FileModeEnum.SaveFile); _save.FileSelected += SaveWorld; _load = Dialog(FileDialog.FileModeEnum.OpenFile); _load.FileSelected += LoadWorld;
         Resized += FitHud; FitHud();
@@ -385,7 +368,7 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         if(enabled==_immersive||enabled&&(IsModelGallery||_scenarioConfirm.Visible))return;
         if(enabled)
         {
-            ShowPortraitWindow(false);ShowSettings(false);ShowTools(false);SelectTool(PlayerTool.Inspect);
+            ShowCameraOptions(false);ShowPortraitWindow(false);ShowSettings(false);ShowTools(false);SelectTool(PlayerTool.Inspect);
             if(_map is WorldView3D world)world.CancelPointerGesture();GetViewport().GuiGetFocusOwner()?.ReleaseFocus();
         }
         _immersive=enabled;_hudOverlay.Visible=!enabled;_immersiveHint.Visible=enabled;
@@ -406,15 +389,15 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         _journalPanel.OffsetLeft=-journalWidth-16;_journalPanel.OffsetRight=-16;
         _journalPanel.OffsetBottom = size.Y - 100;
         _settingsPanel.OffsetBottom = Math.Min(size.Y - 280, 744);
-        FitPortraitWindow(size);
+        FitPortraitWindow(size);FitCameraOptions(size);
         FitContextCard(size);
     }
     private void FitContextCard(Vector2 size)
     {
-        float left=_dockPanel.Visible?_dockPanel.OffsetRight+16:322;
-        float right=_journalPanel.Visible?size.X+_journalPanel.OffsetLeft-16:size.X-316;
-        float width=MathF.Min(620,right-left),x=Math.Clamp((size.X-width)*.5f,left,right-width);
-        float height=Mathf.Max(88,_contextPanel.GetCombinedMinimumSize().Y);
+        float left=_dockPanel.Visible?_dockPanel.OffsetRight+16:_timePanel.OffsetRight+16;
+        float right=_journalPanel.Visible?size.X+_journalPanel.OffsetLeft-16:size.X+_cameraPanel.OffsetLeft-16;
+        float width=MathF.Min(560,right-left),x=Math.Clamp((size.X-width)*.5f,left,right-width);
+        float height=Mathf.Max(96,_contextPanel.GetCombinedMinimumSize().Y);
         float aboveControls=Mathf.Max(-_timePanel.OffsetTop,Mathf.Max(-_cameraPanel.OffsetTop,-_commandPanel.OffsetTop))+8;
         HudStyle.Float(_contextPanel,new Vector2(0,1),new Vector2(x,-aboveControls-height),new Vector2(width,height));
     }
@@ -423,9 +406,10 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
     {
         if(_contextPanel==null)return;
         var world=(WorldView3D)_map;
-        _cameraReadout.Text=world.CameraReadout;
+        _cameraReadout.Text=world.CameraReadout;RefreshCameraPresets();
         _followCameraButton.Disabled=SelectedSlot<0;
         _followCameraButton.SetPressedNoSignal(world.IsFollowing(SelectedSlot));
+        _followCameraButton.Text=world.IsFollowing(SelectedSlot)?"停止跟随":"跟随";
         _followCameraButton.TooltipText=SelectedSlot<0?"先选择一位居民，再跟随观察":world.IsFollowing(SelectedSlot)?"停止跟随，保留当前镜头":"跟随当前居民；再次点击停止";
         _status.TooltipText=_status.Text;
         int slot=SelectedSlot;
@@ -440,12 +424,13 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         _contextFacts.Visible=target&&Tool==PlayerTool.Inspect&&(generic||now-_contextStatusAt>=6000);_status.Visible=!_contextFacts.Visible;
         if(_contextFacts.Visible)
         {
-            if(slot>=0)_contextFacts.Text=JobName(Sim.Agents.JobOf(slot))+" · "+PhaseName(Sim.Agents.PhaseOf(slot))+"\n"+$"生命 {Sim.Agents.HealthOf(slot):P0} · 饥饿 {Sim.Agents.HungerOf(slot):P0} · 干渴 {Sim.Agents.ThirstOf(slot):P0}";
+            if(slot>=0)_contextFacts.Text=JobName(Sim.Agents.JobOf(slot))+" · "+ActionRegistry.DisplayNameOf(Sim.Agents.ActionOf(slot))+"\n"+$"生命 {Sim.Agents.HealthOf(slot):P0} · 饥饿 {Sim.Agents.HungerOf(slot):P0} · 干渴 {Sim.Agents.ThirstOf(slot):P0}";
             else if(_selectedAnimal>=0)_contextFacts.Text=$"年龄 {Sim.Wildlife.AgeDaysOf(_selectedAnimal)} 天 · "+ActionRegistry.DisplayNameOf(Sim.Wildlife.ActionOf(_selectedAnimal))+"\n"+$"能量 {Sim.Wildlife.EnergyOf(_selectedAnimal):P0} · 干渴 {Sim.Wildlife.ThirstOf(_selectedAnimal):P0}";
             else if(_selectedWolf>=0){foreach(var wolf in Sim.Predators.Wolves)if(wolf.Id==_selectedWolf)_contextFacts.Text=$"年龄 {wolf.AgeDays} 天 · 狼\n能量 {wolf.Energy:P0} · 干渴 {wolf.Thirst:P0}";}
             else{var tile=Sim.World.TileAt(x,y);_contextFacts.Text=$"湿度 {tile.Moisture:P0} · 肥力 {tile.Fertility:P0}\n植被 {tile.Vegetation:P0} · 踩踏 {tile.FootTraffic:P0}";}
             _contextFacts.TooltipText=_contextFacts.Text+"\n左键拖动平移 · 右键旋转/俯仰 · 滚轮缩放"+(generic?"":"\n上次操作："+_status.Text);
         }
+        _contextGlyph.Texture=HudSymbols.For(slot>=0?"居民":_selectedAnimal>=0||_selectedWolf>=0?"生态":target?"观察":"手记");
         _contextFocus.Visible=_contextDetails.Visible=target&&Tool==PlayerTool.Inspect;
         _contextFocus.GetParent<Control>().Visible=_contextFocus.Visible;
         _contextDetails.Text=slot>=0?"档案":"手记";
@@ -453,7 +438,7 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         _contextDetails.TooltipText=slot>=0?"展开居民观察窗":"查看所选动物或土地的详细手记";
         if(Tool==PlayerTool.Inspect)
         {
-            _toolBadge.Text=slot>=0?title+" · "+ActionRegistry.DisplayNameOf(Sim.Agents.ActionOf(slot)):target?title+" · "+x+", "+y:"自由观察";
+            _toolBadge.Text=slot>=0?title:target?title+" · "+x+", "+y:"自由观察";
             _toolBadge.TooltipText=slot>=0?JobName(Sim.Agents.JobOf(slot))+" · "+PhaseName(Sim.Agents.PhaseOf(slot)):target?"近看或打开手记；观察不会干预世界":"选择人物、动物或土地，观察世界变化";
         }
         FitContextCard(Size);
@@ -524,6 +509,9 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
                     if (bounds.Position.X < 0 || bounds.Position.Y < 0 || bounds.End.X > size.X || bounds.End.Y > size.Y)
                         { throw new InvalidOperationException("HUD outside window at " + size); }
                 }
+                var cameraOptions=Bounds(_cameraOptions);
+                if(cameraOptions.Position.X<0||cameraOptions.Position.Y<0||cameraOptions.End.X>size.X||cameraOptions.End.Y>camera.Position.Y-4)
+                    throw new InvalidOperationException("Camera palette extends beyond its viewport or trigger at "+size);
                 bool tools=_dockPanel.Visible,journal=_journalPanel.Visible;
                 try
                 {
@@ -767,6 +755,8 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
     {
         if(speed>0)_resumeSpeed=speed;_speed=speed;
         foreach(var pair in _speedButtons)pair.Value.SetPressedNoSignal(pair.Key==speed);
+        if(_speedButtons.TryGetValue(0,out var pause))
+        {pause.Text=speed==0?"继续":"暂停";pause.TooltipText=speed==0?"继续演化 · 恢复 "+_resumeSpeed+" 倍速 · 空格":"暂停演化 · 空格";}
         if(_playStateLabel!=null)
         {
             _playStateLabel.Text=speed==0?"已暂停":speed+"× 流逝";
@@ -778,7 +768,7 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
     { bool close=_dockPanel.Visible && _category==category;SetCategory(category);ShowTools(!close); }
     private void ShowTools(bool visible)
     {
-        if(visible)SetImmersive(false);
+        if(visible){SetImmersive(false);ShowCameraOptions(false);}
         if(visible&&_journalPanel.Visible)ShowJournal(false);
         if(visible&&_settingsOpen)ShowSettings(false);
         _dockPanel.Visible=visible;
@@ -790,9 +780,9 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         if(visible){((WorldView3D)_map).CancelPointerGesture();FadeIn(_dockPanel);}
         RefreshPresentationControls();
     }
-    private void ShowJournal(bool visible) { if(visible)SetImmersive(false);if(visible&&Tool!=PlayerTool.Inspect)SelectTool(PlayerTool.Inspect);if(visible&&_dockPanel.Visible)ShowTools(false);_journalPanel.Visible = visible; _journalButton.SetPressedNoSignal(visible);_journalDockButton.SetPressedNoSignal(visible); if (_pulseButton != null) { _pulseButton.Visible = !visible; } if (visible) { FadeIn(_journalPanel); } RefreshPresentationControls(); }
+    private void ShowJournal(bool visible) { if(visible){SetImmersive(false);ShowCameraOptions(false);}if(visible&&Tool!=PlayerTool.Inspect)SelectTool(PlayerTool.Inspect);if(visible&&_dockPanel.Visible)ShowTools(false);_journalPanel.Visible = visible; _journalButton.SetPressedNoSignal(visible);_journalDockButton.SetPressedNoSignal(visible); if (_pulseButton != null) { _pulseButton.Visible = !visible; } if (visible) { FadeIn(_journalPanel); } RefreshPresentationControls(); }
     private void ShowSettings(bool visible)
-    { if(visible)SetImmersive(false); if(visible&&_dockPanel.Visible)ShowTools(false);_settingsOpen = visible; _settingsButton.SetPressedNoSignal(visible); _settingsPanel.Visible = visible; _brushPanel.Visible = !visible && Tool != PlayerTool.Inspect; if (visible) { FadeIn(_settingsPanel); } }
+    { if(visible){SetImmersive(false);ShowCameraOptions(false);} if(visible&&_dockPanel.Visible)ShowTools(false);_settingsOpen = visible; _settingsButton.SetPressedNoSignal(visible); _settingsPanel.Visible = visible; _brushPanel.Visible = !visible && Tool != PlayerTool.Inspect; if (visible) { FadeIn(_settingsPanel); } }
     private readonly Dictionary<Control, Tween> _panelTransitions = new();
     private void FadeIn(Control panel)
     {

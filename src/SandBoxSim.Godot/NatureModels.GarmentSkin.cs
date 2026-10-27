@@ -36,20 +36,20 @@ internal sealed partial class NatureModels
         using var doc=JsonDocument.Parse(raw);var data=doc.RootElement;
         float[] Floats(string field){var a=new float[data.GetProperty(field).GetArrayLength()];int i=0;foreach(var v in data.GetProperty(field).EnumerateArray())a[i++]=v.GetSingle();return a;}
         int[] Ints(string field){var a=new int[data.GetProperty(field).GetArrayLength()];int i=0;foreach(var v in data.GetProperty(field).EnumerateArray())a[i++]=v.GetInt32();return a;}
-        var p=Floats("positions");var n=Floats("normals");var uv=Floats("uv");int count=p.Length/3;
+        var p=Floats("positions");var n=Floats("normals");var uv=Floats("uv");var detail=Floats("detailUv");int count=p.Length/3;
         var b=Ints("bones");var w=Floats("weights");var index=Ints("indices");
-        if(data.GetProperty("schemaVersion").GetInt32()!=1||count==0||p.Length!=count*3||n.Length!=p.Length||uv.Length!=count*2||b.Length!=count*4||w.Length!=b.Length||index.Length%3!=0)
+        if(data.GetProperty("schemaVersion").GetInt32()!=1||count==0||p.Length!=count*3||n.Length!=p.Length||uv.Length!=count*2||detail.Length!=uv.Length||b.Length!=count*4||w.Length!=b.Length||index.Length%3!=0)
             throw new InvalidOperationException("Invalid garment attributes");
-        var points=new Vector3[count];var normals=new Vector3[count];var coords=new Vector2[count];
+        var points=new Vector3[count];var normals=new Vector3[count];var coords=new Vector2[count];var details=new Vector2[count];
         for(int i=0;i<count;i++)
         {
-            points[i]=new(p[i*3],p[i*3+1],p[i*3+2]);normals[i]=new(n[i*3],n[i*3+1],n[i*3+2]);coords[i]=new(uv[i*2],uv[i*2+1]);
+            points[i]=new(p[i*3],p[i*3+1],p[i*3+2]);normals[i]=new(n[i*3],n[i*3+1],n[i*3+2]);coords[i]=new(uv[i*2],uv[i*2+1]);details[i]=new(detail[i*2],detail[i*2+1]);
             float total=0;for(int j=0;j<4;j++){int k=i*4+j;if(b[k]<0||b[k]>2||!float.IsFinite(w[k])||w[k]<0)throw new InvalidOperationException("Invalid garment skin weight");total+=w[k];}
-            if(!points[i].IsFinite()||!normals[i].IsFinite()||MathF.Abs(normals[i].Length()-1)>.01f||MathF.Abs(total-1)>.001f)throw new InvalidOperationException("Invalid garment geometry");
+            if(!points[i].IsFinite()||!normals[i].IsFinite()||!details[i].IsFinite()||details[i].X< -1||details[i].X>.264f||details[i].Y<0||details[i].Y>.2f||MathF.Abs(normals[i].Length()-1)>.01f||MathF.Abs(total-1)>.001f)throw new InvalidOperationException("Invalid garment geometry");
         }
         foreach(int i in index)if(i<0||i>=count)throw new InvalidOperationException("Invalid garment index");
         var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);
-        arrays[(int)Mesh.ArrayType.Vertex]=points;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.TexUV]=coords;
+        arrays[(int)Mesh.ArrayType.Vertex]=points;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.TexUV]=coords;arrays[(int)Mesh.ArrayType.TexUV2]=details;
         arrays[(int)Mesh.ArrayType.Bones]=b;arrays[(int)Mesh.ArrayType.Weights]=w;arrays[(int)Mesh.ArrayType.Index]=index;
         var mesh=new ArrayMesh();mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);_meshes[key]=mesh;return mesh;
     }
@@ -100,6 +100,19 @@ internal sealed partial class NatureModels
         try
         {
             var fabric=(ShaderMaterial)resident.BodySkin.Mesh.SurfaceGetMaterial(0);
+            if(!fabric.GetShaderParameter("sleeve_details").AsBool())
+                throw new InvalidOperationException("Skinned garment lost sleeve seam material");
+            var finalArrays=resident.BodySkin.Mesh.SurfaceGetArrays(0);
+            var finalDetails=finalArrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
+            var sourceDetails=ContinuousGarment().SurfaceGetArrays(0)[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
+            var coordinates=new HashSet<Vector2>(sourceDetails);
+            int detailed=0;
+            foreach(var value in finalDetails)
+            {
+                if(!value.IsFinite()||!coordinates.Contains(value))throw new InvalidOperationException("Merged garment alters metric seam coordinates");
+                if(value.X>0)detailed++;
+            }
+            if(detailed<500)throw new InvalidOperationException("Skinned garment lost its sewn sleeve surface");
             foreach(string sampler in new[]{"weave_map","fibre_map"})
                 if(fabric.GetShaderParameter(sampler).AsGodotObject() is not Texture2D texture||texture.GetWidth()<512)
                     throw new InvalidOperationException("Rendered skinned garment lost its scanned material: "+sampler);

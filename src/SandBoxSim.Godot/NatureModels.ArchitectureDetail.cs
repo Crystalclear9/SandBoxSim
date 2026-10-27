@@ -205,7 +205,11 @@ internal sealed partial class NatureModels
                 Part(model,"box",new(x,.3f,0),new(.08f,.09f,depth),0);
                 foreach(float end in new[]{-1f,1f})
                     Part(model,"box",new(x,height/2+.18f,end*(depth/2-.07f)),new(.075f,height,.075f),0);
-                Timber(model,new(x,.4f,-depth*.4f),new(x,height+.08f,depth*.4f),.045f);
+                // Short corner braces land in the top plate and corner posts.
+                // A full facade diagonal used to graze the side window on the
+                // lower cabin and run behind the other variants' shutters.
+                foreach(float end in new[]{-1f,1f})
+                    Timber(model,new(x,height-.28f,end*(depth/2-.07f)),new(x,height+.13f,end*(depth*.26f)),.045f);
             }
             if(variant==0 && kind==BuildingKind.House)
                 for(int row=0;row<14;row++) foreach(float side in new[]{-1f,1f})

@@ -7,7 +7,7 @@ Coordinates are in the client's proportioned rest space (metres, Y up).
 import math
 
 
-def build_pattern(data):
+def build_pattern(data, include_details=False):
     if data['schemaVersion'] != 2:
         raise ValueError('Expected sampled garment pattern schema 2')
     rows, cols = data['rings'], data['sides']
@@ -16,6 +16,9 @@ def build_pattern(data):
         raise ValueError('Invalid pattern dimensions')
     points = [tuple(values[i:i+3]) for i in range(0,len(values),3)]
     weights = [(1.,0.,0.) for _ in points]
+    # Metres along the sleeve and across its underarm seam. Non-sleeve
+    # vertices use a negative sentinel, so trimming cannot mark the torso.
+    details = [(-1.,0.) for _ in points]
     faces = []
     idx = lambda r,c: r*cols+c%cols
     shoulder = data['shoulder']
@@ -37,26 +40,64 @@ def build_pattern(data):
                 [idx(r,center-half) for r in range(high,low,-1)])
         anchor = [points[i] for i in loop]
         phases = [math.atan2(p[2]/.085,(p[1]-(shoulder-.018))/.066) for p in anchor]
+        for i,phase in zip(loop,phases):
+            details[i]=(0.,abs(math.remainder(phase-math.pi,math.tau))*.045)
+        tangents=[]
+        for index,p in zip(loop,anchor):
+            r,c=divmod(index,cols)
+            rel=(c-center+cols//2)%cols-cols//2
+            outside=[]
+            if r==low:outside.append(points[idx(r-1,c)])
+            if r==high:outside.append(points[idx(r+1,c)])
+            if rel==-half:outside.append(points[idx(r,c-1)])
+            if rel==half:outside.append(points[idx(r,c+1)])
+            direction=tuple(sum(p[j]-q[j] for q in outside) for j in range(3))
+            length=math.sqrt(sum(q*q for q in direction))
+            speed=.09+.20*min(1,max(0,(p[1]-(shoulder-.085))/.132))
+            tangents.append(tuple(q/length*speed for q in direction))
         prev = loop
-        for row in range(1,13):
-            t=row/12
-            # A set-in sleeve bends downward from its sewn armhole. The crown
-            # is narrow and sloped, rather than a sphere perched on the arm.
+        for row in range(1,19):
+            t=row/18
+            # A falling sleeve keeps each armhole point's vertical offset
+            # until it gradually joins the hanging tube. The old common
+            # horizontal target squeezed the whole cap into its first third,
+            # producing a hard shelf at the shoulder and a swollen lower ring.
             cx=side*(.202+.004*math.sin(math.pi*t))
             cy=shoulder-.263*t
-            rx=.047*(1-t)+.043*t
-            rz=.046*(1-t)+.042*t
-            blend=min(1,t*3);blend=blend*blend*(3-2*blend)
+            rx=.044*(1-t)+.043*t+.0030*math.sin(math.pi*t)**2
+            rz=.044*(1-t)+.042*t+.0025*math.sin(math.pi*t)**2
+            blend=min(1,t/.53);blend=blend**3*(10-15*blend+6*blend**2)
             ring=[]
-            for p,phase in zip(anchor,phases):
+            for p,phase,direction in zip(anchor,phases,tangents):
                 target=(cx+side*rx*math.cos(phase),cy,rz*math.sin(phase))
-                q=tuple(p[i]*(1-blend)+target[i]*blend for i in range(3))
-                # Broad sleeve compression follows the inside elbow, not
-                # periodic bumps over the entire cloth surface.
-                fold=.0024*math.exp(-((t-.76)/.19)**2)*math.sin(phase*3+t*13)
+                q=(p[0]*(1-blend)+target[0]*blend,
+                   cy+(p[1]-shoulder)*(1-t)**3,
+                   p[2]*(1-blend)+target[2]*blend)
+                # Extend the neighbouring torso panel's actual tangent across
+                # the shared seam. A zero horizontal derivative here creates
+                # a vertical ledge even when averaged normals look smooth.
+                # This Hermite correction leaves both cuff value and its
+                # derivative unchanged; the underarm may turn upward a few mm.
+                correction=t*(1-t)**3
+                current=(0.,-.263-3*(p[1]-shoulder),0.)
+                q=tuple(q[i]+correction*(direction[i]-current[i]) for i in range(3))
+                # Two broad diagonal troughs fall from the armhole. A small
+                # compression fold is held by the rolled cuff. Both end at
+                # actual supports; there is no repeating all-over ripple.
+                envelope=math.sin(math.pi*t)**2
+                def trough(center,width):
+                    d=math.remainder(phase-center,math.tau)
+                    return math.exp(-(d/width)**2)
+                fall=-.0036*trough(-1.08+.72*t,.34)+.0020*trough(-.62+.72*t,.42)
+                fall+=-.0027*trough(1.62-.54*t,.39)+.0015*trough(2.07-.54*t,.46)
+                cuff=.0025*math.exp(-((t-.80)/.13)**2)*(trough(2.35,.55)-.65*trough(2.90,.32))
+                fold=envelope*(fall+cuff)
                 q=(q[0]+side*fold*math.cos(phase),q[1],q[2]+fold*math.sin(phase))
                 ring.append(len(points));points.append(q)
-                w=min(1,t*3);w=w*w*(3-2*w)
+                details.append((t*.263,abs(math.remainder(phase-math.pi,math.tau))*(rx+rz)*.5))
+                # The seam stays anchored to the torso while the hanging
+                # fabric takes the shoulder rotation. Cuff weights remain 1.
+                w=min(1,t/.48);w=w*w*(3-2*w)
                 weights.append((1-w,w if bone==1 else 0.,w if bone==2 else 0.))
             for j in range(len(loop)):
                 k=(j+1)%len(loop);faces.append((prev[j],prev[k],ring[k],ring[j]))
@@ -68,10 +109,11 @@ def build_pattern(data):
         ring=[]
         for c in range(cols):
             x,y,z=points[idx(0,c)]
-            ring.append(len(points));points.append((x*.984,y+rise,z*.984));weights.append((1.,0.,0.))
+            ring.append(len(points));points.append((x*.984,y+rise,z*.984));weights.append((1.,0.,0.));details.append((-1.,0.))
         for c in range(cols):
             k=(c+1)%cols;faces.append((prev[c],prev[k],ring[k],ring[c]))
         prev=ring
     # Remove vertices inside the cut-out armholes; there are no unused points.
     used=sorted({i for f in faces for i in f});mapping={v:i for i,v in enumerate(used)}
-    return [points[i] for i in used],[tuple(mapping[i] for i in f) for f in faces],[weights[i] for i in used]
+    result=([points[i] for i in used],[tuple(mapping[i] for i in f) for f in faces],[weights[i] for i in used])
+    return (*result,[details[i] for i in used]) if include_details else result

@@ -20,18 +20,19 @@ source=Path(args.source);output=Path(args.output);output.mkdir(parents=True,exis
 hashes={}
 for cut in range(3):
     raw=(source/f'garment-{cut}-source.json').read_bytes();data=json.loads(raw)
-    points,faces,weights=build_pattern(data)
+    points,faces,weights,details=build_pattern(data,include_details=True)
     mesh=bpy.data.meshes.new('sewn-shirt');mesh.from_pydata(points,[],faces);mesh.update()
     # Recalculate winding across both mirrored sleeves from the shared topology.
     bm=bmesh.new();bm.from_mesh(mesh)
     bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces));bm.to_mesh(mesh);bm.free()
     mesh.calc_loop_triangles()
     if len(mesh.loop_triangles)>10000:raise RuntimeError('Garment triangle budget exceeded')
-    result={'schemaVersion':1,'construction':'sewn-panel-v2','sourceSha256':hashlib.sha256(raw).hexdigest(),'positions':[],'normals':[],'uv':[],'bones':[],'weights':[],'indices':[]}
-    for v,w in zip(mesh.vertices,weights):
+    result={'schemaVersion':1,'construction':'draped-sleeve-v3','sourceSha256':hashlib.sha256(raw).hexdigest(),'positions':[],'normals':[],'uv':[],'detailUv':[],'bones':[],'weights':[],'indices':[]}
+    for v,w,detail in zip(mesh.vertices,weights,details):
         result['positions'].extend(round(x,7) for x in v.co)
         result['normals'].extend(round(x,7) for x in v.normal.normalized())
         result['uv'].extend((round(v.co.x+v.co.z,7),round(v.co.y,7)))
+        result['detailUv'].extend(round(x,7) for x in detail)
         result['bones'].extend((0,1,2,0));result['weights'].extend((*[round(x,7) for x in w],0.))
     for tri in mesh.loop_triangles:result['indices'].extend((tri.vertices[0],tri.vertices[2],tri.vertices[1]))
     path=output/f'garment-{cut}.skin.json';path.write_text(json.dumps(result,separators=(',',':')),encoding='utf-8')

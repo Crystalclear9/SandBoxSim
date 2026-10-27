@@ -6,16 +6,21 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
+    private static readonly Vector2 WolfEyeCoatPatchA=new(18.5f/256,173.5f/256),WolfEyeCoatPatchB=new(17.5f/256,211.5f/256);
+    private const float WolfEyeCoatPatchScale=1f;
+    private const float WolfEyeCoatRepairStrength=.4f;
+    private static void ConfigureWolfEyeRepair(ShaderMaterial material)
+    {
+        material.SetShaderParameter("eye_coat_patch_a",WolfEyeCoatPatchA);
+        material.SetShaderParameter("eye_coat_patch_b",WolfEyeCoatPatchB);
+        material.SetShaderParameter("eye_coat_patch_scale",WolfEyeCoatPatchScale);
+        material.SetShaderParameter("eye_coat_repair_strength",WolfEyeCoatRepairStrength);
+    }
     private const string CoatGradingShader=@"
-vec3 wolf_eye_backing(vec3 colour,vec2 uv){
-    // This atlas contains a painted eye. Suppress it beneath and around the
-    // fitted cornea so two unrelated iris patterns do not appear together.
-    float distance_px=length((uv-vec2(23.5,189.5)/256.0)*256.0);
-    float mask=1.0-smoothstep(3.5,6.0,distance_px);
-    float pigment=smoothstep(.04,.14,colour.r-colour.b);
-    float luma=dot(colour,vec3(.2126,.7152,.0722));
-    return mix(colour,vec3(min(.035,luma))*vec3(1.05,1.0,.90),mask*pigment);
-}
+uniform vec2 eye_coat_patch_a=vec2(.072265625,.677734375);
+uniform vec2 eye_coat_patch_b=vec2(.068359375,.826171875);
+uniform float eye_coat_patch_scale=1.0;
+uniform float eye_coat_repair_strength=.4;
 vec3 coat_grade(vec3 colour,bool canine){
     float luma=dot(colour,vec3(.2126,.7152,.0722));
     if(canine){
@@ -24,6 +29,30 @@ vec3 coat_grade(vec3 colour,bool canine){
         return mix(colour,neutral*target/max(.015,luma),smoothstep(.025,.11,luma));
     }
     return mix(colour,vec3(luma)*vec3(1.04,1.0,.93),.18);
+}
+vec3 wolf_eye_backing(sampler2D atlas,vec3 colour,vec2 uv,float coat_gain){
+    // The old atlas paints a large, oblique black socket as well as an iris.
+    // Painting only that iris black left a second eye several centimetres
+    // wider than the fitted optical surface. Two bounded source-coat patches
+    // remain wholly outside that painted eye, even at the feathered boundary.
+    // Preserve source texel density, brow pigment and the dark eye margin.
+    // A full reconstruction erases their volume cues and creates a pale oval.
+    vec2 px=(uv-vec2(23.5,189.5)/256.0)*256.0;
+    vec2 region=vec2(dot(px,vec2(-.56,.83))/8.5,dot(px,vec2(.83,.56))/4.8);
+    float mask=1.0-smoothstep(1.10,1.45,length(region));
+    if(mask>.001){
+        vec2 local=(uv-vec2(23.5,189.5)/256.0)*eye_coat_patch_scale;
+        vec3 a=texture(atlas,eye_coat_patch_a+local).rgb;
+        vec3 b=texture(atlas,eye_coat_patch_b+local).rgb;
+        vec3 replacement=coat_grade(mix(a,b,smoothstep(-8.0,8.0,px.y)),true)*coat_gain;
+        // Suppress the old painted iris without selecting every black coat
+        // pixel for a bright replacement, which would create fragmented rims.
+        float pigment=smoothstep(.035,.12,colour.r-colour.b);
+        float eye_margin=min(.025,dot(colour,vec3(.2126,.7152,.0722)));
+        colour=mix(colour,vec3(eye_margin)*vec3(1.05,1.0,.90),mask*pigment);
+        colour=mix(colour,replacement,mask*eye_coat_repair_strength);
+    }
+    return colour;
 }
 ";
     private Mesh AuthoredGuardCoat(bool wolf)

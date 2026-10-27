@@ -41,6 +41,8 @@ public partial class MainGame
     }
     public override void _Input(InputEvent input)
     {
+        HandleCameraOptionsInput(input);
+        if(HandleWorldControlKey(input))return;
         if(input is InputEventKey {Pressed:true,Echo:false,Keycode:Key.K} search && (search.CtrlPressed||search.MetaPressed) && _portraitOverlay?.Visible!=true)
         {
             ShowTools(true);_toolSearch.GrabFocus();_toolSearch.SelectAll();GetViewport().SetInputAsHandled();return;
@@ -165,6 +167,7 @@ public partial class MainGame
         if(visible)
         {
             if(SelectedSlot<0)return;SetImmersive(false);
+            ShowCameraOptions(false);
             _portraitReturnFocus=GetViewport().GuiGetFocusOwner();
             if(_map is WorldView3D world)world.CancelPointerGesture();
             RefreshResidentVitals();

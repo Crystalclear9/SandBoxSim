@@ -23,7 +23,7 @@ internal sealed partial class NatureModels
             _shoulderFabric??=new Shader {Code=source.Shader.Code.Replace("shader_type spatial;","shader_type spatial; render_mode cull_disabled;").Replace("void fragment(){","void fragment(){if(!OUTPUT_IS_SRGB&&!FRONT_FACING){NORMAL=-NORMAL;}")};
             // Preserve every material parameter, especially scanned colour and
             // normal/roughness maps. Copying shader text alone leaves white samplers.
-            var fabric=(ShaderMaterial)source.Duplicate();fabric.Shader=_shoulderFabric;
+            var fabric=(ShaderMaterial)source.Duplicate();fabric.Shader=_shoulderFabric;fabric.SetShaderParameter("sleeve_details",true);
             material=fabric;_residentMaterials[key]=material;
         }
         rig.ShoulderGeometry=JoinedShoulders();
@@ -61,6 +61,7 @@ internal sealed partial class NatureModels
                 var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();var uv=arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
                 var garmentBones=garment?arrays[(int)Mesh.ArrayType.Bones].AsInt32Array():Array.Empty<int>();
                 var garmentWeights=garment?arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array():Array.Empty<float>();
+                var garmentDetails=garment?arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array():Array.Empty<Vector2>();
                 for(int i=0;i<indices.Length;i++)
                 {
                     int v=indices[i];
@@ -70,7 +71,7 @@ internal sealed partial class NatureModels
                         surface.SetBones(new[]{b[v*4],b[v*4+1],b[v*4+2],b[v*4+3]});surface.SetWeights(new[]{w[v*4],w[v*4+1],w[v*4+2],w[v*4+3]});
                     }
                     else{surface.SetBones(new[]{0,0,0,0});surface.SetWeights(new[]{1f,0f,0f,0f});}
-                    surface.SetUV(uv[v]);surface.SetNormal(normals[v]);surface.AddVertex(points[v]);
+                    surface.SetUV(uv[v]);surface.SetUV2(garment?garmentDetails[v]:new Vector2(-1,0));surface.SetNormal(normals[v]);surface.AddVertex(points[v]);
                 }
             }
             if(s==0)Append(ContinuousGarment().SurfaceGetArrays(0),true);else Append(body.SurfaceGetArrays(s));

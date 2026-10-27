@@ -23,14 +23,14 @@ float open=1.0-clamp(blink,0.0,1.0);
 float upper=(1.5-.20*p.x*p.x)*open-.18*blink;
 float lower=(-1.5+.16*p.x*p.x)*open-.18*blink;
 if(blink<.001||(p.y<upper&&p.y>lower))discard;
-ALBEDO=coat_grade(texture(coat_albedo,UV).rgb,predator)*(predator?.48:.90);
+ALBEDO=coat_grade(texture(coat_albedo,UV).rgb,predator)*(predator?.86:.90);
 float edge_distance=min(abs(p.y-upper),abs(p.y-lower));
 float margin=1.0-smoothstep(.012,.036+fwidth(p.y),edge_distance);
 ALBEDO*=1.0-margin*.30;
-// A closed wolf lid has a dark horizontal lash margin; the source atlas
-// contains a painted eye, so unmodified white brow fur reads as a second eye.
+// Match neighbouring coat rather than painting the entire closed lid dark.
+// Keep the short horizontal lash margin legible while fully closed.
 float crease=1.0-smoothstep(.035,.10+fwidth(p.y),abs(p.y+.18));
-ALBEDO*=1.0-crease*.70*smoothstep(.82,.99,blink);
+ALBEDO*=1.0-crease*.55*smoothstep(.82,.99,blink);
 ROUGHNESS=.87;SPECULAR=.18;
 }"}};
             material.SetShaderParameter("coat_albedo",GD.Load<Texture2D>(AuthoredRoot(wolf)+(wolf?"wolf-grey.png":"deer-head.png")));

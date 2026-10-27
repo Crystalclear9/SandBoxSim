@@ -20,7 +20,7 @@
 
 ## 来源选择与调研
 
-选择按当前公开源码项目的再分发、真实轮廓、贴图、骨架和运行预算核对，不以“免费下载”代替许可确认。以下列出截至 2026-10-25 已核对的主要渠道，不声称穷尽全部素材网站。
+选择按当前公开源码项目的再分发、真实轮廓、贴图、骨架和运行预算核对，不以“免费下载”代替许可确认。以下列出截至 2026-10-27 已核对的主要渠道，不声称穷尽全部素材网站。
 
 | 来源 | 核对结果与本项目取舍 |
 |---|---|
@@ -56,6 +56,9 @@ UI 的层级和画布工具组织参考见[观察与界面](../guides/gameplay-o
 | [NN/g：渐进呈现](https://www.nngroup.com/articles/progressive-disclosure/) | 世界画面保留主要控件，工具与资料按需展开；页签共享间距、字重、选中与悬停反馈，原有鼠标和键盘操作保持可见 |
 | [Historic England：茅草屋面](https://historicengland.org.uk/advice/technical-advice/buildings/thatching-advice) | 观察屋脊、檐口和山墙边缘的独立结构，采用厚坡面与圆弧覆脊；项目尺寸是视觉取舍，不作为传统工艺复原 |
 | [Missouri Department of Conservation：溪流岸缘](https://mdc.mo.gov/discover-nature/habitats/stream-edges) | 区分临水低岸与较高岸缘，普通河岸芦苇按实际高度和坡度选点；具体数值是项目表现参数 |
+| [V&A：可定制衬衫纸样](https://www.vam.ac.uk/articles/sew-your-own-customisable-shirt)与[British Museum EA17173](https://www.britishmuseum.org/collection/object/Y_EA17173) | 用于理解袖窿、袖片、缝边和折边，项目重塑连续肩袖与受约束的宽折谷，未复制馆藏图像或加入布料物理 |
+| [UC Berkeley：瞳孔形状与生态位](https://news.berkeley.edu/2015/08/07/pupil-shape-and-ecological-niche/) | 鹿保留横向瞳孔，狼使用圆瞳；源绘眼周边与新角膜分开处理，不把材质细化当作新增动物扫描 |
+| [New Forest National Park：木构与屋架](https://www.newforestnpa.gov.uk/document/timber-frames-and-roofs/) | 房屋梁柱避开开口，阁楼窗补承边，窗框与窗台回嵌墙体；属于视觉构造，不是结构力学或完整传统工艺模拟 |
 | [NN/g：识别与回忆](https://www.nngroup.com/articles/recognition-and-recall/) | 操作提示靠近当前工作区，镜头角度、距离和跟随状态可直接查看；未选择居民时禁用跟随并说明原因 |
 
 这些资料用于明确实现方法；素材页、许可与作者记录用于实际资源来源。界面没有引入网页运行时；字体作为带许可的正式资源随包提供。
@@ -141,7 +144,7 @@ UI 的层级和画布工具组织参考见[观察与界面](../guides/gameplay-o
 
 ## 检查
 
-上衣重建使用 `./tools/bake-garments.ps1`，原始导出在 `.tools/garment-sources/`，正式 JSON 和哈希清单进入 `assets/models/garments/`；普通构建不执行 Blender。改变剪裁采样或 `tools/garment_pattern.py` 缝片构造后必须重新烘焙，不能只修改运行代码并继续使用旧蒙皮。动作、服装配件和近远景均需一同检查，细节见 [模型系统](models.md)。
+上衣重建使用 `./tools/bake-garments.ps1`，原始导出在 `.tools/garment-sources/`，正式 JSON 和哈希清单进入 `assets/models/garments/`；普通构建不执行 Blender。当前三套上衣使用 `draped-sleeve-v3` 构造并保存 `detailUv` 米制缝线坐标。改变剪裁采样或 `tools/garment_pattern.py` 缝片构造后必须重新烘焙，不能只修改运行代码并继续使用旧蒙皮。动作、服装配件和近远景均需一同检查，细节见 [模型系统](models.md)。
 
 通过 `./tools/godot.ps1 -Mode test` 构建、导入并检查网格、法线、UV、缓存与握持，再查看真实窗口中的近景和远景。无头几何检查不能判断美感，图像识别准确率也不能替代材质与解剖质量检查。
 

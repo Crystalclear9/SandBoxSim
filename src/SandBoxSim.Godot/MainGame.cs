@@ -489,7 +489,8 @@ public partial class MainGame : Control
             if (key.Keycode == Key.F && !_portraitOverlay.Visible) { _map.Center(); }
             if (key.Keycode == Key.Escape)
             {
-                if(_portraitOverlay.Visible)ShowPortraitWindow(false);
+                if(_cameraOptions.Visible)ShowCameraOptions(false,true);
+                else if(_portraitOverlay.Visible)ShowPortraitWindow(false);
                 else if(_settingsPanel.Visible)ShowSettings(false);
                 else if(_editingResidentName)SetNameEditing(false);
                 else if(_journalPanel.Visible)ShowJournal(false);
@@ -718,7 +719,7 @@ public partial class MainGame : Control
             ((WorldView3D)_map).ValidateLivingDetails();
             int observed = Sim.Agents.AliveSlots().FirstOrDefault(-1);
             if (observed >= 0) { var position = Sim.Agents.PositionOf(observed); FocusStory(Sim.Society.Identity(observed), position.X, position.Y); }
-            ValidateHudLayout();
+            ValidateHudLayout();ValidateWorldControls();
             ShowTools(true);
             if (!_dockPanel.Visible) { throw new Exception("Contextual tool menu failed to open"); }
             SelectTool(PlayerTool.Inspect);

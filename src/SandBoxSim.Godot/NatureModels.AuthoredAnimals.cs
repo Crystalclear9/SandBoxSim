@@ -18,8 +18,8 @@ float radius=length(p),angle=atan(p.y,p.x);
 float fiber=sin(angle*67.0+radius*49.0)/(1.0+pow(fwidth(angle)*67.0,2.0));
 float iris=1.0-smoothstep(.64,.77,radius);
 float pupil=1.0-smoothstep(.90,1.05,length(p/vec2(.49,.14)));
-ALBEDO=mix(vec3(.009,.007,.005),vec3(.052,.030,.012)*(1.0+fiber*.12),iris);
-ALBEDO=mix(ALBEDO,vec3(.002,.0025,.002),pupil);ROUGHNESS=.12;SPECULAR=.50;CLEARCOAT=.65;CLEARCOAT_ROUGHNESS=.12;
+ALBEDO=mix(vec3(.012,.009,.006),vec3(.12,.065,.022)*(1.0+fiber*.12),iris);
+ALBEDO=mix(ALBEDO,vec3(.002,.0025,.002),pupil);ROUGHNESS=.16;SPECULAR=.45;CLEARCOAT=.45;CLEARCOAT_ROUGHNESS=.16;
 }"}};
         string texture=wolf?"wolf-grey":name=="Body"?"deer-body":name=="Antlers"?"deer-antlers":"deer-head";
         var material=new ShaderMaterial {Shader=new Shader {Code=@"shader_type spatial;
@@ -31,7 +31,7 @@ vec3 colour=texture(albedo_map,UV).rgb;
 vec3 graded=coat_grade(colour,predator);
 if(antler){float luma=dot(colour,vec3(.2126,.7152,.0722));graded=mix(colour,vec3(luma)*vec3(1.10,1.04,.88),.65);}
 ALBEDO=mix(graded,colour,COLOR.r)*gain;
-if(predator)ALBEDO=wolf_eye_backing(ALBEDO,UV);
+if(predator)ALBEDO=wolf_eye_backing(albedo_map,ALBEDO,UV,gain);
 vec3 detail=has_normal?texture(normal_map,UV).rgb:vec3(.5,.5,1);
 float coordinate=UV.x*2100.0+sin(UV.y*97.0)*.7;
 float fibre=sin(coordinate)*sin(UV.y*310.0+UV.x*43.0);
@@ -55,6 +55,7 @@ BACKLIGHT=ALBEDO*vec3(.085,.045,.026)*COLOR.b;
         if(!wolf){var normal=GD.Load<Texture2D>(folder+texture+"-normal.png");ScannedSurfaces.RequireMipmaps(normal);material.SetShaderParameter("normal_map",normal);}
         material.SetShaderParameter("has_normal",!wolf);
         material.SetShaderParameter("gain",wolf?.86f:.90f);material.SetShaderParameter("predator",wolf);
+        ConfigureWolfEyeRepair(material);
         material.SetShaderParameter("antler",name=="Antlers");
         return _residentMaterials[key]=material;
     }
@@ -190,14 +191,21 @@ void fragment(){
 vec2 p=(UV-vec2(.5))*vec2(2.0,1.0);float radius=length(p),angle=atan(p.y,p.x);
 float phase_a=angle*71.0+radius*97.0,phase_b=angle*43.0-radius*31.0;
 float fibre=sin(phase_a)*sin(phase_b)/(1.0+pow(max(fwidth(phase_a),fwidth(phase_b)),2.0));
-float iris=1.0-smoothstep(.44,.48,radius),pupil=1.0-smoothstep(.14,.17,radius);
-vec3 pigment=mix(vec3(.008,.006,.003),vec3(.30,.19,.060)*(1.0+fibre*.14),iris);
+float iris=1.0-smoothstep(.49,.56,radius),pupil=1.0-smoothstep(.13,.17,radius);
+vec3 pigment=mix(vec3(.035,.025,.017),vec3(.36,.215,.060)*(1.0+fibre*.14),iris);
 pigment=mix(pigment,vec3(.002,.0025,.002),pupil);
-float edge=smoothstep(.80,1.0,length((UV-vec2(.5))*2.0));
-ALBEDO=mix(pigment,wolf_eye_backing(coat_grade(texture(source_albedo,UV2).rgb,true)*.86,UV2),edge);ROUGHNESS=mix(.10,.83,edge);SPECULAR=mix(.50,.18,edge);
-CLEARCOAT=(1.0-edge)*.65;CLEARCOAT_ROUGHNESS=.12;
+vec2 aperture=(UV-vec2(.5))*2.0;
+// The optical dome is broader than the visible opening. A continuous pair
+// of curved fur margins crops it to an almond-shaped canine eye, instead of
+// drawing the whole elliptical dome as a round glass bead.
+float lid_height=.78*pow(max(0.0,1.0-aperture.x*aperture.x),.65);
+float lid_edge=smoothstep(lid_height-.07,lid_height+.10,abs(aperture.y+aperture.x*.08));
+float edge=max(lid_edge,smoothstep(.80,1.0,length(aperture)));
+ALBEDO=mix(pigment,wolf_eye_backing(source_albedo,coat_grade(texture(source_albedo,UV2).rgb,true)*.86,UV2,.86),edge);ROUGHNESS=mix(.24,.83,edge);SPECULAR=mix(.32,.18,edge);
+CLEARCOAT=(1.0-edge)*.10;CLEARCOAT_ROUGHNESS=.24;
 }"}};
-        material.SetShaderParameter("source_albedo",GD.Load<Texture2D>(AuthoredRoot(true)+"wolf-grey.png"));return _residentMaterials[key]=material;
+        material.SetShaderParameter("source_albedo",GD.Load<Texture2D>(AuthoredRoot(true)+"wolf-grey.png"));
+        ConfigureWolfEyeRepair(material);return _residentMaterials[key]=material;
     }
     private Mesh AuthoredWolfCornea(int side)
     {
@@ -290,6 +298,7 @@ CLEARCOAT=(1.0-edge)*.65;CLEARCOAT_ROUGHNESS=.12;
         var rig=AuthoredAnimal(wolf);var peer=AuthoredAnimal(wolf);var mesh=rig.FurSkin!.Mesh;
         try
         {
+        if(wolf)ValidateWolfEyeAtlas(mesh);
         int boneCount=wolf?15:14;
         var guard=rig.Body.GetNode<MeshInstance3D>("AuthoredGuardCoat");var guardArrays=guard.Mesh.SurfaceGetArrays(0);
         if(guard.Mesh!=peer.Body.GetNode<MeshInstance3D>("AuthoredGuardCoat").Mesh||guard.VisibilityRangeEnd!=18||guard.CastShadow!=GeometryInstance3D.ShadowCastingSetting.Off||guard.Skin!=rig.FurSkin.Skin)

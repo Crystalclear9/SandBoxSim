@@ -169,6 +169,14 @@ public partial class WorldView3D : MapView
         else { _pitch = .9f; _distance = 42; }
         UpdateCamera();
     }
+    internal bool MatchesCameraPreset(string view)=>view switch
+    {
+        "全景"=>MathF.Abs(_pitch-1.1f)<.015f&&MathF.Abs(_distance-Math.Max(Game.Sim.World.Width,Game.Sim.World.Height)*1.6f)<.2f&&new Vector2(_target.X-Game.Sim.World.Width,_target.Z-Game.Sim.World.Height).Length()<.1f,
+        "俯视"=>MathF.Abs(_pitch-1.48f)<.015f,
+        "近景"=>MathF.Abs(_pitch-.48f)<.015f&&MathF.Abs(_distance-11)<.2f,
+        "斜视"=>MathF.Abs(_pitch-.9f)<.015f&&MathF.Abs(_distance-42)<.2f,
+        _=>false
+    };
     public override void Effect(int x, int y, Color color, string text = "")
     {
         var root = new Node3D { Position = PositionAt(x, y) + Vector3.Up * .2f }; _scene.AddChild(root);
@@ -441,8 +449,8 @@ public partial class WorldView3D : MapView
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="coverage-mosaic-v6",["habitatDetail"]="stratified-meadow-v10",["vegetationSurface"]="engine-faced-v2",
-            ["architecture"]="double-lap-tiles-v12",["garmentMaterial"]="engine-faced-linen-v8",["interface"]="grouped-inspector-v20",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
-            ["animalPresentation"]="source-eyelids-v9",["residentSurface"]="orbital-gaze-v6",["handSurface"]="anatomical-regions-v1",["waterSurface"]="continuous-bank-v5",["wristContour"]="source-oval-v1",
+            ["architecture"]="inset-joinery-v13",["garmentMaterial"]="draped-sleeve-linen-v9",["interface"]="world-camera-palette-v21",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
+            ["animalPresentation"]="source-eye-atlas-v10",["residentSurface"]="orbital-gaze-v6",["handSurface"]="anatomical-regions-v1",["waterSurface"]="continuous-bank-v5",["wristContour"]="source-oval-v1",
             ["hairline"]="source-root-v1",["reedPanicle"]="connected-axis-v1" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
