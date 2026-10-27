@@ -129,6 +129,8 @@ UI 的层级和画布工具组织参考见[观察与界面](../guides/gameplay-o
 
 | 第一方资料 | 本项目的采用方式 |
 |---|---|
+| [Museum Wales：亚麻 Smock 藏品](https://museum.wales/collections/online/object/9b2b4e3f-22fe-376c-9e4d-79ac6e7f7f2e/Smock/) | 参考领口、袖口属于成衣接合部位的构造关系；当前使用沿实际衣身开口的窄折边，并非藏品方翻领或刺绣复刻，未下载藏品图片作为素材 |
+| [Godot：Environment and post-processing](https://docs.godotengine.org/en/stable/tutorials/3d/environment_and_post_processing.html) | 区分环境光、方向光和色调映射，平衡人物隔离观察场景的主补光；没有以布光调整宣称增加面部扫描或皮下散射 |
 | [Wisconsin DNR 狼生物学资料](https://dnr.wisconsin.gov/topic/WildlifeHabitat/wolf) | 结合源模型辨认灰褐、黑色混杂的毛色层次及颈肩毛被，调整过强的黑白色阶；形态资料不作为新资产许可 |
 | [NPS 鹿类季节与毛被](https://www.nps.gov/grsm/learn/nature/elk.htm) | 区分贴体底毛与较长护毛；当前使用通用鹿表现，不按特定物种复原或新增季节模拟 |
 | [Godot `source_color`](https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/shading_language.html#using-source-color) | 颜色贴图和肤色参考采用一致的色彩语义，法线与粗糙度保持数据采样 |

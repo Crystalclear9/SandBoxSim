@@ -243,11 +243,12 @@ internal partial class ModelGallery : PanelContainer
         _evaluationRegions.Add((view,semanticLabel));
         var viewport=new SubViewport { OwnWorld3D=true,Size=new(420,280),Msaa3D=Viewport.Msaa.Msaa4X,RenderTargetUpdateMode=SubViewport.UpdateMode.Once }; view.AddChild(viewport);
         var stage=new Node3D(); viewport.AddChild(stage);
-        stage.AddChild(new WorldEnvironment { Environment=new Godot.Environment { BackgroundMode=Godot.Environment.BGMode.Color,BackgroundColor=new("#252e29"),AmbientLightSource=Godot.Environment.AmbientSource.Color,AmbientLightColor=new("#d3dbe4"),AmbientLightEnergy=.36f,TonemapMode=Godot.Environment.ToneMapper.Aces } });
-        var keyLight=new DirectionalLight3D { RotationDegrees=new(-40,-35,0),LightColor=new("#f2eee5"),LightEnergy=.95f,ShadowEnabled=true,
+        bool human=model is ResidentRig;
+        stage.AddChild(new WorldEnvironment { Environment=new Godot.Environment { BackgroundMode=Godot.Environment.BGMode.Color,BackgroundColor=new("#252e29"),AmbientLightSource=Godot.Environment.AmbientSource.Color,AmbientLightColor=new("#d3dbe4"),AmbientLightEnergy=human?.25f:.36f,TonemapMode=Godot.Environment.ToneMapper.Aces } });
+        var keyLight=new DirectionalLight3D { RotationDegrees=human?new(-32,-38,0):new(-40,-35,0),LightColor=human?new("#f3efe8"):new("#f2eee5"),LightEnergy=human?.72f:.95f,ShadowEnabled=true,
             DirectionalShadowMode=DirectionalLight3D.ShadowMode.Orthogonal,DirectionalShadowMaxDistance=MathF.Max(4,size*3),ShadowBias=.05f,ShadowNormalBias=.2f };
         stage.AddChild(keyLight);_studioLights.Add(keyLight);
-        stage.AddChild(new DirectionalLight3D { RotationDegrees=new(-20,140,0),LightColor=new("#bacbd1"),LightEnergy=.32f });
+        stage.AddChild(new DirectionalLight3D { RotationDegrees=new(-20,140,0),LightColor=new("#bacbd1"),LightEnergy=human?.24f:.32f });
         var floor=new MeshInstance3D { Mesh=new PlaneMesh { Size=new(40,40) },CastShadow=GeometryInstance3D.ShadowCastingSetting.Off,
             MaterialOverride=new StandardMaterial3D { AlbedoColor=new("#3b4840"),Roughness=1 } };
         stage.AddChild(floor);_studioFloors.Add(floor);

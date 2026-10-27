@@ -33,6 +33,7 @@ internal partial class ResidentPortrait : SubViewportContainer
     }
     internal void SettleMotion()
     {
+        SetOrbiting(false);
         _hintTransition?.Kill();_gestureHint.Modulate=new Color(1,1,1,0);
         _viewDistance=_distance;
         if(_resident!=null)_resident.Rotation=new(0,IsThumbnail?ThumbnailYaw:_yaw,0);
@@ -41,7 +42,7 @@ internal partial class ResidentPortrait : SubViewportContainer
     internal bool Expanded {get;private set;}
     internal void SetExpanded(bool expanded)
     {
-        Expanded=expanded;_drag=false;
+        Expanded=expanded;_drag=false;if(!expanded)SetOrbiting(false);
         CustomMinimumSize=expanded?new Vector2(270,400):Compact?new Vector2(0,IsThumbnail?138:224):new Vector2(270,224);
         SizeFlagsVertical=expanded?SizeFlags.ExpandFill:SizeFlags.Fill;
         _expandButton.Visible=!expanded&&!IsThumbnail;
@@ -83,14 +84,14 @@ internal partial class ResidentPortrait : SubViewportContainer
         _stage = new Node3D(); _viewport.AddChild(_stage);
         var environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color,
             BackgroundColor = new Color("#252d2d"), AmbientLightSource = Godot.Environment.AmbientSource.Color,
-            AmbientLightColor = new Color("#cbd0d5"), AmbientLightEnergy = .36f, TonemapMode = Godot.Environment.ToneMapper.Aces };
+            AmbientLightColor = new Color("#d0d2d3"), AmbientLightEnergy = .25f, TonemapMode = Godot.Environment.ToneMapper.Aces };
         _stage.AddChild(new WorldEnvironment { Environment = environment });
         var backdrop=new ShaderMaterial {Shader=new Shader {Code=@"shader_type spatial;
 render_mode unshaded,cull_disabled,fog_disabled;
 void fragment(){float halo=exp(-dot((UV-vec2(.48,.56))*vec2(1.4,1.0),(UV-vec2(.48,.56))*vec2(1.4,1.0))*30.0);
 ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         _stage.AddChild(new MeshInstance3D {Mesh=new QuadMesh {Size=new(9,9)},Position=new(0,1.1f,2),MaterialOverride=backdrop,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off});
-        _keyLight=new DirectionalLight3D { RotationDegrees = new Vector3(-32, -38, 0), LightColor = new Color("#f1e5d6"), LightEnergy = .85f,
+        _keyLight=new DirectionalLight3D { RotationDegrees = new Vector3(-32, -38, 0), LightColor = new Color("#f3efe8"), LightEnergy = .72f,
             ShadowEnabled=false,DirectionalShadowMode=DirectionalLight3D.ShadowMode.Orthogonal,DirectionalShadowMaxDistance=6,ShadowBias=.05f,ShadowNormalBias=.2f };
         _stage.AddChild(_keyLight);
         _fillLight=new DirectionalLight3D { RotationDegrees = new Vector3(-8, 70, 0), LightColor = new Color("#c5d3df"), LightEnergy = .42f };_stage.AddChild(_fillLight);
@@ -106,15 +107,16 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         MouseEntered+=()=>Hint(1);MouseExited+=()=>Hint(0);
         SetExpanded(Expanded);
     }
-    private void ZoomBy(float amount){_distance=Math.Clamp(_distance*MathF.Exp(amount),.50f,4.5f);UpdateStudioReadout();Aim();}
+    private void ZoomBy(float amount)=>SetDistance(_distance*MathF.Exp(amount));
     private void SetAngle(float angle)
     {
-        _yaw=angle;_pitch=0;_drag=false;UpdateStudioReadout();
+        SetOrbiting(false);_yaw=angle;_pitch=0;_drag=false;UpdateStudioReadout();
         if(!HudStyle.MotionEnabled&&_resident!=null)_resident.Rotation=new(0,_yaw,0);
     }
     public void ShowResident(long identity, int slot, bool child, JobType job)
     {
         if (identity == _identity && child == _child && job == _job) { return; }
+        SetOrbiting(false);
         _resident?.QueueFree(); _identity = identity; _child = child; _job = job;
         _resident = _models.Resident(slot, child, job); _stage.AddChild(_resident);
         _resident.Rotation = new Vector3(0, IsThumbnail?ThumbnailYaw:_yaw, 0); Aim();
@@ -122,19 +124,19 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
     public bool FinishingGesture=>_resident?.CompletionVisible==true;
     public void ShowCargo(bool hasCargo, SandBoxSim.Core.Environment.ResourceKind resource) => _resident?.ShowCargo(hasCargo,resource);
     public void ShowActivity(ActionKind action,ActionPhase phase,bool paused) { _action=action;_actionPhase=phase;_worldPaused=paused; }
-    internal object EvaluationState()=>new {framing=_framing.ToString().ToLowerInvariant(),yaw=_yaw,pitch=_pitch,distance=_distance,dragging=_drag,lighting=Lighting==0?"soft":"raking",thumbnail=IsThumbnail};
-    internal object InspectionState()=>new {framing=_framing.ToString().ToLowerInvariant(),yaw=_yaw,pitch=_pitch,distance=_distance,dragging=_drag,lighting=Lighting==0?"soft":"raking"};
+    internal object EvaluationState()=>new {framing=_framing.ToString().ToLowerInvariant(),yaw=_yaw,pitch=_pitch,distance=_distance,dragging=_drag,orbiting=_orbiting,lighting=Lighting==0?"soft":"raking",thumbnail=IsThumbnail};
+    internal object InspectionState()=>new {framing=_framing.ToString().ToLowerInvariant(),yaw=_yaw,pitch=_pitch,distance=_distance,dragging=_drag,orbiting=_orbiting,lighting=Lighting==0?"soft":"raking"};
     internal void SetLighting(int mode)
     {
         Lighting=Math.Clamp(mode,0,1);
-        _keyLight.RotationDegrees=Lighting==0?new(-24,-24,0):new(-18,-66,0);
-        _keyLight.LightEnergy=Lighting==0?.95f:1.08f;
-        _fillLight.LightEnergy=Lighting==0?.42f:.20f;_rimLight.LightEnergy=Lighting==0?.32f:.40f;
+        _keyLight.RotationDegrees=Lighting==0?new(-28,-38,0):new(-18,-66,0);
+        _keyLight.LightEnergy=Lighting==0?.76f:.88f;
+        _fillLight.LightEnergy=Lighting==0?.23f:.15f;_rimLight.LightEnergy=Lighting==0?.24f:.30f;
     }
     internal object RenderQualityState()
     {
         var environment=_stage.GetChildren().OfType<WorldEnvironment>().Single().Environment;
-        return new {studio="grouped-inspector-v8",backdrop="natural-radial-v2",thumbnail=IsThumbnail,thumbnailFraming=IsThumbnail?"face":null,lensFov=_camera.Fov,msaa=_viewport.Msaa3D.ToString(),resolution=new[]{_viewport.Size.X,_viewport.Size.Y},
+        return new {studio="continuous-inspector-v9",backdrop="natural-radial-v2",thumbnail=IsThumbnail,thumbnailFraming=IsThumbnail?"face":null,lensFov=_camera.Fov,msaa=_viewport.Msaa3D.ToString(),resolution=new[]{_viewport.Size.X,_viewport.Size.Y},
             background=environment.BackgroundColor.ToHtml(),ambient=environment.AmbientLightColor.ToHtml(),ambientEnergy=environment.AmbientLightEnergy,
             lights=_stage.GetChildren().OfType<DirectionalLight3D>().Select(light=>new {
                 color=light.LightColor.ToHtml(),energy=light.LightEnergy,rotation=new[]{light.RotationDegrees.X,light.RotationDegrees.Y,light.RotationDegrees.Z},shadows=light.ShadowEnabled,
@@ -167,6 +169,7 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
     }
     private void ResetView()
     {
+        SetOrbiting(false);
         _yaw=-.28f;_pitch=0;_drag=false;SetFraming(_framing);
         if(!HudStyle.MotionEnabled&&_resident!=null)_resident.Rotation=new(0,IsThumbnail?ThumbnailYaw:_yaw,0);
         Aim();
@@ -184,6 +187,7 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
     public override void _Process(double delta)
     {
         delta=EvaluationClock.Delta(delta);
+        AdvanceOrbit((float)delta);
         // Mirrors the selected real action; this isolated model never advances the simulation.
         if (IsVisibleInTree() && _resident != null)
         {
@@ -198,7 +202,7 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         if (input is InputEventMouseButton button)
         {
             if(button.ButtonIndex==MouseButton.Left&&button.Pressed&&button.DoubleClick){ResetView();AcceptEvent();return;}
-            if (button.ButtonIndex == MouseButton.Left) { _drag = button.Pressed; }
+            if (button.ButtonIndex == MouseButton.Left) { _drag = button.Pressed;if(button.Pressed)SetOrbiting(false); }
             if (button.Pressed && button.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
             { ZoomBy((button.ButtonIndex == MouseButton.WheelUp ? -1 : 1)*(button.ShiftPressed?.03f:.10f)); }
             AcceptEvent();
@@ -209,7 +213,7 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
     public override void _Input(InputEvent input)
     { if (input is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false } || input is InputEventMouseMotion { ButtonMask: 0 }) { _drag = false; } }
     public override void _Notification(int what)
-    { if (what == NotificationApplicationFocusOut) { _drag = false; } }
+    { if (what == NotificationApplicationFocusOut) { _drag = false;SetOrbiting(false); } }
     public void ValidatePresentation()
     {
         if (_resident == null) { throw new InvalidOperationException("Selected resident has no portrait"); }

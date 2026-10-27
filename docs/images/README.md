@@ -6,6 +6,8 @@
 
 ## 当前配图
 
+人物面部、衣装、动作近景与人物观察窗反映贴合衣身的领口折边及较低主补光；观察窗底部可见连续距离滑条和主动环视入口。动物、建筑、地形和植被图沿用各自最近采样，本轮没有替换其模型；动作 GIF 仍保留先前采样。
+
 | 文件 | 用途与采样入口 |
 |---|---|
 | `world-camera-controls.png` | 按需展开的镜头预设、真实选中反馈与鼠标说明；实际点击“视角与操作” |
@@ -37,7 +39,7 @@
 
 建筑、人物动物、面部、衣装、生态、网格近景、地形远近景、工具库、现场手记、人物手记、镜头面板、展开观察窗及其手部／全身视图更新于 2026-10-27；花甸专题保留 2026-10-26 采样，均为原生 Godot 渲染、1600×1000。镜头面板另检查实际按钮焦点下的空格暂停／继续、Esc 返回和全景平移后的选中反馈。图册使用实际游戏网格、独立展示环境，模拟暂停，等待 120 帧后采样；普通世界预览等待 2 秒。生活／决策／侧光、物资与工具状态由实际命中检查的鼠标事件回放后采样，回放先用空格暂停世界，并核对工具库实际可见、手记收起；缩略入口另检查 Enter 打开、Esc 焦点返回，以及手部背面观察关闭后仍显示面部；改名检查实际键盘保存、取消和换居民丢弃草稿。沉浸图使用 F10 后采样。手部与全身分别来自公开 `ui-portrait-window` 场景第 130／170 帧。界面和普通世界使用种子 839102、40 人，无预先天数推进；花甸预览暂停模拟。
 
-字体策略为 `fontProfile=noto-packaged-v1`。对应 `interface=searchable-residents-v22`、`architecture=inset-joinery-v13`、`animalPresentation=source-paw-contours-v11`、`landscapeSurface=coverage-mosaic-v6`、`habitatDetail=stratified-meadow-v10`、`residentSurface=orbital-gaze-v6`、`vegetationSurface=engine-faced-v2`、`waterSurface=constrained-bank-v6`、`handSurface=anatomical-regions-v1`、`portrait.studio=grouped-inspector-v8`、`wristContour=source-oval-v1` 、`hairline=source-root-v1`、`reedPanicle=connected-axis-v1` 和 `garmentMaterial=articulated-sleeve-linen-v10`。动物半闭眼／全闭眼的强制参数图仅用于本地检查，不替代这里的正常运行配图。
+字体策略为 `fontProfile=noto-packaged-v1`。对应 `interface=continuous-studio-v23`、`architecture=inset-joinery-v13`、`animalPresentation=source-paw-contours-v11`、`landscapeSurface=coverage-mosaic-v6`、`habitatDetail=stratified-meadow-v10`、`residentSurface=orbital-gaze-v6`、`vegetationSurface=engine-faced-v2`、`waterSurface=constrained-bank-v6`、`handSurface=anatomical-regions-v1`、`portrait.studio=continuous-inspector-v9`、`wristContour=source-oval-v1` 、`hairline=source-root-v1`、`reedPanicle=connected-axis-v1` 和 `garmentMaterial=sewn-neckline-linen-v11`。动物半闭眼／全闭眼的强制参数图仅用于本地检查，不替代这里的正常运行配图。
 
 地形远景使用普通世界入口；近景加 `--view=near`。两图用于查看实际扫描草叶地面、山坡、岸线和贴地，属于普通客户端采样，不作为固定帧评测成绩。
 

@@ -269,8 +269,14 @@ def run(args):
     provenance['buildIdentity']=build_identity
     native_code, timed_out, logs = wait_for_engine(command, ROOT, env, args.timeout)
     code = 124 if timed_out else native_code if native_code in (0,1,2) else 2
-    native_log.unlink(missing_ok=True)
     (output / "engine.log").write_bytes(logs)
+    try:
+        native_log.unlink(missing_ok=True)
+    except OSError as exc:
+        # Windows can briefly retain a descendant's file handle after a tree
+        # timeout. Log housekeeping must not erase the real exit code, phase
+        # evidence or artifact validation. Leave this file for later cleanup.
+        provenance.update(nativeLogRetained=str(native_log), nativeLogCleanupError=type(exc).__name__)
     provenance.update(engineExitCode=native_code,exitCode=code,timedOut=timed_out,timeoutSeconds=args.timeout, wallSeconds=time.monotonic() - started, sourceChangedDuringRun=source_hashes() != provenance["sourceFiles"],phaseTimings=phase_timings(logs))
     if provenance["sourceChangedDuringRun"] and code == 0: code = 2
     try:

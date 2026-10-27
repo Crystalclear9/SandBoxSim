@@ -45,6 +45,7 @@ class EvaluationTests(unittest.TestCase):
         def completed_but_running(command, cwd, env, timeout):
             # The engine stand-in has completed every requested artifact but stays alive.
             request = next(arg.split("=", 1)[1] for arg in command if arg.startswith("--evaluation="))
+            Path(command[command.index("--log-file")+1]).write_text("native engine log", encoding="utf-8")
             shutil.copy2(request, output / "request.json")
             for name in ("image.png", "result.json", "questions.json", "answer-key.json"):
                 shutil.copy2(self.folder / name, output / name)
@@ -72,6 +73,16 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(provenance["exitCode"], 124)
         self.assertEqual(provenance["execution"], dict(maxFps=60, resolution="1440x900", disableVsync=True, audioDriver="Dummy", userDataPolicy="external"))
         self.assertEqual(evaluate.validate_artifacts(output)["status"], "completed")
+
+    def test_locked_native_log_preserves_real_timeout_and_phase_evidence(self):
+        with mock.patch.object(Path, "unlink", side_effect=PermissionError("log still held by native process")):
+            self.test_run_real_timeout_with_complete_artifacts_stays_124()
+        output=self.folder / "runner-project/result"
+        provenance=evaluate.read(output / "provenance.json")
+        self.assertEqual(provenance["nativeLogCleanupError"], "PermissionError")
+        retained=Path(provenance["nativeLogRetained"])
+        self.assertEqual(retained.read_text(encoding="utf-8"), "native engine log")
+        self.assertIn("quit_requested", (output / "engine.log").read_text(encoding="utf-8"))
 
     def test_engine_exit_does_not_wait_for_inherited_log_handles(self):
         # A real descendant retains both handles after the engine stand-in exits.

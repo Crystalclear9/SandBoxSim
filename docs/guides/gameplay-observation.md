@@ -20,6 +20,7 @@
 | [NN/g：Progressive Disclosure](https://www.nngroup.com/articles/progressive-disclosure/) | 常用信息直接可见，专门功能按需展开 | 资源与当前选择常驻，镜头预设／操作说明、创造工具、对象观察窗与复杂设置按需打开 |
 | [NN/g：Recognition and Recall](https://www.nngroup.com/articles/recognition-and-recall/)与[Xbox XAG 112](https://learn.microsoft.com/en-us/xbox/accessibility/xbox-accessibility-guidelines/112) | 让对象本身提供可识别入口，导航与返回焦点保持一致 | 整张居民缩略肖像可点击或键盘激活，进入和关闭复用同一视口，不必记忆隐藏的放大路径 |
 | [NN/g：Drop-Down Menus](https://www.nngroup.com/articles/drop-down-menus/)与[Xbox XAG 113：UI navigation](https://learn.microsoft.com/en-us/xbox/accessibility/xbox-accessibility-guidelines/113) | 长选择集提供查找；键盘焦点、确认与返回形成完整路径 | 居民名录支持跨页搜索和显式确认，Esc 收起并返回入口；浏览行时不提前切换人物 |
+| [Microsoft：Sliders](https://learn.microsoft.com/en-us/windows/win32/uxguide/ctrl-sliders)与[Xbox XAG 117：Visual distractions and motion settings](https://learn.microsoft.com/en-us/xbox/accessibility/xbox-accessibility-guidelines/117) | 连续探索提供即时反馈，主动运动可以关闭；前者为旧版桌面指南，采用交互原则 | 人物距离滑条与滚轮、按钮及米制读数联动；环视默认关闭，并响应手动接管、失焦和动效偏好 |
 | [Linear：2026 UI refresh](https://linear.app/changelog/2026-03-12-ui-refresh) | 一致的标题、导航和视图控制；降低侧栏的视觉竞争 | 全局信息集中到顶部；创造、手记、人物观察共用色彩和按钮状态 |
 | [Figma：Our approach to designing UI3](https://www.figma.com/blog/our-approach-to-designing-ui3/) | 控件位置稳定，关键属性直接可见；设计应保留熟悉的操作路径 | 分类与参数保持固定，仅工具列表滚动；工具用途和数值直接显示，不靠悬停才能辨认 |
 | [Figma：Inside the redesigned Figma](https://www.figma.com/blog/behind-our-redesign-ui3/) | 精简底部主工具入口、让主要内容成为中心 | 底部只保留观察、创造、手记三种入口，六种工具分类只在创造面板出现 |
@@ -66,6 +67,10 @@
 展开时键盘焦点进入模型区域；Tab 长按重复、方向键的控件导航均留在窗内，方向键不移动镜头。返回时恢复此前仍可用的控件焦点。关闭柔和界面动效会同时停止肖像操作提示的淡入淡出，并让缩放与旋转立即到达当前目标。
 
 ![展开的人物观察窗](../images/resident-portrait.png)
+
+镜头距离滑条从左侧近距到右侧远距，以对数尺度覆盖 0.5–4.5 米；近景与远景使用相近的相对调节幅度，旁边保留目标距离读数和加减按钮。鼠标拖动即时预览，聚焦滑条后左右键微调、Home／End 到达边界，Tab 继续切换控件；方向键不会在滑条聚焦时被窗口导航抢走。滚轮、按钮、聚焦预设和复位均同步滑条。
+
+点击“环视”后模型缓慢旋转，按钮变为“停止”；这是独立观察视角，即使世界暂停也可以使用。拖动模型、选择角度、复位、换居民、关闭窗口、应用失焦或关闭柔和界面动效会停止环视，重新打开不会自动启动。环视不推进世界或改变居民动作；没有常驻自动播放的装饰运动。
 
 观察窗顶部“居民名录”打开可搜索列表，Ctrl / ⌘ F 直接聚焦；再次使用快捷键保留并全选当前查询。姓名、职业、人生阶段可组合搜索，匹配不区分大小写；每行显示姓名、阶段、职业、年龄及当前／关注状态。每页最多 64 人，搜索始终覆盖所有存活居民，打开时自动定位当前居民所在页。列表在左侧模型区域临时展开，右侧资料保持可读。
 

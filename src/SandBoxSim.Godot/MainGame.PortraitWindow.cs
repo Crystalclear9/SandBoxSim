@@ -51,6 +51,9 @@ public partial class MainGame
         if(_portraitOverlay?.Visible!=true||input is not InputEventKey {Pressed:true} key)return;
         var focused=GetViewport().GuiGetFocusOwner();
         if(focused==null||!_portraitWindow.IsAncestorOf(focused))_residentPortrait.GrabFocus();
+        // A focused slider owns its range/caret keys. Keep Tab in the modal
+        // traversal, but do not replace a distance change with focus movement.
+        if(focused is HSlider&&key.Keycode is Key.Left or Key.Right or Key.Up or Key.Down or Key.Home or Key.End)return;
         if(key.Keycode is not (Key.Tab or Key.Left or Key.Right or Key.Up or Key.Down))return;
         var controls=new System.Collections.Generic.List<Control>();
         void Visit(Node node)
@@ -242,6 +245,7 @@ public partial class MainGame
         if(_residentPortrait.Lighting!=1||!_portraitLighting[1].ButtonPressed||_portraitLighting[0].ButtonPressed)throw new InvalidOperationException("Studio lighting toggle has no visible selected state");
         _portraitLighting[0].EmitSignal(BaseButton.SignalName.Pressed);
         if(GetViewport().GuiGetFocusOwner()!=_residentPortrait)throw new InvalidOperationException("Portrait inherited background keyboard focus");
+        _residentPortrait.ValidateStudioControls();_residentPortrait.GrabFocus();
         if(Sim.Agents.LiveCount>1)
         {
             long original=_selectedPersonId;
