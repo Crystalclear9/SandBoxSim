@@ -209,7 +209,7 @@ internal partial class ResidentRig : Node3D
         {
             Arms[i].Position=ShoulderRest(i);
             float stride=wave*(i==0?1:-1)*_activity;
-            Legs[i].Position=new Vector3(i==0?-.10f:.10f,HipHeight-.094f*Smooth(_pickupBlend),0)+stance.Hip;
+            Legs[i].Position=new Vector3(i==0?-HipHalfWidth:HipHalfWidth,HipHeight-.094f*Smooth(_pickupBlend),0)+stance.Hip;
             Legs[i].Rotation=new(Mathf.Lerp(stride*.44f,.55f,Smooth(_pickupBlend))+stance.Thigh,0,0);
             Knees[i].Rotation=new(Mathf.Lerp(-MathF.Max(0,-stride)*.65f,-1.1f,Smooth(_pickupBlend))+stance.Knee,0,0);
             Feet[i].Rotation=new(-(Legs[i].Rotation.X+Knees[i].Rotation.X),0,0);

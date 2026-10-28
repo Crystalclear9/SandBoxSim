@@ -8,6 +8,17 @@ namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
     private int _garmentCut;
+    private float BeltRise=>BodyFrame==1?.17f:0;
+    private Vector4[] TrouserProfile()
+    {
+        var profile=new[]{new Vector4(-.01f,0,.064f,.059f),new(.04f,.004f,.074f,.066f),new(.10f,.004f,.076f,.068f),new(.17f,.001f,.069f,.060f),new(.23f,-.002f,.061f,.055f),new(.28f,-.004f,.055f,.052f),new(.33f,-.004f,.050f,.048f)};
+        if(BodyFrame==1)for(int i=0;i<profile.Length;i++)
+        {
+            float weight=1-Mathf.SmoothStep(.04f,.29f,profile[i].X);
+            profile[i].Z*=1+.11f*weight;profile[i].W*=1+.05f*weight;
+        }
+        return profile;
+    }
     private const float PlacketBottom=1.03f,PlacketTop=1.267f;
     private float GarmentBottom=>_garmentCut==1?.63f:_garmentCut==2?.535f:.60f;
     private void SelectGarmentCut(int cut)
@@ -185,8 +196,8 @@ internal sealed partial class NatureModels
             Sculpt(rig.Torso,SewnButton(),anchor,ResidentMaterial("#514237"));
             FineBeam(rig.Torso,anchor+new Vector3(-.0014f,-.0010f,-.0038f),anchor+new Vector3(.0014f,.0010f,-.0038f),.00055f,"#a09380");
         }
-        Sculpt(rig.Torso, FittedRibbon("belt", .748f, .775f), Vector3.Zero, ResidentMaterial("#514237"));
-        var buckle=TorsoSurface(.015f,.7615f,false,.009f);
+        Sculpt(rig.Torso, FittedRibbon("belt", .748f+BeltRise, .775f+BeltRise), Vector3.Zero, ResidentMaterial("#514237"));
+        var buckle=TorsoSurface(.015f,.7615f+BeltRise,false,.009f);
         var buckleCorners=new[]{buckle+new Vector3(-.0205f,-.0155f,0),buckle+new Vector3(.0205f,-.0155f,0),buckle+new Vector3(.0205f,.0155f,0),buckle+new Vector3(-.0205f,.0155f,0)};
         for(int edge=0;edge<4;edge++)FineBeam(rig.Torso,buckleCorners[edge],buckleCorners[(edge+1)%4],.004f,"#b8a17b");
         FineBeam(rig.Torso,buckle+new Vector3(-.006f,0,-.002f),buckle+new Vector3(.0205f,0,-.002f),.003f,"#b8a17b");
@@ -232,7 +243,7 @@ internal sealed partial class NatureModels
             rig.HandProxies[i]=new MeshInstance3D {Name="DistantFingers",Mesh=rig.HandOpen[i],Visible=false};hand.AddChild(rig.HandProxies[i]);
             Sculpt(arm,RolledCuff(),Vector3.Zero,CollarMaterial(cloth));
             var leg = rig.Legs[i] = new Node3D { Name = i == 0 ? "LeftLeg" : "RightLeg", Position = new Vector3(side * .10f, .67f, 0) }; rig.AddChild(leg);
-            Sculpt(leg,Loft("resident-trouser",new[]{new Vector4(-.01f,0,.064f,.059f),new(.04f,.004f,.074f,.066f),new(.10f,.004f,.076f,.068f),new(.17f,.001f,.069f,.060f),new(.23f,-.002f,.061f,.055f),new(.28f,-.004f,.055f,.052f),new(.33f,-.004f,.050f,.048f)}),Vector3.Zero,ResidentMaterial("#645e53"),new(MathF.PI/2,0,0));
+            Sculpt(leg,Loft("resident-trouser:"+BodyFrame,TrouserProfile()),Vector3.Zero,ResidentMaterial("#645e53"),new(MathF.PI/2,0,0));
             var knee = rig.Knees[i] = new Node3D { Name = "Knee", Position = new Vector3(0, -.31f, 0) }; leg.AddChild(knee);
             Sculpt(knee,Loft("resident-boot",new[]{new Vector4(0,0,.047f,.044f),new(.035f,0,.052f,.048f),new(.085f,-.002f,.057f,.052f),new(.15f,-.005f,.052f,.048f),new(.21f,-.010f,.045f,.045f),new(.25f,-.015f,.043f,.044f),new(.28f,-.012f,.047f,.048f)}),Vector3.Zero,LeatherSurface("#514237"),new(MathF.PI/2,0,0));
             Sculpt(knee,TurnedBootRim(),Vector3.Zero,LeatherSurface("#514237"));

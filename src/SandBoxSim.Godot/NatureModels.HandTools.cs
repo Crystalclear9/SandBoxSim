@@ -21,8 +21,8 @@ ROUGHNESS=.64;SPECULAR=.24;
     private void AddHandTools(ResidentRig rig,JobType job)
     {
         rig.Grip=new Node3D {Name="HandGrip",Position=new(0,-.035f,-.0286f),Rotation=new(0,0,MathF.PI/2)};rig.Hands[1].AddChild(rig.Grip);
-        rig.Holster=new Node3D {Name="BeltToolLoop",Position=TorsoSurface(.145f,.79f,false)+new Vector3(0,0,-.022f),Rotation=new(0,0,.65f)};rig.Torso.AddChild(rig.Holster);
-        if(!rig.IsChild)
+        rig.Holster=new Node3D {Name="BeltToolLoop",Position=TorsoSurface(.145f,.79f+BeltRise,false)+new Vector3(0,0,-.022f),Rotation=new(0,0,.65f)};rig.Torso.AddChild(rig.Holster);
+        if(!rig.IsChild&&job!=JobType.None)
         {
             // Two closed leather loops surround the shaft. The supporting strap
             // reaches the belt; it is no longer a solid block behind empty air.
@@ -34,7 +34,7 @@ ROUGHNESS=.64;SPECULAR=.24;
             }
             foreach(float y in new[]{-.045f,.045f})
             {
-                var start=TorsoSurface(.145f,.79f+y,false);var end=mount*new Vector3(0,y,.018f);var direction=end-start;
+                var start=TorsoSurface(.145f,.79f+BeltRise+y,false);var end=mount*new Vector3(0,y,.018f);var direction=end-start;
                 var strap=Detail(rig.Torso,"masonry",(start+end)*.5f,new(.025f,direction.Length(),.004f),"#514237");
                 strap.Quaternion=new Quaternion(Vector3.Up,direction.Normalized());
             }

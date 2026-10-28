@@ -14,6 +14,26 @@ NAMES = ('human-head', 'human-scan', 'human-feminine')
 
 
 class HumanAssetTests(unittest.TestCase):
+    def test_complete_trunk_sources_and_shape_sections(self):
+        expected=('27836b278e247921af480fca63edca7c4d65f11655cb1272a19fb3909e43821c',
+                  '0868f6499f700995e3fb0eaea1ed7aea623406fbbfa5486b38a35e5d74d3fcad')
+        sources=json.loads((ROOT/'head-sources.json').read_text())['files']
+        frames=[]
+        for frame,digest in zip(('masculine','feminine'),expected):
+            raw=(ROOT/f'trunk-{frame}-cage.json').read_bytes().replace(b'\r\n',b'\n')
+            self.assertEqual(hashlib.sha256(raw).hexdigest(),digest)
+            data=json.loads(raw);frames.append(data)
+            self.assertEqual((data['low'],data['high'],data['rows'],data['columns']),(.74,1.30,113,128))
+            self.assertEqual(data['region'],'trunk-plane-sections')
+            self.assertEqual(len(data['radii']),113*128)
+            self.assertTrue(all(math.isfinite(x) and .025<x<.34 for x in data['radii']))
+            for name,sha in data['sourceSha256'].items():self.assertEqual(sha,sources[name]['sha256'])
+        def width(data,y):
+            row=round((y-.74)/.005);return data['radii'][row*128]+data['radii'][row*128+64]
+        male,female=frames
+        self.assertLess(width(female,1.04)/width(female,.82),width(male,1.04)/width(male,.82)-.15)
+        self.assertGreater(width(female,.82),width(male,.82)+.02)
+
     def test_feminine_torso_support_and_provenance(self):
         raw=(ROOT/'torso-feminine-cage.json').read_bytes().replace(b'\r\n',b'\n')
         self.assertEqual(hashlib.sha256(raw).hexdigest(),'043ce8aff6766d2691d3c58c2c2baa2d110fb041cf91d41f4001986dc3617181')

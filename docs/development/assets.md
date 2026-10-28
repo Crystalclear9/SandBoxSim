@@ -28,7 +28,7 @@
 | [0 A.D. 美术许可](https://github.com/0ad/0ad/blob/61a3b9507d974084e6badb88a0826bd89a6d5b8b/binaries/data/mods/public/art/LICENSE.txt) | 美术按 CC BY-SA 3.0 提供；已采用狼网格和灰狼贴图，保留来源提交、署名及衍生资产同许可 |
 | [Poly Haven](https://polyhaven.com/license) | CC0 模型、HDRI 与贴图可再分发；已有六种环境模型与扫描表面继续使用，采用 Leafy Grass 地表，校准岩石反光与地表混合 |
 | [ambientCG](https://docs.ambientcg.com/license/) | 资产 CC0，可作为材质来源；当前已有扫描表面覆盖所需材料，本轮未再下载重复贴图 |
-| MakeHuman / Blender Studio | 已采用的人体拓扑、皮肤、头发及手臂分别记录在[人物素材](human-assets.md)，继续保留；当前衣领按人体留出开口，调整衣装贴合及皮肤反光 |
+| MakeHuman / Blender Studio | 已采用的人体拓扑、皮肤、头发、手臂及胸廓／腰背／骨盆支撑截面分别记录在[人物素材](human-assets.md)，继续保留；当前衣领按人体留出开口，调整衣装贴合及皮肤反光 |
 | [Sketchfab Download API](https://sketchfab.com/developers/download-api/guidelines) | 有候选写实动物，但下载及逐模型许可需按平台授权流程核对；未绕过账号流程下载 |
 | [BlendSwap wolf fur](https://blendswap.com/blend/13997) | 具体候选标注 CC BY-SA，约 21.6 MB，使用 Blender 2.7 粒子毛发；下载有账号流程，粒子表现不能直接代替 Godot 运行网格，未导入 |
 | [Open Wolf](https://opengameart.org/content/open-wolf) | 静态网格，标注 LGPL 2.1 / 3.0；缺少直接替换所需的骨架与近景优势，未采用 |

@@ -28,6 +28,13 @@ torso-feminine-cage.json is a derived radial cloth-support envelope of the
 same MakeHuman CC0 HM08 base with caucasian-female-young.target. Input hashes,
 sampling coordinates and reference scales are embedded in that asset.
 
+trunk-masculine-cage.json and trunk-feminine-cage.json extend that CC0 recipe
+to 113 x 128 thorax, lumbar and pelvic samples (0.74-1.30 client metres).
+Plane intersections of the source body are convexly bridged for clothing,
+including the gap between upper thighs; A-pose arms are excluded laterally.
+Both files record verified inputs, scales and the sampling recipe. Runtime
+cloth ease and body fitting are SandBoxSim artistic modifications.
+
 Exact input filenames, URLs, sizes and SHA-256 are in head-sources.json.
 Each runtime JSON also records the inputs actually used for that variant and
 the checksums of its skin, hair and eye texture atlases.

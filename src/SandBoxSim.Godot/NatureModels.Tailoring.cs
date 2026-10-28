@@ -114,7 +114,7 @@ internal sealed partial class NatureModels
     }
     private void AddResidentTailoring(ResidentRig rig,string cloth,string skin,JobType job)
     {
-        Detail(rig.Torso,"box",TorsoSurface(.021f,.737f,false,.006f),new(.033f,.075f,.012f),"#514237");
+        Detail(rig.Torso,"box",TorsoSurface(.021f,.737f+BeltRise,false,.006f),new(.033f,.075f,.012f),"#514237");
         // Short stitches follow the actual folded surface instead of spanning
         // the chest as two loose, contrasting cords.
         string thread="#"+new Color(cloth).Darkened(.14f).ToHtml(false);

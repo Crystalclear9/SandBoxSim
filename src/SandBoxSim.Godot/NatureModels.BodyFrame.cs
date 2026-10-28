@@ -6,16 +6,20 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
-    private float[]? _frameMale,_frameFeminine,_frameRatios;
+    private float[]? _trunkMale,_trunkFeminine;
+    private readonly float[][] _garmentFrameReference=new float[3][];
+    private const int TrunkRows=113,TrunkColumns=128;
+    private const float TrunkLow=.74f,TrunkHigh=1.30f;
     private static float[] FrameRadii(string file,string expected)
     {
         string raw=FileAccess.GetFileAsString("res://assets/models/human/"+file).Replace("\r\n","\n",StringComparison.Ordinal);
         string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
         if(hash!=expected)throw new InvalidOperationException("Changed body frame support: "+file);
         using var doc=JsonDocument.Parse(raw);var root=doc.RootElement;
-        if(root.GetProperty("schemaVersion").GetInt32()!=1||root.GetProperty("rows").GetInt32()!=65||root.GetProperty("columns").GetInt32()!=128)
+        if(root.GetProperty("schemaVersion").GetInt32()!=1||root.GetProperty("rows").GetInt32()!=TrunkRows||root.GetProperty("columns").GetInt32()!=TrunkColumns)
             throw new InvalidOperationException("Invalid body frame grid");
-        var radii=new float[65*128];int i=0;
+        if(root.GetProperty("low").GetSingle()!=TrunkLow||root.GetProperty("high").GetSingle()!=TrunkHigh)throw new InvalidOperationException("Invalid trunk sample bounds");
+        var radii=new float[TrunkRows*TrunkColumns];int i=0;
         foreach(var value in root.GetProperty("radii").EnumerateArray())
         {
             float r=value.GetSingle();
@@ -25,56 +29,56 @@ internal sealed partial class NatureModels
         if(i!=radii.Length)throw new InvalidOperationException("Incomplete body frame support");
         return radii;
     }
-    private Vector3 FramePoint(Vector3 point)
+    private static float TrunkSample(float[] data,float y,float angle)
     {
-        if(BodyFrame==0)
+        float row=Math.Clamp((y-TrunkLow)/.005f,0,TrunkRows-1),column=Mathf.PosMod(angle,Mathf.Tau)/Mathf.Tau*TrunkColumns;
+        int r=Math.Min(TrunkRows-2,(int)row),c=(int)column;float u=column-c,v=row-r;
+        float At(int h)=>Mathf.Lerp(data[h*TrunkColumns+c],data[h*TrunkColumns+(c+1)%TrunkColumns],u);
+        return Mathf.Lerp(At(r),At(r+1),v);
+    }
+    private float[] GarmentFrameReference()
+    {
+        if(_garmentFrameReference[_garmentCut]!=null)return _garmentFrameReference[_garmentCut];
+        var samples=new float[TrunkRows*TrunkColumns];
+        for(int row=0;row<TrunkRows;row++)for(int col=0;col<TrunkColumns;col++)
         {
-            // A loose male shirt bridges the pectoral surface instead of
-            // embossing the convex source support as two rounded bulges.
-            float front=1-Mathf.SmoothStep(-.045f,-.005f,point.Z);
-            float centre=1-Mathf.SmoothStep(.10f,.17f,MathF.Abs(point.X));
-            float chestDrape=MathF.Exp(-MathF.Pow((point.Y-1.145f)/.075f,2));
-            return point+Vector3.Back*(.009f*front*centre*chestDrape);
+            float y=TrunkLow+row*.005f;
+            float fraction=Math.Clamp((ResidentRig.SourceBodyY(y)-GarmentBottom)/(1.28f-GarmentBottom),0,1);
+            var p=GarmentPoint(fraction,col*Mathf.Tau/TrunkColumns);
+            samples[row*TrunkColumns+col]=new Vector2(p.X,p.Z).Length();
         }
-        float chest=Mathf.SmoothStep(1.02f,1.12f,point.Y)*(1-Mathf.SmoothStep(1.255f,1.30f,point.Y));
-        float inboard=1-Mathf.SmoothStep(.13f,.195f,MathF.Abs(point.X));
-        float ratio=1;
-        if(chest*inboard>0&&point.X*point.X+point.Z*point.Z>.0001f)
+        return _garmentFrameReference[_garmentCut]=samples;
+    }
+    private Vector3 FramePoint(Vector3 point,float sleeve=0)
+    {
+        bool feminine=BodyFrame==1;
+        float active=Mathf.SmoothStep(.735f,.785f,point.Y)*(1-Mathf.SmoothStep(1.19f,1.27f,point.Y));
+        var fitted=point;
+        if(active>0&&point.X*point.X+point.Z*point.Z>.00001f)
         {
-            _frameMale??=FrameRadii("torso-cage.json","ecd8b6f42e68931caae38d48a76758f5b071b8c556ccaed0d5b58c92aa67d1db");
-            _frameFeminine??=FrameRadii("torso-feminine-cage.json","043ce8aff6766d2691d3c58c2c2baa2d110fb041cf91d41f4001986dc3617181");
-            if(_frameRatios==null)
+            _trunkMale??=FrameRadii("trunk-masculine-cage.json","27836b278e247921af480fca63edca7c4d65f11655cb1272a19fb3909e43821c");
+            _trunkFeminine??=FrameRadii("trunk-feminine-cage.json","0868f6499f700995e3fb0eaea1ed7aea623406fbbfa5486b38a35e5d74d3fcad");
+            float angle=MathF.Atan2(point.Z,point.X),front=MathF.Max(0,-MathF.Sin(angle));
+            // Fit the source skin's complete thorax/lumbar/pelvic envelope.
+            // Millimetre-scale ease bridges the skin, rather than shrinking
+            // every body part with one sex-dependent actor scale.
+            float target=TrunkSample(feminine?_trunkFeminine:_trunkMale,point.Y,angle)+.009f;
+            target+=.004f*MathF.Exp(-MathF.Pow((point.Y-1.01f)/.10f,2));
+            if(feminine)
             {
-                // Cloth bridges local source hollows. Filter the ratio field
-                // before fitting, rather than embossing small body features.
-                var raw=new float[65*128];for(int i=0;i<raw.Length;i++)raw[i]=Math.Clamp(_frameFeminine[i]/_frameMale[i],.78f,1.20f);
-                _frameRatios=new float[raw.Length];
-                for(int rowIndex=0;rowIndex<65;rowIndex++)for(int column=0;column<128;column++)
-                {
-                    float sum=0;int count=0;
-                    for(int dy=-2;dy<=2;dy++)for(int dx=-3;dx<=3;dx++)
-                    {sum+=raw[Math.Clamp(rowIndex+dy,0,64)*128+(column+dx+128)%128];count++;}
-                    _frameRatios[rowIndex*128+column]=sum/count;
-                }
+                // A broad woven-cloth bust envelope bridges the sternum. It
+                // does not add separate spherical breasts or surface nipples.
+                target+=.024f*front*front*MathF.Exp(-MathF.Pow((point.Y-1.135f)/.065f,2));
+                target+=.006f*(1-front*.5f)*MathF.Exp(-MathF.Pow((point.Y-.815f)/.08f,2));
             }
-            float row=Math.Clamp((point.Y-1.02f)/.005f,0,64),col=Mathf.PosMod(MathF.Atan2(point.Z,point.X),MathF.Tau)/MathF.Tau*128;
-            int r=Math.Min(63,(int)row),c=(int)col%128;float u=col-MathF.Floor(col),v=row-r;
-            float Radius(float[] data)=>Mathf.Lerp(Mathf.Lerp(data[r*128+c],data[r*128+(c+1)%128],u),Mathf.Lerp(data[(r+1)*128+c],data[(r+1)*128+(c+1)%128],u),v);
-            ratio=Mathf.Lerp(1,Radius(_frameRatios),chest*inboard);
+            float ratio=Math.Clamp(target/TrunkSample(GarmentFrameReference(),point.Y,angle),.65f,1.35f);
+            ratio=Mathf.Lerp(1,ratio,active);fitted=new(point.X*ratio,point.Y,point.Z*ratio);
         }
-        // Restrained clothed waist/hip silhouette; arm roots and leg lengths
-        // stay fixed. This is a presentation fit, not a demographic classifier.
-        // The iliac/upper-thigh volume must survive the outer actor scale.
-        // The old uniform narrowing also narrowed the pelvis, erasing the
-        // shoulder-to-hip distinction in the clothed silhouette.
-        float hip=MathF.Exp(-MathF.Pow((point.Y-.86f)/.11f,2));
-        float waist=MathF.Exp(-MathF.Pow((point.Y-1.00f)/.085f,2));
-        float limb=Mathf.SmoothStep(.135f,.185f,MathF.Abs(point.X))*Mathf.SmoothStep(.88f,.96f,point.Y);
-        float lateral=1+(.20f*hip-.085f*waist)*(1-limb);
-        float shoulder=1-.12f*MathF.Max(limb,Mathf.SmoothStep(1.12f,1.22f,point.Y));
-        float sideChest=1-.045f*MathF.Exp(-MathF.Pow((point.Y-1.12f)/.09f,2))*(1-limb);
-        float depth=1+(.055f*hip-.065f*waist)*(1-limb);
-        return new(point.X*Mathf.Lerp(1,ratio,.65f)*lateral*shoulder*sideChest,point.Y,point.Z*ratio*depth);
+        // The arm root, sewn sleeve and inverse bind use the same lateral
+        // fit. Authored pattern coordinates keep trunk fitting off the cuffs.
+        float upper=MathF.Max(sleeve,Mathf.SmoothStep(1.19f,1.27f,point.Y));
+        var sleevePoint=new Vector3(point.X*(feminine?.88f:1),point.Y,point.Z);
+        return fitted.Lerp(sleevePoint,upper);
     }
     private Mesh FrameMesh(Mesh source,Transform3D space)
     {
@@ -84,15 +88,24 @@ internal sealed partial class NatureModels
         for(int s=0;s<source.GetSurfaceCount();s++)
         {
             var arrays=source.SurfaceGetArrays(s);var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
+            var pattern=arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
             for(int i=0;i<points.Length;i++)
             {
                 var p=space*points[i];const float h=.0001f;
-                var dx=(FramePoint(p+Vector3.Right*h)-FramePoint(p-Vector3.Right*h))/(2*h);
-                var dy=(FramePoint(p+Vector3.Up*h)-FramePoint(p-Vector3.Up*h))/(2*h);
-                var dz=(FramePoint(p+Vector3.Back*h)-FramePoint(p-Vector3.Back*h))/(2*h);
+                float along=pattern.Length==points.Length?pattern[i].X:-1;
+                // Source pattern metres distinguish sleeves from a torso at
+                // the same XYZ neighbourhood. Include d(along)/dY in normals;
+                // a spatial X mask compresses the axilla and can fold it.
+                Vector3 Fit(Vector3 sample)=>FramePoint(sample,along>=0?Mathf.SmoothStep(0,.06f,along-(sample.Y-p.Y)):0);
+                var dx=(Fit(p+Vector3.Right*h)-Fit(p-Vector3.Right*h))/(2*h);
+                var dy=(Fit(p+Vector3.Up*h)-Fit(p-Vector3.Up*h))/(2*h);
+                var dz=(Fit(p+Vector3.Back*h)-Fit(p-Vector3.Back*h))/(2*h);
+                var jacobian=new Basis(dx,dy,dz);
+                if(!float.IsFinite(jacobian.Determinant())||jacobian.Determinant()<=.15f)
+                    throw new InvalidOperationException($"Trunk fit folds the garment or limb surface: frame={BodyFrame}, cut={_garmentCut}, p={p}, determinant={jacobian.Determinant()}");
                 var normal=space.Basis.Inverse().Transposed()*normals[i];
-                normals[i]=(space.Basis.Transposed()*(new Basis(dx,dy,dz).Inverse().Transposed()*normal)).Normalized();
-                points[i]=inverse*FramePoint(p);
+                normals[i]=(space.Basis.Transposed()*(jacobian.Inverse().Transposed()*normal)).Normalized();
+                points[i]=inverse*Fit(p);
                 if(!points[i].IsFinite()||!normals[i].IsFinite())throw new InvalidOperationException("Invalid frame geometry");
             }
             arrays[(int)Mesh.ArrayType.Vertex]=points;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.Tangent]=default(Variant);
@@ -130,6 +143,8 @@ internal sealed partial class NatureModels
         rig.DetailedBodyMesh=rig.BodySkin.Mesh;
         rig.DistantBodyMesh=FrameMesh(rig.DistantBodyMesh,Transform3D.Identity);
         if(BodyFrame==0)return;
+        rig.HipHalfWidth=.112f;
+        for(int side=0;side<2;side++)rig.Legs[side].Position=new(side==0?-rig.HipHalfWidth:rig.HipHalfWidth,ResidentRig.HipHeight,0);
         // The fitted sleeve vertices, joint rest and inverse bind must move
         // together. Scaling the mesh alone leaves a male-width moving rig.
         rig.ShoulderHalfWidth=.202f*.88f;
@@ -150,6 +165,8 @@ internal sealed partial class NatureModels
         try
         {
             ValidateAdultContourSections(male,female);
+            if(female.HipHalfWidth<male.HipHalfWidth+.01f||female.Holster.Position.Y<male.Holster.Position.Y+.10f)
+                throw new InvalidOperationException("Adult pelvis span or waist-mounted tool retains the common position");
             if(male.DetailedBodyMesh==female.DetailedBodyMesh||male.DistantBodyMesh==female.DistantBodyMesh)
                 throw new InvalidOperationException("Adult frames share their fitted body cache");
             if(female.ShoulderHalfWidth>=male.ShoulderHalfWidth-.01f||female.DetailedBodySkin==male.DetailedBodySkin)
@@ -259,6 +276,26 @@ internal sealed partial class NatureModels
                 throw new InvalidOperationException($"Adult silhouette difference lost in {(distant?"distant":"near")} mesh: hip {femaleHip/maleHip:F3}, waist/hip {maleWaist/maleHip:F3}/{femaleWaist/femaleHip:F3}, shoulder/hip {maleShoulder/maleHip:F3}/{femaleShoulder/femaleHip:F3}");
             GD.Print($"ADULT_CONTOUR_SECTION: {(distant?"far":"near")} shoulder/hip={maleShoulder/maleHip:F3}/{femaleShoulder/femaleHip:F3}, waist/hip={maleWaist/maleHip:F3}/{femaleWaist/femaleHip:F3}, hip width={maleHip:F3}/{femaleHip:F3} m");
         }
+        float Front(Mesh mesh,float y)
+        {
+            var a=mesh.SurfaceGetArrays(0);var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();var ids=a[(int)Mesh.ArrayType.Index].AsInt32Array();
+            float front=float.PositiveInfinity;
+            for(int i=0;i<ids.Length;i+=3)
+            {
+                var x=p[ids[i]];var b=p[ids[i+1]];var c=p[ids[i+2]];
+                var ab=new Vector2(b.X-x.X,b.Y-x.Y);var ac=new Vector2(c.X-x.X,c.Y-x.Y);float determinant=ab.Cross(ac);
+                if(MathF.Abs(determinant)<1e-10f)continue;
+                var hit=new Vector2(-x.X,y-x.Y);float v=hit.Cross(ac)/determinant,w=ab.Cross(hit)/determinant;
+                if(v>=0&&w>=0&&v+w<=1)front=MathF.Min(front,x.Z*(1-v-w)+b.Z*v+c.Z*w);
+            }
+            if(!float.IsFinite(front))throw new InvalidOperationException("Missing final garment profile sample");
+            return front;
+        }
+        float maleProjection=Front(male.DetailedBodyMesh,1.00f)-Front(male.DetailedBodyMesh,1.135f);
+        float femaleProjection=Front(female.DetailedBodyMesh,1.00f)-Front(female.DetailedBodyMesh,1.135f);
+        if(femaleProjection<maleProjection+.012f||femaleProjection>.065f)
+            throw new InvalidOperationException($"Clothed trunk profiles collapse to one shape: {maleProjection:F4}/{femaleProjection:F4} m");
+        GD.Print($"TRUNK_PROFILE_PASS: final chest-to-waist projection={maleProjection:F4}/{femaleProjection:F4} m, fitted waist/tool mounts and distinct pelvis span");
         // All eight adult identities use the same smooth mapping for normals
         // and attached facial parts. Test local invertibility across the actual
         // authored skin, rather than only checking a few designed landmarks.

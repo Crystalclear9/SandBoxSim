@@ -56,10 +56,10 @@ internal partial class ModelGallery : PanelContainer
         }
         else if(Collection=="body-frames")
         {
-            grid.Columns=2;body.GetChild<Label>(0).Text="成人体型 · 男性与女性外观的同视角比较";
-            for(int view=0;view<2;view++)for(int frame=0;frame<2;frame++)
-                Closeup(grid,(frame==0?"男性外观":"女性外观")+(view==0?" · 正面":" · 侧面"),
-                    models.Resident(frame==0?17:55,false,JobType.Gatherer),1.30f,new(0,1.07f,0),view==0?new(.05f,.04f,4):new(4,.04f,.2f),true);
+            grid.Columns=3;body.GetChild<Label>(0).Text="成人身材 · 同衣色、同光照的全身三视图";
+            for(int frame=0;frame<2;frame++)for(int view=0;view<3;view++)
+                Closeup(grid,(frame==0?"男性外观":"女性外观")+(view==0?" · 正面":view==1?" · 侧面":" · 背面"),
+                    models.Resident(frame==0?17:55,false,JobType.None),1.80f,new(0,.82f,0),view==0?new(.05f,.04f,4):view==1?new(4,.04f,.2f):new(.05f,.04f,-4),true);
         }
         else if(Collection=="forearm-frames")
         {

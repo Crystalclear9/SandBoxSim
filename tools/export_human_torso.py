@@ -16,6 +16,8 @@ parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--source',required=True)
 parser.add_argument('--output',required=True)
 parser.add_argument('--frame',choices=['male','female'],default='male')
+parser.add_argument('--region',choices=['chest','trunk'],default='chest',
+                    help='Trunk includes pelvis, lumbar waist and thorax; chest preserves the original export contract.')
 args=parser.parse_args(sys.argv[sys.argv.index('--')+1:])
 root=Path(args.source)
 expected={'base.obj':'8e761e6624b8f54536409135d1636da63b32486a90d4897f84e121d144f6fb4c',
@@ -46,9 +48,9 @@ if args.frame=='female':
     reference=sum((base[i] for i in ids),Vector())/len(ids)
 mapped=[Vector((p.x*.202/reference.x,1.23+(p.y-shoulder.y)*.09,-(p.z-shoulder.z)*.1)) for p in points]
 bvh=BVHTree.FromPolygons(mapped,faces,all_triangles=False)
-low,high,rows,columns=1.02,1.34,65,128
-radii=[]
-for row in range(rows):
+low,high,rows,columns=(.74,1.30,113,128) if args.region=='trunk' else (1.02,1.34,65,128)
+radii=[0.]*(rows*columns) if args.region=='trunk' else []
+for row in range(rows) if args.region=='chest' else []:
     y=low+(high-low)*row/(rows-1)
     for col in range(columns):
         angle=col*math.tau/columns;direction=Vector((math.cos(angle),0,math.sin(angle)))
@@ -64,7 +66,23 @@ for row in range(rows):
 def cross(a,b):return a[0]*b[1]-a[1]*b[0]
 def sub(a,b):return (a[0]-b[0],a[1]-b[1])
 for row in range(rows):
-    section=sorted((radii[row*columns+c]*math.cos(c*math.tau/columns),radii[row*columns+c]*math.sin(c*math.tau/columns)) for c in range(columns))
+    if args.region=='trunk':
+        # Below the crotch a centre ray hits the inner thigh, or starts outside
+        # the body. Intersect the actual skin with a plane, then bridge the two
+        # thighs with cloth's convex section. Exclude the A-pose arms laterally.
+        y=low+(high-low)*row/(rows-1)
+        lateral=.23-(.23-.185)*min(1.,max(0.,(y-1.03)/.06))
+        section=[]
+        for face in faces:
+            for ia,ib in zip(face,face[1:]+face[:1]):
+                a,b=mapped[ia],mapped[ib]
+                if (a.y-y)*(b.y-y)>0 or abs(b.y-a.y)<1e-9:continue
+                hit=a.lerp(b,(y-a.y)/(b.y-a.y))
+                if abs(hit.x)<=lateral:section.append((hit.x,hit.z))
+        section=sorted(set(section))
+        if len(section)<16:raise ValueError(f'Incomplete trunk section: {row}')
+    else:
+        section=sorted((radii[row*columns+c]*math.cos(c*math.tau/columns),radii[row*columns+c]*math.sin(c*math.tau/columns)) for c in range(columns))
     def half(values):
         hull=[]
         for p in values:
@@ -86,10 +104,12 @@ for _ in range(4):
     old=radii
     radii=[sum(old[min(rows-1,max(0,r+dr))*columns+(c+dc)%columns]*weight for dr,dc,weight in ((0,0,.4),(-1,0,.15),(1,0,.15),(0,-1,.15),(0,1,.15))) for r in range(rows) for c in range(columns)]
 radii=[round(v,7) for v in radii]
+if not all(math.isfinite(v) and .025<v<.34 for v in radii):raise ValueError('Invalid smoothed support section')
 result={'schemaVersion':1,'source':f'MakeHuman CC0 body; {args.frame} young macro, existing source bundle',
         'sourceSha256':expected,'low':low,'high':high,'rows':rows,'columns':columns,
         'shoulder':[.202,1.23,0],'armholeHalfWidth':.185,'sourceShoulder':[round(v,7) for v in shoulder],
         'scale':[round(.202/reference.x,7),.09,.1],'clothEnvelope':'convex-sections-four-pass-filter','radii':radii}
+if args.region=='trunk':result['region']='trunk-plane-sections'
 output=Path(args.output);output.parent.mkdir(parents=True,exist_ok=True)
 output.write_text(json.dumps(result,separators=(',',':'))+'\n',encoding='utf-8',newline='\n')
 print('TORSO_CAGE_EXPORTED',len(faces),'source faces;',len(radii),'radial samples;',hashlib.sha256(output.read_bytes()).hexdigest())

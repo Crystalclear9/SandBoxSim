@@ -49,7 +49,7 @@ internal sealed partial class NatureModels
     }
     private Mesh FittedRibbon(string key,float bottom,float top,bool back=false)
     {
-        string cache="fitted:"+key+":"+_garmentCut;
+        string cache="fitted:"+key+":"+_garmentCut+":"+bottom+":"+top+":"+back;
         if (_meshes.TryGetValue(cache,out var mesh)) return mesh;
         var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);surface.SetSmoothGroup(0);
         if(key=="belt")
