@@ -15,7 +15,7 @@ class GarmentPatternTests(unittest.TestCase):
         for name,digest in manifest['sha256'].items():
             with self.subTest(cut=name):
                 raw=(ROOT/name).read_bytes();self.assertEqual(hashlib.sha256(raw).hexdigest(),digest)
-                d=json.loads(raw);self.assertEqual(d['construction'],'anatomical-yoke-v6')
+                d=json.loads(raw);self.assertEqual(d['construction'],'relaxed-yoke-v7')
                 points=list(zip(*[iter(d['positions'])]*3));ids=d['indices']
                 self.assertLessEqual(len(ids)//3,10000)
                 self.assertEqual(set(ids),set(range(len(points))))

@@ -35,7 +35,7 @@ internal sealed partial class NatureModels
     private Vector3 AnatomicalGarmentPoint(Vector3 original,float angle,float fold)
     {
         float y=ResidentRig.BodyY(original.Y);
-        float blend=Mathf.SmoothStep(1.04f,1.115f,y)*(1-Mathf.SmoothStep(1.285f,1.315f,y));
+        float blend=Mathf.SmoothStep(.98f,1.09f,y)*(1-Mathf.SmoothStep(1.285f,1.315f,y));
         if(blend==0)return original;
         if(_torsoRadii==null)
         {
@@ -56,7 +56,10 @@ internal sealed partial class NatureModels
         float row=Math.Clamp((y-1.02f)/.005f,0,64),column=Mathf.PosMod(angle,MathF.Tau)/MathF.Tau*128;
         int r=Math.Min(63,(int)row),c=(int)column%128;
         float Sample(int h)=>Mathf.Lerp(_torsoRadii[h*128+c],_torsoRadii[h*128+(c+1)%128],column-MathF.Floor(column));
-        float radius=Mathf.Lerp(Sample(r),Sample(r+1),row-r)+.007f+(_garmentCut==2?.004f:0);
+        // Woven cloth hangs away from the abdomen. Ease continues below the
+        // pectorals rather than collapsing back onto the old elliptical waist.
+        float abdominalEase=.006f*Mathf.SmoothStep(.98f,1.04f,y)*(1-Mathf.SmoothStep(1.13f,1.20f,y));
+        float radius=Mathf.Lerp(Sample(r),Sample(r+1),row-r)+.008f+abdominalEase+(_garmentCut==2?.004f:0);
         radius*=1+(fold-1)*.35f;
         var supported=new Vector3(MathF.Cos(angle)*radius,original.Y,MathF.Sin(angle)*radius);
         if(supported.Z<0)supported.Z=Mathf.Lerp(supported.Z,MathF.Min(supported.Z,original.Z),Mathf.SmoothStep(1.22f,1.28f,y));

@@ -67,7 +67,7 @@ internal sealed partial class NatureModels
         float tension=MathF.Exp(-MathF.Pow((y-.82f)/.08f,2));
         float fold=1+hem*belt*(.030f*MathF.Cos(angle*3+(y-.6f)*5)+.018f*MathF.Cos(angle*7-.4f)+.009f*MathF.Cos(angle*13+y*7));
         // Cloth gathers below the belt; diagonal compression folds radiate from it.
-        fold+=front*tension*.025f*MathF.Sin((y-.76f)*70+MathF.Abs(MathF.Cos(angle))*10);
+        fold+=front*tension*.010f*MathF.Sin((y-.76f)*70+MathF.Abs(MathF.Cos(angle))*10);
         // Tension follows the two armholes and belt, rather than forming
         // evenly spaced ribs over the entire chest.
         float armhole=MathF.Exp(-MathF.Pow((y-1.145f)/.10f,2))*MathF.Pow(MathF.Abs(MathF.Cos(angle)),3);
@@ -77,12 +77,12 @@ internal sealed partial class NatureModels
         // attachments use this same sampler, so the belt cannot float above it.
         float waist=MathF.Exp(-MathF.Pow((y-.90f)/.095f,2));
         float diagonal=MathF.Sin((y-.81f)*58+MathF.Cos(angle)*6.0f+.7f);
-        fold+=waist*front*.060f*diagonal;
+        fold+=waist*front*.025f*diagonal;
         // A few folds hang from the belt and armhole, with broad shoulders
         // and narrow troughs rather than evenly spaced ripples.
         float gather=MathF.Exp(-MathF.Pow((y-.98f)/.15f,2));
         float oblique=MathF.Abs(MathF.Cos(angle))-.40f-(y-.95f)*.45f;
-        fold+=front*gather*(.055f*MathF.Exp(-MathF.Pow(oblique/.13f,2))-.035f*MathF.Exp(-MathF.Pow((oblique-.13f)/.075f,2)));
+        fold+=front*gather*(.028f*MathF.Exp(-MathF.Pow(oblique/.13f,2))-.018f*MathF.Exp(-MathF.Pow((oblique-.13f)/.075f,2)));
         float backPleat=MathF.Pow(MathF.Max(0,MathF.Sin(angle)),6)*MathF.Exp(-MathF.Pow((y-1.05f)/.14f,2));
         fold+=backPleat*.038f*MathF.Cos(angle*11+y*16);
         // Two unequal, localized folds run down from the shoulder support.
@@ -90,7 +90,7 @@ internal sealed partial class NatureModels
         float sideFront=front*(1-MathF.Exp(-MathF.Pow(MathF.Cos(angle)/.21f,2)));
         float drape=MathF.Exp(-MathF.Pow((y-1.09f)/.125f,2));
         float creaseLine=MathF.Abs(MathF.Cos(angle))-.57f-(y-1.07f)*.90f;
-        fold+=sideFront*drape*(.065f*MathF.Exp(-MathF.Pow(creaseLine/.085f,2))-.038f*MathF.Exp(-MathF.Pow((creaseLine-.08f)/.055f,2)));
+        fold+=sideFront*drape*(.018f*MathF.Exp(-MathF.Pow(creaseLine/.13f,2))-.010f*MathF.Exp(-MathF.Pow((creaseLine-.11f)/.09f,2)));
         // The shirt rests on a sternum and shoulder blades rather than an
         // inflated circular trunk; fabric falls away from those support points.
         float shoulderBlade=MathF.Exp(-MathF.Pow((y-1.15f)/.07f,2))*MathF.Pow(MathF.Max(0,MathF.Sin(angle)),4);
@@ -193,7 +193,9 @@ internal sealed partial class NatureModels
         Detail(rig.Torso, "capsule", new Vector3(.23f, .7f, .075f), new Vector3(.075f, .065f, .055f), "#725b40");
         // The attributed head already includes a continuous anatomical neck.
         // A second torso-mounted neck intersects it when the head turns.
-        rig.Head = new Node3D { Name = "Head", Position = new Vector3(0, 1.382f, 0) }; rig.Torso.AddChild(rig.Head);
+        // Expose the authored neck instead of crowding the jaw into the collar.
+        // Its lower source triangles still overlap the shirt opening.
+        rig.Head = new Node3D { Name = "Head", Position = new Vector3(0, 1.400f, 0) }; rig.Torso.AddChild(rig.Head);
         Detail(rig.Head, "face", Vector3.Zero, new Vector3(.177f, .220f, .195f), skin).MaterialOverride=AnatomicalFaceMaterial(skin);
         Detail(rig.Head, "hair", new Vector3(0, .008f, 0), new Vector3(.181f, .224f, .200f), hair).MaterialOverride=AuthoredHairMaterial(hair);
         rig.Head.AddChild(new MeshInstance3D {Name="Brows",Mesh=Brows(),MaterialOverride=ResidentMaterial(hair)});

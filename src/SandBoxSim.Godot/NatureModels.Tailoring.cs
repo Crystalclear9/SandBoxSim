@@ -118,6 +118,15 @@ internal sealed partial class NatureModels
         // Short stitches follow the actual folded surface instead of spanning
         // the chest as two loose, contrasting cords.
         string thread="#"+new Color(cloth).Darkened(.14f).ToHtml(false);
+        // A subdued rear-yoke stitch follows the same shirt surface used by
+        // the backpack and shoulder skin; no detached trim across the back.
+        for(int stitch=0;stitch<48;stitch++)
+        {
+            float x0=Mathf.Lerp(-.15f,.15f,stitch/48f),x1=x0+.0038f;
+            float Y(float x)=>1.155f+.018f*(1-MathF.Pow(x/.15f,2));
+            FineBeam(rig.Torso,TorsoSurface(x0,Y(x0),true,.0016f),
+                TorsoSurface(x1,Y(x1),true,.0016f),.00045f,thread);
+        }
         foreach(float side in new[]{-1f,1f})for(int stitch=0;stitch<24;stitch++)
         {
             float y=Mathf.Lerp(PlacketBottom+.006f,PlacketTop-.006f,stitch/23f);

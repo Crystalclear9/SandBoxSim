@@ -149,7 +149,7 @@ UI 的层级和画布工具组织参考见[观察与界面](../guides/gameplay-o
 
 ## 检查
 
-上衣重建使用 `./tools/bake-garments.ps1`，原始导出在 `.tools/garment-sources/`，正式 JSON 和哈希清单进入 `assets/models/garments/`；普通构建不执行 Blender。当前三套上衣使用 `anatomical-yoke-v6` 构造并保存 `detailUv` 米制缝线坐标。改变剪裁采样或 `tools/garment_pattern.py` 缝片构造后必须重新烘焙，不能只修改运行代码并继续使用旧蒙皮。动作、服装配件和近远景均需一同检查，细节见 [模型系统](models.md)。
+上衣重建使用 `./tools/bake-garments.ps1`，原始导出在 `.tools/garment-sources/`，正式 JSON 和哈希清单进入 `assets/models/garments/`；普通构建不执行 Blender。当前三套上衣使用 `relaxed-yoke-v7` 构造并保存 `detailUv` 米制缝线坐标。改变剪裁采样或 `tools/garment_pattern.py` 缝片构造后必须重新烘焙，不能只修改运行代码并继续使用旧蒙皮。动作、服装配件和近远景均需一同检查，细节见 [模型系统](models.md)。
 
 通过 `./tools/godot.ps1 -Mode test` 构建、导入并检查网格、法线、UV、缓存与握持，再查看真实窗口中的近景和远景。无头几何检查不能判断美感，图像识别准确率也不能替代材质与解剖质量检查。
 
