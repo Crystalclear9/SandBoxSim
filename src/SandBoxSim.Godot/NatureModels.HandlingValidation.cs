@@ -165,7 +165,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateHandling()
     {
-        ValidateForearmSurfaces();ValidateHandLaterality();ValidateSocialGesture();ValidatePresentationCadence();ValidateCarrying();ValidateAnimalContacts();
+        ValidateForearmSurfaces();ValidateHandLaterality();ValidateSocialGesture();ValidatePresentationCadence();ValidateCarrying();ValidateAnimalContacts();ValidateBareTransitions();
         foreach(var action in new[]{ActionKind.GatherWood,ActionKind.GatherIron,ActionKind.Farm,ActionKind.BuildHouse})
         {
             var rig=Resident(17,false,JobType.Gatherer);
@@ -370,6 +370,32 @@ internal sealed partial class NatureModels
         for(int i=0;i<100;i++)child.PoseAction(1f/60,ActionKind.Farm,ActionPhase.Executing,false,0);
         if(child.ToolHeld||child.ToolMesh.Visible)throw new InvalidOperationException("Child received adult tool");child.Free();
         GD.Print("HANDLING_PASS: take/use/stow continuity, action-specific tools, three phalanges, shaft clearance, wrist limits, mirrored support, IK, switching, cargo, child policy, LOD and pause");
+    }
+    private void ValidateBareTransitions()
+    {
+        var rig=Resident(17,false,JobType.Gatherer);
+        Vector3 Wrist()=> (rig.Torso.Transform*rig.Arms[1].Transform*rig.Elbows[1].Transform*rig.Hands[1].Transform).Origin;
+        rig.PoseAction(1f/60,ActionKind.None,ActionPhase.Idle,false,0);
+        var previous=Wrist();float knee=rig.Knees[1].Rotation.X;
+        foreach(var action in new[]{ActionKind.Eat,ActionKind.Drink,ActionKind.Take,ActionKind.Deposit,ActionKind.None})
+        {
+            for(int frame=0;frame<90;frame++)
+            {
+                rig.PoseAction(1f/60,action,action==ActionKind.None?ActionPhase.Idle:ActionPhase.Executing,false,0);
+                var current=Wrist();float nextKnee=rig.Knees[1].Rotation.X;
+                if(!current.IsFinite()||current.DistanceTo(previous)>.10f||MathF.Abs(nextKnee-knee)>.20f)
+                    throw new InvalidOperationException($"Bare interaction snaps during {action}: wrist={current.DistanceTo(previous)}, knee={MathF.Abs(nextKnee-knee)}");
+                previous=current;knee=nextKnee;
+            }
+            var frozen=Wrist();rig.PoseAction(1,action,ActionPhase.Executing,true,0);
+            if(Wrist()!=frozen)throw new InvalidOperationException("Paused bare interaction moved");
+        }
+        rig.Free();
+        var arrays=HoeBlade().SurfaceGetArrays(0);var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+        float volume=0;
+        for(int i=0;i<indices.Length;i+=3){var a=points[indices[i]];var b=points[indices[i+1]];var c=points[indices[i+2]];volume+=a.Dot(b.Cross(c))/6;}
+        if(!float.IsFinite(volume)||volume>=-.000001f)throw new InvalidOperationException("Hoe blade winding/volume is invalid");
+        GD.Print("BARE_TRANSITIONS_PASS: entering, switching and leaving five gestures; bounded wrist/knee steps, pause and outward hoe blade");
     }
     private void ValidateCarrying()
     {

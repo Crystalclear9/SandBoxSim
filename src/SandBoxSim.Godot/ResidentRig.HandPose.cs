@@ -6,6 +6,17 @@ namespace SandBoxSim.Client;
 /// <summary>Hand anatomy, two-bone reach and tool-specific grip orientations.</summary>
 internal partial class ResidentRig
 {
+    private float _bareBlend,_pickupBlend,_bareTime;
+    private SandBoxSim.Core.Agents.ActionKind _bareAction;
+    private void BlendBareHand(int side,Vector3 target,Basis desired)
+    {
+        var upper=Arms[side].Quaternion;var elbow=Elbows[side].Quaternion;var wrist=Hands[side].Quaternion;
+        float weight=Smooth(_bareBlend);
+        SolveBareHand(side,target,desired);
+        Arms[side].Quaternion=upper.Slerp(Arms[side].Quaternion,weight);
+        Elbows[side].Quaternion=elbow.Slerp(Elbows[side].Quaternion,weight);
+        Hands[side].Quaternion=wrist.Slerp(Hands[side].Quaternion,weight);
+    }
     // Canonical hand is left: mirrored geometry, bind roots and articulation
     // must use the same convention at every detail level.
     internal static float HandMirror(int side)=>side switch {0=>1,1=>-1,_=>throw new ArgumentOutOfRangeException(nameof(side))};

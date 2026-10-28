@@ -23,6 +23,8 @@ internal partial class ResidentPortrait : SubViewportContainer
     public event Action? ExpandRequested;
     private Godot.Button _expandButton=null!;
     private Label _gestureHint=null!;
+    private PanelContainer _activityPlate=null!;
+    private Label _activityReadout=null!;
     private Tween? _hintTransition;
     private void Hint(float alpha)
     {
@@ -49,6 +51,7 @@ internal partial class ResidentPortrait : SubViewportContainer
         SetStudioControlsExpanded(expanded);
         _controlPlate.Visible=!IsThumbnail;
         _gestureHint.Visible=!IsThumbnail;
+        _activityPlate.Visible=expanded;
         FocusMode=IsThumbnail?FocusModeEnum.None:FocusModeEnum.All;
         MouseFilter=IsThumbnail?MouseFilterEnum.Ignore:MouseFilterEnum.Stop;
         if(_camera!=null)
@@ -105,6 +108,9 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         caption.MouseFilter=MouseFilterEnum.Ignore;caption.SetAnchorsAndOffsetsPreset(LayoutPreset.TopWide);
         caption.OffsetTop=12;caption.OffsetBottom=34;caption.OffsetLeft=14;AddChild(caption);caption.Modulate=new Color(1,1,1,0);
         MouseEntered+=()=>Hint(1);MouseExited+=()=>Hint(0);
+        _activityPlate=new PanelContainer {Name="PortraitHandlingStatus",Position=new(14,38),MouseFilter=MouseFilterEnum.Ignore};
+        _activityPlate.AddThemeStyleboxOverride("panel",HudStyle.Box(new Color(HudStyle.Surface,.94f),5,8));AddChild(_activityPlate);
+        _activityReadout=HudStyle.Label("",12,true);_activityReadout.MouseFilter=MouseFilterEnum.Ignore;_activityPlate.AddChild(_activityReadout);
         SetExpanded(Expanded);
     }
     private void ZoomBy(float amount)=>SetDistance(_distance*MathF.Exp(amount));
@@ -192,6 +198,8 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         if (IsVisibleInTree() && _resident != null)
         {
             _resident.PresentAction((float)delta, _action, _actionPhase, _worldPaused, (float)(_identity % 11));
+            string handling=(_worldPaused?"已暂停 · ":"实时 · ")+_resident.Handling;
+            if(_activityReadout.Text!=handling)_activityReadout.Text=handling;
             float shownYaw=IsThumbnail?ThumbnailYaw:_yaw;
             _resident.Rotation = new Vector3(0, HudStyle.MotionEnabled?Mathf.LerpAngle(_resident.Rotation.Y, shownYaw, 1 - MathF.Exp(-(float)delta * 12)):shownYaw, 0);
             _viewDistance=HudStyle.MotionEnabled?Mathf.Lerp(_viewDistance,_distance,1-MathF.Exp(-(float)delta*10)):_distance;Aim((float)delta);

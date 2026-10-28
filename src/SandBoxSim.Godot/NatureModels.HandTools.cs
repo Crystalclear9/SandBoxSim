@@ -144,7 +144,11 @@ ROUGHNESS=.64;SPECULAR=.24;
         foreach(float side in new[]{-1f,1f})Detail(root,"sphere",new(side*.016f,socket,0),new(.004f,.006f,.006f),"#98968a");
         if(kind==ResidentTool.Hammer)
         {
-            Detail(root,"masonry",new(0,-.30f,0),new(.13f,.046f,.046f),"#68716f");
+            // Separate striking faces and a narrower central eye housing;
+            // metric chamfers keep millimetre edges independent of aspect ratio.
+            Sculpt(root,MetricBoard(new(.09f,.040f,.040f),.002f),new(0,-.30f,0),ResidentMaterial("#626865"));
+            foreach(float end in new[]{-1f,1f})
+                Sculpt(root,MetricBoard(new(.023f,.046f,.046f),.0015f),new(end*.055f,-.30f,0),ResidentMaterial("#94988f"));
             Detail(root,"cylinder",new(0,-.275f,0),new(.028f,.027f,.028f),"#514237");
         }
         else if(kind==ResidentTool.Pick)
@@ -156,9 +160,35 @@ ROUGHNESS=.64;SPECULAR=.24;
             Sculpt(root,Loft("axe-blade",new[]{new Vector4(-.055f,0,.022f,.025f),new(0,0,.020f,.030f),new(.07f,-.010f,.010f,.065f),new(.10f,-.010f,.003f,.071f)}),new(0,-.27f,0),ResidentMaterial("#68716f"),new(0,MathF.PI/2,0));
         }
         else if(kind==ResidentTool.Hoe)
-            Detail(root,"masonry",new(0,-.415f,-.045f),new(.13f,.016f,.10f),"#68716f",new(.25f,0,0));
+            Sculpt(root,HoeBlade(),new(0,-.415f,-.045f),ResidentMaterial("#68716f"),new(.25f,0,0));
         else Detail(root,"cone",new(0,1.035f,0),new(.046f,.15f,.029f),"#7d8581");
         MergeResidentParts(root,key);
         mesh=root.GetChild<MeshInstance3D>(0).Mesh;_meshes[key]=mesh;root.Free();return mesh;
     }
+    private Mesh HoeBlade()
+    {
+        const string key="forged-hoe-blade";if(_meshes.TryGetValue(key,out var cached))return cached;
+        using var tool=new SurfaceTool();tool.Begin(Mesh.PrimitiveType.Triangles);
+        const int rows=12,columns=8;
+        Vector3 Point(int row,int column,int side)
+        {
+            float t=row/(float)rows,u=column/(float)columns*2-1;
+            float width=Mathf.Lerp(.040f,.068f,SmoothBlade(t));
+            float thickness=Mathf.Lerp(.007f,.0015f,t*t);
+            return new(u*width,.012f*t*t+side*thickness*.5f,-.05f+.10f*t-.005f*u*u*t);
+        }
+        void Triangle(Vector3 a,Vector3 b,Vector3 c)
+        {
+            (b,c)=(c,b); // Godot uses clockwise front faces; keep the closed blade facing outward.
+            var normal=(c-a).Cross(b-a).Normalized();
+            foreach(var p in new[]{a,b,c}){tool.SetNormal(normal);tool.SetUV(new((p.X+.07f)/.14f,(p.Z+.06f)/.12f));tool.AddVertex(p);}
+        }
+        void Quad(Vector3 a,Vector3 b,Vector3 c,Vector3 d){Triangle(a,b,c);Triangle(a,c,d);}
+        foreach(int side in new[]{-1,1})for(int r=0;r<rows;r++)for(int c=0;c<columns;c++)
+        {var a=Point(r,c,side);var b=Point(r+1,c,side);var x=Point(r+1,c+1,side);var d=Point(r,c+1,side);if(side==1)Quad(a,b,x,d);else Quad(d,x,b,a);}
+        for(int r=0;r<rows;r++){Quad(Point(r,0,-1),Point(r+1,0,-1),Point(r+1,0,1),Point(r,0,1));Quad(Point(r,columns,1),Point(r+1,columns,1),Point(r+1,columns,-1),Point(r,columns,-1));}
+        for(int c=0;c<columns;c++){Quad(Point(0,c,1),Point(0,c+1,1),Point(0,c+1,-1),Point(0,c,-1));Quad(Point(rows,c,-1),Point(rows,c+1,-1),Point(rows,c+1,1),Point(rows,c,1));}
+        tool.Index();return _meshes[key]=tool.Commit();
+    }
+    private static float SmoothBlade(float t)=>t*t*(3-2*t);
 }

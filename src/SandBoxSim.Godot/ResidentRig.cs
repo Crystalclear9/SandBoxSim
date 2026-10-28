@@ -118,7 +118,7 @@ internal partial class ResidentRig : Node3D
     private float _phase,_activity,_reach,_draw,_workTime,_graspTime,_releaseTime,_lean,_workBlend;
     private bool _carrying;
     public bool ToolHeld {get;private set;}
-    public string Handling => ToolHeld ? _returning?"收回工具":_draw<.99f?"取出 / 抬手":_carrying?"手持携带":"使用工具" : _releaseTime>0?"松开手指":_reach==1?"合拢握柄":_reach>.01f?"伸手拿取":"工具收纳";
+    public string Handling => ToolHeld ? _returning?"收回工具":_draw<.99f?"取出 / 抬手":_carrying?"手持携带":"使用工具" : _releaseTime>0?"松开手指":_reach==1?"合拢握柄":_reach>.01f?"伸手拿取":_bareBlend>.01f?"徒手交互":_hasCargo?"双手搬运":"双手放松";
     public static ResidentTool ToolFor(ActionKind action)=>action switch {
         ActionKind.GatherWood=>ResidentTool.Axe,
         ActionKind.GatherStone or ActionKind.GatherIron=>ResidentTool.Pick,
@@ -172,7 +172,8 @@ internal partial class ResidentRig : Node3D
         _activity=Mathf.Lerp(_activity,moving?1:0,1-MathF.Exp(-delta*8));
         float wave=MathF.Sin(_phase+identityPhase),breath=MathF.Sin(_phase*.5f+identityPhase);
         bool pickup=executing&&action is ActionKind.GatherFood or ActionKind.Take;
-        float vertical=resting?-.09f:pickup?-.094f:MathF.Abs(wave)*.025f*_activity+breath*.003f;
+        _pickupBlend=Mathf.MoveToward(_pickupBlend,pickup?1:0,delta/.24f);
+        float vertical=resting?-.09f:Mathf.Lerp(MathF.Abs(wave)*.025f*_activity+breath*.003f,-.094f,Smooth(_pickupBlend));
         float effort=executing&&usingTool?MathF.Sin(_workTime*4)*.035f:0;
         float desiredLean=resting?-.16f:pickup?-.58f:usingTool?-.10f-effort:.025f*_activity;
         _lean=Mathf.Lerp(_lean,desiredLean,1-MathF.Exp(-delta*12));
@@ -186,9 +187,9 @@ internal partial class ResidentRig : Node3D
         for(int i=0;i<2;i++)
         {
             float stride=wave*(i==0?1:-1)*_activity;
-            Legs[i].Position=new(i==0?-.10f:.10f,HipHeight+(pickup?-.094f:0),0);
-            Legs[i].Rotation=new(pickup?.55f:stride*.44f,0,0);
-            Knees[i].Rotation=new(pickup?-1.1f:-MathF.Max(0,-stride)*.65f,0,0);
+            Legs[i].Position=new(i==0?-.10f:.10f,HipHeight-.094f*Smooth(_pickupBlend),0);
+            Legs[i].Rotation=new(Mathf.Lerp(stride*.44f,.55f,Smooth(_pickupBlend)),0,0);
+            Knees[i].Rotation=new(Mathf.Lerp(-MathF.Max(0,-stride)*.65f,-1.1f,Smooth(_pickupBlend)),0,0);
             Feet[i].Rotation=new(-(Legs[i].Rotation.X+Knees[i].Rotation.X),0,0);
             float relaxed=(1-_activity)*(usingTool||pickup||resting?0:1);
             float side=i==0?1:-1;
@@ -278,17 +279,22 @@ internal partial class ResidentRig : Node3D
         {
             for(int i=0;i<2;i++){SolveBareHand(i,BodyPoint(new(i==0?-.12f:.12f,.90f,-.29f)),Basis.FromEuler(new Vector3(MathF.PI/2,0,0)));CurlHand(i,.75f);}
         }
-        if(executing&&!usingTool&&!ToolHeld&&_reach==0)
+        bool bareActive=executing&&!usingTool&&!ToolHeld&&_reach==0&&action is ActionKind.GatherFood or ActionKind.Take or ActionKind.Deposit or ActionKind.StoreInBuilding or ActionKind.ShareFood or ActionKind.Trade or ActionKind.Eat or ActionKind.Drink;
+        if(bareActive&&_bareBlend==0){_bareAction=action;_bareTime=0;}
+        _bareBlend=Mathf.MoveToward(_bareBlend,bareActive&&_bareAction==action?1:0,delta/.40f);
+        if(_bareBlend>0)_bareTime+=delta;
+        if(_bareBlend>0&&!usingTool&&!ToolHeld&&_reach==0)
         {
-            float cycle=(_workTime%1.6f)/1.6f;
+            float cycle=(_bareTime%1.6f)/1.6f;
             float reach=MathF.Sin(cycle*MathF.PI);
-            if(pickup)
-                SolveBareHand(1,BodyPoint(new(.16f,Mathf.Lerp(1.00f,.76f,reach),Mathf.Lerp(-.20f,-.26f,reach))),Basis.FromEuler(new Vector3(.7f,0,0)));
-            else if(action is ActionKind.Deposit or ActionKind.StoreInBuilding or ActionKind.ShareFood or ActionKind.Trade)
-                for(int i=0;i<2;i++)SolveBareHand(i,BodyPoint(new(i==0?-.12f:.12f,Mathf.Lerp(.85f,.97f,reach),-.30f)),Basis.FromEuler(new Vector3(MathF.PI/2,0,0)));
-            else if(action is ActionKind.Eat or ActionKind.Drink)
-                SolveBareHand(1,BodyPoint(new(.03f,1.31f,-.19f)),Basis.FromEuler(new Vector3(.6f,0,.35f)));
-            CurlHand(1,pickup?Math.Clamp((cycle-.3f)*3,0,.8f):.3f);
+            bool gathering=_bareAction is ActionKind.GatherFood or ActionKind.Take;
+            if(gathering)
+                BlendBareHand(1,BodyPoint(new(.16f,Mathf.Lerp(1.00f,.76f,reach),Mathf.Lerp(-.20f,-.26f,reach))),Basis.FromEuler(new Vector3(.7f,0,0)));
+            else if(_bareAction is ActionKind.Deposit or ActionKind.StoreInBuilding or ActionKind.ShareFood or ActionKind.Trade)
+                for(int i=0;i<2;i++)BlendBareHand(i,BodyPoint(new(i==0?-.12f:.12f,Mathf.Lerp(.85f,.97f,reach),-.30f)),Basis.FromEuler(new Vector3(MathF.PI/2,0,0)));
+            else if(_bareAction is ActionKind.Eat or ActionKind.Drink)
+                BlendBareHand(1,BodyPoint(new(.03f,1.31f,-.19f)),Basis.FromEuler(new Vector3(.6f,0,.35f)));
+            CurlHand(1,Mathf.Lerp(_handCurl[1],gathering?Math.Clamp((cycle-.3f)*3,0,.8f):.3f,Smooth(_bareBlend)));
         }
         if(_socialBlend>.001f&&!usingTool&&!ToolHeld&&_reach==0&&!_hasCargo)
         {
