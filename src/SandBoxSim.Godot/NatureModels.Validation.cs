@@ -38,6 +38,7 @@ internal sealed partial class NatureModels
     }
     public void ValidateCraftedModels()
     {
+        ValidateTorsoTextContract();
         ValidateCeramics();
         ValidateThatch();
         ValidateCraftFinishes();

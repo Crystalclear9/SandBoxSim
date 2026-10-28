@@ -82,5 +82,5 @@ result={'schemaVersion':1,'source':'MakeHuman CC0 body; male young macro, existi
         'shoulder':[.202,1.23,0],'armholeHalfWidth':.185,'sourceShoulder':[round(v,7) for v in shoulder],
         'scale':[round(.202/shoulder.x,7),.09,.1],'clothEnvelope':'convex-sections-four-pass-filter','radii':radii}
 output=Path(args.output);output.parent.mkdir(parents=True,exist_ok=True)
-output.write_text(json.dumps(result,separators=(',',':'))+'\n',encoding='utf-8')
+output.write_text(json.dumps(result,separators=(',',':'))+'\n',encoding='utf-8',newline='\n')
 print('TORSO_CAGE_EXPORTED',len(faces),'source faces;',len(radii),'radial samples;',hashlib.sha256(output.read_bytes()).hexdigest())

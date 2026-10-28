@@ -14,6 +14,18 @@ NAMES = ('human-head', 'human-scan', 'human-feminine')
 
 
 class HumanAssetTests(unittest.TestCase):
+    def test_torso_cage_transport_and_source_contract(self):
+        raw=(ROOT/'torso-cage.json').read_bytes().replace(b'\r\n',b'\n')
+        self.assertEqual(hashlib.sha256(raw).hexdigest(),
+                         'ecd8b6f42e68931caae38d48a76758f5b071b8c556ccaed0d5b58c92aa67d1db')
+        data=json.loads(raw)
+        self.assertEqual((data['schemaVersion'],data['rows'],data['columns']),(1,65,128))
+        self.assertEqual(len(data['radii']),65*128)
+        self.assertTrue(all(math.isfinite(v) and .025<=v<=.34 for v in data['radii']))
+        sources=json.loads((ROOT/'head-sources.json').read_text())['files']
+        for name,digest in data['sourceSha256'].items():
+            self.assertEqual(digest,sources[name]['sha256'])
+
     def test_atlases_match_mesh_and_import_contract(self):
         for name in NAMES:
             data=json.loads((ROOT/(name+'.mesh.json')).read_text())

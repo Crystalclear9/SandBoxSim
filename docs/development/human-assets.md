@@ -115,4 +115,4 @@ python -m unittest discover -s tools -p test_garment_pattern.py
 ./tools/godot.ps1 -Mode test
 ```
 
-更改拟合配方后，要同步审查 `NatureModels.TorsoAnatomy.cs` 中固定的成品哈希；不要直接跳过校验。人物肩点与衣服骨骼同步作有界位移，肘部偏好和握持手腕限制共同参与求解；具体形态、动作边界与研究来源见[模型系统](models.md)。
+导出器固定写入 UTF-8、LF 换行；运行时先将 CRLF 统一为 LF，再校验 `NatureModels.TorsoAnatomy.cs` 中固定的 SHA-256。Windows、Linux、macOS 的文本换行差异不改变模型身份；几何数据、元数据或其他文本改变仍会被拒绝。客户端自检覆盖两种换行与有效 JSON 中的半径篡改。更改拟合配方后，要同步审查成品哈希；不要直接跳过校验。人物肩点与衣服骨骼同步作有界位移，肘部偏好和握持手腕限制共同参与求解；具体形态、动作边界与研究来源见[模型系统](models.md)。
