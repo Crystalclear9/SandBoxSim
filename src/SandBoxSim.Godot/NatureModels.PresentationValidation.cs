@@ -6,6 +6,47 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
+    private void ValidateReachTrajectories()
+    {
+        float maxHandStep=0,maxElbowStep=0;
+        foreach(var action in new[]{ActionKind.Eat,ActionKind.Drink,ActionKind.Socialize})
+        {
+            var rig=Resident(42,false,JobType.Gatherer);
+            var reference=Resident(42,false,JobType.Gatherer);
+            try
+            {
+                Vector3 previousHand=Vector3.Zero,previousElbow=Vector3.Zero;
+                float low=float.PositiveInfinity,high=float.NegativeInfinity,closestMouth=float.PositiveInfinity;
+                for(int frame=0;frame<360;frame++)
+                {
+                    rig.PoseAction(1f/60,action,ActionPhase.Executing,false,.37f);
+                    reference.PoseAction(1f/120,action,ActionPhase.Executing,false,.37f);
+                    reference.PoseAction(1f/120,action,ActionPhase.Executing,false,.37f);
+                    var hand=InTorso(rig.Hands[1],rig.Torso);var elbow=InTorso(rig.Elbows[1],rig.Torso).Origin;
+                    if(frame>0)
+                    {
+                        maxHandStep=MathF.Max(maxHandStep,hand.Origin.DistanceTo(previousHand));
+                        maxElbowStep=MathF.Max(maxElbowStep,elbow.DistanceTo(previousElbow));
+                        if(hand.Origin.DistanceTo(previousHand)>.055f||elbow.DistanceTo(previousElbow)>.060f)
+                            throw new InvalidOperationException($"Discontinuous reach: {action}/{frame}, hand={hand.Origin.DistanceTo(previousHand)}, elbow={elbow.DistanceTo(previousElbow)}");
+                    }
+                    if(hand.Origin.DistanceTo(InTorso(reference.Hands[1],reference.Torso).Origin)>.008f)
+                        throw new InvalidOperationException("Reach path changes with 60/120 Hz cadence: "+action);
+                    previousHand=hand.Origin;previousElbow=elbow;
+                    if(frame>100&&action!=ActionKind.Socialize)
+                    {
+                        var palm=hand*rig.Grip!.Position;
+                        low=MathF.Min(low,palm.Y);high=MathF.Max(high,palm.Y);
+                        closestMouth=MathF.Min(closestMouth,palm.DistanceTo(rig.Head.Transform*rig.Mouth.Position));
+                    }
+                }
+                if(action!=ActionKind.Socialize&&(high-low<.12f||closestMouth>.13f))
+                    throw new InvalidOperationException($"Consuming hand does not lift, reach the mouth and return: {action}, excursion={high-low}, mouth={closestMouth}");
+            }
+            finally{rig.Free();reference.Free();}
+        }
+        GD.Print($"REACH_TRAJECTORY_PASS: eat/drink/social, 60/120 Hz, maximum per-frame hand/elbow step {maxHandStep:F4}/{maxElbowStep:F4} m, mouth approach and return");
+    }
     private void ValidatePresentationCadence()
     {
         // Compare visible motion after the same elapsed time at close-up 60 Hz,

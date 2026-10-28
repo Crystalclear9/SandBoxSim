@@ -10,14 +10,13 @@ internal partial class ResidentRig
     private SandBoxSim.Core.Agents.ActionKind _bareAction;
     private void BlendBareHand(int side,Vector3 target,Basis desired,float blend=-1)
     {
-        var origin=Arms[side].Position;
-        var upper=Arms[side].Quaternion;var elbow=Elbows[side].Quaternion;var wrist=Hands[side].Quaternion;
-        float weight=Smooth(blend<0?_bareBlend:blend);
-        SolveBareHand(side,target,desired);
-        Arms[side].Position=origin.Lerp(Arms[side].Position,weight);
-        Arms[side].Quaternion=upper.Slerp(Arms[side].Quaternion,weight);
-        Elbows[side].Quaternion=elbow.Slerp(Elbows[side].Quaternion,weight);
-        Hands[side].Quaternion=wrist.Slerp(Hands[side].Quaternion,weight);
+        float weight=ReachEase(blend<0?_bareBlend:blend);
+        var rest=Arms[side].Transform*Elbows[side].Transform*Hands[side].Transform;
+        var offset=side==1?Grip!.Position:new Vector3(0,-.035f,-.0286f);
+        // Plan the palm path before solving the joints. Interpolating three
+        // independent joint rotations makes the hand swing around the target.
+        var orientation=new Basis(rest.Basis.GetRotationQuaternion().Slerp(desired.GetRotationQuaternion(),weight));
+        SolveBareHand(side,(rest*offset).Lerp(target,weight),orientation,weight);
     }
     // Canonical hand is left: mirrored geometry, bind roots and articulation
     // must use the same convention at every detail level.
@@ -41,11 +40,15 @@ internal partial class ResidentRig
         float period=kind==ResidentTool.Hoe?1.55f:kind==ResidentTool.Pick?1.35f:kind==ResidentTool.Axe?1.25f:1.05f;
         float t=(time%period)/period;
         // Slow preparation, fast contact and a short recovery, instead of a continuous pendulum.
-        float lift=t<.55f?Smooth(t/.55f):t<.72f?1-Smooth((t-.55f)/.17f):0;
+        float lift=StrokeLift(t);
         if(kind==ResidentTool.Hoe)return (new(.10f,.84f+lift*.16f,-.27f+lift*.06f),Basis.FromEuler(new Vector3(.25f+lift*.55f,0,.50f)));
         if(kind==ResidentTool.Spear)return (new(.10f,.99f,-.24f-lift*.12f),Basis.FromEuler(new Vector3(-1.1f,0,.45f)));
         return (new(kind==ResidentTool.Hammer?.20f:.10f,.92f+lift*.26f,-.30f+lift*.10f),Basis.FromEuler(new Vector3(.55f+lift*1.05f,0,.45f)));
     }
+    // Zero velocity and acceleration at both ends of an intentional reach.
+    internal static float ReachEase(float t){t=Math.Clamp(t,0,1);return t*t*t*(10+t*(-15+6*t));}
+    private static float StrokeLift(float t)=>t<.55f?ReachEase(t/.55f):t<.72f?1-ReachEase((t-.55f)/.17f):0;
+    private static float ReachPulse(float t)=>t<.08f?0:t<.38f?ReachEase((t-.08f)/.30f):t<.58f?1:t<.92f?1-ReachEase((t-.58f)/.34f):0;
     private void CurlHand(int side,float curl)=>_handCurl[side]=curl;
     private void UpdateHandBones(int side)
     {
@@ -73,13 +76,14 @@ internal partial class ResidentRig
             _wristSkinRotation[side]=wrist;HandSkeletons[side].SetBonePoseRotation(15,wrist);
         }
     }
-    private void SolveBareHand(int side,Vector3 target,Basis desired)
+    private void SolveBareHand(int side,Vector3 target,Basis desired,float posture)
     {
+        var elbowHint=Arms[side].Transform*Elbows[side].Position;
         // Empty hands and carried bundles do not require a prescribed tool shaft angle.
         // Let the wrist follow the forearm rather than rotating it to a world-space identity.
         for(int pass=0;pass<3;pass++)
         {
-            SolveHand(side,target,desired,true);
+            SolveHand(side,target,desired,true,0,elbowHint,posture);
             var forearm=Arms[side].Basis*Elbows[side].Basis;
             var relative=(forearm.Inverse()*desired).GetRotationQuaternion();
             float angle=relative.GetAngle();
@@ -87,7 +91,7 @@ internal partial class ResidentRig
             desired=forearm*new Basis(Quaternion.Identity.Slerp(relative,.55f/angle));
         }
     }
-    private void SolveHand(int side,Vector3 gripTarget,Basis handBasis,bool bare=false,float carry=0)
+    private void SolveHand(int side,Vector3 gripTarget,Basis handBasis,bool bare=false,float carry=0,Vector3? elbowHint=null,float posture=1)
     {
         Vector3 gripOffset=side==1?Grip!.Position:new(0,-.035f,-.0286f);
         Vector3 wrist=gripTarget-handBasis*gripOffset;
@@ -105,6 +109,19 @@ internal partial class ResidentRig
         var bend=pole-direction*pole.Dot(direction);
         if(bend.LengthSquared()<.0001f){var hint=new Vector3(side==0?-1:1,.2f,.1f);bend=hint-direction*hint.Dot(direction);}
         bend=bend.Normalized();
+        if(elbowHint.HasValue&&posture<1)
+        {
+            var prior=elbowHint.Value-shoulder;
+            prior-=direction*prior.Dot(direction);
+            if(prior.LengthSquared()>.000001f)
+            {
+                prior=prior.Normalized();
+                // Continue the existing elbow plane while acquiring a reach.
+                // All wrist-limit iterations share the same pre-solve hint.
+                float turn=prior.SignedAngleTo(bend,direction);
+                bend=prior.Rotated(direction,turn*posture);
+            }
+        }
         float radius=MathF.Sqrt(MathF.Max(0,upper*upper-along*along));
         if(!bare&&radius>.0001f)
         {

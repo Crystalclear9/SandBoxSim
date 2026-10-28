@@ -236,7 +236,7 @@ internal partial class ResidentRig : Node3D
             var active=(carry.Item1.Lerp(work.Item1,Smooth(_workBlend)),new Basis(carry.Item2.GetRotationQuaternion().Slerp(work.Item2.GetRotationQuaternion(),Smooth(_workBlend))));
             var (target,basis)=_returning?(_returnPosition,_returnBasis):active;
             if(!_returning)target=BodyPoint(target);
-            SolveHand(1,Holster.Position.Lerp(target,Smooth(_draw)),new Basis(Holster.Basis.GetRotationQuaternion().Slerp(basis.GetRotationQuaternion(),Smooth(_draw)))*Grip!.Basis.Inverse(),false,(1-_workBlend)*Smooth(_draw));
+            SolveHand(1,Holster.Position.Lerp(target,ReachEase(_draw)),new Basis(Holster.Basis.GetRotationQuaternion().Slerp(basis.GetRotationQuaternion(),ReachEase(_draw)))*Grip!.Basis.Inverse(),false,(1-_workBlend)*Smooth(_draw));
             CurlHand(1,1);
             if(CurrentTool is ResidentTool.Axe or ResidentTool.Pick or ResidentTool.Hoe or ResidentTool.Spear)
             {
@@ -264,8 +264,11 @@ internal partial class ResidentRig : Node3D
                 _reach=Mathf.MoveToward(_reach,usingTool?1:0,delta/.36f);
                 if(_reach>0)
                 {
-                    var rest=(Arms[1].Transform*Elbows[1].Transform*Hands[1].Transform)*Grip!.Position;
-                    SolveHand(1,rest.Lerp(Holster.Position,Smooth(_reach)),Holster.Basis*Grip!.Basis.Inverse());
+                    var rest=Arms[1].Transform*Elbows[1].Transform*Hands[1].Transform;
+                    var desired=Holster.Basis*Grip!.Basis.Inverse();
+                    float reachWeight=ReachEase(_reach);
+                    SolveHand(1,(rest*Grip.Position).Lerp(Holster.Position,reachWeight),
+                        new Basis(rest.Basis.GetRotationQuaternion().Slerp(desired.GetRotationQuaternion(),reachWeight)));
                     CurlHand(1,.12f*Math.Clamp((_reach-.65f)/.35f,0,1));
                     if(usingTool&&_reach==1)
                     {
@@ -293,16 +296,27 @@ internal partial class ResidentRig : Node3D
         if(_bareBlend>0)_bareTime+=delta;
         if(_bareBlend>0&&!usingTool&&!ToolHeld&&_reach==0)
         {
-            float cycle=(_bareTime%1.6f)/1.6f;
-            float reach=MathF.Sin(cycle*MathF.PI);
+            bool eating=_bareAction is ActionKind.Eat or ActionKind.Drink;
+            float period=eating?2.6f:1.8f;
+            float cycle=(_bareTime%period)/period;
+            float reach=ReachPulse(cycle);
             bool gathering=_bareAction is ActionKind.GatherFood or ActionKind.Take;
             if(gathering)
                 BlendBareHand(1,BodyPoint(new(.16f,Mathf.Lerp(1.00f,.76f,reach),Mathf.Lerp(-.20f,-.26f,reach))),Basis.FromEuler(new Vector3(.7f,0,0)));
             else if(_bareAction is ActionKind.Deposit or ActionKind.StoreInBuilding or ActionKind.ShareFood or ActionKind.Trade)
                 for(int i=0;i<2;i++)BlendBareHand(i,BodyPoint(new(i==0?-.12f:.12f,Mathf.Lerp(.85f,.97f,reach),-.30f)),Basis.FromEuler(new Vector3(MathF.PI/2,0,0)));
-            else if(_bareAction is ActionKind.Eat or ActionKind.Drink)
-                BlendBareHand(1,BodyPoint(new(.03f,1.31f,-.19f)),Basis.FromEuler(new Vector3(.6f,0,.35f)));
-            CurlHand(1,Mathf.Lerp(_handCurl[1],gathering?Math.Clamp((cycle-.3f)*3,0,.8f):.3f,Smooth(_bareBlend)));
+            else if(eating)
+            {
+                var mouth=Head.Transform*Mouth.Position;
+                var chest=BodyPoint(new Vector3(.14f,1.04f,-.22f));
+                var target=chest.Lerp(mouth+new Vector3(.025f,-.025f,-.075f),reach);
+                // Supinate the forearm as the fingers approach the mouth;
+                // a forward-facing open palm reads as waving at the cheek.
+                var low=Basis.FromEuler(new Vector3(1.05f,0,.12f)).GetRotationQuaternion();
+                var high=Basis.FromEuler(new Vector3(2.50f,0,.20f)).GetRotationQuaternion();
+                BlendBareHand(1,target,new Basis(low.Slerp(high,reach)));
+            }
+            CurlHand(1,Mathf.Lerp(_handCurl[1],gathering?Math.Clamp((cycle-.3f)*3,0,.8f):eating?.35f+.40f*reach:.3f,Smooth(_bareBlend)));
         }
         if(_socialBlend>.001f&&!usingTool&&!ToolHeld&&_reach==0&&!_hasCargo)
         {
@@ -314,7 +328,8 @@ internal partial class ResidentRig : Node3D
                 var target=new Vector3(side==0?-.23f:.23f,1.00f+emphasis,-.22f-emphasis);
                 var restBasis=Arms[side].Basis*Elbows[side].Basis*Hands[side].Basis;
                 var open=Basis.FromEuler(new Vector3(.6f,side==0?.3f:-.3f,side==0?-.35f:.35f));
-                BlendBareHand(side,BodyPoint(target),open,_socialBlend);
+                float gesture=ReachPulse(Mathf.PosMod(_workTime/3.2f+side*.5f+identityPhase*.1f,1));
+                BlendBareHand(side,BodyPoint(target),open,_socialBlend*gesture);
                 CurlHand(side,(.16f+emphasis)*_socialBlend);
             }
         }
