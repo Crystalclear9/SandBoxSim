@@ -24,6 +24,10 @@ arms at the sleeve boundary, forms convex cloth envelopes and smooths them.
 The JSON records source hashes, fitting scales and sampling dimensions.
 This cage is used to fit garments; it is not a clinical anatomy model.
 
+torso-feminine-cage.json is a derived radial cloth-support envelope of the
+same MakeHuman CC0 HM08 base with caucasian-female-young.target. Input hashes,
+sampling coordinates and reference scales are embedded in that asset.
+
 Exact input filenames, URLs, sizes and SHA-256 are in head-sources.json.
 Each runtime JSON also records the inputs actually used for that variant and
 the checksums of its skin, hair and eye texture atlases.
@@ -60,6 +64,9 @@ Exporter: tools/export_hand_lod.py.
 human-forearm.mesh.json: extract elbow/forearm sculpt regions 12 and 102, crop
 sleeve/wrist, straighten centreline, retarget length/wrist and recompute normals.
 Runtime mirrors geometry, normals and winding.
+Runtime derivatives also fit the muscle volume with continuous transverse
+scales, preserving the wrist/grip and hidden elbow boundary; near/far adult
+presentation profiles share that fit and transformed surface normals.
 Exporter: tools/export_human_forearm.py.
 
 Retain this hand/forearm attribution and note further changes on redistribution.

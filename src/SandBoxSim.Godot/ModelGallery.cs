@@ -37,7 +37,21 @@ internal partial class ModelGallery : PanelContainer
         if(Collection=="wardrobe")body.GetChild<Label>(0).Text="衣装剪裁 · 实际职业模型的正面与背面";
         grid.AddThemeConstantOverride("h_separation",12); grid.AddThemeConstantOverride("v_separation",12); body.AddChild(grid);
         var models=new NatureModels();
-        if(Collection=="handedness")
+        if(Collection=="body-frames")
+        {
+            grid.Columns=2;body.GetChild<Label>(0).Text="成人体型 · 男性与女性外观的同视角比较";
+            for(int view=0;view<2;view++)for(int frame=0;frame<2;frame++)
+                Closeup(grid,(frame==0?"男性外观":"女性外观")+(view==0?" · 正面":" · 侧面"),
+                    models.Resident(frame==0?17:55,false,JobType.Gatherer),1.30f,new(0,1.07f,0),view==0?new(.05f,.04f,4):new(4,.04f,.2f),true);
+        }
+        else if(Collection=="forearm-frames")
+        {
+            grid.Columns=3;body.GetChild<Label>(0).Text="小臂体积与腕部过渡 · 两种成人外观";
+            for(int frame=0;frame<2;frame++)for(int view=0;view<3;view++)
+                Closeup(grid,(frame==0?"男性外观":"女性外观")+(view==0?" · 掌侧":view==1?" · 背侧":" · 侧面"),
+                    models.ForearmStudy(1,frame==0?17:55),.46f,new(0,.17f,0),view==2?new(2,.04f,.18f):new(.18f,.04f,view==0?-2:2),false);
+        }
+        else if(Collection=="handedness")
         {
             grid.Columns=4;body.GetChild<Label>(0).Text="左右手 · 同一角色的近景与远景模型";
             for(int detail=0;detail<2;detail++)for(int view=0;view<2;view++)for(int side=0;side<2;side++)
@@ -240,6 +254,7 @@ internal partial class ModelGallery : PanelContainer
         var view=new SubViewportContainer { Stretch=true,CustomMinimumSize=new(0,120),SizeFlagsVertical=SizeFlags.ExpandFill,MouseFilter=MouseFilterEnum.Ignore }; card.AddChild(view);
         int index=grid.GetChildCount()-1;
         string semanticLabel=Collection=="animal-heads"?(index<2?"deer":"wolf"):Collection=="animal-details"?(index<3?"deer":"wolf"):Collection=="forearms"?"resident":Collection=="ecology-details"?new[]{"tree","tree","fern","grass","rock","shrub"}[index]:model is ResidentRig?"resident":Collection=="model-details"?(index==2?"deer":index==3?"wolf":"house"):Collection=="architecture"?(index<5?"house":"storage"):Collection=="characters"?(index==4?"deer":"wolf"):index<2?"tree":index==2?"farm":index==3?"mine":index==4?"ruins":"grove";
+        if(Collection=="forearm-frames")semanticLabel="resident";
         _evaluationRegions.Add((view,semanticLabel));
         var viewport=new SubViewport { OwnWorld3D=true,Size=new(420,280),Msaa3D=Viewport.Msaa.Msaa4X,RenderTargetUpdateMode=SubViewport.UpdateMode.Once }; view.AddChild(viewport);
         var stage=new Node3D(); viewport.AddChild(stage);

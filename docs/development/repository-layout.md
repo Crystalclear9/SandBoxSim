@@ -26,6 +26,8 @@
 
 ## 图形资源
 
+成人体型映射集中在 `NatureModels.BodyFrame.cs`，与 `NatureModels.WristContour.cs` 的小臂体积拟合配合；运行时使用 `assets/models/human/torso-cage.json` 和 `torso-feminine-cage.json`。两种体型不另建一套人物控制器，仍使用相同的动作节点和近远景切换。可复现的观察场景位于 `benchmarks/scenarios/visual-body-frames.json`、`visual-forearm-frames.json`，正式配图保存在 `docs/images/`。
+
 - `assets/models/environment/`：CC0 环境衍生网格、原始 PBR 贴图、许可与来源清单，普通运行直接读取。
 - `assets/models/human/`：授权头脸、前臂、手部及手部 LOD 衍生数据与署名，普通运行直接读取；原始 `.blend` 和 Blender 工具放在本机维护目录。
 - `assets/models/garments/`：项目自有三种缝片上衣、源几何哈希和运行清单，普通运行不需要原始导出或 Blender。

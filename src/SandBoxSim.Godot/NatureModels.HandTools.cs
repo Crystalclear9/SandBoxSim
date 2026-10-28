@@ -80,7 +80,7 @@ ROUGHNESS=.64;SPECULAR=.24;
     }
     private Mesh FingerProxy(string skin,bool closed,int side)
     {
-        string key="finger-proxy:"+skin+closed+":"+side;
+        string key="finger-proxy:"+skin+closed+":"+side+":"+BodyFrame;
         if(_meshes.TryGetValue(key,out var mesh))return mesh;
         if(ResidentRig.HandMirror(side)<0)
         {

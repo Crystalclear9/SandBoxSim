@@ -7,6 +7,25 @@ internal sealed partial class NatureModels
 {
     private const float WristHalfWidth=.027f,WristHalfDepth=.0185f;
     private const float SourceWristHalfDepth=.024f;
+    private static (Vector3 Point,Vector3 Normal) RefineForearmProfile(Vector3 point,Vector3 normal,int frame)
+    {
+        var wrist=RefineWristContour(point,normal);point=wrist.Point;normal=wrist.Normal;
+        if(point.Y<=.075f||point.Y>=.275f)return wrist;
+        // Preserve the exact grip, wrist ring and buried elbow. Smoothly
+        // redistribute the source muscle volume through the visible forearm.
+        float Smooth(float t)=>t*t*t*(10+t*(-15+6*t));
+        (float V,float D) Ramp(float a,float b)
+        {
+            float t=Math.Clamp((point.Y-a)/(b-a),0,1);
+            return(Smooth(t),30*t*t*(1-t)*(1-t)/(b-a));
+        }
+        var rise=Ramp(.075f,.145f);var fall=Ramp(.255f,.275f);
+        float weight=rise.V*(1-fall.V),derivative=rise.D*(1-fall.V)-rise.V*fall.D;
+        float rx=frame==1?.18f:.10f,rz=frame==1?.26f:.18f;
+        float sx=1-rx*weight,sz=1-rz*weight,z=point.Z-.010f;
+        return(new(point.X*sx,point.Y,.010f+z*sz),
+            new Vector3(normal.X/sx,normal.Y+normal.X*point.X*rx*derivative/sx+normal.Z*z*rz*derivative/sz,normal.Z/sz).Normalized());
+    }
 
     private static (float Value,float Derivative) WristContourBlend(float y)
     {

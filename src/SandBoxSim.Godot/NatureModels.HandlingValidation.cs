@@ -29,7 +29,7 @@ internal sealed partial class NatureModels
             {
                 if(!region[i].IsFinite()||!float.IsFinite(masks[i].R)||masks[i].R<0||masks[i].R>1)
                     throw new InvalidOperationException("Nonfinite anatomical hand surface region");
-                if(surface==0&&(MathF.Abs(MathF.Abs(region[i].X)-MathF.Abs(vertices[i].X))>.000001f||MathF.Abs(region[i].Y-vertices[i].Y)>.000001f))
+                if(surface==0&&vertices[i].Y<=.075f&&(MathF.Abs(MathF.Abs(region[i].X)-MathF.Abs(vertices[i].X))>.000001f||MathF.Abs(region[i].Y-vertices[i].Y)>.000001f))
                     throw new InvalidOperationException("Hand flexion lines are not anchored to the original rest surface");
             }
         }

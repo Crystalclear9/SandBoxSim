@@ -7,9 +7,9 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
-    public Node3D ForearmStudy(int side)
+    public Node3D ForearmStudy(int side,int identity=17)
     {
-        var rig=Resident(17,false,SandBoxSim.Core.Agents.JobType.Gatherer);
+        var rig=Resident(identity,false,SandBoxSim.Core.Agents.JobType.Gatherer);
         rig.SetHandDetail(true);rig.PoseHandReference(0);
         var elbow=rig.Elbows[side];elbow.GetParent().RemoveChild(elbow);
         elbow.Position=new(0,.35f,0);elbow.Rotation=Vector3.Zero;
@@ -17,7 +17,7 @@ internal sealed partial class NatureModels
     }
     private Mesh AnatomicalForearm(int side)
     {
-        string key="anatomical-forearm:"+side;
+        string key="anatomical-forearm:"+side+":"+BodyFrame;
         if(_meshes.TryGetValue(key,out var cached))return cached;
         const string hash="de084f7d5717a636b4c1d5057ca07cc5941534b4b83ea9eb400059618cc77018";
         string raw=FileAccess.GetFileAsString("res://assets/models/human/human-forearm.mesh.json");
@@ -33,7 +33,7 @@ internal sealed partial class NatureModels
         for(int i=0;i<count;i++)
         {
             var origin=new Vector3(0,.255f,.010f);
-            var fitted=RefineWristContour(new Vector3(p[i*3],p[i*3+1],p[i*3+2])+origin,new(n[i*3],n[i*3+1],n[i*3+2]));
+            var fitted=RefineForearmProfile(new Vector3(p[i*3],p[i*3+1],p[i*3+2])+origin,new(n[i*3],n[i*3+1],n[i*3+2]),BodyFrame);
             var local=fitted.Point-origin;
             points[i]=new(local.X*mirror,local.Y,local.Z);normals[i]=new(fitted.Normal.X*mirror,fitted.Normal.Y,fitted.Normal.Z);uv[i]=new(tex[i*2],tex[i*2+1]);
             if(!points[i].IsFinite()||!normals[i].IsFinite()||MathF.Abs(normals[i].Length()-1)>.01f)
@@ -50,7 +50,7 @@ internal sealed partial class NatureModels
     }
     private Mesh DistantForearm(int side)
     {
-        string key="distant-forearm:"+side;if(_meshes.TryGetValue(key,out var cached))return cached;
+        string key="distant-forearm:"+side+":"+BodyFrame;if(_meshes.TryGetValue(key,out var cached))return cached;
         var arrays=AnatomicalForearm(side).SurfaceGetArrays(0);
         var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
         // Distant fingers are rigid cached poses. Retain the old buried overlap

@@ -15,11 +15,13 @@ from mathutils.bvhtree import BVHTree
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--source',required=True)
 parser.add_argument('--output',required=True)
+parser.add_argument('--frame',choices=['male','female'],default='male')
 args=parser.parse_args(sys.argv[sys.argv.index('--')+1:])
 root=Path(args.source)
 expected={'base.obj':'8e761e6624b8f54536409135d1636da63b32486a90d4897f84e121d144f6fb4c',
           'caucasian-male-young.target':'70e228ba7164737dae664454394536fc5935fa48d333c1a97d77e2dc6eacc5f5',
           'basemesh_vertex_groups.json':'8cb1417bc55ae5ec8aa99f90734e81ed5fbb556511ff6a2c00e0534b70911444'}
+if args.frame=='female':expected['caucasian-female-young.target']='118379f6e8ba9266247fdb8788a20e1df40a239f97ced0b9905bcbcc74f6e820'
 for name,digest in expected.items():
     if hashlib.sha256((root/name).read_bytes()).hexdigest()!=digest:raise ValueError('Changed source: '+name)
 points=[];faces=[];group=''
@@ -29,13 +31,20 @@ for line in (root/'base.obj').read_text(encoding='utf-8').splitlines():
     if t[0]=='v':points.append(Vector(map(float,t[1:4])))
     elif t[0]=='g':group=t[1]
     elif t[0]=='f' and group=='body':faces.append(tuple(int(c.split('/')[0])-1 for c in t[1:]))
-for line in (root/'caucasian-male-young.target').read_text().splitlines():
+base=[p.copy() for p in points]
+for line in (root/('caucasian-'+args.frame+'-young.target')).read_text().splitlines():
     t=line.split()
     if len(t)==4 and not line.startswith('#'):points[int(t[0])]+=Vector(map(float,t[1:]))
 groups=json.loads((root/'basemesh_vertex_groups.json').read_text())
 ids=[i for a,b in groups['joint-l-shoulder'] for i in range(a,b+1)]
 shoulder=sum((points[i] for i in ids),Vector())/len(ids)
-mapped=[Vector((p.x*.202/shoulder.x,1.23+(p.y-shoulder.y)*.09,-(p.z-shoulder.z)*.1)) for p in points]
+reference=shoulder
+if args.frame=='female':
+    for line in (root/'caucasian-male-young.target').read_text().splitlines():
+        t=line.split()
+        if len(t)==4 and not line.startswith('#'):base[int(t[0])]+=Vector(map(float,t[1:]))
+    reference=sum((base[i] for i in ids),Vector())/len(ids)
+mapped=[Vector((p.x*.202/reference.x,1.23+(p.y-shoulder.y)*.09,-(p.z-shoulder.z)*.1)) for p in points]
 bvh=BVHTree.FromPolygons(mapped,faces,all_triangles=False)
 low,high,rows,columns=1.02,1.34,65,128
 radii=[]
@@ -77,10 +86,10 @@ for _ in range(4):
     old=radii
     radii=[sum(old[min(rows-1,max(0,r+dr))*columns+(c+dc)%columns]*weight for dr,dc,weight in ((0,0,.4),(-1,0,.15),(1,0,.15),(0,-1,.15),(0,1,.15))) for r in range(rows) for c in range(columns)]
 radii=[round(v,7) for v in radii]
-result={'schemaVersion':1,'source':'MakeHuman CC0 body; male young macro, existing source bundle',
+result={'schemaVersion':1,'source':f'MakeHuman CC0 body; {args.frame} young macro, existing source bundle',
         'sourceSha256':expected,'low':low,'high':high,'rows':rows,'columns':columns,
         'shoulder':[.202,1.23,0],'armholeHalfWidth':.185,'sourceShoulder':[round(v,7) for v in shoulder],
-        'scale':[round(.202/shoulder.x,7),.09,.1],'clothEnvelope':'convex-sections-four-pass-filter','radii':radii}
+        'scale':[round(.202/reference.x,7),.09,.1],'clothEnvelope':'convex-sections-four-pass-filter','radii':radii}
 output=Path(args.output);output.parent.mkdir(parents=True,exist_ok=True)
 output.write_text(json.dumps(result,separators=(',',':'))+'\n',encoding='utf-8',newline='\n')
 print('TORSO_CAGE_EXPORTED',len(faces),'source faces;',len(radii),'radial samples;',hashlib.sha256(output.read_bytes()).hexdigest())

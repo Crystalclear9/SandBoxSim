@@ -250,13 +250,14 @@ internal sealed partial class NatureModels
         ApplyResidentProportions(rig);
         rig.HeadRest=rig.Head.Position;
         MergeResidentParts(rig.Head,"resident:head:"+skin+hair+job+":"+_faceVariant);
-        MergeResidentParts(rig, "resident:" + cloth + skin + hair + job+":"+_garmentCut);
+        MergeResidentParts(rig, "resident:" + cloth + skin + hair + job+":"+_garmentCut+":"+BodyFrame);
         rig.BodySkin=rig.Torso.GetChild<MeshInstance3D>(rig.Torso.GetChildCount()-1);
         AddShoulderBridges(rig,cloth,skin);
         rig.HeadSkin=rig.Head.GetChild<MeshInstance3D>(rig.Head.GetChildCount()-1);
         AddResidentFace(rig,skin);
         rig.HeadProxy=new MeshInstance3D {Name="DistantHead",Mesh=DistantHead(skin,hair),Visible=false};rig.Head.AddChild(rig.HeadProxy);
         AddHandSkin(rig,skin);
+        ApplyBodyFrame(rig);
         rig.Head.Scale=new Vector3(.96f+((variation>>15)%4)*.025f,.98f+((variation>>18)%3)*.025f,1);
         if (child) { rig.Scale = new Vector3(.72f, .65f, .72f); rig.Head.Scale = Vector3.One * 1.15f; }
         else

@@ -14,6 +14,7 @@ internal sealed partial class NatureModels
     private int FaceArchetype=>_faceVariant%8;
     private bool ChildHead=>_faceVariant>=8;
     private int HumanFamily=>FaceArchetype<2?0:FaceArchetype<5?1:2;
+    private int BodyFrame=>!ChildHead&&HumanFamily==2?1:0;
     private readonly System.Collections.Generic.Dictionary<(int Variant,string Kind,int Side),(Vector3[] Points,int[] Indices)> _humanProjectionParts=new();
     private static readonly string[] HumanFiles={"human-head","human-scan","human-feminine"};
     private static readonly string[] HumanHashes={

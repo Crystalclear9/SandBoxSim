@@ -34,7 +34,9 @@
 
 [NatureModels.Forearm.cs](../../src/SandBoxSim.Godot/NatureModels.Forearm.cs) 校验成品哈希并缓存左右网格，镜像时同时处理顶点、法线和三角面朝向。近景前臂与手掌通过共顶点过渡环连成单张蒙皮，前臂顶点使用现有腕部补偿骨，抵消手腕转动而保持肘部挂接；指骨仍驱动手指。远景使用静态前臂和手部 LOD，腕端保留埋入重叠。自检检查连续性、边界位置、左右镜像，并在实际工具动作中检查变形后的手腕仍与前臂截面一致。
 
-`--panel=forearms` 是本地维护预览，展示相同模型的左右掌侧/背侧。它不扩展 HTTP 控制或评测请求协议；公开评测面板列表保持原有定义。
+`--panel=forearms` 是本地维护预览，展示相同模型的左右掌侧/背侧；该旧入口仅用于本地观察。体型与小臂的公开评测入口见下文。
+
+当前小臂另通过 `RefineForearmProfile` 收束肌腹，并以连续曲率过渡保留腕部及隐藏肘缘。两种成人外观拥有独立缓存，近手、远手与前臂保持同源轮廓；法线包含体积形变导数，手指和握柄区不改变。形态依据、项目拟合范围与局限见[成人体型与前臂说明](models.md)。新增公开评测面板 `body-frames` 与 `forearm-frames`，分别复现同衣色体型和小臂正侧面比较；对应 `visual-body-frames.json` 与 `visual-forearm-frames.json`。
 
 发根表现参考 [MakeHuman 官方材质](https://static.makehumancommunity.org/assets/creatingassets/makeclothes/makeclothes_materials.html)和[Godot 透明材质](https://docs.godotengine.org/en/stable/tutorials/3d/standard_material_3d.html)。当前固定 Compatibility 路径仍使用原 Scissor；没有声称启用 Alpha-to-Coverage，也没有新增扫描或全部毛发几何。
 
@@ -99,7 +101,7 @@ Godot 三平台导出包含模型 JSON、许可文本与导入纹理；发行包
 
 ## 连续衣装
 
-三套上衣采用 `relaxed-yoke-v7` 缝片构造。胸肩先从 MakeHuman CC0 身体采样，再形成带松量的衣料支撑体；`torso-cage.json` 保留三个输入文件的 SHA-256、肩点、坐标尺度及 65×128 截面。它与头脸共用已有的许可来源，但采用单一青年男性体型作为穿衣支撑，不代表完整的性别、年龄和体型解剖系统。
+三套上衣采用 `relaxed-yoke-v7` 缝片构造。胸肩先从 MakeHuman CC0 身体采样，再形成带松量的衣料支撑体；`torso-cage.json` 保留三个输入文件的 SHA-256、肩点、坐标尺度及 65×128 截面。女性成人外观另使用 `torso-feminine-cage.json`，来自同一 HM08 基础体和已校验的 `caucasian-female-young.target`；源胸部比例约束穿衣轮廓，腰胯造型参数有限度地修饰外形。两者与头脸共用已有许可来源，不代表完整的性别、年龄、体脂和肌肉解剖系统。
 
 宽松衣身参考 [V&A 的衬衫结构](https://www.vam.ac.uk/articles/sew-your-own-customisable-shirt)，胸腹衔接保留布料松量，减少刻画肌肉的重复褶皱；背部肩部拼接以贴面短针脚表示。头部整体上移 18 毫米以露出源颈部。袖窿收至肩侧，袖根延续衣身切平面，左右三角面方向对应。袖身权重按边长离线平滑并约束空间变化；领口、中线与腰带固定，袖口随肩骨，原手柄和手掌长度不变。当前成品为 7,320／7,320／7,200 三角形。身体支撑体重建后须重烘焙三套衣装；普通构建与运行不需要 Blender。
 
@@ -110,6 +112,7 @@ $torsoTemp = Join-Path (Get-Location) '.tools/tmp/torso-bake'
 New-Item -ItemType Directory -Force $torsoTemp | Out-Null
 $env:TEMP = $torsoTemp; $env:TMP = $torsoTemp
 & './.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe' --background --factory-startup --disable-autoexec --python-exit-code 2 --python tools/export_human_torso.py -- --source .tools/sources/makehuman --output src/SandBoxSim.Godot/assets/models/human/torso-cage.json
+& './.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe' --background --factory-startup --disable-autoexec --python-exit-code 2 --python tools/export_human_torso.py -- --frame female --source .tools/sources/makehuman --output src/SandBoxSim.Godot/assets/models/human/torso-feminine-cage.json
 ./tools/bake-garments.ps1
 python -m unittest discover -s tools -p test_garment_pattern.py
 ./tools/godot.ps1 -Mode test

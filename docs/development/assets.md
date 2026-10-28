@@ -7,7 +7,7 @@
 | 路径（相对 `src/SandBoxSim.Godot/assets/`） | 当前用途 |
 |---|---|
 | `models/environment/` | Poly Haven CC0 环境网格、PBR 贴图、清单与来源记录 |
-| `models/human/` | 三套头脸与原生 2K 皮肤、发片图集、前臂、手部和手部 LOD；CC BY 4.0 / CC0 许可分别列明 |
+| `models/human/` | 三套头脸与原生 2K 皮肤、发片图集、两套胸肩支撑截面、前臂、手部和手部 LOD；CC BY 4.0 / CC0 许可分别列明 |
 | `materials/scanned/` | 八种扫描表面、22 张 1K 原始贴图、哈希清单与许可 |
 | `models/animals/cdmir-deer/`、`models/animals/0ad-wolf/` | 正式鹿狼蒙皮、源 UV 贴图、成品/源哈希与 CC0 / CC BY-SA 3.0 署名 |
 | `runtime/` | Mozilla CA 证书包、固定源文件链接与哈希、MPL 2.0 许可；供游戏与项目内便携编辑器的 TLS 使用 |

@@ -37,7 +37,7 @@ internal sealed partial class NatureModels
     }
     private Mesh AnatomicalHandMesh(int side,string skin,bool lowDetail=false)
     {
-        string key="anatomical-hand:"+side+skin+lowDetail;if(_meshes.TryGetValue(key,out var cached))return cached;
+        string key="anatomical-hand:"+side+skin+lowDetail+":"+BodyFrame;if(_meshes.TryGetValue(key,out var cached))return cached;
         string raw=FileAccess.GetFileAsString("res://assets/models/human/"+(lowDetail?"human-hand-lod.mesh.json":"human-hand.mesh.json"));
         string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
         if(hash!=(lowDetail?"fd12b6c389014590c0a58bf0b089b36ca690d6e3bbd437f0f8f34368d45dffa4":"03fb4ec965287396050ecf2f2009b765aa034f7e16fa2819d0bd8aaa22e979ba"))throw new InvalidOperationException("Anatomical hand source mismatch");
@@ -48,7 +48,7 @@ internal sealed partial class NatureModels
         float mirror=ResidentRig.HandMirror(side);
         for(int i=0;i<points.Length;i++)
         {
-            var fitted=RefineWristContour(new(p[i*3],p[i*3+1],p[i*3+2]),new(n[i*3],n[i*3+1],n[i*3+2]));
+            var fitted=RefineForearmProfile(new(p[i*3],p[i*3+1],p[i*3+2]),new(n[i*3],n[i*3+1],n[i*3+2]),BodyFrame);
             points[i]=new(fitted.Point.X*mirror,fitted.Point.Y,fitted.Point.Z);normals[i]=new(fitted.Normal.X*mirror,fitted.Normal.Y,fitted.Normal.Z);uv[i]=new(tex[i*2],tex[i*2+1]);
         }
         var bones=Integers("bones");var weights=Floats("weights");var mesh=new ArrayMesh();
