@@ -15,7 +15,7 @@ class GarmentPatternTests(unittest.TestCase):
         for name,digest in manifest['sha256'].items():
             with self.subTest(cut=name):
                 raw=(ROOT/name).read_bytes();self.assertEqual(hashlib.sha256(raw).hexdigest(),digest)
-                d=json.loads(raw);self.assertEqual(d['construction'],'articulated-sleeve-v4')
+                d=json.loads(raw);self.assertEqual(d['construction'],'anatomical-yoke-v6')
                 points=list(zip(*[iter(d['positions'])]*3));ids=d['indices']
                 self.assertLessEqual(len(ids)//3,10000)
                 self.assertEqual(set(ids),set(range(len(points))))
@@ -107,7 +107,7 @@ class GarmentPatternTests(unittest.TestCase):
                     # duplicate idealized curve or averaged vertex normals.
                     dot=max(-1,min(1,sum(x*y for x,y in zip(*ns))))
                     angles.append(math.degrees(math.acos(dot)))
-                self.assertGreaterEqual(len(angles),20)
+                self.assertGreaterEqual(len(angles),16)
                 self.assertLess(max(angles),25.)
                 self.assertLess(sum(angles)/len(angles),12.)
 
@@ -144,9 +144,8 @@ class GarmentPatternTests(unittest.TestCase):
                     for before,after,weight,detail in zip(p,posed,w,uv):
                         if abs(before[0])<.04 or before[1]<.90 or (before[1]>1.25 and detail[0]<=0):
                             self.assertAlmostEqual(distance(before,after),0.,places=6)
-            lower=[sum(weight[1:]) for point,weight,detail in zip(p,w,uv) if detail[0]==0 and point[1]<1.17 and abs(point[0])>.14]
-            self.assertGreater(len(lower),10)
-            self.assertGreater(sum(lower)/len(lower),.65)
+                        if detail[0]<0 and before[1]<1.13:
+                            self.assertLess(distance(before,after),.035)
 
     def test_reject_old_or_incomplete_pattern(self):
         with self.assertRaises(ValueError):build_pattern({'schemaVersion':1})

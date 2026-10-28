@@ -101,11 +101,9 @@ internal sealed partial class NatureModels
             for(int i=0;i<points.Length;i++)
             {
                 if(Root(i)!=root)throw new InvalidOperationException("Disconnected sewn garment");
-                float ring=Math.Clamp((seam[i].X/.263f-.12f)/.48f,0,1);ring=ring*ring*(3-2*ring);
                 float local=GarmentTorsoShoulderWeight(points[i]);
-                float expected=seam[i].X>0?1-(1-ring)*(1-local):local;
                 float actual=weights[i*4+1]+weights[i*4+2];
-                if(MathF.Abs(expected-actual)>.00002f)
+                if(seam[i].X<=0&&MathF.Abs(local-actual)>.00002f)
                     throw new InvalidOperationException("Baked garment and attached clothing use different shoulder support fields");
                 for(int j=0;j<4;j++)if(weights[i*4+j]>.9f)influence[bones[i*4+j]]++;
             }

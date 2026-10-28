@@ -188,6 +188,7 @@ internal partial class ResidentRig : Node3D
         Head.Position=HeadRest+neckPivot-Basis.FromEuler(Head.Rotation)*neckPivot;
         for(int i=0;i<2;i++)
         {
+            Arms[i].Position=ShoulderRest(i);
             float stride=wave*(i==0?1:-1)*_activity;
             Legs[i].Position=new(i==0?-.10f:.10f,HipHeight-.094f*Smooth(_pickupBlend),0);
             Legs[i].Rotation=new(Mathf.Lerp(stride*.44f,.55f,Smooth(_pickupBlend)),0,0);
@@ -328,6 +329,7 @@ internal partial class ResidentRig : Node3D
         if(_detailedHands)for(int side=0;side<2;side++)
         {
             ShoulderSkeleton.SetBonePoseRotation(side+1,Arms[side].Basis.GetRotationQuaternion());
+            ShoulderSkeleton.SetBonePosePosition(side+1,Arms[side].Position);
             UpdateHandBones(side);
         }
         if(!_detailedHands)for(int side=0;side<2;side++)
@@ -348,7 +350,11 @@ internal partial class ResidentRig : Node3D
         foreach(var part in _distanceMeshes)part.Node.Mesh=detailed?part.Near:part.Far;
         BodySkin.Mesh=detailed?DetailedBodyMesh:DistantBodyMesh;BodySkin.Skin=detailed?DetailedBodySkin:null!;BodySkin.Skeleton=new NodePath(detailed?"../ShoulderSkeleton":"");
         ShoulderSkeleton.ProcessMode=detailed?ProcessModeEnum.Inherit:ProcessModeEnum.Disabled;
-        if(detailed)for(int side=0;side<2;side++)ShoulderSkeleton.SetBonePoseRotation(side+1,Arms[side].Basis.GetRotationQuaternion());
+        if(detailed)for(int side=0;side<2;side++)
+        {
+            ShoulderSkeleton.SetBonePoseRotation(side+1,Arms[side].Basis.GetRotationQuaternion());
+            ShoulderSkeleton.SetBonePosePosition(side+1,Arms[side].Position);
+        }
         for(int side=0;side<2;side++)
         {
             HandSkeletons[side].ProcessMode=detailed?ProcessModeEnum.Inherit:ProcessModeEnum.Disabled;

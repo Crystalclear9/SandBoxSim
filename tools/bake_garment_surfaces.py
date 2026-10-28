@@ -21,13 +21,16 @@ hashes={}
 for cut in range(3):
     raw=(source/f'garment-{cut}-source.json').read_bytes();data=json.loads(raw)
     points,faces,weights,details=build_pattern(data,include_details=True)
+    # Mirror the quad diagonals with the body. Unconstrained triangulation can
+    # pick different diagonals at the two non-planar scapular sleeve corners.
+    faces=[tri for f in faces for tri in (((f[0],f[1],f[2]),(f[0],f[2],f[3])) if sum(points[i][0] for i in f)<0 else ((f[0],f[1],f[3]),(f[1],f[2],f[3])))]
     mesh=bpy.data.meshes.new('sewn-shirt');mesh.from_pydata(points,[],faces);mesh.update()
     # Recalculate winding across both mirrored sleeves from the shared topology.
     bm=bmesh.new();bm.from_mesh(mesh)
     bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces));bm.to_mesh(mesh);bm.free()
     mesh.calc_loop_triangles()
     if len(mesh.loop_triangles)>10000:raise RuntimeError('Garment triangle budget exceeded')
-    result={'schemaVersion':1,'construction':'articulated-sleeve-v5','sourceSha256':hashlib.sha256(raw).hexdigest(),'positions':[],'normals':[],'uv':[],'detailUv':[],'bones':[],'weights':[],'indices':[]}
+    result={'schemaVersion':1,'construction':'anatomical-yoke-v6','sourceSha256':hashlib.sha256(raw).hexdigest(),'positions':[],'normals':[],'uv':[],'detailUv':[],'bones':[],'weights':[],'indices':[]}
     for v,w,detail in zip(mesh.vertices,weights,details):
         result['positions'].extend(round(x,7) for x in v.co)
         result['normals'].extend(round(x,7) for x in v.normal.normalized())

@@ -449,7 +449,7 @@ public partial class WorldView3D : MapView
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="coverage-mosaic-v6",["habitatDetail"]="stratified-meadow-v10",["vegetationSurface"]="engine-faced-v2",
-            ["architecture"]="inset-joinery-v13",["garmentMaterial"]="restrained-shoulder-linen-v12",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
+            ["architecture"]="inset-joinery-v13",["garmentMaterial"]="anatomical-yoke-linen-v13",["shoulderMotion"]="supported-reach-v1",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
             ["animalPresentation"]="source-paw-contours-v11",["residentSurface"]="orbital-gaze-v6",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="cargo-priority-v3",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="joint-blended-v2",["waterSurface"]="constrained-bank-v6",["wristContour"]="source-oval-v1",
             ["hairline"]="source-root-v1",["reedPanicle"]="connected-axis-v1" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;

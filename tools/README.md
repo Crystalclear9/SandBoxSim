@@ -17,6 +17,7 @@
 | `bake-models.ps1` | 重建人体解剖手部与保留的程序动物校准网格；不是当前授权动物导出入口 |
 | `export_authored_animals.py` | 在项目本地 Blender 中核对源哈希、转换 CC0 鹿 / CC BY-SA 狼、转移鹿 14 / 狼 15 关节权重并导出运行 UV 表面；用法与许可见 [模型系统](../docs/development/models.md) |
 | `bake-garments.ps1` / `garment_pattern.py` / `bake_garment_surfaces.py` | 导出三种衣片采样，共顶点生成袖片与左右权重，在项目本地 Blender 中统一面朝向并校验成品/源哈希 |
+| `export_human_torso.py` | 从已校验的 MakeHuman CC0 人体离线采样胸肩支撑体，裁除 A 姿势手臂分支，生成衣料凸包与平滑截面；用法见 [人物素材](../docs/development/human-assets.md) |
 | `fetch-surface-materials.py` | 下载并校验八种 CC0 扫描表面；`--verify` 离线核对运行贴图大小与 SHA-256，源文件缓存仅放 `.tools/` |
 | `export_human_forearm.py` / `export_human_hands.py` / `join_human_arm.py` / `export_hand_lod.py` / `bake_animal_surfaces.py` | 同源肘/前臂截取、掌指重定向、近景腕环连接、同源手部减面、腕口贴合、旧程序动物校准表面的体素缝合与蒙皮转移；由 Blender 执行 |
 | `run.ps1` | TUI、headless、digest、snapshot 和 batch 模式 |

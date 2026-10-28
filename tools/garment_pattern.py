@@ -40,17 +40,23 @@ def build_pattern(data, include_details=False):
     # vertices use a negative sentinel, so trimming cannot mark the torso.
     details = [(-1.,0.) for _ in points]
     faces = []
+    sleeve_free=[]
     idx = lambda r,c: r*cols+c%cols
     # The armhole reaches the shoulder slope, leaving the neckline untouched.
     low = min(range(rows),key=lambda r:abs(points[idx(r,0)][1]-(shoulder-.085)))
     high = min(range(rows),key=lambda r:abs(points[idx(r,0)][1]-(shoulder+.047)))
-    half = 5
+    half = 3
     def in_hole(r,c):
         return low <= r < high and any((c-center)%cols < half or (center-c)%cols <= half for center in (0,cols//2))
     for r in range(rows):
         for c in range(cols):
             if not in_hole(r,c):
                 faces.append((idx(r,c),idx(r+1,c),idx(r+1,c+1),idx(r,c+1)))
+    panel_normals=[[0.,0.,0.] for _ in points]
+    for face in faces:
+        n=[sum(points[a][(j+1)%3]*points[b][(j+2)%3]-points[a][(j+2)%3]*points[b][(j+1)%3] for a,b in zip(face,face[1:]+face[:1])) for j in range(3)]
+        for i in face:
+            for j in range(3):panel_normals[i][j]+=n[j]
     for center,side,bone in ((0,1,2),(cols//2,-1,1)):
         # Clockwise boundary in the unwrapped torso panel.
         loop = ([idx(low,c) for c in range(center-half,center+half)] +
@@ -71,6 +77,9 @@ def build_pattern(data, include_details=False):
             if rel==-half:outside.append(points[idx(r,c-1)])
             if rel==half:outside.append(points[idx(r,c+1)])
             direction=tuple(sum(p[j]-q[j] for q in outside) for j in range(3))
+            normal=panel_normals[index];n2=sum(v*v for v in normal)
+            projection=sum(direction[j]*normal[j] for j in range(3))/n2
+            direction=tuple(direction[j]-normal[j]*projection for j in range(3))
             length=math.sqrt(sum(q*q for q in direction))
             speed=.06+.08*min(1,max(0,(p[1]-(shoulder-.085))/.132))
             tangents.append(tuple(q/length*speed for q in direction))
@@ -112,7 +121,13 @@ def build_pattern(data, include_details=False):
                 cuff=.0025*math.exp(-((t-.80)/.13)**2)*(trough(2.35,.55)-.65*trough(2.90,.32))
                 fold=envelope*(fall+cuff)
                 q=(q[0]+side*fold*math.cos(phase),q[1],q[2]+fold*math.sin(phase))
+                # Keep the first two rings on the actual panel tangent. The
+                # previous asymptotic Hermite derivative was not sufficient
+                # at finite ring spacing on the clavicular/front armhole.
+                root_blend=min(1,max(0,(t-.11)/.22));root_blend=root_blend*root_blend*(3-2*root_blend)
+                q=tuple((p[i]+direction[i]*t)*(1-root_blend)+q[i]*root_blend for i in range(3))
                 ring.append(len(points));points.append(q)
+                if row<16:sleeve_free.append(len(points)-1)
                 details.append((t*.263,abs(math.remainder(phase-math.pi,math.tau))*(rx+rz)*.5))
                 # The seam stays anchored to the torso while the hanging
                 # fabric takes the shoulder rotation. Its lower, already
@@ -138,6 +153,39 @@ def build_pattern(data, include_details=False):
         for c in range(cols):
             k=(c+1)%cols;faces.append((prev[c],prev[k],ring[k],ring[c]))
         prev=ring
+    # Harmonic support follows physical edge lengths, not row numbers. Short
+    # folded edges then cannot receive a large arbitrary bone-weight jump.
+    # The shared armhole is fixed to the torso support field; the distal sleeve
+    # remains rigidly attached to the upper arm/cuff.
+    adjacency=[set() for _ in points]
+    for face in faces:
+        for a in face:
+            for b in face:
+                if a!=b:adjacency[a].add(b)
+    field=[w[1]+w[2] for w in weights]
+    neighbours=[]
+    for i in sleeve_free:
+        adjacent=[(j,1/max(1e-8,sum((points[i][k]-points[j][k])**2 for k in range(3)))) for j in adjacency[i]]
+        total=sum(w for j,w in adjacent);neighbours.append((i,[(j,w/total) for j,w in adjacent]))
+    for _ in range(2400):
+        updates=[(i,sum(field[j]*w for j,w in adjacent)) for i,adjacent in neighbours]
+        error=max(abs(field[i]-value) for i,value in updates)
+        for i,value in updates:field[i]=value
+        if error<.000002:break
+    # Bound the spatial gradient as well as the average: even a harmonic
+    # field can change too quickly across a tiny fold next to a fixed seam.
+    constraints=[(i,[(j,5.5*math.dist(points[i],points[j])) for j in adjacency[i]]) for i in sleeve_free]
+    for _ in range(1200):
+        updates=[]
+        for i,adjacent in constraints:
+            low=max(field[j]-gap for j,gap in adjacent);high=min(field[j]+gap for j,gap in adjacent)
+            value=(low+high)*.5 if low>high else min(high,max(low,field[i]))
+            updates.append((i,(field[i]+value)*.5))
+        error=max(abs(field[i]-value) for i,value in updates)
+        for i,value in updates:field[i]=value
+        if error<.0000001:break
+    for i in sleeve_free:
+        w=field[i];weights[i]=(1-w,w if points[i][0]<0 else 0.,w if points[i][0]>=0 else 0.)
     # Remove vertices inside the cut-out armholes; there are no unused points.
     used=sorted({i for f in faces for i in f});mapping={v:i for i,v in enumerate(used)}
     result=([points[i] for i in used],[tuple(mapping[i] for i in f) for f in faces],[weights[i] for i in used])

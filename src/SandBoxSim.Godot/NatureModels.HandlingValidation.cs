@@ -295,7 +295,7 @@ internal sealed partial class NatureModels
                 for(int i=0;i<vertices.Length;i++)
                 {
                     var p=vertices[i];int side=weights[i].G<.5f?0:1;
-                    var moved=rig.Arms[side].Transform*(p-rig.Arms[side].Position);
+                    var moved=rig.Arms[side].Transform*(p-ResidentRig.ShoulderRest(side));
                     var deformed=p.Lerp(moved,weights[i].R);
                     if(!deformed.IsFinite())throw new InvalidOperationException("Invalid shoulder deformation");
                     if(weights[i].R==0)

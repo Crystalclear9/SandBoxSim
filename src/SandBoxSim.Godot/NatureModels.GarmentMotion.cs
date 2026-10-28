@@ -11,7 +11,7 @@ internal sealed partial class NatureModels
     // matrices. Rest-pose topology checks alone cannot reveal stretched axillae.
     private void ValidateGarmentMotion()
     {
-        float maximum=0;int poses=0;
+        float maximum=0,shoulderExcursion=0;int poses=0;
         foreach(var job in new[]{JobType.Farmer,JobType.Gatherer,JobType.Trader})
         {
             var rig=Resident(17,false,job);
@@ -45,6 +45,9 @@ internal sealed partial class NatureModels
                         {
                             var expected=rig.Arms[side].Transform*rig.DetailedBodySkin.GetBindPose(side+1);
                             if(!transforms[side+1].IsEqualApprox(expected))throw new InvalidOperationException("Garment skeleton does not match the actual upper-arm pose");
+                            float excursion=rig.Arms[side].Position.DistanceTo(ResidentRig.ShoulderRest(side));
+                            if(excursion>.026f)throw new InvalidOperationException("Shoulder girdle exceeds its bounded reach support");
+                            shoulderExcursion=MathF.Max(shoulderExcursion,excursion);
                         }
                         for(int i=0;i<source.Length;i++)
                         {
@@ -70,10 +73,14 @@ internal sealed partial class NatureModels
                         }
                         poses++;
                     }
+                    var frozenLeft=rig.Arms[0].Transform;var frozenRight=rig.Arms[1].Transform;
+                    rig.PresentAction(1,action,phase,true,.73f);
+                    if(rig.Arms[0].Transform!=frozenLeft||rig.Arms[1].Transform!=frozenRight)throw new InvalidOperationException("Paused reach moves the shoulder girdle");
                 }
             }
             finally{rig.Free();}
         }
-        GD.Print($"GARMENT_MOTION_PASS: cuts=3, actualActionPoses={poses}, maximumEdgeStretch={maximum:0.00}, fixed centre/neck/waist and attached cuffs");
+        if(shoulderExcursion<.005f)throw new InvalidOperationException("Reaching actions retain a fixed shoulder anchor");
+        GD.Print($"GARMENT_MOTION_PASS: cuts=3, actualActionPoses={poses}, maximumEdgeStretch={maximum:0.00}, shoulderExcursion={shoulderExcursion:0.000} m, fixed centre/neck/waist, attached cuffs and paused girdle");
     }
 }

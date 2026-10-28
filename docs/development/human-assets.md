@@ -99,4 +99,20 @@ Godot 三平台导出包含模型 JSON、许可文本与导入纹理；发行包
 
 ## 连续衣装
 
-三套上衣采用 `articulated-sleeve-v5` 缝片构造，袖根延续衣身切线并过渡到原袖口，保留左右骨骼和接合位置；肩袖及侧胸按实际绑定坐标分配权重，固定领口、中线与腰带；袖身宽折谷与袖口压褶写入实际网格。第二 UV 保存米制缝线坐标，在最终身体蒙皮中保持原单位；普通衣领等材质不绘制该袖身细节。成品为 7,752／7,752／7,648 三角形，通过项目内 `tools/bake-garments.ps1` 重建并同步哈希清单，普通运行不需要 Blender。素材和管线见[美术资源](assets.md)，结构边界见[模型系统](models.md)。
+三套上衣采用 `anatomical-yoke-v6` 缝片构造。胸肩先从 MakeHuman CC0 身体采样，再形成带松量的衣料支撑体；`torso-cage.json` 保留三个输入文件的 SHA-256、肩点、坐标尺度及 65×128 截面。它与头脸共用已有的许可来源，但采用单一青年男性体型作为穿衣支撑，不代表完整的性别、年龄和体型解剖系统。
+
+袖窿收至肩侧，袖根延续衣身切平面，左右三角面方向对应。袖身权重按边长离线平滑并约束空间变化；领口、中线与腰带固定，袖口随肩骨，原手柄和手掌长度不变。当前成品为 7,320／7,320／7,200 三角形。身体支撑体重建后须重烘焙三套衣装；普通构建与运行不需要 Blender。
+
+在项目根目录使用已下载的源数据重建：
+
+```powershell
+$torsoTemp = Join-Path (Get-Location) '.tools/tmp/torso-bake'
+New-Item -ItemType Directory -Force $torsoTemp | Out-Null
+$env:TEMP = $torsoTemp; $env:TMP = $torsoTemp
+& './.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe' --background --factory-startup --disable-autoexec --python-exit-code 2 --python tools/export_human_torso.py -- --source .tools/sources/makehuman --output src/SandBoxSim.Godot/assets/models/human/torso-cage.json
+./tools/bake-garments.ps1
+python -m unittest discover -s tools -p test_garment_pattern.py
+./tools/godot.ps1 -Mode test
+```
+
+更改拟合配方后，要同步审查 `NatureModels.TorsoAnatomy.cs` 中固定的成品哈希；不要直接跳过校验。人物肩点与衣服骨骼同步作有界位移，肘部偏好和握持手腕限制共同参与求解；具体形态、动作边界与研究来源见[模型系统](models.md)。

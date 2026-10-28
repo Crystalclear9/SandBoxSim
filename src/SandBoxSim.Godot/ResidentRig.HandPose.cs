@@ -10,9 +10,11 @@ internal partial class ResidentRig
     private SandBoxSim.Core.Agents.ActionKind _bareAction;
     private void BlendBareHand(int side,Vector3 target,Basis desired,float blend=-1)
     {
+        var origin=Arms[side].Position;
         var upper=Arms[side].Quaternion;var elbow=Elbows[side].Quaternion;var wrist=Hands[side].Quaternion;
         float weight=Smooth(blend<0?_bareBlend:blend);
         SolveBareHand(side,target,desired);
+        Arms[side].Position=origin.Lerp(Arms[side].Position,weight);
         Arms[side].Quaternion=upper.Slerp(Arms[side].Quaternion,weight);
         Elbows[side].Quaternion=elbow.Slerp(Elbows[side].Quaternion,weight);
         Hands[side].Quaternion=wrist.Slerp(Hands[side].Quaternion,weight);
@@ -88,18 +90,42 @@ internal partial class ResidentRig
     private void SolveHand(int side,Vector3 gripTarget,Basis handBasis,bool bare=false,float carry=0)
     {
         Vector3 gripOffset=side==1?Grip!.Position:new(0,-.035f,-.0286f);
-        Vector3 wrist=gripTarget-handBasis*gripOffset,shoulder=Arms[side].Position;
+        Vector3 wrist=gripTarget-handBasis*gripOffset;
+        Vector3 shoulder=ShoulderForReach(side,wrist);Arms[side].Position=shoulder;
         float upper=.28f,lower=Hands[side].Position.Length();
         Vector3 delta=wrist-shoulder;float distance=Math.Clamp(delta.Length(),.08f,upper+lower-.002f);var direction=delta.Normalized();
         wrist=shoulder+direction*distance;
         float along=(upper*upper-lower*lower+distance*distance)/(2*distance);
-        // The elbow pole follows the palm, instead of forcing both forearms behind the body.
-        var relaxedPole=new Vector3(side==0?-.75f:.75f,-.45f,.15f);
-        var pole=bare?relaxedPole:handBasis.Y.Lerp(relaxedPole,carry);
+        // Keep the elbow below and slightly outside the shoulder. A tool's
+        // shaft orientation must not drag the elbow up into a winged pose.
+        // Pronation is resolved by the lower-arm frame, independently of pole.
+        var relaxedPole=new Vector3(side==0?-.35f:.35f,-.85f,-.10f);
+        var carryingPole=new Vector3(side==0?-.75f:.75f,-.45f,.15f);
+        var pole=bare?relaxedPole:relaxedPole.Lerp(handBasis.Y,.12f).Lerp(carryingPole,carry);
         var bend=pole-direction*pole.Dot(direction);
         if(bend.LengthSquared()<.0001f){var hint=new Vector3(side==0?-1:1,.2f,.1f);bend=hint-direction*hint.Dot(direction);}
         bend=bend.Normalized();
-        Vector3 elbow=shoulder+direction*along+bend*MathF.Sqrt(MathF.Max(0,upper*upper-along*along));
+        float radius=MathF.Sqrt(MathF.Max(0,upper*upper-along*along));
+        if(!bare&&radius>.0001f)
+        {
+            // Start from the downward elbow preference, then use only as much
+            // pole rotation as needed for a comfortable wrist. This avoids
+            // trading a natural elbow for a folded wrist at a fixed shaft.
+            var wristPole=handBasis.Y-direction*handBasis.Y.Dot(direction);
+            if(wristPole.LengthSquared()>.00001f)
+            {
+                wristPole=wristPole.Normalized();
+                float turn=bend.SignedAngleTo(wristPole,direction),limit=MathF.Cos(Mathf.DegToRad(43));
+                float Alignment(float t)=>(shoulder+direction*along+bend.Rotated(direction,turn*t)*radius-wrist).Normalized().Dot(handBasis.Y);
+                if(Alignment(0)<limit&&Alignment(1)>Alignment(0))
+                {
+                    float low=0,high=1;
+                    for(int pass=0;pass<9;pass++){float mid=(low+high)*.5f;if(Alignment(mid)>=limit)high=mid;else low=mid;}
+                    bend=bend.Rotated(direction,turn*high);
+                }
+            }
+        }
+        Vector3 elbow=shoulder+direction*along+bend*radius;
         Basis LimbFrame(Vector3 direction,Vector3 rightHint)
         {
             var up=-direction;var right=rightHint-up*rightHint.Dot(up);
@@ -109,5 +135,18 @@ internal partial class ResidentRig
         var upperBasis=new Basis(new Quaternion(Vector3.Down,(elbow-shoulder).Normalized()));
         var lowerBasis=LimbFrame((wrist-elbow).Normalized(),handBasis.X)*new Basis(new Quaternion(Hands[side].Position.Normalized(),Vector3.Down));
         Arms[side].Basis=upperBasis;Elbows[side].Basis=upperBasis.Inverse()*lowerBasis;Hands[side].Basis=lowerBasis.Inverse()*handBasis;
+    }
+    internal static Vector3 ShoulderRest(int side)=>new(side==0?-.202f:.202f,BodyY(1.18f),0);
+    private static Vector3 ShoulderForReach(int side,Vector3 wrist)
+    {
+        var rest=ShoulderRest(side);var reach=wrist-rest;
+        if(reach.LengthSquared()<.000001f)return rest;
+        float elevation=MathF.Acos(Math.Clamp(reach.Normalized().Dot(Vector3.Down),-1,1));
+        // Bounded shoulder-girdle support, not a clinical scapular solver.
+        // Below 30 degrees the humerus carries most motion; reaching higher
+        // lifts the shoulder slightly, while forward reach protracts it.
+        float lift=Mathf.SmoothStep(Mathf.DegToRad(30),Mathf.DegToRad(105),elevation);
+        float forward=Mathf.SmoothStep(.10f,.40f,-reach.Z);
+        return rest+new Vector3((side==0?-1:1)*.004f*lift,.020f*lift,-.014f*forward);
     }
 }

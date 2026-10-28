@@ -102,7 +102,7 @@ internal sealed partial class NatureModels
         // Make room in the garment for the authored throat, instead of
         // shrinking the anatomy or hiding the collision under a solid collar.
         float neckRoom=.028f*Mathf.SmoothStep(1.215f,1.28f,y)*front;
-        return new Vector3(MathF.Sign(MathF.Cos(angle))*MathF.Pow(MathF.Abs(MathF.Cos(angle)),.96f)*Profile(width)*fold,y+vent-neckline,MathF.Sign(MathF.Sin(angle))*MathF.Pow(MathF.Abs(MathF.Sin(angle)),.96f)*(Profile(depth)*fold+volume)-neckRoom);
+        return AnatomicalGarmentPoint(new Vector3(MathF.Sign(MathF.Cos(angle))*MathF.Pow(MathF.Abs(MathF.Cos(angle)),.96f)*Profile(width)*fold,y+vent-neckline,MathF.Sign(MathF.Sin(angle))*MathF.Pow(MathF.Abs(MathF.Sin(angle)),.96f)*(Profile(depth)*fold+volume)-neckRoom),angle,fold);
     }
     private Mesh Garment()
     {

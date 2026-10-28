@@ -18,6 +18,12 @@ claim that this replacement is a scan. Source UV skin textures are young
 caucasian male, male2 and female from the CC0 MakeHuman system assets pack.
 The packaged eye_albedo.png retains the original transparent cornea patch.
 
+torso-cage.json: CC0 HM08 body with the existing male-young macro target.
+SandBoxSim samples clothed chest/shoulder support sections, trims the A-pose
+arms at the sleeve boundary, forms convex cloth envelopes and smooths them.
+The JSON records source hashes, fitting scales and sampling dimensions.
+This cage is used to fit garments; it is not a clinical anatomy model.
+
 Exact input filenames, URLs, sizes and SHA-256 are in head-sources.json.
 Each runtime JSON also records the inputs actually used for that variant and
 the checksums of its skin, hair and eye texture atlases.
