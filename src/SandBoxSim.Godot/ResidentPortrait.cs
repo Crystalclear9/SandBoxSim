@@ -25,6 +25,7 @@ internal partial class ResidentPortrait : SubViewportContainer
     private Label _gestureHint=null!;
     private PanelContainer _activityPlate=null!;
     private Label _activityReadout=null!;
+    private Label _heldObjectReadout=null!;
     private Tween? _hintTransition;
     private void Hint(float alpha)
     {
@@ -110,7 +111,9 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         MouseEntered+=()=>Hint(1);MouseExited+=()=>Hint(0);
         _activityPlate=new PanelContainer {Name="PortraitHandlingStatus",Position=new(14,38),MouseFilter=MouseFilterEnum.Ignore};
         _activityPlate.AddThemeStyleboxOverride("panel",HudStyle.Box(new Color(HudStyle.Surface,.94f),5,8));AddChild(_activityPlate);
-        _activityReadout=HudStyle.Label("",12,true);_activityReadout.MouseFilter=MouseFilterEnum.Ignore;_activityPlate.AddChild(_activityReadout);
+        var activityRows=new VBoxContainer {MouseFilter=MouseFilterEnum.Ignore};activityRows.AddThemeConstantOverride("separation",3);_activityPlate.AddChild(activityRows);
+        _activityReadout=HudStyle.Label("",12);_activityReadout.MouseFilter=MouseFilterEnum.Ignore;activityRows.AddChild(_activityReadout);
+        _heldObjectReadout=HudStyle.Label("",11,true);_heldObjectReadout.MouseFilter=MouseFilterEnum.Ignore;activityRows.AddChild(_heldObjectReadout);
         SetExpanded(Expanded);
     }
     private void ZoomBy(float amount)=>SetDistance(_distance*MathF.Exp(amount));
@@ -200,6 +203,9 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
             _resident.PresentAction((float)delta, _action, _actionPhase, _worldPaused, (float)(_identity % 11));
             string handling=(_worldPaused?"已暂停 · ":"实时 · ")+_resident.Handling;
             if(_activityReadout.Text!=handling)_activityReadout.Text=handling;
+            string held=_resident.HeldObject;
+            string heldText=held.Length==0?"当前无手持物":"手持 · "+held;
+            if(_heldObjectReadout.Text!=heldText)_heldObjectReadout.Text=heldText;
             float shownYaw=IsThumbnail?ThumbnailYaw:_yaw;
             _resident.Rotation = new Vector3(0, HudStyle.MotionEnabled?Mathf.LerpAngle(_resident.Rotation.Y, shownYaw, 1 - MathF.Exp(-(float)delta * 12)):shownYaw, 0);
             _viewDistance=HudStyle.MotionEnabled?Mathf.Lerp(_viewDistance,_distance,1-MathF.Exp(-(float)delta*10)):_distance;Aim((float)delta);

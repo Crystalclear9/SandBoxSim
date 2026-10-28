@@ -55,7 +55,21 @@ ROUGHNESS=.64;SPECULAR=.24;
         if(resource==ResourceKind.Wood)
         {
             for(int i=0;i<3;i++)Detail(root,"cylinder",new(0,-.025f,i*.035f-.035f),new(.041f,.25f,.041f),"#8b6c46",new(0,0,MathF.PI/2));
-            foreach(float side in new[]{-1f,1f})FineBeam(root,new(side*.075f,-.049f,-.053f),new(side*.075f,-.007f,.053f),.005f,"#a18c68");
+            // Closed bindings wrap the bundle instead of two diagonal strokes.
+            foreach(float side in new[]{-1f,1f})for(int segment=0;segment<32;segment++)
+            {
+                float a=segment*MathF.Tau/32,b=(segment+1)*MathF.Tau/32;
+                FineBeam(root,new(side*.075f,-.025f+MathF.Cos(a)*.023f,MathF.Sin(a)*.058f),new(side*.075f,-.025f+MathF.Cos(b)*.023f,MathF.Sin(b)*.058f),.0035f,"#a18c68");
+            }
+            for(int log=0;log<3;log++)foreach(float side in new[]{-1f,1f})
+            {
+                Detail(root,"cylinder",new(side*.1255f,-.025f,log*.035f-.035f),new(.035f,.0015f,.035f),"#b59a70",new(0,0,MathF.PI/2));
+                for(int segment=0;segment<20;segment++)
+                {
+                    float a=segment*MathF.Tau/20,b=(segment+1)*MathF.Tau/20;
+                    FineBeam(root,new(side*.1265f,-.025f+MathF.Cos(a)*.011f,log*.035f-.035f+MathF.Sin(a)*.011f),new(side*.1265f,-.025f+MathF.Cos(b)*.011f,log*.035f-.035f+MathF.Sin(b)*.011f),.0008f,"#836444");
+                }
+            }
         }
         else
         {

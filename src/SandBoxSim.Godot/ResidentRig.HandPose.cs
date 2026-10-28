@@ -6,12 +6,12 @@ namespace SandBoxSim.Client;
 /// <summary>Hand anatomy, two-bone reach and tool-specific grip orientations.</summary>
 internal partial class ResidentRig
 {
-    private float _bareBlend,_pickupBlend,_bareTime;
+    private float _bareBlend,_pickupBlend,_bareTime,_cargoBlend;
     private SandBoxSim.Core.Agents.ActionKind _bareAction;
-    private void BlendBareHand(int side,Vector3 target,Basis desired)
+    private void BlendBareHand(int side,Vector3 target,Basis desired,float blend=-1)
     {
         var upper=Arms[side].Quaternion;var elbow=Elbows[side].Quaternion;var wrist=Hands[side].Quaternion;
-        float weight=Smooth(_bareBlend);
+        float weight=Smooth(blend<0?_bareBlend:blend);
         SolveBareHand(side,target,desired);
         Arms[side].Quaternion=upper.Slerp(Arms[side].Quaternion,weight);
         Elbows[side].Quaternion=elbow.Slerp(Elbows[side].Quaternion,weight);

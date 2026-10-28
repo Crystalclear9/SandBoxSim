@@ -373,6 +373,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateBareTransitions()
     {
+        ValidateCargoTransitions();
         var rig=Resident(17,false,JobType.Gatherer);
         Vector3 Wrist()=> (rig.Torso.Transform*rig.Arms[1].Transform*rig.Elbows[1].Transform*rig.Hands[1].Transform).Origin;
         rig.PoseAction(1f/60,ActionKind.None,ActionPhase.Idle,false,0);
@@ -396,6 +397,33 @@ internal sealed partial class NatureModels
         for(int i=0;i<indices.Length;i+=3){var a=points[indices[i]];var b=points[indices[i+1]];var c=points[indices[i+2]];volume+=a.Dot(b.Cross(c))/6;}
         if(!float.IsFinite(volume)||volume>=-.000001f)throw new InvalidOperationException("Hoe blade winding/volume is invalid");
         GD.Print("BARE_TRANSITIONS_PASS: entering, switching and leaving five gestures; bounded wrist/knee steps, pause and outward hoe blade");
+    }
+    private void ValidateCargoTransitions()
+    {
+        var rig=Resident(17,false,JobType.Gatherer);
+        try
+        {
+            rig.ShowCargo(true,ResourceKind.Wood);rig.PoseAction(1f/60,ActionKind.Wander,ActionPhase.Moving,false,0);
+            if(rig.CargoMesh.Visible)throw new InvalidOperationException("Cargo appears before hands arrive");
+            for(int i=0;i<60;i++)rig.PoseAction(1f/60,ActionKind.Wander,ActionPhase.Moving,false,0);
+            if(!rig.CargoMesh.Visible||rig.HeldObject!="木材捆")throw new InvalidOperationException("Supported cargo or UI identity missing");
+            foreach(var action in new[]{ActionKind.Eat,ActionKind.Drink})
+            {
+                for(int i=0;i<90;i++)rig.PoseAction(1f/60,action,ActionPhase.Executing,false,0);
+                if(rig.CargoMesh.Visible||rig.HeldObject.Length!=0)throw new InvalidOperationException("Eating/drinking lifts the entire cargo bundle");
+            }
+            for(int i=0;i<90;i++)rig.PoseAction(1f/60,ActionKind.Deposit,ActionPhase.Executing,false,0);
+            if(!rig.CargoMesh.Visible)throw new InvalidOperationException("Transfer loses existing cargo");
+            var pose=rig.Hands[1].Transform;var cargo=rig.CargoMesh.Transform;
+            rig.PoseAction(1,ActionKind.None,ActionPhase.Idle,true,0);
+            if(pose!=rig.Hands[1].Transform||cargo!=rig.CargoMesh.Transform)throw new InvalidOperationException("Paused cargo moved");
+            rig.ShowCargo(false,ResourceKind.Wood);rig.PoseAction(1f/60,ActionKind.None,ActionPhase.Idle,false,0);
+            if(rig.CargoMesh.Visible||rig.HeldObject.Length!=0)throw new InvalidOperationException("Removed stock retains phantom cargo");
+            for(int i=0;i<90;i++)rig.PoseAction(1f/60,ActionKind.None,ActionPhase.Idle,false,0);
+            if(rig.Handling!="双手放松")throw new InvalidOperationException("Cargo release never settles");
+        }
+        finally{rig.Free();}
+        GD.Print("CARGO_TRANSITIONS_PASS: supported appearance, consume/transfer priority, held-object identity, pause and authoritative removal");
     }
     private void ValidateCarrying()
     {

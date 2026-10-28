@@ -118,13 +118,15 @@ internal partial class ResidentRig : Node3D
     private float _phase,_activity,_reach,_draw,_workTime,_graspTime,_releaseTime,_lean,_workBlend;
     private bool _carrying;
     public bool ToolHeld {get;private set;}
-    public string Handling => ToolHeld ? _returning?"收回工具":_draw<.99f?"取出 / 抬手":_carrying?"手持携带":"使用工具" : _releaseTime>0?"松开手指":_reach==1?"合拢握柄":_reach>.01f?"伸手拿取":_bareBlend>.01f?"徒手交互":_hasCargo?"双手搬运":"双手放松";
+    public string Handling => ToolHeld ? _returning?"收回工具":_draw<.99f?"取出 / 抬手":_carrying?"手持携带":"使用工具" : _releaseTime>0?"松开手指":_reach==1?"合拢握柄":_reach>.01f?"伸手拿取":_bareBlend>.01f?"徒手交互":CargoMesh.Visible?"双手搬运":_cargoBlend>.01f?(_hasCargo?"托起物资":"放下 / 收手"):"双手放松";
     public static ResidentTool ToolFor(ActionKind action)=>action switch {
         ActionKind.GatherWood=>ResidentTool.Axe,
         ActionKind.GatherStone or ActionKind.GatherIron=>ResidentTool.Pick,
         ActionKind.Farm=>ResidentTool.Hoe,
         ActionKind.BuildHouse or ActionKind.BuildFarm or ActionKind.BuildStorage or ActionKind.BuildMine=>ResidentTool.Hammer,
         ActionKind.Attack or ActionKind.Hunt=>ResidentTool.Spear,_=>ResidentTool.None };
+    public string HeldObject=>ToolHeld?CurrentTool switch {ResidentTool.Axe=>"斧头",ResidentTool.Pick=>"镐",ResidentTool.Hoe=>"锄头",ResidentTool.Hammer=>"手锤",ResidentTool.Spear=>"长矛",_=>""}
+        :CargoMesh.Visible?_cargoKind switch {ResourceKind.Wood=>"木材捆",ResourceKind.Food=>"食物袋",ResourceKind.Stone=>"石料袋",ResourceKind.Iron=>"铁料袋",_=>"物资"}:"";
     public void SelectTool(ResidentTool kind)
     {
         CurrentTool=kind;ToolMesh.Visible=kind!=ResidentTool.None;
@@ -274,10 +276,15 @@ internal partial class ResidentRig : Node3D
                 else if(!usingTool&&CurrentTool!=DefaultTool)SelectTool(DefaultTool);
             }
         }
-        CargoMesh.Visible=_hasCargo&&!usingTool&&!ToolHeld&&!resting&&!pickup&&_reach==0;
-        if(_hasCargo&&!usingTool&&!ToolHeld&&!resting&&!pickup&&_reach==0)
+        bool consuming=executing&&action is ActionKind.Eat or ActionKind.Drink;
+        bool cargoWanted=_hasCargo&&!usingTool&&!ToolHeld&&!resting&&!pickup&&!consuming&&_reach==0;
+        _cargoBlend=Mathf.MoveToward(_cargoBlend,cargoWanted?1:0,delta/.40f);
+        // Display cargo only after both hands have reached their support pose.
+        // Eating and drinking have priority over carrying the full bundle.
+        CargoMesh.Visible=cargoWanted&&_cargoBlend>=.999f;
+        if(_cargoBlend>0&&!usingTool&&!ToolHeld&&_reach==0)
         {
-            for(int i=0;i<2;i++){SolveBareHand(i,BodyPoint(new(i==0?-.12f:.12f,.90f,-.29f)),Basis.FromEuler(new Vector3(MathF.PI/2,0,0)));CurlHand(i,.75f);}
+            for(int i=0;i<2;i++){BlendBareHand(i,BodyPoint(new(i==0?-.12f:.12f,.90f,-.29f)),Basis.FromEuler(new Vector3(MathF.PI/2,0,0)),_cargoBlend);CurlHand(i,Mathf.Lerp(_handCurl[i],.75f,Smooth(_cargoBlend)));}
         }
         bool bareActive=executing&&!usingTool&&!ToolHeld&&_reach==0&&action is ActionKind.GatherFood or ActionKind.Take or ActionKind.Deposit or ActionKind.StoreInBuilding or ActionKind.ShareFood or ActionKind.Trade or ActionKind.Eat or ActionKind.Drink;
         if(bareActive&&_bareBlend==0){_bareAction=action;_bareTime=0;}
