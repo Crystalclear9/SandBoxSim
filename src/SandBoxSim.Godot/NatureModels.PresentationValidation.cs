@@ -27,7 +27,7 @@ internal sealed partial class NatureModels
                     {
                         maxHandStep=MathF.Max(maxHandStep,hand.Origin.DistanceTo(previousHand));
                         maxElbowStep=MathF.Max(maxElbowStep,elbow.DistanceTo(previousElbow));
-                        if(hand.Origin.DistanceTo(previousHand)>.055f||elbow.DistanceTo(previousElbow)>.060f)
+                        if(hand.Origin.DistanceTo(previousHand)>.025f||elbow.DistanceTo(previousElbow)>.030f)
                             throw new InvalidOperationException($"Discontinuous reach: {action}/{frame}, hand={hand.Origin.DistanceTo(previousHand)}, elbow={elbow.DistanceTo(previousElbow)}");
                     }
                     if(hand.Origin.DistanceTo(InTorso(reference.Hands[1],reference.Torso).Origin)>.008f)

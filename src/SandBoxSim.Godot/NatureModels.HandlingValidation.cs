@@ -330,7 +330,11 @@ internal sealed partial class NatureModels
                 if(rig.CurrentTool!=ResidentRig.ToolFor(next)||!rig.ToolHeld)throw new InvalidOperationException("Tool switch failed");
             }
             rig.ShowCargo(true,ResourceKind.Wood);
-            for(int i=0;i<90;i++)rig.PoseAction(1f/60,ActionKind.Deposit,ActionPhase.Executing,false,0);
+            for(int i=0;i<120;i++)
+            {
+                rig.PoseAction(1f/60,ActionKind.Deposit,ActionPhase.Executing,false,0);
+                if(rig.CargoMesh.Visible&&rig.ToolHeld)throw new InvalidOperationException("Cargo appears before the tool is stowed");
+            }
             if(!rig.CargoMesh.Visible||rig.ToolHeld)throw new InvalidOperationException("Cargo and tool handling overlap");
             foreach(var bareAction in new[]{ActionKind.GatherFood,ActionKind.Take,ActionKind.Deposit,ActionKind.Eat,ActionKind.Drink})
             {

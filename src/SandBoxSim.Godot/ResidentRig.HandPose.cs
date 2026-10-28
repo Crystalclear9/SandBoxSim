@@ -8,15 +8,44 @@ internal partial class ResidentRig
 {
     private float _bareBlend,_pickupBlend,_bareTime,_cargoBlend;
     private SandBoxSim.Core.Agents.ActionKind _bareAction;
+    private readonly Transform3D[] _previousHands=new Transform3D[2];
+    private readonly Vector3[] _previousElbows=new Vector3[2];
+    private float _poseStep;
+    private readonly Transform3D[] _priorArms=new Transform3D[2],_priorForearms=new Transform3D[2],_priorWrists=new Transform3D[2];
+    private bool _bareThisFrame,_hadBarePose;
+    private Transform3D _toolReachRest;
     private void BlendBareHand(int side,Vector3 target,Basis desired,float blend=-1)
     {
+        _bareThisFrame=true;_hadBarePose=true;
         float weight=ReachEase(blend<0?_bareBlend:blend);
         var rest=Arms[side].Transform*Elbows[side].Transform*Hands[side].Transform;
         var offset=side==1?Grip!.Position:new Vector3(0,-.035f,-.0286f);
         // Plan the palm path before solving the joints. Interpolating three
         // independent joint rotations makes the hand swing around the target.
-        var orientation=new Basis(rest.Basis.GetRotationQuaternion().Slerp(desired.GetRotationQuaternion(),weight));
-        SolveBareHand(side,(rest*offset).Lerp(target,weight),orientation,weight);
+        var orientation=rest.Basis.GetRotationQuaternion().Slerp(desired.GetRotationQuaternion(),weight);
+        var previous=_previousHands[side];var priorRotation=previous.Basis.GetRotationQuaternion();
+        float angle=2*MathF.Acos(Math.Clamp(MathF.Abs(priorRotation.Dot(orientation)),0,1));
+        if(angle>6*_poseStep)orientation=priorRotation.Slerp(orientation,6*_poseStep/angle);
+        var palm=(previous*offset).MoveToward((rest*offset).Lerp(target,weight),1.0f*_poseStep);
+        SolveBareHand(side,palm,new Basis(orientation));
+    }
+    private void FinishBareReturn(bool toolDriven)
+    {
+        if(toolDriven){_hadBarePose=false;return;}
+        if(_bareThisFrame||!_hadBarePose)return;
+        float blend=1-MathF.Exp(-_poseStep*12),remaining=0;
+        for(int side=0;side<2;side++)
+        {
+            var armTarget=Arms[side].Transform;var elbowTarget=Elbows[side].Quaternion;var wristTarget=Hands[side].Quaternion;
+            Arms[side].Position=_priorArms[side].Origin.Lerp(armTarget.Origin,blend);
+            Arms[side].Quaternion=_priorArms[side].Basis.GetRotationQuaternion().Slerp(armTarget.Basis.GetRotationQuaternion(),blend);
+            Elbows[side].Quaternion=_priorForearms[side].Basis.GetRotationQuaternion().Slerp(elbowTarget,blend);
+            Hands[side].Quaternion=_priorWrists[side].Basis.GetRotationQuaternion().Slerp(wristTarget,blend);
+            remaining=MathF.Max(remaining,1-MathF.Abs(Arms[side].Quaternion.Dot(armTarget.Basis.GetRotationQuaternion())));
+            remaining=MathF.Max(remaining,1-MathF.Abs(Elbows[side].Quaternion.Dot(elbowTarget)));
+            remaining=MathF.Max(remaining,1-MathF.Abs(Hands[side].Quaternion.Dot(wristTarget)));
+        }
+        if(remaining<.000001f)_hadBarePose=false;
     }
     // Canonical hand is left: mirrored geometry, bind roots and articulation
     // must use the same convention at every detail level.
@@ -76,22 +105,23 @@ internal partial class ResidentRig
             _wristSkinRotation[side]=wrist;HandSkeletons[side].SetBonePoseRotation(15,wrist);
         }
     }
-    private void SolveBareHand(int side,Vector3 target,Basis desired,float posture)
+    private void SolveBareHand(int side,Vector3 target,Basis desired)
     {
-        var elbowHint=Arms[side].Transform*Elbows[side].Position;
-        // Empty hands and carried bundles do not require a prescribed tool shaft angle.
-        // Let the wrist follow the forearm rather than rotating it to a world-space identity.
-        for(int pass=0;pass<3;pass++)
+        var elbowHint=_previousElbows[side];
+        // Solve the reach once. Feeding a clamped wrist back into the palm
+        // offset moves the target and can select another elbow plane mid-frame.
+        // Forearm roll is resolved by the limb frame; only the residual wrist
+        // rotation is limited here, without moving the shoulder or elbow again.
+        SolveHand(side,target,desired,true,0,elbowHint);
+        var relative=Hands[side].Basis.GetRotationQuaternion();
+        if(relative.W<0)relative=-relative;
+        float angle=relative.GetAngle();
+        if(angle>.55f)
         {
-            SolveHand(side,target,desired,true,0,elbowHint,posture);
-            var forearm=Arms[side].Basis*Elbows[side].Basis;
-            var relative=(forearm.Inverse()*desired).GetRotationQuaternion();
-            float angle=relative.GetAngle();
-            if(angle<=.55f)break;
-            desired=forearm*new Basis(Quaternion.Identity.Slerp(relative,.55f/angle));
+            Hands[side].Basis=new Basis(Quaternion.Identity.Slerp(relative,.55f/angle));
         }
     }
-    private void SolveHand(int side,Vector3 gripTarget,Basis handBasis,bool bare=false,float carry=0,Vector3? elbowHint=null,float posture=1)
+    private void SolveHand(int side,Vector3 gripTarget,Basis handBasis,bool bare=false,float carry=0,Vector3? elbowHint=null)
     {
         Vector3 gripOffset=side==1?Grip!.Position:new(0,-.035f,-.0286f);
         Vector3 wrist=gripTarget-handBasis*gripOffset;
@@ -109,17 +139,18 @@ internal partial class ResidentRig
         var bend=pole-direction*pole.Dot(direction);
         if(bend.LengthSquared()<.0001f){var hint=new Vector3(side==0?-1:1,.2f,.1f);bend=hint-direction*hint.Dot(direction);}
         bend=bend.Normalized();
-        if(elbowHint.HasValue&&posture<1)
+        if(elbowHint.HasValue)
         {
             var prior=elbowHint.Value-shoulder;
             prior-=direction*prior.Dot(direction);
             if(prior.LengthSquared()>.000001f)
             {
                 prior=prior.Normalized();
-                // Continue the existing elbow plane while acquiring a reach.
-                // All wrist-limit iterations share the same pre-solve hint.
+                // Continue the last displayed elbow plane, not the FK rest
+                // pose rebuilt at the start of this frame. Limit swivel while
+                // preserving the exact two-bone lengths and wrist target.
                 float turn=prior.SignedAngleTo(bend,direction);
-                bend=prior.Rotated(direction,turn*posture);
+                bend=prior.Rotated(direction,Math.Clamp(turn,-3*_poseStep,3*_poseStep));
             }
         }
         float radius=MathF.Sqrt(MathF.Max(0,upper*upper-along*along));

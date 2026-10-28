@@ -156,6 +156,14 @@ internal partial class ResidentRig : Node3D
     private static float PresentationDelta(float delta)=>float.IsFinite(delta)?Math.Clamp(delta,0,1):0;
     private void PoseActionStep(float delta,ActionKind action,ActionPhase phase,float identityPhase)
     {
+        _poseStep=delta;
+        _bareThisFrame=false;
+        for(int side=0;side<2;side++)
+        {
+            _priorArms[side]=Arms[side].Transform;_priorForearms[side]=Elbows[side].Transform;_priorWrists[side]=Hands[side].Transform;
+            _previousHands[side]=Arms[side].Transform*Elbows[side].Transform*Hands[side].Transform;
+            _previousElbows[side]=Arms[side].Transform*Elbows[side].Position;
+        }
         bool moving=phase==ActionPhase.Moving,executing=phase==ActionPhase.Executing;
         bool resting=executing&&action==ActionKind.Sleep;
         if((_lastAction!=action||_lastPhase!=phase)&&executing)_workTime=0;
@@ -181,7 +189,7 @@ internal partial class ResidentRig : Node3D
         _lean=Mathf.Lerp(_lean,desiredLean,1-MathF.Exp(-delta*12));
         var torsoBasis=Basis.FromEuler(new Vector3(_lean,usingTool?effort*.3f:0,wave*.018f*_activity));
         var hip=new Vector3(0,HipHeight,0);Torso.Transform=new(torsoBasis,hip-torsoBasis*hip+Vector3.Up*vertical+Vector3.Right*(resting||pickup||usingTool?0:MathF.Sin(_phase*.33f+identityPhase)*.008f*(1-_activity)));
-        _socialBlend=Mathf.Lerp(_socialBlend,executing&&action==ActionKind.Socialize?1:0,1-MathF.Exp(-delta*7));
+        _socialBlend=Mathf.MoveToward(_socialBlend,executing&&action==ActionKind.Socialize?1:0,delta/.70f);
         _attentionYaw=Mathf.Lerp(_attentionYaw,_wantedAttention,1-MathF.Exp(-delta*6));
         Head.Rotation=new(pickup?.15f:usingTool?-.045f-effort*.4f:breath*.018f+MathF.Sin(_workTime*2.3f+identityPhase)*.035f*_socialBlend,MathF.Sin(_phase*.32f+identityPhase)*.045f+_attentionYaw,MathF.Sin(_workTime*1.1f+identityPhase)*.02f*_socialBlend);
         var neckPivot=new Vector3(0,NeckPivotY*Head.Scale.Y,0);
@@ -224,7 +232,7 @@ internal partial class ResidentRig : Node3D
         bool wantCurrent=usingTool&&wanted==CurrentTool;
         if(ToolHeld)
         {
-            _draw=Mathf.MoveToward(_draw,wantCurrent?1:0,delta/.28f);
+            _draw=Mathf.MoveToward(_draw,wantCurrent?1:0,delta/.48f);
             if(!wantCurrent&&!_returning)
             {
                 _returning=true;
@@ -261,10 +269,11 @@ internal partial class ResidentRig : Node3D
             else
             {
                 _releaseTime=0;
-                _reach=Mathf.MoveToward(_reach,usingTool?1:0,delta/.36f);
+                if(_reach==0)_toolReachRest=_previousHands[1];
+                _reach=Mathf.MoveToward(_reach,usingTool?1:0,delta/.48f);
                 if(_reach>0)
                 {
-                    var rest=Arms[1].Transform*Elbows[1].Transform*Hands[1].Transform;
+                    var rest=_toolReachRest;
                     var desired=Holster.Basis*Grip!.Basis.Inverse();
                     float reachWeight=ReachEase(_reach);
                     SolveHand(1,(rest*Grip.Position).Lerp(Holster.Position,reachWeight),
@@ -292,7 +301,9 @@ internal partial class ResidentRig : Node3D
         }
         bool bareActive=executing&&!usingTool&&!ToolHeld&&_reach==0&&action is ActionKind.GatherFood or ActionKind.Take or ActionKind.Deposit or ActionKind.StoreInBuilding or ActionKind.ShareFood or ActionKind.Trade or ActionKind.Eat or ActionKind.Drink;
         if(bareActive&&_bareBlend==0){_bareAction=action;_bareTime=0;}
-        _bareBlend=Mathf.MoveToward(_bareBlend,bareActive&&_bareAction==action?1:0,delta/.40f);
+        // A half-metre lift cannot share the short tool-grasp timing. Give
+        // empty-hand entry/return enough time for the whole limb to travel.
+        _bareBlend=Mathf.MoveToward(_bareBlend,bareActive&&_bareAction==action?1:0,delta/.70f);
         if(_bareBlend>0)_bareTime+=delta;
         if(_bareBlend>0&&!usingTool&&!ToolHeld&&_reach==0)
         {
@@ -333,6 +344,7 @@ internal partial class ResidentRig : Node3D
                 CurlHand(side,(.16f+emphasis)*_socialBlend);
             }
         }
+        FinishBareReturn(usingTool||ToolHeld||_reach>0||_releaseTime>0);
         if(CargoMesh.Visible)
         {
             var right=Arms[1].Transform*Elbows[1].Transform*Hands[1].Transform;

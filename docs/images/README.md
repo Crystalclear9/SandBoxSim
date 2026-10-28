@@ -6,7 +6,7 @@
 
 ## 当前配图
 
-动作演示使用当前手掌轨迹版本 palm-trajectory-v1。resident-tool-motion.gif 为单人手锤抬手、使用与收放；resident-social-motion.gif 展示交谈、递交与进食。两段均为 1280×800 原生客户端的 102 帧，程序每帧采样前按 60 Hz 推进四步，GIF 总时长 6.8 秒；每段覆盖图册的一个完整循环，不是帧率测试或人体实测。resident-social.png 为生活动作第 30 个采样帧。画面使用实际模型与动作求解，没有用概念图替代。
+动作演示使用当前手掌轨迹版本 palm-trajectory-v1，并以代码版本区分动作修正。resident-tool-motion.gif 为单人手锤抬手、使用与收放；resident-social-motion.gif 展示交谈、递交与进食；resident-social-side-motion.gif 为同样动作的侧面。三段均为 1280×800 原生客户端的 102 帧，程序每帧采样前按 60 Hz 推进四步，GIF 总时长 6.8 秒；每段覆盖图册的一个完整循环，不是帧率测试或人体实测。侧面相机相对 (0, 1, 0) 为 (4, 0.06, 1)，正面为 (0.12, 0.06, 4)，正交尺寸均为 1.6。resident-social.png 为生活动作第 30 个采样帧。画面使用上一帧手掌／肘部参考、较缓起手与连续收手的实际运行实现，没有用概念图替代。
 
 当前人物观察窗、衣装、配件、动作和社交图使用 relaxed-yoke-v7：胸腹松量连续衔接，减弱胸前肌肉状褶皱，后肩拼接线由贴面短针脚表示；头部整体上移 18 毫米。衣装近景沿用相同镜头，便于观察颈部、下颌和领口关系。动物、建筑与环境专题保留各自采样。
 
@@ -38,6 +38,7 @@
 | `model-surface-detail.png` | 衣料、靴子、动物与建筑近景；`model-details` |
 | `resident-tool-motion.gif` | 当前手锤携带、作业与收纳动作；`motion` 的 102 帧原生采样，覆盖 6.8 秒循环 |
 | `resident-social-motion.gif` | 交谈、递交与进食；`social` 的 102 帧原生采样，覆盖 6.8 秒循环 |
+| `resident-social-side-motion.gif` | 同一组生活动作的侧面，便于观察肘部前后深度；镜头参数见本节开头 |
 | `terrain-modern.png`、`terrain-closeup.png` | 普通世界与 `--view=near` 的地形、植被和水岸 |
 | `architecture-detail.png`、`resident-forearm-detail.png` | 建筑和连续前臂掌侧／背侧／侧面；`architecture`、`forearms` |
 | `resident-hand-detail.png` | 原网格掌纹、甲床及工具握持近景；`hands` |
