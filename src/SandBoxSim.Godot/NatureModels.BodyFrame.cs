@@ -47,7 +47,7 @@ internal sealed partial class NatureModels
             {
                 // Cloth bridges local source hollows. Filter the ratio field
                 // before fitting, rather than embossing small body features.
-                var raw=new float[65*128];for(int i=0;i<raw.Length;i++)raw[i]=Math.Clamp(_frameFeminine[i]/_frameMale[i],.86f,1.16f);
+                var raw=new float[65*128];for(int i=0;i<raw.Length;i++)raw[i]=Math.Clamp(_frameFeminine[i]/_frameMale[i],.78f,1.20f);
                 _frameRatios=new float[raw.Length];
                 for(int rowIndex=0;rowIndex<65;rowIndex++)for(int column=0;column<128;column++)
                 {
@@ -64,12 +64,17 @@ internal sealed partial class NatureModels
         }
         // Restrained clothed waist/hip silhouette; arm roots and leg lengths
         // stay fixed. This is a presentation fit, not a demographic classifier.
-        float hip=MathF.Exp(-MathF.Pow((point.Y-.83f)/.085f,2));
-        float waist=MathF.Exp(-MathF.Pow((point.Y-1.02f)/.07f,2));
+        // The iliac/upper-thigh volume must survive the outer actor scale.
+        // The old uniform narrowing also narrowed the pelvis, erasing the
+        // shoulder-to-hip distinction in the clothed silhouette.
+        float hip=MathF.Exp(-MathF.Pow((point.Y-.86f)/.11f,2));
+        float waist=MathF.Exp(-MathF.Pow((point.Y-1.00f)/.085f,2));
         float limb=Mathf.SmoothStep(.135f,.185f,MathF.Abs(point.X))*Mathf.SmoothStep(.88f,.96f,point.Y);
-        float lateral=1+(.10f*hip-.055f*waist)*(1-limb);
-        float shoulder=1-.075f*MathF.Max(limb,Mathf.SmoothStep(1.12f,1.22f,point.Y));
-        return new(point.X*Mathf.Lerp(1,ratio,.35f)*lateral*shoulder,point.Y,point.Z*ratio);
+        float lateral=1+(.20f*hip-.085f*waist)*(1-limb);
+        float shoulder=1-.12f*MathF.Max(limb,Mathf.SmoothStep(1.12f,1.22f,point.Y));
+        float sideChest=1-.045f*MathF.Exp(-MathF.Pow((point.Y-1.12f)/.09f,2))*(1-limb);
+        float depth=1+(.055f*hip-.065f*waist)*(1-limb);
+        return new(point.X*Mathf.Lerp(1,ratio,.65f)*lateral*shoulder*sideChest,point.Y,point.Z*ratio*depth);
     }
     private Mesh FrameMesh(Mesh source,Transform3D space)
     {
@@ -104,7 +109,7 @@ internal sealed partial class NatureModels
             foreach(Node child in parent.GetChildren())
             {
                 if(child is not Node3D node||node==rig.Head||node==rig.Arms[0]||node==rig.Arms[1])continue;
-                if(node==rig.Holster||node==rig.PackMount)
+                if(node==rig.Holster||node==rig.PackMount||node==rig.SatchelMount)
                 {
                     var origin=space*node.Position;var fitted=FramePoint(origin);
                     if(node==rig.PackMount)fitted.Z+=FramePoint(new Vector3(0,1.15f,origin.Z)).Z-origin.Z;
@@ -127,7 +132,7 @@ internal sealed partial class NatureModels
         if(BodyFrame==0)return;
         // The fitted sleeve vertices, joint rest and inverse bind must move
         // together. Scaling the mesh alone leaves a male-width moving rig.
-        rig.ShoulderHalfWidth=.202f*.925f;
+        rig.ShoulderHalfWidth=.202f*.88f;
         var skin=new Skin();skin.AddBind(0,Transform3D.Identity);
         for(int side=0;side<2;side++)
         {
@@ -144,6 +149,7 @@ internal sealed partial class NatureModels
         var female=Resident(42,false,SandBoxSim.Core.Agents.JobType.Gatherer);
         try
         {
+            ValidateAdultContourSections(male,female);
             if(male.DetailedBodyMesh==female.DetailedBodyMesh||male.DistantBodyMesh==female.DistantBodyMesh)
                 throw new InvalidOperationException("Adult frames share their fitted body cache");
             if(female.ShoulderHalfWidth>=male.ShoulderHalfWidth-.01f||female.DetailedBodySkin==male.DetailedBodySkin)
@@ -151,6 +157,9 @@ internal sealed partial class NatureModels
             for(int side=0;side<2;side++)
                 if(!(female.ShoulderSkeleton.GetBoneRest(side+1)*female.DetailedBodySkin.GetBindPose(side+1)).IsEqualApprox(Transform3D.Identity))
                     throw new InvalidOperationException("Fitted shoulder rest and inverse bind disagree");
+            if(male.SatchelMount==null||female.SatchelMount==null||male.SatchelMount.Scale!=Vector3.One||female.SatchelMount.Scale!=Vector3.One||
+                male.SatchelMount.GetChild<MeshInstance3D>(0).Mesh.GetAabb()!=female.SatchelMount.GetChild<MeshInstance3D>(0).Mesh.GetAabb())
+                throw new InvalidOperationException("Body fitting stretches the rigid satchel instead of adapting its mount");
             foreach(var rig in new[]{male,female})
                 if(rig.Scale.X*rig.Head.Scale.X<.985f||rig.Scale.X*rig.Head.Scale.X>1.035f)
                     throw new InvalidOperationException("Body width distorts the adult head proportions");
@@ -159,7 +168,7 @@ internal sealed partial class NatureModels
             {
                 foreach(Node child in parent.GetChildren())
                 {
-                    if(child is not Node3D node||node==female.Head||node==female.Arms[0]||node==female.Arms[1]||node==female.Holster||node==female.PackMount)continue;
+                    if(child is not Node3D node||node==female.Head||node==female.Arms[0]||node==female.Arms[1]||node==female.Holster||node==female.PackMount||node==female.SatchelMount)continue;
                     if(node is MeshInstance3D mesh&&mesh!=female.BodySkin&&mesh.HasMeta("DistantMesh"))
                     {
                         var far=(Mesh)mesh.GetMeta("DistantMesh").AsGodotObject();
@@ -201,5 +210,77 @@ internal sealed partial class NatureModels
         }
         finally{male.Free();female.Free();_faceVariant=previous;_facePoints=null;_faceIndices=null;}
         GD.Print("BODY_FRAMES_PASS: source chest/waist/hip presentation, separate near/far caches, bounded forearm fit/Jacobian, exact wrist and animated limb lengths");
+    }
+    private static float ClothSectionWidth(Mesh mesh,float height,Color? cloth=null)
+    {
+        var arrays=mesh.SurfaceGetArrays(0);var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+        var detail=arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
+        var colours=arrays[(int)Mesh.ArrayType.Color].AsColorArray();
+        float low=float.PositiveInfinity,high=float.NegativeInfinity;
+        for(int i=0;i<indices.Length;i+=3)
+        {
+            bool body=true;
+            for(int j=0;j<3;j++)
+            {
+                int v=indices[i+j];
+                // Exclude sleeves using their authored pattern coordinates;
+                // distant batching preserves dye in vertex colour instead.
+                if(detail.Length==points.Length&&detail[v].X>0)body=false;
+                if(cloth.HasValue&&(colours.Length!=points.Length||!colours[v].IsEqualApprox(cloth.Value)))body=false;
+            }
+            if(!body)continue;
+            for(int edge=0;edge<3;edge++)
+            {
+                var a=points[indices[i+edge]];var b=points[indices[i+(edge+1)%3]];
+                if((a.Y-height)*(b.Y-height)>0||MathF.Abs(b.Y-a.Y)<1e-8f)continue;
+                float x=Mathf.Lerp(a.X,b.X,(height-a.Y)/(b.Y-a.Y));
+                low=MathF.Min(low,x);high=MathF.Max(high,x);
+            }
+        }
+        if(!float.IsFinite(low)||!float.IsFinite(high))throw new InvalidOperationException("Adult garment has no measured cross-section");
+        return high-low;
+    }
+    private void ValidateAdultContourSections(ResidentRig male,ResidentRig female)
+    {
+        // Measure the final render meshes in world units, after all fitting and
+        // outer scale. A wider nominal pelvis is insufficient if actor scaling
+        // erases it, or the LOD silently restores the common source shape.
+        foreach(bool distant in new[]{false,true})
+        {
+            Mesh m=distant?male.DistantBodyMesh:male.DetailedBodyMesh,f=distant?female.DistantBodyMesh:female.DetailedBodyMesh;
+            Color? maleDye=distant?((ShaderMaterial)male.DetailedBodyMesh.SurfaceGetMaterial(0)).GetShaderParameter("dye").AsColor():null;
+            Color? femaleDye=distant?((ShaderMaterial)female.DetailedBodyMesh.SurfaceGetMaterial(0)).GetShaderParameter("dye").AsColor():null;
+            float maleHip=ClothSectionWidth(m,.82f,maleDye)*male.Scale.X,femaleHip=ClothSectionWidth(f,.82f,femaleDye)*female.Scale.X;
+            float maleWaist=ClothSectionWidth(m,1.00f,maleDye)*male.Scale.X,femaleWaist=ClothSectionWidth(f,1.00f,femaleDye)*female.Scale.X;
+            float maleShoulder=male.ShoulderHalfWidth*2*male.Scale.X,femaleShoulder=female.ShoulderHalfWidth*2*female.Scale.X;
+            if(femaleHip/maleHip<1.01f||femaleHip/maleHip>1.25f||femaleWaist/femaleHip>=maleWaist/maleHip-.055f||
+                femaleShoulder/femaleHip>=maleShoulder/maleHip-.12f)
+                throw new InvalidOperationException($"Adult silhouette difference lost in {(distant?"distant":"near")} mesh: hip {femaleHip/maleHip:F3}, waist/hip {maleWaist/maleHip:F3}/{femaleWaist/femaleHip:F3}, shoulder/hip {maleShoulder/maleHip:F3}/{femaleShoulder/femaleHip:F3}");
+            GD.Print($"ADULT_CONTOUR_SECTION: {(distant?"far":"near")} shoulder/hip={maleShoulder/maleHip:F3}/{femaleShoulder/femaleHip:F3}, waist/hip={maleWaist/maleHip:F3}/{femaleWaist/femaleHip:F3}, hip width={maleHip:F3}/{femaleHip:F3} m");
+        }
+        // All eight adult identities use the same smooth mapping for normals
+        // and attached facial parts. Test local invertibility across the actual
+        // authored skin, rather than only checking a few designed landmarks.
+        int previous=_faceVariant;
+        try
+        {
+            for(_faceVariant=0;_faceVariant<8;_faceVariant++)
+            {
+                var source=HumanData().Head.Points;
+                for(int i=0;i<source.Length;i+=11)
+                {
+                    var p=source[i];const float h=.0001f;
+                    var dx=(HumanPoint(p+Vector3.Right*h)-HumanPoint(p-Vector3.Right*h))/(2*h);
+                    var dy=(HumanPoint(p+Vector3.Up*h)-HumanPoint(p-Vector3.Up*h))/(2*h);
+                    var dz=(HumanPoint(p+Vector3.Back*h)-HumanPoint(p-Vector3.Back*h))/(2*h);
+                    float determinant=new Basis(dx,dy,dz).Determinant();
+                    if(!float.IsFinite(determinant)||determinant<.65f||determinant>1.45f)
+                        throw new InvalidOperationException("Adult regional face fit folds or over-stretches the source surface");
+                }
+            }
+        }
+        finally{_faceVariant=previous;}
+        GD.Print("ADULT_CONTOURS_PASS: final near/far clothed sections retain shoulder/pelvis and waist/hip differences; eight adult face maps remain locally invertible");
     }
 }

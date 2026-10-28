@@ -190,7 +190,6 @@ internal sealed partial class NatureModels
         var buckleCorners=new[]{buckle+new Vector3(-.0205f,-.0155f,0),buckle+new Vector3(.0205f,-.0155f,0),buckle+new Vector3(.0205f,.0155f,0),buckle+new Vector3(-.0205f,.0155f,0)};
         for(int edge=0;edge<4;edge++)FineBeam(rig.Torso,buckleCorners[edge],buckleCorners[(edge+1)%4],.004f,"#b8a17b");
         FineBeam(rig.Torso,buckle+new Vector3(-.006f,0,-.002f),buckle+new Vector3(.0205f,0,-.002f),.003f,"#b8a17b");
-        Detail(rig.Torso, "capsule", new Vector3(.23f, .7f, .075f), new Vector3(.075f, .065f, .055f), "#725b40");
         // The attributed head already includes a continuous anatomical neck.
         // A second torso-mounted neck intersects it when the head turns.
         // Expose the authored neck instead of crowding the jaw into the collar.
@@ -262,7 +261,9 @@ internal sealed partial class NatureModels
         if (child) { rig.Scale = new Vector3(.72f, .65f, .72f); rig.Head.Scale = Vector3.One * 1.15f; }
         else
         {
-            float frame=HumanFamily==2?.88f:.94f;
+            // Local chest/waist/pelvis fitting provides the silhouette. Keep
+            // outer width close enough that it does not erase the hip volume.
+            float frame=HumanFamily==2?.94f:.98f;
             rig.Scale = new Vector3(frame*(1 + ((variation >> 8) % 5 - 2f) * .025f), 1.005f + ((variation >> 12) % 5) * .012f, 1);
             rig.Head.Scale*=new Vector3(1/rig.Scale.X,1,1);
         }

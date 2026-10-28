@@ -47,7 +47,7 @@ internal sealed partial class NatureModels
             foreach(Node child in parent.GetChildren())
             {
                 if(child is not Node3D node)continue;
-                if(node==rig.Head||node==rig.Arms[0]||node==rig.Arms[1]||node==rig.Holster||node==rig.PackMount)
+                if(node==rig.Head||node==rig.Arms[0]||node==rig.Arms[1]||node==rig.Holster||node==rig.PackMount||node==rig.SatchelMount)
                 {node.Position=ResidentRig.BodyPoint(node.Position);continue;}
                 var transform=space*node.Transform;
                 if(node is MeshInstance3D part&&part.Mesh!=null)part.Mesh=ProportionedMesh(part.Mesh,transform,true);

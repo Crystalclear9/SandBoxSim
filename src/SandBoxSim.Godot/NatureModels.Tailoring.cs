@@ -137,10 +137,11 @@ internal sealed partial class NatureModels
         {
             Sculpt(rig.Torso,FittedRibbon("shoulder-front",.81f,1.20f),Vector3.Zero,LeatherSurface("#665141"));
             Sculpt(rig.Torso,FittedRibbon("shoulder-back",.81f,1.20f,true),Vector3.Zero,LeatherSurface("#665141"));
-            var pouch=new Vector3(.23f,.80f,-.008f);
-            Sculpt(rig.Torso,SatchelBody(),pouch,LeatherSurface("#786346"),new(-MathF.PI/2,0,0));
-            Sculpt(rig.Torso,SatchelFlap(),pouch,LeatherSurface("#786346"));
-            Detail(rig.Torso,"sphere",pouch+new Vector3(0,.030f,SatchelDepth(0,.030f)-.005f),new(.010f,.010f,.008f),"#514237");
+            var pouch=rig.SatchelMount=new Node3D {Name="SatchelMount",Position=new(.23f,.80f,-.008f)};
+            rig.Torso.AddChild(pouch);
+            Sculpt(pouch,SatchelBody(),Vector3.Zero,LeatherSurface("#786346"),new(-MathF.PI/2,0,0));
+            Sculpt(pouch,SatchelFlap(),Vector3.Zero,LeatherSurface("#786346"));
+            Detail(pouch,"sphere",new(0,.030f,SatchelDepth(0,.030f)-.005f),new(.010f,.010f,.008f),"#514237");
         }
     }
     private void ValidateGarmentCuts()

@@ -11,7 +11,7 @@ internal partial class ResidentRig : Node3D
     public Node3D Torso=null!,Head=null!,Holster=null!;
     internal const float NeckPivotY=-.105f;
     internal Vector3 HeadRest;
-    public Node3D? Headwear,Grip,PackMount;
+    public Node3D? Headwear,Grip,PackMount,SatchelMount;
     public bool IsChild;
     public ResidentTool DefaultTool;
     public ResidentTool CurrentTool {get;private set;}
