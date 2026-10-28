@@ -15,6 +15,9 @@ internal sealed partial class NatureModels
     private bool ChildHead=>_faceVariant>=8;
     private int HumanFamily=>FaceArchetype<2?0:FaceArchetype<5?1:2;
     private int BodyFrame=>!ChildHead&&HumanFamily==2?1:0;
+    // Area-weighted linear forehead samples of the pinned source atlases;
+    // tools/measure_head_tones.py reproduces these exposure corrections.
+    private float HumanSkinGain=>ChildHead?1:HumanFamily==1?1.299263f:HumanFamily==2?.918634f:1;
     private readonly System.Collections.Generic.Dictionary<(int Variant,string Kind,int Side),(Vector3[] Points,int[] Indices)> _humanProjectionParts=new();
     private static readonly string[] HumanFiles={"human-head","human-scan","human-feminine"};
     private static readonly string[] HumanHashes={
@@ -99,23 +102,47 @@ internal sealed partial class NatureModels
     private float HumanWidth(float y,out float derivative)
     {
         float low=1+((FaceArchetype%4)-1.5f)*.028f,high=1+((FaceArchetype/4)-.5f)*.040f;
+        if(!ChildHead)
+        {
+            // Keep identity variation within each source family rather than
+            // making the final feminine archetype the widest jaw by index.
+            float variation=HumanFamily==2?(FaceArchetype-6)*.0125f:(FaceArchetype-2)*.0125f;
+            low=1+variation;high=1+variation*.45f;
+        }
         float t=Math.Clamp((y/.220f+.35f)/.55f,0,1);
         derivative=(high-low)*6*t*(1-t)/(.55f*.220f);
         float childhood=ChildHead?1+.04f*MathF.Exp(-MathF.Pow((y+.03f)/.07f,2)):1;
-        return Mathf.Lerp(low,high,t*t*(3-2*t))*childhood;
+        float width=Mathf.Lerp(low,high,t*t*(3-2*t))*childhood;
+        if(!ChildHead)
+        {
+            float jaw=MathF.Exp(-MathF.Pow((y+.065f)/.035f,2));
+            float amount=HumanFamily==2?-.015f:.025f;
+            derivative=derivative*(1+amount*jaw)-width*amount*jaw*2*(y+.065f)/(.035f*.035f);
+            width*=1+amount*jaw;
+        }
+        return width;
     }
     private float HumanDepth=>(1+((FaceArchetype%3)-1)*.025f)*(ChildHead?.98f:1);
     private Vector3 HumanPoint(Vector3 p)
     {
-        // Identity varies width/depth gently; retain the source anatomy rather
-        // than independently pushing nose, brow, cheeks and jaw landmarks.
+        // All adult regional fits and identity variations are shared by the
+        // skin, eyes, lips, hair and their attachment landmarks.
         float y=p.Y;
         if(ChildHead&&y<.010f)
         {
             float blend=Math.Clamp((y+.14f)/.055f,0,1);blend=blend*blend*(3-2*blend);
             y=.010f+(y-.010f)*(1-.10f*blend);
         }
-        return new(p.X*HumanWidth(p.Y,out _),y,p.Z*HumanDepth);
+        float z=p.Z*HumanDepth;
+        if(!ChildHead)
+        {
+            float front=Math.Clamp((-p.Z-.025f)/.035f,0,1);front=front*front*(3-2*front);
+            float brow=MathF.Exp(-MathF.Pow((p.Y-.030f)/.018f,2));
+            float chin=MathF.Exp(-MathF.Pow((p.Y+.085f)/.025f,2));
+            float cheek=MathF.Exp(-MathF.Pow((MathF.Abs(p.X)-.045f)/.018f,2)-MathF.Pow((p.Y+.018f)/.024f,2));
+            z-=front*(HumanFamily==2?-.0004f*brow+.0005f*cheek:.0016f*brow+.0010f*chin);
+        }
+        return new(p.X*HumanWidth(p.Y,out _),y,z);
     }
 
     private Vector3 HumanNormal(Vector3 p,Vector3 n)
@@ -164,6 +191,11 @@ internal sealed partial class NatureModels
         if(_meshes.TryGetValue(key,out var cached))return cached;
         var asset=HumanData();var source=kind=="head"?asset.Head:kind=="hair"?asset.Hair:kind=="lod"?asset.Lod:kind=="mouth"?asset.Lips:asset.Eyes[side];
         var colors=(Color[])source.Colors.Clone();
+        if(kind=="lod")for(int i=0;i<colors.Length;i++)
+        {
+            float alpha=colors[i].A;
+            colors[i]=(colors[i].SrgbToLinear()*HumanSkinGain).LinearToSrgb();colors[i].A=alpha;
+        }
         var points=new Vector3[source.Points.Length];var normals=new Vector3[points.Length];var uv=(Vector2[])source.Uv.Clone();var blinkUv=new Vector2[points.Length];
         var origin=kind=="eye"?HumanEyeCenter(side):kind=="mouth"?HumanMouthCenter:Vector3.Zero;
         for(int i=0;i<points.Length;i++)

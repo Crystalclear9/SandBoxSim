@@ -24,6 +24,8 @@ SandBoxSim 是一款以自然生态与居民自主行为为核心的 3D 沙盒�
 
 成人模型提供与头脸相配的两种穿衣体型，小臂采用连续的肌腹与腕部过渡；衣面附件、近远景和动作骨架同步适配。可通过 `--panel=body-frames`、`--panel=forearm-frames` 查看同衣色体型与小臂对照；来源、造型参数和限制见[模型说明](docs/development/models.md)。
 
+作业动作包含连续的蓄力、挥击与吸收回收，躯干随工具节奏配合。实际疲劳、健康状态与有重叠的个体表现系数共同影响节奏；`--panel=work-effort` 可观察男女外观在状态良好与疲劳后的同工具对照。成人头脸独立于身体随机宽度，眉弓、下颌与颊部采用共享的有界拟合，`--panel=face-frames` 提供正面和三刻面观察。
+
 ## 安装与开始游玩
 
 Windows 本机已有独立导出包时，双击 [Play-3D.cmd](Play-3D.cmd) 即可游玩，不需要开发工具链。启动器优先使用 `artifacts/game/windows/` 中的完整游戏包；发行文件不提交到源码仓库。包的导出和更新见 [构建与运行](docs/development/build.md)，工具链与临时文件的管理见 [本机存储维护](docs/development/local-storage.md)。

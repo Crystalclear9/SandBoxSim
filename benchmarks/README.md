@@ -27,6 +27,8 @@
 | `visual-architecture` | 五种住房与仓库的无标题裁切图与对象识别题 |
 | `visual-characters` | 成人、儿童、鹿和狼的对象识别 |
 | `visual-faces` | 面部近景，供人工表面检查 |
+| `visual-face-frames` | 同衣色、肤色的男女成人外观，正面及三刻面；第 90 帧，模拟零步进 |
+| `visual-work-effort` | 同一手锤、男女成人外观与良好／疲劳状态；第 90/180/260/360 帧，模拟零步进；动画仍推进 |
 | `visual-landscape` | 种子 839102、40 人、冻结模拟的地表远近景；第 40/80 帧截图，无 FPS 门槛，用于人工检查材质与岸线 |
 | `visual-hands` | 锤、斧、锄的两次握持姿态 |
 | `ui-modern-observation` | 自由运行 14 日后的新 UI、面部/手部/全身构图与设置交互 |

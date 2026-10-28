@@ -696,7 +696,7 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
         for(int i=0;i<4;i++)_residentStock[i].Text=a.InventoryOf(slot,PortraitResources[i]).ToString("F1");
         RefreshInventoryDisclosure();
         _residentPortrait.ShowResident(Sim.Society.Identity(slot), slot, a.LifeStageOf(slot) == SandBoxSim.Core.Agents.LifeStage.Child, a.JobOf(slot));
-        _residentPortrait.ShowActivity(a.ActionOf(slot),a.PhaseOf(slot),VisualPaused);
+        _residentPortrait.ShowActivity(a.ActionOf(slot),a.PhaseOf(slot),VisualPaused,a.FatigueOf(slot),a.HealthOf(slot));
         ResourceKind cargoKind=ResourceKind.Food;float cargoAmount=0;
         foreach(var resource in ResidentRig.CargoKinds){float amount=a.InventoryOf(slot,resource);if(amount>cargoAmount){cargoAmount=amount;cargoKind=resource;}}
         _residentPortrait.ShowCargo(cargoAmount>.01f,cargoKind);

@@ -134,7 +134,7 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
     }
     public bool FinishingGesture=>_resident?.CompletionVisible==true;
     public void ShowCargo(bool hasCargo, SandBoxSim.Core.Environment.ResourceKind resource) => _resident?.ShowCargo(hasCargo,resource);
-    public void ShowActivity(ActionKind action,ActionPhase phase,bool paused) { _action=action;_actionPhase=phase;_worldPaused=paused; }
+    public void ShowActivity(ActionKind action,ActionPhase phase,bool paused,float fatigue=0,float health=1) { _action=action;_actionPhase=phase;_worldPaused=paused;_resident?.SetWorkCondition(fatigue,health); }
     internal object EvaluationState()=>new {framing=_framing.ToString().ToLowerInvariant(),yaw=_yaw,pitch=_pitch,distance=_distance,dragging=_drag,orbiting=_orbiting,lighting=Lighting==0?"soft":"raking",thumbnail=IsThumbnail};
     internal object InspectionState()=>new {framing=_framing.ToString().ToLowerInvariant(),yaw=_yaw,pitch=_pitch,distance=_distance,dragging=_drag,orbiting=_orbiting,lighting=Lighting==0?"soft":"raking"};
     internal void SetLighting(int mode)

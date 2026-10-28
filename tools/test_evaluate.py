@@ -1,4 +1,4 @@
-import json, tempfile, unittest, zlib, struct, os, signal, sys, io, shutil
+import json, tempfile, unittest, zlib, struct, os, signal, sys, io, shutil, re
 from contextlib import redirect_stdout
 from pathlib import Path
 from types import SimpleNamespace
@@ -6,6 +6,18 @@ from unittest import mock
 import evaluate
 
 class EvaluationTests(unittest.TestCase):
+    def test_public_panel_contract_covers_client_and_scenarios(self):
+        root=Path(__file__).resolve().parents[1]
+        schema=json.loads((root/'benchmarks/request.schema.json').read_text(encoding='utf-8'))
+        declared=set(schema['properties']['panel']['enum'])
+        client=(root/'src/SandBoxSim.Godot/MainGame.Evaluation.cs').read_text(encoding='utf-8')
+        line=next(line for line in client.splitlines() if '.Contains(Panel)' in line)
+        accepted=set(re.findall(r'"([a-z-]+)"',line))
+        self.assertEqual(declared,accepted)
+        for path in (root/'benchmarks/scenarios').glob('*.json'):
+            with self.subTest(scenario=path.name):
+                self.assertIn(json.loads(path.read_text(encoding='utf-8')).get('panel','field'),declared)
+
     def test_phase_timings_keep_valid_records_among_mixed_logs(self):
         first = dict(phase="world_initialized", elapsedMs=15, frame=0)
         last = dict(phase="capture_complete", elapsedMs=1650, frame=4)

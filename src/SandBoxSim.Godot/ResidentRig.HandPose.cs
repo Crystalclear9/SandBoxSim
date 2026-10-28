@@ -25,8 +25,11 @@ internal partial class ResidentRig
         var orientation=rest.Basis.GetRotationQuaternion().Slerp(desired.GetRotationQuaternion(),weight);
         var previous=_previousHands[side];var priorRotation=previous.Basis.GetRotationQuaternion();
         float angle=2*MathF.Acos(Math.Clamp(MathF.Abs(priorRotation.Dot(orientation)),0,1));
-        if(angle>6*_poseStep)orientation=priorRotation.Slerp(orientation,6*_poseStep/angle);
-        var palm=(previous*offset).MoveToward((rest*offset).Lerp(target,weight),1.0f*_poseStep);
+        float turnStep=6*_poseStep*(1-MathF.Exp(-angle/.30f));
+        if(angle>turnStep)orientation=priorRotation.Slerp(orientation,turnStep/angle);
+        var goal=(rest*offset).Lerp(target,weight);var origin=previous*offset;
+        float reachStep=_poseStep*(1-MathF.Exp(-origin.DistanceTo(goal)/.06f));
+        var palm=origin.MoveToward(goal,reachStep);
         SolveBareHand(side,palm,new Basis(orientation));
     }
     private void FinishBareReturn(bool toolDriven)
@@ -64,19 +67,15 @@ internal partial class ResidentRig
     }
     private static (Vector3,Basis) CarryPose(ResidentTool kind,float stride)
         => (new(.30f,.74f,-.17f+stride*.025f),Basis.FromEuler(new Vector3(.10f+stride*.04f,0,.95f)));
-    private static (Vector3,Basis) WorkPose(ResidentTool kind,float time)
+    private (Vector3,Basis) WorkPose(ResidentTool kind,float phase)
     {
-        float period=kind==ResidentTool.Hoe?1.55f:kind==ResidentTool.Pick?1.35f:kind==ResidentTool.Axe?1.25f:1.05f;
-        float t=(time%period)/period;
-        // Slow preparation, fast contact and a short recovery, instead of a continuous pendulum.
-        float lift=StrokeLift(t);
+        float lift=WorkLift(phase);
         if(kind==ResidentTool.Hoe)return (new(.10f,.84f+lift*.16f,-.27f+lift*.06f),Basis.FromEuler(new Vector3(.25f+lift*.55f,0,.50f)));
         if(kind==ResidentTool.Spear)return (new(.10f,.99f,-.24f-lift*.12f),Basis.FromEuler(new Vector3(-1.1f,0,.45f)));
         return (new(kind==ResidentTool.Hammer?.20f:.10f,.92f+lift*.26f,-.30f+lift*.10f),Basis.FromEuler(new Vector3(.55f+lift*1.05f,0,.45f)));
     }
     // Zero velocity and acceleration at both ends of an intentional reach.
     internal static float ReachEase(float t){t=Math.Clamp(t,0,1);return t*t*t*(10+t*(-15+6*t));}
-    private static float StrokeLift(float t)=>t<.55f?ReachEase(t/.55f):t<.72f?1-ReachEase((t-.55f)/.17f):0;
     private static float ReachPulse(float t)=>t<.08f?0:t<.38f?ReachEase((t-.08f)/.30f):t<.58f?1:t<.92f?1-ReachEase((t-.58f)/.34f):0;
     private void CurlHand(int side,float curl)=>_handCurl[side]=curl;
     private void UpdateHandBones(int side)
@@ -150,7 +149,8 @@ internal partial class ResidentRig
                 // pose rebuilt at the start of this frame. Limit swivel while
                 // preserving the exact two-bone lengths and wrist target.
                 float turn=prior.SignedAngleTo(bend,direction);
-                bend=prior.Rotated(direction,Math.Clamp(turn,-3*_poseStep,3*_poseStep));
+                float limit=3*_poseStep*(1-MathF.Exp(-MathF.Abs(turn)/.30f));
+                bend=prior.Rotated(direction,Math.Clamp(turn,-limit,limit));
             }
         }
         float radius=MathF.Sqrt(MathF.Max(0,upper*upper-along*along));

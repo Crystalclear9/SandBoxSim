@@ -123,6 +123,9 @@ internal sealed partial class NatureModels
         {
             if(male.DetailedBodyMesh==female.DetailedBodyMesh||male.DistantBodyMesh==female.DistantBodyMesh)
                 throw new InvalidOperationException("Adult frames share their fitted body cache");
+            foreach(var rig in new[]{male,female})
+                if(rig.Scale.X*rig.Head.Scale.X<.985f||rig.Scale.X*rig.Head.Scale.X>1.035f)
+                    throw new InvalidOperationException("Body width distorts the adult head proportions");
             female.ValidateDistanceMeshes();
             void CheckFrameCaches(Node3D parent)
             {

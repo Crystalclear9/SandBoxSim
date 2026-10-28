@@ -258,14 +258,15 @@ internal sealed partial class NatureModels
         rig.HeadProxy=new MeshInstance3D {Name="DistantHead",Mesh=DistantHead(skin,hair),Visible=false};rig.Head.AddChild(rig.HeadProxy);
         AddHandSkin(rig,skin);
         ApplyBodyFrame(rig);
-        rig.Head.Scale=new Vector3(.96f+((variation>>15)%4)*.025f,.98f+((variation>>18)%3)*.025f,1);
+        rig.Head.Scale=new Vector3(.99f+((variation>>15)%4)*.0125f,.995f+((variation>>18)%3)*.0125f,1);
         if (child) { rig.Scale = new Vector3(.72f, .65f, .72f); rig.Head.Scale = Vector3.One * 1.15f; }
         else
         {
             float frame=HumanFamily==2?.88f:.94f;
             rig.Scale = new Vector3(frame*(1 + ((variation >> 8) % 5 - 2f) * .025f), 1.005f + ((variation >> 12) % 5) * .012f, 1);
-            rig.Head.Scale*=new Vector3(1/frame,1,1);
+            rig.Head.Scale*=new Vector3(1/rig.Scale.X,1,1);
         }
+        rig.WorkCapacity=(BodyFrame==1?.94f:1.03f)+(((variation>>20)%9)-4f)*.035f;
         rig.RegisterDistanceMeshes(rig);return rig;
     }
     public void ValidateResidentMeshes()

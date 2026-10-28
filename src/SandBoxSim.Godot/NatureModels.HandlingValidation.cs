@@ -165,7 +165,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateHandling()
     {
-        ValidateForearmSurfaces();ValidateHandLaterality();ValidateSocialGesture();ValidatePresentationCadence();ValidateReachTrajectories();ValidateCarrying();ValidateAnimalContacts();ValidateBareTransitions();
+        ValidateForearmSurfaces();ValidateHandLaterality();ValidateSocialGesture();ValidatePresentationCadence();ValidateReachTrajectories();ValidateEffortPresentation();ValidateCarrying();ValidateAnimalContacts();ValidateBareTransitions();
         foreach(var action in new[]{ActionKind.GatherWood,ActionKind.GatherIron,ActionKind.Farm,ActionKind.BuildHouse})
         {
             var rig=Resident(17,false,JobType.Gatherer);

@@ -156,7 +156,7 @@ void fragment(){ALBEDO=mix(tone.rgb,vec3(.25,.075,.055),.32);ROUGHNESS=.13;SPECU
             {
                 float u=(hair+.5f)/72,fullness=MathF.Pow(MathF.Sin(u*MathF.PI),.55f);
                 float x=eye.X+side*(-.016f+u*.035f),y=eye.Y+.015f+MathF.Sin(u*MathF.PI*.95f)*.004f-u*.003f;
-                float length=(.0012f+.0021f*fullness)*(1+(hair%3-1)*.12f);
+                float length=(.0012f+.0021f*fullness)*(1+(hair%3-1)*.12f)*(BodyFrame==1?.84f:1.04f);
                 Vector3 Point(float t,float across)
                 {
                     float px=x+side*t*(.0006f+.0015f*u),py=y+length*(t-.55f);

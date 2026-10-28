@@ -6,6 +6,52 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
+    private void ValidateEffortPresentation()
+    {
+        var rigs=new[]{Resident(17,false,JobType.Builder),Resident(55,false,JobType.Builder),Resident(55,false,JobType.Builder)};
+        int[] peaks=new int[3];float[] lean=new float[3];
+        try
+        {
+            rigs[0].WorkCapacity=rigs[1].WorkCapacity=1.1f;rigs[2].WorkCapacity=.8f;
+            rigs[2].SetWorkCondition(.8f,1);
+            for(int index=0;index<rigs.Length;index++)
+            {
+                var rig=rigs[index];bool high=false;
+                for(int frame=0;frame<800;frame++)
+                {
+                    rig.PoseAction(1f/60,ActionKind.BuildHouse,ActionPhase.Executing,false,0);
+                    if(!rig.ToolHeld)continue;
+                    var tool=InTorso(rig.ToolMesh,rig.Torso);var palm=InTorso(rig.Hands[1],rig.Torso)*rig.Grip!.Position;
+                    if(palm.DistanceTo(tool.Origin)>.001f)throw new InvalidOperationException("Effort profile detaches the held tool");
+                    bool raised=tool.Origin.Y>1.12f;
+                    if(frame>150)
+                    {
+                        if(raised&&!high)peaks[index]++;
+                        lean[index]=MathF.Max(lean[index],MathF.Abs(rig.Torso.Rotation.X));
+                    }
+                    high=raised;
+                }
+            }
+            if(peaks[0]<5||peaks[0]!=peaks[1]||peaks[2]>=peaks[1]||lean[2]<lean[1]+.003f)
+                throw new InvalidOperationException($"Effort does not reflect capacity/condition: peaks={string.Join(',',peaks)}, lean={string.Join(',',lean)}");
+            var sample=rigs[0];var previous=InTorso(sample.ToolMesh,sample.Torso).Origin;
+            sample.SetWorkCondition(.9f,.8f);sample.PoseAction(1f/60,ActionKind.BuildHouse,ActionPhase.Executing,false,0);
+            if(previous.DistanceTo(InTorso(sample.ToolMesh,sample.Torso).Origin)>.05f)throw new InvalidOperationException("Changing fatigue resets the stroke phase");
+            var frozen=sample.Torso.Transform;var toolPose=sample.ToolMesh.Transform;
+            sample.PoseAction(1,ActionKind.BuildHouse,ActionPhase.Executing,true,0);
+            if(sample.Torso.Transform!=frozen||sample.ToolMesh.Transform!=toolPose)throw new InvalidOperationException("Paused effort presentation moves");
+            foreach(var action in new[]{ActionKind.GatherFood,ActionKind.None,ActionKind.BuildHouse,ActionKind.Eat})
+            {
+                var head=sample.Head.Rotation;float twist=sample.Torso.Rotation.Y;
+                sample.PoseAction(1f/60,action,ActionPhase.Executing,false,0);
+                if(sample.Head.Rotation.DistanceTo(head)>.035f||MathF.Abs(sample.Torso.Rotation.Y-twist)>.012f)
+                    throw new InvalidOperationException("Action transition snaps the head or torso twist");
+                for(int frame=0;frame<90;frame++)sample.PoseAction(1f/60,action,ActionPhase.Executing,false,0);
+            }
+            GD.Print($"EFFORT_PRESENTATION_PASS: observed strokes={string.Join(',',peaks)}, equal capacity across adult frames, fatigue response, held contact, phase continuity and pause");
+        }
+        finally{foreach(var rig in rigs)rig.Free();}
+    }
     private void ValidateReachTrajectories()
     {
         float maxHandStep=0,maxElbowStep=0;

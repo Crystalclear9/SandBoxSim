@@ -166,7 +166,7 @@ internal partial class ResidentRig : Node3D
         }
         bool moving=phase==ActionPhase.Moving,executing=phase==ActionPhase.Executing;
         bool resting=executing&&action==ActionKind.Sleep;
-        if((_lastAction!=action||_lastPhase!=phase)&&executing)_workTime=0;
+        if((_lastAction!=action||_lastPhase!=phase)&&executing){_workTime=0;_strokePhase=0;}
         _lastAction=action;_lastPhase=phase;
         var wanted=(executing||moving)&&!IsChild?ToolFor(action):ResidentTool.None;
         // A long tool is carried in the hand during idle/wandering, rather than
@@ -184,14 +184,17 @@ internal partial class ResidentRig : Node3D
         bool pickup=executing&&action is ActionKind.GatherFood or ActionKind.Take;
         _pickupBlend=Mathf.MoveToward(_pickupBlend,pickup?1:0,delta/.24f);
         float vertical=resting?-.09f:Mathf.Lerp(MathF.Abs(wave)*.025f*_activity+breath*.003f,-.094f,Smooth(_pickupBlend));
-        float effort=executing&&usingTool?MathF.Sin(_workTime*4)*.035f:0;
-        float desiredLean=resting?-.16f:pickup?-.58f:usingTool?-.10f-effort:.025f*_activity;
+        if(executing&&usingTool&&ToolHeld&&wanted==CurrentTool&&_draw>=.99f)_strokePhase=Mathf.PosMod(_strokePhase+delta/WorkPeriod,1);
+        float effort=executing&&usingTool?(.5f-WorkLift(_strokePhase+.035f))*.045f*RelativeWorkLoad*Smooth(_workBlend):0;
+        float desiredLean=resting?-.16f:pickup?-.58f:usingTool?-.035f-.065f*Smooth(_workBlend)-effort:.025f*_activity;
         _lean=Mathf.Lerp(_lean,desiredLean,1-MathF.Exp(-delta*12));
-        var torsoBasis=Basis.FromEuler(new Vector3(_lean,usingTool?effort*.3f:0,wave*.018f*_activity));
+        float twist=Mathf.Lerp(Torso.Rotation.Y,usingTool?effort*1.8f:0,1-MathF.Exp(-delta*12));
+        var torsoBasis=Basis.FromEuler(new Vector3(_lean,twist,wave*.018f*_activity));
         var hip=new Vector3(0,HipHeight,0);Torso.Transform=new(torsoBasis,hip-torsoBasis*hip+Vector3.Up*vertical+Vector3.Right*(resting||pickup||usingTool?0:MathF.Sin(_phase*.33f+identityPhase)*.008f*(1-_activity)));
         _socialBlend=Mathf.MoveToward(_socialBlend,executing&&action==ActionKind.Socialize?1:0,delta/.70f);
         _attentionYaw=Mathf.Lerp(_attentionYaw,_wantedAttention,1-MathF.Exp(-delta*6));
-        Head.Rotation=new(pickup?.15f:usingTool?-.045f-effort*.4f:breath*.018f+MathF.Sin(_workTime*2.3f+identityPhase)*.035f*_socialBlend,MathF.Sin(_phase*.32f+identityPhase)*.045f+_attentionYaw,MathF.Sin(_workTime*1.1f+identityPhase)*.02f*_socialBlend);
+        var headTarget=new Vector3(pickup?.15f:usingTool?-.045f-effort*.4f:breath*.018f+MathF.Sin(_workTime*2.3f+identityPhase)*.035f*_socialBlend,MathF.Sin(_phase*.32f+identityPhase)*.045f+_attentionYaw,MathF.Sin(_workTime*1.1f+identityPhase)*.02f*_socialBlend);
+        Head.Rotation=Head.Rotation.Lerp(headTarget,1-MathF.Exp(-delta*10));
         var neckPivot=new Vector3(0,NeckPivotY*Head.Scale.Y,0);
         Head.Position=HeadRest+neckPivot-Basis.FromEuler(Head.Rotation)*neckPivot;
         for(int i=0;i<2;i++)
@@ -239,7 +242,7 @@ internal partial class ResidentRig : Node3D
                 _returnPosition=_heldPosition;_returnBasis=_heldBasis;
             }
             if(wantCurrent)_returning=false;
-            var work=WorkPose(CurrentTool,_workTime);
+            var work=WorkPose(CurrentTool,_strokePhase);
             var carry=CarryPose(CurrentTool,wave*_activity);
             var active=(carry.Item1.Lerp(work.Item1,Smooth(_workBlend)),new Basis(carry.Item2.GetRotationQuaternion().Slerp(work.Item2.GetRotationQuaternion(),Smooth(_workBlend))));
             var (target,basis)=_returning?(_returnPosition,_returnBasis):active;
@@ -282,7 +285,7 @@ internal partial class ResidentRig : Node3D
                     if(usingTool&&_reach==1)
                     {
                         _graspTime+=delta;CurlHand(1,.12f+.88f*Smooth(Math.Clamp(_graspTime/.16f,0,1)));
-                        if(_graspTime>=.16f){AttachTool(Grip!);_draw=0;_workTime=0;}
+                        if(_graspTime>=.16f){AttachTool(Grip!);_draw=0;_workTime=0;_strokePhase=0;}
                     }
                     else _graspTime=0;
                 }

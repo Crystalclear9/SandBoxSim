@@ -37,7 +37,24 @@ internal partial class ModelGallery : PanelContainer
         if(Collection=="wardrobe")body.GetChild<Label>(0).Text="衣装剪裁 · 实际职业模型的正面与背面";
         grid.AddThemeConstantOverride("h_separation",12); grid.AddThemeConstantOverride("v_separation",12); body.AddChild(grid);
         var models=new NatureModels();
-        if(Collection=="body-frames")
+        if(Collection=="work-effort")
+        {
+            grid.Columns=2;body.GetChild<Label>(0).Text="同一手锤 · 体格与疲劳下的蓄力、挥击和回收";
+            for(int condition=0;condition<2;condition++)for(int frame=0;frame<2;frame++)
+            {
+                var rig=models.Resident(frame==0?17:55,false,JobType.Builder);
+                rig.SetWorkCondition(condition==0?0:.8f,1);
+                ActionCard(grid,rig,ActionKind.BuildHouse,(frame==0?"男性外观":"女性外观")+(condition==0?" · 状态良好":" · 疲劳后"));
+            }
+        }
+        else if(Collection=="face-frames")
+        {
+            grid.Columns=2;body.GetChild<Label>(0).Text="成人头脸 · 眉弓、下颌与颈部的正面和三刻面";
+            for(int view=0;view<2;view++)for(int frame=0;frame<2;frame++)
+                Closeup(grid,(frame==0?"男性外观":"女性外观")+(view==0?" · 正面":" · 三刻面"),
+                    models.Resident(frame==0?17:55,false,JobType.Gatherer),.39f,new(0,1.45f,0),view==0?new(.03f,.02f,3):new(1.3f,.02f,2.5f),true);
+        }
+        else if(Collection=="body-frames")
         {
             grid.Columns=2;body.GetChild<Label>(0).Text="成人体型 · 男性与女性外观的同视角比较";
             for(int view=0;view<2;view++)for(int frame=0;frame<2;frame++)
@@ -212,7 +229,8 @@ internal partial class ModelGallery : PanelContainer
         var view=grid.GetChild<VBoxContainer>(grid.GetChildCount()-1).GetChild<SubViewportContainer>(0).GetChild<SubViewport>(0);
         view.RenderTargetUpdateMode=SubViewport.UpdateMode.WhenVisible;
         var stage=view.GetChild<Node3D>(0);var camera=stage.GetChild<Camera3D>(stage.GetChildCount()-1);
-        var target=new Vector3(0,.92f,0);camera.Position=target+new Vector3(.03f,.08f,4);camera.LookAt(target);
+        var target=new Vector3(0,Collection=="work-effort"?1.02f:.92f,0);camera.Position=target+new Vector3(.03f,.08f,4);camera.LookAt(target);
+        if(Collection=="work-effort")camera.Size=1.65f;
         if(action==ActionKind.StoreInBuilding)rig.ShowCargo(true,ResourceKind.Wood);
         Animate(rig,action);
     }

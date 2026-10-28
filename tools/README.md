@@ -36,6 +36,8 @@ SDK 与 Godot 工具链由参数或环境变量覆盖，不提交本机绝对路
 
 ## 模型素材转换
 
+`measure_head_tones.py` 使用 Pillow，只读三套已固定的头脸 JSON 与颜色图，输出额部三角形面积加权的线性亮度及相对曝光增益。用于复核运行时皮肤、嘴唇和头部 LOD 的来源曝光校准；不修改原图、不下载素材，也不生成临时图片。
+
 `fetch-human-assets.py` 将 23 个固定 CC0 输入校验并下载到 `.tools/sources/makehuman`，通过 HTTP Range 仅提取需要的 ZIP 成员。`export_resident_faces.py` 在 Blender 后台重建头颈、原生 UV、皮肤／发片、闭眼形变与远景头脸；旧头部导出入口转发到新流程。`human_eyelids.py` 采样实际眼裂，`human_head_lod.py` 生成同源远景头脸。普通构建不需要 Blender 或联网，见 [人物素材](../docs/development/human-assets.md)。
 
 `export_environment_models.py` 在 Blender 后台转换六种 CC0 环境模型，按完整叶片抽样并独立简化木质表面。来源、原文件哈希、贴图及运行路径见 [环境素材](../docs/development/environment-assets.md)。

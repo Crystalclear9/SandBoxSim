@@ -449,8 +449,8 @@ public partial class WorldView3D : MapView
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="coverage-mosaic-v6",["habitatDetail"]="stratified-meadow-v10",["vegetationSurface"]="engine-faced-v2",
-            ["architecture"]="inset-joinery-v13",["garmentMaterial"]="relaxed-yoke-linen-v14",["shoulderMotion"]="supported-reach-v1",["reachMotion"]="palm-trajectory-v1",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
-            ["animalPresentation"]="source-paw-contours-v11",["residentSurface"]="orbital-gaze-v6",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="cargo-priority-v3",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="joint-blended-v2",["waterSurface"]="constrained-bank-v6",["wristContour"]="source-oval-v1",
+            ["architecture"]="inset-joinery-v13",["garmentMaterial"]="relaxed-yoke-linen-v14",["shoulderMotion"]="supported-reach-v1",["reachMotion"]="palm-trajectory-v2",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
+            ["animalPresentation"]="source-paw-contours-v11",["residentSurface"]="craniofacial-balance-v7",["workEffort"]="relative-load-v1",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="cargo-priority-v3",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="joint-blended-v2",["waterSurface"]="constrained-bank-v6",["wristContour"]="source-oval-v1",
             ["hairline"]="source-root-v1",["reedPanicle"]="connected-axis-v1",["bodyFrame"]="source-clothed-v1",["forearmProfile"]="tapered-volume-v1" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
@@ -861,6 +861,7 @@ public partial class WorldView3D : MapView
             var interest=sim.Agents.TargetOf(slot);
             var attention=sim.Agents.HasTarget(slot)&&sim.World.IsInBounds(interest)?PositionAt(interest.X,interest.Y)-rendered:Vector3.Zero;
             rig.Attend(node.Basis.Inverse()*attention);
+            rig.SetWorkCondition(sim.Agents.FatigueOf(slot),sim.Agents.HealthOf(slot));
             rig.PresentAction(_poseSchedule.Consume(pair.Key),sim.Agents.ActionOf(slot),sim.Agents.PhaseOf(slot),Game.VisualPaused,slot);
             if(distanceSquared<18*18&&!Game.VisualPaused)ConformFeet(rig);
         }
