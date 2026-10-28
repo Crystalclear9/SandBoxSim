@@ -40,7 +40,7 @@ internal partial class ResidentPortrait
         var range=Buttons(Group("观察范围"));
         foreach(var (mode,title) in new[]{(Framing.Face,"面部"),(Framing.Hands,"手部"),(Framing.Body,"全身")})
         {
-            var button=StudioButton(range,title,"聚焦"+title+" · 保留当前旋转角度",()=>SetFraming(mode));
+            var button=StudioButton(range,title,"聚焦"+title+" · 记住各范围的缩放，保留当前旋转角度",()=>SetFraming(mode));
             button.ToggleMode=true;_frameButtons[mode]=button;
         }
         _frameButtons[Framing.Face].SetPressedNoSignal(true);
@@ -64,7 +64,7 @@ internal partial class ResidentPortrait
         _distanceReadout.AddThemeFontOverride("font",HudStyle.NumericFont);_distanceReadout.CustomMinimumSize=new(64,0);
         _distanceReadout.VerticalAlignment=VerticalAlignment.Center;_distanceReadout.HorizontalAlignment=HorizontalAlignment.Center;
         _distanceReadout.MouseFilter=MouseFilterEnum.Ignore;_distanceReadout.TooltipText="当前镜头目标距离（米）";_zoomControls.AddChild(_distanceReadout);
-        StudioButton(lens,"复位","恢复当前构图 · 也可双击画面",ResetView);
+        StudioButton(lens,"复位","恢复当前范围的默认距离与角度 · 其他范围的缩放不变；也可双击画面",ResetView);
         _expandButton=StudioButton(lens,"放大","打开独立人物观察窗",()=>ExpandRequested?.Invoke());
     }
     private void SetStudioControlsExpanded(bool expanded)
@@ -111,9 +111,20 @@ internal partial class ResidentPortrait
     {
         bool expanded=Expanded,motion=HudStyle.MotionEnabled;float yaw=_yaw,pitch=_pitch,distance=_distance;
         var framing=_framing;
+        var distances=(float[])_framingDistances.Clone();
         try
         {
             HudStyle.MotionEnabled=true;SetExpanded(true);
+            SetFraming(Framing.Hands);SetDistance(.57f);SetAngle(.4f);
+            SetFraming(Framing.Body);SetDistance(3.7f);
+            SetFraming(Framing.Hands);
+            if(MathF.Abs(_distance-.57f)>.0001f||_yaw!=.4f)throw new InvalidOperationException("Framing loses the detail zoom or inspection angle");
+            SetFraming(Framing.Hands);
+            if(MathF.Abs(_distance-.57f)>.0001f)throw new InvalidOperationException("Reselecting the active framing resets zoom");
+            ResetView();SetFraming(Framing.Body);
+            if(MathF.Abs(_distance-3.7f)>.0001f)throw new InvalidOperationException("Reset changes another framing's zoom");
+            SetFraming(Framing.Hands);
+            if(MathF.Abs(_distance-.68f)>.0001f)throw new InvalidOperationException("Reset fails to restore the current framing distance");
             _distanceSlider.Value=.5;
             if(MathF.Abs(_distance-1.5f)>.0001f)throw new InvalidOperationException("Log distance slider has no matching camera distance");
             ZoomBy(-.10f);
@@ -137,8 +148,9 @@ internal partial class ResidentPortrait
         finally
         {
             HudStyle.MotionEnabled=motion;SetOrbiting(false);SetFraming(framing);_yaw=yaw;_pitch=pitch;_distance=distance;
+            distances.CopyTo(_framingDistances,0);
             SetExpanded(expanded);UpdateStudioReadout();SettleMotion();
         }
-        GD.Print("PORTRAIT_CONTINUOUS_PASS: linked logarithmic distance, native keyboard slider, opt-in orbit, drag/preset/close/focus/reduced-motion stops");
+        GD.Print("PORTRAIT_CONTINUOUS_PASS: per-framing zoom memory and isolated reset, linked logarithmic distance, native keyboard slider, opt-in orbit, drag/preset/close/focus/reduced-motion stops");
     }
 }

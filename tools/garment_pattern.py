@@ -12,15 +12,15 @@ def torso_shoulder_weight(point, shoulder):
 
     A sleeve's lower armhole is already below the shoulder joint in bind
     space. Pinning it to the chest creates a sheet when the upper arm lifts.
-    Spread that pull over the neighbouring side chest instead of assigning
-    every point of the non-planar armhole the same zero shoulder influence.
+    Use a restrained, short support field: moving the whole side chest with
+    the arm creates a wing even if the shared seam remains connected.
     """
     def smooth(a,b,x):
         t=min(1,max(0,(x-a)/(b-a)))
         return t*t*(3-2*t)
     x,y,_=point
     along=shoulder-y
-    return smooth(.04,.18,abs(x))*smooth(-.015,.085,along)*(1-smooth(.095,.30,along))
+    return .38*smooth(.075,.205,abs(x))*smooth(-.020,.035,along)*(1-smooth(.045,.175,along))
 
 
 def build_pattern(data, include_details=False):
@@ -72,7 +72,7 @@ def build_pattern(data, include_details=False):
             if rel==half:outside.append(points[idx(r,c+1)])
             direction=tuple(sum(p[j]-q[j] for q in outside) for j in range(3))
             length=math.sqrt(sum(q*q for q in direction))
-            speed=.09+.20*min(1,max(0,(p[1]-(shoulder-.085))/.132))
+            speed=.06+.08*min(1,max(0,(p[1]-(shoulder-.085))/.132))
             tangents.append(tuple(q/length*speed for q in direction))
         prev = loop
         for row in range(1,19):
@@ -118,7 +118,10 @@ def build_pattern(data, include_details=False):
                 # fabric takes the shoulder rotation. Its lower, already
                 # axillary points share the side chest's local shoulder pull.
                 # Upper cap support is lower; cuff weights remain exactly 1.
-                w=min(1,t/.48);w=w*w*(3-2*w)
+                # The first two underarm rows turn around the shared seam.
+                # Do not ramp bone influence through that compressed fold;
+                # start only after the sleeve has separated from the chest.
+                w=min(1,max(0,(t-.12)/.48));w=w*w*(3-2*w)
                 w=1-(1-w)*(1-torso_shoulder_weight(q,shoulder))
                 weights.append((1-w,w if bone==1 else 0.,w if bone==2 else 0.))
             for j in range(len(loop)):

@@ -13,8 +13,8 @@ internal sealed partial class NatureModels
     private static float GarmentTorsoShoulderWeight(Vector3 point)
     {
         float along=ResidentRig.BodyY(1.18f)-point.Y;
-        return Mathf.SmoothStep(.04f,.18f,MathF.Abs(point.X))*Mathf.SmoothStep(-.015f,.085f,along)
-            *(1-Mathf.SmoothStep(.095f,.30f,along));
+        return .38f*Mathf.SmoothStep(.075f,.205f,MathF.Abs(point.X))*Mathf.SmoothStep(-.020f,.035f,along)
+            *(1-Mathf.SmoothStep(.045f,.175f,along));
     }
     public void ExportGarmentSources(string folder)
     {
@@ -101,7 +101,7 @@ internal sealed partial class NatureModels
             for(int i=0;i<points.Length;i++)
             {
                 if(Root(i)!=root)throw new InvalidOperationException("Disconnected sewn garment");
-                float ring=Math.Clamp(seam[i].X/(.263f*.48f),0,1);ring=ring*ring*(3-2*ring);
+                float ring=Math.Clamp((seam[i].X/.263f-.12f)/.48f,0,1);ring=ring*ring*(3-2*ring);
                 float local=GarmentTorsoShoulderWeight(points[i]);
                 float expected=seam[i].X>0?1-(1-ring)*(1-local):local;
                 float actual=weights[i*4+1]+weights[i*4+2];

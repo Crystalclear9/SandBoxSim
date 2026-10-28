@@ -12,6 +12,8 @@ internal partial class ResidentPortrait : SubViewportContainer
     private Framing _framing;
     private readonly System.Collections.Generic.Dictionary<Framing,Godot.Button> _frameButtons=new();
     private const float FaceDistance=1.0f;
+    private readonly float[] _framingDistances={FaceDistance,.68f,4.1f};
+    private static float DefaultDistance(Framing mode)=>mode==Framing.Body?4.1f:mode==Framing.Hands?.68f:FaceDistance;
     private const float ThumbnailYaw=-.28f;
     private float _pitch,_viewDistance=FaceDistance;
     private Vector3 _viewCenter;
@@ -156,12 +158,16 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
     public void FocusHands()=>SetFraming(Framing.Hands);
     private void SetFraming(Framing mode)
     {
+        if(mode!=_framing)
+        {
+            _framingDistances[(int)_framing]=_distance;
+            _distance=_framingDistances[(int)mode];
+        }
         _framing=mode;_fullBody=mode==Framing.Body;
         // Close detail framing avoids unstable submillimetre shadow-map facets;
         // the full-body studio retains the ground contact shadow.
         // Leave room below the soles for the grouped camera toolbar, including
         // the minimum supported window and the transition from a close detail.
-        _distance=mode==Framing.Body?4.1f:mode==Framing.Hands?.68f:FaceDistance;
         ApplyFramingDisplay();
         foreach(var pair in _frameButtons)pair.Value.SetPressedNoSignal(pair.Key==mode);
         if(!HudStyle.MotionEnabled)_viewDistance=_distance;
@@ -179,7 +185,8 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
     private void ResetView()
     {
         SetOrbiting(false);
-        _yaw=-.28f;_pitch=0;_drag=false;SetFraming(_framing);
+        _yaw=-.28f;_pitch=0;_drag=false;
+        _distance=_framingDistances[(int)_framing]=DefaultDistance(_framing);SetFraming(_framing);
         if(!HudStyle.MotionEnabled&&_resident!=null)_resident.Rotation=new(0,IsThumbnail?ThumbnailYaw:_yaw,0);
         Aim();
     }
@@ -295,6 +302,7 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         if(!Compact||!NotebookThumbnail||_resident==null)return;
         bool expanded=Expanded;var framing=_framing;
         float yaw=_yaw,pitch=_pitch,distance=_distance,viewDistance=_viewDistance;
+        var distances=(float[])_framingDistances.Clone();
         try
         {
             foreach(var mode in new[]{Framing.Hands,Framing.Body})
@@ -316,6 +324,7 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         finally
         {
             SetFraming(framing);_yaw=yaw;_pitch=pitch;_distance=distance;_viewDistance=viewDistance;
+            distances.CopyTo(_framingDistances,0);
             SetExpanded(expanded);Aim();
         }
         GD.Print("PORTRAIT_IDENTITY_PASS: face-only thumbnail after hand/body/back inspection; reused model and preserved framing/orbit/zoom");

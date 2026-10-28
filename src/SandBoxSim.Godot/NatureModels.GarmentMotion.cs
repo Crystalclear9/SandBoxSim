@@ -54,6 +54,8 @@ internal sealed partial class NatureModels
                             posed[i]=point;
                             if((MathF.Abs(source[i].X)<.04f||source[i].Y<.90f||(source[i].Y>1.25f&&seam[i].X<=0))&&point.DistanceTo(source[i])>.000002f)
                                 throw new InvalidOperationException("Arm motion pulls the garment centre, neckline or waist");
+                            if(seam[i].X<0&&source[i].Y<ResidentRig.BodyY(1.18f)-.10f&&point.DistanceTo(source[i])>.035f)
+                                throw new InvalidOperationException("Arm motion drags the lower side chest into a wing");
                             if(seam[i].X>.2629f)
                             {
                                 var cuff=transforms[source[i].X<0?1:2]*source[i];
@@ -64,7 +66,7 @@ internal sealed partial class NatureModels
                         {
                             float ratio=posed[edge.A].DistanceTo(posed[edge.B])/source[edge.A].DistanceTo(source[edge.B]);
                             maximum=MathF.Max(maximum,ratio);
-                            if(ratio>4.5f)throw new InvalidOperationException($"Stretched garment action edge: {job}/{action}, ratio={ratio}");
+                            if(ratio>4.5f)throw new InvalidOperationException($"Stretched garment action edge: {job}/{action}, ratio={ratio}, rest={source[edge.A]} -> {source[edge.B]}, seam={seam[edge.A]} -> {seam[edge.B]}");
                         }
                         poses++;
                     }
