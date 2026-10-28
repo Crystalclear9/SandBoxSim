@@ -21,7 +21,7 @@ ROUGHNESS=.64;SPECULAR=.24;
     private void AddHandTools(ResidentRig rig,JobType job)
     {
         rig.Grip=new Node3D {Name="HandGrip",Position=new(0,-.035f,-.0286f),Rotation=new(0,0,MathF.PI/2)};rig.Hands[1].AddChild(rig.Grip);
-        rig.Holster=new Node3D {Name="BeltToolLoop",Position=new(.235f,.79f,-.14f),Rotation=new(0,0,.65f)};rig.Torso.AddChild(rig.Holster);
+        rig.Holster=new Node3D {Name="BeltToolLoop",Position=TorsoSurface(.145f,.79f,false)+new Vector3(0,0,-.022f),Rotation=new(0,0,.65f)};rig.Torso.AddChild(rig.Holster);
         if(!rig.IsChild)
         {
             // Two closed leather loops surround the shaft. The supporting strap

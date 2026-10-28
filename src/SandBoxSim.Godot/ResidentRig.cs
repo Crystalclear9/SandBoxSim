@@ -313,7 +313,7 @@ internal partial class ResidentRig : Node3D
                 var target=new Vector3(side==0?-.23f:.23f,1.00f+emphasis,-.22f-emphasis);
                 var restBasis=Arms[side].Basis*Elbows[side].Basis*Hands[side].Basis;
                 var open=Basis.FromEuler(new Vector3(.6f,side==0?.3f:-.3f,side==0?-.35f:.35f));
-                SolveBareHand(side,rest.Lerp(BodyPoint(target),_socialBlend),new Basis(restBasis.GetRotationQuaternion().Slerp(open.GetRotationQuaternion(),_socialBlend)));
+                BlendBareHand(side,BodyPoint(target),open,_socialBlend);
                 CurlHand(side,(.16f+emphasis)*_socialBlend);
             }
         }

@@ -23,6 +23,7 @@ public partial class MainGame
     private VBoxContainer _portraitActions=null!;
     private Label _portraitCarrySummary=null!;
     private Godot.Button _portraitPin=null!;
+    private Button _portraitTarget=null!;
     private Godot.Button _portraitPrevious=null!,_portraitNext=null!;
     private Label _portraitIndex=null!;
     private readonly Button[] _portraitLighting=new Button[2];
@@ -145,7 +146,9 @@ public partial class MainGame
         HudStyle.QuietButton(_portraitInventoryToggle,13);actions.AddChild(_portraitInventoryToggle);
         _portraitCarrySummary=PortraitPaperLabel("",12,true);_portraitCarrySummary.ClipText=true;_portraitCarrySummary.TextOverrunBehavior=TextServer.OverrunBehavior.TrimEllipsis;actions.AddChild(_portraitCarrySummary);
         var actionSeparator=new HSeparator();actionSeparator.AddThemeStyleboxOverride("separator",HudStyle.Box(HudStyle.Border,0,0,false));actions.AddChild(actionSeparator);
-        var follow=PortraitPaperButton("在世界中跟随  →",()=>{int slot=SelectedSlot;if(slot<0)return;ShowPortraitWindow(false);_map.Follow(slot);},true);follow.Name="PortraitFollow";actions.AddChild(follow);
+        var worldActions=new HBoxContainer();worldActions.AddThemeConstantOverride("separation",6);actions.AddChild(worldActions);
+        var follow=PortraitPaperButton("跟随居民  →",()=>{int slot=SelectedSlot;if(slot<0)return;ShowPortraitWindow(false);_map.Follow(slot);},true);follow.Name="PortraitFollow";follow.SizeFlagsHorizontal=SizeFlags.ExpandFill;worldActions.AddChild(follow);
+        _portraitTarget=PortraitPaperButton("查看目的地",()=>FocusResidentTarget());_portraitTarget.Name="PortraitTarget";_portraitTarget.SizeFlagsHorizontal=SizeFlags.ExpandFill;worldActions.AddChild(_portraitTarget);
         var secondary=new HBoxContainer();secondary.AddThemeConstantOverride("separation",8);actions.AddChild(secondary);
         _portraitPin=PortraitPaperButton("关注此居民",()=>{TogglePin();RefreshPortraitFacts();});HudStyle.QuietButton(_portraitPin,13);_portraitPin.SizeFlagsHorizontal=SizeFlags.ExpandFill;_portraitPin.Alignment=HorizontalAlignment.Left;secondary.AddChild(_portraitPin);
         var guide=PortraitPaperLabel("Esc 返回",11,true);guide.SizeFlagsVertical=SizeFlags.ShrinkCenter;secondary.AddChild(guide);
@@ -195,6 +198,8 @@ public partial class MainGame
     }
     private void RefreshPortraitFacts()
     {
+        _portraitTarget.Disabled=!ResidentTargetAvailable();
+        _portraitTarget.TooltipText=_portraitTarget.Disabled?"当前没有正在前往或交互的有效目标":"观察目的地 "+Sim.Agents.TargetOf(SelectedSlot)+"；不会改变居民行动";
         RefreshPortraitRoster();
         for(int i=0;i<2;i++)_portraitLighting[i].SetPressedNoSignal(_residentPortrait.Lighting==i);
         int slot=SelectedSlot;if(slot<0||_portraitFactAction==null)return;
@@ -217,9 +222,41 @@ public partial class MainGame
         RefreshInventoryDisclosure();
         _portraitPin.Text=PinnedPerson!=0&&PinnedPerson==_selectedPersonId?"已关注 · 取消关注":"关注此居民";
     }
+    private bool ResidentTargetAvailable()
+    {
+        int slot=SelectedSlot;
+        return slot>=0&&Sim.Agents.HasTarget(slot)&&Sim.World.IsInBounds(Sim.Agents.TargetOf(slot))
+            &&Sim.Agents.PhaseOf(slot) is SandBoxSim.Core.Agents.ActionPhase.Moving or SandBoxSim.Core.Agents.ActionPhase.Executing;
+    }
+    private bool FocusResidentTarget()
+    {
+        if(!ResidentTargetAvailable())return false;
+        var target=Sim.Agents.TargetOf(SelectedSlot);
+        ShowPortraitWindow(false);ShowJournal(false);if(_map is WorldView3D world)world.CancelPointerGesture();_map.Focus(target.X,target.Y,55);
+        return true;
+    }
+    private void ValidateResidentTarget()
+    {
+        int slot=SelectedSlot;var target=Sim.Agents.TargetOf(slot);var phase=Sim.Agents.PhaseOf(slot);
+        string original=StateHash.ComputeDigest(Sim);
+        try
+        {
+            Sim.Agents.SetTarget(slot,2,2);Sim.Agents.SetPhase(slot,SandBoxSim.Core.Agents.ActionPhase.Moving);
+            string before=StateHash.ComputeDigest(Sim);
+            if(!FocusResidentTarget()||before!=StateHash.ComputeDigest(Sim))throw new InvalidOperationException("Target inspection changes the simulation or fails to focus");
+            Sim.Agents.SetTarget(slot,-1,-1);
+            if(FocusResidentTarget())throw new InvalidOperationException("Missing target remains actionable");
+            Sim.Agents.SetTarget(slot,2,2);Sim.Agents.SetPhase(slot,SandBoxSim.Core.Agents.ActionPhase.Done);
+            if(FocusResidentTarget())throw new InvalidOperationException("Completed action exposes a stale destination");
+        }
+        finally{Sim.Agents.SetTarget(slot,target.X,target.Y);Sim.Agents.SetPhase(slot,phase);}
+        if(original!=StateHash.ComputeDigest(Sim))throw new InvalidOperationException("Target observation test fails to restore state");
+        GD.Print("RESIDENT_TARGET_PASS: current target focus, absent/stale rejection and observation purity");
+    }
     private void ValidatePortraitWindow()
     {
         if(SelectedSlot<0)return;
+        ValidateResidentTarget();
         string before=StateHash.ComputeDigest(Sim);
         var state=System.Text.Json.JsonSerializer.Serialize(_residentPortrait.InspectionState());
         ShowJournal(true);_drawer.CurrentTab=1;_journalButton.GrabFocus();RefreshPresentationControls();

@@ -449,8 +449,8 @@ public partial class WorldView3D : MapView
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="coverage-mosaic-v6",["habitatDetail"]="stratified-meadow-v10",["vegetationSurface"]="engine-faced-v2",
-            ["architecture"]="inset-joinery-v13",["garmentMaterial"]="sewn-neckline-linen-v11",["interface"]="held-object-feedback-v26",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
-            ["animalPresentation"]="source-paw-contours-v11",["residentSurface"]="orbital-gaze-v6",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="cargo-priority-v3",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["waterSurface"]="constrained-bank-v6",["wristContour"]="source-oval-v1",
+            ["architecture"]="inset-joinery-v13",["garmentMaterial"]="sewn-neckline-linen-v11",["interface"]="resident-destination-v27",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
+            ["animalPresentation"]="source-paw-contours-v11",["residentSurface"]="orbital-gaze-v6",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="cargo-priority-v3",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="joint-blended-v2",["waterSurface"]="constrained-bank-v6",["wristContour"]="source-oval-v1",
             ["hairline"]="source-root-v1",["reedPanicle"]="connected-axis-v1" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
@@ -843,7 +843,7 @@ public partial class WorldView3D : MapView
             _poseSchedule.Accumulate(pair.Key,delta,visible&&!Game.VisualPaused);
             if(!visible)continue;
             if (!Game.VisualPaused && direction.X*direction.X+direction.Z*direction.Z > .002f) { node.Rotation = new Vector3(0, Mathf.LerpAngle(node.Rotation.Y,MathF.Atan2(direction.X, direction.Z) + MathF.PI,1-MathF.Exp(-delta*12)), 0); }
-            if(!Game.VisualPaused&&sim.Agents.PhaseOf(slot)==ActionPhase.Executing)
+            if(!Game.VisualPaused&&sim.Agents.HasTarget(slot)&&sim.Agents.PhaseOf(slot)==ActionPhase.Executing)
             {
                 var destination=sim.Agents.TargetOf(slot);var facing=sim.World.IsInBounds(destination)?PositionAt(destination.X,destination.Y)-target:Vector3.Zero;
                 if(facing.LengthSquared()>.02f) node.Rotation=new(0,Mathf.LerpAngle(node.Rotation.Y,MathF.Atan2(facing.X,facing.Z)+MathF.PI,1-MathF.Exp(-delta*7)),0);

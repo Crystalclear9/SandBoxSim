@@ -218,7 +218,7 @@ internal partial class ModelGallery : PanelContainer
         var card=grid.GetChild<VBoxContainer>(grid.GetChildCount()-1);
         var viewport=card.GetChild<SubViewportContainer>(0).GetChild<SubViewport>(0);
         var stage=viewport.GetChild<Node3D>(0);var camera=stage.GetChild<Camera3D>(stage.GetChildCount()-1);
-        model.Rotation=new(0,yaw,0);for(int i=0;i<(working?90:1);i++)model.Pose(1f/60,false,working,false,false,0);
+        model.Rotation=new(0,yaw,0);for(int i=0;i<(working?90:120);i++)model.Pose(1f/60,false,working,false,false,0);
         bool pack=yaw<0;
         var target=working ? model.Grip!.GlobalPosition+new Vector3(0,.05f,0) : pack ? model.Torso.GlobalPosition+new Vector3(0,1.10f,0) : model.Head.GlobalPosition-new Vector3(0,.03f,0);
         camera.Size=working?.68f:pack?.75f:.55f;camera.Position=target+new Vector3(.02f,.025f,2);camera.LookAt(target);
