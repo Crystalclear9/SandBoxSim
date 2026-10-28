@@ -6,6 +6,48 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
+    private void ValidateMotionContinuity()
+    {
+        var p=new Vector3(.2f,-.1f,.3f);var v=new Vector3(.8f,.1f,-.2f);var target=new Vector3(-.1f,.4f,.2f);
+        var split=p;var splitV=v;
+        ResidentRig.DampMotion(ref p,ref v,target,.04f,.1f);
+        for(int i=0;i<12;i++)ResidentRig.DampMotion(ref split,ref splitV,target,.04f,1f/120);
+        if(p.DistanceTo(split)>.00001f||v.DistanceTo(splitV)>.0001f)throw new InvalidOperationException("Motion damping depends on subdivision");
+        var saved=p;var savedV=v;
+        ResidentRig.DampMotion(ref p,ref v,Vector3.One,.04f,0);
+        if(p.DistanceTo(saved)>.000001f||v!=savedV)throw new InvalidOperationException("New target discards motion velocity before time advances");
+        float maxPalmStep=0,maxElbowStep=0;
+        foreach(int identity in new[]{17,55})
+        {
+            var rig=Resident(identity,false,JobType.Builder);
+            try
+            {
+                Vector3 palm=Vector3.Zero,elbow=Vector3.Zero;bool held=false,observed=false;
+                var previousTool=Transform3D.Identity;
+                foreach(var action in new[]{ActionKind.BuildHouse,ActionKind.None,ActionKind.Farm,ActionKind.GatherStone,ActionKind.Eat,ActionKind.GatherWood})
+                for(int frame=0;frame<200;frame++)
+                {
+                    rig.PoseAction(1f/60,action,action==ActionKind.None?ActionPhase.Idle:ActionPhase.Executing,false,0);
+                    var next=InTorso(rig.Hands[1],rig.Torso)*rig.Grip!.Position;
+                    var nextElbow=InTorso(rig.Elbows[1],rig.Torso).Origin;
+                    var tool=InTorso(rig.ToolMesh,rig.Torso);
+                    if(observed&&(tool.Origin.DistanceTo(previousTool.Origin)>.040f||2*MathF.Acos(Math.Clamp(MathF.Abs(tool.Basis.GetRotationQuaternion().Dot(previousTool.Basis.GetRotationQuaternion())),0,1))>.20f))
+                        throw new InvalidOperationException($"Tool reparenting or transition jumps: {identity}/{action}/{frame}");
+                    if(held&&rig.ToolHeld)
+                    {
+                        maxPalmStep=MathF.Max(maxPalmStep,palm.DistanceTo(next));
+                        maxElbowStep=MathF.Max(maxElbowStep,elbow.DistanceTo(nextElbow));
+                        if(palm.DistanceTo(next)>.040f||elbow.DistanceTo(nextElbow)>.050f)
+                            throw new InvalidOperationException($"Tool action jumps: {identity}/{action}/{frame}: palm={palm.DistanceTo(next)}, elbow={elbow.DistanceTo(nextElbow)}");
+                        if(next.DistanceTo(InTorso(rig.ToolMesh,rig.Torso).Origin)>.001f)throw new InvalidOperationException("Filtered tool loses palm contact");
+                    }
+                    held=rig.ToolHeld;palm=next;elbow=nextElbow;previousTool=tool;observed=true;
+                }
+            }
+            finally{rig.Free();}
+        }
+        GD.Print($"MOTION_CONTINUITY_PASS: exact damping subdivision/target change, two adult frames and six action transitions, maximum palm/elbow step {maxPalmStep:F4}/{maxElbowStep:F4} m, held contact");
+    }
     private void ValidateEffortPresentation()
     {
         var rigs=new[]{Resident(17,false,JobType.Builder),Resident(55,false,JobType.Builder),Resident(55,false,JobType.Builder)};

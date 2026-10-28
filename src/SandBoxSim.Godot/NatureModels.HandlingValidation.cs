@@ -165,7 +165,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateHandling()
     {
-        ValidateForearmSurfaces();ValidateHandLaterality();ValidateSocialGesture();ValidatePresentationCadence();ValidateReachTrajectories();ValidateEffortPresentation();ValidateCarrying();ValidateAnimalContacts();ValidateBareTransitions();
+        ValidateForearmSurfaces();ValidateHandLaterality();ValidateSocialGesture();ValidatePresentationCadence();ValidateReachTrajectories();ValidateEffortPresentation();ValidateMotionContinuity();ValidateCarrying();ValidateAnimalContacts();ValidateBareTransitions();
         foreach(var action in new[]{ActionKind.GatherWood,ActionKind.GatherIron,ActionKind.Farm,ActionKind.BuildHouse})
         {
             var rig=Resident(17,false,JobType.Gatherer);
@@ -295,7 +295,7 @@ internal sealed partial class NatureModels
                 for(int i=0;i<vertices.Length;i++)
                 {
                     var p=vertices[i];int side=weights[i].G<.5f?0:1;
-                    var moved=rig.Arms[side].Transform*(p-ResidentRig.ShoulderRest(side));
+                    var moved=rig.Arms[side].Transform*(p-rig.ShoulderRest(side));
                     var deformed=p.Lerp(moved,weights[i].R);
                     if(!deformed.IsFinite())throw new InvalidOperationException("Invalid shoulder deformation");
                     if(weights[i].R==0)

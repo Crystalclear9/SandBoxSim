@@ -27,6 +27,15 @@ internal sealed partial class NatureModels
     }
     private Vector3 FramePoint(Vector3 point)
     {
+        if(BodyFrame==0)
+        {
+            // A loose male shirt bridges the pectoral surface instead of
+            // embossing the convex source support as two rounded bulges.
+            float front=1-Mathf.SmoothStep(-.045f,-.005f,point.Z);
+            float centre=1-Mathf.SmoothStep(.10f,.17f,MathF.Abs(point.X));
+            float chestDrape=MathF.Exp(-MathF.Pow((point.Y-1.145f)/.075f,2));
+            return point+Vector3.Back*(.009f*front*centre*chestDrape);
+        }
         float chest=Mathf.SmoothStep(1.02f,1.12f,point.Y)*(1-Mathf.SmoothStep(1.255f,1.30f,point.Y));
         float inboard=1-Mathf.SmoothStep(.13f,.195f,MathF.Abs(point.X));
         float ratio=1;
@@ -57,12 +66,14 @@ internal sealed partial class NatureModels
         // stay fixed. This is a presentation fit, not a demographic classifier.
         float hip=MathF.Exp(-MathF.Pow((point.Y-.83f)/.085f,2));
         float waist=MathF.Exp(-MathF.Pow((point.Y-1.02f)/.07f,2));
-        float lateral=1+.065f*hip-.045f*waist;
-        return new(point.X*Mathf.Lerp(1,ratio,.35f)*lateral,point.Y,point.Z*ratio);
+        float limb=Mathf.SmoothStep(.135f,.185f,MathF.Abs(point.X))*Mathf.SmoothStep(.88f,.96f,point.Y);
+        float lateral=1+(.10f*hip-.055f*waist)*(1-limb);
+        float shoulder=1-.075f*MathF.Max(limb,Mathf.SmoothStep(1.12f,1.22f,point.Y));
+        return new(point.X*Mathf.Lerp(1,ratio,.35f)*lateral*shoulder,point.Y,point.Z*ratio);
     }
     private Mesh FrameMesh(Mesh source,Transform3D space)
     {
-        string key="body-frame:"+source.GetInstanceId()+":"+space;
+        string key="body-frame:"+BodyFrame+":"+source.GetInstanceId()+":"+space;
         if(_meshes.TryGetValue(key,out var cached))return cached;
         var result=new ArrayMesh();var inverse=space.AffineInverse();
         for(int s=0;s<source.GetSurfaceCount();s++)
@@ -87,7 +98,7 @@ internal sealed partial class NatureModels
     }
     private void ApplyBodyFrame(ResidentRig rig)
     {
-        if(BodyFrame==0)return;
+        if(ChildHead)return;
         void Walk(Node3D parent,Transform3D space)
         {
             foreach(Node child in parent.GetChildren())
@@ -113,6 +124,18 @@ internal sealed partial class NatureModels
         Walk(rig,Transform3D.Identity);
         rig.DetailedBodyMesh=rig.BodySkin.Mesh;
         rig.DistantBodyMesh=FrameMesh(rig.DistantBodyMesh,Transform3D.Identity);
+        if(BodyFrame==0)return;
+        // The fitted sleeve vertices, joint rest and inverse bind must move
+        // together. Scaling the mesh alone leaves a male-width moving rig.
+        rig.ShoulderHalfWidth=.202f*.925f;
+        var skin=new Skin();skin.AddBind(0,Transform3D.Identity);
+        for(int side=0;side<2;side++)
+        {
+            var rest=rig.ShoulderRest(side);rig.Arms[side].Position=rest;
+            rig.ShoulderSkeleton.SetBoneRest(side+1,new Transform3D(Basis.Identity,rest));
+            skin.AddBind(side+1,new Transform3D(Basis.Identity,-rest));
+        }
+        rig.ShoulderSkeleton.ResetBonePoses();rig.DetailedBodySkin=skin;rig.BodySkin.Skin=skin;
     }
     private void ValidateBodyFrames()
     {
@@ -123,6 +146,11 @@ internal sealed partial class NatureModels
         {
             if(male.DetailedBodyMesh==female.DetailedBodyMesh||male.DistantBodyMesh==female.DistantBodyMesh)
                 throw new InvalidOperationException("Adult frames share their fitted body cache");
+            if(female.ShoulderHalfWidth>=male.ShoulderHalfWidth-.01f||female.DetailedBodySkin==male.DetailedBodySkin)
+                throw new InvalidOperationException("Adult shoulder fit retains the common width or inverse binds");
+            for(int side=0;side<2;side++)
+                if(!(female.ShoulderSkeleton.GetBoneRest(side+1)*female.DetailedBodySkin.GetBindPose(side+1)).IsEqualApprox(Transform3D.Identity))
+                    throw new InvalidOperationException("Fitted shoulder rest and inverse bind disagree");
             foreach(var rig in new[]{male,female})
                 if(rig.Scale.X*rig.Head.Scale.X<.985f||rig.Scale.X*rig.Head.Scale.X>1.035f)
                     throw new InvalidOperationException("Body width distorts the adult head proportions");

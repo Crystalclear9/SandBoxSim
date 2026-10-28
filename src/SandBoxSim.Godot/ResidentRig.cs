@@ -136,6 +136,7 @@ internal partial class ResidentRig : Node3D
     {
         ToolMesh.GetParent().RemoveChild(ToolMesh);parent.AddChild(ToolMesh);ToolMesh.Transform=Transform3D.Identity;
         ToolHeld=parent==Grip;
+        _toolFilterReady=false;
         if(!ToolHeld){_graspTime=0;_releaseTime=.16f;}
     }
     public void Pose(float delta,bool moving,bool working,bool resting,bool paused,float identityPhase)
@@ -187,14 +188,14 @@ internal partial class ResidentRig : Node3D
         if(executing&&usingTool&&ToolHeld&&wanted==CurrentTool&&_draw>=.99f)_strokePhase=Mathf.PosMod(_strokePhase+delta/WorkPeriod,1);
         float effort=executing&&usingTool?(.5f-WorkLift(_strokePhase+.035f))*.045f*RelativeWorkLoad*Smooth(_workBlend):0;
         float desiredLean=resting?-.16f:pickup?-.58f:usingTool?-.035f-.065f*Smooth(_workBlend)-effort:.025f*_activity;
-        _lean=Mathf.Lerp(_lean,desiredLean,1-MathF.Exp(-delta*12));
-        float twist=Mathf.Lerp(Torso.Rotation.Y,usingTool?effort*1.8f:0,1-MathF.Exp(-delta*12));
-        var torsoBasis=Basis.FromEuler(new Vector3(_lean,twist,wave*.018f*_activity));
+        var torsoAngles=Torso.Rotation;
+        DampMotion(ref torsoAngles,ref _torsoVelocity,new(desiredLean,usingTool?effort*1.8f:0,wave*.018f*_activity),.060f,delta);
+        _lean=torsoAngles.X;var torsoBasis=Basis.FromEuler(torsoAngles);
         var hip=new Vector3(0,HipHeight,0);Torso.Transform=new(torsoBasis,hip-torsoBasis*hip+Vector3.Up*vertical+Vector3.Right*(resting||pickup||usingTool?0:MathF.Sin(_phase*.33f+identityPhase)*.008f*(1-_activity)));
         _socialBlend=Mathf.MoveToward(_socialBlend,executing&&action==ActionKind.Socialize?1:0,delta/.70f);
         _attentionYaw=Mathf.Lerp(_attentionYaw,_wantedAttention,1-MathF.Exp(-delta*6));
         var headTarget=new Vector3(pickup?.15f:usingTool?-.045f-effort*.4f:breath*.018f+MathF.Sin(_workTime*2.3f+identityPhase)*.035f*_socialBlend,MathF.Sin(_phase*.32f+identityPhase)*.045f+_attentionYaw,MathF.Sin(_workTime*1.1f+identityPhase)*.02f*_socialBlend);
-        Head.Rotation=Head.Rotation.Lerp(headTarget,1-MathF.Exp(-delta*10));
+        Head.Quaternion=DampRotation(Head.Quaternion,ref _headVelocity,Basis.FromEuler(headTarget).GetRotationQuaternion(),.075f,delta);
         var neckPivot=new Vector3(0,NeckPivotY*Head.Scale.Y,0);
         Head.Position=HeadRest+neckPivot-Basis.FromEuler(Head.Rotation)*neckPivot;
         for(int i=0;i<2;i++)
@@ -247,7 +248,8 @@ internal partial class ResidentRig : Node3D
             var active=(carry.Item1.Lerp(work.Item1,Smooth(_workBlend)),new Basis(carry.Item2.GetRotationQuaternion().Slerp(work.Item2.GetRotationQuaternion(),Smooth(_workBlend))));
             var (target,basis)=_returning?(_returnPosition,_returnBasis):active;
             if(!_returning)target=BodyPoint(target);
-            SolveHand(1,Holster.Position.Lerp(target,ReachEase(_draw)),new Basis(Holster.Basis.GetRotationQuaternion().Slerp(basis.GetRotationQuaternion(),ReachEase(_draw)))*Grip!.Basis.Inverse(),false,(1-_workBlend)*Smooth(_draw));
+            var filtered=FilterHeldTool(Holster.Position.Lerp(target,ReachEase(_draw)),new Basis(Holster.Basis.GetRotationQuaternion().Slerp(basis.GetRotationQuaternion(),ReachEase(_draw))));
+            SolveHand(1,filtered.Position,filtered.Basis*Grip!.Basis.Inverse(),false,(1-_workBlend)*Smooth(_draw));
             CurlHand(1,1);
             if(CurrentTool is ResidentTool.Axe or ResidentTool.Pick or ResidentTool.Hoe or ResidentTool.Spear)
             {
@@ -260,7 +262,7 @@ internal partial class ResidentRig : Node3D
                 SolveHand(0,leftRest.Lerp(actualGrip+heldTransform.Basis*new Vector3(0,CurrentTool==ResidentTool.Hoe?.15f:.065f,0),support),new Basis(restBasis.GetRotationQuaternion().Slerp(leftBasis.GetRotationQuaternion(),support)));
                 CurlHand(0,support);
             }
-            if(!wantCurrent&&_draw==0)AttachTool(Holster);
+            if(!wantCurrent&&_draw==0&&filtered.Position.DistanceTo(Holster.Position)<.0015f&&_toolVelocity.Length()<.03f&&MathF.Abs(filtered.Basis.GetRotationQuaternion().Dot(Holster.Basis.GetRotationQuaternion()))>MathF.Cos(.01f))AttachTool(Holster);
         }
         else
         {

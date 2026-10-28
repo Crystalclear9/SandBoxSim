@@ -116,9 +116,12 @@ internal sealed partial class NatureModels
         if(!ChildHead)
         {
             float jaw=MathF.Exp(-MathF.Pow((y+.065f)/.035f,2));
-            float amount=HumanFamily==2?-.015f:.025f;
+            float amount=HumanFamily==2?-.035f:.060f;
             derivative=derivative*(1+amount*jaw)-width*amount*jaw*2*(y+.065f)/(.035f*.035f);
             width*=1+amount*jaw;
+            float neck=MathF.Exp(-MathF.Pow((y+.112f)/.026f,2)),neckAmount=HumanFamily==2?-.035f:.080f;
+            derivative=derivative*(1+neckAmount*neck)-width*neckAmount*neck*2*(y+.112f)/(.026f*.026f);
+            width*=1+neckAmount*neck;
         }
         return width;
     }
@@ -139,8 +142,17 @@ internal sealed partial class NatureModels
             float front=Math.Clamp((-p.Z-.025f)/.035f,0,1);front=front*front*(3-2*front);
             float brow=MathF.Exp(-MathF.Pow((p.Y-.030f)/.018f,2));
             float chin=MathF.Exp(-MathF.Pow((p.Y+.085f)/.025f,2));
-            float cheek=MathF.Exp(-MathF.Pow((MathF.Abs(p.X)-.045f)/.018f,2)-MathF.Pow((p.Y+.018f)/.024f,2));
-            z-=front*(HumanFamily==2?-.0004f*brow+.0005f*cheek:.0016f*brow+.0010f*chin);
+            float cheek=MathF.Exp(-MathF.Pow((MathF.Abs(p.X)-.045f)/.022f,2)-MathF.Pow((p.Y+.018f)/.030f,2));
+            float forehead=MathF.Exp(-MathF.Pow((p.Y-.070f)/.035f,2));
+            float nose=MathF.Exp(-MathF.Pow(p.X/.018f,4)-MathF.Pow((p.Y+.008f)/.028f,2));
+            z-=front*(HumanFamily==2?-.0008f*brow+.0018f*cheek+.0013f*forehead:.0028f*brow+.0016f*chin+.0010f*nose-.0005f*cheek);
+            if(HumanFamily==2)
+            {
+                // Shorten the lower facial segment without lifting the neck
+                // seam. Eye/lip parts and landmarks use this same mapping.
+                float lower=Mathf.SmoothStep(.025f,.090f,-p.Y)*(1-Mathf.SmoothStep(.105f,.145f,-p.Y));
+                y+=.0035f*lower;
+            }
         }
         return new(p.X*HumanWidth(p.Y,out _),y,z);
     }

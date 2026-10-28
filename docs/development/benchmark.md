@@ -136,7 +136,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 ## 当前渲染版本
 
-当前渲染元数据为 `animalPresentation=source-paw-contours-v11`、`interface=resident-framing-memory-v28`、`architecture=inset-joinery-v13`、`garmentMaterial=relaxed-yoke-linen-v14`、`landscapeSurface=coverage-mosaic-v6`、`habitatDetail=stratified-meadow-v10`。另外记录 `residentSurface=craniofacial-balance-v7`、`vegetationSurface=engine-faced-v2`、`wildFlora=arched-bramble-v1`、`waterSurface=constrained-bank-v6`、`wristContour=source-oval-v1` 、`hairline=source-root-v1`、`reedPanicle=connected-axis-v1` 和 `handSurface=anatomical-regions-v1`。人物肖像的 `renderQuality.portrait.studio=continuous-inspector-v9`，并记录实际 `thumbnail` 布尔值。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。衣装领口与肩袖、人物布光、动物足部、建筑门窗接合及连续观察控件已改变，需重采相同场景的视觉和耗时基线；不能把不同像素覆盖与布局造成的耗时变化算作代码优化收益。`renderQuality.fontProfile=noto-packaged-v1` 记录随包字库策略，字体变化需要新视觉与耗时基线。`renderQuality.interfaceVisible` 标识界面是否显示，公开评测场景默认显示；沉浸观察不会自动成为新的评测指令。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
+当前渲染元数据为 `animalPresentation=source-paw-contours-v11`、`interface=resident-framing-memory-v28`、`architecture=inset-joinery-v13`、`garmentMaterial=relaxed-yoke-linen-v14`、`landscapeSurface=coverage-mosaic-v6`、`habitatDetail=stratified-meadow-v10`。另外记录 `residentSurface=craniofacial-balance-v8`、`vegetationSurface=engine-faced-v2`、`wildFlora=arched-bramble-v1`、`waterSurface=constrained-bank-v6`、`wristContour=source-oval-v1` 、`hairline=source-root-v1`、`reedPanicle=connected-axis-v1` 和 `handSurface=anatomical-regions-v1`。人物肖像的 `renderQuality.portrait.studio=continuous-inspector-v9`，并记录实际 `thumbnail` 布尔值。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。衣装领口与肩袖、人物布光、动物足部、建筑门窗接合及连续观察控件已改变，需重采相同场景的视觉和耗时基线；不能把不同像素覆盖与布局造成的耗时变化算作代码优化收益。`renderQuality.fontProfile=noto-packaged-v1` 记录随包字库策略，字体变化需要新视觉与耗时基线。`renderQuality.interfaceVisible` 标识界面是否显示，公开评测场景默认显示；沉浸观察不会自动成为新的评测指令。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
 
 `reachMotion=palm-trajectory-v2` 记录手掌轨迹过渡、朝向插值、错开的社交手势与循环进食表现。动作轨迹改变需要重采相同场景的视觉及耗时基线，不能与旧动作混作效率对照。
 
@@ -161,3 +161,5 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 挂点和社交姿态另记录 `equipmentAttachment=surface-holster-v2`、`socialMotion=joint-blended-v2`；“查看目的地”是玩家界面入口，尚未增加外部评测命令。
 
 `workEffort=relative-load-v1` 标识按工具、个体表现系数、真实疲劳及健康驱动的作业节奏与躯干配合。`visual-work-effort` 对照同一手锤的男女成人外观与状态，`visual-face-frames` 提供正面及三刻面。面部曝光与局部拟合、动作减速和节奏均改变，需要重新采样；这些展示场景不测量真实力量，也不构成 RSI 结果。请求 Schema 的面板枚举与客户端公开白名单一致，工具回归同时核对所有公开场景。
+
+`bodyFrame=shoulder-bound-v2` 包含女性肩袖静止位置／逆绑定同步及男性前胸垂落修饰；`toolMotion=velocity-continuity-v1` 标识 IK 前的位置／朝向速度跟踪、弧形蓄力与收纳到位判定。`work-effort` 镜头改为正交尺寸 1.15、目标 (0, 1.05, 0)，用于看清头肩和握柄；旧构图不能直接混作视觉或效率基线。

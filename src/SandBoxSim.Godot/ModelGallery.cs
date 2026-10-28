@@ -229,8 +229,8 @@ internal partial class ModelGallery : PanelContainer
         var view=grid.GetChild<VBoxContainer>(grid.GetChildCount()-1).GetChild<SubViewportContainer>(0).GetChild<SubViewport>(0);
         view.RenderTargetUpdateMode=SubViewport.UpdateMode.WhenVisible;
         var stage=view.GetChild<Node3D>(0);var camera=stage.GetChild<Camera3D>(stage.GetChildCount()-1);
-        var target=new Vector3(0,Collection=="work-effort"?1.02f:.92f,0);camera.Position=target+new Vector3(.03f,.08f,4);camera.LookAt(target);
-        if(Collection=="work-effort")camera.Size=1.65f;
+        var target=new Vector3(0,Collection=="work-effort"?1.05f:.92f,0);camera.Position=target+new Vector3(.03f,.08f,4);camera.LookAt(target);
+        if(Collection=="work-effort")camera.Size=1.15f;
         if(action==ActionKind.StoreInBuilding)rig.ShowCargo(true,ResourceKind.Wood);
         Animate(rig,action);
     }

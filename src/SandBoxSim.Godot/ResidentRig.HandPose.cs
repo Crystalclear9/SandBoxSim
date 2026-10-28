@@ -72,7 +72,9 @@ internal partial class ResidentRig
         float lift=WorkLift(phase);
         if(kind==ResidentTool.Hoe)return (new(.10f,.84f+lift*.16f,-.27f+lift*.06f),Basis.FromEuler(new Vector3(.25f+lift*.55f,0,.50f)));
         if(kind==ResidentTool.Spear)return (new(.10f,.99f,-.24f-lift*.12f),Basis.FromEuler(new Vector3(-1.1f,0,.45f)));
-        return (new(kind==ResidentTool.Hammer?.20f:.10f,.92f+lift*.26f,-.30f+lift*.10f),Basis.FromEuler(new Vector3(.55f+lift*1.05f,0,.45f)));
+        float prepare=.48f+.055f*RelativeWorkLoad;
+        float arc=phase<prepare?MathF.Sin(MathF.PI*ReachEase(phase/prepare)):0;
+        return (new((kind==ResidentTool.Hammer?.20f:.10f)+arc*.025f,.92f+lift*.26f,-.30f+lift*.10f+arc*.028f),Basis.FromEuler(new Vector3(.55f+lift*1.05f,arc*.08f,.45f)));
     }
     // Zero velocity and acceleration at both ends of an intentional reach.
     internal static float ReachEase(float t){t=Math.Clamp(t,0,1);return t*t*t*(10+t*(-15+6*t));}
@@ -184,8 +186,9 @@ internal partial class ResidentRig
         var lowerBasis=LimbFrame((wrist-elbow).Normalized(),handBasis.X)*new Basis(new Quaternion(Hands[side].Position.Normalized(),Vector3.Down));
         Arms[side].Basis=upperBasis;Elbows[side].Basis=upperBasis.Inverse()*lowerBasis;Hands[side].Basis=lowerBasis.Inverse()*handBasis;
     }
-    internal static Vector3 ShoulderRest(int side)=>new(side==0?-.202f:.202f,BodyY(1.18f),0);
-    private static Vector3 ShoulderForReach(int side,Vector3 wrist)
+    internal float ShoulderHalfWidth=.202f;
+    internal Vector3 ShoulderRest(int side)=>new(side==0?-ShoulderHalfWidth:ShoulderHalfWidth,BodyY(1.18f),0);
+    private Vector3 ShoulderForReach(int side,Vector3 wrist)
     {
         var rest=ShoulderRest(side);var reach=wrist-rest;
         if(reach.LengthSquared()<.000001f)return rest;

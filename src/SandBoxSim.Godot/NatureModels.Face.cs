@@ -155,7 +155,9 @@ void fragment(){ALBEDO=mix(tone.rgb,vec3(.25,.075,.055),.32);ROUGHNESS=.13;SPECU
             for(int hair=0;hair<72;hair++)
             {
                 float u=(hair+.5f)/72,fullness=MathF.Pow(MathF.Sin(u*MathF.PI),.55f);
-                float x=eye.X+side*(-.016f+u*.035f),y=eye.Y+.015f+MathF.Sin(u*MathF.PI*.95f)*.004f-u*.003f;
+                bool feminine=BodyFrame==1;
+                float arch=ChildHead?.004f:feminine?.0055f:.0025f;
+                float x=eye.X+side*(-.016f+u*.035f),y=eye.Y+(ChildHead?.015f:feminine?.0165f:.0135f)+MathF.Sin(u*MathF.PI*.95f)*arch-u*.003f;
                 float length=(.0012f+.0021f*fullness)*(1+(hair%3-1)*.12f)*(BodyFrame==1?.84f:1.04f);
                 Vector3 Point(float t,float across)
                 {

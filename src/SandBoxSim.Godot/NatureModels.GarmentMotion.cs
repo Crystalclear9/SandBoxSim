@@ -12,9 +12,10 @@ internal sealed partial class NatureModels
     private void ValidateGarmentMotion()
     {
         float maximum=0,shoulderExcursion=0;int poses=0;
+        foreach(int identity in new[]{17,55})
         foreach(var job in new[]{JobType.Farmer,JobType.Gatherer,JobType.Trader})
         {
-            var rig=Resident(17,false,job);
+            var rig=Resident(identity,false,job);
             try
             {
                 var arrays=rig.BodySkin.Mesh.SurfaceGetArrays(0);
@@ -45,7 +46,7 @@ internal sealed partial class NatureModels
                         {
                             var expected=rig.Arms[side].Transform*rig.DetailedBodySkin.GetBindPose(side+1);
                             if(!transforms[side+1].IsEqualApprox(expected))throw new InvalidOperationException("Garment skeleton does not match the actual upper-arm pose");
-                            float excursion=rig.Arms[side].Position.DistanceTo(ResidentRig.ShoulderRest(side));
+                            float excursion=rig.Arms[side].Position.DistanceTo(rig.ShoulderRest(side));
                             if(excursion>.026f)throw new InvalidOperationException("Shoulder girdle exceeds its bounded reach support");
                             shoulderExcursion=MathF.Max(shoulderExcursion,excursion);
                         }
