@@ -1,4 +1,4 @@
-"""Measure linear forehead luminance in the pinned source head atlases.
+"""Measure linear forehead RGB and luminance in the pinned source head atlases.
 
 Reads assets only; prints calibration values for the runtime skin shader.
 Requires Pillow. UVs are the runtime top-left image coordinates.
@@ -13,7 +13,7 @@ def measure(name):
     data=json.loads((ROOT/(name+'.mesh.json')).read_text(encoding='utf-8'))
     mesh=data['head'];p=mesh['positions'];uv=mesh['uv'];ids=mesh['indices']
     image=Image.open(ROOT/data['albedo']['file']).convert('RGB')
-    total=weight=0.;count=0
+    total=weight=0.;count=0;channel_totals=[0.,0.,0.]
     def linear(v):
         v=v/255
         return v/12.92 if v<=.04045 else ((v+.055)/1.055)**2.4
@@ -25,10 +25,12 @@ def measure(name):
         rgb=image.getpixel((min(image.width-1,max(0,int(u*image.width))),min(image.height-1,max(0,int(v*image.height)))))
         ab=[points[1][k]-points[0][k] for k in range(3)];ac=[points[2][k]-points[0][k] for k in range(3)]
         area=sum((ab[(k+1)%3]*ac[(k+2)%3]-ab[(k+2)%3]*ac[(k+1)%3])**2 for k in range(3))**.5
-        total+=sum(linear(value)*channel for value,channel in zip(rgb,(.2126,.7152,.0722)))*area
+        channels=[linear(value) for value in rgb]
+        total+=sum(value*channel for value,channel in zip(channels,(.2126,.7152,.0722)))*area
+        for channel in range(3):channel_totals[channel]+=channels[channel]*area
         weight+=area;count+=1
     if count<20 or weight<=0:raise ValueError('Missing source forehead region: '+name)
-    return {'linearLuminance':total/weight,'triangles':count}
+    return {'linearLuminance':total/weight,'linearRgb':[value/weight for value in channel_totals],'triangles':count}
 
 if __name__=='__main__':
     measurements={name:measure(name) for name in ('human-head','human-scan','human-feminine')}

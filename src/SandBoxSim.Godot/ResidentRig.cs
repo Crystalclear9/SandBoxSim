@@ -40,7 +40,8 @@ internal partial class ResidentRig : Node3D
     internal ShaderMaterial? TearMaterial;
     public ShaderMaterial MouthMaterial=null!;
     private bool _detailedHead=true,_returning;
-    private float _faceTime;
+    private float _faceTime,_mouthAmount;
+    internal float ExpressionPhase;
     private Vector2 _gaze;
     private float _socialBlend,_attentionYaw;
     private float _wantedAttention;
@@ -115,7 +116,7 @@ internal partial class ResidentRig : Node3D
     }
     private ActionKind _lastAction;
     private ActionPhase _lastPhase;
-    private float _phase,_activity,_reach,_draw,_workTime,_graspTime,_releaseTime,_lean,_workBlend;
+    private float _phase,_activity,_reach,_draw,_workTime,_graspTime,_releaseTime,_workBlend;
     private bool _carrying;
     public bool ToolHeld {get;private set;}
     public string Handling => ToolHeld ? _returning?"收回工具":_draw<.99f?"取出 / 抬手":_carrying?"手持携带":"使用工具" : _releaseTime>0?"松开手指":_reach==1?"合拢握柄":_reach>.01f?"伸手拿取":_bareBlend>.01f?"徒手交互":CargoMesh.Visible?"双手搬运":_cargoBlend>.01f?(_hasCargo?"托起物资":"放下 / 收手"):"双手放松";
@@ -151,7 +152,9 @@ internal partial class ResidentRig : Node3D
         // Distant residents arrive with several frame intervals accumulated.
         // Consume that time in bounded steps instead of discarding everything
         // beyond .1 seconds. A long host stall still has a one-second budget.
-        int steps=Math.Max(1,(int)MathF.Ceiling(delta/.1f));
+        bool fineReach=_hadBarePose||_cargoBlend>0||_socialBlend>.001f||action is ActionKind.Socialize or ActionKind.Eat or ActionKind.Drink or ActionKind.Take or ActionKind.GatherFood or ActionKind.Deposit or ActionKind.ShareFood or ActionKind.Trade or ActionKind.StoreInBuilding;
+        float maxStep=fineReach?1f/30:.1f;
+        int steps=Math.Max(1,(int)MathF.Ceiling(delta/maxStep));
         for(int step=0;step<steps;step++)PoseActionStep(delta/steps,action,phase,identityPhase);
     }
     private static float PresentationDelta(float delta)=>float.IsFinite(delta)?Math.Clamp(delta,0,1):0;
@@ -186,15 +189,19 @@ internal partial class ResidentRig : Node3D
         _pickupBlend=Mathf.MoveToward(_pickupBlend,pickup?1:0,delta/.24f);
         float vertical=resting?-.09f:Mathf.Lerp(MathF.Abs(wave)*.025f*_activity+breath*.003f,-.094f,Smooth(_pickupBlend));
         if(executing&&usingTool&&ToolHeld&&wanted==CurrentTool&&_draw>=.99f)_strokePhase=Mathf.PosMod(_strokePhase+delta/WorkPeriod,1);
+        var stance=WorkSupport(delta,executing&&usingTool&&ToolHeld&&wanted==CurrentTool&&!_carrying,
+            (1-_activity)*(1-Smooth(_pickupBlend)));
         float effort=executing&&usingTool?(.5f-WorkLift(_strokePhase+.035f))*.045f*RelativeWorkLoad*Smooth(_workBlend):0;
         float desiredLean=resting?-.16f:pickup?-.58f:usingTool?-.035f-.065f*Smooth(_workBlend)-effort:.025f*_activity;
         var torsoAngles=Torso.Rotation;
         DampMotion(ref torsoAngles,ref _torsoVelocity,new(desiredLean,usingTool?effort*1.8f:0,wave*.018f*_activity),.060f,delta);
-        _lean=torsoAngles.X;var torsoBasis=Basis.FromEuler(torsoAngles);
-        var hip=new Vector3(0,HipHeight,0);Torso.Transform=new(torsoBasis,hip-torsoBasis*hip+Vector3.Up*vertical+Vector3.Right*(resting||pickup||usingTool?0:MathF.Sin(_phase*.33f+identityPhase)*.008f*(1-_activity)));
+        var torsoBasis=Basis.FromEuler(torsoAngles);
+        var hip=new Vector3(0,HipHeight,0);Torso.Transform=new(torsoBasis,hip-torsoBasis*hip+stance.Hip+Vector3.Up*vertical+Vector3.Right*(resting||pickup||usingTool?0:MathF.Sin(_phase*.33f+identityPhase)*.008f*(1-_activity)));
         _socialBlend=Mathf.MoveToward(_socialBlend,executing&&action==ActionKind.Socialize?1:0,delta/.70f);
         _attentionYaw=Mathf.Lerp(_attentionYaw,_wantedAttention,1-MathF.Exp(-delta*6));
-        var headTarget=new Vector3(pickup?.15f:usingTool?-.045f-effort*.4f:breath*.018f+MathF.Sin(_workTime*2.3f+identityPhase)*.035f*_socialBlend,MathF.Sin(_phase*.32f+identityPhase)*.045f+_attentionYaw,MathF.Sin(_workTime*1.1f+identityPhase)*.02f*_socialBlend);
+        float expressionPhase=identityPhase+ExpressionPhase;
+        float phrase=Mathf.PosMod(_workTime/3.2f+expressionPhase*.1f,1),phraseEmphasis=ReachPulse(phrase);
+        var headTarget=new Vector3(pickup?.15f:usingTool?-.045f-effort*.4f:breath*.018f+MathF.Sin(phrase*MathF.Tau)*.025f*phraseEmphasis*_socialBlend,MathF.Sin(_phase*.32f+identityPhase)*.045f+_attentionYaw,MathF.Sin(phrase*MathF.Tau)*.015f*_socialBlend);
         Head.Quaternion=DampRotation(Head.Quaternion,ref _headVelocity,Basis.FromEuler(headTarget).GetRotationQuaternion(),.075f,delta);
         var neckPivot=new Vector3(0,NeckPivotY*Head.Scale.Y,0);
         Head.Position=HeadRest+neckPivot-Basis.FromEuler(Head.Rotation)*neckPivot;
@@ -202,9 +209,9 @@ internal partial class ResidentRig : Node3D
         {
             Arms[i].Position=ShoulderRest(i);
             float stride=wave*(i==0?1:-1)*_activity;
-            Legs[i].Position=new(i==0?-.10f:.10f,HipHeight-.094f*Smooth(_pickupBlend),0);
-            Legs[i].Rotation=new(Mathf.Lerp(stride*.44f,.55f,Smooth(_pickupBlend)),0,0);
-            Knees[i].Rotation=new(Mathf.Lerp(-MathF.Max(0,-stride)*.65f,-1.1f,Smooth(_pickupBlend)),0,0);
+            Legs[i].Position=new Vector3(i==0?-.10f:.10f,HipHeight-.094f*Smooth(_pickupBlend),0)+stance.Hip;
+            Legs[i].Rotation=new(Mathf.Lerp(stride*.44f,.55f,Smooth(_pickupBlend))+stance.Thigh,0,0);
+            Knees[i].Rotation=new(Mathf.Lerp(-MathF.Max(0,-stride)*.65f,-1.1f,Smooth(_pickupBlend))+stance.Knee,0,0);
             Feet[i].Rotation=new(-(Legs[i].Rotation.X+Knees[i].Rotation.X),0,0);
             float relaxed=(1-_activity)*(usingTool||pickup||resting?0:1);
             float side=i==0?1:-1;
@@ -215,12 +222,11 @@ internal partial class ResidentRig : Node3D
         _faceTime+=delta;
         if(_detailedHead)
         {
-            float blinkPhase=(_faceTime+1.1f+identityPhase*2.3f)%4.7f;
-            float blink=blinkPhase<.28f?MathF.Sin(blinkPhase/.28f*MathF.PI):0;
+            float blink=FaceBlink(_faceTime,expressionPhase);
             LidMaterial.SetShaderParameter("blink",blink);
             LashMaterial?.SetShaderParameter("blink",blink);TearMaterial?.SetShaderParameter("blink",blink);
-            float attention=MathF.Floor(_faceTime*.55f+identityPhase*.37f);
-            var targetGaze=new Vector2(MathF.Sin(attention*12.989f+identityPhase)*.052f,MathF.Sin(attention*7.137f+identityPhase*.71f)*.010f);
+            float attention=MathF.Floor(_faceTime*.55f+expressionPhase*.37f);
+            var targetGaze=new Vector2(MathF.Sin(attention*12.989f+expressionPhase)*.052f,MathF.Sin(attention*7.137f+expressionPhase*.71f)*.010f);
             if(executing)targetGaze*=.35f;
             _gaze=_gaze.Lerp(targetGaze,1-MathF.Exp(-delta*18));
             // Iris pigment and the corneal dome move as one eye around its
@@ -230,8 +236,9 @@ internal partial class ResidentRig : Node3D
                 Eyes[eye].Scale=HasAnatomicalEyes?Vector3.One:new(1,MathF.Max(.02f,1-blink),1);
                 Eyes[eye].Rotation=HasAnatomicalEyes?new Vector3(_gaze.Y,_gaze.X,0):Vector3.Zero;
             }
-            float speech=executing&&action is ActionKind.Eat or ActionKind.Drink or ActionKind.Socialize ? MathF.Abs(MathF.Sin(_faceTime*5)) : 0;
-            Mouth.Position=MouthRest;Mouth.Scale=Vector3.One;MouthMaterial.SetShaderParameter("speech",speech);
+            float speech=executing?MouthActivity(action,phraseEmphasis):0;
+            _mouthAmount=Mathf.Lerp(_mouthAmount,speech,1-MathF.Exp(-delta*24));
+            Mouth.Position=MouthRest;Mouth.Scale=Vector3.One;MouthMaterial.SetShaderParameter("speech",_mouthAmount);
         }
         bool wantCurrent=usingTool&&wanted==CurrentTool;
         if(ToolHeld)
@@ -338,13 +345,13 @@ internal partial class ResidentRig : Node3D
         {
             for(int side=0;side<2;side++)
             {
-                float timing=_workTime*2.1f+identityPhase*.73f+side*2.4f;
+                float timing=_workTime*2.1f+expressionPhase*.73f+side*2.4f;
                 float emphasis=(.5f+.5f*MathF.Sin(timing))*.045f;
                 var rest=(Arms[side].Transform*Elbows[side].Transform*Hands[side].Transform)*(side==1?Grip!.Position:new Vector3(0,-.035f,-.0286f));
                 var target=new Vector3(side==0?-.23f:.23f,1.00f+emphasis,-.22f-emphasis);
                 var restBasis=Arms[side].Basis*Elbows[side].Basis*Hands[side].Basis;
                 var open=Basis.FromEuler(new Vector3(.6f,side==0?.3f:-.3f,side==0?-.35f:.35f));
-                float gesture=ReachPulse(Mathf.PosMod(_workTime/3.2f+side*.5f+identityPhase*.1f,1));
+                float gesture=ReachPulse(Mathf.PosMod(_workTime/3.2f+side*.5f+expressionPhase*.1f,1));
                 BlendBareHand(side,BodyPoint(target),open,_socialBlend*gesture);
                 CurlHand(side,(.16f+emphasis)*_socialBlend);
             }

@@ -18,6 +18,14 @@ internal sealed partial class NatureModels
     // Area-weighted linear forehead samples of the pinned source atlases;
     // tools/measure_head_tones.py reproduces these exposure corrections.
     private float HumanSkinGain=>ChildHead?1:HumanFamily==1?1.299263f:HumanFamily==2?.918634f:1;
+    private Color HumanSkinReference
+    {
+        get
+        {
+            var mean=ChildHead||HumanFamily==2?new Color(.7835163f,.5120350f,.3605655f):HumanFamily==1?new Color(.6323001f,.3432231f,.2106144f):new Color(.8332650f,.4432400f,.2657887f);
+            var reference=(mean*HumanSkinGain).LinearToSrgb();reference.A=1;return reference;
+        }
+    }
     private readonly System.Collections.Generic.Dictionary<(int Variant,string Kind,int Side),(Vector3[] Points,int[] Indices)> _humanProjectionParts=new();
     private static readonly string[] HumanFiles={"human-head","human-scan","human-feminine"};
     private static readonly string[] HumanHashes={
@@ -203,11 +211,6 @@ internal sealed partial class NatureModels
         if(_meshes.TryGetValue(key,out var cached))return cached;
         var asset=HumanData();var source=kind=="head"?asset.Head:kind=="hair"?asset.Hair:kind=="lod"?asset.Lod:kind=="mouth"?asset.Lips:asset.Eyes[side];
         var colors=(Color[])source.Colors.Clone();
-        if(kind=="lod")for(int i=0;i<colors.Length;i++)
-        {
-            float alpha=colors[i].A;
-            colors[i]=(colors[i].SrgbToLinear()*HumanSkinGain).LinearToSrgb();colors[i].A=alpha;
-        }
         var points=new Vector3[source.Points.Length];var normals=new Vector3[points.Length];var uv=(Vector2[])source.Uv.Clone();var blinkUv=new Vector2[points.Length];
         var origin=kind=="eye"?HumanEyeCenter(side):kind=="mouth"?HumanMouthCenter:Vector3.Zero;
         for(int i=0;i<points.Length;i++)

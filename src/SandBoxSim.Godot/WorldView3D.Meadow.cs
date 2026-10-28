@@ -11,6 +11,23 @@ public partial class WorldView3D
     private readonly List<(MultiMeshInstance3D Batch,List<Transform3D> Roots)> _meadowBatches=new();
     private readonly Dictionary<MultiMeshInstance3D,Transform3D[]> _meadowSeeds=new();
     private Vector3[]? _meadowRootProbes;
+    private readonly Dictionary<(Vector3 Point,Vector3 Scale,float Yaw),(int Revision,bool Valid,Transform3D Placement)> _meadowPlacements=new();
+    private int[] _meadowGroundRevisions=Array.Empty<int>();
+    private long _meadowPlacementEvaluations;
+    private void ResetMeadowPlacements()
+    {
+        _meadowPlacements.Clear();_meadowGroundRevisions=new int[Game.Sim.World.Tiles.Length];
+    }
+    private void InvalidateMeadowPlacements(HashSet<int> changedTiles)
+    {
+        var world=Game.Sim.World;
+        foreach(int index in changedTiles)
+        {
+            int x=index%world.Width,y=index/world.Width;
+            for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++)
+                if(world.IsInBounds(x+dx,y+dy))_meadowGroundRevisions[(y+dy)*world.Width+x+dx]++;
+        }
+    }
     private static uint MeadowSample(uint hash,int candidate)
     {
         uint sample=hash^unchecked((uint)(candidate+1)*2654435761u);
@@ -37,13 +54,21 @@ public partial class WorldView3D
     }
     private bool TryMeadowPlacement(Vector3 point,Vector3 scale,float yaw,out Transform3D placement)
     {
+        var world=Game.Sim.World;
+        int index=Math.Clamp((int)MathF.Floor(point.Z*.5f),0,world.Height-1)*world.Width+Math.Clamp((int)MathF.Floor(point.X*.5f),0,world.Width-1);
+        int revision=_meadowGroundRevisions[index];var key=(point,scale,yaw);
+        if(_meadowPlacements.TryGetValue(key,out var cached)&&cached.Revision==revision)
+        {placement=cached.Placement;return cached.Valid;}
+        _meadowPlacementEvaluations++;
         placement=Transform3D.Identity;
-        if(GroundNormal(point).Y<MathF.Cos(.35f)||GroundHeight(point.X,point.Z)<.03f)return false;
+        if(GroundNormal(point).Y<MathF.Cos(.35f)||GroundHeight(point.X,point.Z)<.03f)
+        {_meadowPlacements[key]=(revision,false,placement);return false;}
         var rooted=RootedPlant(point,scale,yaw);
         // The terrain can curve within the footprint even on a gentle slope.
         // Reject that patch rather than leaving peripheral roots suspended.
-        if(!MeadowRootsFit(rooted))return false;
-        placement=rooted;return true;
+        bool valid=MeadowRootsFit(rooted);
+        if(valid)placement=rooted;
+        _meadowPlacements[key]=(revision,valid,placement);return valid;
     }
     private bool MeadowRootsFit(Transform3D rooted)
     {
@@ -82,6 +107,20 @@ public partial class WorldView3D
     }
     private void ValidateMeadowPresentation()
     {
+        if(_meadowPlacements.Count>0)
+        {
+            (Vector3 Point,Vector3 Scale,float Yaw) key=default;
+            foreach(var candidate in _meadowPlacements.Keys){key=candidate;break;}
+            bool before=TryMeadowPlacement(key.Point,key.Scale,key.Yaw,out var originalPlacement);
+            long evaluations=_meadowPlacementEvaluations;
+            if(TryMeadowPlacement(key.Point,key.Scale,key.Yaw,out var reused)!=before||reused!=originalPlacement||_meadowPlacementEvaluations!=evaluations)
+                throw new InvalidOperationException("Unchanged meadow placement is recalculated or changed");
+            int tile=(int)MathF.Floor(key.Point.Z*.5f)*Game.Sim.World.Width+(int)MathF.Floor(key.Point.X*.5f);
+            InvalidateMeadowPlacements(new HashSet<int>{tile});
+            if(TryMeadowPlacement(key.Point,key.Scale,key.Yaw,out var rebuilt)!=before||rebuilt!=originalPlacement||_meadowPlacementEvaluations!=evaluations+1)
+                throw new InvalidOperationException("Meadow support invalidation reuses stale geometry");
+            GD.Print("MEADOW_PLACEMENT_CACHE_PASS: unchanged accepted/rejected placement reuse, neighbourhood invalidation and identical rebuilt support");
+        }
         int roots=0;
         foreach(var entry in _meadowBatches)
         {

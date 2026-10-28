@@ -305,7 +305,7 @@ public partial class WorldView3D : MapView
             _groundMapBytes[i*4+1]=wear;
         }
         _groundMap.SetData(Game.Sim.World.Width,Game.Sim.World.Height,false,Image.Format.Rgba8,_groundMapBytes);
-        _groundMapTexture.Update(_groundMap);SyncFlowerRoots();SyncMeadowRoots(changedTiles);
+        _groundMapTexture.Update(_groundMap);InvalidateMeadowPlacements(changedTiles);SyncFlowerRoots();SyncMeadowRoots(changedTiles);
     }
     private Image GroundTintImage()
     {
@@ -450,7 +450,7 @@ public partial class WorldView3D : MapView
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="coverage-mosaic-v6",["habitatDetail"]="stratified-meadow-v10",["vegetationSurface"]="engine-faced-v2",
             ["architecture"]="inset-joinery-v13",["garmentMaterial"]="relaxed-yoke-linen-v14",["shoulderMotion"]="supported-reach-v1",["reachMotion"]="palm-trajectory-v2",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
-            ["animalPresentation"]="source-paw-contours-v11",["residentSurface"]="craniofacial-balance-v8",["workEffort"]="relative-load-v1",["toolMotion"]="velocity-continuity-v1",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="cargo-priority-v3",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="joint-blended-v2",["waterSurface"]="constrained-bank-v6",["wristContour"]="source-oval-v1",
+            ["animalPresentation"]="source-paw-contours-v11",["residentSurface"]="linear-skin-v9",["workEffort"]="relative-load-v1",["toolMotion"]="velocity-continuity-v1",["bodySupport"]="planted-sagittal-v1",["facialTiming"]="phrase-blink-v1",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="cargo-priority-v3",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="phrase-coordinated-v3",["waterSurface"]="constrained-bank-v6",["wristContour"]="source-oval-v1",
             ["hairline"]="source-root-v1",["reedPanicle"]="connected-axis-v1",["bodyFrame"]="shoulder-bound-v2",["forearmProfile"]="tapered-volume-v1" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
@@ -561,6 +561,7 @@ public partial class WorldView3D : MapView
     }
     private void BuildTerrain()
     {
+        ResetMeadowPlacements();
         using var profile=RenderProfile.Measure("BuildTerrain");
         int width=Game.Sim.World.Width,height=Game.Sim.World.Height,nx=width*GroundDetail,ny=height*GroundDetail;
         var vertices=new Vector3[(nx+1)*(ny+1)];var normals=new Vector3[vertices.Length];

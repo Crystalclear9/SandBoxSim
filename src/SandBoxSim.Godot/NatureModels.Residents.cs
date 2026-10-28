@@ -267,6 +267,7 @@ internal sealed partial class NatureModels
             rig.Head.Scale*=new Vector3(1/rig.Scale.X,1,1);
         }
         rig.WorkCapacity=(BodyFrame==1?.94f:1.03f)+(((variation>>20)%9)-4f)*.035f;
+        rig.ExpressionPhase=(variation>>24)/255f*10;
         rig.RegisterDistanceMeshes(rig);return rig;
     }
     public void ValidateResidentMeshes()

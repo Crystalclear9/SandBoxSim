@@ -149,7 +149,7 @@ internal partial class ModelGallery : PanelContainer
             var viewport=grid.GetChild<VBoxContainer>(0).GetChild<SubViewportContainer>(0).GetChild<SubViewport>(0);
             var stage=viewport.GetChild<Node3D>(0);var camera=stage.GetChild<Camera3D>(stage.GetChildCount()-1);
             _handlingLabel=grid.GetChild<VBoxContainer>(0).GetChild<Label>(1);
-            camera.Size=Collection=="grip"?.90f:1.4f;var target=new Vector3(0,1.04f,0);camera.Position=target+new Vector3(0,.07f,4);camera.LookAt(target);
+            camera.Size=Collection=="grip"?.90f:1.85f;var target=new Vector3(0,Collection=="grip"?1.04f:.83f,0);camera.Position=target+new Vector3(0,.07f,4);camera.LookAt(target);
         }
         else if(Collection=="hands")
         {

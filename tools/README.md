@@ -36,7 +36,9 @@ SDK 与 Godot 工具链由参数或环境变量覆盖，不提交本机绝对路
 
 ## 模型素材转换
 
-`measure_head_tones.py` 使用 Pillow，只读三套已固定的头脸 JSON 与颜色图，输出额部三角形面积加权的线性亮度及相对曝光增益。用于复核运行时皮肤、嘴唇和头部 LOD 的来源曝光校准；不修改原图、不下载素材，也不生成临时图片。
+`verify_skin_colour.py` / `verify_skin_colour.gd` 在实际 Compatibility 图形设备上读取生产头脸与远景着色器，用已知颜色纹理、染色、曝光及远景顶点色检查 GPU 像素。需要先构建 Debug 客户端和可用图形显示，不能替换为无头渲染。运行 `python tools/verify_skin_colour.py --output .tools/tmp/skin-colour`；输出目录必须位于项目 `.tools/tmp` 内且为空，日志仅写入该目录，不生成截图。成功输出 `SKIN_COLOUR_RENDER_PASS`，通道误差门槛为 0.008。此检查验证颜色运算，不评判美感或证明所有图形后端表现一致。
+
+`measure_head_tones.py` 使用 Pillow，只读三套已固定的头脸 JSON 与颜色图，输出额部三角形面积加权的线性 RGB、亮度及相对曝光增益。用于复核运行时皮肤、嘴唇和头部 LOD 的来源曝光校准；不修改原图、不下载素材，也不生成临时图片。
 
 `fetch-human-assets.py` 将 23 个固定 CC0 输入校验并下载到 `.tools/sources/makehuman`，通过 HTTP Range 仅提取需要的 ZIP 成员。`export_resident_faces.py` 在 Blender 后台重建头颈、原生 UV、皮肤／发片、闭眼形变与远景头脸；旧头部导出入口转发到新流程。`human_eyelids.py` 采样实际眼裂，`human_head_lod.py` 生成同源远景头脸。普通构建不需要 Blender 或联网，见 [人物素材](../docs/development/human-assets.md)。
 
