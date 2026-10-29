@@ -21,6 +21,7 @@ internal sealed partial class NatureModels
                 var bones=cloth[(int)Mesh.ArrayType.Bones].AsInt32Array();var w=cloth[(int)Mesh.ArrayType.Weights].AsFloat32Array();
                 var ids=cloth[(int)Mesh.ArrayType.Index].AsInt32Array();var posed=new Vector3[p.Length];
                 var pants=rig.Trousers!.Mesh.SurfaceGetArrays(0);var pp=pants[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                float hem=float.PositiveInfinity;foreach(var point in p)hem=MathF.Min(hem,point.Y);
                 var pb=pants[(int)Mesh.ArrayType.Bones].AsInt32Array();var pw=pants[(int)Mesh.ArrayType.Weights].AsFloat32Array();
                 foreach(var action in new[]{ActionKind.Take,ActionKind.BuildHouse,ActionKind.None})
                 for(int f=0;f<120;f++)
@@ -47,7 +48,9 @@ internal sealed partial class NatureModels
                         rig.Legs[0].Transform*rig.Knees[0].Transform*rig.Trousers.Skin.GetBindPose(3),rig.Legs[1].Transform*rig.Knees[1].Transform*rig.Trousers.Skin.GetBindPose(4)};
                     for(int i=0;i<pp.Length;i+=9)
                     {
-                        if(pp[i].Y<.82f||pp[i].Y>.89f)continue;
+                        // A short blouse deliberately exposes the hip. Check
+                        // the actual overlapping waistband, not exposed pants.
+                        if(pp[i].Y<MathF.Max(.82f,hem+.020f)||pp[i].Y>.91f)continue;
                         var point=Vector3.Zero;for(int j=0;j<4;j++)point+=trouserTransforms[pb[i*4+j]]*pp[i]*pw[i*4+j];
                         float front=float.PositiveInfinity,back=float.NegativeInfinity;
                         for(int t=0;t<ids.Length;t+=3)
@@ -62,7 +65,7 @@ internal sealed partial class NatureModels
                             float z=a.Z*(1-u-v)+b.Z*u+c.Z*v;front=MathF.Min(front,z);back=MathF.Max(back,z);
                         }
                         if(!float.IsFinite(front)||point.Z<front-.001f||point.Z>back+.001f)
-                            throw new InvalidOperationException($"Trousers pierce the lower shirt: {identity}/{job}/{action}/{f}, source={pp[i]}, point={point}, cloth={front}/{back}, torso={rig.Torso.Rotation}, pelvis={rig.LowerGarmentFrame}");
+                            throw new InvalidOperationException($"Trousers pierce the lower shirt: {identity}/{job}/{action}/{f}, source={pp[i]}, point={point}, cloth={front}/{back}, hem={hem}, torso={rig.Torso.Rotation}, pelvis={rig.LowerGarmentFrame}");
                         probes++;
                     }
                 }

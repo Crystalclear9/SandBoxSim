@@ -8,9 +8,23 @@ from collections import Counter
 
 ROOT=Path(__file__).resolve().parents[1]/'src/SandBoxSim.Godot/assets/models/human'
 class TrouserTests(unittest.TestCase):
+    def test_pelvis_gluteal_and_thigh_sections(self):
+        data={sex:json.loads((ROOT/f'trousers-{sex}.mesh.json').read_text()) for sex in ('male','female')}
+        def section(sex,y):
+            points=list(zip(*(iter(data[sex]['positions']),)*3))
+            rows=[p for p in points if abs(p[1]-y)<.008]
+            return max(p[0] for p in rows)-min(p[0] for p in rows),max(p[2] for p in rows)
+        for sex in data:self.assertEqual(data[sex]['physique'],'thoraco-pelvic-v9')
+        male,back_m=section('male',.78);female,back_f=section('female',.78)
+        self.assertGreater(female/male,1.20)
+        self.assertGreater(back_f-back_m,.012)
+        self.assertGreater(section('female',.78)[0],section('female',.64)[0])
+        self.assertEqual(data['male']['hipHalfWidth'],.10)
+        self.assertEqual(data['female']['hipHalfWidth'],.122)
+
     def test_provenance_and_connected_clothing(self):
         manifest=json.loads((ROOT/'head-sources.json').read_text())['files']
-        for sex,sha in [('male','f0a0587a878a9b8e0a4b11afcb24c5e7092bb6d161b70e030c12a8452a3139c6'),('female','758686d5c2747707234acc299fed660f2b8ff592a39818e380c0385d024e0b65')]:
+        for sex,sha in [('male','cd79838302cb28a482239cf84aa5c4a5c44b69b3b4d23becaf8aef8b257c80eb'),('female','3c2f47a1bb71af00b70cf11295de9182ac43288a30e9d6699ee2783eec1d3790')]:
             raw=(ROOT/f'trousers-{sex}.mesh.json').read_bytes().replace(b'\r\n',b'\n');self.assertEqual(hashlib.sha256(raw).hexdigest(),sha)
             data=json.loads(raw);count=len(data['positions'])//3
             for name,digest in data['sourceSha256'].items():self.assertEqual(digest,manifest[name]['sha256'])

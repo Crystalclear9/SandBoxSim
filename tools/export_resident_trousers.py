@@ -44,7 +44,7 @@ def joint(points,name):
 reference=joint(body('male'),'joint-l-shoulder').x
 for sex in ('male','female'):
     points=body(sex);hip=joint(points,'joint-l-upper-leg');knee=joint(points,'joint-l-knee')
-    half=.116 if sex=='female' else .100
+    half=.122 if sex=='female' else .100
     used=sorted({i for face in faces for i in face});lookup={v:i for i,v in enumerate(used)}
     support_path=Path(__file__).resolve().parents[1]/('src/SandBoxSim.Godot/assets/models/human/trunk-'+('feminine' if sex=='female' else 'masculine')+'-cage.json')
     support=json.loads(support_path.read_text());radii=support['radii']
@@ -74,6 +74,18 @@ for sex in ('male','female'):
         if length>1e-8:
             x=x*(1-cuff)+(centre_x+(x-centre_x)/length)*cuff
             z=z*(1-cuff)+(z/length)*cuff
+        # Keep the CC0 topology and anatomical surface, but restore a continuous
+        # iliac/gluteal envelope instead of a pair of similarly thick thigh tubes.
+        # These are clothing/art parameters, not population measurements.
+        upper=math.exp(-((y-.63)/.105)**2)
+        centre_x=(1 if x>=0 else -1)*half
+        x=centre_x+(x-centre_x)*(1-(.13 if sex=='female' else .055)*upper)
+        if z<0:z*=1-(.085 if sex=='female' else .035)*upper
+        if sex=='female':
+            pelvis=math.exp(-((y-.775)/.105)**2)
+            x+=.020*math.tanh(x/.065)*pelvis
+            back=min(1.,max(0.,z/.055));back=back*back*(3-2*back)
+            z+=.020*back*pelvis
         mapped.append((x,y,z))
     mesh=bpy.data.meshes.new('trousers');mesh.from_pydata(mapped,[],[tuple(lookup[i] for i in f) for f in faces]);mesh.update()
     bm=bmesh.new();bm.from_mesh(mesh)
@@ -100,7 +112,7 @@ for sex in ('male','female'):
     result=bpy.data.meshes.new_from_object(evaluated)
     bm=bmesh.new();bm.from_mesh(result);bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces));bm.to_mesh(result);bm.free()
     result.update();result.calc_loop_triangles()
-    data=dict(schemaVersion=2,source='MakeHuman CC0 HM08 helper-tights',frame=sex,hipHalfWidth=half,jointCount=5,cuffSkin='knee-transition-v1',
+    data=dict(schemaVersion=2,source='MakeHuman CC0 HM08 helper-tights',frame=sex,hipHalfWidth=half,jointCount=5,cuffSkin='knee-transition-v1',physique='thoraco-pelvic-v9',
         sourceSha256={name:manifest[name]['sha256'] for name in ('base.obj','basemesh_vertex_groups.json',f'caucasian-{sex}-young.target','caucasian-male-young.target')},
         supportSha256=hashlib.sha256(support_path.read_bytes().replace(b'\r\n',b'\n')).hexdigest(),positions=[],normals=[],uv=[],bones=[],weights=[],indices=[])
     for v in result.vertices:

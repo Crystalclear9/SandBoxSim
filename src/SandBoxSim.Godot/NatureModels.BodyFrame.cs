@@ -77,7 +77,7 @@ internal sealed partial class NatureModels
                 // A broad woven-cloth bust envelope bridges the sternum. It
                 // does not add separate spherical breasts or surface nipples.
                 float chestSupport=.85f+.15f*MathF.Exp(-MathF.Pow((MathF.Abs(point.X)-.070f)/.055f,2));
-                target+=.028f*chestSupport*front*front*MathF.Exp(-MathF.Pow((point.Y-1.135f)/.085f,2));
+                target+=.024f*chestSupport*front*front*MathF.Exp(-MathF.Pow((point.Y-1.135f)/.105f,2));
                 float lateral=MathF.Cos(angle)*MathF.Cos(angle),back=MathF.Max(0,MathF.Sin(angle));
                 target+=(.004f*lateral+.005f*back*back)*MathF.Exp(-MathF.Pow((point.Y-.815f)/.11f,2));
                 target+=.015f*back*back*MathF.Exp(-MathF.Pow((point.Y-1.03f)/.11f,2));
@@ -105,7 +105,33 @@ internal sealed partial class NatureModels
         // Fit the garment's lower panel independently of the pelvis/trousers.
         // The raised hem still overlaps the trouser waist; sleeves and rigid
         // equipment retain their original length and attachment transforms.
-        if(feminine&&tailored)result.Y+=.045f*(1-Mathf.SmoothStep(.78f,1.12f,point.Y));
+        if(tailored)
+        {
+            if(feminine)
+            {
+                // A fitted blouse ends above the fullest hip instead of hiding
+                // the pelvis under the same bell-shaped tunic as every worker.
+                float hem=ResidentRig.BodyY(GarmentBottom);
+                float panelY=point.Y;
+                if(_garmentCut==2&&panelY<ResidentRig.BodyY(.80f))
+                {
+                    // The source long coat has deep front/back vents. Invert
+                    // that source panel offset before making a short blouse;
+                    // retaining it would uncover the waistband when bending.
+                    float angle=MathF.Atan2(point.Z,point.X);
+                    float vent=.075f*MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),16)+.040f*MathF.Pow(MathF.Max(0,MathF.Sin(angle)),16);
+                    float k=vent/(.80f-GarmentBottom);
+                    panelY=ResidentRig.BodyY((ResidentRig.SourceBodyY(panelY)-.80f*k)/(1-k));
+                }
+                result.Y+=(panelY+(.852f-hem)*(1-Mathf.SmoothStep(hem,1.15f,panelY))-point.Y)*(1-upper);
+            }
+            else
+            {
+                float lower=(1-Mathf.SmoothStep(.82f,1.03f,point.Y))*Mathf.SmoothStep(.70f,.78f,point.Y);
+                float thorax=MathF.Exp(-MathF.Pow((point.Y-1.145f)/.105f,2));
+                result.X*=1+(.055f*thorax-.14f*lower)*(1-upper);
+            }
+        }
         return result;
     }
     private Mesh FrameMesh(Mesh source,Transform3D space,bool tailored=false)
@@ -181,8 +207,8 @@ internal sealed partial class NatureModels
         Walk(rig,Transform3D.Identity);
         rig.DetailedBodyMesh=rig.BodySkin.Mesh;
         rig.DistantBodyMesh=FrameMesh(rig.DistantBodyMesh,Transform3D.Identity,true);
-        rig.HipHalfWidth=BodyFrame==1?.116f:.10f;
-        rig.ArmRestClearance=BodyFrame==1?.07f:0;
+        rig.HipHalfWidth=BodyFrame==1?.122f:.10f;
+        rig.ArmRestClearance=BodyFrame==1?.095f:0;
         for(int side=0;side<2;side++)rig.Legs[side].Position=new(side==0?-rig.HipHalfWidth:rig.HipHalfWidth,ResidentRig.HipHeight,0);
         // The fitted sleeve vertices, joint rest and inverse bind must move
         // together. Scaling the mesh alone leaves a male-width moving rig.
@@ -208,6 +234,21 @@ internal sealed partial class NatureModels
         try
         {
             ValidateAdultContourSections(male,female);
+            foreach(var rig in new[]{male,female})
+            {
+                var a=rig.DetailedBodyMesh.SurfaceGetArrays(0);
+                var vertices=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                var detail=a[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
+                for(int side=0;side<2;side++)
+                {
+                    float y=0;int count=0;
+                    for(int v=0;v<vertices.Length;v++)if(detail[v].X>.2628f&&(vertices[v].X<0)==(side==0))
+                    {y+=vertices[v].Y;count++;}
+                    float elbow=rig.Arms[side].Position.Y-.28f;
+                    if(count==0||MathF.Abs(y/count-elbow)>.028f)
+                        throw new InvalidOperationException("Shortened torso panel detaches the sleeve from the actual elbow");
+                }
+            }
             float Hem(Mesh mesh)
             {
                 float y=float.PositiveInfinity;
@@ -215,7 +256,7 @@ internal sealed partial class NatureModels
                 return y;
             }
             float hemRise=Hem(female.DetailedBodyMesh)-Hem(male.DetailedBodyMesh);
-            if(hemRise<.035f||hemRise>.050f||Hem(female.DetailedBodyMesh)>.825f)
+            if(hemRise<.085f||hemRise>.110f||MathF.Abs(Hem(female.DetailedBodyMesh)-.852f)>.002f)
                 throw new InvalidOperationException("Tailored hem loses trouser coverage or retains the common long cut");
             GD.Print($"BODY_CUT_PASS: raised garment hem={hemRise:F4} m, preserved trouser overlap and separate lower-body geometry");
             if(female.HipHalfWidth<male.HipHalfWidth+.01f||female.Holster.Position.Y<male.Holster.Position.Y+.10f)
@@ -274,7 +315,7 @@ internal sealed partial class NatureModels
             {
                 rig.PoseAction(1f/60,action,SandBoxSim.Core.Agents.ActionPhase.Executing,false,0);
                 if(rig==female)foreach(var point in rim)
-                    if((rig.Torso.Transform*point.Lerp(rig.PelvicClothPose*point,ResidentRig.PelvicClothWeight(point.Y))).Y>.850f)
+                    if((rig.Torso.Transform*point.Lerp(rig.PelvicClothPose*point,ResidentRig.PelvicClothWeight(point.Y))).Y>.895f)
                         throw new InvalidOperationException("Raised shirt hem exposes a gap above the trouser waist during an action");
                 for(int side=0;side<2;side++)
                 {
@@ -289,7 +330,7 @@ internal sealed partial class NatureModels
         GD.Print("BODY_CUT_POSE_PASS: raised hem retains trouser overlap through eating, work and pickup transitions");
         GD.Print("BODY_FRAMES_PASS: source chest/waist/hip presentation, separate near/far caches, bounded forearm fit/Jacobian, exact wrist and animated limb lengths");
     }
-    private static float ClothSectionWidth(Mesh mesh,float height,Color? cloth=null)
+    private static float ClothSectionWidth(Mesh mesh,float height,Color? cloth=null,bool allowEmpty=false)
     {
         var arrays=mesh.SurfaceGetArrays(0);var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
         var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
@@ -316,7 +357,8 @@ internal sealed partial class NatureModels
                 low=MathF.Min(low,x);high=MathF.Max(high,x);
             }
         }
-        if(!float.IsFinite(low)||!float.IsFinite(high))throw new InvalidOperationException("Adult garment has no measured cross-section");
+        if(!float.IsFinite(low)||!float.IsFinite(high))
+        {if(allowEmpty)return 0;throw new InvalidOperationException("Adult garment has no measured cross-section");}
         return high-low;
     }
     private void ValidateAdultContourSections(ResidentRig male,ResidentRig female)
@@ -329,11 +371,12 @@ internal sealed partial class NatureModels
             Mesh m=distant?male.DistantBodyMesh:male.DetailedBodyMesh,f=distant?female.DistantBodyMesh:female.DetailedBodyMesh;
             Color? maleDye=distant?((ShaderMaterial)male.DetailedBodyMesh.SurfaceGetMaterial(0)).GetShaderParameter("dye").AsColor():null;
             Color? femaleDye=distant?((ShaderMaterial)female.DetailedBodyMesh.SurfaceGetMaterial(0)).GetShaderParameter("dye").AsColor():null;
-            float maleHip=ClothSectionWidth(m,.82f,maleDye)*male.Scale.X,femaleHip=ClothSectionWidth(f,.82f,femaleDye)*female.Scale.X;
+            float maleHip=MathF.Max(ClothSectionWidth(m,.78f,maleDye,true),ClothSectionWidth(male.Trousers!.Mesh,.78f))*male.Scale.X;
+            float femaleHip=MathF.Max(ClothSectionWidth(f,.78f,femaleDye,true),ClothSectionWidth(female.Trousers!.Mesh,.78f))*female.Scale.X;
             float maleWaist=ClothSectionWidth(m,1.00f,maleDye)*male.Scale.X,femaleWaist=ClothSectionWidth(f,1.00f,femaleDye)*female.Scale.X;
             float maleShoulder=male.ShoulderHalfWidth*2*male.Scale.X,femaleShoulder=female.ShoulderHalfWidth*2*female.Scale.X;
-            if(femaleHip/maleHip<1.01f||femaleHip/maleHip>1.25f||femaleWaist/femaleHip>=maleWaist/maleHip-.13f||
-                femaleShoulder/femaleHip>=maleShoulder/maleHip-.25f)
+            if(femaleHip/maleHip<1.09f||femaleHip/maleHip>1.25f||femaleWaist/femaleHip>=maleWaist/maleHip-.14f||
+                femaleShoulder/femaleHip>=maleShoulder/maleHip-.32f)
                 throw new InvalidOperationException($"Adult silhouette difference lost in {(distant?"distant":"near")} mesh: hip {femaleHip/maleHip:F3}, waist/hip {maleWaist/maleHip:F3}/{femaleWaist/femaleHip:F3}, shoulder/hip {maleShoulder/maleHip:F3}/{femaleShoulder/femaleHip:F3}");
             GD.Print($"ADULT_CONTOUR_SECTION: {(distant?"far":"near")} shoulder/hip={maleShoulder/maleHip:F3}/{femaleShoulder/femaleHip:F3}, waist/hip={maleWaist/maleHip:F3}/{femaleWaist/femaleHip:F3}, hip width={maleHip:F3}/{femaleHip:F3} m");
         }

@@ -8,7 +8,7 @@ namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
     private int _garmentCut;
-    private float BeltRise=>BodyFrame==1?.17f:0;
+    private float BeltRise=>BodyFrame==1?.13f:0;
     private Vector4[] TrouserProfile()
     {
         var profile=new[]{new Vector4(-.01f,0,.064f,.059f),new(.04f,.004f,.074f,.066f),new(.10f,.004f,.076f,.068f),new(.17f,.001f,.069f,.060f),new(.23f,-.002f,.061f,.055f),new(.28f,-.004f,.055f,.052f),new(.33f,-.004f,.050f,.048f)};
