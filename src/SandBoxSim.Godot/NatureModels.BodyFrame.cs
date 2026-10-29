@@ -49,7 +49,7 @@ internal sealed partial class NatureModels
         }
         return _garmentFrameReference[_garmentCut]=samples;
     }
-    private Vector3 FramePoint(Vector3 point,float sleeve=0)
+    private Vector3 FramePoint(Vector3 point,float sleeve=0,bool tailored=false)
     {
         bool feminine=BodyFrame==1;
         float active=Mathf.SmoothStep(.735f,.785f,point.Y)*(1-Mathf.SmoothStep(1.19f,1.27f,point.Y));
@@ -68,7 +68,8 @@ internal sealed partial class NatureModels
             {
                 // A broad woven-cloth bust envelope bridges the sternum. It
                 // does not add separate spherical breasts or surface nipples.
-                target+=.032f*front*front*MathF.Exp(-MathF.Pow((point.Y-1.135f)/.065f,2));
+                float chestSupport=.70f+.30f*MathF.Exp(-MathF.Pow((MathF.Abs(point.X)-.070f)/.045f,2));
+                target+=.042f*chestSupport*front*front*MathF.Exp(-MathF.Pow((point.Y-1.135f)/.065f,2));
                 float lateral=MathF.Cos(angle)*MathF.Cos(angle),back=MathF.Max(0,MathF.Sin(angle));
                 target+=(.014f*lateral+.009f*back*back)*MathF.Exp(-MathF.Pow((point.Y-.815f)/.095f,2));
                 target-=.004f*lateral*MathF.Exp(-MathF.Pow((point.Y-1.025f)/.07f,2));
@@ -86,11 +87,16 @@ internal sealed partial class NatureModels
         // fit. Authored pattern coordinates keep trunk fitting off the cuffs.
         float upper=MathF.Max(sleeve,Mathf.SmoothStep(1.19f,1.27f,point.Y));
         var sleevePoint=new Vector3(point.X*(feminine?.88f:1.04f),point.Y,point.Z);
-        return fitted.Lerp(sleevePoint,upper);
+        var result=fitted.Lerp(sleevePoint,upper);
+        // Fit the garment's lower panel independently of the pelvis/trousers.
+        // The raised hem still overlaps the trouser waist; sleeves and rigid
+        // equipment retain their original length and attachment transforms.
+        if(feminine&&tailored)result.Y+=.045f*(1-Mathf.SmoothStep(.75f,.90f,point.Y));
+        return result;
     }
-    private Mesh FrameMesh(Mesh source,Transform3D space)
+    private Mesh FrameMesh(Mesh source,Transform3D space,bool tailored=false)
     {
-        string key="body-frame:"+BodyFrame+":"+source.GetInstanceId()+":"+space;
+        string key="body-frame:"+BodyFrame+":"+source.GetInstanceId()+":"+space+":"+tailored;
         if(_meshes.TryGetValue(key,out var cached))return cached;
         var result=new ArrayMesh();var inverse=space.AffineInverse();
         for(int s=0;s<source.GetSurfaceCount();s++)
@@ -104,7 +110,7 @@ internal sealed partial class NatureModels
                 // Source pattern metres distinguish sleeves from a torso at
                 // the same XYZ neighbourhood. Include d(along)/dY in normals;
                 // a spatial X mask compresses the axilla and can fold it.
-                Vector3 Fit(Vector3 sample)=>FramePoint(sample,along>=0?Mathf.SmoothStep(0,.06f,along-(sample.Y-p.Y)):0);
+                Vector3 Fit(Vector3 sample)=>FramePoint(sample,along>=0?Mathf.SmoothStep(0,.06f,along-(sample.Y-p.Y)):0,tailored);
                 var dx=(Fit(p+Vector3.Right*h)-Fit(p-Vector3.Right*h))/(2*h);
                 var dy=(Fit(p+Vector3.Up*h)-Fit(p-Vector3.Up*h))/(2*h);
                 var dz=(Fit(p+Vector3.Back*h)-Fit(p-Vector3.Back*h))/(2*h);
@@ -140,7 +146,7 @@ internal sealed partial class NatureModels
                 var transform=space*node.Transform;
                 if(node is MeshInstance3D mesh&&mesh.Mesh!=null)
                 {
-                    mesh.Mesh=FrameMesh(mesh.Mesh,transform);
+                    mesh.Mesh=FrameMesh(mesh.Mesh,transform,mesh==rig.BodySkin);
                     if(mesh!=rig.BodySkin&&mesh.HasMeta("DistantMesh"))
                         mesh.SetMeta("DistantMesh",FrameMesh((Mesh)mesh.GetMeta("DistantMesh").AsGodotObject(),transform));
                 }
@@ -149,7 +155,7 @@ internal sealed partial class NatureModels
         }
         Walk(rig,Transform3D.Identity);
         rig.DetailedBodyMesh=rig.BodySkin.Mesh;
-        rig.DistantBodyMesh=FrameMesh(rig.DistantBodyMesh,Transform3D.Identity);
+        rig.DistantBodyMesh=FrameMesh(rig.DistantBodyMesh,Transform3D.Identity,true);
         rig.HipHalfWidth=BodyFrame==1?.116f:.10f;
         rig.ArmRestClearance=BodyFrame==1?.07f:0;
         for(int side=0;side<2;side++)rig.Legs[side].Position=new(side==0?-rig.HipHalfWidth:rig.HipHalfWidth,ResidentRig.HipHeight,0);
@@ -173,6 +179,16 @@ internal sealed partial class NatureModels
         try
         {
             ValidateAdultContourSections(male,female);
+            float Hem(Mesh mesh)
+            {
+                float y=float.PositiveInfinity;
+                foreach(var p in mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array())y=MathF.Min(y,p.Y);
+                return y;
+            }
+            float hemRise=Hem(female.DetailedBodyMesh)-Hem(male.DetailedBodyMesh);
+            if(hemRise<.035f||hemRise>.050f||Hem(female.DetailedBodyMesh)>.825f)
+                throw new InvalidOperationException("Tailored hem loses trouser coverage or retains the common long cut");
+            GD.Print($"BODY_CUT_PASS: raised garment hem={hemRise:F4} m, preserved trouser overlap and separate lower-body geometry");
             if(female.HipHalfWidth<male.HipHalfWidth+.01f||female.Holster.Position.Y<male.Holster.Position.Y+.10f)
                 throw new InvalidOperationException("Adult pelvis span or waist-mounted tool retains the common position");
             if(male.DetailedBodyMesh==female.DetailedBodyMesh||male.DistantBodyMesh==female.DistantBodyMesh)
@@ -219,11 +235,18 @@ internal sealed partial class NatureModels
                 if(y<=.075f&&fitted.Point!=RefineWristContour(point,normal).Point)
                     throw new InvalidOperationException("Muscle fit changes the grip or wrist attachment");
             }
+            var rim=new System.Collections.Generic.List<Vector3>();
+            float hem=Hem(female.DetailedBodyMesh);
+            foreach(var point in female.DetailedBodyMesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
+                if(point.Y<=hem+.009f)rim.Add(point);
             foreach(var rig in new[]{male,female})
-            foreach(var action in new[]{SandBoxSim.Core.Agents.ActionKind.Eat,SandBoxSim.Core.Agents.ActionKind.BuildHouse})
+            foreach(var action in new[]{SandBoxSim.Core.Agents.ActionKind.Eat,SandBoxSim.Core.Agents.ActionKind.BuildHouse,SandBoxSim.Core.Agents.ActionKind.Take})
             for(int f=0;f<150;f++)
             {
                 rig.PoseAction(1f/60,action,SandBoxSim.Core.Agents.ActionPhase.Executing,false,0);
+                if(rig==female)foreach(var point in rim)
+                    if((rig.Torso.Transform*point).Y>.850f)
+                        throw new InvalidOperationException("Raised shirt hem exposes a gap above the trouser waist during an action");
                 for(int side=0;side<2;side++)
                 {
                     var elbow=InTorso(rig.Elbows[side],rig.Torso).Origin;
@@ -234,6 +257,7 @@ internal sealed partial class NatureModels
             }
         }
         finally{male.Free();female.Free();_faceVariant=previous;_facePoints=null;_faceIndices=null;}
+        GD.Print("BODY_CUT_POSE_PASS: raised hem retains trouser overlap through eating, work and pickup transitions");
         GD.Print("BODY_FRAMES_PASS: source chest/waist/hip presentation, separate near/far caches, bounded forearm fit/Jacobian, exact wrist and animated limb lengths");
     }
     private static float ClothSectionWidth(Mesh mesh,float height,Color? cloth=null)
