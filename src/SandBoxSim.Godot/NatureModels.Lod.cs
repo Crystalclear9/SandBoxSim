@@ -26,10 +26,12 @@ internal sealed partial class NatureModels
             var arrays=source.SurfaceGetArrays(s);var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
             var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
             var colors=arrays[(int)Mesh.ArrayType.Color].AsColorArray();
+            var detail=arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
             int count=indices.Length>0?indices.Length:points.Length;
             for(int i=0;i<count;i++)
             {
                 int v=indices.Length>0?indices[i]:i;tool.SetColor(colors.Length==points.Length?tint*colors[v]:tint);
+                tool.SetUV2(detail.Length==points.Length?detail[v]:new Vector2(-1,0));
                 tool.SetNormal(normals[v]);tool.AddVertex(points[v]);
             }
         }

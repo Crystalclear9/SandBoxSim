@@ -52,6 +52,8 @@ internal sealed partial class NatureModels
     private Vector3 FramePoint(Vector3 point,float sleeve=0,bool tailored=false)
     {
         bool feminine=BodyFrame==1;
+        float upper=MathF.Max(sleeve,Mathf.SmoothStep(1.19f,1.27f,point.Y));
+        float panelHeight=feminine&&tailored?Mathf.Lerp(point.Y,TailoredPanelHeight(point),1-upper):point.Y;
         float active=Mathf.SmoothStep(.70f,.735f,point.Y)*(1-Mathf.SmoothStep(1.19f,1.27f,point.Y));
         var fitted=point;
         if(active>0&&point.X*point.X+point.Z*point.Z>.00001f)
@@ -63,21 +65,27 @@ internal sealed partial class NatureModels
             // Millimetre-scale ease bridges the skin, rather than shrinking
             // every body part with one sex-dependent actor scale.
             var support=feminine?_trunkFeminine:_trunkMale;
-            // The short shirt falls alongside the upper hip; sampling the
-            // widest lower pelvis before lifting its hem made a rigid peplum.
-            float supportY=MathF.Max(feminine?.87f:.80f,point.Y);
+            // Sample the anatomy where the finished panel actually lands.
+            // Using its pre-shortening height inflated the upper hip/hem and
+            // hid the natural waist-to-pelvis transition under a straight box.
+            float supportY=MathF.Max(.80f,panelHeight);
             float target=ClothEnvelope(support,supportY,angle);
-            if(feminine)target+=.008f*front*front*MathF.Exp(-MathF.Pow((point.Y-1.135f)/.085f,2));
-            // Walking clearance is a broad lower-front allowance, not a
-            // second sculpted abdomen or separate pectoral/bust additions.
-            target+=.020f*front*(1-Mathf.SmoothStep(.80f,.94f,point.Y));
+            float lateral=MathF.Cos(angle)*MathF.Cos(angle);
+            if(feminine)
+            {
+                target+=.018f*front*front*MathF.Exp(-MathF.Pow((panelHeight-1.14f)/.095f,2));
+                target-=.003f*lateral*MathF.Exp(-MathF.Pow((panelHeight-1.00f)/.075f,2));
+                float back=MathF.Max(0,MathF.Sin(angle));
+                target+=.008f*back*back*MathF.Exp(-MathF.Pow((panelHeight-1.035f)/.13f,2));
+            }
+            else target+=.008f*lateral*MathF.Exp(-MathF.Pow((panelHeight-1.13f)/.10f,2));
+            target+=.020f*front*(1-Mathf.SmoothStep(.80f,.94f,panelHeight));
             float ratio=Math.Clamp(target/TrunkSample(GarmentFrameReference(),point.Y,angle),.65f,1.35f);
             ratio=Mathf.Lerp(1,ratio,active);fitted=new(point.X*ratio,point.Y,point.Z*ratio);
         }
         // The arm root, sewn sleeve and inverse bind use the same lateral
         // fit. Authored pattern coordinates keep trunk fitting off the cuffs.
-        float upper=MathF.Max(sleeve,Mathf.SmoothStep(1.19f,1.27f,point.Y));
-        var sleevePoint=new Vector3(point.X*(feminine?.88f:1.04f),point.Y,point.Z);
+        var sleevePoint=new Vector3(point.X*(feminine?.88f:1.04f),point.Y,point.Z*(feminine?.90f:1));
         var result=fitted.Lerp(sleevePoint,upper);
         // A continuous neck-to-acromion slope, carried through the entire
         // sleeve. The joint rest and inverse bind receive the same drop.
@@ -91,19 +99,7 @@ internal sealed partial class NatureModels
             {
                 // A fitted blouse ends above the fullest hip instead of hiding
                 // the pelvis under the same bell-shaped tunic as every worker.
-                float hem=ResidentRig.BodyY(GarmentBottom);
-                float panelY=point.Y;
-                if(_garmentCut==2&&panelY<ResidentRig.BodyY(.80f))
-                {
-                    // The source long coat has deep front/back vents. Invert
-                    // that source panel offset before making a short blouse;
-                    // retaining it would uncover the waistband when bending.
-                    float angle=MathF.Atan2(point.Z,point.X);
-                    float vent=.075f*MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),16)+.040f*MathF.Pow(MathF.Max(0,MathF.Sin(angle)),16);
-                    float k=vent/(.80f-GarmentBottom);
-                    panelY=ResidentRig.BodyY((ResidentRig.SourceBodyY(panelY)-.80f*k)/(1-k));
-                }
-                result.Y+=(panelY+(.852f-hem)*(1-Mathf.SmoothStep(hem,1.15f,panelY))-point.Y)*(1-upper);
+                result.Y+=panelHeight-point.Y;
             }
             else
             {
@@ -207,6 +203,7 @@ internal sealed partial class NatureModels
         }
         skin.AddBind(3,Transform3D.Identity);
         rig.ShoulderSkeleton.ResetBonePoses();rig.DetailedBodySkin=skin;rig.BodySkin.Skin=skin;
+        FitArmClothing(rig);
         rig.CaptureBodyMounts();
     }
     private void ValidateBodyFrames()
@@ -219,6 +216,7 @@ internal sealed partial class NatureModels
             ValidateAdultContourSections(male,female);
             foreach(var rig in new[]{male,female})
             {
+                ValidateArmClothingFit(rig);
                 var a=rig.DetailedBodyMesh.SurfaceGetArrays(0);
                 var vertices=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                 var detail=a[(int)Mesh.ArrayType.TexUV2].AsVector2Array();

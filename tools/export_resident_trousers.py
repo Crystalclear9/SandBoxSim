@@ -79,13 +79,13 @@ for sex in ('male','female'):
         # These are clothing/art parameters, not population measurements.
         upper=math.exp(-((y-.63)/.105)**2)
         centre_x=(1 if x>=0 else -1)*half
-        x=centre_x+(x-centre_x)*(1-(.13 if sex=='female' else .055)*upper)
+        x=centre_x+(x-centre_x)*(1-(.08 if sex=='female' else .055)*upper)
         if z<0:z*=1-(.085 if sex=='female' else .035)*upper
         if sex=='female':
             pelvis=math.exp(-((y-.775)/.105)**2)
-            x+=.020*math.tanh(x/.065)*pelvis
+            x+=.028*math.tanh(x/.065)*pelvis
             back=min(1.,max(0.,z/.055));back=back*back*(3-2*back)
-            z+=.020*back*pelvis
+            z+=.026*back*pelvis
         mapped.append((x,y,z))
     mesh=bpy.data.meshes.new('trousers');mesh.from_pydata(mapped,[],[tuple(lookup[i] for i in f) for f in faces]);mesh.update()
     bm=bmesh.new();bm.from_mesh(mesh)
@@ -112,7 +112,7 @@ for sex in ('male','female'):
     result=bpy.data.meshes.new_from_object(evaluated)
     bm=bmesh.new();bm.from_mesh(result);bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces));bm.to_mesh(result);bm.free()
     result.update();result.calc_loop_triangles()
-    data=dict(schemaVersion=2,source='MakeHuman CC0 HM08 helper-tights',frame=sex,hipHalfWidth=half,jointCount=5,cuffSkin='knee-transition-v1',physique='thoraco-pelvic-v9',
+    data=dict(schemaVersion=2,source='MakeHuman CC0 HM08 helper-tights',frame=sex,hipHalfWidth=half,jointCount=5,cuffSkin='knee-transition-v1',physique='adult-proportions-v11',
         sourceSha256={name:manifest[name]['sha256'] for name in ('base.obj','basemesh_vertex_groups.json',f'caucasian-{sex}-young.target','caucasian-male-young.target')},
         supportSha256=hashlib.sha256(support_path.read_bytes().replace(b'\r\n',b'\n')).hexdigest(),positions=[],normals=[],uv=[],bones=[],weights=[],indices=[])
     for v in result.vertices:

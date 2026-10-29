@@ -38,13 +38,13 @@ internal sealed partial class NatureModels
         for(int s=0;s<body.GetSurfaceCount();s++)
         {
             var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);surface.SetMaterial(body.SurfaceGetMaterial(s));
-            void Append(Mesh part,int partSurface,Transform3D transform)
+            void Append(Mesh part,int partSurface,Transform3D transform,bool sleeve=false)
             {
                 var arrays=part.SurfaceGetArrays(partSurface);var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();var uv=arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();var normalBasis=transform.Basis.Inverse().Transposed();
-                for(int i=0;i<indices.Length;i++){int v=indices[i];surface.SetNormal((normalBasis*normals[v]).Normalized());surface.SetUV(uv[v]);surface.AddVertex(transform*points[v]);}
+                for(int i=0;i<indices.Length;i++){int v=indices[i];surface.SetNormal((normalBasis*normals[v]).Normalized());surface.SetUV(uv[v]);surface.SetUV2(new(sleeve?.06f:-1,0));surface.AddVertex(transform*points[v]);}
             }
             Append(body,s,Transform3D.Identity);
-            if(s==0)foreach(float side in new[]{-1f,1f})Append(Shape("finger-low"),0,new Transform3D(Basis.Identity.Scaled(new(.13f,.14f,.124f)),new(side*.202f,ResidentRig.BodyY(1.18f),0)));
+            if(s==0)foreach(float side in new[]{-1f,1f})Append(Shape("finger-low"),0,new Transform3D(Basis.Identity.Scaled(new(.13f,.14f,.124f)),new(side*.202f,ResidentRig.BodyY(1.18f),0)),true);
             surface.Index();surface.Commit(result);
         }
         mesh=DistantColors(result);_meshes[key]=mesh;return mesh;
