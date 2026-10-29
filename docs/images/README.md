@@ -6,6 +6,8 @@
 
 ## 当前配图
 
+`resident-arm-swing.png` 来自公开 `visual-arm-swing.json` 第 120 帧，请求 1600×1600、实际 1600×1410，版本 `armSwing=neutral-forearm-v1`。六格配对展示正面、侧面和掌腕取向。`resident-arm-swing.gif` 将同一运行第 90–138 帧、每两帧采样的 25 组正面及侧面原生视口，各取中央 300×338 像素、不缩放，排列成 612×688 的两行画面，约 0.83 秒；未重绘人物或插帧。新摆臂下的身体动态及移动演示同步采样，其他专题保留各自版本。
+
 `resident-locomotion.png` 来自公开 `visual-locomotion.json` 第 240 帧，请求 1600×1600，系统窗口范围内实际采样为 1600×1410，版本 `residentLocomotion=contact-cycle-v1`、`bodyFrame=thoraco-pelvic-v9`。同速度配对展示两种成人外观的启停转向、双手搬运与持锤行走／工作。`resident-locomotion.gif` 使用同一运行第 90–138 帧、每两帧采样的 25 个原生区域图，将第一行两幅画面并排编码为 1528×338、约 0.83 秒的行走循环；未重绘人物或插入生成帧。静态图与 GIF 均冻结模拟、按 60 Hz 推进动画；启动、停止和作业过渡以公开场景的其他采样帧及原生检查为准。其他动作专题保留各自采样版本。
 
 动物近景、头部和 `animal-motion.png` 为 2026-10-29 的 `articulated-paws-v12` 原生渲染。动作图来自公开 `visual-animal-motion.json` 第 180 帧，1600×1000；同一物种的全身与足部使用相同实际控制器，图册从静止进入行走再回到静止。单张图用于看清轮廓与接合，不能独自证明全程流畅。

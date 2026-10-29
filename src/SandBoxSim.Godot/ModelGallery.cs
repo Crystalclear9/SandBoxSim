@@ -61,6 +61,17 @@ internal partial class ModelGallery : PanelContainer
                 Closeup(grid,(frame==0?"男性外观":"女性外观")+(view==0?" · 正面":view==1?" · 侧面":" · 背面"),
                     models.Resident(frame==0?17:55,false,JobType.None),1.80f,new(0,.82f,0),view==0?new(.05f,.04f,4):view==1?new(4,.04f,.2f):new(.05f,.04f,-4),true);
         }
+        else if(Collection=="arm-swing")
+        {
+            grid.Columns=2;body.GetChild<Label>(0).Text="走路摆臂 · 正侧面与掌腕方向";
+            for(int view=0;view<3;view++)for(int frame=0;frame<2;frame++)
+            {
+                var rig=models.Resident(frame==0?17:55,false,JobType.None);
+                Closeup(grid,(frame==0?"男性外观":"女性外观")+(view==0?" · 正面摆臂":view==1?" · 侧面肩肘配合":" · 掌心朝内、拇指向前"),
+                    rig,view==2?.78f:2.05f,new(0,view==2?.70f:.82f,0),view==1?new(4,.03f,.15f):new(.03f,.03f,4),true);
+                Animate(rig,ActionKind.Wander);
+            }
+        }
         else if(Collection=="locomotion")
         {
             grid.Columns=2;body.GetChild<Label>(0).Text="步态与动作衔接 · 同速度的两种成人外观";
@@ -248,7 +259,12 @@ internal partial class ModelGallery : PanelContainer
             else animal.Pose((float)delta,Collection is not ("model-details" or "animal-details" or "animal-heads")&&((int)(_elapsed/3)%3)!=0,false,Collection is not ("model-details" or "animal-details" or "animal-heads")&&((int)(_elapsed/3)%3)==0);
         foreach(var (rig,action) in _animated)
         {
-            if(Collection=="locomotion")
+            if(Collection=="arm-swing")
+            {
+                float t=_elapsed%10;
+                rig.PoseAction((float)delta,action,t>.6f&&t<5.5f?ActionPhase.Moving:ActionPhase.Idle,false,0);
+            }
+            else if(Collection=="locomotion")
             {
                 float t=_elapsed%10;bool walking=t>.6f&&t<5.5f;
                 float turn=t>2.5f&&t<4.5f?.48f:0;

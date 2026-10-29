@@ -49,6 +49,7 @@
         "body-frames",
         "body-motion",
         "locomotion",
+        "arm-swing",
         "forearm-frames",
         "face-frames",
         "work-effort",

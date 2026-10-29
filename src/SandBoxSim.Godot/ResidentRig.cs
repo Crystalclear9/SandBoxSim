@@ -214,7 +214,6 @@ internal partial class ResidentRig : Node3D
         for(int i=0;i<2;i++)
         {
             Arms[i].Position=ShoulderRest(i);
-            float stride=wave*(i==0?1:-1)*_activity;
             var pelvis=LowerGarmentFrame;
             Legs[i].Position=pelvis*new Vector3(i==0?-HipHalfWidth:HipHalfWidth,HipHeight,0);
             Legs[i].Rotation=new(.55f*Smooth(_pickupBlend)+stance.Thigh,0,0);
@@ -222,11 +221,7 @@ internal partial class ResidentRig : Node3D
             Feet[i].Rotation=new(-(Legs[i].Rotation.X+Knees[i].Rotation.X),0,0);
             if(_restSupport>.00001f)PlantRestLeg(i);
             PoseWalkingLeg(i,gaitWeight);
-            float relaxed=(1-_activity)*(usingTool||pickup||resting?0:1);
-            float side=i==0?1:-1;
-            Arms[i].Rotation=new(-stride*(GaitArmSwing+GaitIndividual*.025f)-.045f*relaxed,side*.025f*relaxed,side*(.035f-ArmRestClearance*(usingTool||pickup||resting?0:1)));
-            Elbows[i].Rotation=new(.12f+.09f*relaxed+MathF.Max(0,stride)*.22f,0,0);Hands[i].Rotation=Vector3.Zero;
-            CurlHand(i,.24f+.045f*MathF.Sin(_phase*.4f+identityPhase+i));
+            PoseFreeArm(i,delta,identityPhase);
         }
         SyncTrousers();
         _faceTime+=delta;
