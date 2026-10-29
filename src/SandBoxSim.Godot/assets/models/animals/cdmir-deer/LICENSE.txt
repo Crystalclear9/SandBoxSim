@@ -11,3 +11,8 @@ SandBoxSim modifications: one subdivision, coordinate and metre conversion,
 14-joint retargeting to runtime head/neck/ears and terrain-contact limbs,
 surface consolidation, original packed diffuse/normal maps extracted unchanged.
 This is an authored game asset, not a photogrammetry scan.
+
+SandBoxSim runtime additions: four articulated paw/hoof joints with smooth
+source-weight transfer, source-triangle-rooted keratin details and terrain-normal
+foot orientation. Paired rear dewclaws follow the same hoof joints.
+Original CC0 source, UV and packed textures remain unchanged.

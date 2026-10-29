@@ -14,13 +14,15 @@ internal sealed partial class NatureModels
     }
     private readonly AnimalFootFrame[]?[] _authoredFootFrames=new AnimalFootFrame[2][];
 
-    private static int AuthoredFoot(int vertex,int[] bones,float[] weights)
+    private static int AuthoredFoot(int vertex,int[] bones,float[] weights,bool wolf=false)
     {
         int result=-1;float best=.5f;
         for(int k=0;k<4;k++)
         {
             int bone=bones[vertex*4+k];float weight=weights[vertex*4+k];
             if(bone is 4 or 6 or 8 or 10&&weight>best){result=(bone-4)/2;best=weight;}
+            int first=wolf?15:14;
+            if(bone>=first&&bone<first+4&&weight>best){result=bone-first;best=weight;}
         }
         return result;
     }
@@ -94,7 +96,7 @@ internal sealed partial class NatureModels
         for(int foot=0;foot<4;foot++){low[foot]=Vector3.One*float.PositiveInfinity;high[foot]=Vector3.One*float.NegativeInfinity;}
         for(int i=0;i<p.Length;i++)
         {
-            int foot=AuthoredFoot(i,bones,weights);if(foot<0||p[i].Y>.045f)continue;
+            int foot=AuthoredFoot(i,bones,weights,wolf);if(foot<0||p[i].Y>.045f)continue;
             low[foot]=low[foot].Min(p[i]);high[foot]=high[foot].Max(p[i]);count[foot]++;
         }
         var frames=new AnimalFootFrame[4];
@@ -112,7 +114,7 @@ internal sealed partial class NatureModels
         }
         for(int i=0;i<p.Length;i++)
         {
-            int foot=AuthoredFoot(i,bones,weights);if(foot<0||p[i].Y>.12f)continue;
+            int foot=AuthoredFoot(i,bones,weights,wolf);if(foot<0||p[i].Y>.12f)continue;
             var source=p[i];var frame=frames[foot];float inset=FootToeInset(source,frame,wolf);
             const float step=.00005f;
             float dx=(FootToeInset(source+Vector3.Right*step,frame,wolf)-FootToeInset(source-Vector3.Right*step,frame,wolf))/(2*step);
@@ -144,7 +146,7 @@ internal sealed partial class NatureModels
         var coverage=new int[4];float largest=0;
         for(int i=0;i<p.Length;i++)
         {
-            int foot=AuthoredFoot(i,bones,weights);if(foot<0||p[i].Y>.09f)continue;
+            int foot=AuthoredFoot(i,bones,weights,wolf);if(foot<0||p[i].Y>.09f)continue;
             var frame=frames[foot];var original=new Vector3(frame.CenterX+uv2[i].X,p[i].Y,frame.Minimum.Z+uv2[i].Y);
             var expected=original+Vector3.Back*FootToeInset(original,frame,wolf);
             if(p[i].DistanceTo(expected)>.000025f||!n[i].IsFinite()||MathF.Abs(n[i].Length()-1)>.01f)

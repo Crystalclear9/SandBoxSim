@@ -27,3 +27,8 @@ Source files are publicly available at the URL above; derived mesh and binding
 data are distributed in this folder under the same licence.
 
 The source-bound wolf guard-coat mesh generated at runtime from this asset is also a derivative under CC BY-SA 3.0.
+
+SandBoxSim runtime additions: four articulated paw/hoof joints with smooth
+source-weight transfer, source-triangle-rooted keratin details and terrain-normal
+foot orientation. The wolf also has two distal tail controls. These derived
+surfaces and bindings retain CC BY-SA 3.0; original atlas and UV are unchanged.

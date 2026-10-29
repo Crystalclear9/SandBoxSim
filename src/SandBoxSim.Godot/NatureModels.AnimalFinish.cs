@@ -8,7 +8,7 @@ internal sealed partial class NatureModels
 {
     private static readonly Vector2 WolfEyeCoatPatchA=new(18.5f/256,173.5f/256),WolfEyeCoatPatchB=new(17.5f/256,211.5f/256);
     private const float WolfEyeCoatPatchScale=1f;
-    private const float WolfEyeCoatRepairStrength=.4f;
+    private const float WolfEyeCoatRepairStrength=.68f;
     private static void ConfigureWolfEyeRepair(ShaderMaterial material)
     {
         material.SetShaderParameter("eye_coat_patch_a",WolfEyeCoatPatchA);
@@ -86,7 +86,7 @@ vec3 wolf_eye_backing(sampler2D atlas,vec3 colour,vec2 uv,float coat_gain){
 void fragment(){if(!OUTPUT_IS_SRGB&&!FRONT_FACING)NORMAL=-NORMAL;ALBEDO=coat_grade(texture(albedo_map,UV).rgb,predator)*(predator?.86:.90)*(1.0+UV2.y*.07);ROUGHNESS=.91;SPECULAR=.15;}
 "}};
         material.SetShaderParameter("predator",wolf);material.SetShaderParameter("albedo_map",GD.Load<Texture2D>(AuthoredRoot(wolf)+(wolf?"wolf-grey.png":"deer-body.png")));tool.SetMaterial(material);
-        int count=wolf?640:400,boneCount=wolf?15:14;
+        int count=wolf?586:360,boneCount=wolf?21:18;
         for(int strand=0;strand<count;strand++)
         {
             int chosen=cumulative.BinarySearch(Random()*area);if(chosen<0)chosen=~chosen;var f=faces[Math.Min(chosen,faces.Count-1)];
@@ -96,7 +96,7 @@ void fragment(){if(!OUTPUT_IS_SRGB&&!FRONT_FACING)NORMAL=-NORMAL;ALBEDO=coat_gra
             normal=normal.Normalized();var order=new int[boneCount];for(int i=0;i<order.Length;i++)order[i]=i;Array.Sort(order,(a,b)=>influence[b].CompareTo(influence[a]));
             var bones=new int[4];var weights=new float[4];float sum=0;for(int k=0;k<4;k++){bones[k]=order[k];sum+=influence[order[k]];}for(int k=0;k<4;k++)weights[k]=influence[bones[k]]/sum;
             float collar=MathF.Exp(-MathF.Pow((root.Z+.54f)/.23f,2)),tail=wolf?Math.Clamp((root.Z-.45f)/.25f,0,1):0;
-            float length=(wolf?.010f:.003f)*(0.75f+Random()*.5f)*(1+collar*(wolf?1.8f:3f)+tail);
+            float length=(wolf?.007f:.003f)*(0.75f+Random()*.5f)*(1+collar*(wolf?2.0f:3f)+tail);
             var direction=root.Z<-.4f?new Vector3(0,-.8f,.35f):new Vector3(0,-.25f,1);direction-=normal*direction.Dot(normal);
             if(direction.LengthSquared()<.01f)direction=normal.Cross(Vector3.Right);direction=direction.Normalized();var across=normal.Cross(direction).Normalized();
             float width=wolf?.00045f:.00032f;
@@ -105,7 +105,7 @@ void fragment(){if(!OUTPUT_IS_SRGB&&!FRONT_FACING)NORMAL=-NORMAL;ALBEDO=coat_gra
             for(int plane=0;plane<2;plane++)
             {
                 var spread=plane==0?across:(across+normal*.6f).Normalized();var start=root+normal*.00035f;
-                var middle=start+direction*length*.48f+normal*length*.14f;var tip=start+direction*length+normal*length*.18f;
+                var middle=start+direction*length*.48f+normal*length*.07f;var tip=start+direction*length+normal*length*.10f;
                 Triangle((start-spread*width,0),(start+spread*width,0),(middle-spread*width*.6f,.5f));
                 Triangle((start+spread*width,0),(middle+spread*width*.6f,.5f),(middle-spread*width*.6f,.5f));
                 Triangle((middle-spread*width*.6f,.5f),(middle+spread*width*.6f,.5f),(tip,1));

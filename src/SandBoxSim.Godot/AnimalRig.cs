@@ -8,12 +8,28 @@ internal partial class AnimalRig : Node3D
     public bool Predator;
     internal Vector3[]? RestSoles;
     internal Node3D? Jaw;
+    internal Node3D? TailMiddle,TailTip;
     internal ShaderMaterial? EyeMaterial,LidMaterial;
     internal MeshInstance3D? AuthoredEyelids;
     internal float Blink {get;private set;}
     private float _blinkClock,_blinkDelay=2.8f;
     private int _blinkSequence;
     public readonly Node3D[] Legs = new Node3D[4], Knees = new Node3D[4];
+    internal readonly Node3D?[] Paws=new Node3D?[4];
+    internal readonly float[] PawLift=new float[4];
+    internal static (float Travel,float Lift) GaitContact(float phase,bool wolf)
+    {
+        float cycle=Mathf.PosMod(phase/Mathf.Tau,1),duty=wolf?.58f:.74f;
+        if(cycle<duty)return(Mathf.Lerp(-.14f,.14f,cycle/duty),0);
+        float t=(cycle-duty)/(1-duty),smooth=t*t*(3-2*t);
+        return(Mathf.Lerp(.14f,-.14f,smooth),.075f*MathF.Sin(MathF.PI*t));
+    }
+    internal Vector3 ContactSole(int i)
+    {
+        var sole=RestSoles![i];var chain=Legs[i].Transform*Knees[i].Transform;
+        if(Paws[i] is { } paw)return Body.Transform*(chain*paw.Transform*(sole-paw.Position));
+        return Body.Transform*(chain*sole);
+    }
     public readonly Node3D[] Ears=new Node3D[2];
     public readonly Vector3[] EarRest=new Vector3[2];
     public Skeleton3D? FurSkeleton;
@@ -35,7 +51,14 @@ internal partial class AnimalRig : Node3D
             var sole=RestSoles==null?new Vector3(0,-lowerLength+.007f,-.025f):RestSoles[i];
             float phase=_phase+(i is 0 or 3?0:MathF.PI);
             float swing=MathF.Max(0,MathF.Sin(phase))*.075f*_stride;
-            var target=Body.Transform*(hip+upper+sole+new Vector3(0,0,MathF.Cos(phase)*.14f*_stride));
+            float travel=MathF.Cos(phase)*.14f*_stride;
+            if(Paws[i]!=null)
+            {
+                if(!Predator)phase=_phase+(i==0?0:i==1?MathF.PI:i==2?MathF.PI/2:MathF.PI*1.5f);
+                var contact=GaitContact(phase,Predator);swing=contact.Lift*_stride;travel=contact.Travel*_stride;
+            }
+            PawLift[i]=swing;
+            var target=Body.Transform*(hip+upper+sole+new Vector3(0,0,travel));
             target.Y=surfaceHeight(target)+.007f+swing;
             target=Body.Transform.AffineInverse()*target;
             // Authored quadrupeds have different rest-foot spacing. A wider
@@ -43,13 +66,27 @@ internal partial class AnimalRig : Node3D
             // the subsequent segment-length clamp still forbids stretching.
             float slopeLimit=RestSoles==null?.10f:.18f;
             target.Y=Math.Clamp(target.Y,.007f-slopeLimit,.007f+slopeLimit+swing);
-            var delta=target-hip;float a=upper.Length(),b=sole.Length();
+            var paw=Paws[i];var desiredPaw=Basis.Identity;
+            var lower=sole;
+            if(paw!=null)
+            {
+                var sample=Body.Transform*target;const float h=.02f;
+                float dx=(surfaceHeight(sample+Vector3.Right*h)-surfaceHeight(sample-Vector3.Right*h))/(2*h);
+                float dz=(surfaceHeight(sample+Vector3.Back*h)-surfaceHeight(sample-Vector3.Back*h))/(2*h);
+                var normal=new Vector3(-dx,1,-dz).Normalized();
+                var forward=(Vector3.Forward-normal*Vector3.Forward.Dot(normal)).Normalized();
+                var surfaceFrame=new Basis(forward.Cross(normal).Normalized(),normal,-forward);
+                desiredPaw=Body.Basis.Orthonormalized().Inverse()*surfaceFrame;
+                float lift=swing/.075f;desiredPaw*=new Basis(Vector3.Right,.18f*lift);
+                lower=paw.Position;target-=desiredPaw*(sole-lower);
+            }
+            var delta=target-hip;float a=upper.Length(),b=lower.Length();
             float length=Math.Clamp(delta.Length(),MathF.Abs(a-b)+.002f,a+b-.0001f);
             var axis=delta.Normalized();target=hip+axis*length;
             var pole=i<2?Vector3.Back:Vector3.Forward;
             if(RestSoles!=null)
             {
-                var restAxis=(upper+sole).Normalized();
+                var restAxis=(upper+lower).Normalized();
                 var authoredBend=upper-restAxis*upper.Dot(restAxis);
                 if(authoredBend.LengthSquared()>.000001f)pole=authoredBend.Normalized();
             }
@@ -57,8 +94,13 @@ internal partial class AnimalRig : Node3D
             float along=(a*a-b*b+length*length)/(2*length);
             var knee=hip+axis*along+bend*MathF.Sqrt(MathF.Max(0,a*a-along*along));
             var thighBasis=new Basis(new Quaternion(upper.Normalized(),(knee-hip).Normalized()));
-            var shinBasis=new Basis(new Quaternion(sole.Normalized(),(target-knee).Normalized()));
+            var shinBasis=new Basis(new Quaternion(lower.Normalized(),(target-knee).Normalized()));
             Legs[i].Basis=thighBasis;Knees[i].Basis=thighBasis.Inverse()*shinBasis;
+            if(paw!=null)
+            {
+                paw.Basis=shinBasis.Inverse()*desiredPaw;
+                FurSkeleton?.SetBonePoseRotation((Predator?15:14)+i,paw.Basis.GetRotationQuaternion());
+            }
             FurSkeleton?.SetBonePoseRotation(3+i*2,Legs[i].Basis.GetRotationQuaternion());
             FurSkeleton?.SetBonePoseRotation(4+i*2,Knees[i].Basis.GetRotationQuaternion());
         }
@@ -98,6 +140,12 @@ internal partial class AnimalRig : Node3D
         Tail.Rotation = new Vector3(0, 0, MathF.Sin(_phase * .6f) * .12f);
         FurSkeleton?.SetBonePoseRotation(1,Head.Basis.GetRotationQuaternion());
         FurSkeleton?.SetBonePoseRotation(2,Tail.Basis.GetRotationQuaternion());
+        if(TailMiddle!=null)
+        {
+            TailMiddle.Rotation=new(0,MathF.Sin(_phase*.6f-.35f)*.025f,MathF.Sin(_phase*.6f-.45f)*.09f);
+            TailTip!.Rotation=new(0,MathF.Sin(_phase*.6f-.7f)*.025f,MathF.Sin(_phase*.6f-.9f)*.08f);
+            FurSkeleton?.SetBonePoseRotation(19,TailMiddle.Basis.GetRotationQuaternion());FurSkeleton?.SetBonePoseRotation(20,TailTip.Basis.GetRotationQuaternion());
+        }
         if(Jaw!=null)
         {
             Jaw.Rotation=new Vector3(Mathf.Lerp(.16f,.07f+MathF.Sin(_phase*.5f)*.025f,_stride),0,0);

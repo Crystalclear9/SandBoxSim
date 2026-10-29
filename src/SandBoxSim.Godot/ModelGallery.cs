@@ -123,6 +123,14 @@ internal partial class ModelGallery : PanelContainer
             Closeup(grid,"狼 · 眼眶与角膜贴合",models.Animal(true),.18f,new(.061f,.901f,-.785f),new(1.8f,.08f,-1),false);
             Closeup(grid,"狼 · 前肢与足掌表面",models.Animal(true),.28f,new(-.135f,.065f,-.42f),new(-.18f,.38f,-2),false);
         }
+        else if(Collection=="animal-motion")
+        {
+            grid.Columns=2;body.GetChild<Label>(0).Text="野生动物 · 鹿的四拍行走、狼的对角小跑与足部落地";
+            Closeup(grid,"鹿 · 四拍步态与关节衔接",models.Animal(false),2.35f,new(0,1.05f,-.22f),new(3,.35f,-.3f),false);
+            Closeup(grid,"鹿 · 蹄部与后侧副蹄",models.Animal(false),.30f,new(-.125f,.10f,-.40f),new(.5f,.28f,2),false);
+            Closeup(grid,"狼 · 对角小跑与肩背",models.Animal(true),1.75f,new(0,.65f,-.15f),new(3,.25f,-.35f),false);
+            Closeup(grid,"狼 · 趾爪与落脚",models.Animal(true),.28f,new(-.10f,.065f,-.46f),new(-.45f,.28f,-2),false);
+        }
         else if(Collection=="ecology-details")
         {
             body.GetChild<Label>(0).Text="植物与岩石 · 世界共享几何";
@@ -224,7 +232,9 @@ internal partial class ModelGallery : PanelContainer
         delta=EvaluationClock.Delta(delta);
         _elapsed+=(float)delta;
         float cycle=_elapsed%6.8f;
-        foreach(var animal in _animals)animal.Pose((float)delta,Collection is not ("model-details" or "animal-details" or "animal-heads")&&((int)(_elapsed/3)%3)!=0,false,Collection is not ("model-details" or "animal-details" or "animal-heads")&&((int)(_elapsed/3)%3)==0);
+        foreach(var animal in _animals)
+            if(Collection=="animal-motion")animal.Pose((float)delta,cycle>.65f&&cycle<4.5f,false);
+            else animal.Pose((float)delta,Collection is not ("model-details" or "animal-details" or "animal-heads")&&((int)(_elapsed/3)%3)!=0,false,Collection is not ("model-details" or "animal-details" or "animal-heads")&&((int)(_elapsed/3)%3)==0);
         foreach(var (rig,action) in _animated)rig.PoseAction((float)delta,action,Collection=="body-motion"&&action==ActionKind.Wander?ActionPhase.Moving:cycle>.65f&&cycle<4.5f?ActionPhase.Executing:ActionPhase.Idle,false,0);
         foreach(var (rig,camera) in _handViews)
         {
@@ -282,6 +292,7 @@ internal partial class ModelGallery : PanelContainer
         var view=new SubViewportContainer { Stretch=true,CustomMinimumSize=new(0,120),SizeFlagsVertical=SizeFlags.ExpandFill,MouseFilter=MouseFilterEnum.Ignore }; card.AddChild(view);
         int index=grid.GetChildCount()-1;
         string semanticLabel=Collection=="animal-heads"?(index<2?"deer":"wolf"):Collection=="animal-details"?(index<3?"deer":"wolf"):Collection=="forearms"?"resident":Collection=="ecology-details"?new[]{"tree","tree","fern","grass","rock","shrub"}[index]:model is ResidentRig?"resident":Collection=="model-details"?(index==2?"deer":index==3?"wolf":"house"):Collection=="architecture"?(index<5?"house":"storage"):Collection=="characters"?(index==4?"deer":"wolf"):index<2?"tree":index==2?"farm":index==3?"mine":index==4?"ruins":"grove";
+        if(model is AnimalRig fauna)semanticLabel=fauna.Predator?"wolf":"deer";
         if(Collection=="forearm-frames")semanticLabel="resident";
         _evaluationRegions.Add((view,semanticLabel));
         var viewport=new SubViewport { OwnWorld3D=true,Size=new(420,280),Msaa3D=Viewport.Msaa.Msaa4X,RenderTargetUpdateMode=SubViewport.UpdateMode.Once }; view.AddChild(viewport);

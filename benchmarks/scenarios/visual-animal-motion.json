@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "visual-animal-motion",
+  "seed": 839102,
+  "agents": 40,
+  "previewDays": 0,
+  "panel": "animal-motion",
+  "warmupFrames": 60,
+  "measuredFrames": 360,
+  "ticksPerFrame": 0,
+  "minimumFps": 0,
+  "captureFrames": [90, 180, 330],
+  "outputDirectory": "runs/evaluation/visual-animal-motion"
+}

@@ -119,6 +119,8 @@ BACKLIGHT=ALBEDO*vec3(.085,.045,.026)*COLOR.b;
             arrays[(int)Mesh.ArrayType.Bones]=Ints(source.GetProperty("bones"));arrays[(int)Mesh.ArrayType.Weights]=Floats(source.GetProperty("weights"));arrays[(int)Mesh.ArrayType.Index]=Ints(source.GetProperty("indices"));
             RefineAuthoredFeet(arrays,wolf,materialName);
             RefineAnimalHead(arrays,wolf,materialName);
+            BindAuthoredPaws(arrays,wolf,materialName);
+            if(wolf)BindWolfTail(arrays);
             var part=new ArrayMesh();part.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);
             using var tool=new SurfaceTool();tool.CreateFrom(part,0);tool.GenerateTangents();tool.SetMaterial(AuthoredAnimalMaterial(wolf,source.GetProperty("material").GetString()!));tool.Commit(mesh);
         }
@@ -136,6 +138,7 @@ BACKLIGHT=ALBEDO*vec3(.085,.045,.026)*COLOR.b;
             rig.Legs[i]=new Node3D {Name="Leg"+i,Position=data.Joints[3+i*2]};rig.Body.AddChild(rig.Legs[i]);
             rig.Knees[i]=new Node3D {Name="Knee",Position=data.Joints[4+i*2]-data.Joints[3+i*2]};rig.Legs[i].AddChild(rig.Knees[i]);
             rig.RestSoles[i]=data.Soles[i]-data.Joints[4+i*2];
+            rig.Paws[i]=new Node3D {Name="Paw",Position=AuthoredPawAnchor(data.Soles[i],wolf)-data.Joints[4+i*2]};rig.Knees[i].AddChild(rig.Paws[i]!);
         }
         for(int i=0;i<2;i++)
         {
@@ -143,13 +146,16 @@ BACKLIGHT=ALBEDO*vec3(.085,.045,.026)*COLOR.b;
             var lining=Sculpt(rig.Ears[i],AuthoredEarLining(wolf,i),Vector3.Zero,ResidentMaterial(wolf?"#736f65":"#93816e"));
             lining.Name="InnerEarFibres";lining.VisibilityRangeEnd=18;lining.CastShadow=GeometryInstance3D.ShadowCastingSetting.Off;
         }
-        var nodes=new Node3D[data.Joints.Length];AnimalBones(rig).CopyTo(nodes,0);nodes[12]=rig.Ears[0];nodes[13]=rig.Ears[1];
+        if(wolf)InstallWolfTail(rig);
+        var nodes=new Node3D[data.Joints.Length+(wolf?6:4)];AnimalBones(rig).CopyTo(nodes,0);nodes[12]=rig.Ears[0];nodes[13]=rig.Ears[1];
         if(wolf){rig.Jaw=new Node3D {Name="Jaw",Position=data.Joints[14]-data.Joints[1]};rig.Head.AddChild(rig.Jaw);nodes[14]=rig.Jaw;}
+        for(int i=0;i<4;i++)nodes[data.Joints.Length+i]=rig.Paws[i]!;
+        if(wolf){nodes[19]=rig.TailMiddle!;nodes[20]=rig.TailTip!;}
         var skeleton=rig.FurSkeleton=new Skeleton3D {Name="FurSkeleton"};rig.Body.AddChild(skeleton);var skin=new Skin();
         for(int i=0;i<nodes.Length;i++)skeleton.AddBone("AnimalBone"+i);
         for(int i=0;i<nodes.Length;i++)
         {
-            int parent=i==0?-1:i>=12?1:i==1?11:i>=4&&i<=10&&i%2==0?i-1:0;
+            int parent=i==0?-1:wolf&&i==19?2:wolf&&i==20?19:i>=data.Joints.Length?4+(i-data.Joints.Length)*2:i>=12?1:i==1?11:i>=4&&i<=10&&i%2==0?i-1:0;
             if(parent>=0)skeleton.SetBoneParent(i,parent);
             skeleton.SetBoneRest(i,i==0?Transform3D.Identity:nodes[i].Transform);skin.AddBind(i,InTorso(nodes[i],rig.Body).AffineInverse());
         }
@@ -162,7 +168,7 @@ BACKLIGHT=ALBEDO*vec3(.085,.045,.026)*COLOR.b;
         }
         var whiskers=Sculpt(rig.Head,AuthoredWhiskers(wolf),Vector3.Zero,ResidentMaterial(wolf?"#77756c":"#776b5b"));
         whiskers.Name="MuzzleWhiskers";whiskers.VisibilityRangeEnd=14;whiskers.CastShadow=GeometryInstance3D.ShadowCastingSetting.Off;
-        InstallAuthoredEyelids(rig,wolf);return rig;
+        InstallAuthoredEyelids(rig,wolf);InstallPawKeratin(rig,wolf);return rig;
     }
     private Mesh AuthoredWhiskers(bool wolf)
     {
@@ -322,7 +328,7 @@ CLEARCOAT=(1.0-edge)*.10;CLEARCOAT_ROUGHNESS=.24;
         {
         ValidateAuthoredFeet(rig,wolf);
         if(wolf)ValidateWolfEyeAtlas(mesh);
-        int boneCount=wolf?15:14;
+        int boneCount=wolf?21:18;
         var guard=rig.Body.GetNode<MeshInstance3D>("AuthoredGuardCoat");var guardArrays=guard.Mesh.SurfaceGetArrays(0);
         if(guard.Mesh!=peer.Body.GetNode<MeshInstance3D>("AuthoredGuardCoat").Mesh||guard.VisibilityRangeEnd!=18||guard.CastShadow!=GeometryInstance3D.ShadowCastingSetting.Off||guard.Skin!=rig.FurSkin.Skin)
             throw new InvalidOperationException("Source-bound guard coat loses its shared mesh, range, skeleton or shadow policy");
@@ -416,13 +422,15 @@ CLEARCOAT=(1.0-edge)*.10;CLEARCOAT_ROUGHNESS=.24;
         {
             float Ground(Vector3 p)=>p.Z*slope;
             rig.Pose(.04f,true,false,false,Ground);
-            for(int leg=0;leg<4;leg++){var foot=rig.Body.Transform*(rig.Legs[leg].Transform*(rig.Knees[leg].Transform*rig.RestSoles![leg]));if(!foot.IsFinite()||foot.Y-Ground(foot)<-.035f||foot.Y-Ground(foot)>.14f)throw new InvalidOperationException($"Authored animal terrain contact: wolf={wolf}, slope={slope}, frame={frame}, leg={leg}, gap={foot.Y-Ground(foot)}");}
+            for(int leg=0;leg<4;leg++){var foot=rig.ContactSole(leg);if(!foot.IsFinite()||foot.Y-Ground(foot)<-.035f||foot.Y-Ground(foot)>.14f)throw new InvalidOperationException($"Authored animal terrain contact: wolf={wolf}, slope={slope}, frame={frame}, leg={leg}, gap={foot.Y-Ground(foot)}");}
         }
         if(wolf){var moving=rig.Jaw!.Rotation.X;for(int i=0;i<90;i++)rig.Pose(1f/60,false,false);if(rig.Jaw.Rotation.X<=moving||!rig.Jaw.Transform.IsFinite())throw new InvalidOperationException("Wolf jaw does not settle from moving to resting pose");}
+        ValidatePawArticulation(rig,wolf);
+        if(wolf)ValidateWolfTail(rig);
         var pose=rig.Head.Transform;var jaw=rig.Jaw?.Transform;rig.Pose(1,true,true);if(pose!=rig.Head.Transform||jaw!=rig.Jaw?.Transform)throw new InvalidOperationException("Paused authored animal moved");
         }
         finally {rig.Free();peer.Free();}
       }
-      GD.Print("AUTHORED_ANIMALS_PASS: attributed surfaces, source-bound tactile hair, finite outward geometry, cache/range, 14/15 joints, weights, budgets, slopes, articulated jaw and pause");
+      GD.Print("AUTHORED_ANIMALS_PASS: attributed surfaces, source-bound tactile hair, finite outward geometry, cache/range, 18/21 joints, weights, budgets, slopes, articulated jaw and pause");
     }
 }
