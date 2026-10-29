@@ -38,6 +38,7 @@ jobs:
           python -m unittest discover -s tools -p test_evaluate.py
           python -m unittest discover -s tools -p test_local_environment.py
           python -m unittest discover -s tools -p test_human_assets.py
+          python -m unittest discover -s tools -p test_resident_trousers.py
           python tools/fetch-surface-materials.py --verify
       - name: Install verified Godot .NET editor
         shell: pwsh

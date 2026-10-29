@@ -219,6 +219,7 @@ internal partial class ResidentRig : Node3D
             Elbows[i].Rotation=new(.12f+.09f*relaxed+MathF.Max(0,stride)*.22f,0,0);Hands[i].Rotation=Vector3.Zero;
             CurlHand(i,.24f+.045f*MathF.Sin(_phase*.4f+identityPhase+i));
         }
+        SyncTrousers();
         _faceTime+=delta;
         if(_detailedHead)
         {

@@ -56,8 +56,8 @@ internal partial class ModelGallery : PanelContainer
         }
         else if(Collection=="body-frames")
         {
-            grid.Columns=3;body.GetChild<Label>(0).Text="成人身材 · 同衣色、同光照的全身三视图";
-            for(int frame=0;frame<2;frame++)for(int view=0;view<3;view++)
+            grid.Columns=GetViewportRect().Size.X>=1500?6:3;body.GetChild<Label>(0).Text="成人身材 · 同视角配对的骨盆、臀腿与衣装轮廓";
+            for(int view=0;view<3;view++)for(int frame=0;frame<2;frame++)
                 Closeup(grid,(frame==0?"男性外观":"女性外观")+(view==0?" · 正面":view==1?" · 侧面":" · 背面"),
                     models.Resident(frame==0?17:55,false,JobType.None),1.80f,new(0,.82f,0),view==0?new(.05f,.04f,4):view==1?new(4,.04f,.2f):new(.05f,.04f,-4),true);
         }

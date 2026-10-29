@@ -12,11 +12,6 @@ internal sealed partial class NatureModels
     private Vector4[] TrouserProfile()
     {
         var profile=new[]{new Vector4(-.01f,0,.064f,.059f),new(.04f,.004f,.074f,.066f),new(.10f,.004f,.076f,.068f),new(.17f,.001f,.069f,.060f),new(.23f,-.002f,.061f,.055f),new(.28f,-.004f,.055f,.052f),new(.33f,-.004f,.050f,.048f)};
-        if(BodyFrame==1)for(int i=0;i<profile.Length;i++)
-        {
-            float weight=1-Mathf.SmoothStep(.04f,.29f,profile[i].X);
-            profile[i].Z*=1+.16f*weight;profile[i].W*=1+.08f*weight;
-        }
         return profile;
     }
     private const float PlacketBottom=1.03f,PlacketTop=1.267f;
@@ -212,10 +207,13 @@ internal sealed partial class NatureModels
 
         // The short cut exposes the trouser waist. A continuous pelvis connects
         // the two articulated legs instead of leaving a gap beneath the tunic.
+        if(child)
+        {
         Sculpt(rig,Loft("trouser-pelvis",new[]{new Vector4(.565f,0,.020f,.020f),new(.61f,0,.132f,.072f),
             new(.66f,0,.159f,.082f),new(.70f,0,.166f,.088f),new(.73f,0,.150f,.090f)}),Vector3.Zero,
             ResidentMaterial("#645e53"),new(-MathF.PI/2,0,0));
         FineBeam(rig,new(0,.648f,-.082f),new(0,.699f,-.090f),.0025f,"#645e53");
+        }
 
         for (int i = 0; i < 2; i++)
         {
@@ -243,7 +241,7 @@ internal sealed partial class NatureModels
             rig.HandProxies[i]=new MeshInstance3D {Name="DistantFingers",Mesh=rig.HandOpen[i],Visible=false};hand.AddChild(rig.HandProxies[i]);
             Sculpt(arm,RolledCuff(),Vector3.Zero,CollarMaterial(cloth));
             var leg = rig.Legs[i] = new Node3D { Name = i == 0 ? "LeftLeg" : "RightLeg", Position = new Vector3(side * .10f, .67f, 0) }; rig.AddChild(leg);
-            Sculpt(leg,Loft("resident-trouser:"+BodyFrame,TrouserProfile()),Vector3.Zero,ResidentMaterial("#645e53"),new(MathF.PI/2,0,0));
+            if(child)Sculpt(leg,Loft("resident-trouser:"+BodyFrame,TrouserProfile()),Vector3.Zero,ResidentMaterial("#645e53"),new(MathF.PI/2,0,0));
             var knee = rig.Knees[i] = new Node3D { Name = "Knee", Position = new Vector3(0, -.31f, 0) }; leg.AddChild(knee);
             Sculpt(knee,Loft("resident-boot",new[]{new Vector4(0,0,.047f,.044f),new(.035f,0,.052f,.048f),new(.085f,-.002f,.057f,.052f),new(.15f,-.005f,.052f,.048f),new(.21f,-.010f,.045f,.045f),new(.25f,-.015f,.043f,.044f),new(.28f,-.012f,.047f,.048f)}),Vector3.Zero,LeatherSurface("#514237"),new(MathF.PI/2,0,0));
             Sculpt(knee,TurnedBootRim(),Vector3.Zero,LeatherSurface("#514237"));
@@ -268,6 +266,7 @@ internal sealed partial class NatureModels
         rig.HeadProxy=new MeshInstance3D {Name="DistantHead",Mesh=DistantHead(skin,hair),Visible=false};rig.Head.AddChild(rig.HeadProxy);
         AddHandSkin(rig,skin);
         ApplyBodyFrame(rig);
+        AddContinuousTrousers(rig);
         rig.Head.Scale=new Vector3(.99f+((variation>>15)%4)*.0125f,.995f+((variation>>18)%3)*.0125f,1);
         if (child) { rig.Scale = new Vector3(.72f, .65f, .72f); rig.Head.Scale = Vector3.One * 1.15f; }
         else

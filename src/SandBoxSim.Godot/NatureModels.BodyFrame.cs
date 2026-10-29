@@ -78,6 +78,8 @@ internal sealed partial class NatureModels
             {
                 float lateral=MathF.Cos(angle)*MathF.Cos(angle);
                 target+=.008f*lateral*MathF.Exp(-MathF.Pow((point.Y-1.14f)/.075f,2));
+                float pectoralEase=.008f+.010f*MathF.Exp(-MathF.Pow((MathF.Abs(point.X)-.065f)/.035f,2));
+                target-=pectoralEase*front*front*MathF.Exp(-MathF.Pow((point.Y-1.12f)/.09f,2));
                 target-=.004f*lateral*MathF.Exp(-MathF.Pow((point.Y-.82f)/.09f,2));
             }
             float ratio=Math.Clamp(target/TrunkSample(GarmentFrameReference(),point.Y,angle),.65f,1.35f);
