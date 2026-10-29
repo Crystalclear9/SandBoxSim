@@ -274,7 +274,7 @@ internal sealed partial class NatureModels
             // Local chest/waist/pelvis fitting provides the silhouette. Keep
             // outer width close enough that it does not erase the hip volume.
             float frame=HumanFamily==2?.94f:.98f;
-            rig.Scale = new Vector3(frame*(1 + ((variation >> 8) % 5 - 2f) * .025f), 1.005f + ((variation >> 12) % 5) * .012f, 1);
+            rig.Scale = new Vector3(frame*(1 + ((variation >> 8) % 5 - 2f) * .0125f), 1.005f + ((variation >> 12) % 5) * .012f, 1);
             rig.Head.Scale*=new Vector3(1/rig.Scale.X,1,1);
         }
         rig.WorkCapacity=(BodyFrame==1?.94f:1.03f)+(((variation>>20)%9)-4f)*.035f;

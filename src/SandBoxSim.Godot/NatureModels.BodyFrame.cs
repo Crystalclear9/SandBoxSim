@@ -73,12 +73,27 @@ internal sealed partial class NatureModels
             float lateral=MathF.Cos(angle)*MathF.Cos(angle);
             if(feminine)
             {
-                target+=.018f*front*front*MathF.Exp(-MathF.Pow((panelHeight-1.14f)/.095f,2));
+                float paired=MathF.Exp(-MathF.Pow((MathF.Cos(angle)-.42f)/.35f,2))+MathF.Exp(-MathF.Pow((MathF.Cos(angle)+.42f)/.35f,2));
+                target+=(.012f+.014f*paired)*front*front*MathF.Exp(-MathF.Pow((panelHeight-1.14f)/.085f,2));
                 target-=.003f*lateral*MathF.Exp(-MathF.Pow((panelHeight-1.00f)/.075f,2));
+                target-=.006f*lateral*MathF.Exp(-MathF.Pow((panelHeight-1.065f)/.065f,2));
+                target-=.005f*front*front*MathF.Exp(-MathF.Pow((panelHeight-1.00f)/.075f,2));
                 float back=MathF.Max(0,MathF.Sin(angle));
                 target+=.008f*back*back*MathF.Exp(-MathF.Pow((panelHeight-1.035f)/.13f,2));
+                // The lower panel needs its own ease over the fitted pelvis,
+                // including when pelvis and chest rotate apart during pickup.
+                target+=.005f*back*back*MathF.Exp(-MathF.Pow((panelHeight-.89f)/.09f,2));
+                target+=.003f*lateral*MathF.Exp(-MathF.Pow((panelHeight-.875f)/.085f,2));
             }
-            else target+=.008f*lateral*MathF.Exp(-MathF.Pow((panelHeight-1.13f)/.10f,2));
+            else
+            {
+                float rib=MathF.Exp(-MathF.Pow((panelHeight-1.14f)/.095f,2));
+                float waist=MathF.Exp(-MathF.Pow((panelHeight-1.00f)/.085f,2));
+                target+=.018f*lateral*rib-.012f*lateral*waist;
+                target+=.008f*front*front*rib-.004f*front*front*waist;
+                float back=MathF.Max(0,MathF.Sin(angle));
+                target+=.006f*back*back*rib;
+            }
             target+=.020f*front*(1-Mathf.SmoothStep(.80f,.94f,panelHeight));
             float ratio=Math.Clamp(target/TrunkSample(GarmentFrameReference(),point.Y,angle),.65f,1.35f);
             ratio=Mathf.Lerp(1,ratio,active);fitted=new(point.X*ratio,point.Y,point.Z*ratio);
@@ -389,6 +404,11 @@ internal sealed partial class NatureModels
                 femaleShoulder/femaleHip>=maleShoulder/maleHip-.32f)
                 throw new InvalidOperationException($"Adult silhouette difference lost in {(distant?"distant":"near")} mesh: hip {femaleHip/maleHip:F3}, waist/hip {maleWaist/maleHip:F3}/{femaleWaist/femaleHip:F3}, shoulder/hip {maleShoulder/maleHip:F3}/{femaleShoulder/femaleHip:F3}");
             GD.Print($"ADULT_CONTOUR_SECTION: {(distant?"far":"near")} shoulder/hip={maleShoulder/maleHip:F3}/{femaleShoulder/femaleHip:F3}, waist/hip={maleWaist/maleHip:F3}/{femaleWaist/femaleHip:F3}, hip width={maleHip:F3}/{femaleHip:F3} m");
+            float rib=ClothSectionWidth(m,1.135f,maleDye)*male.Scale.X;
+            float thigh=ClothSectionWidth(female.Trousers!.Mesh,.60f)*female.Scale.X;
+            if(rib/maleWaist<1.24f||femaleHip/thigh<1.12f)
+                throw new InvalidOperationException($"Clothed rib/waist or pelvis/thigh silhouette loses its shape: {rib/maleWaist:F3}/{femaleHip/thigh:F3}");
+            GD.Print($"BODY_SILHOUETTE_PASS: {(distant?"far":"near")}, clothed rib/waist={rib/maleWaist:F3}, pelvis/thigh={femaleHip/thigh:F3}, fixed source joints");
         }
         float Front(Mesh mesh,float y)
         {

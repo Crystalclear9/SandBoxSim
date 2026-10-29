@@ -103,7 +103,7 @@ Godot 三平台导出包含模型 JSON、许可文本与导入纹理；发行包
 
 ## 连续衣装
 
-三套上衣采用 `relaxed-yoke-v7` 缝片构造。原始胸肩从 MakeHuman CC0 身体采样，`torso-cage.json` 和 `torso-feminine-cage.json` 保存 65×128 的胸肩支撑与来源哈希。当前运行体型另使用 [trunk-masculine-cage.json](../../src/SandBoxSim.Godot/assets/models/human/trunk-masculine-cage.json) 和 [trunk-feminine-cage.json](../../src/SandBoxSim.Godot/assets/models/human/trunk-feminine-cage.json)，各包含 113×128 个覆盖骨盆、腰背与胸廓的平面截面凸包采样。两套青年宏目标及原始基础体均来自现有已校验的 CC0 来源，不改变头脸、手部来源或许可。
+三套上衣采用 `faired-panel-v8` 连续缝片构造。原始胸肩从 MakeHuman CC0 身体采样，`torso-cage.json` 和 `torso-feminine-cage.json` 保存 65×128 的胸肩支撑与来源哈希。当前运行体型另使用 [trunk-masculine-cage.json](../../src/SandBoxSim.Godot/assets/models/human/trunk-masculine-cage.json) 和 [trunk-feminine-cage.json](../../src/SandBoxSim.Godot/assets/models/human/trunk-feminine-cage.json)，各包含 113×128 个覆盖骨盆、腰背与胸廓的平面截面凸包采样。两套青年宏目标及原始基础体均来自现有已校验的 CC0 来源，不改变头脸、手部来源或许可。
 
 `NatureModels.BodyFrame.cs` 根据三种原衣片的半径参考，拟合完整躯干并留出衣料松量。袖片按原始缝片坐标逐渐接回肩部，法线包含形变导数，网格拒绝局部翻折。当前 `lumbar-drape-v8` 分别调整胸廓宽度、骨盆侧缘和臀部后向体积，女性剪裁另调整胸前包络、腰带和工具挂点高度、骨盆关节间距及大腿上段轮廓，保留现有臂腿长度和动作控制；裤装、近远景及缓存均按体型区分。上衣保留原面数，近景新增骨盆衣料骨与连续腰背权重，肩侧斜度、袖片和实际关节同步；成人裤装改用下述连续来源表面及独立蒙皮。详细参数与局限见[成人身体说明](models.md)。
 
@@ -136,3 +136,5 @@ python -m unittest discover -s tools -p test_garment_pattern.py
 & ./.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe --background --factory-startup --disable-autoexec --python-exit-code 1 --python tools/export_resident_trousers.py -- --source .tools/sources/makehuman --output src/SandBoxSim.Godot/assets/models/human
 python -m unittest discover -s tools -p test_resident_trousers.py
 ```
+
+当前 `adult-proportions-v13` 在同一来源上分别处理胸廓／上背、腰线和骨盆／腿部轮廓。`tools/export_resident_trousers.py` 重新导出五骨连续裤装，男性 2,925 顶点／5,696 三角面，女性 2,731 顶点／5,296 三角面；输入来源及许可保留，运行时与工具测试固定校验成品 SHA-256。上髋松量同时覆盖弯身时的上衣低段，具体表现与边界见[模型系统](models.md)。
