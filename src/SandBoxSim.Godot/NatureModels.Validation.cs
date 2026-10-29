@@ -40,6 +40,7 @@ internal sealed partial class NatureModels
     {
         ValidateTorsoTextContract();
         ValidateBodyFrames();
+        ValidateLumbarClothing();
         ValidateContinuousTrousers();
         ValidateCeramics();
         ValidateThatch();

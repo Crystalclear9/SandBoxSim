@@ -1,4 +1,4 @@
-"""Validate source clothing provenance, topology and three-bone skinning."""
+"""Validate source clothing provenance, topology and five-bone skinning."""
 from pathlib import Path
 import hashlib
 import json
@@ -10,7 +10,7 @@ ROOT=Path(__file__).resolve().parents[1]/'src/SandBoxSim.Godot/assets/models/hum
 class TrouserTests(unittest.TestCase):
     def test_provenance_and_connected_clothing(self):
         manifest=json.loads((ROOT/'head-sources.json').read_text())['files']
-        for sex,sha in [('male','2c1fe9f0740a7ac72f2a3ac11d6c663cfc49085e25a3d4338db2ce0a924b2796'),('female','ca73c3bbd3d530593991eb7414fc636ace4f1c9facaba607c8fd6e39b2ae02e8')]:
+        for sex,sha in [('male','f0a0587a878a9b8e0a4b11afcb24c5e7092bb6d161b70e030c12a8452a3139c6'),('female','758686d5c2747707234acc299fed660f2b8ff592a39818e380c0385d024e0b65')]:
             raw=(ROOT/f'trousers-{sex}.mesh.json').read_bytes().replace(b'\r\n',b'\n');self.assertEqual(hashlib.sha256(raw).hexdigest(),sha)
             data=json.loads(raw);count=len(data['positions'])//3
             for name,digest in data['sourceSha256'].items():self.assertEqual(digest,manifest[name]['sha256'])
@@ -19,7 +19,12 @@ class TrouserTests(unittest.TestCase):
             self.assertGreater(count,2000);self.assertLessEqual(len(data['indices'])//3,10000)
             self.assertEqual(len(data['normals']),count*3);self.assertEqual(len(data['uv']),count*2)
             self.assertTrue(all(math.isfinite(v) for key in ['positions','normals','weights'] for v in data[key]))
-            self.assertEqual(len(data['weights']),count*4);self.assertEqual(set(data['bones']),{0,1,2})
+            self.assertEqual(data['schemaVersion'],2);self.assertEqual(data['jointCount'],5)
+            self.assertEqual(len(data['weights']),count*4);self.assertEqual(set(data['bones']),{0,1,2,3,4})
+            for i in range(count):
+                if data['positions'][i*3+1]<.40:
+                    expected=3 if data['positions'][i*3]<0 else 4
+                    self.assertAlmostEqual(sum(w for b,w in zip(data['bones'][i*4:i*4+4],data['weights'][i*4:i*4+4]) if b==expected),1,places=6)
             for i in range(count):self.assertAlmostEqual(sum(data['weights'][i*4:i*4+4]),1,places=5)
             adjacency=[set() for _ in range(count)];edges=Counter()
             ids=data['indices'];self.assertEqual(set(ids),set(range(count)))

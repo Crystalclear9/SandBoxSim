@@ -100,7 +100,7 @@ for sex in ('male','female'):
     result=bpy.data.meshes.new_from_object(evaluated)
     bm=bmesh.new();bm.from_mesh(result);bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces));bm.to_mesh(result);bm.free()
     result.update();result.calc_loop_triangles()
-    data=dict(schemaVersion=1,source='MakeHuman CC0 HM08 helper-tights',frame=sex,hipHalfWidth=half,
+    data=dict(schemaVersion=2,source='MakeHuman CC0 HM08 helper-tights',frame=sex,hipHalfWidth=half,jointCount=5,cuffSkin='knee-transition-v1',
         sourceSha256={name:manifest[name]['sha256'] for name in ('base.obj','basemesh_vertex_groups.json',f'caucasian-{sex}-young.target','caucasian-male-young.target')},
         supportSha256=hashlib.sha256(support_path.read_bytes().replace(b'\r\n',b'\n')).hexdigest(),positions=[],normals=[],uv=[],bones=[],weights=[],indices=[])
     for v in result.vertices:
@@ -109,7 +109,12 @@ for sex in ('male','female'):
         data['uv']+= [round(p.x*3+.5,7),round(p.y*3,7)]
         t=min(1.,max(0.,(.84-p.y)/.18));t=t*t*(3-2*t)
         side=min(1.,max(0.,(p.x+.035)/.070));side=side*side*(3-2*side)
-        data['bones']+=[0,1,2,0];data['weights']+=[round(1-t,7),round(t*(1-side),7),round(t*side,7),0]
+        knee=1-min(1.,max(0.,(p.y-.40)/.13));knee=knee*knee*(3-2*knee)
+        if knee>0:
+            data['bones']+=[1,2,3,4]
+            data['weights']+=[round((1-knee)*(1-side),7),round((1-knee)*side,7),round(knee*(1-side),7),round(knee*side,7)]
+        else:
+            data['bones']+=[0,1,2,0];data['weights']+=[round(1-t,7),round(t*(1-side),7),round(t*side,7),0]
     for tri in result.loop_triangles:data['indices']+= [tri.vertices[0],tri.vertices[2],tri.vertices[1]]
     if not data['indices'] or len(data['indices'])//3>10000:raise ValueError('Trouser budget exceeded')
     target=out/f'trousers-{sex}.mesh.json'

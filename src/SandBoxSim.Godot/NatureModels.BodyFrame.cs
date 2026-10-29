@@ -52,7 +52,7 @@ internal sealed partial class NatureModels
     private Vector3 FramePoint(Vector3 point,float sleeve=0,bool tailored=false)
     {
         bool feminine=BodyFrame==1;
-        float active=Mathf.SmoothStep(.735f,.785f,point.Y)*(1-Mathf.SmoothStep(1.19f,1.27f,point.Y));
+        float active=Mathf.SmoothStep(.70f,.735f,point.Y)*(1-Mathf.SmoothStep(1.19f,1.27f,point.Y));
         var fitted=point;
         if(active>0&&point.X*point.X+point.Z*point.Z>.00001f)
         {
@@ -62,16 +62,25 @@ internal sealed partial class NatureModels
             // Fit the source skin's complete thorax/lumbar/pelvic envelope.
             // Millimetre-scale ease bridges the skin, rather than shrinking
             // every body part with one sex-dependent actor scale.
-            float target=TrunkSample(feminine?_trunkFeminine:_trunkMale,point.Y,angle)+.009f;
+            var support=feminine?_trunkFeminine:_trunkMale;
+            float supportY=MathF.Max(.80f,point.Y);
+            // Cloth spans small anatomical hollows. Average neighbouring body
+            // sections instead of printing their abrupt changes onto the shirt.
+            float target=(TrunkSample(support,supportY-.024f,angle)+4*TrunkSample(support,supportY-.012f,angle)+
+                6*TrunkSample(support,supportY,angle)+4*TrunkSample(support,supportY+.012f,angle)+TrunkSample(support,supportY+.024f,angle))/16+.010f;
             target+=.004f*MathF.Exp(-MathF.Pow((point.Y-1.01f)/.10f,2));
+            // Below the belt, cloth must clear the forward-moving thighs.
+            // This relaxed front panel replaces a tight, intersecting hem.
+            target+=.030f*front*(1-Mathf.SmoothStep(.80f,.94f,point.Y));
             if(feminine)
             {
                 // A broad woven-cloth bust envelope bridges the sternum. It
                 // does not add separate spherical breasts or surface nipples.
-                float chestSupport=.70f+.30f*MathF.Exp(-MathF.Pow((MathF.Abs(point.X)-.070f)/.045f,2));
-                target+=.042f*chestSupport*front*front*MathF.Exp(-MathF.Pow((point.Y-1.135f)/.065f,2));
+                float chestSupport=.85f+.15f*MathF.Exp(-MathF.Pow((MathF.Abs(point.X)-.070f)/.055f,2));
+                target+=.028f*chestSupport*front*front*MathF.Exp(-MathF.Pow((point.Y-1.135f)/.085f,2));
                 float lateral=MathF.Cos(angle)*MathF.Cos(angle),back=MathF.Max(0,MathF.Sin(angle));
-                target+=(.014f*lateral+.009f*back*back)*MathF.Exp(-MathF.Pow((point.Y-.815f)/.095f,2));
+                target+=(.004f*lateral+.005f*back*back)*MathF.Exp(-MathF.Pow((point.Y-.815f)/.11f,2));
+                target+=.015f*back*back*MathF.Exp(-MathF.Pow((point.Y-1.03f)/.11f,2));
                 target-=.004f*lateral*MathF.Exp(-MathF.Pow((point.Y-1.025f)/.07f,2));
             }
             else
@@ -90,10 +99,13 @@ internal sealed partial class NatureModels
         float upper=MathF.Max(sleeve,Mathf.SmoothStep(1.19f,1.27f,point.Y));
         var sleevePoint=new Vector3(point.X*(feminine?.88f:1.04f),point.Y,point.Z);
         var result=fitted.Lerp(sleevePoint,upper);
+        // A continuous neck-to-acromion slope, carried through the entire
+        // sleeve. The joint rest and inverse bind receive the same drop.
+        result.Y-=(feminine?.014f:.009f)*Mathf.SmoothStep(.065f,.18f,MathF.Abs(point.X))*MathF.Max(sleeve,Mathf.SmoothStep(1.08f,1.23f,point.Y));
         // Fit the garment's lower panel independently of the pelvis/trousers.
         // The raised hem still overlaps the trouser waist; sleeves and rigid
         // equipment retain their original length and attachment transforms.
-        if(feminine&&tailored)result.Y+=.045f*(1-Mathf.SmoothStep(.75f,.90f,point.Y));
+        if(feminine&&tailored)result.Y+=.045f*(1-Mathf.SmoothStep(.78f,1.12f,point.Y));
         return result;
     }
     private Mesh FrameMesh(Mesh source,Transform3D space,bool tailored=false)
@@ -124,6 +136,17 @@ internal sealed partial class NatureModels
                 points[i]=inverse*Fit(p);
                 if(!points[i].IsFinite()||!normals[i].IsFinite())throw new InvalidOperationException("Invalid frame geometry");
             }
+            var bones=arrays[(int)Mesh.ArrayType.Bones].VariantType==Variant.Type.Nil?Array.Empty<int>():arrays[(int)Mesh.ArrayType.Bones].AsInt32Array();
+            var weights=arrays[(int)Mesh.ArrayType.Weights].VariantType==Variant.Type.Nil?Array.Empty<float>():arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();
+            if(tailored&&bones.Length==points.Length*4)
+                for(int i=0;i<points.Length;i++)
+                {
+                    float lower=ResidentRig.PelvicClothWeight(points[i].Y);
+                    // Retain the authored arm weights. Its unused fourth slot
+                    // carries the lower trunk, avoiding a rigid torso plank.
+                    float amount=weights[i*4]*lower;weights[i*4]-=amount;bones[i*4+3]=3;weights[i*4+3]=amount;
+                }
+            if(bones.Length>0){arrays[(int)Mesh.ArrayType.Bones]=bones;arrays[(int)Mesh.ArrayType.Weights]=weights;}
             arrays[(int)Mesh.ArrayType.Vertex]=points;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.Tangent]=default(Variant);
             result.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);result.SurfaceSetMaterial(s,source.SurfaceGetMaterial(s));
         }
@@ -140,7 +163,7 @@ internal sealed partial class NatureModels
                 if(child is not Node3D node||node==rig.Head||node==rig.Arms[0]||node==rig.Arms[1])continue;
                 if(node==rig.Holster||node==rig.PackMount||node==rig.SatchelMount)
                 {
-                    var origin=space*node.Position;var fitted=FramePoint(origin);
+                    var origin=space*node.Position;var fitted=FramePoint(origin,0,true);
                     if(node==rig.PackMount)fitted.Z+=FramePoint(new Vector3(0,1.15f,origin.Z)).Z-origin.Z;
                     node.Position=space.AffineInverse()*fitted;
                     continue; // Mounted tools and packs retain their rigid shape.
@@ -164,6 +187,8 @@ internal sealed partial class NatureModels
         // The fitted sleeve vertices, joint rest and inverse bind must move
         // together. Scaling the mesh alone leaves a male-width moving rig.
         rig.ShoulderHalfWidth=.202f*(BodyFrame==1?.88f:1.04f);
+        rig.ShoulderDrop=BodyFrame==1?.014f:.009f;
+        rig.ShoulderSkeleton.AddBone("PelvicCloth");rig.ShoulderSkeleton.SetBoneParent(3,0);rig.ShoulderSkeleton.SetBoneRest(3,Transform3D.Identity);
         var skin=new Skin();skin.AddBind(0,Transform3D.Identity);
         for(int side=0;side<2;side++)
         {
@@ -171,7 +196,9 @@ internal sealed partial class NatureModels
             rig.ShoulderSkeleton.SetBoneRest(side+1,new Transform3D(Basis.Identity,rest));
             skin.AddBind(side+1,new Transform3D(Basis.Identity,-rest));
         }
+        skin.AddBind(3,Transform3D.Identity);
         rig.ShoulderSkeleton.ResetBonePoses();rig.DetailedBodySkin=skin;rig.BodySkin.Skin=skin;
+        rig.CaptureBodyMounts();
     }
     private void ValidateBodyFrames()
     {
@@ -247,7 +274,7 @@ internal sealed partial class NatureModels
             {
                 rig.PoseAction(1f/60,action,SandBoxSim.Core.Agents.ActionPhase.Executing,false,0);
                 if(rig==female)foreach(var point in rim)
-                    if((rig.Torso.Transform*point).Y>.850f)
+                    if((rig.Torso.Transform*point.Lerp(rig.PelvicClothPose*point,ResidentRig.PelvicClothWeight(point.Y))).Y>.850f)
                         throw new InvalidOperationException("Raised shirt hem exposes a gap above the trouser waist during an action");
                 for(int side=0;side<2;side++)
                 {

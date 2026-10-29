@@ -8,7 +8,11 @@
 
 `resident-face-frames.png` 为男女成人外观的正面及三刻面，来自公开 `visual-face-frames` 第 90 帧，1600×1000。身份 17 与 55 使用相同衣色、肤色及布光；头宽独立于身体随机宽度，来源额部 RGB 参考及曝光在线性颜色空间校准，保留照片局部色差。`resident-work-effort.gif` 为同一手锤的男女外观、良好／疲劳状态四格对照，1280×800、102 帧、6.8 秒，按 60 Hz 每四步采样一次；`resident-work-effort.png` 为公开场景第 180 帧，1600×1000。静态头脸、体型和作业图反映当前成人分区轮廓，GIF 保留其控制器采样版本。作业对照镜头为正交尺寸 1.15、目标 (0, 1.05, 0)，展示上身与握柄。两套公开场景均冻结模拟，动画照常推进；系数是表现参数，不能由图像推断真实力量。
 
-`resident-body-frames.png` 使用 `continuous-lower-body-v7`，来自公开 `visual-body-frames.json` 第 90 帧，1600×1000；宽屏下为单排六列，依次配对展示男女外观的正面、侧面、背面；小于 1500 像素宽时回到三列多排布局。身份 17 与 55 使用无职业装备的标准衣装、相同衣色、肤色与布光，保留真实头脸及身体模型；腰带按实际体型处于不同高度，女性上衣低段缩短，胸前包络按左右区域分布；成人下身使用当前连续骨盆—臀腿裤装与实际三骨蒙皮。正交尺寸 1.80，目标 (0, 0.82, 0)，相机相对位置依次为 (0.05, 0.04, 4)、(4, 0.04, 0.2)、(0.05, 0.04, −4)，完整显示膝部与鞋底。旧四格胸腰构图不再是这张配图的采样基线。`resident-work-effort.png` 同步使用当前完整躯干拟合。
+`resident-body-frames.png` 使用 `lumbar-drape-v8`，来自公开 `visual-body-frames.json` 第 90 帧，1600×1000；宽屏下为单排六列，依次配对展示男女外观的正面、侧面、背面；小于 1500 像素宽时回到三列多排布局。身份 17 与 55 使用无职业装备的标准衣装、相同衣色、肤色与布光，保留真实头脸及身体模型；腰带按实际体型处于不同高度，女性上衣低段缩短，胸前包络按左右区域分布；成人下身使用当前连续骨盆—臀腿裤装与实际五骨蒙皮。正交尺寸 1.80，目标 (0, 0.82, 0)，相机相对位置依次为 (0.05, 0.04, 4)、(4, 0.04, 0.2)、(0.05, 0.04, −4)，完整显示膝部与鞋底。旧四格胸腰构图不再是这张配图的采样基线。`resident-work-effort.png` 同步使用当前完整躯干拟合。
+
+全身对照、身体动态、作业静态图与全身观察窗使用 2026-10-29 的当前采样。
+
+`resident-body-motion.png` 为公开 `visual-body-motion.json` 第 180 帧，1600×1000；同视角配对站立、行走和拾取，实际 `lumbar-drape-v8` 蒙皮与放松站姿。镜头正交尺寸 2.25、目标 (0, 0.82, 0)、相对位置 (1.8, 0.08, 4)，不移动或缩放模型。
 
 `resident-forearm-frames.png` 为公开 `visual-forearm-frames.json` 第 90 帧的小臂对照，正交尺寸 0.46，1600×1000，使用实际分离观察网格，不代表游戏中存在开放切口。头脸、小臂专题及动作 GIF 保留各自采样，`regional-adult-v2` 头脸与小臂映射未改变；GIF 展示控制器的运动节奏，成人躯干局部轮廓以全身三视图与当前作业静态图为准。
 
@@ -28,7 +32,8 @@
 |---|---|
 | `resident-face-frames.png` | 当前成人眉弓、下颌与颈部的正面和三刻面；`face-frames` |
 | `resident-work-effort.png`、`resident-work-effort.gif` | 当前作业节奏与状态对照；`work-effort` |
-| `resident-body-frames.png` | 男性／女性成人外观的同衣色胸腰与上肢正侧面；`body-frames` |
+| `resident-body-frames.png` | 男性／女性成人外观的同衣色全身正侧背面；`body-frames` |
+| `resident-body-motion.png` | 站立、行走、弯身拾取的六格配对；`body-motion` |
 | `resident-forearm-frames.png` | 两种外观的小臂掌侧、背侧与侧面；`forearm-frames` |
 | `world-camera-controls.png` | 按需展开的镜头预设、真实选中反馈与鼠标说明；实际点击“视角与操作” |
 | `tool-palette.png` | 416 像素工具库、分类和搜索、最近四种工具；实际跨分类选择后采样 |
@@ -63,7 +68,7 @@
 
 建筑、人物动物、面部、衣装、生态、网格近景、地形远近景、工具库、现场手记、人物手记、镜头面板、展开观察窗及其手部／全身视图更新于 2026-10-27；花甸专题保留 2026-10-26 采样，均为原生 Godot 渲染。普通配图为 1600×1000；紧凑工具库为 1280×800，灌丛独立近景为 1200×900，使用同一图册模型、正交尺寸 0.27、目标点 (0.229, 0.591, -0.022)，等待 120 帧后采样。工具库两图在实际选择四种工具后采样，紧凑图记录菜单展开状态。镜头面板另检查实际按钮焦点下的空格暂停／继续、Esc 返回和全景平移后的选中反馈。图册使用实际游戏网格、独立展示环境，模拟暂停，等待 120 帧后采样；普通世界预览等待 2 秒。生活／决策／侧光、物资与工具状态由实际命中检查的鼠标事件回放后采样，回放先用空格暂停世界，并核对工具库实际可见、手记收起；缩略入口另检查 Enter 打开、Esc 焦点返回，以及手部背面观察关闭后仍显示面部；改名检查实际键盘保存、取消和换居民丢弃草稿。沉浸图使用 F10 后采样。手部与全身分别来自公开 `ui-portrait-window` 场景第 130／170 帧。界面和普通世界使用种子 839102、40 人，无预先天数推进；花甸预览暂停模拟。
 
-当前运行另记录 `reachMotion=palm-trajectory-v2`、`workEffort=relative-load-v1`、`bodyFrame=continuous-lower-body-v7`、`faceContour=regional-adult-v2` 和 `toolMotion=velocity-continuity-v1`；旧专题保留采样时实现，不能据新标签重解释旧图。字体策略为 `fontProfile=noto-packaged-v1`。对应 `interface=resident-framing-memory-v28`、`architecture=inset-joinery-v13`、`animalPresentation=source-paw-contours-v11`、`landscapeSurface=coverage-mosaic-v6`、`habitatDetail=stratified-meadow-v10`、`residentSurface=linear-skin-v9`、`vegetationSurface=engine-faced-v2`、`wildFlora=arched-bramble-v1`、`waterSurface=constrained-bank-v6`、`handSurface=anatomical-regions-v1`、`portrait.studio=continuous-inspector-v9`、`wristContour=source-oval-v1` 、`hairline=source-root-v1`、`reedPanicle=connected-axis-v1` 和 `garmentMaterial=relaxed-yoke-linen-v14`。动物半闭眼／全闭眼的强制参数图仅用于本地检查，不替代这里的正常运行配图。
+当前运行另记录 `reachMotion=palm-trajectory-v2`、`workEffort=relative-load-v1`、`bodyFrame=lumbar-drape-v8`、`faceContour=regional-adult-v2` 和 `toolMotion=velocity-continuity-v1`；旧专题保留采样时实现，不能据新标签重解释旧图。字体策略为 `fontProfile=noto-packaged-v1`。对应 `interface=resident-framing-memory-v28`、`architecture=inset-joinery-v13`、`animalPresentation=source-paw-contours-v11`、`landscapeSurface=coverage-mosaic-v6`、`habitatDetail=stratified-meadow-v10`、`residentSurface=linear-skin-v9`、`vegetationSurface=engine-faced-v2`、`wildFlora=arched-bramble-v1`、`waterSurface=constrained-bank-v6`、`handSurface=anatomical-regions-v1`、`portrait.studio=continuous-inspector-v9`、`wristContour=source-oval-v1` 、`hairline=source-root-v1`、`reedPanicle=connected-axis-v1` 和 `garmentMaterial=relaxed-yoke-linen-v14`。动物半闭眼／全闭眼的强制参数图仅用于本地检查，不替代这里的正常运行配图。
 
 地形远景使用普通世界入口；近景加 `--view=near`。两图用于查看实际扫描草叶地面、山坡、岸线和贴地，属于普通客户端采样，不作为固定帧评测成绩。
 

@@ -192,11 +192,14 @@ internal partial class ResidentRig : Node3D
         var stance=WorkSupport(delta,executing&&usingTool&&ToolHeld&&wanted==CurrentTool&&!_carrying,
             (1-_activity)*(1-Smooth(_pickupBlend)));
         float effort=executing&&usingTool?(.5f-WorkLift(_strokePhase+.035f))*.045f*RelativeWorkLoad*Smooth(_workBlend):0;
-        float desiredLean=resting?-.16f:pickup?-.58f:usingTool?-.035f-.065f*Smooth(_workBlend)-effort:.025f*_activity;
+        float desiredLean=resting?-.16f:pickup?-.58f:usingTool?-.035f-.065f*Smooth(_workBlend)-effort:.025f*_activity+.007f*MathF.Sin(_phase*.53f+identityPhase)*(1-_activity);
         var torsoAngles=Torso.Rotation;
         DampMotion(ref torsoAngles,ref _torsoVelocity,new(desiredLean,usingTool?effort*1.8f:0,wave*.018f*_activity),.060f,delta);
         var torsoBasis=Basis.FromEuler(torsoAngles);
-        var hip=new Vector3(0,HipHeight,0);Torso.Transform=new(torsoBasis,hip-torsoBasis*hip+stance.Hip+Vector3.Up*vertical+Vector3.Right*(resting||pickup||usingTool?0:MathF.Sin(_phase*.33f+identityPhase)*.008f*(1-_activity)));
+        var restSupport=RestSupport(delta,!moving&&!usingTool&&!resting&&!pickup,identityPhase);
+        var translation=stance.Hip+Vector3.Up*vertical+restSupport;
+        var hip=new Vector3(0,HipHeight,0);Torso.Transform=new(torsoBasis,hip-torsoBasis*hip+translation);
+        UpdateBodyBend(stance.Hip+restSupport-Vector3.Up*(.094f*Smooth(_pickupBlend)));
         _socialBlend=Mathf.MoveToward(_socialBlend,executing&&action==ActionKind.Socialize?1:0,delta/.70f);
         _attentionYaw=Mathf.Lerp(_attentionYaw,_wantedAttention,1-MathF.Exp(-delta*6));
         float expressionPhase=identityPhase+ExpressionPhase;
@@ -209,10 +212,11 @@ internal partial class ResidentRig : Node3D
         {
             Arms[i].Position=ShoulderRest(i);
             float stride=wave*(i==0?1:-1)*_activity;
-            Legs[i].Position=new Vector3(i==0?-HipHalfWidth:HipHalfWidth,HipHeight-.094f*Smooth(_pickupBlend),0)+stance.Hip;
+            Legs[i].Position=new Vector3(i==0?-HipHalfWidth:HipHalfWidth,HipHeight-.094f*Smooth(_pickupBlend),0)+stance.Hip+restSupport;
             Legs[i].Rotation=new(Mathf.Lerp(stride*.44f,.55f,Smooth(_pickupBlend))+stance.Thigh,0,0);
             Knees[i].Rotation=new(Mathf.Lerp(-MathF.Max(0,-stride)*.65f,-1.1f,Smooth(_pickupBlend))+stance.Knee,0,0);
             Feet[i].Rotation=new(-(Legs[i].Rotation.X+Knees[i].Rotation.X),0,0);
+            if(_restSupport>.00001f)PlantRestLeg(i);
             float relaxed=(1-_activity)*(usingTool||pickup||resting?0:1);
             float side=i==0?1:-1;
             Arms[i].Rotation=new(-stride*.32f-.045f*relaxed,side*.025f*relaxed,side*(.035f-ArmRestClearance*(usingTool||pickup||resting?0:1)));

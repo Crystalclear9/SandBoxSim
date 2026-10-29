@@ -42,7 +42,7 @@ internal sealed class EvaluationSpec
     public void Validate()
     {
         if(SchemaVersion!=1||(Id==null||!System.Text.RegularExpressions.Regex.IsMatch(Id,"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"))||Agents<0||Agents>2000||PreviewDays<0||PreviewDays>30||WarmupFrames<3||WarmupFrames>3600||MeasuredFrames<2||MeasuredFrames>36000||TicksPerFrame<0||TicksPerFrame>20||!double.IsFinite(MinimumFps)||MinimumFps<0||MinimumFps>10000||string.IsNullOrWhiteSpace(OutputDirectory))throw new ArgumentException("Invalid evaluation limits");
-        if(!new[]{"field","tools","trails","homes","farms","person","person-hands","architecture","characters","faces","equipment","actions","hands","naturemodels","model-details","ecology-details","animal-details","animal-heads","wardrobe","body-frames","forearm-frames","face-frames","work-effort"}.Contains(Panel))throw new ArgumentException("Unknown evaluation panel");
+        if(!new[]{"field","tools","trails","homes","farms","person","person-hands","architecture","characters","faces","equipment","actions","hands","naturemodels","model-details","ecology-details","animal-details","animal-heads","wardrobe","body-frames","body-motion","forearm-frames","face-frames","work-effort"}.Contains(Panel))throw new ArgumentException("Unknown evaluation panel");
         if(CaptureFrames==null||Commands==null||Commands.Length>4096||CaptureFrames.Length>32||CaptureFrames.Distinct().Count()!=CaptureFrames.Length||CaptureFrames.Any(f=>f<3||f>=WarmupFrames+MeasuredFrames))throw new ArgumentException("Invalid capture schedule");
         if((Panel is "person" or "person-hands")&&Agents==0)throw new ArgumentException("Resident panel requires a population");
         foreach(var e in Commands)

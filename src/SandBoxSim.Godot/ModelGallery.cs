@@ -61,6 +61,16 @@ internal partial class ModelGallery : PanelContainer
                 Closeup(grid,(frame==0?"男性外观":"女性外观")+(view==0?" · 正面":view==1?" · 侧面":" · 背面"),
                     models.Resident(frame==0?17:55,false,JobType.None),1.80f,new(0,.82f,0),view==0?new(.05f,.04f,4):view==1?new(4,.04f,.2f):new(.05f,.04f,-4),true);
         }
+        else if(Collection=="body-motion")
+        {
+            grid.Columns=GetViewportRect().Size.X>=1500?6:3;body.GetChild<Label>(0).Text="身体动态 · 站立、行走与弯身时的胸廓和骨盆";
+            for(int action=0;action<3;action++)for(int frame=0;frame<2;frame++)
+            {
+                var rig=models.Resident(frame==0?17:55,false,JobType.None);
+                Closeup(grid,(frame==0?"男性外观":"女性外观")+(action==0?" · 放松站立":action==1?" · 行走":" · 弯身拾取"),rig,2.25f,new(0,.82f,0),new(1.8f,.08f,4),true);
+                Animate(rig,action==0?ActionKind.None:action==1?ActionKind.Wander:ActionKind.Take);
+            }
+        }
         else if(Collection=="forearm-frames")
         {
             grid.Columns=3;body.GetChild<Label>(0).Text="小臂体积与腕部过渡 · 两种成人外观";
@@ -215,7 +225,7 @@ internal partial class ModelGallery : PanelContainer
         _elapsed+=(float)delta;
         float cycle=_elapsed%6.8f;
         foreach(var animal in _animals)animal.Pose((float)delta,Collection is not ("model-details" or "animal-details" or "animal-heads")&&((int)(_elapsed/3)%3)!=0,false,Collection is not ("model-details" or "animal-details" or "animal-heads")&&((int)(_elapsed/3)%3)==0);
-        foreach(var (rig,action) in _animated)rig.PoseAction((float)delta,action,cycle>.65f&&cycle<4.5f?ActionPhase.Executing:ActionPhase.Idle,false,0);
+        foreach(var (rig,action) in _animated)rig.PoseAction((float)delta,action,Collection=="body-motion"&&action==ActionKind.Wander?ActionPhase.Moving:cycle>.65f&&cycle<4.5f?ActionPhase.Executing:ActionPhase.Idle,false,0);
         foreach(var (rig,camera) in _handViews)
         {
             var target=rig.Hands[1].GlobalPosition+new Vector3(0,.015f,0);

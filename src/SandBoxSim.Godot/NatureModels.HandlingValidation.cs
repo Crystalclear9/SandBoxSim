@@ -192,9 +192,9 @@ internal sealed partial class NatureModels
                 {
                     for(int j=0;j<4;j++)
                     {
-                        int bone=garmentBones[i*4+j];if(bone==0||garmentWeights[i*4+j]<.99f)continue;
-                        var arm=rig.Arms[bone-1];var bind=new Vector3(bone==1?-.202f:.202f,ResidentRig.BodyY(1.18f),0);
-                        var point=arm.Transform*(garmentPoints[i]-bind);
+                        int bone=garmentBones[i*4+j];if(bone is not (1 or 2)||garmentWeights[i*4+j]<.99f)continue;
+                        var arm=rig.Arms[bone-1];
+                        var point=arm.Transform*(rig.DetailedBodySkin.GetBindPose(bone)*garmentPoints[i]);
                         var cuff=arm.Transform*new Vector3(0,-.253f,0);
                         if(point.DistanceTo(cuff)>.09f)throw new InvalidOperationException("Continuous sleeve separates from moving cuff");
                     }
@@ -295,7 +295,11 @@ internal sealed partial class NatureModels
                 for(int i=0;i<vertices.Length;i++)
                 {
                     var p=vertices[i];int side=weights[i].G<.5f?0:1;
-                    var moved=rig.Arms[side].Transform*(p-rig.ShoulderRest(side));
+                    // This legacy diagnostic bridge is stored in its source
+                    // rest frame. The visible shirt's fitted bind/cuff is
+                    // checked above and in ValidateGarmentMotion.
+                    var sourceRest=new Vector3(side==0?-.202f:.202f,ResidentRig.BodyY(1.18f),0);
+                    var moved=rig.Arms[side].Transform*(p-sourceRest);
                     var deformed=p.Lerp(moved,weights[i].R);
                     if(!deformed.IsFinite())throw new InvalidOperationException("Invalid shoulder deformation");
                     if(weights[i].R==0)

@@ -39,8 +39,8 @@ internal sealed partial class NatureModels
                     {
                         rig.PresentAction(1f/30,action,phase,false,.73f);
                         if(frame%15!=14)continue;
-                        var transforms=new Transform3D[3];
-                        for(int bone=0;bone<3;bone++)
+                        var transforms=new Transform3D[4];
+                        for(int bone=0;bone<4;bone++)
                             transforms[bone]=rig.ShoulderSkeleton.GetBonePose(bone)*rig.DetailedBodySkin.GetBindPose(bone);
                         for(int side=0;side<2;side++)
                         {
@@ -56,9 +56,13 @@ internal sealed partial class NatureModels
                             for(int j=0;j<4;j++)point+=(transforms[bones[i*4+j]]*source[i])*weights[i*4+j];
                             if(!point.IsFinite())throw new InvalidOperationException("Non-finite garment action deformation");
                             posed[i]=point;
-                            if((MathF.Abs(source[i].X)<.04f||source[i].Y<.90f||(source[i].Y>1.25f&&seam[i].X<=0))&&point.DistanceTo(source[i])>.000002f)
-                                throw new InvalidOperationException("Arm motion pulls the garment centre, neckline or waist");
-                            if(seam[i].X<0&&source[i].Y<ResidentRig.BodyY(1.18f)-.10f&&point.DistanceTo(source[i])>.035f)
+                            // Godot quantizes skin weights to 16 bits. Compare
+                            // with the decoded weights actually rendered, not
+                            // an ideal sum=1 that introduces a 10–20 μm error.
+                            var trunk=source[i]*(weights[i*4]+weights[i*4+1]+weights[i*4+2])+(rig.PelvicClothPose*source[i])*weights[i*4+3];
+                            if((MathF.Abs(source[i].X)<.04f||source[i].Y<.90f||(source[i].Y>1.25f&&seam[i].X<=0))&&point.DistanceTo(trunk)>.000002f)
+                                throw new InvalidOperationException($"Arm motion pulls the garment centre, neckline or pelvic waist: {identity}/{job}/{action}, source={source[i]}, posed={point}, expected={trunk}, weights={weights[i*4]}/{weights[i*4+1]}/{weights[i*4+2]}/{weights[i*4+3]}");
+                            if(seam[i].X<0&&source[i].Y<ResidentRig.BodyY(1.18f)-.10f&&point.DistanceTo(trunk)>.035f)
                                 throw new InvalidOperationException("Arm motion drags the lower side chest into a wing");
                             if(seam[i].X>.2629f)
                             {

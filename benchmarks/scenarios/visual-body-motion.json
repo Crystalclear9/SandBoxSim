@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "visual-body-motion",
+  "seed": 839102,
+  "agents": 40,
+  "previewDays": 0,
+  "warmupFrames": 60,
+  "measuredFrames": 300,
+  "ticksPerFrame": 0,
+  "minimumFps": 0,
+  "panel": "body-motion",
+  "outputDirectory": "runs/evaluation/visual-body-motion",
+  "captureFrames": [90, 180, 270, 330]
+}

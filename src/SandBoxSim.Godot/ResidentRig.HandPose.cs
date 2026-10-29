@@ -186,8 +186,8 @@ internal partial class ResidentRig
         var lowerBasis=LimbFrame((wrist-elbow).Normalized(),handBasis.X)*new Basis(new Quaternion(Hands[side].Position.Normalized(),Vector3.Down));
         Arms[side].Basis=upperBasis;Elbows[side].Basis=upperBasis.Inverse()*lowerBasis;Hands[side].Basis=lowerBasis.Inverse()*handBasis;
     }
-    internal float ShoulderHalfWidth=.202f;
-    internal Vector3 ShoulderRest(int side)=>new(side==0?-ShoulderHalfWidth:ShoulderHalfWidth,BodyY(1.18f),0);
+    internal float ShoulderHalfWidth=.202f,ShoulderDrop;
+    internal Vector3 ShoulderRest(int side)=>new(side==0?-ShoulderHalfWidth:ShoulderHalfWidth,BodyY(1.18f)-ShoulderDrop,0);
     private Vector3 ShoulderForReach(int side,Vector3 wrist)
     {
         var rest=ShoulderRest(side);var reach=wrist-rest;

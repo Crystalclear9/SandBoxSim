@@ -85,14 +85,6 @@ MakeHuman HM08 helper-tights clothing geometry and the verified young
 male/female macro targets in head-sources.json. SandBoxSim retargets limb
 centrelines, crops the waist and cuffs, removes disconnected helper parts,
 fits hidden waist layers and boot overlap, subdivides, recalculates normals
-and assigns waist/left-thigh/right-thigh skinning. Each file records input
-and support hashes. Exporter: tools/export_resident_trousers.py.
-
-CONTINUOUS TROUSERS (CC0)
-trousers-male.mesh.json and trousers-female.mesh.json derive from the
-MakeHuman HM08 helper-tights clothing geometry and the verified young
-male/female macro targets in head-sources.json. SandBoxSim retargets limb
-centrelines, crops the waist and cuffs, removes disconnected helper parts,
-fits hidden waist layers and boot overlap, subdivides, recalculates normals
-and assigns waist/left-thigh/right-thigh skinning. Each file records input
+and assigns waist, left/right thigh and left/right knee skinning. The cuffs
+blend to the knee joints to retain boot contact. Each file records input
 and support hashes. Exporter: tools/export_resident_trousers.py.

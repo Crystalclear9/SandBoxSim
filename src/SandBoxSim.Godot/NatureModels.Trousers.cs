@@ -12,19 +12,19 @@ internal sealed partial class NatureModels
         if(_meshes.TryGetValue(key,out var cached))return cached;
         string raw=FileAccess.GetFileAsString("res://assets/models/human/trousers-"+frame+".mesh.json").Replace("\r\n","\n",StringComparison.Ordinal);
         string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
-        if(hash!=(BodyFrame==1?"ca73c3bbd3d530593991eb7414fc636ace4f1c9facaba607c8fd6e39b2ae02e8":"2c1fe9f0740a7ac72f2a3ac11d6c663cfc49085e25a3d4338db2ce0a924b2796"))
+        if(hash!=(BodyFrame==1?"758686d5c2747707234acc299fed660f2b8ff592a39818e380c0385d024e0b65":"f0a0587a878a9b8e0a4b11afcb24c5e7092bb6d161b70e030c12a8452a3139c6"))
             throw new InvalidOperationException("Changed source trousers");
         using var doc=JsonDocument.Parse(raw);var data=doc.RootElement;
         float[] Floats(string field){var a=new float[data.GetProperty(field).GetArrayLength()];int i=0;foreach(var v in data.GetProperty(field).EnumerateArray())a[i++]=v.GetSingle();return a;}
         int[] Ints(string field){var a=new int[data.GetProperty(field).GetArrayLength()];int i=0;foreach(var v in data.GetProperty(field).EnumerateArray())a[i++]=v.GetInt32();return a;}
         var p=Floats("positions");var n=Floats("normals");var uv=Floats("uv");var b=Ints("bones");var w=Floats("weights");var ids=Ints("indices");int count=p.Length/3;
-        if(data.GetProperty("schemaVersion").GetInt32()!=1||count==0||n.Length!=p.Length||uv.Length!=count*2||b.Length!=count*4||w.Length!=b.Length||ids.Length==0||ids.Length>30000)
+        if(data.GetProperty("schemaVersion").GetInt32()!=2||data.GetProperty("jointCount").GetInt32()!=5||count==0||n.Length!=p.Length||uv.Length!=count*2||b.Length!=count*4||w.Length!=b.Length||ids.Length==0||ids.Length>30000)
             throw new InvalidOperationException("Invalid continuous trousers");
         var points=new Vector3[count];var normals=new Vector3[count];var coords=new Vector2[count];
         for(int i=0;i<count;i++)
         {
             points[i]=new(p[i*3],p[i*3+1],p[i*3+2]);normals[i]=new(n[i*3],n[i*3+1],n[i*3+2]);coords[i]=new(uv[i*2],uv[i*2+1]);
-            float total=0;for(int j=0;j<4;j++){int k=i*4+j;if(b[k]<0||b[k]>2||!float.IsFinite(w[k])||w[k]<0)throw new InvalidOperationException("Invalid trouser weight");total+=w[k];}
+            float total=0;for(int j=0;j<4;j++){int k=i*4+j;if(b[k]<0||b[k]>4||!float.IsFinite(w[k])||w[k]<0)throw new InvalidOperationException("Invalid trouser weight");total+=w[k];}
             if(!points[i].IsFinite()||!normals[i].IsFinite()||MathF.Abs(normals[i].Length()-1)>.01f||MathF.Abs(total-1)>.0001f)
                 throw new InvalidOperationException("Invalid trouser geometry");
         }
@@ -45,6 +45,11 @@ internal sealed partial class NatureModels
         {
             int bone=side+1;skeleton.AddBone(side==0?"LeftThigh":"RightThigh");skeleton.SetBoneParent(bone,0);
             var rest=rig.Legs[side].Position;skeleton.SetBoneRest(bone,new(Basis.Identity,rest));skin.AddBind(bone,new(Basis.Identity,-rest));
+        }
+        for(int side=0;side<2;side++)
+        {
+            int bone=side+3;skeleton.AddBone(side==0?"LeftKnee":"RightKnee");skeleton.SetBoneParent(bone,side+1);
+            skeleton.SetBoneRest(bone,rig.Knees[side].Transform);skin.AddBind(bone,(rig.Legs[side].Transform*rig.Knees[side].Transform).AffineInverse());
         }
         skeleton.ResetBonePoses();
         rig.Trousers=new MeshInstance3D {Name="ContinuousTrousers",Mesh=ContinuousTrousers(),Skin=skin,Skeleton=new NodePath("../TrouserSkeleton")};rig.AddChild(rig.Trousers);
@@ -71,15 +76,18 @@ internal sealed partial class NatureModels
                     rig.PoseAction(1f/60,action,action==SandBoxSim.Core.Agents.ActionKind.None?SandBoxSim.Core.Agents.ActionPhase.Moving:SandBoxSim.Core.Agents.ActionPhase.Executing,false,0);
                     if(f%10!=0)continue;
                     skeleton.ForceUpdateAllBoneTransforms();
-                    var transforms=new Transform3D[3];
-                    for(int bone=0;bone<3;bone++)transforms[bone]=skeleton.GetBoneGlobalPose(bone)*skin.GetBindPose(bone);
+                    var transforms=new Transform3D[5];
+                    for(int bone=0;bone<5;bone++)transforms[bone]=skeleton.GetBoneGlobalPose(bone)*skin.GetBindPose(bone);
                     for(int side=0;side<2;side++)if(!transforms[side+1].IsEqualApprox(rig.Legs[side].Transform*skin.GetBindPose(side+1)))
                         throw new InvalidOperationException($"Trouser skin mismatch: {transforms[side+1]} expected {rig.Legs[side].Transform*skin.GetBindPose(side+1)}");
+                    for(int side=0;side<2;side++)if(!transforms[side+3].IsEqualApprox(rig.Legs[side].Transform*rig.Knees[side].Transform*skin.GetBindPose(side+3)))
+                        throw new InvalidOperationException("Trouser knee skin does not follow the actual boot rim");
                     for(int i=0;i<p.Length;i++)
                     {
                         var v=Vector3.Zero;for(int j=0;j<4;j++)v+=(transforms[b[i*4+j]]*p[i])*w[i*4+j];
                         if(!v.IsFinite())throw new InvalidOperationException("Invalid animated trousers");
                         if(p[i].Y>.88f&&v.DistanceTo(transforms[0]*p[i])>.00001f)throw new InvalidOperationException("Leg movement drags the trouser waist");
+                        if(p[i].Y<.40f&&v.DistanceTo(transforms[p[i].X<0?3:4]*p[i])>.00001f)throw new InvalidOperationException("Trouser cuff detaches from the moving knee");
                         posed[i]=v;
                     }
                     foreach(var edge in edges)
@@ -96,7 +104,7 @@ internal sealed partial class NatureModels
             }
             finally{rig.Free();}
         }
-        GD.Print($"CONTINUOUS_TROUSERS_PASS: two source frames, {samples} actual gait/work/pickup samples, thigh binds, stable waist, pause, distance and edge stretch={maximum:F3}");
+        GD.Print($"CONTINUOUS_TROUSERS_PASS: two source frames, {samples} actual gait/work/pickup samples, thigh/knee binds, attached cuffs, stable waist, pause, distance and edge stretch={maximum:F3}");
     }
 }
 
@@ -107,15 +115,16 @@ internal partial class ResidentRig
     internal void SyncTrousers()
     {
         if(TrouserSkeleton==null)return;
-        // The waistband follows the same abdominal frame as the shirt;
+        // The waistband follows the same pelvic frame as the lower shirt;
         // thigh poses remain independent in rig space through the inverse.
-        var waist=Torso.Transform;
+        var waist=LowerGarmentFrame;
         TrouserSkeleton.SetBonePose(0,waist);
         var inverse=waist.AffineInverse();
         for(int side=0;side<2;side++)
         {
             var local=inverse*Legs[side].Transform;
             TrouserSkeleton.SetBonePose(side+1,local);
+            TrouserSkeleton.SetBonePose(side+3,Knees[side].Transform);
         }
     }
 }
