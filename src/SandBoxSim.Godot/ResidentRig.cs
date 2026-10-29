@@ -25,6 +25,7 @@ internal partial class ResidentRig : Node3D
     public readonly Mesh[] HandOpen=new Mesh[2],HandClosed=new Mesh[2];
     public MeshInstance3D HeadSkin=null!,HeadProxy=null!,BodySkin=null!,ShoulderBridge=null!;
     public Skeleton3D ShoulderSkeleton=null!;
+    internal bool HasShoulderSupports;
     public readonly Skeleton3D[] HandSkeletons=new Skeleton3D[2];
     public Mesh ShoulderGeometry=null!,DetailedBodyMesh=null!,DistantBodyMesh=null!;
     public Skin DetailedBodySkin=null!;
@@ -266,7 +267,7 @@ internal partial class ResidentRig : Node3D
             var carry=CarryPose(CurrentTool,wave*_activity);
             var active=(carry.Item1.Lerp(work.Item1,Smooth(_workBlend)),new Basis(carry.Item2.GetRotationQuaternion().Slerp(work.Item2.GetRotationQuaternion(),Smooth(_workBlend))));
             var (target,basis)=_returning?(_returnPosition,_returnBasis):active;
-            if(!_returning)target=BodyPoint(target);
+            if(!_returning)target=ReachBodyPoint(target);
             var filtered=FilterHeldTool(Holster.Position.Lerp(target,ReachEase(_draw)),new Basis(Holster.Basis.GetRotationQuaternion().Slerp(basis.GetRotationQuaternion(),ReachEase(_draw))));
             SolveHand(1,filtered.Position,filtered.Basis*Grip!.Basis.Inverse(),false,(1-_workBlend)*Smooth(_draw));
             CurlHand(1,1);
@@ -340,13 +341,13 @@ internal partial class ResidentRig : Node3D
             float reach=ReachPulse(cycle);
             bool gathering=_bareAction is ActionKind.GatherFood or ActionKind.Take;
             if(gathering)
-                BlendBareHand(1,BodyPoint(new(.16f,Mathf.Lerp(1.00f,.76f,reach),Mathf.Lerp(-.20f,-.26f,reach))),Basis.FromEuler(new Vector3(.7f,0,0)));
+                BlendBareHand(1,ReachBodyPoint(new(.16f,Mathf.Lerp(1.00f,.76f,reach),Mathf.Lerp(-.20f,-.26f,reach))),Basis.FromEuler(new Vector3(.7f,0,0)));
             else if(_bareAction is ActionKind.Deposit or ActionKind.StoreInBuilding or ActionKind.ShareFood or ActionKind.Trade)
                 for(int i=0;i<2;i++)BlendBareHand(i,BodyPoint(new(i==0?-.12f:.12f,Mathf.Lerp(.85f,.97f,reach),-.30f)),Basis.FromEuler(new Vector3(MathF.PI/2,0,0)));
             else if(eating)
             {
                 var mouth=Head.Transform*Mouth.Position;
-                var chest=BodyPoint(new Vector3(.14f,1.04f,-.22f));
+                var chest=ReachBodyPoint(new Vector3(.14f,1.04f,-.22f));
                 float desiredCurl=_bareAction==ActionKind.Drink?.40f+.35f*reach:.32f+.18f*reach;
                 float curl=Mathf.Lerp(_handCurl[1],desiredCurl,Smooth(_bareBlend));
                 // Track the displayed finger pad, not a palm centre several
@@ -376,7 +377,7 @@ internal partial class ResidentRig : Node3D
                 var restBasis=Arms[side].Basis*Elbows[side].Basis*Hands[side].Basis;
                 var open=Basis.FromEuler(new Vector3(.6f,side==0?.3f:-.3f,side==0?-.35f:.35f));
                 float gesture=ReachPulse(Mathf.PosMod(_workTime/3.2f+side*.5f+expressionPhase*.1f,1));
-                BlendBareHand(side,BodyPoint(target),open,_socialBlend*gesture);
+                BlendBareHand(side,ReachBodyPoint(target),open,_socialBlend*gesture);
                 CurlHand(side,(.16f+emphasis)*_socialBlend);
             }
         }
@@ -391,8 +392,7 @@ internal partial class ResidentRig : Node3D
         if(ToolHeld){var held=Arms[1].Transform*Elbows[1].Transform*Hands[1].Transform*Grip!.Transform;_heldPosition=held.Origin;_heldBasis=held.Basis;}
         if(_detailedHands)for(int side=0;side<2;side++)
         {
-            ShoulderSkeleton.SetBonePoseRotation(side+1,Arms[side].Basis.GetRotationQuaternion());
-            ShoulderSkeleton.SetBonePosePosition(side+1,Arms[side].Position);
+            SyncShoulderBone(side);
             UpdateHandBones(side);
         }
         if(!_detailedHands)for(int side=0;side<2;side++)
@@ -415,8 +415,7 @@ internal partial class ResidentRig : Node3D
         ShoulderSkeleton.ProcessMode=detailed?ProcessModeEnum.Inherit:ProcessModeEnum.Disabled;
         if(detailed)for(int side=0;side<2;side++)
         {
-            ShoulderSkeleton.SetBonePoseRotation(side+1,Arms[side].Basis.GetRotationQuaternion());
-            ShoulderSkeleton.SetBonePosePosition(side+1,Arms[side].Position);
+            SyncShoulderBone(side);
         }
         for(int side=0;side<2;side++)
         {

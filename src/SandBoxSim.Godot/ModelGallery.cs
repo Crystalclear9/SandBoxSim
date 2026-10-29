@@ -39,12 +39,12 @@ internal partial class ModelGallery : PanelContainer
         var models=new NatureModels();
         if(Collection=="shoulder-motion")
         {
-            grid.Columns=2;body.GetChild<Label>(0).Text="肩肘动作 · 正面与侧面的抬手、挥锤和返回";
-            for(int view=0;view<2;view++)for(int frame=0;frame<2;frame++)
+            grid.Columns=3;body.GetChild<Label>(0).Text="肩肘动作 · 正面、工作臂侧面与背面";
+            for(int frame=0;frame<2;frame++)for(int view=0;view<3;view++)
             {
                 var rig=models.Resident(frame==0?17:55,false,JobType.Builder);
-                Closeup(grid,(frame==0?"男性外观":"女性外观")+(view==0?" · 正面肩袖与肘部":" · 侧面抬臂与收手"),
-                    rig,1.12f,new(0,1.04f,0),view==0?new(.03f,.04f,4):new(4,.04f,.15f),true);
+                Closeup(grid,(frame==0?"男性外观":"女性外观")+(view==0?" · 正面肩袖":view==1?" · 工作臂侧面":" · 背面袖根"),
+                    rig,1.04f,new(0,1.08f,0),view==0?new(.03f,.04f,4):view==1?new(-4,.04f,.15f):new(-1.5f,.04f,-4),true);
                 Animate(rig,ActionKind.BuildHouse);
             }
         }

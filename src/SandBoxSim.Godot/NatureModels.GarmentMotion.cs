@@ -39,8 +39,8 @@ internal sealed partial class NatureModels
                     {
                         rig.PresentAction(1f/30,action,phase,false,.73f);
                         if(frame%15!=14)continue;
-                        var transforms=new Transform3D[4];
-                        for(int bone=0;bone<4;bone++)
+                        var transforms=new Transform3D[rig.ShoulderSkeleton.GetBoneCount()];
+                        for(int bone=0;bone<transforms.Length;bone++)
                             transforms[bone]=rig.ShoulderSkeleton.GetBonePose(bone)*rig.DetailedBodySkin.GetBindPose(bone);
                         for(int side=0;side<2;side++)
                         {

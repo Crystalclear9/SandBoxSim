@@ -1,10 +1,31 @@
 using System;
+using System.Text.Json;
 using Godot;
 
 namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
+    private float? _femaleShoulderWidth;
+    private float FemaleShoulderWidth
+    {
+        get
+        {
+            if(_femaleShoulderWidth.HasValue)return _femaleShoulderWidth.Value;
+            const string file="trunk-feminine-cage.json";
+            _trunkFeminine??=FrameRadii(file,"0868f6499f700995e3fb0eaea1ed7aea623406fbbfa5486b38a35e5d74d3fcad");
+            using var doc=JsonDocument.Parse(FileAccess.GetFileAsString("res://assets/models/human/"+file));
+            var root=doc.RootElement;
+            // The cage uses the male reference's X scale for both bodies.
+            // Its nominal 'shoulder' field is an export reference, not the
+            // female joint centre. Recover that centre from the source macro.
+            float width=root.GetProperty("sourceShoulder")[0].GetSingle()*root.GetProperty("scale")[0].GetSingle();
+            if(!float.IsFinite(width)||width<.14f||width>.19f)throw new InvalidOperationException("Invalid source shoulder centre");
+            return (_femaleShoulderWidth=width).Value;
+        }
+    }
+    private float ArmWidthScale=>BodyFrame==1?FemaleShoulderWidth/.202f:1.04f;
+
     private float TailoredPanelHeight(Vector3 point)
     {
         float hem=ResidentRig.BodyY(GarmentBottom),panel=point.Y;
@@ -23,7 +44,7 @@ internal sealed partial class NatureModels
     // an oversized ring even when the torso itself has distinct proportions.
     private void FitArmClothing(ResidentRig rig)
     {
-        Vector3 scale=new(BodyFrame==1?.88f:1.04f,1,BodyFrame==1?.90f:1);
+        Vector3 scale=new(ArmWidthScale,1,BodyFrame==1?.90f:1);
         Mesh Fit(Mesh source)
         {
             string key="adult-arm-clothing:"+BodyFrame+":"+source.GetInstanceId();

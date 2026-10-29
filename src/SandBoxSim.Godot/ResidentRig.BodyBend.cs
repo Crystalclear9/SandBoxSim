@@ -38,6 +38,15 @@ internal partial class ResidentRig
         foreach(var mount in new[]{Holster,PackMount,SatchelMount})
             if(mount!=null)_bodyMounts.Add((mount,mount.Transform));
     }
+    private void SyncShoulderBone(int side)
+    {
+        var rotation=Arms[side].Basis.GetRotationQuaternion();
+        ShoulderSkeleton.SetBonePoseRotation(side+1,rotation);
+        ShoulderSkeleton.SetBonePosePosition(side+1,Arms[side].Position);
+        if(!HasShoulderSupports)return;
+        ShoulderSkeleton.SetBonePoseRotation(side+4,Quaternion.Identity.Slerp(rotation,.5f));
+        ShoulderSkeleton.SetBonePosePosition(side+4,ShoulderRest(side).Lerp(Arms[side].Position,.5f));
+    }
     private void UpdateBodyBend(Vector3 translation,Basis pelvis)
     {
         // Torso is the upper-body frame. The lower shirt follows the pelvis,

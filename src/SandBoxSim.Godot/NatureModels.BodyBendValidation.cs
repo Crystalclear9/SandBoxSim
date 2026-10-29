@@ -15,7 +15,7 @@ internal sealed partial class NatureModels
             var rig=Resident(identity,false,job);
             try
             {
-                if(rig.ShoulderSkeleton.GetBoneCount()!=4||rig.DetailedBodySkin.GetBindCount()!=4)
+                if(rig.ShoulderSkeleton.GetBoneCount()!=(rig.HasShoulderSupports?6:4)||rig.DetailedBodySkin.GetBindCount()!=rig.ShoulderSkeleton.GetBoneCount())
                     throw new InvalidOperationException("Adult garment lacks its pelvic cloth binding");
                 var cloth=rig.DetailedBodyMesh.SurfaceGetArrays(0);var p=cloth[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                 var bones=cloth[(int)Mesh.ArrayType.Bones].AsInt32Array();var w=cloth[(int)Mesh.ArrayType.Weights].AsFloat32Array();
@@ -31,8 +31,8 @@ internal sealed partial class NatureModels
                     if(!rig.ShoulderSkeleton.GetBonePose(3).IsEqualApprox(rig.PelvicClothPose)||
                         !rig.LowerGarmentFrame.Basis.IsEqualApprox(action==ActionKind.None?rig.GaitPelvisBasis:Basis.Identity))
                         throw new InvalidOperationException("Lower cloth inherits the rigid chest rotation");
-                    var transforms=new Transform3D[4];
-                    for(int b=0;b<4;b++)transforms[b]=rig.Torso.Transform*rig.ShoulderSkeleton.GetBonePose(b)*rig.DetailedBodySkin.GetBindPose(b);
+                    var transforms=new Transform3D[rig.ShoulderSkeleton.GetBoneCount()];
+                    for(int b=0;b<transforms.Length;b++)transforms[b]=rig.Torso.Transform*rig.ShoulderSkeleton.GetBonePose(b)*rig.DetailedBodySkin.GetBindPose(b);
                     for(int i=0;i<p.Length;i++)
                     {
                         var v=Vector3.Zero;for(int j=0;j<4;j++)v+=transforms[bones[i*4+j]]*p[i]*w[i*4+j];posed[i]=v;

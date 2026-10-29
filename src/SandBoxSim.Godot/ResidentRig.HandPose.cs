@@ -159,8 +159,8 @@ internal partial class ResidentRig
         // Keep the elbow below and slightly outside the shoulder. A tool's
         // shaft orientation must not drag the elbow up into a winged pose.
         // Pronation is resolved by the lower-arm frame, independently of pole.
-        var relaxedPole=new Vector3(side==0?-.35f:.35f,-.85f,-.10f);
-        var carryingPole=new Vector3(side==0?-.75f:.75f,-.45f,.15f);
+        var relaxedPole=new Vector3((side==0?-.35f:.35f)*ReachLateralScale,-.85f,-.10f);
+        var carryingPole=new Vector3((side==0?-.75f:.75f)*ReachLateralScale,-.45f,.15f);
         var pole=bare?relaxedPole:relaxedPole.Lerp(handBasis.Y,.12f).Lerp(carryingPole,carry);
         var bend=pole-direction*pole.Dot(direction);
         if(bend.LengthSquared()<.0001f){var hint=new Vector3(side==0?-1:1,.2f,.1f);bend=hint-direction*hint.Dot(direction);}
@@ -237,6 +237,10 @@ internal partial class ResidentRig
         float twist=prior+Math.Clamp(difference,-limit,limit);
         return new Basis(direction,twist)*swing;
     }
+    // Body-relative reaches adapt to the fitted shoulder span. Physical cargo
+    // supports and the head's actual mouth contact remain in their own space.
+    private float ReachLateralScale=>MathF.Min(1,ShoulderHalfWidth/.202f);
+    private Vector3 ReachBodyPoint(Vector3 point)=>BodyPoint(new(point.X*ReachLateralScale,point.Y,point.Z));
     internal float ShoulderHalfWidth=.202f,ShoulderDrop;
     internal Vector3 ShoulderRest(int side)=>new(side==0?-ShoulderHalfWidth:ShoulderHalfWidth,BodyY(1.18f)-ShoulderDrop,0);
     private Vector3 ShoulderForReach(int side,Vector3 wrist)
