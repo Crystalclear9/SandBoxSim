@@ -269,6 +269,10 @@ internal sealed partial class NatureModels
             animal.Pose(2,false,false,true);
             if(!wolf&&animal.Neck.Rotation.X>-.8f)throw new InvalidOperationException("Grazing does not bend the continuous neck");
             var neckPose=animal.Neck.Transform;animal.Pose(1,false,true,true);if(animal.Neck.Transform!=neckPose)throw new InvalidOperationException("Paused grazing moved the neck");
+            for(int i=0;i<120;i++)animal.Pose(1f/60,true,false,true);
+            if(!wolf&&animal.Neck.Rotation.X<-.10f)throw new InvalidOperationException("Walking animal keeps its grazing neck pose");
+            for(int i=0;i<120;i++)animal.Pose(1f/60,false,false,true);
+            if(!wolf&&animal.Neck.Rotation.X>-.8f)throw new InvalidOperationException("Stopped animal does not resume grazing");
             ValidateAnimalRoots(animal,wolf);
             Validate(animal,false);
         }

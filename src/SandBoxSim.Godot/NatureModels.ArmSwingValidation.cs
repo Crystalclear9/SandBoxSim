@@ -30,7 +30,7 @@ internal sealed partial class NatureModels
                 {
                     bool moving=frame>=60&&frame<600;
                     float speed=frame<240?.55f:frame<420?1.05f:1.4f;
-                    rig.ObserveLocomotion(new(0,0,-speed/60),1f/60,0,false);
+                    rig.ObserveLocomotion(moving?new(0,0,-speed/60):Vector3.Zero,1f/60,0,false);
                     rig.PoseAction(1f/60,ActionKind.Wander,moving?ActionPhase.Moving:ActionPhase.Idle,false,0);
                     var palms=new Transform3D[2];
                     for(int side=0;side<2;side++)

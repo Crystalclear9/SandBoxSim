@@ -133,7 +133,9 @@ internal partial class AnimalRig : Node3D
         Body.Position = new Vector3(0,_bodyBob,0);
         float breath=MathF.Sin(_phase*.65f)*.004f*(1-_stride);
         Body.Scale=new Vector3(1+breath,1+breath*.5f,1);
-        _graze=Mathf.Lerp(_graze,grazing&&!Predator?1:0,1-MathF.Exp(-delta*2.4f));
+        // Locomotion owns the neck while travelling. A simulator Eat state
+        // can precede the rendered root's arrival at its grazing location.
+        _graze=Mathf.Lerp(_graze,grazing&&!Predator&&!moving?1:0,1-MathF.Exp(-delta*2.4f));
         Neck.Rotation=new(-1.55f*_graze+MathF.Sin(_phase*.37f)*.018f*(1-_stride),0,0);
         FurSkeleton?.SetBonePoseRotation(11,Neck.Basis.GetRotationQuaternion());
         Head.Rotation = new Vector3(.20f*_graze+MathF.Sin(_phase * .45f) * .025f, MathF.Sin(_phase * .29f) * .065f * (1 - _stride), 0);

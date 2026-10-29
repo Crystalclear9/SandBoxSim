@@ -11,6 +11,8 @@ internal partial class ResidentRig
     internal Vector3[] BootSoleCurve=Array.Empty<Vector3>();
     private float _gaitCycle,_gaitSpeed,_locomotionSpeed=1.05f,_turnDemand,_gaitTurn,_sampleDistance,_sampleTime;
     private bool _worldLocomotion;
+    private float _approachDistance;
+    internal bool InteractionSettled=>!_worldLocomotion||(_approachDistance<.035f&&_gaitSpeed<.15f);
     private Vector3 _gaitOffset;
     internal Basis GaitPelvisBasis=Basis.Identity;
     internal float GaitCycle=>_gaitCycle;
@@ -20,7 +22,7 @@ internal partial class ResidentRig
 
     // Called every rendered world frame, before the distance pose scheduler.
     // Discontinuous tile resynchronisation is not interpreted as a sprint.
-    public void ObserveLocomotion(Vector3 displacement,float delta,float headingError,bool paused)
+    public void ObserveLocomotion(Vector3 displacement,float delta,float headingError,bool paused,float remainingDistance=0)
     {
         if(paused||!float.IsFinite(delta)||delta<=0)return;
         _worldLocomotion=true;
@@ -30,19 +32,22 @@ internal partial class ResidentRig
         // first frames would incorrectly suppress the starting step.
         float sample=float.IsFinite(speed)&&distance<1.25f?Math.Clamp(speed,0,1.70f):0;
         _sampleDistance+=sample*delta;_sampleTime+=delta;
+        _approachDistance=float.IsFinite(remainingDistance)?MathF.Max(0,remainingDistance):0;
         _turnDemand=float.IsFinite(headingError)?Math.Clamp(headingError,-.65f,.65f):0;
     }
 
     private void ConsumeLocomotionSamples()
     {
-        if(_sampleTime<=0)return;
+        if(_sampleTime<=0){if(_worldLocomotion)_locomotionSpeed=0;return;}
         _locomotionSpeed=_sampleDistance/_sampleTime;
         _sampleDistance=_sampleTime=0;
     }
 
     private void AdvanceLocomotion(float dt,bool moving)
     {
-        float wanted=moving?(_worldLocomotion?_locomotionSpeed:1.05f*(1-.12f*_workFatigue)):0;
+        // The rendered root can still approach its tile after the simulation
+        // enters Executing. Keep stepping until that actual movement settles.
+        float wanted=_worldLocomotion?_locomotionSpeed:moving?1.05f*(1-.12f*_workFatigue):0;
         // Preparatory weight transfer precedes the first full step; use the
         // exact exponential integral so accumulated distant updates keep time.
         float rate=wanted>_gaitSpeed?5:9,decay=MathF.Exp(-rate*dt),before=_gaitSpeed;

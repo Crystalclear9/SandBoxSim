@@ -381,6 +381,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateBareTransitions()
     {
+        ValidateInteractionSequencing();
         ValidateCargoTransitions();
         var rig=Resident(17,false,JobType.Gatherer);
         Vector3 Wrist()=> (rig.Torso.Transform*rig.Arms[1].Transform*rig.Elbows[1].Transform*rig.Hands[1].Transform).Origin;

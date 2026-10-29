@@ -56,7 +56,8 @@ public partial class WorldView3D
             if(b.ButtonIndex is MouseButton.Right or MouseButton.Middle)
             {
                 if(b.Pressed&&_leftHeld){_painting=false;_leftDragged=true;}
-                if(b.ButtonIndex==MouseButton.Right)_orbit=b.Pressed;else _pan=b.Pressed;
+                if(b.ButtonIndex==MouseButton.Right){_orbit=b.Pressed;if(b.Pressed)_pan=false;}
+                else {_pan=b.Pressed;if(b.Pressed)_orbit=false;}
             }
             if(b.Pressed&&b.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
             {
@@ -85,6 +86,7 @@ public partial class WorldView3D
     }
     public override void _Input(InputEvent input)
     {
+        if(input is InputEventKey {Pressed:true,Echo:false,Keycode:Key.Escape})CancelPointerGesture();
         if(input is InputEventMouseButton b&&!b.Pressed)
         {
             if(b.ButtonIndex==MouseButton.Right)_orbit=false;
@@ -301,6 +303,12 @@ public partial class WorldView3D
             _GuiInput(new InputEventMouseButton {ButtonIndex=MouseButton.Left,Pressed=true,Position=screen});
             _GuiInput(new InputEventMouseButton {ButtonIndex=MouseButton.Right,Pressed=true,Position=screen});
             if(_painting||!_leftDragged)throw new InvalidOperationException("Orbit gesture can accidentally paint or inspect");
+            _GuiInput(new InputEventMouseButton {ButtonIndex=MouseButton.Middle,Pressed=true,Position=screen});
+            if(!_pan||_orbit)throw new InvalidOperationException("Camera pan and orbit run simultaneously");
+            _GuiInput(new InputEventMouseButton {ButtonIndex=MouseButton.Right,Pressed=true,Position=screen});
+            if(!_orbit||_pan)throw new InvalidOperationException("Last camera press does not own the gesture");
+            _Input(new InputEventKey {Keycode=Key.Escape,Pressed=true});
+            if(_orbit||_pan||_leftHeld||_painting)throw new InvalidOperationException("Escape does not cancel the active pointer gesture");
             var beforeLostRelease=_target;float yawBeforeLostRelease=_yaw,pitchBeforeLostRelease=_pitch;
             _pan=true;_painting=true;_lastPaint=new(4,4);_doubleClick=true;
             _Input(new InputEventMouseMotion {Position=screen+new Vector2(40,20),Relative=new(40,20),ButtonMask=0});

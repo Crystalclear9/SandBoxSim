@@ -450,8 +450,8 @@ public partial class WorldView3D : MapView
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="coverage-mosaic-v6",["habitatDetail"]="stratified-meadow-v10",["vegetationSurface"]="engine-faced-v2",
             ["architecture"]="inset-joinery-v13",["garmentMaterial"]="faired-panel-linen-v15",["shoulderSkin"]="segmented-support-v1",["shoulderMotion"]="source-fitted-reach-v3",["reachMotion"]="palm-trajectory-v2",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
-            ["animalPresentation"]="articulated-paws-v12",["residentSurface"]="linear-skin-v9",["workEffort"]="relative-load-v1",["toolMotion"]="velocity-continuity-v2",["bodySupport"]="planted-sagittal-v1",["facialTiming"]="phrase-blink-v1",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="cargo-priority-v3",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="mouth-facing-v4",["waterSurface"]="constrained-bank-v6",["wristContour"]="source-oval-v1",
-            ["hairline"]="source-root-v1",["reedPanicle"]="connected-axis-v1",["bodyFrame"]="adult-proportions-v13",["faceContour"]="regional-adult-v2",["forearmProfile"]="tapered-volume-v1",["residentLocomotion"]="support-reach-v2",["armSwing"]="neutral-forearm-v1",["limbCoordination"]="hinge-carry-v4" };
+            ["animalPresentation"]="articulated-paws-v12",["residentSurface"]="linear-skin-v9",["workEffort"]="relative-load-v1",["toolMotion"]="contact-transfer-v3",["bodySupport"]="planted-sagittal-v1",["facialTiming"]="phrase-blink-v1",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="contact-sequencing-v4",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="prepared-gesture-v5",["waterSurface"]="constrained-bank-v6",["wristContour"]="source-oval-v1",
+            ["hairline"]="source-root-v1",["reedPanicle"]="connected-axis-v1",["bodyFrame"]="adult-proportions-v13",["faceContour"]="regional-adult-v2",["forearmProfile"]="tapered-volume-v1",["residentLocomotion"]="settled-arrival-v3",["armSwing"]="neutral-forearm-v1",["limbCoordination"]="hinge-carry-v4" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
         return quality;
@@ -854,7 +854,7 @@ public partial class WorldView3D : MapView
             int stride=distanceSquared>45*45?8:distanceSquared>30*30?6:distanceSquared>12*12?2:1;
             var rig=(ResidentRig)node;
             float headingError=direction.X*direction.X+direction.Z*direction.Z>.002f?Mathf.AngleDifference(node.Rotation.Y,MathF.Atan2(direction.X,direction.Z)+MathF.PI):0;
-            rig.ObserveLocomotion(rendered-current,delta,headingError,Game.VisualPaused);
+            rig.ObserveLocomotion(rendered-current,delta,headingError,Game.VisualPaused,new Vector2(target.X-rendered.X,target.Z-rendered.Z).Length());
             rig.UpdateDistanceDetail(distanceSquared);
             if((_poseFrame+slot)%stride!=0)continue;
             var cargoKind=ResourceKind.Food;float cargoAmount=0;

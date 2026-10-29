@@ -65,7 +65,8 @@
         "motion",
         "social",
         "social-side",
-        "shoulder-motion"
+        "shoulder-motion",
+        "handling-transitions"
       ],
       "default": "field"
     },

@@ -37,7 +37,8 @@ internal partial class ModelGallery : PanelContainer
         if(Collection=="wardrobe")body.GetChild<Label>(0).Text="衣装剪裁 · 实际职业模型的正面与背面";
         grid.AddThemeConstantOverride("h_separation",12); grid.AddThemeConstantOverride("v_separation",12); body.AddChild(grid);
         var models=new NatureModels();
-        if(Collection=="shoulder-motion")
+        if(Collection=="handling-transitions")BuildInteractionFlow(models,grid,body.GetChild<Label>(0));
+        else if(Collection=="shoulder-motion")
         {
             grid.Columns=3;body.GetChild<Label>(0).Text="肩肘动作 · 正面、工作臂侧面与背面";
             for(int frame=0;frame<2;frame++)for(int view=0;view<3;view++)
@@ -270,6 +271,7 @@ internal partial class ModelGallery : PanelContainer
             else animal.Pose((float)delta,Collection is not ("model-details" or "animal-details" or "animal-heads")&&((int)(_elapsed/3)%3)!=0,false,Collection is not ("model-details" or "animal-details" or "animal-heads")&&((int)(_elapsed/3)%3)==0);
         foreach(var (rig,action) in _animated)
         {
+            if(Collection=="handling-transitions")continue;
             if(Collection=="arm-swing")
             {
                 float t=_elapsed%10;
@@ -279,12 +281,13 @@ internal partial class ModelGallery : PanelContainer
             {
                 float t=_elapsed%10;bool walking=t>.6f&&t<5.5f;
                 float turn=t>2.5f&&t<4.5f?.48f:0;
-                rig.ObserveLocomotion(new(0,0,-1.05f*(float)delta),(float)delta,turn,false);
+                rig.ObserveLocomotion(walking?new(0,0,-1.05f*(float)delta):Vector3.Zero,(float)delta,turn,false);
                 rig.Rotation=new(0,MathF.PI+Mathf.SmoothStep(2.5f,4.5f,t)*.75f,0);
                 rig.PoseAction((float)delta,action,walking?ActionPhase.Moving:action==ActionKind.BuildHouse&&t>5.5f?ActionPhase.Executing:ActionPhase.Idle,false,0);
             }
             else rig.PoseAction((float)delta,action,Collection=="body-motion"&&action==ActionKind.Wander?ActionPhase.Moving:cycle>.65f&&cycle<4.5f?ActionPhase.Executing:ActionPhase.Idle,false,0);
         }
+        if(Collection=="handling-transitions")AdvanceInteractionFlow((float)delta);
         foreach(var (rig,camera) in _handViews)
         {
             var target=rig.Hands[1].GlobalPosition+new Vector3(0,.015f,0);

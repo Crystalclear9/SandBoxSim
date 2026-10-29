@@ -19,7 +19,7 @@ internal sealed partial class NatureModels
                 {
                     bool moving=frame>=60&&frame<600||frame>=780&&frame<900;
                     float speed=frame<300?1.05f:frame<480?.55f:1.4f;
-                    rig.ObserveLocomotion(new(0,0,-speed/60),1f/60,frame>=480&&frame<600?.5f:0,false);
+                    rig.ObserveLocomotion(moving?new(0,0,-speed/60):Vector3.Zero,1f/60,frame>=480&&frame<600?.5f:0,false);
                     var action=frame>=900?ActionKind.Take:ActionKind.Wander;
                     rig.PoseAction(1f/60,action,moving?ActionPhase.Moving:frame>=900?ActionPhase.Executing:ActionPhase.Idle,false,.3f);
                     for(int side=0;side<2;side++)
