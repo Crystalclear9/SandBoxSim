@@ -61,6 +61,17 @@ internal partial class ModelGallery : PanelContainer
                 Closeup(grid,(frame==0?"男性外观":"女性外观")+(view==0?" · 正面":view==1?" · 侧面":" · 背面"),
                     models.Resident(frame==0?17:55,false,JobType.None),1.80f,new(0,.82f,0),view==0?new(.05f,.04f,4):view==1?new(4,.04f,.2f):new(.05f,.04f,-4),true);
         }
+        else if(Collection=="locomotion")
+        {
+            grid.Columns=2;body.GetChild<Label>(0).Text="步态与动作衔接 · 同速度的两种成人外观";
+            for(int state=0;state<3;state++)for(int frame=0;frame<2;frame++)
+            {
+                var rig=models.Resident(frame==0?17:55,false,state==2?JobType.Builder:JobType.None);
+                if(state==1)rig.ShowCargo(true,ResourceKind.Wood);
+                Closeup(grid,(frame==0?"男性外观":"女性外观")+(state==0?" · 启停与转身":state==1?" · 负重行走":" · 持锤行走与工作"),rig,2.15f,new(0,.82f,0),new(1.5f,.04f,4),true);
+                Animate(rig,state==2?ActionKind.BuildHouse:ActionKind.Wander);
+            }
+        }
         else if(Collection=="body-motion")
         {
             grid.Columns=GetViewportRect().Size.X>=1500?6:3;body.GetChild<Label>(0).Text="身体动态 · 站立、行走与弯身时的胸廓和骨盆";
@@ -235,7 +246,18 @@ internal partial class ModelGallery : PanelContainer
         foreach(var animal in _animals)
             if(Collection=="animal-motion")animal.Pose((float)delta,cycle>.65f&&cycle<4.5f,false);
             else animal.Pose((float)delta,Collection is not ("model-details" or "animal-details" or "animal-heads")&&((int)(_elapsed/3)%3)!=0,false,Collection is not ("model-details" or "animal-details" or "animal-heads")&&((int)(_elapsed/3)%3)==0);
-        foreach(var (rig,action) in _animated)rig.PoseAction((float)delta,action,Collection=="body-motion"&&action==ActionKind.Wander?ActionPhase.Moving:cycle>.65f&&cycle<4.5f?ActionPhase.Executing:ActionPhase.Idle,false,0);
+        foreach(var (rig,action) in _animated)
+        {
+            if(Collection=="locomotion")
+            {
+                float t=_elapsed%10;bool walking=t>.6f&&t<5.5f;
+                float turn=t>2.5f&&t<4.5f?.48f:0;
+                rig.ObserveLocomotion(new(0,0,-1.05f*(float)delta),(float)delta,turn,false);
+                rig.Rotation=new(0,MathF.PI+Mathf.SmoothStep(2.5f,4.5f,t)*.75f,0);
+                rig.PoseAction((float)delta,action,walking?ActionPhase.Moving:action==ActionKind.BuildHouse&&t>5.5f?ActionPhase.Executing:ActionPhase.Idle,false,0);
+            }
+            else rig.PoseAction((float)delta,action,Collection=="body-motion"&&action==ActionKind.Wander?ActionPhase.Moving:cycle>.65f&&cycle<4.5f?ActionPhase.Executing:ActionPhase.Idle,false,0);
+        }
         foreach(var (rig,camera) in _handViews)
         {
             var target=rig.Hands[1].GlobalPosition+new Vector3(0,.015f,0);

@@ -8,7 +8,7 @@ internal partial class ResidentRig
 {
     internal static float PelvicClothWeight(float y)=>1-Mathf.SmoothStep(.86f,1.12f,y);
     internal Transform3D PelvicClothPose=Transform3D.Identity;
-    internal Transform3D LowerGarmentFrame=>Torso.Transform*PelvicClothPose;
+    internal Transform3D LowerGarmentFrame=Transform3D.Identity;
     private readonly List<(Node3D Mount,Transform3D Bind)> _bodyMounts=new();
     private float _restSupport;
     private Vector3 RestSupport(float delta,bool enabled,float identityPhase)
@@ -38,12 +38,14 @@ internal partial class ResidentRig
         foreach(var mount in new[]{Holster,PackMount,SatchelMount})
             if(mount!=null)_bodyMounts.Add((mount,mount.Transform));
     }
-    private void UpdateBodyBend(Vector3 translation)
+    private void UpdateBodyBend(Vector3 translation,Basis pelvis)
     {
-        if(IsChild)return;
         // Torso is the upper-body frame. The lower shirt follows the pelvis,
         // with a smooth lumbar transition in the shared skinned surface.
-        PelvicClothPose=Torso.Transform.AffineInverse()*new Transform3D(Basis.Identity,translation);
+        var hip=new Vector3(0,HipHeight,0);
+        LowerGarmentFrame=new(pelvis,hip-pelvis*hip+translation);
+        if(IsChild)return;
+        PelvicClothPose=Torso.Transform.AffineInverse()*LowerGarmentFrame;
         ShoulderSkeleton.SetBonePose(3,PelvicClothPose);
         foreach(var (mount,rest) in _bodyMounts)
         {

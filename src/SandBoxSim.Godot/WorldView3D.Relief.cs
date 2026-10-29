@@ -141,12 +141,14 @@ public partial class WorldView3D
             var foot=rig.Feet[side];var point=foot.GlobalPosition;
             float center=GroundHeight(point.X,point.Z),left=GroundHeight(point.X-.12f,point.Z),right=GroundHeight(point.X+.12f,point.Z);
             float front=GroundHeight(point.X,point.Z-.14f),back=GroundHeight(point.X,point.Z+.14f);
-            // Small corrections preserve the authored leg pose; large ledges are
-            // represented by locomotion, not stretched disconnected limbs.
-            var leg=rig.Legs[side].Position;leg.Y+=Math.Clamp(center-rig.GlobalPosition.Y,-.07f,.07f)/MathF.Max(.01f,rig.GlobalBasis.Y.Length());rig.Legs[side].Position=leg;
+            // Solve from the existing hip root; translating the whole leg
+            // disconnects it from the pelvis and leaves the trouser bind stale.
+            var offset=rig.GlobalBasis.Inverse()*Vector3.Up*Math.Clamp(center-rig.GlobalPosition.Y,-.07f,.07f);
             var normal=new Vector3((left-right)/.24f,1,(front-back)/.28f).Normalized();
             var local=rig.GlobalBasis.Transposed()*normal;
-            var rotation=foot.Rotation;rotation.X+=Math.Clamp(MathF.Atan2(local.Z,local.Y),-.24f,.24f);rotation.Z=Math.Clamp(-MathF.Atan2(local.X,local.Y),-.24f,.24f);foot.Rotation=rotation;
+            local=new(Math.Clamp(local.X,-.24f,.24f),1,Math.Clamp(local.Z,-.24f,.24f));
+            rig.ConformFoot(side,offset,local);
         }
+        rig.SyncTrousers();
     }
 }

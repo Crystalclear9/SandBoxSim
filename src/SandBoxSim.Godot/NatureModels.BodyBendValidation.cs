@@ -28,7 +28,7 @@ internal sealed partial class NatureModels
                     rig.PoseAction(1f/60,action,action==ActionKind.None?ActionPhase.Moving:ActionPhase.Executing,false,0);
                     if(f%30!=29)continue;
                     if(!rig.ShoulderSkeleton.GetBonePose(3).IsEqualApprox(rig.PelvicClothPose)||
-                        !rig.LowerGarmentFrame.Basis.IsEqualApprox(Basis.Identity))
+                        !rig.LowerGarmentFrame.Basis.IsEqualApprox(action==ActionKind.None?rig.GaitPelvisBasis:Basis.Identity))
                         throw new InvalidOperationException("Lower cloth inherits the rigid chest rotation");
                     var transforms=new Transform3D[4];
                     for(int b=0;b<4;b++)transforms[b]=rig.Torso.Transform*rig.ShoulderSkeleton.GetBonePose(b)*rig.DetailedBodySkin.GetBindPose(b);
@@ -55,11 +55,14 @@ internal sealed partial class NatureModels
                             var a=posed[ids[t]];var b=posed[ids[t+1]];var c=posed[ids[t+2]];
                             var ab=new Vector2(b.X-a.X,b.Y-a.Y);var ac=new Vector2(c.X-a.X,c.Y-a.Y);float det=ab.Cross(ac);
                             if(MathF.Abs(det)<1e-10f)continue;var hit=new Vector2(point.X-a.X,point.Y-a.Y);
-                            float u=hit.Cross(ac)/det,v=ab.Cross(hit)/det;if(u<0||v<0||u+v>1)continue;
+                            // Inverse skin transforms introduce sub-micrometre
+                            // roundoff at shared triangle edges. Include those
+                            // edges without relaxing the millimetre clearance.
+                            float u=hit.Cross(ac)/det,v=ab.Cross(hit)/det;if(u<-.000001f||v<-.000001f||u+v>1.000001f)continue;
                             float z=a.Z*(1-u-v)+b.Z*u+c.Z*v;front=MathF.Min(front,z);back=MathF.Max(back,z);
                         }
                         if(!float.IsFinite(front)||point.Z<front-.001f||point.Z>back+.001f)
-                            throw new InvalidOperationException($"Trousers pierce the lower shirt: {identity}/{job}/{action}, source={pp[i]}, point={point}, cloth={front}/{back}");
+                            throw new InvalidOperationException($"Trousers pierce the lower shirt: {identity}/{job}/{action}/{f}, source={pp[i]}, point={point}, cloth={front}/{back}, torso={rig.Torso.Rotation}, pelvis={rig.LowerGarmentFrame}");
                         probes++;
                     }
                 }

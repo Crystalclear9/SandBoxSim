@@ -451,7 +451,7 @@ public partial class WorldView3D : MapView
             ["landscapeSurface"]="coverage-mosaic-v6",["habitatDetail"]="stratified-meadow-v10",["vegetationSurface"]="engine-faced-v2",
             ["architecture"]="inset-joinery-v13",["garmentMaterial"]="relaxed-yoke-linen-v14",["shoulderMotion"]="supported-reach-v1",["reachMotion"]="palm-trajectory-v2",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
             ["animalPresentation"]="articulated-paws-v12",["residentSurface"]="linear-skin-v9",["workEffort"]="relative-load-v1",["toolMotion"]="velocity-continuity-v1",["bodySupport"]="planted-sagittal-v1",["facialTiming"]="phrase-blink-v1",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="cargo-priority-v3",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="phrase-coordinated-v3",["waterSurface"]="constrained-bank-v6",["wristContour"]="source-oval-v1",
-            ["hairline"]="source-root-v1",["reedPanicle"]="connected-axis-v1",["bodyFrame"]="lumbar-drape-v8",["faceContour"]="regional-adult-v2",["forearmProfile"]="tapered-volume-v1" };
+            ["hairline"]="source-root-v1",["reedPanicle"]="connected-axis-v1",["bodyFrame"]="lumbar-drape-v8",["faceContour"]="regional-adult-v2",["forearmProfile"]="tapered-volume-v1",["residentLocomotion"]="contact-cycle-v1" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
         return quality;
@@ -853,6 +853,8 @@ public partial class WorldView3D : MapView
             // Keep position interpolation every frame; distant joint poses need fewer updates.
             int stride=distanceSquared>45*45?8:distanceSquared>30*30?6:distanceSquared>12*12?2:1;
             var rig=(ResidentRig)node;
+            float headingError=direction.X*direction.X+direction.Z*direction.Z>.002f?Mathf.AngleDifference(node.Rotation.Y,MathF.Atan2(direction.X,direction.Z)+MathF.PI):0;
+            rig.ObserveLocomotion(rendered-current,delta,headingError,Game.VisualPaused);
             rig.UpdateDistanceDetail(distanceSquared);
             if((_poseFrame+slot)%stride!=0)continue;
             var cargoKind=ResourceKind.Food;float cargoAmount=0;

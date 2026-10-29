@@ -42,7 +42,7 @@ python tools/evaluate.py run benchmarks/scenarios/render-population.json --label
 |---|---|
 | `id`, `seed` | 实验名称（1–64 位字母/数字/点/下划线/短横线，首位为字母或数字）与世界种子 |
 | `agents`, `previewDays` | 人口 0–2000，初始预演 0–30 天 |
-| `panel` | `field`, `tools`, `trails`, `homes`, `farms`, `person`, `person-hands`, `architecture`, `characters`, `model-details`, `animal-details`, `animal-motion`, `animal-heads`, `ecology-details`, `wardrobe`, `faces`, `equipment`, `actions`, `hands`, `naturemodels`, `body-frames`, `body-motion`, `forearm-frames`, `face-frames`, `work-effort` |
+| `panel` | `field`, `tools`, `trails`, `homes`, `farms`, `person`, `person-hands`, `architecture`, `characters`, `model-details`, `animal-details`, `animal-motion`, `animal-heads`, `ecology-details`, `wardrobe`, `faces`, `equipment`, `actions`, `hands`, `naturemodels`, `body-frames`, `body-motion`, `locomotion`, `forearm-frames`, `face-frames`, `work-effort` |
 | `warmupFrames`, `measuredFrames` | 预热 3–3600 帧，采样 2–36000 帧 |
 | `ticksPerFrame` | 每个逻辑帧推进 0–20 个模拟 tick，与本机快慢无关 |
 | `captureFrames` | 从 0 开始的逻辑帧索引；至少第 3 帧，最多 32 个，无重复，不能超过运行末帧 |
@@ -169,3 +169,5 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 `visual-body-motion.json` 使用实际居民的六格配对画面，分别显示无工具站立、行走及弯身拾取。固定 60 Hz 表现步进，采样第 90／180／270／330 帧，镜头为正交尺寸 2.25、目标 (0, 0.82, 0)、相对位置 (1.8, 0.08, 4)。它用于身体蒙皮与轮廓检查，不是 RSI 得分；不同构图不得直接混作性能基线。
 
 `animalPresentation=articulated-paws-v12` 包含鹿 18／狼 21 关节、足区权重转接、来源三角面上的趾爪／副蹄、分段狼尾及物种分开的步态轨迹。`visual-animal-motion.json` 使用 `animal-motion` 四格图册，固定 60 Hz、无模拟 tick，采样第 90／180／330 帧；动物区域标签从实际模型物种生成，分别为 `deer`、`wolf`。它检查模型与动作表现，不构成 RSI 能力分数。
+
+`residentLocomotion=contact-cycle-v1` 标识距离驱动分段步态、鞋底滚动、骨盆／胸廓协调与近景地形腿部解算。`visual-locomotion` 使用同速度成人外观、双手搬运及持锤行走—工作对照，冻结模拟而推进动画；该场景检查表现与采样链路，不作为 RSI、医学步态或客观写实程度的指标。

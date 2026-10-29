@@ -278,6 +278,11 @@ internal sealed partial class NatureModels
             rig.Head.Scale*=new Vector3(1/rig.Scale.X,1,1);
         }
         rig.WorkCapacity=(BodyFrame==1?.94f:1.03f)+(((variation>>20)%9)-4f)*.035f;
+        rig.GaitIndividual=(((variation>>10)%11)-5f)/5;
+        rig.GaitPelvisYaw=(BodyFrame==1?.047f:.029f)+rig.GaitIndividual*.012f;
+        rig.GaitPelvisRoll=(BodyFrame==1?.019f:.011f)+rig.GaitIndividual*.005f;
+        rig.GaitArmSwing=(BodyFrame==1?.29f:.25f)+rig.GaitIndividual*.035f;
+        rig.BootSoleCurve=BootSoleCurve();
         rig.ExpressionPhase=(variation>>24)/255f*10;
         rig.RegisterDistanceMeshes(rig);return rig;
     }

@@ -5,6 +5,20 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
+    private Vector3[]? _bootSoleCurve;
+    private Vector3[] BootSoleCurve()
+    {
+        if(_bootSoleCurve!=null)return _bootSoleCurve;
+        var points=BootLast(true).SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var curve=new Vector3[25];
+        for(int row=0;row<25;row++)
+        {
+            float z=Mathf.Lerp(-.170f,.090f,row/24f),bottom=float.PositiveInfinity;
+            foreach(var point in points)if(MathF.Abs(point.Z-z)<.00001f)bottom=MathF.Min(bottom,point.Y);
+            curve[row]=new(0,bottom,z);
+        }
+        return _bootSoleCurve=curve;
+    }
     // A shoe last has a broad toe, narrow waist, heel and rising instep. The sole
     // follows the same outline, rather than intersecting two unrelated ellipsoids.
     private Mesh BootLast(bool sole)
