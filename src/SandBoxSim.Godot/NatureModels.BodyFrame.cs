@@ -63,34 +63,14 @@ internal sealed partial class NatureModels
             // Millimetre-scale ease bridges the skin, rather than shrinking
             // every body part with one sex-dependent actor scale.
             var support=feminine?_trunkFeminine:_trunkMale;
-            float supportY=MathF.Max(.80f,point.Y);
-            // Cloth spans small anatomical hollows. Average neighbouring body
-            // sections instead of printing their abrupt changes onto the shirt.
-            float target=(TrunkSample(support,supportY-.024f,angle)+4*TrunkSample(support,supportY-.012f,angle)+
-                6*TrunkSample(support,supportY,angle)+4*TrunkSample(support,supportY+.012f,angle)+TrunkSample(support,supportY+.024f,angle))/16+.010f;
-            target+=.004f*MathF.Exp(-MathF.Pow((point.Y-1.01f)/.10f,2));
-            // Below the belt, cloth must clear the forward-moving thighs.
-            // This relaxed front panel replaces a tight, intersecting hem.
-            target+=.030f*front*(1-Mathf.SmoothStep(.80f,.94f,point.Y));
-            if(feminine)
-            {
-                // A broad woven-cloth bust envelope bridges the sternum. It
-                // does not add separate spherical breasts or surface nipples.
-                float chestSupport=.85f+.15f*MathF.Exp(-MathF.Pow((MathF.Abs(point.X)-.070f)/.055f,2));
-                target+=.024f*chestSupport*front*front*MathF.Exp(-MathF.Pow((point.Y-1.135f)/.105f,2));
-                float lateral=MathF.Cos(angle)*MathF.Cos(angle),back=MathF.Max(0,MathF.Sin(angle));
-                target+=(.004f*lateral+.005f*back*back)*MathF.Exp(-MathF.Pow((point.Y-.815f)/.11f,2));
-                target+=.015f*back*back*MathF.Exp(-MathF.Pow((point.Y-1.03f)/.11f,2));
-                target-=.004f*lateral*MathF.Exp(-MathF.Pow((point.Y-1.025f)/.07f,2));
-            }
-            else
-            {
-                float lateral=MathF.Cos(angle)*MathF.Cos(angle);
-                target+=.008f*lateral*MathF.Exp(-MathF.Pow((point.Y-1.14f)/.075f,2));
-                float pectoralEase=.008f+.010f*MathF.Exp(-MathF.Pow((MathF.Abs(point.X)-.065f)/.035f,2));
-                target-=pectoralEase*front*front*MathF.Exp(-MathF.Pow((point.Y-1.12f)/.09f,2));
-                target-=.004f*lateral*MathF.Exp(-MathF.Pow((point.Y-.82f)/.09f,2));
-            }
+            // The short shirt falls alongside the upper hip; sampling the
+            // widest lower pelvis before lifting its hem made a rigid peplum.
+            float supportY=MathF.Max(feminine?.87f:.80f,point.Y);
+            float target=ClothEnvelope(support,supportY,angle);
+            if(feminine)target+=.008f*front*front*MathF.Exp(-MathF.Pow((point.Y-1.135f)/.085f,2));
+            // Walking clearance is a broad lower-front allowance, not a
+            // second sculpted abdomen or separate pectoral/bust additions.
+            target+=.020f*front*(1-Mathf.SmoothStep(.80f,.94f,point.Y));
             float ratio=Math.Clamp(target/TrunkSample(GarmentFrameReference(),point.Y,angle),.65f,1.35f);
             ratio=Mathf.Lerp(1,ratio,active);fitted=new(point.X*ratio,point.Y,point.Z*ratio);
         }
@@ -128,8 +108,7 @@ internal sealed partial class NatureModels
             else
             {
                 float lower=(1-Mathf.SmoothStep(.82f,1.03f,point.Y))*Mathf.SmoothStep(.70f,.78f,point.Y);
-                float thorax=MathF.Exp(-MathF.Pow((point.Y-1.145f)/.105f,2));
-                result.X*=1+(.055f*thorax-.14f*lower)*(1-upper);
+                result.X*=1-.14f*lower*(1-upper);
             }
         }
         return result;
@@ -173,6 +152,10 @@ internal sealed partial class NatureModels
                     float amount=weights[i*4]*lower;weights[i*4]-=amount;bones[i*4+3]=3;weights[i*4+3]=amount;
                 }
             if(bones.Length>0){arrays[(int)Mesh.ArrayType.Bones]=bones;arrays[(int)Mesh.ArrayType.Weights]=weights;}
+            // Pattern coordinates are a surface parameter, not a spatial Y
+            // function. Rebuild the sewn panel normals from final triangles;
+            // otherwise its sleeve/torso seam receives mismatched gradients.
+            if(tailored)normals=ClothSurfaceNormals(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array());
             arrays[(int)Mesh.ArrayType.Vertex]=points;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.Tangent]=default(Variant);
             result.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);result.SurfaceSetMaterial(s,source.SurfaceGetMaterial(s));
         }

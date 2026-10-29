@@ -43,6 +43,7 @@ internal sealed partial class NatureModels
         string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
         if(hash!=manifest.RootElement.GetProperty("sha256").GetProperty(name).GetString())throw new InvalidOperationException("Garment surface hash mismatch");
         using var doc=JsonDocument.Parse(raw);var data=doc.RootElement;
+        if(data.GetProperty("construction").GetString()!="faired-panel-v8")throw new InvalidOperationException("Unsupported sewn garment construction");
         float[] Floats(string field){var a=new float[data.GetProperty(field).GetArrayLength()];int i=0;foreach(var v in data.GetProperty(field).EnumerateArray())a[i++]=v.GetSingle();return a;}
         int[] Ints(string field){var a=new int[data.GetProperty(field).GetArrayLength()];int i=0;foreach(var v in data.GetProperty(field).EnumerateArray())a[i++]=v.GetInt32();return a;}
         var p=Floats("positions");var n=Floats("normals");var uv=Floats("uv");var detail=Floats("detailUv");int count=p.Length/3;

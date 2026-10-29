@@ -40,8 +40,9 @@ internal sealed partial class NatureModels
         surface.GenerateNormals();surface.Index();var mesh=surface.Commit();_meshes[key]=mesh;return mesh;
     }
     private Mesh RolledCuff()=>FabricFacing("rolled-cuff",new[]{
-        new Vector3(.047f,-.270f,.045f),new(.052f,-.263f,.050f),new(.054f,-.252f,.052f),
-        new(.050f,-.241f,.048f),new(.046f,-.241f,.044f),new(.044f,-.253f,.042f),new(.044f,-.266f,.042f)});
+        new Vector3(.045f,-.270f,.043f),new(.048f,-.266f,.046f),new(.049f,-.260f,.047f),
+        new(.047f,-.254f,.045f),new(.048f,-.248f,.046f),new(.047f,-.241f,.045f),
+        new(.0435f,-.242f,.0415f),new(.0435f,-.266f,.0415f)});
     private Mesh TurnedBootRim()=>FabricFacing("turned-boot-rim",new[]{
         new Vector3(.050f,-.047f,.047f),new(.053f,-.039f,.050f),new(.051f,-.028f,.048f),
         new(.047f,-.024f,.044f),new(.045f,-.028f,.042f),new(.046f,-.042f,.043f)});
@@ -80,7 +81,7 @@ internal sealed partial class NatureModels
     private Material CollarMaterial(string cloth)
     {
         string key="folded-collar:"+cloth;if(_residentMaterials.TryGetValue(key,out var cached))return cached;
-        var material=Fabric("#"+new Color(cloth).Darkened(.12f).ToHtml(false));_residentMaterials[key]=material;return material;
+        var material=Fabric("#"+new Color(cloth).Darkened(.055f).ToHtml(false));_residentMaterials[key]=material;return material;
     }
     private Mesh CollarLeaf(float side)
     {

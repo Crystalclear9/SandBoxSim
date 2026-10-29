@@ -125,7 +125,7 @@ internal partial class ModelGallery : PanelContainer
             var jobs=new[]{JobType.Farmer,JobType.Gatherer,JobType.Trader};
             var names=new[]{"工作长衫 · 农夫","短上衣 · 采集者","较长外衣 · 商人"};
             for(int row=0;row<2;row++)for(int i=0;i<3;i++)
-                Closeup(grid,names[i]+(row==0?" · 正面":" · 背面"),models.Resident(17,false,jobs[i]),2.0f,new(0,.85f,0),new(.55f,.10f,3),row==0);
+                Closeup(grid,names[i]+(row==0?" · 正面":" · 背面"),models.Resident(17,false,jobs[i]),.88f,new(0,1.13f,0),new(.10f,.035f,3),row==0);
         }
         else if(Collection=="animal-heads")
         {

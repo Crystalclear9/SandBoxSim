@@ -85,30 +85,19 @@ def build_pattern(data, include_details=False):
             tangents.append(tuple(q/length*speed for q in direction))
         prev = loop
         for row in range(1,19):
-            t=row/18
-            # A falling sleeve keeps each armhole point's vertical offset
-            # until it gradually joins the hanging tube. The old common
-            # horizontal target squeezed the whole cap into its first third,
-            # producing a hard shelf at the shoulder and a swollen lower ring.
-            cx=side*(.202+.004*math.sin(math.pi*t))
-            cy=shoulder-.263*t
-            rx=.044*(1-t)+.043*t+.0030*math.sin(math.pi*t)**2
-            rz=.044*(1-t)+.042*t+.0025*math.sin(math.pi*t)**2
-            blend=min(1,t/.53);blend=blend**3*(10-15*blend+6*blend**2)
+            t=(row/18)**1.6
+            # Join each shared armhole point to the fixed cuff with one
+            # Hermite span. Keep both endpoint tangents; an early switch to a
+            # hanging tube compressed the cap and left an angular shoulder.
             ring=[]
             for p,phase,direction in zip(anchor,phases,tangents):
-                target=(cx+side*rx*math.cos(phase),cy,rz*math.sin(phase))
-                q=(p[0]*(1-blend)+target[0]*blend,
-                   cy+(p[1]-shoulder)*(1-t)**3,
-                   p[2]*(1-blend)+target[2]*blend)
-                # Extend the neighbouring torso panel's actual tangent across
-                # the shared seam. A zero horizontal derivative here creates
-                # a vertical ledge even when averaged normals look smooth.
-                # This Hermite correction leaves both cuff value and its
-                # derivative unchanged; the underarm may turn upward a few mm.
-                correction=t*(1-t)**3
-                current=(0.,-.263-3*(p[1]-shoulder),0.)
-                q=tuple(q[i]+correction*(direction[i]-current[i]) for i in range(3))
+                end=(side*(.202+.043*math.cos(phase)),shoulder-.263,.042*math.sin(phase))
+                finish=(0.,-.263,0.)
+                h00=2*t**3-3*t*t+1
+                h10=t**3-2*t*t+t
+                h01=-2*t**3+3*t*t
+                h11=t**3-t*t
+                q=tuple(h00*p[i]+h10*direction[i]+h01*end[i]+h11*finish[i] for i in range(3))
                 # Two broad diagonal troughs fall from the armhole. A small
                 # compression fold is held by the rolled cuff. Both end at
                 # actual supports; there is no repeating all-over ripple.
@@ -121,14 +110,9 @@ def build_pattern(data, include_details=False):
                 cuff=.0025*math.exp(-((t-.80)/.13)**2)*(trough(2.35,.55)-.65*trough(2.90,.32))
                 fold=envelope*(fall+cuff)
                 q=(q[0]+side*fold*math.cos(phase),q[1],q[2]+fold*math.sin(phase))
-                # Keep the first two rings on the actual panel tangent. The
-                # previous asymptotic Hermite derivative was not sufficient
-                # at finite ring spacing on the clavicular/front armhole.
-                root_blend=min(1,max(0,(t-.11)/.22));root_blend=root_blend*root_blend*(3-2*root_blend)
-                q=tuple((p[i]+direction[i]*t)*(1-root_blend)+q[i]*root_blend for i in range(3))
                 ring.append(len(points));points.append(q)
                 if row<16:sleeve_free.append(len(points)-1)
-                details.append((t*.263,abs(math.remainder(phase-math.pi,math.tau))*(rx+rz)*.5))
+                details.append((t*.263,abs(math.remainder(phase-math.pi,math.tau))*.0425))
                 # The seam stays anchored to the torso while the hanging
                 # fabric takes the shoulder rotation. Its lower, already
                 # axillary points share the side chest's local shoulder pull.
