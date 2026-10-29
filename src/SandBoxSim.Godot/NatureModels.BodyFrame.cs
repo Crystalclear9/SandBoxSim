@@ -68,8 +68,16 @@ internal sealed partial class NatureModels
             {
                 // A broad woven-cloth bust envelope bridges the sternum. It
                 // does not add separate spherical breasts or surface nipples.
-                target+=.024f*front*front*MathF.Exp(-MathF.Pow((point.Y-1.135f)/.065f,2));
-                target+=.006f*(1-front*.5f)*MathF.Exp(-MathF.Pow((point.Y-.815f)/.08f,2));
+                target+=.032f*front*front*MathF.Exp(-MathF.Pow((point.Y-1.135f)/.065f,2));
+                float lateral=MathF.Cos(angle)*MathF.Cos(angle),back=MathF.Max(0,MathF.Sin(angle));
+                target+=(.014f*lateral+.009f*back*back)*MathF.Exp(-MathF.Pow((point.Y-.815f)/.095f,2));
+                target-=.004f*lateral*MathF.Exp(-MathF.Pow((point.Y-1.025f)/.07f,2));
+            }
+            else
+            {
+                float lateral=MathF.Cos(angle)*MathF.Cos(angle);
+                target+=.008f*lateral*MathF.Exp(-MathF.Pow((point.Y-1.14f)/.075f,2));
+                target-=.004f*lateral*MathF.Exp(-MathF.Pow((point.Y-.82f)/.09f,2));
             }
             float ratio=Math.Clamp(target/TrunkSample(GarmentFrameReference(),point.Y,angle),.65f,1.35f);
             ratio=Mathf.Lerp(1,ratio,active);fitted=new(point.X*ratio,point.Y,point.Z*ratio);
@@ -77,7 +85,7 @@ internal sealed partial class NatureModels
         // The arm root, sewn sleeve and inverse bind use the same lateral
         // fit. Authored pattern coordinates keep trunk fitting off the cuffs.
         float upper=MathF.Max(sleeve,Mathf.SmoothStep(1.19f,1.27f,point.Y));
-        var sleevePoint=new Vector3(point.X*(feminine?.88f:1),point.Y,point.Z);
+        var sleevePoint=new Vector3(point.X*(feminine?.88f:1.04f),point.Y,point.Z);
         return fitted.Lerp(sleevePoint,upper);
     }
     private Mesh FrameMesh(Mesh source,Transform3D space)
@@ -142,12 +150,12 @@ internal sealed partial class NatureModels
         Walk(rig,Transform3D.Identity);
         rig.DetailedBodyMesh=rig.BodySkin.Mesh;
         rig.DistantBodyMesh=FrameMesh(rig.DistantBodyMesh,Transform3D.Identity);
-        if(BodyFrame==0)return;
-        rig.HipHalfWidth=.112f;
+        rig.HipHalfWidth=BodyFrame==1?.116f:.10f;
+        rig.ArmRestClearance=BodyFrame==1?.07f:0;
         for(int side=0;side<2;side++)rig.Legs[side].Position=new(side==0?-rig.HipHalfWidth:rig.HipHalfWidth,ResidentRig.HipHeight,0);
         // The fitted sleeve vertices, joint rest and inverse bind must move
         // together. Scaling the mesh alone leaves a male-width moving rig.
-        rig.ShoulderHalfWidth=.202f*.88f;
+        rig.ShoulderHalfWidth=.202f*(BodyFrame==1?.88f:1.04f);
         var skin=new Skin();skin.AddBind(0,Transform3D.Identity);
         for(int side=0;side<2;side++)
         {
@@ -271,8 +279,8 @@ internal sealed partial class NatureModels
             float maleHip=ClothSectionWidth(m,.82f,maleDye)*male.Scale.X,femaleHip=ClothSectionWidth(f,.82f,femaleDye)*female.Scale.X;
             float maleWaist=ClothSectionWidth(m,1.00f,maleDye)*male.Scale.X,femaleWaist=ClothSectionWidth(f,1.00f,femaleDye)*female.Scale.X;
             float maleShoulder=male.ShoulderHalfWidth*2*male.Scale.X,femaleShoulder=female.ShoulderHalfWidth*2*female.Scale.X;
-            if(femaleHip/maleHip<1.01f||femaleHip/maleHip>1.25f||femaleWaist/femaleHip>=maleWaist/maleHip-.055f||
-                femaleShoulder/femaleHip>=maleShoulder/maleHip-.12f)
+            if(femaleHip/maleHip<1.01f||femaleHip/maleHip>1.25f||femaleWaist/femaleHip>=maleWaist/maleHip-.13f||
+                femaleShoulder/femaleHip>=maleShoulder/maleHip-.25f)
                 throw new InvalidOperationException($"Adult silhouette difference lost in {(distant?"distant":"near")} mesh: hip {femaleHip/maleHip:F3}, waist/hip {maleWaist/maleHip:F3}/{femaleWaist/femaleHip:F3}, shoulder/hip {maleShoulder/maleHip:F3}/{femaleShoulder/femaleHip:F3}");
             GD.Print($"ADULT_CONTOUR_SECTION: {(distant?"far":"near")} shoulder/hip={maleShoulder/maleHip:F3}/{femaleShoulder/femaleHip:F3}, waist/hip={maleWaist/maleHip:F3}/{femaleWaist/femaleHip:F3}, hip width={maleHip:F3}/{femaleHip:F3} m");
         }

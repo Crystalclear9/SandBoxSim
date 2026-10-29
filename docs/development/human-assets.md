@@ -105,7 +105,7 @@ Godot 三平台导出包含模型 JSON、许可文本与导入纹理；发行包
 
 三套上衣采用 `relaxed-yoke-v7` 缝片构造。原始胸肩从 MakeHuman CC0 身体采样，`torso-cage.json` 和 `torso-feminine-cage.json` 保存 65×128 的胸肩支撑与来源哈希。当前运行体型另使用 [trunk-masculine-cage.json](../../src/SandBoxSim.Godot/assets/models/human/trunk-masculine-cage.json) 和 [trunk-feminine-cage.json](../../src/SandBoxSim.Godot/assets/models/human/trunk-feminine-cage.json)，各包含 113×128 个覆盖骨盆、腰背与胸廓的平面截面凸包采样。两套青年宏目标及原始基础体均来自现有已校验的 CC0 来源，不改变头脸、手部来源或许可。
 
-`NatureModels.BodyFrame.cs` 根据三种原衣片的半径参考，拟合完整躯干并留出衣料松量。袖片按原始缝片坐标逐渐接回肩部，法线包含形变导数，网格拒绝局部翻折。女性剪裁另调整胸前包络、腰带和工具挂点高度、骨盆关节间距及大腿上段轮廓，保留现有臂腿长度和动作控制；裤装、近远景及缓存均按体型区分。面数沿用原衣装，没有用增加多边形替代形体调整。详细参数与局限见[成人身体说明](models.md)。
+`NatureModels.BodyFrame.cs` 根据三种原衣片的半径参考，拟合完整躯干并留出衣料松量。袖片按原始缝片坐标逐渐接回肩部，法线包含形变导数，网格拒绝局部翻折。当前 `directional-trunk-v5` 分别调整胸廓宽度、骨盆侧缘和臀部后向体积，女性剪裁另调整胸前包络、腰带和工具挂点高度、骨盆关节间距及大腿上段轮廓，保留现有臂腿长度和动作控制；裤装、近远景及缓存均按体型区分。面数沿用原衣装，没有用增加多边形替代形体调整。详细参数与局限见[成人身体说明](models.md)。
 
 宽松衣身参考 [V&A 的衬衫结构](https://www.vam.ac.uk/articles/sew-your-own-customisable-shirt)，胸腹衔接保留布料松量，减少刻画肌肉的重复褶皱；背部肩部拼接以贴面短针脚表示。头部整体上移 18 毫米以露出源颈部。袖窿收至肩侧，袖根延续衣身切平面，左右三角面方向对应。袖身权重按边长离线平滑并约束空间变化；领口、中线与腰带固定，袖口随肩骨，原手柄和手掌长度不变。当前成品为 7,320／7,320／7,200 三角形。改变原始衣片或其胸肩基础体后须重烘焙三套衣装；完整躯干体型在运行模型创建时拟合，单独重建 trunk 文件不要求重烘焙原衣片。普通构建与运行不需要 Blender。
 

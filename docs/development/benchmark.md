@@ -140,7 +140,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `reachMotion=palm-trajectory-v2` 记录手掌轨迹过渡、朝向插值、错开的社交手势与循环进食表现。动作轨迹改变需要重采相同场景的视觉及耗时基线，不能与旧动作混作效率对照。
 
-`bodyFrame=source-trunk-volume-v4`、`faceContour=regional-adult-v2` 和 `forearmProfile=tapered-volume-v1` 记录完整来源躯干、头脸区域与小臂体积拟合。它们改变轮廓和模型构建成本，视觉及性能对照须使用同一版本、居民身份与近远景条件。
+`bodyFrame=directional-trunk-v5`、`faceContour=regional-adult-v2` 和 `forearmProfile=tapered-volume-v1` 记录完整来源躯干、头脸区域与小臂体积拟合。它们改变轮廓和模型构建成本，视觉及性能对照须使用同一版本、居民身份与近远景条件。
 
 无窗口自检的花株接地检查使用 CPU 保存的实例位置；图形模式额外核对 GPU 实例变换。渲染服务器的占位读回不作为几何证据。快捷操作检查覆盖居民、鹿狼和土地的真实目标位置、失效实体身份拒绝、靠近的实际相机距离、人物观察窗／土地手记及观察纯度。
 
@@ -162,6 +162,6 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `workEffort=relative-load-v1` 标识按工具、个体表现系数、真实疲劳及健康驱动的作业节奏与躯干配合。`visual-work-effort` 对照同一手锤的男女成人外观与状态，`visual-face-frames` 提供正面及三刻面。面部曝光与局部拟合、动作减速和节奏均改变，需要重新采样；这些展示场景不测量真实力量，也不构成 RSI 结果。请求 Schema 的面板枚举与客户端公开白名单一致，工具回归同时核对所有公开场景。
 
-`bodyFrame=source-trunk-volume-v4` 包含 113×128 的来源躯干截面、按缝片坐标衔接的肩袖、腰带与工具挂点高度、骨盆间距及上大腿轮廓；`faceContour=regional-adult-v2` 标识眉弓、鼻翼、颊部、下颌与颈部的区域拟合。`toolMotion=velocity-continuity-v1` 标识 IK 前的位置／朝向速度跟踪、弧形蓄力与收纳到位判定。`work-effort` 镜头为正交尺寸 1.15、目标 (0, 1.05, 0)，用于看清头肩和握柄；不同构图或体型版本不能直接混作视觉或效率基线。`body-frames` 当前为六个正／侧／背全身区域，使用无职业装备的标准衣装；旧四格胸腰构图不能混作视觉或效率基线。`ADULT_CONTOURS_PASS` 和 `TRUNK_PROFILE_PASS` 的穿衣宽度／深度检查仅约束本项目的几何与 LOD，不是性别识别、真人相似度或 RSI 得分。
+`bodyFrame=directional-trunk-v5` 包含 113×128 的来源躯干截面、胸廓／髋侧／臀部方向性支撑、按缝片坐标衔接的肩袖、腰带与工具挂点高度、骨盆间距及上大腿轮廓；`faceContour=regional-adult-v2` 标识眉弓、鼻翼、颊部、下颌与颈部的区域拟合。`toolMotion=velocity-continuity-v1` 标识 IK 前的位置／朝向速度跟踪、弧形蓄力与收纳到位判定。`work-effort` 镜头为正交尺寸 1.15、目标 (0, 1.05, 0)，用于看清头肩和握柄；不同构图或体型版本不能直接混作视觉或效率基线。`body-frames` 当前为六个正／侧／背全身区域，使用无职业装备的标准衣装；旧四格胸腰构图不能混作视觉或效率基线。`ADULT_CONTOURS_PASS` 和 `TRUNK_PROFILE_PASS` 的穿衣宽度／深度检查仅约束本项目的几何与 LOD，不是性别识别、真人相似度或 RSI 得分。
 
 `bodySupport=planted-sagittal-v1` 和 `facialTiming=phrase-blink-v1` 分别记录劳动支撑姿态、身份错开的眨眼及表达节奏；`residentSurface=linear-skin-v9` 包含实测来源 RGB 参考与正确颜色空间校准。动作、头脸像素和成本均改变，需要重新采样。`verify_skin_colour.py` 是需真实显示设备的独立颜色回归，不输出视觉问答分数或 RSI 结论。

@@ -15,7 +15,7 @@ internal sealed partial class NatureModels
         if(BodyFrame==1)for(int i=0;i<profile.Length;i++)
         {
             float weight=1-Mathf.SmoothStep(.04f,.29f,profile[i].X);
-            profile[i].Z*=1+.11f*weight;profile[i].W*=1+.05f*weight;
+            profile[i].Z*=1+.16f*weight;profile[i].W*=1+.08f*weight;
         }
         return profile;
     }

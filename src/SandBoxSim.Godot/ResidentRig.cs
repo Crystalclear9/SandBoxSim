@@ -215,7 +215,7 @@ internal partial class ResidentRig : Node3D
             Feet[i].Rotation=new(-(Legs[i].Rotation.X+Knees[i].Rotation.X),0,0);
             float relaxed=(1-_activity)*(usingTool||pickup||resting?0:1);
             float side=i==0?1:-1;
-            Arms[i].Rotation=new(-stride*.32f-.045f*relaxed,side*.025f*relaxed,side*.035f);
+            Arms[i].Rotation=new(-stride*.32f-.045f*relaxed,side*.025f*relaxed,side*(.035f-ArmRestClearance*(usingTool||pickup||resting?0:1)));
             Elbows[i].Rotation=new(.12f+.09f*relaxed+MathF.Max(0,stride)*.22f,0,0);Hands[i].Rotation=Vector3.Zero;
             CurlHand(i,.24f+.045f*MathF.Sin(_phase*.4f+identityPhase+i));
         }
