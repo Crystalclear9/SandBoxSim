@@ -154,7 +154,11 @@ internal partial class ResidentRig : Node3D
         // beyond .1 seconds. A long host stall still has a one-second budget.
         bool fineReach=_hadBarePose||_cargoBlend>0||_socialBlend>.001f||action is ActionKind.Socialize or ActionKind.Eat or ActionKind.Drink or ActionKind.Take or ActionKind.GatherFood or ActionKind.Deposit or ActionKind.ShareFood or ActionKind.Trade or ActionKind.StoreInBuilding;
         ConsumeLocomotionSamples();
-        float maxStep=fineReach?1f/30:.1f;
+        // Mouth approaches combine wrist orientation limits and a very short
+        // target distance. Resolve those constraints at one shared cadence so
+        // render frequency cannot select a different hand/elbow trajectory.
+        bool mouthReach=action is ActionKind.Eat or ActionKind.Drink||_bareBlend>0&&_bareAction is ActionKind.Eat or ActionKind.Drink;
+        float maxStep=mouthReach?1f/120:fineReach?1f/30:.1f;
         int steps=Math.Max(1,(int)MathF.Ceiling(delta/maxStep));
         for(int step=0;step<steps;step++)PoseActionStep(delta/steps,action,phase,identityPhase);
     }
@@ -220,6 +224,7 @@ internal partial class ResidentRig : Node3D
             Knees[i].Rotation=new(-1.1f*Smooth(_pickupBlend)+stance.Knee,0,0);
             Feet[i].Rotation=new(-(Legs[i].Rotation.X+Knees[i].Rotation.X),0,0);
             if(_restSupport>.00001f)PlantRestLeg(i);
+            PlantPickupLeg(i,Smooth(_pickupBlend));
             PoseWalkingLeg(i,gaitWeight);
             PoseFreeArm(i,delta,identityPhase);
         }
@@ -337,14 +342,23 @@ internal partial class ResidentRig : Node3D
             {
                 var mouth=Head.Transform*Mouth.Position;
                 var chest=BodyPoint(new Vector3(.14f,1.04f,-.22f));
-                var target=chest.Lerp(mouth+new Vector3(.025f,-.025f,-.075f),reach);
+                float desiredCurl=_bareAction==ActionKind.Drink?.40f+.35f*reach:.32f+.18f*reach;
+                float curl=Mathf.Lerp(_handCurl[1],desiredCurl,Smooth(_bareBlend));
+                // Track the displayed finger pad, not a palm centre several
+                // centimetres below it. Planning from the previous displayed
+                // orientation also includes the residual wrist limit without
+                // solving the elbow a second time in this step.
+                var prior=_previousHands[1].Basis;
+                var contact=mouth+Head.Basis*new Vector3(.012f,-.004f,-.022f);
+                var goal=contact+prior*(Grip!.Position-IndexTipOffset(1,curl));
+                var target=chest.Lerp(goal,reach);
                 // Supinate the forearm as the fingers approach the mouth;
                 // a forward-facing open palm reads as waving at the cheek.
                 var low=Basis.FromEuler(new Vector3(1.05f,0,.12f)).GetRotationQuaternion();
-                var high=Basis.FromEuler(new Vector3(2.50f,0,.20f)).GetRotationQuaternion();
+                var high=Basis.FromEuler(new Vector3(3.20f,0,.20f)).GetRotationQuaternion();
                 BlendBareHand(1,target,new Basis(low.Slerp(high,reach)));
             }
-            CurlHand(1,Mathf.Lerp(_handCurl[1],gathering?Math.Clamp((cycle-.3f)*3,0,.8f):eating?.35f+.40f*reach:.3f,Smooth(_bareBlend)));
+            CurlHand(1,Mathf.Lerp(_handCurl[1],gathering?Math.Clamp((cycle-.3f)*3,0,.8f):eating?(_bareAction==ActionKind.Drink?.40f+.35f*reach:.32f+.18f*reach):.3f,Smooth(_bareBlend)));
         }
         if(_socialBlend>.001f&&!usingTool&&!ToolHeld&&_reach==0&&!_hasCargo)
         {

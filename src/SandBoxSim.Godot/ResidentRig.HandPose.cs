@@ -57,6 +57,13 @@ internal partial class ResidentRig
     internal static Vector3 ThumbRoot(int side)=>new(HandMirror(side)*-.034f,-.021f,.001f);
     internal static Vector3 FingerBends(int digit,float curl)=>curl*(digit switch
     {0=>new Vector3(.891f,.837f,.857f),1=>new(.880f,1.055f,.694f),2=>new(.885f,.950f,.773f),_=>new(.905f,.651f,.995f)});
+    private static Vector3 IndexTipOffset(int side,float curl)
+    {
+        var bends=FingerBends(0,curl);
+        var root=Basis.FromEuler(new(bends.X,0,HandMirror(side)*-1.5f*.025f*(1-curl)));
+        return FingerRoot(side,0)+root*(new Vector3(0,-.026f*.92f,0)+new Basis(Vector3.Right,bends.Y)*
+            (new Vector3(0,-.018f*.92f,0)+new Basis(Vector3.Right,bends.Z)*new Vector3(0,-.014f*.92f,0)));
+    }
     internal void PoseHandReference(float curl)
     {
         for(int side=0;side<2;side++)
@@ -66,7 +73,14 @@ internal partial class ResidentRig
         }
     }
     private static (Vector3,Basis) CarryPose(ResidentTool kind,float stride)
-        => (new(.30f,.74f,-.17f+stride*.025f),Basis.FromEuler(new Vector3(.10f+stride*.04f,0,.95f)));
+    {
+        // The shaft crosses the closed palm's radial axis (the grip has a
+        // quarter-turn bind). Keep that bind when lowering the arm; treating
+        // the tool axis as the hand's long axis folds the wrist by 90 degrees.
+        float yaw=kind==ResidentTool.Hammer?.25f:1.35f;
+        var basis=new Basis(Vector3.Up,yaw)*Basis.FromEuler(new Vector3(.08f+stride*.025f,0,1.42f));
+        return (new(.27f,.56f,-.12f+stride*.015f),basis);
+    }
     private (Vector3,Basis) WorkPose(ResidentTool kind,float phase)
     {
         float lift=WorkLift(phase);
@@ -182,7 +196,11 @@ internal partial class ResidentRig
             if(right.LengthSquared()<.0001f){var hint=MathF.Abs(up.X)<.85f?Vector3.Right:Vector3.Forward;right=hint-up*hint.Dot(up);}
             right=right.Normalized();return new Basis(right,up,right.Cross(up).Normalized());
         }
-        var upperBasis=new Basis(new Quaternion(Vector3.Down,(elbow-shoulder).Normalized()));
+        // Align the upper arm's flexion axis with the solved elbow plane.
+        // A shortest-arc shoulder rotation alone leaves an arbitrary axial
+        // twist, even if the hand reaches exactly the intended point.
+        var hinge=(elbow-shoulder).Cross(wrist-elbow).Normalized();
+        var upperBasis=LimbFrame((elbow-shoulder).Normalized(),hinge);
         var lowerBasis=LimbFrame((wrist-elbow).Normalized(),handBasis.X)*new Basis(new Quaternion(Hands[side].Position.Normalized(),Vector3.Down));
         Arms[side].Basis=upperBasis;Elbows[side].Basis=upperBasis.Inverse()*lowerBasis;Hands[side].Basis=lowerBasis.Inverse()*handBasis;
     }

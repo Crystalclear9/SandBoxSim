@@ -113,7 +113,7 @@ internal partial class ModelGallery : PanelContainer
                 Closeup(grid,(side==0?"左臂":"右臂")+(view==0?" · 掌侧肌腱与腕口":view==1?" · 背侧肘部与腕骨":" · 侧面掌腕过渡"),
                     models.ForearmStudy(side),.46f,new(0,.17f,0),view==2?new(2,.04f,.18f):new(.18f,.04f,view==0?-2:2),false);
         }
-        else if(Collection=="social")
+        else if(Collection is "social" or "social-side")
         {
             body.GetChild<Label>(0).Text="居民生活 · 注视、交谈与分享";
             ActionCard(grid,models.Resident(17,false,JobType.Gatherer),ActionKind.Socialize,"交谈 · 眼神、点头与张手表达");
@@ -289,6 +289,11 @@ internal partial class ModelGallery : PanelContainer
         var stage=view.GetChild<Node3D>(0);var camera=stage.GetChild<Camera3D>(stage.GetChildCount()-1);
         var target=new Vector3(0,Collection=="work-effort"?1.05f:.92f,0);camera.Position=target+new Vector3(.03f,.08f,4);camera.LookAt(target);
         if(Collection=="work-effort")camera.Size=1.15f;
+        if(Collection is "social" or "social-side")
+        {
+            target=new Vector3(0,1,0);camera.Size=1.6f;
+            camera.Position=target+(Collection=="social-side"?new Vector3(4,.06f,1):new Vector3(.12f,.06f,4));camera.LookAt(target);
+        }
         if(action==ActionKind.StoreInBuilding)rig.ShowCargo(true,ResourceKind.Wood);
         Animate(rig,action);
     }

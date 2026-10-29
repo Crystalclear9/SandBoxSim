@@ -96,7 +96,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateReachTrajectories()
     {
-        float maxHandStep=0,maxElbowStep=0;
+        float maxHandStep=0,maxElbowStep=0;int fingertipSamples=0;
         foreach(var action in new[]{ActionKind.Eat,ActionKind.Drink,ActionKind.Socialize})
         {
             var rig=Resident(42,false,JobType.Gatherer);
@@ -104,7 +104,7 @@ internal sealed partial class NatureModels
             try
             {
                 Vector3 previousHand=Vector3.Zero,previousElbow=Vector3.Zero;
-                float low=float.PositiveInfinity,high=float.NegativeInfinity,closestMouth=float.PositiveInfinity;
+                float low=float.PositiveInfinity,high=float.NegativeInfinity,closestMouth=float.PositiveInfinity,closestTip=float.PositiveInfinity;int nearTip=0;
                 for(int frame=0;frame<360;frame++)
                 {
                     rig.PoseAction(1f/60,action,ActionPhase.Executing,false,.37f);
@@ -126,14 +126,19 @@ internal sealed partial class NatureModels
                         var palm=hand*rig.Grip!.Position;
                         low=MathF.Min(low,palm.Y);high=MathF.Max(high,palm.Y);
                         closestMouth=MathF.Min(closestMouth,palm.DistanceTo(rig.Head.Transform*rig.Mouth.Position));
+                        var tip=InTorso(rig.Fingertips[1,0],rig.Torso)*new Vector3(0,-.014f*.92f,0);
+                        float contact=tip.DistanceTo(rig.Head.Transform*rig.Mouth.Position);
+                        closestTip=MathF.Min(closestTip,contact);if(contact<.05f){nearTip++;fingertipSamples++;}
                     }
                 }
+                if(action!=ActionKind.Socialize&&(closestTip>.05f||nearTip<12))
+                    throw new InvalidOperationException($"Consuming finger pad misses the mouth: {action}, distance={closestTip}, near frames={nearTip}");
                 if(action!=ActionKind.Socialize&&(high-low<.12f||closestMouth>.13f))
                     throw new InvalidOperationException($"Consuming hand does not lift, reach the mouth and return: {action}, excursion={high-low}, mouth={closestMouth}");
             }
             finally{rig.Free();reference.Free();}
         }
-        GD.Print($"REACH_TRAJECTORY_PASS: eat/drink/social, 60/120 Hz, maximum per-frame hand/elbow step {maxHandStep:F4}/{maxElbowStep:F4} m, mouth approach and return");
+        GD.Print($"REACH_TRAJECTORY_PASS: eat/drink/social, 60/120 Hz, maximum per-frame hand/elbow step {maxHandStep:F4}/{maxElbowStep:F4} m, mouth approach/return and {fingertipSamples} displayed index-pad proximity samples");
     }
     private void ValidatePresentationCadence()
     {

@@ -61,7 +61,10 @@
         "naturemodels",
         "trails",
         "homes",
-        "farms"
+        "farms",
+        "motion",
+        "social",
+        "social-side"
       ],
       "default": "field"
     },

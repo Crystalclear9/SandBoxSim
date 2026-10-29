@@ -50,6 +50,7 @@ internal sealed partial class NatureModels
         }
         finally{foreach(var rig in paired)rig.Free();}
         ValidateLocomotionLoads();
+        ValidateSupportCoordination();
         ValidateLocomotionSampling();
         GD.Print($"LOCOMOTION_PASS: paired frames, 3 speeds, start/stop/turn/pickup, {samples} ankle samples and actual sole curves, fixed limb lengths; max step={maxStep:F4} m, minimum ankle/sole={minAnkle:F4}/{minSole:F4} m, clearance={maxClearance:F4} m, turn anticipation={maxSeparation:F3} rad, pause");
     }

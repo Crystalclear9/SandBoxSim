@@ -54,14 +54,13 @@ internal partial class ResidentRig
         _gaitTurn=Mathf.Lerp(_gaitTurn,moving?_turnDemand:0,1-MathF.Exp(-dt*7));
         float a=_gaitCycle*MathF.Tau,load=_hasCargo?.72f:1;
         _gaitOffset=new(-MathF.Sin(a)*(.011f+GaitPelvisRoll*.20f)*_activity,
-            (-.047f-.024f*MathF.Cos(a*2))*_activity,0);
+            WalkingHipHeight()*_activity,0);
         GaitPelvisBasis=Basis.FromEuler(new(0,-MathF.Cos(a)*GaitPelvisYaw*_activity*load,
             -MathF.Sin(a)*GaitPelvisRoll*_activity));
     }
 
-    private void PoseWalkingLeg(int side,float weight)
+    private (float Z,float Lift,float Pitch) WalkingFootPath(int side)
     {
-        if(weight<=.000001f)return;
         float t=Mathf.PosMod(_gaitCycle+side*.5f,1),support=GaitSupport;
         float span=GaitCycleLength(_gaitSpeed)*support*.5f*
             (1+(side==0?-1:1)*_gaitTurn*.08f);
@@ -77,6 +76,42 @@ internal partial class ResidentRig
             z=Mathf.Lerp(span,-span,Smooth(u));lift=.082f*arc*arc;
             pitch=Mathf.Lerp(-.24f,.13f,Smooth(u));
         }
+        return (z,lift,pitch);
+    }
+
+    private float WalkingHipHeight()
+    {
+        // Let the planted leg approach extension at mid-stance. A permanent
+        // downward sine offset made every step look like a crouched march.
+        float height=HipHeight;
+        float reach=ThighLength+MathF.Sqrt(ShinLength*ShinLength+.0016f)-.004f;
+        for(int side=0;side<2;side++)
+        {
+            var foot=WalkingFootPath(side);float z=foot.Z-.04f;
+            float sole=.065f;
+            foreach(var p in BootSoleCurve)sole=MathF.Max(sole,-p.Y*MathF.Cos(foot.Pitch)+p.Z*MathF.Sin(foot.Pitch));
+            // The approaching swing foot also constrains reach. Waiting for
+            // its contact flag caused an abrupt pelvis drop at heel strike.
+            height=MathF.Min(height,sole+foot.Lift+MathF.Sqrt(MathF.Max(.05f,reach*reach-z*z-.000144f)));
+        }
+        // A quiet double-support arc avoids transmitting the swing foot's
+        // rapid clearance lift into the whole torso. Reach remains a ceiling.
+        float arc=-.030f-.027f*MathF.Cos(_gaitCycle*MathF.Tau*2);
+        return MathF.Min(arc,height-HipHeight-.002f);
+    }
+
+    private void PlantPickupLeg(int side,float weight)
+    {
+        if(weight<=.000001f)return;
+        var foot=Legs[side].Transform*Knees[side].Transform*Feet[side].Transform;
+        var anchor=new Vector3(side==0?-HipHalfWidth:HipHalfWidth,HipHeight-ThighLength-ShinLength,-.04f);
+        SolveLegTo(side,foot.Origin.Lerp(anchor,weight),new Basis(foot.Basis.GetRotationQuaternion().Slerp(Quaternion.Identity,weight)));
+    }
+
+    private void PoseWalkingLeg(int side,float weight)
+    {
+        if(weight<=.000001f)return;
+        var (z,lift,pitch)=WalkingFootPath(side);
         float x=(side==0?-1:1)*(HipHalfWidth-.012f);
         // Rotate about the actual boot sole's contact, not the ankle in air.
         pitch*=weight;
