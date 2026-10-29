@@ -37,7 +37,18 @@ internal partial class ModelGallery : PanelContainer
         if(Collection=="wardrobe")body.GetChild<Label>(0).Text="衣装剪裁 · 实际职业模型的正面与背面";
         grid.AddThemeConstantOverride("h_separation",12); grid.AddThemeConstantOverride("v_separation",12); body.AddChild(grid);
         var models=new NatureModels();
-        if(Collection=="work-effort")
+        if(Collection=="shoulder-motion")
+        {
+            grid.Columns=2;body.GetChild<Label>(0).Text="肩肘动作 · 正面与侧面的抬手、挥锤和返回";
+            for(int view=0;view<2;view++)for(int frame=0;frame<2;frame++)
+            {
+                var rig=models.Resident(frame==0?17:55,false,JobType.Builder);
+                Closeup(grid,(frame==0?"男性外观":"女性外观")+(view==0?" · 正面肩袖与肘部":" · 侧面抬臂与收手"),
+                    rig,1.12f,new(0,1.04f,0),view==0?new(.03f,.04f,4):new(4,.04f,.15f),true);
+                Animate(rig,ActionKind.BuildHouse);
+            }
+        }
+        else if(Collection=="work-effort")
         {
             grid.Columns=2;body.GetChild<Label>(0).Text="同一手锤 · 体格与疲劳下的蓄力、挥击和回收";
             for(int condition=0;condition<2;condition++)for(int frame=0;frame<2;frame++)

@@ -288,6 +288,7 @@ internal sealed partial class NatureModels
     }
     public void ValidateResidentMeshes()
     {
+        ValidateShoulderMotion();
         ValidateContinuousGarments();
         var speaker=Resident(17,false,JobType.Builder);var listener=Resident(17,false,JobType.Builder);
         speaker.MouthMaterial.SetShaderParameter("speech",1f);

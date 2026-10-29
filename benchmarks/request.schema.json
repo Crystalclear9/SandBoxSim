@@ -64,7 +64,8 @@
         "farms",
         "motion",
         "social",
-        "social-side"
+        "social-side",
+        "shoulder-motion"
       ],
       "default": "field"
     },

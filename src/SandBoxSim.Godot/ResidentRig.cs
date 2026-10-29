@@ -152,7 +152,7 @@ internal partial class ResidentRig : Node3D
         // Distant residents arrive with several frame intervals accumulated.
         // Consume that time in bounded steps instead of discarding everything
         // beyond .1 seconds. A long host stall still has a one-second budget.
-        bool fineReach=_hadBarePose||_cargoBlend>0||_socialBlend>.001f||action is ActionKind.Socialize or ActionKind.Eat or ActionKind.Drink or ActionKind.Take or ActionKind.GatherFood or ActionKind.Deposit or ActionKind.ShareFood or ActionKind.Trade or ActionKind.StoreInBuilding;
+        bool fineReach=_hasArmReturn||_cargoBlend>0||_socialBlend>.001f||action is ActionKind.Socialize or ActionKind.Eat or ActionKind.Drink or ActionKind.Take or ActionKind.GatherFood or ActionKind.Deposit or ActionKind.ShareFood or ActionKind.Trade or ActionKind.StoreInBuilding;
         ConsumeLocomotionSamples();
         // Mouth approaches combine wrist orientation limits and a very short
         // target distance. Resolve those constraints at one shared cadence so
@@ -166,9 +166,9 @@ internal partial class ResidentRig : Node3D
     private void PoseActionStep(float delta,ActionKind action,ActionPhase phase,float identityPhase)
     {
         _poseStep=delta;
-        _bareThisFrame=false;
         for(int side=0;side<2;side++)
         {
+            _armSolvedThisStep[side]=false;
             _priorArms[side]=Arms[side].Transform;_priorForearms[side]=Elbows[side].Transform;_priorWrists[side]=Hands[side].Transform;
             _previousHands[side]=Arms[side].Transform*Elbows[side].Transform*Hands[side].Transform;
             _previousElbows[side]=Arms[side].Transform*Elbows[side].Position;
@@ -185,7 +185,7 @@ internal partial class ResidentRig : Node3D
             (action is ActionKind.None or ActionKind.Wander||phase is ActionPhase.Idle or ActionPhase.Done))
             wanted=DefaultTool;
         _carrying=wanted!=ResidentTool.None&&(!executing||ToolFor(action)==ResidentTool.None);
-        _workBlend=Mathf.MoveToward(_workBlend,executing&&ToolFor(action)!=ResidentTool.None?1:0,delta/.25f);
+        _workBlend=Mathf.MoveToward(_workBlend,executing&&ToolFor(action)!=ResidentTool.None?1:0,delta/.40f);
         bool usingTool=wanted!=ResidentTool.None;
         _phase+=delta*(moving?7.5f:1.8f);_workTime+=delta;
         AdvanceLocomotion(delta,moving);
@@ -251,6 +251,8 @@ internal partial class ResidentRig : Node3D
             Mouth.Position=MouthRest;Mouth.Scale=Vector3.One;MouthMaterial.SetShaderParameter("speech",_mouthAmount);
         }
         bool wantCurrent=usingTool&&wanted==CurrentTool;
+        bool supportWanted=wantCurrent&&ToolHeld&&executing&&!_carrying&&(CurrentTool is ResidentTool.Axe or ResidentTool.Pick or ResidentTool.Hoe or ResidentTool.Spear);
+        _supportBlend=Mathf.MoveToward(_supportBlend,supportWanted?1:0,delta/.35f);
         if(ToolHeld)
         {
             _draw=Mathf.MoveToward(_draw,wantCurrent?1:0,delta/.48f);
@@ -270,14 +272,17 @@ internal partial class ResidentRig : Node3D
             CurlHand(1,1);
             if(CurrentTool is ResidentTool.Axe or ResidentTool.Pick or ResidentTool.Hoe or ResidentTool.Spear)
             {
-                float support=Smooth(Math.Clamp((_draw-.15f)/.65f,0,1))*Smooth(_workBlend);
-                var heldTransform=Arms[1].Transform*Elbows[1].Transform*Hands[1].Transform*Grip!.Transform;
-                var actualGrip=heldTransform.Origin;
-                var leftRest=(Arms[0].Transform*Elbows[0].Transform*Hands[0].Transform)*Grip.Position;
-                var leftBasis=heldTransform.Basis*new Basis(Vector3.Back,MathF.PI/2);
-                var restBasis=(Arms[0].Transform*Elbows[0].Transform*Hands[0].Transform).Basis;
-                SolveHand(0,leftRest.Lerp(actualGrip+heldTransform.Basis*new Vector3(0,CurrentTool==ResidentTool.Hoe?.15f:.065f,0),support),new Basis(restBasis.GetRotationQuaternion().Slerp(leftBasis.GetRotationQuaternion(),support)));
-                CurlHand(0,support);
+                float support=Smooth(Math.Clamp((_draw-.15f)/.65f,0,1))*Smooth(_workBlend)*ReachEase(_supportBlend);
+                if(support>.00001f)
+                {
+                    var heldTransform=Arms[1].Transform*Elbows[1].Transform*Hands[1].Transform*Grip!.Transform;
+                    var actualGrip=heldTransform.Origin;
+                    var leftRest=(Arms[0].Transform*Elbows[0].Transform*Hands[0].Transform)*Grip.Position;
+                    var leftBasis=heldTransform.Basis*new Basis(Vector3.Back,MathF.PI/2);
+                    var restBasis=(Arms[0].Transform*Elbows[0].Transform*Hands[0].Transform).Basis;
+                    SolveHand(0,leftRest.Lerp(actualGrip+heldTransform.Basis*new Vector3(0,CurrentTool==ResidentTool.Hoe?.15f:.065f,0),support),new Basis(restBasis.GetRotationQuaternion().Slerp(leftBasis.GetRotationQuaternion(),support)));
+                    CurlHand(0,support);
+                }
             }
             if(!wantCurrent&&_draw==0&&filtered.Position.DistanceTo(Holster.Position)<.0015f&&_toolVelocity.Length()<.03f&&MathF.Abs(filtered.Basis.GetRotationQuaternion().Dot(Holster.Basis.GetRotationQuaternion()))>MathF.Cos(.01f))AttachTool(Holster);
         }
@@ -375,7 +380,7 @@ internal partial class ResidentRig : Node3D
                 CurlHand(side,(.16f+emphasis)*_socialBlend);
             }
         }
-        FinishBareReturn(usingTool||ToolHeld||_reach>0||_releaseTime>0);
+        FinishArmReturns();
         if(CargoMesh.Visible)
         {
             var right=Arms[1].Transform*Elbows[1].Transform*Hands[1].Transform;

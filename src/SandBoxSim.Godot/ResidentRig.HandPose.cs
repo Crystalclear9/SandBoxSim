@@ -6,17 +6,17 @@ namespace SandBoxSim.Client;
 /// <summary>Hand anatomy, two-bone reach and tool-specific grip orientations.</summary>
 internal partial class ResidentRig
 {
-    private float _bareBlend,_pickupBlend,_bareTime,_cargoBlend;
+    private float _bareBlend,_pickupBlend,_bareTime,_cargoBlend,_supportBlend;
     private SandBoxSim.Core.Agents.ActionKind _bareAction;
     private readonly Transform3D[] _previousHands=new Transform3D[2];
     private readonly Vector3[] _previousElbows=new Vector3[2];
     private float _poseStep;
     private readonly Transform3D[] _priorArms=new Transform3D[2],_priorForearms=new Transform3D[2],_priorWrists=new Transform3D[2];
-    private bool _bareThisFrame,_hadBarePose;
+    private bool _hasArmReturn;
+    private readonly bool[] _armSolvedThisStep=new bool[2],_armReturning=new bool[2];
     private Transform3D _toolReachRest;
     private void BlendBareHand(int side,Vector3 target,Basis desired,float blend=-1)
     {
-        _bareThisFrame=true;_hadBarePose=true;
         float weight=ReachEase(blend<0?_bareBlend:blend);
         var rest=Arms[side].Transform*Elbows[side].Transform*Hands[side].Transform;
         var offset=side==1?Grip!.Position:new Vector3(0,-.035f,-.0286f);
@@ -32,13 +32,16 @@ internal partial class ResidentRig
         var palm=origin.MoveToward(goal,reachStep);
         SolveBareHand(side,palm,new Basis(orientation));
     }
-    private void FinishBareReturn(bool toolDriven)
+    private void FinishArmReturns()
     {
-        if(toolDriven){_hadBarePose=false;return;}
-        if(_bareThisFrame||!_hadBarePose)return;
-        float blend=1-MathF.Exp(-_poseStep*12),remaining=0;
+        _hasArmReturn=false;
+        float blend=1-MathF.Exp(-_poseStep*12);
         for(int side=0;side<2;side++)
         {
+            // Each arm owns its return. An active eating hand must not cancel
+            // the other arm's return from a previous two-handed gesture.
+            if(_armSolvedThisStep[side]||!_armReturning[side])continue;
+            float remaining=0;
             var armTarget=Arms[side].Transform;var elbowTarget=Elbows[side].Quaternion;var wristTarget=Hands[side].Quaternion;
             Arms[side].Position=_priorArms[side].Origin.Lerp(armTarget.Origin,blend);
             Arms[side].Quaternion=_priorArms[side].Basis.GetRotationQuaternion().Slerp(armTarget.Basis.GetRotationQuaternion(),blend);
@@ -47,8 +50,9 @@ internal partial class ResidentRig
             remaining=MathF.Max(remaining,1-MathF.Abs(Arms[side].Quaternion.Dot(armTarget.Basis.GetRotationQuaternion())));
             remaining=MathF.Max(remaining,1-MathF.Abs(Elbows[side].Quaternion.Dot(elbowTarget)));
             remaining=MathF.Max(remaining,1-MathF.Abs(Hands[side].Quaternion.Dot(wristTarget)));
+            _armReturning[side]=remaining>=.000001f;
+            _hasArmReturn|=_armReturning[side];
         }
-        if(remaining<.000001f)_hadBarePose=false;
     }
     // Canonical hand is left: mirrored geometry, bind roots and articulation
     // must use the same convention at every detail level.
@@ -88,7 +92,13 @@ internal partial class ResidentRig
         if(kind==ResidentTool.Spear)return (new(.10f,.99f,-.24f-lift*.12f),Basis.FromEuler(new Vector3(-1.1f,0,.45f)));
         float prepare=.48f+.055f*RelativeWorkLoad;
         float arc=phase<prepare?MathF.Sin(MathF.PI*ReachEase(phase/prepare)):0;
-        return (new((kind==ResidentTool.Hammer?.20f:.10f)+arc*.025f,.92f+lift*.26f,-.30f+lift*.10f+arc*.028f),Basis.FromEuler(new Vector3(.55f+lift*1.05f,arc*.08f,.45f)));
+        // Tool X becomes the hand's long axis through the quarter-turn grip.
+        // Put that axis in the forward stroke plane, rather than demanding a
+        // sideways forearm and forcing the elbow out to accommodate the shaft.
+        var rotation=kind==ResidentTool.Hammer
+            ?new Basis(Vector3.Right,.15f+lift*.90f)*new Basis(Vector3.Up,-1.35f)*new Basis(Vector3.Right,MathF.PI)
+            :Basis.FromEuler(new Vector3(.55f+lift*1.05f,arc*.08f,.45f));
+        return (new((kind==ResidentTool.Hammer?.20f:.10f)+arc*.025f,.92f+lift*.26f,-.30f+lift*.10f+arc*.028f),rotation);
     }
     // Zero velocity and acceleration at both ends of an intentional reach.
     internal static float ReachEase(float t){t=Math.Clamp(t,0,1);return t*t*t*(10+t*(-15+6*t));}
@@ -138,6 +148,7 @@ internal partial class ResidentRig
     }
     private void SolveHand(int side,Vector3 gripTarget,Basis handBasis,bool bare=false,float carry=0,Vector3? elbowHint=null)
     {
+        _armSolvedThisStep[side]=true;_armReturning[side]=true;
         Vector3 gripOffset=side==1?Grip!.Position:new(0,-.035f,-.0286f);
         Vector3 wrist=gripTarget-handBasis*gripOffset;
         Vector3 shoulder=ShoulderForReach(side,wrist);Arms[side].Position=shoulder;
@@ -154,21 +165,6 @@ internal partial class ResidentRig
         var bend=pole-direction*pole.Dot(direction);
         if(bend.LengthSquared()<.0001f){var hint=new Vector3(side==0?-1:1,.2f,.1f);bend=hint-direction*hint.Dot(direction);}
         bend=bend.Normalized();
-        if(elbowHint.HasValue)
-        {
-            var prior=elbowHint.Value-shoulder;
-            prior-=direction*prior.Dot(direction);
-            if(prior.LengthSquared()>.000001f)
-            {
-                prior=prior.Normalized();
-                // Continue the last displayed elbow plane, not the FK rest
-                // pose rebuilt at the start of this frame. Limit swivel while
-                // preserving the exact two-bone lengths and wrist target.
-                float turn=prior.SignedAngleTo(bend,direction);
-                float limit=3*_poseStep*(1-MathF.Exp(-MathF.Abs(turn)/.30f));
-                bend=prior.Rotated(direction,Math.Clamp(turn,-limit,limit));
-            }
-        }
         float radius=MathF.Sqrt(MathF.Max(0,upper*upper-along*along));
         if(!bare&&radius>.0001f)
         {
@@ -189,6 +185,21 @@ internal partial class ResidentRig
                 }
             }
         }
+        if(_poseStep>0)
+        {
+            var prior=(elbowHint??_previousElbows[side])-shoulder;
+            prior-=direction*prior.Dot(direction);
+            if(prior.LengthSquared()>.000001f)
+            {
+                prior=prior.Normalized();
+                // Continue the last displayed elbow plane, not the FK rest
+                // pose rebuilt at the start of this frame. Limit swivel while
+                // preserving the exact two-bone lengths and wrist target.
+                float turn=prior.SignedAngleTo(bend,direction);
+                float limit=3*_poseStep*(1-MathF.Exp(-MathF.Abs(turn)/.30f));
+                bend=prior.Rotated(direction,Math.Clamp(turn,-limit,limit));
+            }
+        }
         Vector3 elbow=shoulder+direction*along+bend*radius;
         Basis LimbFrame(Vector3 direction,Vector3 rightHint)
         {
@@ -196,13 +207,35 @@ internal partial class ResidentRig
             if(right.LengthSquared()<.0001f){var hint=MathF.Abs(up.X)<.85f?Vector3.Right:Vector3.Forward;right=hint-up*hint.Dot(up);}
             right=right.Normalized();return new Basis(right,up,right.Cross(up).Normalized());
         }
-        // Align the upper arm's flexion axis with the solved elbow plane.
-        // A shortest-arc shoulder rotation alone leaves an arbitrary axial
-        // twist, even if the hand reaches exactly the intended point.
-        var hinge=(elbow-shoulder).Cross(wrist-elbow).Normalized();
-        var upperBasis=LimbFrame((elbow-shoulder).Normalized(),hinge);
+        var upperBasis=ReachUpperArmFrame(side,elbow-shoulder,wrist-elbow);
         var lowerBasis=LimbFrame((wrist-elbow).Normalized(),handBasis.X)*new Basis(new Quaternion(Hands[side].Position.Normalized(),Vector3.Down));
         Arms[side].Basis=upperBasis;Elbows[side].Basis=upperBasis.Inverse()*lowerBasis;Hands[side].Basis=lowerBasis.Inverse()*handBasis;
+    }
+    private Basis ReachUpperArmFrame(int side,Vector3 upper,Vector3 lower)
+    {
+        var direction=upper.Normalized();
+        var swing=new Basis(new Quaternion(Vector3.Down,direction));
+        var hinge=direction.Cross(lower.Normalized());
+        float bend=hinge.Length(),wanted=0;
+        if(bend>.0001f)
+        {
+            hinge/=bend;
+            // The plane normal is an unsigned axis. Choosing its opposite
+            // sign must never turn the humerus and sleeve through half a turn.
+            if(hinge.Dot(swing.X)<0)hinge=-hinge;
+            wanted=Math.Clamp(swing.X.SignedAngleTo(hinge,direction),-.80f,.80f)
+                *Mathf.SmoothStep(.08f,.35f,bend);
+        }
+        // Transport the displayed frame onto the new upper-arm direction.
+        // Near extension the elbow plane is ill-conditioned, so recover the
+        // neutral frame gradually instead of following the raw cross product.
+        var previous=_priorArms[side].Basis.X;
+        previous-=direction*previous.Dot(direction);
+        float prior=previous.LengthSquared()>.0001f?swing.X.SignedAngleTo(previous.Normalized(),direction):0;
+        float difference=Mathf.Wrap(wanted-prior,-MathF.PI,MathF.PI);
+        float limit=2.6f*_poseStep*(1-MathF.Exp(-MathF.Abs(difference)/.20f));
+        float twist=prior+Math.Clamp(difference,-limit,limit);
+        return new Basis(direction,twist)*swing;
     }
     internal float ShoulderHalfWidth=.202f,ShoulderDrop;
     internal Vector3 ShoulderRest(int side)=>new(side==0?-ShoulderHalfWidth:ShoulderHalfWidth,BodyY(1.18f)-ShoulderDrop,0);
