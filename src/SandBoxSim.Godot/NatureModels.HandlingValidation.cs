@@ -36,7 +36,7 @@ internal sealed partial class NatureModels
         var weights=arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();var bones=arrays[(int)Mesh.ArrayType.Bones].AsInt32Array();
         for(int i=0;i<points.Length;i++)
         {
-            float sum=0;for(int b=0;b<4;b++){sum+=weights[i*4+b];if(bones[i*4+b]<0||bones[i*4+b]>15)throw new InvalidOperationException("Hand binding outside bone palette");}
+            float sum=0;for(int b=0;b<4;b++){sum+=weights[i*4+b];if(bones[i*4+b]<0||bones[i*4+b]>=ResidentRig.HandBoneCount)throw new InvalidOperationException("Hand binding outside bone palette");}
             if(MathF.Abs(sum-1)>4f/65535f)throw new InvalidOperationException("Hand weights do not sum to one");
         }
         var nailPoints=mesh.SurfaceGetArrays(1)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
@@ -125,7 +125,7 @@ internal sealed partial class NatureModels
         foreach(float curl in new[]{0f,.35f,1f})
         {
             rig.PoseHandReference(curl);
-            for(int bone=0;bone<16;bone++)
+            for(int bone=0;bone<ResidentRig.HandBoneCount;bone++)
             {
                 var left=rig.HandSkeletons[0].GetBoneGlobalPose(bone);var right=rig.HandSkeletons[1].GetBoneGlobalPose(bone);
                 if(ReflectHand(left.Origin).DistanceTo(right.Origin)>.00001f||(-ReflectHand(left.Basis.X)).DistanceTo(right.Basis.X)>.00001f||ReflectHand(left.Basis.Y).DistanceTo(right.Basis.Y)>.00001f||ReflectHand(left.Basis.Z).DistanceTo(right.Basis.Z)>.00001f)
@@ -254,9 +254,9 @@ internal sealed partial class NatureModels
                         // Synchronous out-of-tree rigs do not run Skeleton3D's
                         // deferred update. Compose current local poses, rather
                         // than comparing this frame against a cached global pose.
-                        var palette=new Transform3D[16];var global=new Transform3D[16];
+                        var palette=new Transform3D[ResidentRig.HandBoneCount];var global=new Transform3D[ResidentRig.HandBoneCount];
                         var skeleton=rig.HandSkeletons[hand];
-                        for(int b=0;b<16;b++)
+                        for(int b=0;b<ResidentRig.HandBoneCount;b++)
                         {
                             int parentBone=skeleton.GetBoneParent(b);
                             global[b]=parentBone<0?skeleton.GetBonePose(b):global[parentBone]*skeleton.GetBonePose(b);
@@ -273,8 +273,13 @@ internal sealed partial class NatureModels
                             {
                                 var forearm=InTorso(rig.Elbows[hand],rig.Torso).AffineInverse()*(handTransform*point);
                                 var expected=points[v]+new Vector3(0,-.255f,-.010f);
-                                if(!forearm.IsFinite()||forearm.DistanceTo(expected)>.001f)
-                                    throw new InvalidOperationException("Joined forearm follows the rotating hand instead of the elbow");
+                                var longAxis=rig.Hands[hand].Position.Normalized();
+                                float along=expected.Dot(longAxis),actualAlong=forearm.Dot(longAxis);
+                                float radius=(expected-longAxis*along).Length(),actualRadius=(forearm-longAxis*actualAlong).Length();
+                                if(!forearm.IsFinite()||MathF.Abs(along-actualAlong)>.001f||actualRadius<radius*.94f-.0001f||actualRadius>radius+.0001f)
+                                    throw new InvalidOperationException("Distributed forearm twist shortens or collapses the anatomical skin");
+                                if(points[v].Y<.065f&&forearm.DistanceTo(expected)>.001f)
+                                    throw new InvalidOperationException("Forearm twist separates the fixed wrist transition");
                                 continue;
                             }
                             if(wristRing)

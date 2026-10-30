@@ -57,6 +57,7 @@ internal sealed partial class NatureModels
         for(int i=0;i<ids.Length;i+=3)for(int j=0;j<3;j++)
         {int a=ids[i+j],b=ids[i+(j+1)%3];adjacent[a].Add(b);adjacent[b].Add(a);}
         var patches=ShoulderSurfacePatches(source,ids,adjacent,uv,girdleWeights);
+        var bindings=BindShoulderSurface(source,ids,uv);
         var result=new Godot.Collections.Array<Godot.Collections.Array>();
         for(int side=0;side<2;side++)for(int plane=0;plane<ResidentRig.SleevePlaneCount;plane++)for(int height=0;height<ResidentRig.SleeveHeightCount;height++)for(int roll=0;roll<3;roll++)
         {
@@ -92,7 +93,7 @@ internal sealed partial class NatureModels
                     active[i]=uv[i].X>=0?1-Mathf.SmoothStep(.17f,.23f,uv[i].X):girdleWeights[i];
             }
             var target=(Vector3[])posed.Clone();
-            var anatomy=FitPosedShoulder(source,posed,target,ids,uv,active,rig,side,rotation,girdle);
+            var anatomy=FitPosedShoulder(source,posed,target,ids,uv,active,rig,side,rotation,girdle,bindings);
             var anatomicalTarget=(Vector3[])target.Clone();
             // Fair the entire shoulder/armhole transition, not an isolated
             // sleeve with a pinned ridge at its root. Metric surface patches
@@ -117,11 +118,11 @@ internal sealed partial class NatureModels
             // Even a small edit can tear a 0.3 mm compressed cap edge.
             // Constrain differences in bind space before producing normals,
             // retaining pinned endpoints and the actual final posed surface.
-            for(int pass=0;pass<24;pass++)
+            for(int pass=0;pass<64;pass++)
             {
                 for(int a=0;a<source.Length;a++)foreach(int b in adjacent[a])if(b>a)
                 {
-                    var difference=offsets[a]-offsets[b];float length=difference.Length(),limit=source[a].DistanceTo(source[b])*.30f;
+                    var difference=offsets[a]-offsets[b];float length=difference.Length(),limit=source[a].DistanceTo(source[b])*.5f;
                     if(length<=limit||length<.0000001f)continue;
                     float freeA=active[a]>0?1:0,freeB=active[b]>0?1:0;if(freeA+freeB==0)continue;
                     var correction=difference*((length-limit)/length/(freeA+freeB));
@@ -136,7 +137,7 @@ internal sealed partial class NatureModels
                     float wa=active[a]>0?1:0,wb=active[b]>0?1:0;if(wa+wb==0)continue;
                     var pa=blends[a]*(source[a]+offsets[a]);var pb=blends[b]*(source[b]+offsets[b]);
                     var edge=pa-pb;float length=edge.Length();
-                    float limit=MathF.Max(source[a].DistanceTo(source[b])*3.6f,posed[a].DistanceTo(posed[b])*1.01f);
+                    float limit=source[a].DistanceTo(source[b])*3;
                     if(length<=limit||length<.0000001f)continue;
                     var correction=edge*((length-limit)/length/(wa+wb));
                     if(wa>0)offsets[a]=blends[a].AffineInverse()*(pa-correction)-source[a];

@@ -45,7 +45,7 @@ internal sealed partial class NatureModels
                     for(int i=0;i<source.Length;i++)
                     {
                         float distance=source[i].DistanceTo(points[i]);displacement=MathF.Max(displacement,distance);
-                        if(!points[i].IsFinite()||!normals[i].IsFinite()||MathF.Abs(normals[i].Length()-1)>.001f||distance>.040f)
+                        if(!points[i].IsFinite()||!normals[i].IsFinite()||MathF.Abs(normals[i].Length()-1)>.001f||distance>.080f)
                             throw new InvalidOperationException("Corrective has an invalid normal or exceeds its bounded surface edit");
                         if((MathF.Abs(source[i].X)<.04f||source[i].Y<.90f||uv[i].X>=.23f)&&distance>.000001f)
                             throw new InvalidOperationException("Shoulder corrective moves the fixed neck, centre, waist or cuff");

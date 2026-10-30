@@ -209,10 +209,13 @@ internal sealed partial class NatureModels
                     weights[i*4+2]=t;weights[i*4+3]=0;
                     if(pattern.Length==points.Length&&pattern[i].X>0)
                     {
-                        // The sleeve's section-centre correction belongs to
-                        // the sleeve, not to the adjacent chest. Fade it in
-                        // using sewn distances, continuously from the seam.
-                        float gather=Math.Clamp(sleeveDistance[i]/.263f,0,1);
+                        // Positive section-centre translation applies below
+                        // the humeral pivot. Fade it off across the cap above
+                        // that pivot rather than pushing the cap up and out.
+                        // Keep the sewn-distance field below it: raw pattern
+                        // coordinates can differ across near-coincident folds.
+                        float shoulderY=ResidentRig.BodyY(1.18f)-(BodyFrame==1?.014f:.009f);
+                        float gather=Math.Clamp(sleeveDistance[i]/.263f,0,1)*(1-Mathf.SmoothStep(shoulderY,shoulderY+.06f,points[i].Y));
                         int lowerCap=segment==0?ResidentRig.GirdleBone(side):ResidentRig.SleeveSupportBone(side,segment,true);
                         int upperCap=segment==ResidentRig.SleeveSpans-1?side+1:ResidentRig.SleeveSupportBone(side,segment+1,true);
                         bones[i*4]=lower;bones[i*4+1]=upper;bones[i*4+2]=lowerCap;bones[i*4+3]=upperCap;

@@ -88,12 +88,17 @@ internal sealed partial class NatureModels
             if(!posed[i].IsFinite())throw new InvalidOperationException("Captured action creates non-finite skin");
             if(pattern[i].X>.2629f&&posed[i].DistanceTo(palette[source[i].X<0?1:2]*source[i])>.000002f)throw new InvalidOperationException("Captured action separates the cuff");
         }
-        float maximum=0;
+        float maximum=0;int worstA=0,worstB=0;
         for(int i=0;i<indices.Length;i+=3)for(int j=0;j<3;j++)
         {
             int a=indices[i+j],b=indices[i+(j+1)%3];float length=source[a].DistanceTo(source[b]);if(source[a].Y<1||source[b].Y<1||length<.00001f)continue;
-            maximum=MathF.Max(maximum,posed[a].DistanceTo(posed[b])/length);
+            float ratio=posed[a].DistanceTo(posed[b])/length;if(ratio>maximum){maximum=ratio;worstA=a;worstB=b;}
         }
-        if(maximum>4.5f)throw new InvalidOperationException($"Captured motion tears the actual cloth: stretch={maximum}");return maximum;
+        if(maximum>4.5f)
+        {
+            Vector3 Raw(int i){var p=Vector3.Zero;for(int j=0;j<4;j++)p+=palette[bones[i*4+j]]*source[i]*weights[i*4+j];return p;}
+            throw new InvalidOperationException($"Captured motion tears the actual cloth: stretch={maximum}, raw={Raw(worstA).DistanceTo(Raw(worstB))/source[worstA].DistanceTo(source[worstB])}, seam={pattern[worstA]}/{pattern[worstB]}");
+        }
+        return maximum;
     }
 }

@@ -17,16 +17,16 @@ internal sealed partial class NatureModels
         for(int side=0;side<2;side++)
         {
             var skeleton=rig.HandSkeletons[side]=new Skeleton3D {Name="HandSkeleton"};rig.Hands[side].AddChild(skeleton);
-            var nodes=new Node3D[16];nodes[0]=rig.Hands[side];
+            var nodes=new Node3D[ResidentRig.HandBoneCount];nodes[0]=rig.Hands[side];
             for(int d=0;d<4;d++){nodes[1+d*3]=rig.Fingers[side,d];nodes[2+d*3]=rig.FingerMiddles[side,d];nodes[3+d*3]=rig.Fingertips[side,d];}
             nodes[13]=rig.Thumbs[side];nodes[14]=rig.ThumbTips[side];
-            var binds=new Skin();var rest=new Transform3D[16];
-            for(int bone=0;bone<16;bone++)
+            var binds=new Skin();var rest=new Transform3D[ResidentRig.HandBoneCount];
+            for(int bone=0;bone<ResidentRig.HandBoneCount;bone++)
             {
                 skeleton.AddBone("HandBone"+bone);
-                int parent=bone==0?-1:bone==15?0:bone==14?13:bone==13||((bone-1)%3==0)?0:bone-1;
+                int parent=bone==0?-1:bone>=15?0:bone==14?13:bone==13||((bone-1)%3==0)?0:bone-1;
                 if(parent>=0)skeleton.SetBoneParent(bone,parent);
-                var local=bone is 0 or 15?Transform3D.Identity:nodes[bone].Transform;
+                var local=bone==0||bone>=15?Transform3D.Identity:nodes[bone].Transform;
                 skeleton.SetBoneRest(bone,local);rest[bone]=parent<0?local:rest[parent]*local;
                 binds.AddBind(bone,rest[bone].AffineInverse());
             }
@@ -52,6 +52,22 @@ internal sealed partial class NatureModels
             points[i]=new(fitted.Point.X*mirror,fitted.Point.Y,fitted.Point.Z);normals[i]=new(fitted.Normal.X*mirror,fitted.Normal.Y,fitted.Normal.Z);uv[i]=new(tex[i*2],tex[i*2+1]);
         }
         var bones=Integers("bones");var weights=Floats("weights");var mesh=new ArrayMesh();
+        for(int i=0;i<points.Length;i++)if(points[i].Y>.0451f)
+        {
+            var influences=new System.Collections.Generic.Dictionary<int,float>();
+            void Add(int bone,float weight){if(weight>0){influences.TryGetValue(bone,out float prior);influences[bone]=prior+weight;}}
+            // Keep the wrist seam rigid and the buried elbow ring unrolled.
+            // Five small twist intervals avoid rotating the muscle belly as
+            // one solid tube; preserve all original finger/palm influences.
+            float fraction=Mathf.SmoothStep(.02f,.85f,Math.Clamp((.255f-points[i].Y)/.210f,0,1));
+            float station=fraction*ResidentRig.ForearmIntervals;int low=Math.Min(ResidentRig.ForearmIntervals-1,(int)station);float t=station-low;
+            for(int j=0;j<4;j++)
+                if(bones[i*4+j]==15){Add(ResidentRig.ForearmBone(low),weights[i*4+j]*(1-t));Add(ResidentRig.ForearmBone(low+1),weights[i*4+j]*t);}
+                else Add(bones[i*4+j],weights[i*4+j]);
+            if(influences.Count>4)throw new InvalidOperationException("Forearm twist exceeds four skin influences");
+            int slot=0;for(int j=0;j<4;j++){bones[i*4+j]=0;weights[i*4+j]=0;}
+            foreach(var pair in influences){bones[i*4+slot]=pair.Key;weights[i*4+slot++]=pair.Value;}
+        }
         void Surface(string indicesName,Material material,bool nail)
         {
             var indices=Integers(indicesName);

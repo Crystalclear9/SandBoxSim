@@ -37,7 +37,8 @@ internal partial class ModelGallery : PanelContainer
         if(Collection=="wardrobe")body.GetChild<Label>(0).Text="衣装剪裁 · 实际职业模型的正面与背面";
         grid.AddThemeConstantOverride("h_separation",12); grid.AddThemeConstantOverride("v_separation",12); body.AddChild(grid);
         var models=new NatureModels();
-        if(Collection=="captured-stretch")BuildCapturedStudy(models,grid,body.GetChild<Label>(0));
+        if(Collection=="arm-articulation")BuildArmArticulation(models,grid,body.GetChild<Label>(0));
+        else if(Collection=="captured-stretch")BuildCapturedStudy(models,grid,body.GetChild<Label>(0));
         else if(Collection=="shoulder-elevation")BuildElevationStudy(models,grid,body.GetChild<Label>(0));
         else if(Collection=="handling-transitions")BuildInteractionFlow(models,grid,body.GetChild<Label>(0));
         else if(Collection=="shoulder-motion")
@@ -292,6 +293,7 @@ internal partial class ModelGallery : PanelContainer
         if(Collection=="handling-transitions")AdvanceInteractionFlow((float)delta);
         if(Collection=="shoulder-elevation")AdvanceElevationStudy((float)delta);
         if(Collection=="captured-stretch")AdvanceCapturedStudy((float)delta);
+        if(Collection=="arm-articulation")AdvanceArmArticulation((float)delta);
         foreach(var (rig,camera) in _handViews)
         {
             var target=rig.Hands[1].GlobalPosition+new Vector3(0,.015f,0);

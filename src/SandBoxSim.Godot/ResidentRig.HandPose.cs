@@ -175,11 +175,7 @@ internal partial class ResidentRig
             HandSkeletons[side].SetBonePoseRotation(13,Thumbs[side].Basis.GetRotationQuaternion());
             HandSkeletons[side].SetBonePoseRotation(14,ThumbTips[side].Basis.GetRotationQuaternion());
         }
-        var wrist=Hands[side].Basis.Inverse().GetRotationQuaternion();
-        if(MathF.Abs(wrist.Dot(_wristSkinRotation[side]))<.999999f)
-        {
-            _wristSkinRotation[side]=wrist;HandSkeletons[side].SetBonePoseRotation(15,wrist);
-        }
+        UpdateForearmSkin(side);
     }
     private void SolveBareHand(int side,Vector3 target,Basis desired,Vector3? preferredElbow=null)
     {

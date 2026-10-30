@@ -44,7 +44,7 @@
 
 [human-hand.mesh.json](../../src/SandBoxSim.Godot/assets/models/human/human-hand.mesh.json) 从 Julien Kaspar / Blender Studio 的授权人体提取手掌、指缝与五指。近景文件包含连续的前臂和手部，共 9,154 个顶点、18,205 个三角面；其中原始手部区域有 7,255 个顶点、14,464 个三角面，`handVertexCount` 保留该分界，供远景只提取手部。甲面从实际指背曲面提取，运行时仅上传甲面引用的顶点。
 
-手部使用平滑位移场接入掌指骨，左右手镜像骨骼位置与展开方向；腕环与前臂在运行坐标中对齐；`join_human_arm.py` 用共顶点过渡环接入前臂，并重新计算连续表面法线。掌根在相邻指骨间平滑分配权重，手指保留近节、中节与末节。每手 16 骨，与原有握持、取用和收纳动作共用。指甲与皮肤使用同一表面分区、共享权重，随手指一起变形，避免叠面闪烁。
+手部使用平滑位移场接入掌指骨，左右手镜像骨骼位置与展开方向；腕环与前臂在运行坐标中对齐；`join_human_arm.py` 用共顶点过渡环接入前臂，并重新计算连续表面法线。掌根在相邻指骨间平滑分配权重，手指保留近节、中节与末节。来源为每手 16 骨，运行时增加五个前臂扭转支撑，成为 21 骨；与原有握持、取用和收纳动作共用。指甲与皮肤使用同一表面分区、共享权重，随手指一起变形，避免叠面闪烁。
 
 `NatureModels.HandSurface.cs` 在原网格上增加分区材质：第一 UV、拓扑、两表面与骨骼不变，第二 UV 保存未摆姿的来源坐标，顶点色红通道保存掌背掩码；甲面使用对应的局部坐标。掌纹、屈曲折痕与指腹只出现在相应手掌区域，指背指节、甲床半月、短游离缘和角质边分别处理，随蒙皮运动，不依赖摆姿后的世界位置。远景跳过细纹计算，仍使用原有低模与缓存。
 
@@ -150,7 +150,7 @@ python -m unittest discover -s tools -p test_resident_trousers.py
 
 ## 三维肩部来源与捕捉动作
 
-[shoulder-surface-male.json](../../src/SandBoxSim.Godot/assets/models/human/shoulder-surface-male.json) 与[女性表面](../../src/SandBoxSim.Godot/assets/models/human/shoulder-surface-female.json) 使用同一 CC0 人体来源，另采用 MakeHuman 的 `default.mhskel`（SHA-256 `99f179bce0aa850b45d4191a1d0d234c5851f881c057439470ded3bddf729a24`）和 `default_weights.mhw`（`0f3641d651ae3d00ad6b4ccee43142edb109d3bd909d27d9e4139ef1beed8625`）。两份文件的来源元数据均明确为 CC0，作者为 Data Collection AB、Joel Palmius、Jonas Hauquier；[骨架](https://github.com/makehumancommunity/makehuman/blob/master/makehuman/data/rigs/default.mhskel)、[权重](https://github.com/makehumancommunity/makehuman/blob/master/makehuman/data/rigs/default_weights.mhw)保留原定义。原权重存在千分位舍入，导出时先归一化，再与网格一起细分。导出包含静止表面、原始 A 姿势、四组权重、肩点和绑定旋转，供静止及抬臂后的衣料贴合使用。
+[shoulder-surface-male.json](../../src/SandBoxSim.Godot/assets/models/human/shoulder-surface-male.json) 与[女性表面](../../src/SandBoxSim.Godot/assets/models/human/shoulder-surface-female.json) 使用同一 CC0 人体来源，另采用 MakeHuman 的 `default.mhskel`（SHA-256 `99f179bce0aa850b45d4191a1d0d234c5851f881c057439470ded3bddf729a24`）和 `default_weights.mhw`（`0f3641d651ae3d00ad6b4ccee43142edb109d3bd909d27d9e4139ef1beed8625`）。两份文件的来源元数据均明确为 CC0，作者为 Data Collection AB、Joel Palmius、Jonas Hauquier；[骨架](https://github.com/makehumancommunity/makehuman/blob/master/makehuman/data/rigs/default.mhskel)、[权重](https://github.com/makehumancommunity/makehuman/blob/master/makehuman/data/rigs/default_weights.mhw)保留原定义。原权重存在千分位舍入，导出时先归一化，再与网格一起细分。导出包含静止表面、原始 A 姿势、四组权重、肩点和绑定旋转，保留完整来源重建信息。运行时以转换后的静止表面作固定三角面对应，以来源权重生成肩部姿态缓存；胸片与袖片分别处理肱骨参与，详见[模型系统](models.md)。
 
 重建使用 [export_shoulder_surface.py](../../tools/export_shoulder_surface.py)：`python -B tools/export_shoulder_surface.py --source .tools/sources/makehuman --output src/SandBoxSim.Godot/assets/models/human`，原始两份骨架文件存于该来源目录的 `rig/`。工具只依赖 Python 标准库，运行与普通构建不需要 Blender。
 

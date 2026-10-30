@@ -11,12 +11,13 @@ internal sealed partial class NatureModels
     // can satisfy every endpoint test while rolling the sleeve through 180掳.
     private void ValidateShoulderMotion()
     {
+        ValidateForearmTwist();
         ValidateGirdleMotion();
         ValidateMotionReference();
         ValidateSleeveCorrectives();
         ValidateShoulderFit();
         ValidateElevationSurface();
-        float maxTwist=0,maxStep=0,maxElbowDeviation=0;int samples=0,supportSamples=0;string worst="",worstStep="",worstElbow="";
+        float maxTwist=0,maxStep=0,maxElbowDeviation=0,maxForearmStep=0;int samples=0,supportSamples=0;string worst="",worstStep="",worstElbow="";
         foreach(int identity in new[]{17,42,55})
         foreach(var job in new[]{JobType.None,JobType.Farmer,JobType.Builder})
         {
@@ -24,6 +25,7 @@ internal sealed partial class NatureModels
             try
             {
                 var previous=new[]{rig.Arms[0].Quaternion,rig.Arms[1].Quaternion};
+                var previousRoll=new[]{rig.ForearmRoll(0),rig.ForearmRoll(1)};
                 foreach(var action in new[]{ActionKind.None,ActionKind.GatherWood,ActionKind.Farm,ActionKind.BuildHouse,ActionKind.Socialize,ActionKind.Eat,ActionKind.Take,ActionKind.None})
                 for(int frame=0;frame<180;frame++)
                 {
@@ -41,6 +43,7 @@ internal sealed partial class NatureModels
                         if(twist>maxTwist){maxTwist=twist;worst=$"{identity}/{job}/{action}/{frame}/{side}";}
                         if(step>maxStep){maxStep=step;worstStep=$"{identity}/{job}/{action}/{frame}/{side}";}
                         previous[side]=rig.Arms[side].Quaternion;samples++;
+                        float roll=rig.ForearmRoll(side);maxForearmStep=MathF.Max(maxForearmStep,MathF.Abs(roll-previousRoll[side]));previousRoll[side]=roll;
                         if(!basis.IsFinite()||MathF.Abs(basis.Determinant()-1)>.0001f)
                             throw new InvalidOperationException("Shoulder frame is not a proper rotation");
                         if(rig.HasShoulderSupports&&frame%15==0){ValidateSleeveSupport(rig,side);supportSamples++;}
@@ -51,6 +54,8 @@ internal sealed partial class NatureModels
         }
         GD.Print($"SHOULDER_MOTION_METRICS: samples={samples}, axial={maxTwist:F3} rad, frame step={maxStep:F3} rad, worst={worst}, largest step={worstStep}");
         GD.Print($"ELBOW_PLANE_METRICS: maximum off-hinge deviation={Mathf.RadToDeg(maxElbowDeviation):F2} degrees, pose={worstElbow}");
+        GD.Print($"FOREARM_ROLL_CONTINUITY: maximum displayed axial step={maxForearmStep:F4} rad at 60 Hz, samples={samples}");
+        if(maxForearmStep>.35f)throw new InvalidOperationException("Forearm skin flips while hand endpoints remain continuous");
         if(maxElbowDeviation>Mathf.DegToRad(.5f)||maxStep>.22f)
             throw new InvalidOperationException($"Shoulder twists or snaps despite continuous hand positions: axial={maxTwist}, step={maxStep}, pose={worstStep}");
         GD.Print($"SHOULDER_MOTION_PASS: three adult identities, bare reaches/tools/returns, {supportSamples} actual intermediate sleeve poses and radius checks");

@@ -55,7 +55,13 @@ internal partial class ResidentRig
         if(_referenceStudy)
         {
             var clip=ResidentMotionReference.Shared.Value;float cycle=Mathf.PosMod(_referenceStudyTime,clip.Duration+2);
-            _referenceTime=MathF.Min(cycle,clip.Duration);_referenceWeight=cycle<=clip.Duration?1:0;
+            _referenceTime=MathF.Min(cycle,clip.Duration);_referenceWeight=1;
+            if(cycle>clip.Duration)
+            {
+                float rest=cycle-clip.Duration;
+                _referenceWeight=rest<.25f?1-ReachEase(rest/.25f):rest>1.75f?ReachEase((rest-1.75f)/.25f):0;
+                if(rest>1.75f)_referenceTime=0;
+            }
             eligible=true;
         }
         else if(eligible)

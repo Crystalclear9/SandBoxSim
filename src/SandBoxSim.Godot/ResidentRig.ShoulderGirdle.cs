@@ -17,13 +17,10 @@ internal partial class ResidentRig
         float elevation=MathF.Acos(Math.Clamp(direction.Dot(Vector3.Down),-1,1));
         float raised=Mathf.SmoothStep(Mathf.DegToRad(25),Mathf.DegToRad(150),elevation);
         var horizontal=new Vector3(direction.X,0,direction.Z);
-        float forward=horizontal.LengthSquared()>.000001f?MathF.Max(0,-horizontal.Normalized().Z):0;
         // Clavicular elevation stays below ten degrees; retraction increases
         // overhead while low forward reaches can protract. A bent elbow by
         // itself does not drive this mechanism.
-        float reach=Mathf.SmoothStep(Mathf.DegToRad(5),Mathf.DegToRad(45),elevation);
-        var clavicle=new Basis(Vector3.Up,sign*Mathf.DegToRad(6*forward*reach*(1-raised)-8*raised))
-            *new Basis(Vector3.Back,sign*Mathf.DegToRad(8)*raised);
+        var clavicle=ClavicleRotation(side,direction);
         var medial=new Vector3(sign*.052f,rest.Y+.008f,.008f);
         var shoulder=medial+clavicle*(rest-medial);
         var plane=horizontal.LengthSquared()>.000001f?horizontal.Normalized():new Vector3(sign,0,0);
@@ -31,6 +28,16 @@ internal partial class ResidentRig
         var scapula=new Basis(axis,Mathf.DegToRad(32)*raised)
             *new Basis(Vector3.Right,Mathf.DegToRad(10)*raised);
         return new(scapula,shoulder);
+    }
+    internal static Basis ClavicleRotation(int side,Vector3 direction)
+    {
+        float sign=side==0?-1:1,elevation=MathF.Acos(Math.Clamp(direction.Normalized().Dot(Vector3.Down),-1,1));
+        float raised=Mathf.SmoothStep(Mathf.DegToRad(25),Mathf.DegToRad(150),elevation);
+        var horizontal=new Vector3(direction.X,0,direction.Z);
+        float forward=horizontal.LengthSquared()>.000001f?MathF.Max(0,-horizontal.Normalized().Z):0;
+        float reach=Mathf.SmoothStep(Mathf.DegToRad(5),Mathf.DegToRad(45),elevation);
+        return new Basis(Vector3.Up,sign*Mathf.DegToRad(6*forward*reach*(1-raised)-8*raised))
+            *new Basis(Vector3.Back,sign*Mathf.DegToRad(8)*raised);
     }
     internal Transform3D DisplayedGirdle(int side)
     {

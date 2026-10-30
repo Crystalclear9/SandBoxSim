@@ -142,3 +142,5 @@ Windows 的 `godot.ps1`、`export-game.ps1`、`evaluate.py` 和 `Play-3D.cmd` �
 
 
 肩袖和动作的局部迭代可运行 `./tools/godot.ps1 -Mode test -ResidentMotionOnly`，它在不创建模拟世界和 UI 的情况下检查捕捉重定向与真实空闲接入、来源肩部表面、肩肘朝向、屈肘平面、摆动／扭转分配、姿态表面、法线、袖口、衣料运动，以及进食／饮水／交谈的 60/120 Hz 手肘轨迹，并以 `RESIDENT_MOTION_TEST_PASS` 单独标识范围。默认 `./tools/godot.ps1 -Mode test` 继续执行全部客户端自检；发布包还会执行完整的导出包自检。该开关只接受 `-Mode test`。
+
+人物专项检查还覆盖连接前臂的六个扭转站位、肘／腕端点、截面、暂停和 LOD 恢复；完整客户端检查继续验证实际手柄接触和左右手镜像。`--panel=arm-articulation` 提供同一实现的动态近景，公开评测配置为 `benchmarks/scenarios/visual-arm-articulation.json`。

@@ -73,3 +73,5 @@ python tools/evaluate.py verify runs/evaluation/visual-example
 `scenarios/visual-ecology-details.json` 展示与世界共用的阔叶树、针叶树、蕨类、草叶、岩石和灌木，提供 `tree`、`fern`、`grass`、`rock`、`shrub` 标签与无标题裁切。新标签追加到公开对象选项，历史问题保留各自已归档的选项。
 
 [visual-captured-stretch.json](scenarios/visual-captured-stretch.json) 是来源动作重定向的原生观察场景，采用 `captured-stretch` 面板，固定 60 Hz、零模拟步进。它用于查看 CMU 143_30 在当前模型上的双臂与手腕运动，来源与成本边界见[渲染评测](../docs/development/benchmark.md)，不作为 RSI 成绩。
+
+`scenarios/visual-arm-articulation.json` 使用实际游戏上肢、分段前臂蒙皮和肩袖姿态缓存，固定步进观察抬臂、屈肘、翻掌与放下；它是视觉观察入口，不是效率或 RSI 评分。

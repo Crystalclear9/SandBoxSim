@@ -56,7 +56,7 @@ public partial class MainGame : Control
     private int _previewDays;
     private string _previewView = "";
     private string _previewPanel = "";
-    private bool IsModelGallery => _previewPanel is "architecture" or "characters" or "naturemodels" or "faces" or "equipment" or "actions" or "motion" or "grip" or "hands" or "model-details" or "ecology-details" or "animal-details" or "animal-motion" or "animal-heads" or "wardrobe" or "forearms" or "social" or "social-side" or "handedness" or "body-frames" or "body-motion" or "locomotion" or "arm-swing" or "forearm-frames" or "face-frames" or "work-effort" or "shoulder-motion" or "handling-transitions" or "shoulder-elevation" or "captured-stretch";
+    private bool IsModelGallery => _previewPanel is "architecture" or "characters" or "naturemodels" or "faces" or "equipment" or "actions" or "motion" or "grip" or "hands" or "model-details" or "ecology-details" or "animal-details" or "animal-motion" or "animal-heads" or "wardrobe" or "forearms" or "social" or "social-side" or "handedness" or "body-frames" or "body-motion" or "locomotion" or "arm-swing" or "forearm-frames" or "face-frames" or "work-effort" or "shoulder-motion" or "handling-transitions" or "shoulder-elevation" or "captured-stretch" or "arm-articulation";
     private double _benchmarkSeconds, _benchmarkElapsed, _benchmarkMeasuredSeconds;
     private long _benchmarkFrames;
     private double _benchmarkProcessTime,_benchmarkDrawCalls,_benchmarkPrimitives;

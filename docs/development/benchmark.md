@@ -186,7 +186,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `shoulderMotion=captured-arm-motion-v8` 标识分开的抬臂／轴向旋转、上臂驱动的锁骨弧线与肩胛上旋／后倾、接近伸直的稳定参考和左右独立返回；`limbCoordination=hinge-carry-v4` 包含工具肘平面连续性、真实作业支撑与挥锤朝向。`visual-shoulder-motion.json` 以同衣装的两种成人外观、正面、工作臂侧面和背面观察同一完整挥锤循环；默认从第 30 帧每 14 帧采样，共 30 帧。它冻结模拟，在固定 60 Hz 下推进动作，不构成 RSI 或人体动作质量的客观评分。
 
-`shoulderSkin=anatomical-sleeve-v6` 标识两种成人衣身共用的二十六骨绑定，包含左右肩胛带、分离摆动与轴向扭转的六区间旋转、袖管位置修正及共享袖窿的表面修整，逐顶点保留四个影响；`bodyFrame=adult-proportions-v15` 包含女性来源关节半宽、同步衣袖／逆绑定和身体相对横向目标。`shoulder-motion` 上排为男性、下排为女性，三列依次为正面、实际工作臂侧面和背面；这些几何和镜头变化需要重新采样视觉基线。
+`shoulderSkin=bound-surface-sleeve-v7` 标识两种成人衣身共用的二十六骨绑定，包含左右肩胛带、分离摆动与轴向扭转的六区间旋转、袖管位置修正及共享袖窿的表面修整，逐顶点保留四个影响；`bodyFrame=adult-proportions-v15` 包含女性来源关节半宽、同步衣袖／逆绑定和身体相对横向目标。`shoulder-motion` 上排为男性、下排为女性，三列依次为正面、实际工作臂侧面和背面；这些几何和镜头变化需要重新采样视觉基线。
 
 `bodyFrame=adult-proportions-v15` 包含方向性胸腰衣料、重新导出的骨盆／大腿连续裤装和 ±2.5% 的身份宽度变化。`BODY_SILHOUETTE_PASS` 测量近远景的胸腰、骨盆／大腿截面关系；已有动态穿插、臂腿绑定及工具接触检查继续执行。该检查是几何回归门槛，不是人体性别分类、审美或 RSI 的能力分数。
 
@@ -203,10 +203,16 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 `visual-shoulder-elevation.json` / `panel=shoulder-elevation` 是十二秒肩袖范围观察：上排男性外观、下排女性外观，三列为正面、固定侧面和背面。固定 60 Hz、零模拟步进，默认从第 30 帧每 24 帧采样，共 30 帧；左右臂各占六秒：1.5 秒抬起至 135°、一秒保持、1.5 秒放下、两秒休息。它使用实际游戏网格、肩肘腕求解和蒙皮，可用于同版本下的视觉比较，不是 RSI 成绩、帧率测试或医学动作评分。正常作业循环仍由 `visual-shoulder-motion.json` 覆盖。两者必须记录同一 `shoulderSkin`、`shoulderMotion`、构图与灯光后再作对照。
 
 
-`anatomical-sleeve-v6` 含七十二个平面／高度／轴向扭转驱动的位置／法线姿态修正，`captured-arm-motion-v8` 以锁骨弧线移动肩点、以旋转肩胛平台带动肩上衣片，并以实际肩肘腕平面确定肱骨朝向、运输肘平面及约束收回姿态，`adult-proportions-v15` 加入来源上臂截面及受短边约束的姿态修整。这些变化涉及网格、启动时缓存及 GPU 形态混合开销，应重新采样相同配置的视觉与耗时基线，不能把更换表示方式算作 RSI 或纯程序加速。表面法线角误差只针对指定姿态的实际三角面，不代表整体人体自然度或任意动作的质量。
+`bound-surface-sleeve-v7` 含七十二个平面／高度／轴向扭转驱动的位置／法线姿态修正，`captured-arm-motion-v8` 以锁骨弧线移动肩点、以旋转肩胛平台带动肩上衣片，并以实际肩肘腕平面确定肱骨朝向、运输肘平面及约束收回姿态，`adult-proportions-v15` 加入来源上臂截面及受短边约束的姿态修整。这些变化涉及网格、启动时缓存及 GPU 形态混合开销，应重新采样相同配置的视觉与耗时基线，不能把更换表示方式算作 RSI 或纯程序加速。表面法线角误差只针对指定姿态的实际三角面，不代表整体人体自然度或任意动作的质量。
 
 ### 来源动作观察
 
-`visual-captured-stretch.json` 使用 `captured-stretch` 图册，固定 60 Hz、零模拟推进，观察来源 120 Hz 的 CMU 143_30 如何映射到实际游戏的两种成人外观。暖场 30 帧、测量 609 帧，默认每 20 帧取样；完整动图另每三帧采样。`renderQuality.motionReference=cmu-143-30-v1`、`shoulderSurface=source-weighted-surface-v1` 和当前肩袖标签共同标识数据与呈现版本。
+`visual-captured-stretch.json` 使用 `captured-stretch` 图册，固定 60 Hz、零模拟推进，观察来源 120 Hz 的 CMU 143_30 如何映射到实际游戏的两种成人外观。暖场 30 帧、测量 609 帧，默认每 20 帧取样；完整动图另每三帧采样。`renderQuality.motionReference=cmu-143-30-v1`、`shoulderSurface=bound-anatomical-surface-v2` 和当前肩袖标签共同标识数据与呈现版本。
 
 来源表面的法向贴合残差用于检查衣料是否更贴近已变形的人体支撑，来源方向／手腕误差用于检查重定向是否保留输入。它们不构成审美、肌肉仿真或 RSI 分数。新增形态与缓存改变了启动和 GPU 开销，效率比较须冻结同一来源、配置、资产与版本。
+
+`visual-arm-articulation.json` / `panel=arm-articulation` 提供实际上肢近景：暖场 30 帧、测量 480 帧，固定 60 Hz、零模拟推进，默认每 16 帧取样。八秒循环依次抬臂／屈肘、翻掌、放下；三列为正侧背面，两排为两种成人外观。完整动图每三帧采样，原生 1600×1000、160 个采样和八秒，分五次回放。
+
+`renderQuality.forearmSkin=distributed-roll-v1` 标记每手 21 骨的分段旋转表面，`shoulderSurface=bound-anatomical-surface-v2` 标记固定三角面对应与缓存中的双四元数人体支撑。二者改变了缓存生成和近景骨骼开销，须冻结同一版本再比较效率；动作端点、边长和表面距离只用于几何回归，不能作为写实度或 RSI 能力分数。
+
+人体支撑 v2 的贴合残差以固定三角面对应和衣片参与规则为参考，与 v1 的逐姿态最近面查询不同；两者不能直接作为同一质量指标比较。完整 sourceFiles、骨骼／网格版本、构图和照明须一并冻结。

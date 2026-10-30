@@ -104,7 +104,8 @@ ROUGHNESS=.64;SPECULAR=.24;
         // A static bake of the same anatomy and joint poses as the close-up hand.
         // No per-frame skeleton work is required for distant residents.
         var source=AnatomicalHandMesh(0,skin,true);var result=new ArrayMesh();
-        var rest=new Transform3D[16];var posed=new Transform3D[16];
+        var rest=new Transform3D[ResidentRig.HandBoneCount];var posed=new Transform3D[ResidentRig.HandBoneCount];
+        Array.Fill(rest,Transform3D.Identity);Array.Fill(posed,Transform3D.Identity);
         rest[0]=posed[0]=rest[15]=posed[15]=Transform3D.Identity;
         float curl=closed?1:0;
         for(int digit=0;digit<4;digit++)
@@ -123,7 +124,7 @@ ROUGHNESS=.64;SPECULAR=.24;
         rest[13]=new(Basis.Identity,ResidentRig.ThumbRoot(0));rest[14]=rest[13]*new Transform3D(Basis.Identity,new(0,-.018f,0));
         posed[13]=new(Basis.FromEuler(new(curl*.25f,0,.15f+curl*.65f)),ResidentRig.ThumbRoot(0));
         posed[14]=posed[13]*new Transform3D(Basis.FromEuler(new(curl*.55f,0,0)),new(0,-.018f,0));
-        var palette=new Transform3D[16];for(int i=0;i<16;i++)palette[i]=posed[i]*rest[i].AffineInverse();
+        var palette=new Transform3D[ResidentRig.HandBoneCount];for(int i=0;i<palette.Length;i++)palette[i]=posed[i]*rest[i].AffineInverse();
         for(int surface=0;surface<source.GetSurfaceCount();surface++)
         {
             var arrays=source.SurfaceGetArrays(surface);var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();

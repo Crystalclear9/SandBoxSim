@@ -104,51 +104,31 @@ internal sealed partial class NatureModels
     private double _posedShoulderBefore,_posedShoulderAfter;
     private int _protrudingCapSamples;
     private double _protrudingCapBefore,_protrudingCapAfter;
-    private (Vector3[] Goals,Vector3[] Normals,float[] Active) FitPosedShoulder(Vector3[] rest,Vector3[] posed,Vector3[] target,int[] triangles,Vector2[] uv,float[] active,ResidentRig rig,int side,Quaternion rotation,Transform3D girdle)
+    private (Vector3[] Goals,Vector3[] Normals,float[] Active) FitPosedShoulder(Vector3[] rest,Vector3[] posed,Vector3[] target,int[] triangles,Vector2[] uv,float[] active,ResidentRig rig,int side,Quaternion rotation,Transform3D girdle,ShoulderBinding[] bindings)
     {
         var cage=ShoulderSurface();float sign=side==0?-1:1;
-        Quaternion Mirror(Quaternion q)=>side==0?new(q.X,-q.Y,-q.Z,q.W):q;
-        var arm=(Mirror(rotation)*cage.ArmBind).Normalized();var platform=Mirror(girdle.Basis.GetRotationQuaternion());var helper=platform.Slerp(arm,.5f);
-        var shoulder=new Vector3(MathF.Abs(girdle.Origin.X),girdle.Origin.Y,girdle.Origin.Z);var skin=new Vector3[cage.Points.Length];
-        for(int i=0;i<skin.Length;i++)
-        {
-            var p=cage.Source[i];var local=p-cage.Shoulder;var w=cage.Weights[i];
-            skin[i]=p*w.X+(shoulder+arm*local)*w.Y+(shoulder+helper*local)*w.Z+(shoulder+platform*local)*w.W;
-        }
-        const float cell=.08f;Vector3I Cell(Vector3 p)=>new((int)MathF.Floor(p.X/cell),(int)MathF.Floor(p.Y/cell),(int)MathF.Floor(p.Z/cell));
-        var buckets=new Dictionary<Vector3I,List<int>>();var faceNormals=new Vector3[cage.Triangles.Length/3];
-        for(int t=0;t<cage.Triangles.Length;t+=3)
-        {
-            var a=skin[cage.Triangles[t]];var b=skin[cage.Triangles[t+1]];var c=skin[cage.Triangles[t+2]];
-            faceNormals[t/3]=(c-a).Cross(b-a).Normalized();var low=Cell(a.Min(b).Min(c));var high=Cell(a.Max(b).Max(c));
-            for(int x=low.X;x<=high.X;x++)for(int y=low.Y;y<=high.Y;y++)for(int z=low.Z;z<=high.Z;z++)
-            {var key=new Vector3I(x,y,z);if(!buckets.TryGetValue(key,out var list)){list=new();buckets[key]=list;}list.Add(t);}
-        }
-        var goals=new Vector3[rest.Length];var normals=ClothSurfaceNormals(posed,triangles);var accepted=new float[rest.Length];var visited=new int[faceNormals.Length];int token=0;
+        var skin=PoseShoulderSupport(rig,side,rotation,girdle);
+        var trunk=PoseShoulderSupport(rig,side,rotation,girdle,true);
+        var goals=new Vector3[rest.Length];var normals=ClothSurfaceNormals(posed,triangles);var accepted=new float[rest.Length];
         for(int i=0;i<rest.Length;i++)
         {
             if((rest[i].X<0)!=(side==0)||active[i]<=0||uv[i].X>.17f)continue;
             float mask=active[i]*(uv[i].X>=0?1-Mathf.SmoothStep(.11f,.17f,uv[i].X):1);if(mask<=0)continue;
-            var sample=new Vector3(posed[i].X*sign,posed[i].Y,posed[i].Z);var n=new Vector3(normals[i].X*sign,normals[i].Y,normals[i].Z);
-            float nearest=cell*cell;var hit=Vector3.Zero;var surfaceNormal=Vector3.Zero;bool found=false;var center=Cell(sample);token++;
-            for(int x=-1;x<=1;x++)for(int y=-1;y<=1;y++)for(int z=-1;z<=1;z++)
-            {
-                if(!buckets.TryGetValue(center+new Vector3I(x,y,z),out var candidates))continue;
-                foreach(int t in candidates)
-                {
-                    if(visited[t/3]==token)continue;visited[t/3]=token;var faceNormal=faceNormals[t/3];if(faceNormal.Dot(n)<.1f)continue;
-                    var point=ClosestShoulderPoint(sample,skin[cage.Triangles[t]],skin[cage.Triangles[t+1]],skin[cage.Triangles[t+2]]);float distance=point.DistanceSquaredTo(sample);
-                    if(distance>=nearest)continue;nearest=distance;hit=point;surfaceNormal=faceNormal;found=true;
-                }
-            }
-            if(!found)continue;
-            var goal=hit+surfaceNormal*.009f;goals[i]=new(goal.X*sign,goal.Y,goal.Z);accepted[i]=mask;
-            // A protruding cap can be farther from the skin than the normal
-            // fitting radius, and its normal points along the artificial
-            // ridge. Fit the full closest-surface displacement here: a
-            // normal-only projection preserves precisely that tangential horn.
+            var binding=bindings[i];if(binding.Triangle<0)continue;int t=binding.Triangle;
+            // A chest panel touching the resting arm is not attached to its
+            // humerus. Retain the same surface correspondence while transferring
+            // humeral participation only into the sleeve, across the sewn seam.
+            float armParticipation=uv[i].X<0?0:Mathf.SmoothStep(.01f,.08f,uv[i].X);
+            Vector3 Point(int index)=>trunk[index].Lerp(skin[index],armParticipation);
+            var a=Point(cage.Triangles[t]);var b=Point(cage.Triangles[t+1]);var c=Point(cage.Triangles[t+2]);
+            if((b-a).Cross(c-a).LengthSquared()<1e-15f)throw new InvalidOperationException("Anatomical shoulder support triangle collapsed");
+            var goal=a*binding.Barycentric.X+b*binding.Barycentric.Y+c*binding.Barycentric.Z+ShoulderTriangleFrame(a,b,c)*binding.Offset;
+            goals[i]=new(goal.X*sign,goal.Y,goal.Z);accepted[i]=mask;
+            // Bind once in rest space. The same source triangle and cloth
+            // offset are transported through every pose; no closest-surface
+            // reassignment can slide between deltoid, axilla and chest.
             var change=goals[i]-posed[i];
-            if(change.Length()>.040f)change=change.Normalized()*.040f;
+            if(change.Length()>.10f)change=change.Normalized()*.10f;
             target[i]=posed[i]+change*mask;
         }
         return(goals,normals,accepted);
