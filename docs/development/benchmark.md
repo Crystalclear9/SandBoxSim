@@ -154,7 +154,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 [文档导航](../README.md) · [项目首页](../../README.md)
 
-工具及动作元数据增加 `toolGeometry=forged-heads-v2` 与 `handlingMotion=velocity-reach-v5`；工具近景、动作过渡与人物观察界面改变后，需要重新采样视觉和耗时基线。
+工具及动作元数据增加 `toolGeometry=forged-heads-v2` 与 `handlingMotion=context-handoff-v6`；工具近景、动作过渡与人物观察界面改变后，需要重新采样视觉和耗时基线。
 
 搬运网格记录 `cargoGeometry=bound-timber-v2`；两行动作卡与搬运状态切换改变后，应重新采样同场景的视觉和耗时基线。
 
@@ -192,3 +192,6 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 
 `visual-handling-transitions.json` 使用公开 `handling-transitions` 面板：固定 60 Hz、冻结模拟、十二秒循环、六个实际居民视口，覆盖根节点靠近与拾取、工具／生活切换和双手交接。默认第 30 帧起每 24 帧采样，共 30 帧；画廊不创建模拟居民或结算资源。`INTERACTION_SEQUENCE_PASS` 核对实际接触、停稳和取消语义，不是自然度或 RSI 分数。`contact-sequencing-v4`、`contact-transfer-v3`、`prepared-gesture-v5` 与 `settled-arrival-v3` 改变表现过渡与执行代价；旧视觉和耗时基线需保留其原始版本，不能只替换标签继续比较。
+
+
+`handlingMotion=context-handoff-v6` 增加兼容徒手动作的直接交接与世界交互对象的统一朝向。模拟规则及 HTTP Schema 保持；新增只读 C# 查询 `ActionSystem.TryGetInteractionPartner` 表示当前执行候选，非承诺成功或历史结果。视觉／耗时对照需使用同版本。

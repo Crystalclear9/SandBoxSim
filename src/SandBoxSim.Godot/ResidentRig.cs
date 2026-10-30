@@ -125,7 +125,7 @@ internal partial class ResidentRig : Node3D
     private float _phase,_activity,_reach,_draw,_workTime,_graspTime,_releaseTime,_workBlend;
     private bool _carrying,_takingTool;
     public bool ToolHeld {get;private set;}
-    public string Handling => !InteractionSettled&&_lastPhase==ActionPhase.Executing?"接近目的地 / 停稳":ToolHeld ? _returning?"收回工具":_draw<.99f?"取出 / 抬手":_carrying?"手持携带":"使用工具" : _releaseTime>0?"松开手指":_reach>.01f?(_takingTool?(_reach==1?"合拢握柄":"伸手拿取"):"收回手臂"):CargoMesh.Visible?(_bareBlend>.01f?"双手交接":"双手搬运"):_bareBlend>.01f?_bareAction switch {ActionKind.Eat=>"进食 / 收手",ActionKind.Drink=>"饮水 / 收手",ActionKind.Take or ActionKind.GatherFood=>"弯身取物",_=>"徒手交互"}:_cargoBlend>.01f?(_hasCargo?"托起物资":"放下 / 收手"):"双手放松";
+    public string Handling => !InteractionSettled&&_lastPhase==ActionPhase.Executing?"接近目的地 / 停稳":ToolHeld ? _returning?"收回工具":_draw<.99f?"取出 / 抬手":_carrying?"手持携带":"使用工具" : _releaseTime>0?"松开手指":_reach>.01f?(_takingTool?(_reach==1?"合拢握柄":"伸手拿取"):"收回手臂"):CargoMesh.Visible?(_bareBlend>.01f&&CompatibleBareActions(_bareAction,ActionKind.Deposit)?"双手交接":"双手搬运"):_bareBlend>.01f?_bareAction switch {ActionKind.Eat=>"进食 / 收手",ActionKind.Drink=>"饮水 / 收手",ActionKind.Take or ActionKind.GatherFood=>"弯身取物",_=>"徒手交互"}:_cargoBlend>.01f?(_hasCargo?"托起物资":"放下 / 收手"):"双手放松";
     internal bool GestureEngaged(ActionKind action)=>InteractionSettled&&(ToolFor(action)!=ResidentTool.None
         ?ToolHeld&&CurrentTool==ToolFor(action)&&!_returning&&_draw>=.99f&&_workBlend>.9f
         :action==ActionKind.Socialize?_socialBlend>.9f||_hasCargo&&!ToolHeld:_bareAction==action&&_bareBlend>.9f);
@@ -350,6 +350,9 @@ internal partial class ResidentRig : Node3D
         bool cargoWanted=_hasCargo&&!usingTool&&!ToolHeld&&!resting&&!pickup&&!consuming&&_reach==0;
         _cargoBlend=Mathf.MoveToward(_cargoBlend,cargoWanted?1:0,delta/.40f);
         bool bareActive=executing&&!usingTool&&!ToolHeld&&_reach==0&&_releaseTime==0&&action is ActionKind.GatherFood or ActionKind.Take or ActionKind.Deposit or ActionKind.StoreInBuilding or ActionKind.ShareFood or ActionKind.Trade or ActionKind.Eat or ActionKind.Drink;
+        // Compatible actions share hands, targets and cycle duration. Handoff
+        // keeps the current trajectory instead of returning to idle first.
+        if(bareActive&&CompatibleBareActions(_bareAction,action))_bareAction=action;
         if(bareActive&&_bareBlend==0){_bareAction=action;_bareTime=0;}
         // A half-metre lift cannot share the short tool-grasp timing. Give
         // empty-hand entry/return enough time for the whole limb to travel.
@@ -445,6 +448,17 @@ internal partial class ResidentRig : Node3D
         }
     }
     private static float Smooth(float t)=>t*t*(3-2*t);
+    internal static bool CompatibleBareActions(ActionKind a,ActionKind b)
+    {
+        int Group(ActionKind kind)=>kind switch
+        {
+            ActionKind.Eat or ActionKind.Drink=>1,
+            ActionKind.Take or ActionKind.GatherFood=>2,
+            ActionKind.Deposit or ActionKind.StoreInBuilding or ActionKind.ShareFood or ActionKind.Trade=>3,
+            _=>0
+        };
+        return Group(a)!=0&&Group(a)==Group(b);
+    }
     public void ShowCargo(bool hasCargo,ResourceKind resource)
     {
         if(hasCargo&&_hasCargo&&resource!=_cargoKind){CargoMesh.Visible=false;_cargoBlend=0;}

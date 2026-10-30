@@ -39,7 +39,7 @@ internal partial class ModelGallery
             }
             else if(sequence==1)
             {
-                action=t<3?ActionKind.BuildHouse:t<7?ActionKind.Eat:t<9.5f?ActionKind.Farm:ActionKind.Flee;
+                action=t<3?ActionKind.BuildHouse:t<5.2f?ActionKind.Eat:t<7?ActionKind.Drink:t<9.5f?ActionKind.Farm:ActionKind.Flee;
                 phase=t<9.5f?ActionPhase.Executing:ActionPhase.Moving;
             }
             else

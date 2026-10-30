@@ -450,7 +450,7 @@ public partial class WorldView3D : MapView
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="coverage-mosaic-v6",["habitatDetail"]="stratified-meadow-v10",["vegetationSurface"]="engine-faced-v2",
             ["architecture"]="inset-joinery-v13",["garmentMaterial"]="faired-panel-linen-v15",["shoulderSkin"]="segmented-support-v1",["shoulderMotion"]="source-fitted-reach-v3",["reachMotion"]="palm-trajectory-v2",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
-            ["animalPresentation"]="articulated-paws-v12",["residentSurface"]="linear-skin-v9",["workEffort"]="relative-load-v1",["toolMotion"]="contact-transfer-v3",["bodySupport"]="planted-sagittal-v1",["facialTiming"]="phrase-blink-v1",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="velocity-reach-v5",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="prepared-gesture-v5",["waterSurface"]="constrained-bank-v6",["wristContour"]="source-oval-v1",
+            ["animalPresentation"]="articulated-paws-v12",["residentSurface"]="linear-skin-v9",["workEffort"]="relative-load-v1",["toolMotion"]="contact-transfer-v3",["bodySupport"]="planted-sagittal-v1",["facialTiming"]="phrase-blink-v1",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="context-handoff-v6",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="prepared-gesture-v5",["waterSurface"]="constrained-bank-v6",["wristContour"]="source-oval-v1",
             ["hairline"]="source-root-v1",["reedPanicle"]="connected-axis-v1",["bodyFrame"]="adult-proportions-v13",["faceContour"]="regional-adult-v2",["forearmProfile"]="tapered-volume-v1",["residentLocomotion"]="settled-arrival-v3",["armSwing"]="neutral-forearm-v1",["limbCoordination"]="hinge-carry-v4" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
@@ -843,10 +843,18 @@ public partial class WorldView3D : MapView
             if(node.Visible!=visible)node.Visible=visible;
             _poseSchedule.Accumulate(pair.Key,delta,visible&&!Game.VisualPaused);
             if(!visible)continue;
-            if (!Game.VisualPaused && direction.X*direction.X+direction.Z*direction.Z > .002f) { node.Rotation = new Vector3(0, Mathf.LerpAngle(node.Rotation.Y,MathF.Atan2(direction.X, direction.Z) + MathF.PI,1-MathF.Exp(-delta*12)), 0); }
-            if(!Game.VisualPaused&&sim.Agents.HasTarget(slot)&&sim.Agents.PhaseOf(slot)==ActionPhase.Executing)
+            Vector3 interestPoint=target;bool hasInterest=false;
+            if(sim.Agents.HasTarget(slot)&&sim.World.IsInBounds(sim.Agents.TargetOf(slot)))
+            {var interest=sim.Agents.TargetOf(slot);interestPoint=PositionAt(interest.X,interest.Y);hasInterest=true;}
+            if(sim.Actions.TryGetInteractionPartner(slot,out int partner))
             {
-                var destination=sim.Agents.TargetOf(slot);var facing=sim.World.IsInBounds(destination)?PositionAt(destination.X,destination.Y)-target:Vector3.Zero;
+                long identity=sim.Society.Identity(partner);
+                interestPoint=_people.TryGetValue(identity,out var other)?other.Position:PositionAt(sim.Agents.XOf(partner),sim.Agents.YOf(partner));hasInterest=true;
+            }
+            if (!Game.VisualPaused && direction.X*direction.X+direction.Z*direction.Z > .002f) { node.Rotation = new Vector3(0, Mathf.LerpAngle(node.Rotation.Y,MathF.Atan2(direction.X, direction.Z) + MathF.PI,1-MathF.Exp(-delta*12)), 0); }
+            if(!Game.VisualPaused&&hasInterest&&new Vector2(direction.X,direction.Z).Length()<.035f&&sim.Agents.PhaseOf(slot)==ActionPhase.Executing)
+            {
+                var facing=hasInterest?interestPoint-rendered:Vector3.Zero;
                 if(facing.LengthSquared()>.02f) node.Rotation=new(0,Mathf.LerpAngle(node.Rotation.Y,MathF.Atan2(facing.X,facing.Z)+MathF.PI,1-MathF.Exp(-delta*7)),0);
             }
             float distanceSquared=cameraPosition.DistanceSquaredTo(rendered);
@@ -861,8 +869,7 @@ public partial class WorldView3D : MapView
             foreach(var resource in ResidentRig.CargoKinds)
             {float amount=sim.Agents.InventoryOf(slot,resource);if(amount>cargoAmount){cargoAmount=amount;cargoKind=resource;}}
             rig.ShowCargo(cargoAmount>.01f,cargoKind);
-            var interest=sim.Agents.TargetOf(slot);
-            var attention=sim.Agents.HasTarget(slot)&&sim.World.IsInBounds(interest)?PositionAt(interest.X,interest.Y)-rendered:Vector3.Zero;
+            var attention=hasInterest?interestPoint-rendered:Vector3.Zero;
             rig.Attend(node.Basis.Inverse()*attention);
             rig.SetWorkCondition(sim.Agents.FatigueOf(slot),sim.Agents.HealthOf(slot));
             rig.PresentAction(_poseSchedule.Consume(pair.Key),sim.Agents.ActionOf(slot),sim.Agents.PhaseOf(slot),Game.VisualPaused,slot);

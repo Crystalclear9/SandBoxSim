@@ -12,6 +12,19 @@ internal sealed partial class NatureModels
         int contactTransfers=0,visibleLoads=0;
         foreach(int identity in new[]{17,55})
         {
+            var handoff=Resident(identity,false,JobType.None);
+            try
+            {
+                foreach(var pair in new[]{(ActionKind.Eat,ActionKind.Drink),(ActionKind.Take,ActionKind.GatherFood),(ActionKind.Deposit,ActionKind.ShareFood)})
+                {
+                    for(int i=0;i<150;i++)handoff.PoseAction(1f/60,pair.Item1,ActionPhase.Executing,false,0);
+                    var previous=InTorso(handoff.Hands[1],handoff.Torso).Origin;
+                    handoff.PoseAction(1f/60,pair.Item2,ActionPhase.Executing,false,0);
+                    if(!handoff.GestureEngaged(pair.Item2)||previous.DistanceTo(InTorso(handoff.Hands[1],handoff.Torso).Origin)>.025f)
+                        throw new InvalidOperationException("Compatible interaction returns to idle or snaps during handoff");
+                }
+            }
+            finally{handoff.Free();}
             var rig=Resident(identity,false,JobType.Builder);
             try
             {

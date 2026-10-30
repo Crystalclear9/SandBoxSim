@@ -940,6 +940,20 @@ public sealed class ActionSystem
     // 代价是同一个人可能在走到半路时换了对象 —— 而那恰恰是真实的行为。
     // ---------------------------------------------------------------------
 
+    /// <summary>Read-only current candidate using the execution rules, not a remembered partner or reservation.</summary>
+    public bool TryGetInteractionPartner(int slot, out int partner)
+    {
+        partner=-1;
+        if(!_store.IsSlotAlive(slot)||_store.PhaseOf(slot)!=ActionPhase.Executing)return false;
+        return _store.ActionOf(slot) switch
+        {
+            ActionKind.Socialize=>TryFindNeighbor(slot,_config.Relationship.SocializeRadius,out partner),
+            ActionKind.ShareFood when _store.InventoryOf(slot,ResourceKind.Food)>=_config.Relationship.ShareFoodAmount=>TryFindHungriestNeighbor(slot,_config.Relationship.SocializeRadius,out partner),
+            ActionKind.Attack when !_config.Rules.PeaceMode=>TryFindThreat(slot,_config.Relationship.AttackRange,out partner),
+            _=>false
+        };
+    }
+
     /// <summary>社交：和身边的人相处一会儿，双方关系变好、社交需求被满足。</summary>
     private void TickSocialize(int slot, long tick)
     {
