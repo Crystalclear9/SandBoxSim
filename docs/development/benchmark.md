@@ -154,7 +154,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 [文档导航](../README.md) · [项目首页](../../README.md)
 
-工具及动作元数据增加 `toolGeometry=forged-heads-v2` 与 `handlingMotion=contact-sequencing-v4`；工具近景、动作过渡与人物观察界面改变后，需要重新采样视觉和耗时基线。
+工具及动作元数据增加 `toolGeometry=forged-heads-v2` 与 `handlingMotion=velocity-reach-v5`；工具近景、动作过渡与人物观察界面改变后，需要重新采样视觉和耗时基线。
 
 搬运网格记录 `cargoGeometry=bound-timber-v2`；两行动作卡与搬运状态切换改变后，应重新采样同场景的视觉和耗时基线。
 

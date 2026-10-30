@@ -8,6 +8,18 @@ internal sealed partial class NatureModels
 {
     private void ValidateMotionContinuity()
     {
+        var unchanged=Resident(17,false,JobType.Miner);var switched=Resident(17,false,JobType.Miner);
+        try
+        {
+            for(int frame=0;frame<240;frame++)
+            {
+                unchanged.PoseAction(1f/60,ActionKind.GatherStone,ActionPhase.Executing,false,0);
+                switched.PoseAction(1f/60,frame<180?ActionKind.GatherStone:ActionKind.GatherIron,ActionPhase.Executing,false,0);
+                if(frame>=180&&InTorso(unchanged.ToolMesh,unchanged.Torso).Origin.DistanceTo(InTorso(switched.ToolMesh,switched.Torso).Origin)>.00001f)
+                    throw new InvalidOperationException("Changing resource with the same held pick restarts the stroke");
+            }
+        }
+        finally{unchanged.Free();switched.Free();}
         var p=new Vector3(.2f,-.1f,.3f);var v=new Vector3(.8f,.1f,-.2f);var target=new Vector3(-.1f,.4f,.2f);
         var split=p;var splitV=v;
         ResidentRig.DampMotion(ref p,ref v,target,.04f,.1f);

@@ -16,6 +16,7 @@ internal partial class ResidentRig
     private bool _hasArmReturn;
     private readonly bool[] _armSolvedThisStep=new bool[2],_armReturning=new bool[2];
     private Transform3D _toolReachRest;
+    private readonly Vector3[] _bareVelocity=new Vector3[2],_bareAngularVelocity=new Vector3[2];
     private void BlendBareHand(int side,Vector3 target,Basis desired,float blend=-1)
     {
         float weight=ReachEase(blend<0?_bareBlend:blend);
@@ -25,33 +26,53 @@ internal partial class ResidentRig
         // independent joint rotations makes the hand swing around the target.
         var orientation=rest.Basis.GetRotationQuaternion().Slerp(desired.GetRotationQuaternion(),weight);
         var previous=_previousHands[side];var priorRotation=previous.Basis.GetRotationQuaternion();
+        orientation=DampRotation(priorRotation,ref _bareAngularVelocity[side],orientation,.040f,_poseStep);
         float angle=2*MathF.Acos(Math.Clamp(MathF.Abs(priorRotation.Dot(orientation)),0,1));
-        float turnStep=6*_poseStep*(1-MathF.Exp(-angle/.30f));
-        if(angle>turnStep)orientation=priorRotation.Slerp(orientation,turnStep/angle);
+        if(angle>6*_poseStep&&angle>0)orientation=priorRotation.Slerp(orientation,6*_poseStep/angle);
         var goal=(rest*offset).Lerp(target,weight);var origin=previous*offset;
-        float reachStep=_poseStep*(1-MathF.Exp(-origin.DistanceTo(goal)/.06f));
-        var palm=origin.MoveToward(goal,reachStep);
+        var palm=origin;
+        DampMotion(ref palm,ref _bareVelocity[side],goal,.035f,_poseStep);
+        // Preserve incoming velocity at target changes. Keep the existing
+        // metre/second safety bound, including large target resynchronisations.
+        if(palm.DistanceTo(origin)>_poseStep&&_poseStep>0)
+        {palm=origin.MoveToward(palm,_poseStep);_bareVelocity[side]=(palm-origin)/_poseStep;}
         SolveBareHand(side,palm,new Basis(orientation));
+    }
+    private readonly Vector3[,] _returnAngularVelocity=new Vector3[2,3];
+    private readonly Vector3[] _returnShoulderVelocity=new Vector3[2];
+    private static Vector3 RotationVelocity(Basis previous,Basis current,float dt)
+    {
+        if(dt<=0)return Vector3.Zero;
+        var q=(current.GetRotationQuaternion()*previous.GetRotationQuaternion().Inverse()).Normalized();
+        if(q.W<0)q=-q;
+        return q.GetAngle()<.00001f?Vector3.Zero:q.GetAxis()*MathF.Min(8,q.GetAngle()/dt);
     }
     private void FinishArmReturns()
     {
         _hasArmReturn=false;
-        float blend=1-MathF.Exp(-_poseStep*12);
         for(int side=0;side<2;side++)
         {
-            // Each arm owns its return. An active eating hand must not cancel
-            // the other arm's return from a previous two-handed gesture.
-            if(_armSolvedThisStep[side]||!_armReturning[side])continue;
-            float remaining=0;
-            var armTarget=Arms[side].Transform;var elbowTarget=Elbows[side].Quaternion;var wristTarget=Hands[side].Quaternion;
-            Arms[side].Position=_priorArms[side].Origin.Lerp(armTarget.Origin,blend);
-            Arms[side].Quaternion=_priorArms[side].Basis.GetRotationQuaternion().Slerp(armTarget.Basis.GetRotationQuaternion(),blend);
-            Elbows[side].Quaternion=_priorForearms[side].Basis.GetRotationQuaternion().Slerp(elbowTarget,blend);
-            Hands[side].Quaternion=_priorWrists[side].Basis.GetRotationQuaternion().Slerp(wristTarget,blend);
-            remaining=MathF.Max(remaining,1-MathF.Abs(Arms[side].Quaternion.Dot(armTarget.Basis.GetRotationQuaternion())));
-            remaining=MathF.Max(remaining,1-MathF.Abs(Elbows[side].Quaternion.Dot(elbowTarget)));
-            remaining=MathF.Max(remaining,1-MathF.Abs(Hands[side].Quaternion.Dot(wristTarget)));
-            _armReturning[side]=remaining>=.000001f;
+            if(_armSolvedThisStep[side])
+            {
+                _returnAngularVelocity[side,0]=RotationVelocity(_priorArms[side].Basis,Arms[side].Basis,_poseStep);
+                _returnAngularVelocity[side,1]=RotationVelocity(_priorForearms[side].Basis,Elbows[side].Basis,_poseStep);
+                _returnAngularVelocity[side,2]=RotationVelocity(_priorWrists[side].Basis,Hands[side].Basis,_poseStep);
+                _returnShoulderVelocity[side]=_poseStep>0?(Arms[side].Position-_priorArms[side].Origin)/_poseStep:Vector3.Zero;
+                continue;
+            }
+            if(!_armReturning[side])continue;
+            var armTarget=Arms[side].Transform;var elbowTarget=Elbows[side].Transform;var wristTarget=Hands[side].Transform;
+            var position=_priorArms[side].Origin;
+            DampMotion(ref position,ref _returnShoulderVelocity[side],armTarget.Origin,.055f,_poseStep);
+            Arms[side].Position=position;
+            Arms[side].Quaternion=DampRotation(_priorArms[side].Basis.GetRotationQuaternion(),ref _returnAngularVelocity[side,0],armTarget.Basis.GetRotationQuaternion(),.055f,_poseStep);
+            Elbows[side].Quaternion=DampRotation(_priorForearms[side].Basis.GetRotationQuaternion(),ref _returnAngularVelocity[side,1],elbowTarget.Basis.GetRotationQuaternion(),.055f,_poseStep);
+            Hands[side].Quaternion=DampRotation(_priorWrists[side].Basis.GetRotationQuaternion(),ref _returnAngularVelocity[side,2],wristTarget.Basis.GetRotationQuaternion(),.055f,_poseStep);
+            float remaining=MathF.Max(1-MathF.Abs(Arms[side].Quaternion.Dot(armTarget.Basis.GetRotationQuaternion())),
+                MathF.Max(1-MathF.Abs(Elbows[side].Quaternion.Dot(elbowTarget.Basis.GetRotationQuaternion())),1-MathF.Abs(Hands[side].Quaternion.Dot(wristTarget.Basis.GetRotationQuaternion()))));
+            _armReturning[side]=remaining>.000001f||position.DistanceTo(armTarget.Origin)>.0001f;
+            if(!_armReturning[side])
+            {Arms[side].Transform=armTarget;Elbows[side].Transform=elbowTarget;Hands[side].Transform=wristTarget;_bareVelocity[side]=_bareAngularVelocity[side]=Vector3.Zero;}
             _hasArmReturn|=_armReturning[side];
         }
     }
@@ -149,6 +170,7 @@ internal partial class ResidentRig
     }
     private void SolveHand(int side,Vector3 gripTarget,Basis handBasis,bool bare=false,float carry=0,Vector3? elbowHint=null)
     {
+        if(!bare)_bareVelocity[side]=_bareAngularVelocity[side]=Vector3.Zero;
         _armSolvedThisStep[side]=true;_armReturning[side]=true;
         Vector3 gripOffset=side==1?Grip!.Position:new(0,-.035f,-.0286f);
         Vector3 wrist=gripTarget-handBasis*gripOffset;

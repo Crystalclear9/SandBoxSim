@@ -185,7 +185,11 @@ internal partial class ResidentRig : Node3D
         bool moving=phase==ActionPhase.Moving||_worldLocomotion&&_locomotionSpeed>.04f;
         bool executing=phase==ActionPhase.Executing&&InteractionSettled;
         bool resting=executing&&action==ActionKind.Sleep;
-        if((_lastAction!=action||_lastPhase!=phase)&&executing){_workTime=0;_strokePhase=0;}
+        if((_lastAction!=action||_lastPhase!=phase)&&executing)
+        {
+            _workTime=0;
+            if(_lastPhase!=ActionPhase.Executing||ToolFor(_lastAction)!=ToolFor(action))_strokePhase=0;
+        }
         _lastAction=action;_lastPhase=phase;
         var wanted=(phase is ActionPhase.Executing or ActionPhase.Moving)&&!IsChild?ToolFor(action):ResidentTool.None;
         // A long tool is carried in the hand during idle/wandering, rather than
