@@ -43,9 +43,8 @@ internal sealed partial class NatureModels
     {
         string key="screen-lods:"+source.GetInstanceId();
         if(_meshes.TryGetValue(key,out var cached))return cached;
-        using var importer=new ImporterMesh();
-        for(int s=0;s<source.GetSurfaceCount();s++)
-            importer.AddSurface(Mesh.PrimitiveType.Triangles,source.SurfaceGetArrays(s),material:source.SurfaceGetMaterial(s));
+        // Preserve corrective positions/normals and their blend mode too.
+        using var importer=ImporterMesh.FromMesh(source);
         importer.GenerateLods(25,60,new Godot.Collections.Array());
         var result=importer.GetMesh();_meshes[key]=result;return result;
     }

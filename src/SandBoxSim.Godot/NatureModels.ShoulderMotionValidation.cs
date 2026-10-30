@@ -6,10 +6,12 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
+    public void ValidateResidentMotion(){ValidateShoulderMotion();ValidateGarmentMotion();}
     // Check the displayed upper-arm frame as well as hand positions. A reach
     // can satisfy every endpoint test while rolling the sleeve through 180掳.
     private void ValidateShoulderMotion()
     {
+        ValidateSleeveCorrectives();
         ValidateShoulderFit();
         ValidateElevationSurface();
         float maxTwist=0,maxStep=0;int samples=0,supportSamples=0;string worst="",worstStep="";
@@ -43,7 +45,7 @@ internal sealed partial class NatureModels
             finally{rig.Free();}
         }
         GD.Print($"SHOULDER_MOTION_METRICS: samples={samples}, axial={maxTwist:F3} rad, frame step={maxStep:F3} rad, worst={worst}, largest step={worstStep}");
-        if(maxTwist>1.15f||maxStep>.22f)
+        if(maxTwist>ResidentRig.UpperArmRollLimit+.02f||maxStep>.22f)
             throw new InvalidOperationException($"Shoulder twists or snaps despite continuous hand positions: axial={maxTwist}, step={maxStep}, pose={worstStep}");
         GD.Print($"SHOULDER_MOTION_PASS: three adult identities, bare reaches/tools/returns, {supportSamples} actual intermediate sleeve poses and radius checks");
     }

@@ -47,6 +47,21 @@ internal partial class ResidentRig
         if(q.W<0)q=-q;
         return q.GetAngle()<.00001f?Vector3.Zero:q.GetAxis()*MathF.Min(8,q.GetAngle()/dt);
     }
+    private Quaternion ReturnArmRotation(Quaternion prior,ref Vector3 velocity,Quaternion target)
+    {
+        var result=DampRotation(prior,ref velocity,target,.055f,_poseStep);
+        float angle=2*MathF.Acos(Math.Clamp(MathF.Abs(prior.Dot(result)),0,1));
+        // Carry forward the displayed angular velocity after a large gesture.
+        // A spring's inherited velocity must not turn the returning arm faster
+        // than its active reach simply because that arm is no longer in IK.
+        float maximum=6*_poseStep;
+        if(angle>maximum&&angle>0)
+        {
+            result=prior.Slerp(result,maximum/angle);
+            velocity=RotationVelocity(new Basis(prior),new Basis(result),_poseStep);
+        }
+        return result;
+    }
     private void FinishArmReturns()
     {
         _hasArmReturn=false;
@@ -65,9 +80,9 @@ internal partial class ResidentRig
             var position=_priorArms[side].Origin;
             DampMotion(ref position,ref _returnShoulderVelocity[side],armTarget.Origin,.055f,_poseStep);
             Arms[side].Position=position;
-            Arms[side].Quaternion=DampRotation(_priorArms[side].Basis.GetRotationQuaternion(),ref _returnAngularVelocity[side,0],armTarget.Basis.GetRotationQuaternion(),.055f,_poseStep);
-            Elbows[side].Quaternion=DampRotation(_priorForearms[side].Basis.GetRotationQuaternion(),ref _returnAngularVelocity[side,1],elbowTarget.Basis.GetRotationQuaternion(),.055f,_poseStep);
-            Hands[side].Quaternion=DampRotation(_priorWrists[side].Basis.GetRotationQuaternion(),ref _returnAngularVelocity[side,2],wristTarget.Basis.GetRotationQuaternion(),.055f,_poseStep);
+            Arms[side].Quaternion=ReturnArmRotation(_priorArms[side].Basis.GetRotationQuaternion(),ref _returnAngularVelocity[side,0],armTarget.Basis.GetRotationQuaternion());
+            Elbows[side].Quaternion=ReturnArmRotation(_priorForearms[side].Basis.GetRotationQuaternion(),ref _returnAngularVelocity[side,1],elbowTarget.Basis.GetRotationQuaternion());
+            Hands[side].Quaternion=ReturnArmRotation(_priorWrists[side].Basis.GetRotationQuaternion(),ref _returnAngularVelocity[side,2],wristTarget.Basis.GetRotationQuaternion());
             float remaining=MathF.Max(1-MathF.Abs(Arms[side].Quaternion.Dot(armTarget.Basis.GetRotationQuaternion())),
                 MathF.Max(1-MathF.Abs(Elbows[side].Quaternion.Dot(elbowTarget.Basis.GetRotationQuaternion())),1-MathF.Abs(Hands[side].Quaternion.Dot(wristTarget.Basis.GetRotationQuaternion()))));
             _armReturning[side]=remaining>.000001f||position.DistanceTo(armTarget.Origin)>.0001f;
@@ -266,30 +281,34 @@ internal partial class ResidentRig
         var lowerBasis=LimbFrame((wrist-elbow).Normalized(),handBasis.X)*new Basis(new Quaternion(Hands[side].Position.Normalized(),Vector3.Down));
         Arms[side].Basis=upperBasis;Elbows[side].Basis=upperBasis.Inverse()*lowerBasis;Hands[side].Basis=lowerBasis.Inverse()*handBasis;
     }
+    internal const float UpperArmRollLimit=1.65f;
     private Basis ReachUpperArmFrame(int side,Vector3 upper,Vector3 lower)
     {
         var direction=upper.Normalized();
         var swing=new Basis(new Quaternion(Vector3.Down,direction));
         var hinge=direction.Cross(lower.Normalized());
-        float bend=hinge.Length(),wanted=0;
+        float bend=hinge.Length();
+        // Transport the complete previous frame with the shortest change of
+        // arm direction. Projection alone loses roll as the arm rises sideways.
+        var previousDirection=-_priorArms[side].Basis.Y;
+        var transported=new Quaternion(previousDirection,direction)*_priorArms[side].Basis.X;
+        float prior=swing.X.SignedAngleTo(transported,direction),wanted=prior;
         if(bend>.0001f)
         {
             hinge/=bend;
-            // The plane normal is an unsigned axis. Choosing its opposite
-            // sign must never turn the humerus and sleeve through half a turn.
-            if(hinge.Dot(swing.X)<0)hinge=-hinge;
-            wanted=Math.Clamp(swing.X.SignedAngleTo(hinge,direction),-.80f,.80f)
-                *Mathf.SmoothStep(.08f,.35f,bend);
+            // This is a signed flexion axis: flipping it reverses elbow
+            // flexion and asks the forearm to compensate with a half-turn.
+            // A lateral raise needs more roll in this swing coordinate system
+            // than a forward reach; the old 0.8 rad cap prevented alignment.
+            float raw=Math.Clamp(swing.X.SignedAngleTo(hinge,direction),-UpperArmRollLimit,UpperArmRollLimit);
+            wanted=prior+Mathf.Wrap(raw-prior,-MathF.PI,MathF.PI)*Mathf.SmoothStep(.08f,.35f,bend);
         }
         // Transport the displayed frame onto the new upper-arm direction.
         // Near extension the elbow plane is ill-conditioned, so recover the
         // neutral frame gradually instead of following the raw cross product.
-        var previous=_priorArms[side].Basis.X;
-        previous-=direction*previous.Dot(direction);
-        float prior=previous.LengthSquared()>.0001f?swing.X.SignedAngleTo(previous.Normalized(),direction):0;
         float difference=Mathf.Wrap(wanted-prior,-MathF.PI,MathF.PI);
         float limit=2.6f*_poseStep*(1-MathF.Exp(-MathF.Abs(difference)/.20f));
-        float twist=prior+Math.Clamp(difference,-limit,limit);
+        float twist=Math.Clamp(prior+Math.Clamp(difference,-limit,limit),-UpperArmRollLimit,UpperArmRollLimit);
         return new Basis(direction,twist)*swing;
     }
     // Body-relative reaches adapt to the fitted shoulder span. Physical cargo

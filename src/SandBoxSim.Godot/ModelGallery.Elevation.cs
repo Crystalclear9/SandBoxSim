@@ -21,11 +21,11 @@ internal partial class ModelGallery
     }
     private void AdvanceElevationStudy(float delta)
     {
-        float cycle=_elapsed%12;
-        // Three seconds raise, a hold, three seconds lower, then rest.
-        float weight=cycle<3?ResidentRig.ReachEase(cycle/3):cycle<5?1:cycle<8?1-ResidentRig.ReachEase((cycle-5)/3):0;
+        int side=(_elapsed%12)<6?1:0;float cycle=_elapsed%6;
+        // Alternate arms, including a high hold and an independent return.
+        float weight=cycle<1.5f?ResidentRig.ReachEase(cycle/1.5f):cycle<2.5f?1:cycle<4?1-ResidentRig.ReachEase((cycle-2.5f)/1.5f):0;
         float angle=Mathf.DegToRad(135)*weight;
-        foreach(var rig in _elevationStudies)rig.StudyArmElevation(delta,angle,Mathf.DegToRad(30));
-        if(_elevationReadout!=null)_elevationReadout.Text=$"肩袖变形观察 · 抬臂 {Mathf.RadToDeg(angle):0}° · 抬起、保持与放下";
+        foreach(var rig in _elevationStudies)rig.StudyArmElevation(delta,angle,Mathf.DegToRad(30),side);
+        if(_elevationReadout!=null)_elevationReadout.Text=$"肩袖变形观察 · {(side==1?"右臂":"左臂")} {Mathf.RadToDeg(angle):0}° · 抬起、保持与放下";
     }
 }

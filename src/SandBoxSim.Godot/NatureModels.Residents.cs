@@ -284,6 +284,7 @@ internal sealed partial class NatureModels
         rig.GaitArmSwing=(BodyFrame==1?.29f:.25f)+rig.GaitIndividual*.035f;
         rig.BootSoleCurve=BootSoleCurve();
         rig.ExpressionPhase=(variation>>24)/255f*10;
+        AddSleeveCorrectives(rig);
         rig.RegisterDistanceMeshes(rig);return rig;
     }
     public void ValidateResidentMeshes()

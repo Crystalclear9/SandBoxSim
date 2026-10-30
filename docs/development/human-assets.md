@@ -138,3 +138,12 @@ python -m unittest discover -s tools -p test_resident_trousers.py
 ```
 
 当前 `adult-proportions-v13` 在同一来源上分别处理胸廓／上背、腰线和骨盆／腿部轮廓。`tools/export_resident_trousers.py` 重新导出五骨连续裤装，男性 2,925 顶点／5,696 三角面，女性 2,731 顶点／5,296 三角面；输入来源及许可保留，运行时与工具测试固定校验成品 SHA-256。上髋松量同时覆盖弯身时的上衣低段，具体表现与边界见[模型系统](models.md)。
+
+
+## 上臂解剖支撑与姿态表面
+
+[upper-arm-male.json](../../src/SandBoxSim.Godot/assets/models/human/upper-arm-male.json) 和 [upper-arm-female.json](../../src/SandBoxSim.Godot/assets/models/human/upper-arm-female.json) 来自本项目现有、哈希校验的 MakeHuman HM08 基础网格、青年宏目标和肩肘关节组，核心素材许可为 [CC0](https://www.makehumancommunity.org/about/license.html)。两个文件分别保存肩肘来源坐标、来源哈希、目标臂长和 25×64 个上臂截面半径；截面在来源肩肘轴内计算，保留三角肌区域向肘部收束的轮廓与方向差异，不能当作肌肉运动实测数据。运行时对 LF／CRLF 统一后检查完整文件哈希。
+
+可复用工具 [export_upper_arm_support.py](../../tools/export_upper_arm_support.py) 只依赖 Python 标准库，使用 `.tools/sources/makehuman` 中已校验来源，不重新下载素材。重建命令为 `python tools/export_upper_arm_support.py --source .tools/sources/makehuman --output src/SandBoxSim.Godot/assets/models/human`；对应测试同时检查来源重建一致性、有效截面和方向性体积。修改来源或配方后须同步审查运行时固定哈希。
+
+衣袖在当前体型拟合后加入上臂支撑、布料松量，保留缝线／袖口绑定，再生成十二个有限姿态的表面修正。修正包括位置和重建后的法线；静止法线不能直接当作抬臂后皮肤／衣料的真实朝向。当前仍为有限姿态插值、程序动作及衣料蒙皮，没有裸露上臂皮肤、肌肉动力学、布料碰撞或导入动作捕捉。算法、边界和运行入口见[模型系统](models.md)。

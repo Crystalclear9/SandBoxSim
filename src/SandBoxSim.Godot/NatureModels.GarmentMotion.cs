@@ -39,6 +39,7 @@ internal sealed partial class NatureModels
                     {
                         rig.PresentAction(1f/30,action,phase,false,.73f);
                         if(frame%15!=14)continue;
+                        var corrected=CorrectedSleeveSource(rig,source);
                         var transforms=new Transform3D[rig.ShoulderSkeleton.GetBoneCount()];
                         for(int bone=0;bone<transforms.Length;bone++)
                             transforms[bone]=rig.ShoulderSkeleton.GetBonePose(bone)*rig.DetailedBodySkin.GetBindPose(bone);
@@ -53,7 +54,7 @@ internal sealed partial class NatureModels
                         for(int i=0;i<source.Length;i++)
                         {
                             var point=Vector3.Zero;
-                            for(int j=0;j<4;j++)point+=(transforms[bones[i*4+j]]*source[i])*weights[i*4+j];
+                            for(int j=0;j<4;j++)point+=(transforms[bones[i*4+j]]*corrected[i])*weights[i*4+j];
                             if(!point.IsFinite())throw new InvalidOperationException("Non-finite garment action deformation");
                             posed[i]=point;
                             // Godot quantizes skin weights to 16 bits. Compare
@@ -75,7 +76,12 @@ internal sealed partial class NatureModels
                         {
                             float ratio=posed[edge.A].DistanceTo(posed[edge.B])/source[edge.A].DistanceTo(source[edge.B]);
                             maximum=MathF.Max(maximum,ratio);
-                            if(ratio>4.5f)throw new InvalidOperationException($"Stretched garment action edge: {job}/{action}, ratio={ratio}, rest={source[edge.A]} -> {source[edge.B]}, seam={seam[edge.A]} -> {seam[edge.B]}");
+                            if(ratio>4.5f)
+                            {
+                                var a=Vector3.Zero;var b=Vector3.Zero;
+                                for(int j=0;j<4;j++){a+=transforms[bones[edge.A*4+j]]*source[edge.A]*weights[edge.A*4+j];b+=transforms[bones[edge.B*4+j]]*source[edge.B]*weights[edge.B*4+j];}
+                                throw new InvalidOperationException($"Stretched garment action edge: {job}/{action}, ratio={ratio}, baseRatio={a.DistanceTo(b)/source[edge.A].DistanceTo(source[edge.B])}, rest={source[edge.A]} -> {source[edge.B]}, seam={seam[edge.A]} -> {seam[edge.B]}");
+                            }
                         }
                         poses++;
                     }

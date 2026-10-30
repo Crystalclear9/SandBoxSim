@@ -480,6 +480,7 @@ internal partial class ResidentRig : Node3D
         if(detailed)for(int side=0;side<2;side++)
         {
             SyncShoulderBone(side);
+            UpdateSleeveCorrectives(side,true);
         }
         for(int side=0;side<2;side++)
         {

@@ -5,10 +5,12 @@ param(
     [string]$GodotPath = $env:GODOT_EXE,
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Debug',
-    [switch]$ReimportTextures
+    [switch]$ReimportTextures,
+    [switch]$ResidentMotionOnly
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if($ResidentMotionOnly -and $Mode -ne 'test'){throw 'ResidentMotionOnly requires -Mode test.'}
 if ($Mode -eq 'build' -and $ReimportTextures) { throw 'Use -Mode test, run or editor with -ReimportTextures.' }
 . (Join-Path $PSScriptRoot 'build-lib.ps1')
 $repositoryRoot = Split-Path $PSScriptRoot -Parent
@@ -44,9 +46,12 @@ if ($ReimportTextures) { Invoke-GodotTextureReimport -GodotPath $GodotPath -Game
 if ($Mode -eq 'editor') {
     & $GodotPath --log-file $engineLog --path $gameRoot --editor
 } elseif ($Mode -eq 'test') {
-    & $GodotPath --log-file $engineLog --headless --path $gameRoot -- --self-test
+    if($ResidentMotionOnly){
+        & $GodotPath --log-file $engineLog --headless --path $gameRoot -- --test-resident-motion
+        if([IO.File]::ReadAllText($engineLog) -notmatch '(?m)^RESIDENT_MOTION_TEST_PASS:'){throw 'Resident motion tests did not complete.'}
+    } else { & $GodotPath --log-file $engineLog --headless --path $gameRoot -- --self-test }
 } else {
     & $GodotPath --log-file $engineLog --path $gameRoot
 }
-Assert-GodotRunLog -ExitCode $LASTEXITCODE -Log ([IO.File]::ReadAllText($engineLog)) -SelfTest:($Mode -eq 'test')
+Assert-GodotRunLog -ExitCode $LASTEXITCODE -Log ([IO.File]::ReadAllText($engineLog)) -SelfTest:($Mode -eq 'test' -and -not $ResidentMotionOnly)
 } finally { Restore-GodotEnvironment -Snapshot $godotEnvironment }

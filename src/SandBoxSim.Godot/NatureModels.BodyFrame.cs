@@ -156,6 +156,11 @@ internal sealed partial class NatureModels
             var weights=arrays[(int)Mesh.ArrayType.Weights].VariantType==Variant.Type.Nil?Array.Empty<float>():arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();
             var sleeveDistance=bones.Length==points.Length*4&&pattern.Length==points.Length
                 ?SleeveDistances(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern):Array.Empty<float>();
+            if(tailored&&sleeveDistance.Length==points.Length)
+            {
+                FitUpperArmSupport(points,pattern,sleeveDistance);
+                sleeveDistance=SleeveDistances(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
+            }
             if(bones.Length==points.Length*4)
                 for(int i=0;i<points.Length;i++)
                 {

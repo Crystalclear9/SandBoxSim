@@ -9,13 +9,16 @@
 
 `resident-handling-transitions.png` 与 `resident-handling-transitions.gif` 来自公开 `visual-handling-transitions.json` 的实际控制器，使用 `handlingMotion=wholebody-motion-v7`、`toolMotion=contact-transfer-v3`、`socialMotion=prepared-gesture-v5`、`residentLocomotion=settled-arrival-v3`。上排为男性外观，下排为女性外观；三列依次展示根节点靠近后拾取、持锤到进食／饮水再换锄与逃离、双手搬运与交接。角色状态文字由实际 `Handling` 读数生成。当前重采样包含带速度记忆的徒手轨迹和关节收手、前伸时的躯干参与、行走中较放松的肩肘协调及连续劳动相位。PNG 为逻辑帧 222、1600×1000；GIF 为 1280×1000、180 个原生帧，逻辑帧 30–746 每四步采样，总长十二秒，受单次最多 32 张限制，分六次等配置回放后编码。六格均使用正交尺寸 2.10、目标 (0, 0.82, 0)、相机相对 (1.3, 0.06, 4)，固定 60 Hz、零模拟步进；首列读取其实际局部根节点轨迹与剩余距离，另两列为独立展示姿态。没有重绘模型、插帧或缩放身体部位；旧专题保留各自采样版本，不能从此图推断所有世界事件都具备完整物品物理。
 
-当前成人全身体型、衣装、动作和行走配图使用 `adult-proportions-v13`，显示方向性胸腰衣料、骨盆／大腿连续裤装，以及保留关节位置的肩袖支撑。全身三视图的身份、衣色、肤色与镜头保持一致；其他专题保留各自采样版本。
+既有成人全身体型、衣装、身体动态和行走配图保留 `adult-proportions-v13`，显示方向性胸腰衣料、骨盆／大腿连续裤装，以及保留关节位置的肩袖支撑。全身三视图的身份、衣色、肤色与镜头保持一致；其他专题保留各自采样版本。
 
-`resident-shoulder-motion.png` 来自公开 `visual-shoulder-motion.json` 的逻辑帧 156，1600×1000；`resident-shoulder-motion.gif` 为 1280×1000 的 102 个原生采样帧，逻辑帧 30–434、每四步采样，总时长 6.8 秒，按单次最多 32 张的限制分四次等配置回放后编码。上排为男性外观、下排为女性外观，穿相同职业衣装，三列分别从正面、实际工作臂侧面和背面显示同一手锤的抬手、挥击与返回；正交尺寸 1.04、目标 (0, 1.08, 0)，相机相对位置依次为 (0.03, 0.04, 4)、(-4, 0.04, 0.15)、(-1.5, 0.04, -4)。本专题于 2026-10-30 重采，版本为 `shoulderSkin=segmented-volume-v2`、`shoulderMotion=humeral-girdle-v4`，两种成人衣身均采用分段旋转、独立袖管位置修正和上臂驱动的肩带；其余既有工具／生活专题保留原采样版本。
+`resident-shoulder-motion.png` 来自公开 `visual-shoulder-motion.json` 的逻辑帧 156，1600×1000；同名 GIF 为 1280×1000、102 个原生帧，逻辑帧 30–434 每四步采样、总长 6.8 秒，分四次等配置回放编码。上排男性外观、下排女性外观，三列为正面、工作臂侧面和背面；正交尺寸 1.04、目标 (0, 1.08, 0)，相机相对位置分别为 (0.03, 0.04, 4)、(-4, 0.04, 0.15)、(-1.5, 0.04, -4)。
 
-`resident-shoulder-elevation.png` 为公开 `visual-shoulder-elevation.json` 的逻辑帧 198、1600×1000；同名 GIF 为 1280×1000、180 个原生帧，逻辑帧 30–746 每四步采样，总时长十二秒，分六次等配置回放编码。上下排仍为两种成人外观，三列为正面、工作臂侧面、背面；正交尺寸 1.65、目标 (0, 1.12, 0)，相机相对位置依次为 (0.03, 0.03, 4)、(-4, 0.03, 0.10)、(0.03, 0.03, -4)。在冠状面前方 30° 的平面内三秒抬至 135°、保持两秒、三秒放下、休息四秒，读取同一游戏模型、实际 IK 与肩袖骨骼，不是动作捕捉。此专题同样于 2026-10-30 采样，使用上述 v2/v4 版本。两组演示均冻结模拟、固定 60 Hz，没有插帧、重绘或对身体局部另作缩放；GIF 只作调色板编码。
+`resident-shoulder-elevation.png` 为公开 `visual-shoulder-elevation.json` 的逻辑帧 108、1600×1000；同名 GIF 为 1280×1000、180 个原生帧，逻辑帧 30–746 每四步采样、总长十二秒，分六次等配置回放编码。两排仍为两种成人外观，三列为正面、固定侧面、背面；正交尺寸 1.65、目标 (0, 1.12, 0)，相机相对位置分别为 (0.03, 0.03, 4)、(-4, 0.03, 0.10)、(0.03, 0.03, -4)。左右臂各占六秒，在冠状面前方 30° 的平面内用 1.5 秒抬至 135°、保持一秒、1.5 秒放下、休息两秒。
 
-衣装近景、全身体型、身体动态、作业静态图与行走／摆臂 PNG 和 GIF 使用 `bodyFrame=adult-proportions-v13`、`garmentMaterial=faired-panel-linen-v15` 的当前网格。衣装图来自公开 `visual-wardrobe` 第 90 帧，1600×1000，正交尺寸 0.88、目标 (0, 1.13, 0)、相机相对位置 (0.10, 0.035, 3)；展示三种职业衣装的正背面、连续袖山与较薄卷边。成人身材图同步展示按实际成衣高度贴合的胸腰／上髋、连续臀腿及同步适配的上臂与袖口；配对身份、衣色、布光和镜头保持相同。其他专题保留各自的采样版本。
+上述两组及 `resident-social-side-motion.gif` 于 2026-10-30 重采，使用 `bodyFrame=adult-proportions-v14`、`shoulderSkin=pose-corrected-sleeve-v3`、`shoulderMotion=signed-flexion-v5`。它们显示来源上臂体积、十二个位置／法线修正和有符号肘屈曲轴的实际网格。生活侧面 GIF 同为 1280×1000、102 帧和 6.8 秒，来自 `visual-social-side.json` 逻辑帧 30–434 每四步采样，分四次回放编码。均冻结模拟、固定 60 Hz，没有重绘、插帧或对身体局部另作缩放；GIF 只作统一调色板编码。其他既有动作专题保留原采样版本。
+
+
+既有衣装近景、全身体型、身体动态、作业静态图与行走／摆臂 PNG 和 GIF 保留 `bodyFrame=adult-proportions-v13`、`garmentMaterial=faired-panel-linen-v15` 的采样网格。衣装图来自公开 `visual-wardrobe` 第 90 帧，1600×1000，正交尺寸 0.88、目标 (0, 1.13, 0)、相机相对位置 (0.10, 0.035, 3)；展示三种职业衣装的正背面、连续袖山与较薄卷边。成人身材图同步展示按实际成衣高度贴合的胸腰／上髋、连续臀腿及同步适配的上臂与袖口；配对身份、衣色、布光和镜头保持相同。其他专题保留各自的采样版本。
 
 `resident-arm-swing.png` 来自公开 `visual-arm-swing.json` 第 120 帧，请求 1600×1600、实际 1600×1410，版本 `armSwing=relaxed-countermotion-v2`。六格配对展示正面、侧面和掌腕取向。`resident-arm-swing.gif` 将同一运行第 90–138 帧、每两帧采样的 25 组正面及侧面原生视口，各取中央 300×338 像素、不缩放，排列成 612×688 的两行画面，约 0.83 秒；未重绘人物或插帧。新摆臂下的身体动态及移动演示同步采样，其他专题保留各自版本。
 
@@ -33,9 +36,9 @@
 
 `resident-forearm-frames.png` 为公开 `visual-forearm-frames.json` 第 90 帧的小臂对照，正交尺寸 0.46，1600×1000，使用实际分离观察网格，不代表游戏中存在开放切口。头脸、小臂专题及动作 GIF 保留各自采样，`regional-adult-v2` 头脸与小臂映射未改变；GIF 展示控制器的运动节奏，成人躯干局部轮廓以全身三视图与当前作业静态图为准。
 
-工具／作业／生活的四段既有动作演示使用 `limbCoordination=hinge-carry-v4` 和 `shoulderMotion=source-fitted-reach-v3`，保留工具握柄的实际绑定方向，协调上臂屈伸轴与肘部平面；生活动作另使用 `socialMotion=mouth-facing-v4`，按实际食指三段骨骼末端估计指腹位置，控制靠近嘴部与返回的轨迹，不表示已经实现食物、杯具或嘴唇接触物理。`resident-tool-motion.gif` 为单人手锤取出、作业与返回低位携带；`resident-work-effort.gif` 为同工具、不同成人外观及疲劳状态的四格对照；`resident-social-motion.gif` 展示交谈、递交与进食，`resident-social-side-motion.gif` 为同组生活动作的侧面。工具与生活三段为 1280×800、作业状态对照为 1280×1000，均为原生客户端的 102 帧，固定 60 Hz、冻结模拟，在逻辑帧 30–434 每四步采样；受单次最多 32 张采样限制，每段分为四次等配置回放后按逻辑帧拼接，总时长 6.8 秒，没有重绘或插帧，不是帧率测试或人体实测。侧面相机相对 (0, 1, 0) 为 (4, 0.06, 1)，交谈正面为 (0.12, 0.06, 4)，两段交谈图正交尺寸均为 1.6。手锤全身演示使用正交尺寸 1.85、目标 (0, 0.83, 0)、相对位置 (0, 0.07, 4)。`resident-social.png` 为生活动作逻辑帧 150。公开复现配置为 `visual-motion.json`、`visual-work-effort.json`、`visual-social.json` 与 `visual-social-side.json`；完整 102 帧演示采用上述分批采样。
+除本节开头说明的当前肩袖与生活侧面专题外，工具／作业／生活的既有动作演示保留 `limbCoordination=hinge-carry-v4` 和 `shoulderMotion=source-fitted-reach-v3`，保留工具握柄的实际绑定方向，协调上臂屈伸轴与肘部平面；生活动作另使用 `socialMotion=mouth-facing-v4`，按实际食指三段骨骼末端估计指腹位置，控制靠近嘴部与返回的轨迹，不表示已经实现食物、杯具或嘴唇接触物理。`resident-tool-motion.gif` 为单人手锤取出、作业与返回低位携带；`resident-work-effort.gif` 为同工具、不同成人外观及疲劳状态的四格对照；`resident-social-motion.gif` 展示交谈、递交与进食，`resident-social-side-motion.gif` 为同组生活动作的侧面。旧工具与生活正面两段为 1280×800，当前生活侧面与作业状态对照为 1280×1000，均为原生客户端的 102 帧，固定 60 Hz、冻结模拟，在逻辑帧 30–434 每四步采样；受单次最多 32 张采样限制，每段分为四次等配置回放后按逻辑帧拼接，总时长 6.8 秒，没有重绘或插帧，不是帧率测试或人体实测。侧面相机相对 (0, 1, 0) 为 (4, 0.06, 1)，交谈正面为 (0.12, 0.06, 4)，两段交谈图正交尺寸均为 1.6。手锤全身演示使用正交尺寸 1.85、目标 (0, 0.83, 0)、相对位置 (0, 0.07, 4)。`resident-social.png` 为生活动作逻辑帧 150。公开复现配置为 `visual-motion.json`、`visual-work-effort.json`、`visual-social.json` 与 `visual-social-side.json`；完整 102 帧演示采用上述分批采样。
 
-人物观察窗与配件专题保留 `relaxed-yoke-v7` 采样：胸腹松量连续衔接，后肩拼接线由贴面短针脚表示；头部整体上移 18 毫米。当前衣装、全身体型与动作图使用本节开头说明的 `faired-panel-linen-v15` 和 `adult-proportions-v13`。动物、建筑与环境专题保留各自采样。
+人物观察窗与配件专题保留 `relaxed-yoke-v7` 采样：胸腹松量连续衔接，后肩拼接线由贴面短针脚表示；头部整体上移 18 毫米。既有衣装、全身体型与较早动作图保留 `faired-panel-linen-v15` 和 `adult-proportions-v13`。动物、建筑与环境专题保留各自采样。
 
 人物观察窗、手部／全身视图与配件专题保留 2026-10-28 的人体截面衣料支撑体采样：胸前与背部具有不同轮廓，袖根与衣身切面连接，左右三角化对应；抬臂包含有限肩点位移，肘部优先向下，再作满足握持腕角的调整。当前衣装图使用本节开头记录的 0.88 正交尺寸；窗口内的手部与全身视图保留各自独立镜头，没有缩放身体局部。窗口分别记住面部、手部和全身的缩放，底部并排提供“跟随居民”和“查看目的地”。图册等待 120 帧再采样；静态图用于展示稳定姿势，不能证明整个动作过程的自然程度。
 
@@ -89,11 +92,11 @@
 
 建筑、人物动物、面部、衣装、生态、网格近景、地形远近景、工具库、现场手记、人物手记、镜头面板、展开观察窗及其手部／全身视图更新于 2026-10-27；花甸专题保留 2026-10-26 采样，均为原生 Godot 渲染。普通配图为 1600×1000；紧凑工具库为 1280×800，灌丛独立近景为 1200×900，使用同一图册模型、正交尺寸 0.27、目标点 (0.229, 0.591, -0.022)，等待 120 帧后采样。工具库两图在实际选择四种工具后采样，紧凑图记录菜单展开状态。镜头面板另检查实际按钮焦点下的空格暂停／继续、Esc 返回和全景平移后的选中反馈。图册使用实际游戏网格、独立展示环境，模拟暂停，等待 120 帧后采样；普通世界预览等待 2 秒。生活／决策／侧光、物资与工具状态由实际命中检查的鼠标事件回放后采样，回放先用空格暂停世界，并核对工具库实际可见、手记收起；缩略入口另检查 Enter 打开、Esc 焦点返回，以及手部背面观察关闭后仍显示面部；改名检查实际键盘保存、取消和换居民丢弃草稿。沉浸图使用 F10 后采样。手部与全身分别来自公开 `ui-portrait-window` 场景第 130／170 帧。界面和普通世界使用种子 839102、40 人，无预先天数推进；花甸预览暂停模拟。
 
-当前运行另记录 `shoulderSkin=segmented-volume-v2`、`shoulderMotion=humeral-girdle-v4`、`reachMotion=palm-trajectory-v2`、`workEffort=phase-warp-v2`、`bodyFrame=adult-proportions-v13`、`faceContour=regional-adult-v2` 和 `toolMotion=contact-transfer-v3`，交互衔接专题另记录 `handlingMotion=wholebody-motion-v7`、`socialMotion=prepared-gesture-v5` 与 `residentLocomotion=settled-arrival-v3`；旧专题保留采样时实现，不能据新标签重解释旧图。字体策略为 `fontProfile=noto-packaged-v1`。对应 `interface=resident-framing-memory-v28`、`architecture=inset-joinery-v13`、`animalPresentation=articulated-paws-v12`、`landscapeSurface=coverage-mosaic-v6`、`habitatDetail=stratified-meadow-v10`、`residentSurface=linear-skin-v9`、`vegetationSurface=engine-faced-v2`、`wildFlora=arched-bramble-v1`、`waterSurface=constrained-bank-v6`、`handSurface=anatomical-regions-v1`、`portrait.studio=continuous-inspector-v9`、`wristContour=source-oval-v1` 、`hairline=source-root-v1`、`reedPanicle=connected-axis-v1` 和 `garmentMaterial=faired-panel-linen-v15`。动物半闭眼／全闭眼的强制参数图仅用于本地检查，不替代这里的正常运行配图。
+当前运行另记录 `shoulderSkin=pose-corrected-sleeve-v3`、`shoulderMotion=signed-flexion-v5`、`reachMotion=palm-trajectory-v2`、`workEffort=phase-warp-v2`、`bodyFrame=adult-proportions-v14`、`faceContour=regional-adult-v2` 和 `toolMotion=contact-transfer-v3`，交互衔接专题另记录 `handlingMotion=wholebody-motion-v7`、`socialMotion=prepared-gesture-v5` 与 `residentLocomotion=settled-arrival-v3`；旧专题保留采样时实现，不能据新标签重解释旧图。字体策略为 `fontProfile=noto-packaged-v1`。对应 `interface=resident-framing-memory-v28`、`architecture=inset-joinery-v13`、`animalPresentation=articulated-paws-v12`、`landscapeSurface=coverage-mosaic-v6`、`habitatDetail=stratified-meadow-v10`、`residentSurface=linear-skin-v9`、`vegetationSurface=engine-faced-v2`、`wildFlora=arched-bramble-v1`、`waterSurface=constrained-bank-v6`、`handSurface=anatomical-regions-v1`、`portrait.studio=continuous-inspector-v9`、`wristContour=source-oval-v1` 、`hairline=source-root-v1`、`reedPanicle=connected-axis-v1` 和 `garmentMaterial=faired-panel-linen-v15`。动物半闭眼／全闭眼的强制参数图仅用于本地检查，不替代这里的正常运行配图。
 
 地形远景使用普通世界入口；近景加 `--view=near`。两图用于查看实际扫描草叶地面、山坡、岸线和贴地，属于普通客户端采样，不作为固定帧评测成绩。
 
-前臂、左右手与动作静态专题随当前模型重采；动作 GIF 使用本节说明的当前采样；较早的住房、农业、小径与世界生活图只说明对应玩法。未更新图片中的 UI 不代表当前布局。所有图片均来自实际客户端，没有用概念图替代模型。
+前臂、左右手与较早动作静态专题保留各自采样；肩袖与生活侧面 GIF 使用本节说明的当前采样；较早的住房、农业、小径与世界生活图只说明对应玩法。未更新图片中的 UI 不代表当前布局。所有图片均来自实际客户端，没有用概念图替代模型。
 
 复现入口见表格及 [渲染与视觉评测](../development/benchmark.md)。截图用于项目说明，不用于证明模型达到写实品质；效率对照必须使用同一场景、资产、渲染条件与版本标识。
 

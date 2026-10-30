@@ -71,6 +71,13 @@ public partial class MainGame : Control
 
     public override void _Ready()
     {
+        if(OS.GetCmdlineUserArgs().Contains("--test-resident-motion"))
+        {
+            SetProcess(false);SetPhysicsProcess(false);SetProcessInput(false);
+            try{new NatureModels().ValidateResidentMotion();GD.Print("RESIDENT_MOTION_TEST_PASS: shoulder, corrective surface and garment motion");GetTree().Quit();}
+            catch(Exception exception){GD.PushError(exception.ToString());GetTree().Quit(1);}
+            return;
+        }
         GetWindow().Title="SandBoxSim";
         try { System.IO.Directory.CreateDirectory(OS.GetUserDataDir()); }
         catch(System.IO.IOException ex){GD.PushWarning("Game preferences directory unavailable: "+ex.Message);}

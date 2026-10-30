@@ -54,6 +54,7 @@ internal partial class ResidentRig
             ShoulderSkeleton.SetBonePoseRotation(bone,fraction);ShoulderSkeleton.SetBonePosePosition(bone,centre);
             ShoulderSkeleton.SetBonePoseRotation(cap,fraction);ShoulderSkeleton.SetBonePosePosition(cap,centre+SleeveCapCorrection(rotation,weight));
         }
+        UpdateSleeveCorrectives(side);
     }
     internal static Vector3 SleeveCapCorrection(Quaternion rotation,float weight)
     {

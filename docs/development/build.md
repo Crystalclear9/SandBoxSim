@@ -139,3 +139,6 @@ Windows 的 `godot.ps1`、`export-game.ps1`、`evaluate.py` 和 `Play-3D.cmd` �
 ---
 
 [文档导航](../README.md) · [项目首页](../../README.md)
+
+
+肩袖和动作的局部迭代可运行 `./tools/godot.ps1 -Mode test -ResidentMotionOnly`，它在不创建模拟世界和 UI 的情况下检查肩肘朝向、姿态表面、法线、袖口和衣料运动，并以 `RESIDENT_MOTION_TEST_PASS` 单独标识范围。默认 `./tools/godot.ps1 -Mode test` 继续执行全部客户端自检；发布包还会执行完整的导出包自检。该开关只接受 `-Mode test`。
