@@ -12,6 +12,7 @@ internal sealed partial class NatureModels
     private void ValidateShoulderMotion()
     {
         ValidateGirdleMotion();
+        ValidateMotionReference();
         ValidateSleeveCorrectives();
         ValidateShoulderFit();
         ValidateElevationSurface();

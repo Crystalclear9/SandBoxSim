@@ -10,6 +10,7 @@
 | `models/human/` | 三套头脸与原生 2K 皮肤、发片图集、两套胸肩支撑截面、前臂、手部和手部 LOD；CC BY 4.0 / CC0 许可分别列明 |
 | `materials/scanned/` | 八种扫描表面、22 张 1K 原始贴图、哈希清单与许可 |
 | `models/animals/cdmir-deer/`、`models/animals/0ad-wolf/` | 正式鹿狼蒙皮、源 UV 贴图、成品/源哈希与 CC0 / CC BY-SA 3.0 署名 |
+| `motions/` | CMU 143_30 的身体相对上／前臂方向、手腕与胸廓朝向；独立 CMU 条款及署名，非 CC0 |
 | `runtime/` | Mozilla CA 证书包、固定源文件链接与哈希、MPL 2.0 许可；供游戏与项目内便携编辑器的 TLS 使用 |
 | `models/garments/` | 三种项目自有连续上衣蒙皮、源几何哈希和成品清单 |
 | `textures/natural-terrain.png` | 早期地形图集，保留二维地图入口；当前 3D 地表不使用 |

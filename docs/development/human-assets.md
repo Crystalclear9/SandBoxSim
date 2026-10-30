@@ -146,4 +146,14 @@ python -m unittest discover -s tools -p test_resident_trousers.py
 
 可复用工具 [export_upper_arm_support.py](../../tools/export_upper_arm_support.py) 只依赖 Python 标准库，使用 `.tools/sources/makehuman` 中已校验来源，不重新下载素材。重建命令为 `python tools/export_upper_arm_support.py --source .tools/sources/makehuman --output src/SandBoxSim.Godot/assets/models/human`；对应测试同时检查来源重建一致性、有效截面和方向性体积。修改来源或配方后须同步审查运行时固定哈希。
 
-衣袖在当前体型拟合后加入上臂支撑、布料松量，保留共享袖窿拓扑和袖口连接，姿态修正共同整理肩上衣片及袖窿，再生成三十六个有限姿态的表面修正。修正覆盖抬臂平面、高度及轴向扭转，包括位置和重建后的法线；静止法线不能直接当作抬臂后皮肤／衣料的真实朝向。当前仍为有限姿态插值、程序动作及衣料蒙皮，没有裸露上臂皮肤、肌肉动力学、布料碰撞或导入动作捕捉。算法、边界和运行入口见[模型系统](models.md)。
+衣袖在当前体型拟合后加入上臂支撑、布料松量，保留共享袖窿拓扑和袖口连接，姿态修正共同整理肩上衣片及袖窿，再生成七十二个有限姿态的表面修正。修正覆盖抬臂平面、高度及轴向扭转，包括位置和重建后的法线；静止法线不能直接当作抬臂后皮肤／衣料的真实朝向。当前仍为有限姿态插值、程序动作及衣料蒙皮，没有裸露上臂皮肤、肌肉动力学或布料碰撞；空闲伸展的捕捉数据见下节。算法、边界和运行入口见[模型系统](models.md)。
+
+## 三维肩部来源与捕捉动作
+
+[shoulder-surface-male.json](../../src/SandBoxSim.Godot/assets/models/human/shoulder-surface-male.json) 与[女性表面](../../src/SandBoxSim.Godot/assets/models/human/shoulder-surface-female.json) 使用同一 CC0 人体来源，另采用 MakeHuman 的 `default.mhskel`（SHA-256 `99f179bce0aa850b45d4191a1d0d234c5851f881c057439470ded3bddf729a24`）和 `default_weights.mhw`（`0f3641d651ae3d00ad6b4ccee43142edb109d3bd909d27d9e4139ef1beed8625`）。两份文件的来源元数据均明确为 CC0，作者为 Data Collection AB、Joel Palmius、Jonas Hauquier；[骨架](https://github.com/makehumancommunity/makehuman/blob/master/makehuman/data/rigs/default.mhskel)、[权重](https://github.com/makehumancommunity/makehuman/blob/master/makehuman/data/rigs/default_weights.mhw)保留原定义。原权重存在千分位舍入，导出时先归一化，再与网格一起细分。导出包含静止表面、原始 A 姿势、四组权重、肩点和绑定旋转，供静止及抬臂后的衣料贴合使用。
+
+重建使用 [export_shoulder_surface.py](../../tools/export_shoulder_surface.py)：`python -B tools/export_shoulder_surface.py --source .tools/sources/makehuman --output src/SandBoxSim.Godot/assets/models/human`，原始两份骨架文件存于该来源目录的 `rig/`。工具只依赖 Python 标准库，运行与普通构建不需要 Blender。
+
+[cmu-143-30-stretch.json](../../src/SandBoxSim.Godot/assets/motions/cmu-143-30-stretch.json) 来自 [CMU 143_30 / Stretch And Yawn](http://mocap.cs.cmu.edu/search.php?subjectnumber=143)，原始 `143.asf` 与 `143_30.amc` 的 SHA-256 分别为 `6d7207da3bb9eceeaa32f23fb641b69f5836d11242b00c052e7d64f0cbe20a35`、`ffd7b2b3344cf41eef16a3b9b2910424dc27c24ac1f4d6c3b68b6c719e7b22e3`。数据可用于研究及商业产品，但不得直接转售原始或转换后的数据；它不属于 CC0，必须保留[CMU 来源与许可说明](../../src/SandBoxSim.Godot/assets/motions/LICENSE.txt)。The data used in this project was obtained from mocap.cs.cmu.edu. The database was created with funding from NSF EIA-0196217.
+
+重建命令为 `python -B tools/export_cmu_arm_motion.py --source .tools/sources/mocap/cmu-143 --output src/SandBoxSim.Godot/assets/motions/cmu-143-30-stretch.json`。工具遵循 [ASF/AMC 格式](https://research.cs.wisc.edu/graphics/Courses/cs-838-1999/Jeff/ASF-AMC.html)，排除根位移和未捕捉的指／拇指通道；运行器固定校验导出哈希。导出、来源重建及数据契约由 `tools/test_motion_sources.py` 检查。

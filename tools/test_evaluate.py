@@ -127,8 +127,27 @@ class EvaluationTests(unittest.TestCase):
             self.assertFalse(timed_out)
         finally:
             if child_pid is not None:
-                try: os.kill(child_pid, signal.SIGTERM)
-                except ProcessLookupError: pass
+                if os.name == 'nt':
+                    # TerminateProcess (and therefore os.kill on Windows)
+                    # returns before exit. Wait on the same process handle
+                    # before removing its inherited cwd/log directory.
+                    import ctypes
+                    from ctypes import wintypes
+                    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+                    kernel.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+                    kernel.OpenProcess.restype = wintypes.HANDLE
+                    kernel.TerminateProcess.argtypes = (wintypes.HANDLE, wintypes.UINT)
+                    kernel.WaitForSingleObject.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+                    kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
+                    handle = kernel.OpenProcess(0x00100001, False, child_pid)
+                    if handle:
+                        try:
+                            kernel.TerminateProcess(handle, 1)
+                            self.assertEqual(kernel.WaitForSingleObject(handle, 5000), 0)
+                        finally: kernel.CloseHandle(handle)
+                else:
+                    try: os.kill(child_pid, signal.SIGTERM)
+                    except ProcessLookupError: pass
 
     def test_engine_real_timeout_remains_failure_and_keeps_logs(self):
         script = "import sys,time; print('started',flush=True); print('diagnostic',file=sys.stderr,flush=True); time.sleep(30)"
@@ -175,7 +194,9 @@ class EvaluationTests(unittest.TestCase):
                 self.assertEqual(provenance["artifactValidation"], "Engine reported an error")
 
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(); self.folder = Path(self.temp.name)
+        temporary_root = Path(__file__).resolve().parents[1] / '.tools/tmp/evaluation-tests'
+        temporary_root.mkdir(parents=True, exist_ok=True)
+        self.temp = tempfile.TemporaryDirectory(dir=temporary_root); self.folder = Path(self.temp.name)
         def chunk(kind, data): return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
         png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 8, 8, 8, 2, 0, 0, 0)) + chunk(b"IDAT", zlib.compress((b"\0" + b"\0" * 24) * 8)) + chunk(b"IEND", b"")
         (self.folder / "image.png").write_bytes(png)

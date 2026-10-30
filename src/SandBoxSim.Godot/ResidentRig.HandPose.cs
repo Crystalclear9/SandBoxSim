@@ -17,7 +17,7 @@ internal partial class ResidentRig
     private readonly bool[] _armSolvedThisStep=new bool[2],_armReturning=new bool[2];
     private Transform3D _toolReachRest;
     private readonly Vector3[] _bareVelocity=new Vector3[2],_bareAngularVelocity=new Vector3[2];
-    private void BlendBareHand(int side,Vector3 target,Basis desired,float blend=-1)
+    private void BlendBareHand(int side,Vector3 target,Basis desired,float blend=-1,Vector3? preferredElbow=null)
     {
         float weight=ReachEase(blend<0?_bareBlend:blend);
         var rest=Arms[side].Transform*Elbows[side].Transform*Hands[side].Transform;
@@ -44,7 +44,7 @@ internal partial class ResidentRig
                 float scale=limited/speed;palm=origin+step*scale;_bareVelocity[side]*=scale;
             }
         }
-        SolveBareHand(side,palm,new Basis(orientation));
+        SolveBareHand(side,palm,new Basis(orientation),preferredElbow);
     }
     private readonly Vector3[,] _returnAngularVelocity=new Vector3[2,3];
     private readonly Vector3[] _returnShoulderVelocity=new Vector3[2];
@@ -62,7 +62,7 @@ internal partial class ResidentRig
         // Carry forward the displayed angular velocity after a large gesture.
         // A spring's inherited velocity must not turn the returning arm faster
         // than its active reach simply because that arm is no longer in IK.
-        float maximum=6*_poseStep;
+        float maximum=4.5f*_poseStep;
         if(angle>maximum&&angle>0)
         {
             result=prior.Slerp(result,maximum/angle);
@@ -181,13 +181,13 @@ internal partial class ResidentRig
             _wristSkinRotation[side]=wrist;HandSkeletons[side].SetBonePoseRotation(15,wrist);
         }
     }
-    private void SolveBareHand(int side,Vector3 target,Basis desired)
+    private void SolveBareHand(int side,Vector3 target,Basis desired,Vector3? preferredElbow=null)
     {
         // Solve the reach once. Feeding a clamped wrist back into the palm
         // offset moves the target and can select another elbow plane mid-frame.
         // Forearm roll is resolved by the limb frame; only the residual wrist
         // rotation is limited here, without moving the shoulder or elbow again.
-        SolveHand(side,target,desired,true);
+        SolveHand(side,target,desired,true,0,preferredElbow);
         var relative=Hands[side].Basis.GetRotationQuaternion();
         if(relative.W<0)relative=-relative;
         float angle=relative.GetAngle();

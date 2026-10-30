@@ -164,7 +164,7 @@ internal partial class ResidentRig : Node3D
         // Distant residents arrive with several frame intervals accumulated.
         // Consume that time in bounded steps instead of discarding everything
         // beyond .1 seconds. A long host stall still has a one-second budget.
-        bool fineReach=_hasArmReturn||_reach>0||_releaseTime>0||ToolHeld&&(_draw<.99f||_returning)||!ToolHeld&&ToolFor(action)!=ResidentTool.None||_cargoBlend>0||_socialBlend>.001f||action is ActionKind.Socialize or ActionKind.Eat or ActionKind.Drink or ActionKind.Take or ActionKind.GatherFood or ActionKind.Deposit or ActionKind.ShareFood or ActionKind.Trade or ActionKind.StoreInBuilding;
+        bool fineReach=_referencePlaying||_referenceWeight>0||_hasArmReturn||_reach>0||_releaseTime>0||ToolHeld&&(_draw<.99f||_returning)||!ToolHeld&&ToolFor(action)!=ResidentTool.None||_cargoBlend>0||_socialBlend>.001f||action is ActionKind.Socialize or ActionKind.Eat or ActionKind.Drink or ActionKind.Take or ActionKind.GatherFood or ActionKind.Deposit or ActionKind.StoreInBuilding or ActionKind.ShareFood or ActionKind.Trade;
         ConsumeLocomotionSamples();
         // Mouth approaches combine wrist orientation limits and a very short
         // target distance. Resolve those constraints at one shared cadence so
@@ -210,6 +210,7 @@ internal partial class ResidentRig : Node3D
         _takingTool=usingTool&&!ToolHeld;
         _phase+=delta*(moving?7.5f:1.8f);_workTime+=delta;
         AdvanceLocomotion(delta,moving);
+        AdvanceMotionReference(delta,action,phase,identityPhase);
         float wave=MathF.Cos(_gaitCycle*MathF.Tau),breath=MathF.Sin(_phase*.5f+identityPhase);
         bool pickup=executing&&!ToolHeld&&_reach==0&&_releaseTime==0&&(_bareBlend==0||_bareAction is ActionKind.GatherFood or ActionKind.Take)&&action is ActionKind.GatherFood or ActionKind.Take;
         _pickupBlend=Mathf.MoveToward(_pickupBlend,pickup?1:0,delta/.48f);
@@ -224,7 +225,7 @@ internal partial class ResidentRig : Node3D
         float reachLean=-Math.Clamp(-_previousHands[1].Origin.Z-.12f,0,.26f)*.12f*bareParticipation;
         float reachTurn=Math.Clamp(_previousHands[1].Origin.X,-.22f,.22f)*.09f*bareParticipation;
         var torsoAngles=Torso.Rotation;
-        DampMotion(ref torsoAngles,ref _torsoVelocity,new(desiredLean+reachLean,(usingTool?effort*1.8f:0)+reachTurn+wave*GaitPelvisYaw*.85f*gaitWeight+_gaitTurn*.16f*gaitWeight,MathF.Sin(_gaitCycle*MathF.Tau)*GaitPelvisRoll*.35f*gaitWeight),.060f,delta);
+        DampMotion(ref torsoAngles,ref _torsoVelocity,new Vector3(desiredLean+reachLean,(usingTool?effort*1.8f:0)+reachTurn+wave*GaitPelvisYaw*.85f*gaitWeight+_gaitTurn*.16f*gaitWeight,MathF.Sin(_gaitCycle*MathF.Tau)*GaitPelvisRoll*.35f*gaitWeight)+_referenceChest,.060f,delta);
         var torsoBasis=Basis.FromEuler(torsoAngles);
         var restSupport=RestSupport(delta,!moving&&_activity<.001f&&!usingTool&&!resting&&!pickup,identityPhase);
         var gaitOffset=_gaitOffset*(1-Smooth(_pickupBlend))*(resting?0:1);
@@ -423,6 +424,7 @@ internal partial class ResidentRig : Node3D
                 CurlHand(side,(.16f+emphasis)*_socialBlend);
             }
         }
+        ApplyMotionReference();
         FinishArmReturns();
         // A blend timer may finish before the speed-limited hands arrive.
         // Keep an established load attached, but require both actual palms

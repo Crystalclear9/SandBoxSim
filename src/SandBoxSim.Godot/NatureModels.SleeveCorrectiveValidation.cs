@@ -45,7 +45,7 @@ internal sealed partial class NatureModels
                     for(int i=0;i<source.Length;i++)
                     {
                         float distance=source[i].DistanceTo(points[i]);displacement=MathF.Max(displacement,distance);
-                        if(!points[i].IsFinite()||!normals[i].IsFinite()||MathF.Abs(normals[i].Length()-1)>.001f||distance>.006f)
+                        if(!points[i].IsFinite()||!normals[i].IsFinite()||MathF.Abs(normals[i].Length()-1)>.001f||distance>.040f)
                             throw new InvalidOperationException("Corrective has an invalid normal or exceeds its bounded surface edit");
                         if((MathF.Abs(source[i].X)<.04f||source[i].Y<.90f||uv[i].X>=.23f)&&distance>.000001f)
                             throw new InvalidOperationException("Shoulder corrective moves the fixed neck, centre, waist or cuff");
@@ -95,6 +95,10 @@ internal sealed partial class NatureModels
         }
         GD.Print($"SLEEVE_CORRECTIVES_PASS: adultFrames=2, cuts=3, poses={ResidentRig.SleevePoseCount}, vertices={vertices}, maximumBindEdit={displacement:F5} m; normalized engine bake, shared shoulder seam, fixed neck/centre/waist/cuff, LOD and pause");
         GD.Print($"SLEEVE_NORMAL_METRICS: samples={normalSamples}, original={oldNormalError/normalSamples:F4} rad, corrective={newNormalError/normalSamples:F4} rad; geometric reference on the actual morphed/skinned cap");
+        GD.Print($"POSED_SHOULDER_SURFACE_PASS: samples={_posedShoulderSamples}, mean source-surface normal residual={_posedShoulderBefore/_posedShoulderSamples:F5} -> {_posedShoulderAfter/_posedShoulderSamples:F5} m; weighted source anatomy in raised/rotated poses");
+        if(_posedShoulderSamples<1000||_posedShoulderAfter>=_posedShoulderBefore*.95)throw new InvalidOperationException("Raised shoulder fit does not improve agreement with its posed anatomical source");
+        GD.Print($"PROTRUDING_CAP_PASS: samples={_protrudingCapSamples}, full source distance={_protrudingCapBefore/Math.Max(1,_protrudingCapSamples):F5} -> {_protrudingCapAfter/Math.Max(1,_protrudingCapSamples):F5} m; includes cap ridges outside the former normal-fit radius");
+        if(_protrudingCapSamples==0||_protrudingCapAfter>=_protrudingCapBefore*.9)throw new InvalidOperationException("Distant cap ridges are skipped or retained by shoulder fitting");
         if(newNormalError>=oldNormalError)throw new InvalidOperationException("Pose normals do not improve agreement with the actual deformed surface");
     }
 }

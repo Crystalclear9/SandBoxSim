@@ -1,0 +1,15 @@
+CMU Graphics Lab Motion Capture Database — motion 143_30 (Stretch And Yawn)
+Source: http://mocap.cs.cmu.edu/search.php?subjectnumber=143
+Terms: http://mocap.cs.cmu.edu/
+
+The data used in this project was obtained from mocap.cs.cmu.edu.
+The database was created with funding from NSF EIA-0196217.
+
+The database permits research and commercial product use, but prohibits
+reselling the motion data directly, including in converted form.
+This is not a CC0 license. Preserve this notice with the derived motion asset.
+
+This asset contains body-relative upper/lower arm directions, wrist bases and a
+chest frame derived from the ASF/AMC capture. Root travel and finger/thumb channels
+are excluded. Game limb sizes, hand articulation, grip constraints and entry/
+exit handling are provided by SandBoxSim's own presentation controller.

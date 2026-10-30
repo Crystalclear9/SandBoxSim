@@ -140,13 +140,13 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `reachMotion=palm-trajectory-v2` 记录手掌轨迹过渡、朝向插值、错开的社交手势与循环进食表现。动作轨迹改变需要重采相同场景的视觉及耗时基线，不能与旧动作混作效率对照。
 
-`bodyFrame=adult-proportions-v14`、`faceContour=regional-adult-v2` 和 `forearmProfile=tapered-volume-v1` 记录完整来源躯干、头脸区域与小臂体积拟合。它们改变轮廓和模型构建成本，视觉及性能对照须使用同一版本、居民身份与近远景条件。
+`bodyFrame=adult-proportions-v15`、`faceContour=regional-adult-v2` 和 `forearmProfile=tapered-volume-v1` 记录完整来源躯干、头脸区域与小臂体积拟合。它们改变轮廓和模型构建成本，视觉及性能对照须使用同一版本、居民身份与近远景条件。
 
 无窗口自检的花株接地检查使用 CPU 保存的实例位置；图形模式额外核对 GPU 实例变换。渲染服务器的占位读回不作为几何证据。快捷操作检查覆盖居民、鹿狼和土地的真实目标位置、失效实体身份拒绝、靠近的实际相机距离、人物观察窗／土地手记及观察纯度。
 
 ## 人物观察状态
 
-评测结果 `state.portrait.lighting` 记录 `soft` 或 `raking`，对应隔离人物观察窗的柔光与侧光；它是附加的呈现状态，不是模拟规则或 RSI 指标。现有公开指令仍保留，未加入新的 HTTP 控制动作。改变人物资料页面或观察灯光不应改变模拟摘要；客户端自检与实际鼠标回放均检查页面与选中状态。使用视觉或时间基线时需要固定光线和构图，不能混合两个预设的图像分布。`renderQuality.shoulderMotion=hinge-plane-motion-v7` 标识锁骨弧线、独立肩胛平台及原有肘腕约束；胸肩支撑体、袖窿及姿态求解均已变化，需要重新采样视觉和耗时基线，不能把资产差异算作程序加速收益。
+评测结果 `state.portrait.lighting` 记录 `soft` 或 `raking`，对应隔离人物观察窗的柔光与侧光；它是附加的呈现状态，不是模拟规则或 RSI 指标。现有公开指令仍保留，未加入新的 HTTP 控制动作。改变人物资料页面或观察灯光不应改变模拟摘要；客户端自检与实际鼠标回放均检查页面与选中状态。使用视觉或时间基线时需要固定光线和构图，不能混合两个预设的图像分布。`renderQuality.shoulderMotion=captured-arm-motion-v8` 标识锁骨弧线、独立肩胛平台及原有肘腕约束；胸肩支撑体、袖窿及姿态求解均已变化，需要重新采样视觉和耗时基线，不能把资产差异算作程序加速收益。
 
 `state.portrait.thumbnail` 是新增布尔呈现字段：人物手记中的缩略状态为 `true`，独立观察窗为 `false`。缩略图与观察窗复用同一视口，展开不重置已有聚焦、旋转、缩放或灯光；关闭后缩略显示固定面部，保存的工作模式仍在 `state.portrait.framing` 等原字段中；重新展开恢复工作视角。`renderQuality.portrait.thumbnailFraming=face` 仅描述实际缩略构图，非缩略状态为 null。关闭后恢复入口焦点。该字段不增加请求指令或修改 `schemaVersion: 1`，更不代表模型审美、输入命中能力或 RSI 得分。镜头仍由原 `portrait.zoom` 指令的正负方向触发滚轮，普通步长现为比例缩放；请求字段和指令名不变。原 `distance` 记录镜头目标距离。窗口布局、发根和芦苇形体已变，应重新采样视觉与耗时基线。语义回放不能替代真实鼠标／键盘检查。
 
@@ -162,7 +162,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `workEffort=phase-warp-v2` 标识按工具、个体表现系数、真实疲劳及健康驱动的作业节奏与躯干配合。`visual-work-effort` 对照同一手锤的男女成人外观与状态，`visual-face-frames` 提供正面及三刻面。面部曝光与局部拟合、动作减速和节奏均改变，需要重新采样；这些展示场景不测量真实力量，也不构成 RSI 结果。请求 Schema 的面板枚举与客户端公开白名单一致，工具回归同时核对所有公开场景。
 
-`bodyFrame=adult-proportions-v14` 包含胸廓／肩部／骨盆衣料绑定（女性另含两根肩袖中间支撑）、放松站姿落脚求解、连续来源裤装、五骨臀腿蒙皮及 113×128 的来源躯干截面、胸廓／髋侧／臀部方向性支撑、凸包松量与宽缓胸前衣料包络及缩短的女性上衣低段、按缝片坐标衔接的肩袖、腰带与工具挂点高度、骨盆间距及上大腿轮廓；`faceContour=regional-adult-v2` 标识眉弓、鼻翼、颊部、下颌与颈部的区域拟合。`toolMotion=contact-transfer-v3` 标识 IK 前的位置／朝向速度跟踪、弧形蓄力与收纳到位判定。`work-effort` 镜头为正交尺寸 1.15、目标 (0, 1.05, 0)，用于看清头肩和握柄；不同构图或体型版本不能直接混作视觉或效率基线。`body-frames` 当前为六个正／侧／背全身区域，1600 像素宽屏按同视角男女配对以六列展示，使用无职业装备的标准衣装；旧四格胸腰构图不能混作视觉或效率基线。`ADULT_CONTOURS_PASS` 和 `TRUNK_PROFILE_PASS` 的穿衣宽度／深度检查仅约束本项目的几何与 LOD，不是性别识别、真人相似度或 RSI 得分。
+`bodyFrame=adult-proportions-v15` 包含胸廓／肩部／骨盆衣料绑定（女性另含两根肩袖中间支撑）、放松站姿落脚求解、连续来源裤装、五骨臀腿蒙皮及 113×128 的来源躯干截面、胸廓／髋侧／臀部方向性支撑、凸包松量与宽缓胸前衣料包络及缩短的女性上衣低段、按缝片坐标衔接的肩袖、腰带与工具挂点高度、骨盆间距及上大腿轮廓；`faceContour=regional-adult-v2` 标识眉弓、鼻翼、颊部、下颌与颈部的区域拟合。`toolMotion=contact-transfer-v3` 标识 IK 前的位置／朝向速度跟踪、弧形蓄力与收纳到位判定。`work-effort` 镜头为正交尺寸 1.15、目标 (0, 1.05, 0)，用于看清头肩和握柄；不同构图或体型版本不能直接混作视觉或效率基线。`body-frames` 当前为六个正／侧／背全身区域，1600 像素宽屏按同视角男女配对以六列展示，使用无职业装备的标准衣装；旧四格胸腰构图不能混作视觉或效率基线。`ADULT_CONTOURS_PASS` 和 `TRUNK_PROFILE_PASS` 的穿衣宽度／深度检查仅约束本项目的几何与 LOD，不是性别识别、真人相似度或 RSI 得分。
 
 `bodySupport=planted-sagittal-v1` 和 `facialTiming=phrase-blink-v1` 分别记录劳动支撑姿态、身份错开的眨眼及表达节奏；`residentSurface=linear-skin-v9` 包含实测来源 RGB 参考与正确颜色空间校准。动作、头脸像素和成本均改变，需要重新采样。`verify_skin_colour.py` 是需真实显示设备的独立颜色回归，不输出视觉问答分数或 RSI 结论。
 
@@ -172,23 +172,23 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `residentLocomotion=settled-arrival-v3` 标识距离驱动分段步态、鞋底滚动、骨盆／胸廓协调与近景地形腿部解算。`visual-locomotion` 使用同速度成人外观、双手搬运及持锤行走—工作对照，冻结模拟而推进动画；该场景检查表现与采样链路，不作为 RSI、医学步态或客观写实程度的指标。
 
-`bodyFrame=adult-proportions-v14` 标识胸廓、短上衣、实际骨盆／臀腿裤装及衣袖排除区的当前造型；`visual-body-frames` 的正／侧／背对照与 `visual-body-motion` 的动作对照使用实际居民网格。髋部截面取上衣及裤装的可见外包络，不能把衣摆宽度当作人体围度，也不是性别分类或 RSI 分数。
+`bodyFrame=adult-proportions-v15` 标识胸廓、短上衣、实际骨盆／臀腿裤装及衣袖排除区的当前造型；`visual-body-frames` 的正／侧／背对照与 `visual-body-motion` 的动作对照使用实际居民网格。髋部截面取上衣及裤装的可见外包络，不能把衣摆宽度当作人体围度，也不是性别分类或 RSI 分数。
 
 `armSwing=relaxed-countermotion-v2` 标识掌面朝内的空手基础姿态、肩肘相位、前臂轴向及独立阻尼目标。`visual-arm-swing` 使用实际网格和控制器，包含正侧面及掌腕近景；人物造型与模拟输入保持独立，图片不是医学步态、视觉真实感或 RSI 分数。
 
-`bodyFrame=adult-proportions-v14` 的成人上衣使用缓存凸包松量，短下摆取上髋支撑；`garmentMaterial=faired-panel-linen-v15` 对应 `faired-panel-v8` 连续袖片、贴合后重算法线及较薄卷袖口。`visual-wardrobe` 以正交尺寸 0.88、目标 (0, 1.13, 0)、相机相对位置 (0.10, 0.035, 3) 展示衣装近景；它与全身 `body-frames` 分别用于表面和整体比例检查。新几何必须重采视觉与构建耗时，不能将旧图片当作当前包络。
+`bodyFrame=adult-proportions-v15` 的成人上衣使用缓存凸包松量，短下摆取上髋支撑；`garmentMaterial=faired-panel-linen-v15` 对应 `faired-panel-v8` 连续袖片、贴合后重算法线及较薄卷袖口。`visual-wardrobe` 以正交尺寸 0.88、目标 (0, 1.13, 0)、相机相对位置 (0.10, 0.035, 3) 展示衣装近景；它与全身 `body-frames` 分别用于表面和整体比例检查。新几何必须重采视觉与构建耗时，不能将旧图片当作当前包络。
 
-`adult-proportions-v14` 还包括按衣片最终高度取样的胸腰／上髋贴合、局部胸廓及腰背轮廓、重新导出的连续臀腿表面、同步适配的上臂与卷袖口，以及远景保留的缝片坐标。对照须使用同一身份、衣色、视角和 LOD；穿衣截面反映项目造型，不是医学分类阈值。
+`adult-proportions-v15` 还包括按衣片最终高度取样的胸腰／上髋贴合、局部胸廓及腰背轮廓、重新导出的连续臀腿表面、同步适配的上臂与卷袖口，以及远景保留的缝片坐标。对照须使用同一身份、衣色、视角和 LOD；穿衣截面反映项目造型，不是医学分类阈值。
 
 `limbCoordination=hinge-carry-v4` 标识肘部屈曲平面、低位携带和按掌柄绑定安排的短柄／长柄朝向；`residentLocomotion=settled-arrival-v3` 增加连续骨盆支撑与局部拾取脚踝求解。`visual-motion`、`visual-social`、`visual-social-side` 的默认采样从第 30 帧开始每 14 帧一次，共 30 帧，冻结模拟而按 60 Hz 推进表现。它们用于观察动作和评测采样链路，不是 RSI 或人体写实程度评分。
 
 `socialMotion=prepared-gesture-v5` 的进食／饮水追踪实际食指末端到头部嘴前目标，包含独立收拢程度和 120 Hz 局部约束步长；`REACH_TRAJECTORY_PASS` 另检查显示指端的接近帧数，不能只用手掌距离代替。它不包含食物、杯具或唇部接触物理。
 
-`shoulderMotion=hinge-plane-motion-v7` 标识分开的抬臂／轴向旋转、上臂驱动的锁骨弧线与肩胛上旋／后倾、接近伸直的稳定参考和左右独立返回；`limbCoordination=hinge-carry-v4` 包含工具肘平面连续性、真实作业支撑与挥锤朝向。`visual-shoulder-motion.json` 以同衣装的两种成人外观、正面、工作臂侧面和背面观察同一完整挥锤循环；默认从第 30 帧每 14 帧采样，共 30 帧。它冻结模拟，在固定 60 Hz 下推进动作，不构成 RSI 或人体动作质量的客观评分。
+`shoulderMotion=captured-arm-motion-v8` 标识分开的抬臂／轴向旋转、上臂驱动的锁骨弧线与肩胛上旋／后倾、接近伸直的稳定参考和左右独立返回；`limbCoordination=hinge-carry-v4` 包含工具肘平面连续性、真实作业支撑与挥锤朝向。`visual-shoulder-motion.json` 以同衣装的两种成人外观、正面、工作臂侧面和背面观察同一完整挥锤循环；默认从第 30 帧每 14 帧采样，共 30 帧。它冻结模拟，在固定 60 Hz 下推进动作，不构成 RSI 或人体动作质量的客观评分。
 
-`shoulderSkin=swing-twist-sleeve-v5` 标识两种成人衣身共用的二十六骨绑定，包含左右肩胛带、分离摆动与轴向扭转的六区间旋转、袖管位置修正及共享袖窿的表面修整，逐顶点保留四个影响；`bodyFrame=adult-proportions-v14` 包含女性来源关节半宽、同步衣袖／逆绑定和身体相对横向目标。`shoulder-motion` 上排为男性、下排为女性，三列依次为正面、实际工作臂侧面和背面；这些几何和镜头变化需要重新采样视觉基线。
+`shoulderSkin=anatomical-sleeve-v6` 标识两种成人衣身共用的二十六骨绑定，包含左右肩胛带、分离摆动与轴向扭转的六区间旋转、袖管位置修正及共享袖窿的表面修整，逐顶点保留四个影响；`bodyFrame=adult-proportions-v15` 包含女性来源关节半宽、同步衣袖／逆绑定和身体相对横向目标。`shoulder-motion` 上排为男性、下排为女性，三列依次为正面、实际工作臂侧面和背面；这些几何和镜头变化需要重新采样视觉基线。
 
-`bodyFrame=adult-proportions-v14` 包含方向性胸腰衣料、重新导出的骨盆／大腿连续裤装和 ±2.5% 的身份宽度变化。`BODY_SILHOUETTE_PASS` 测量近远景的胸腰、骨盆／大腿截面关系；已有动态穿插、臂腿绑定及工具接触检查继续执行。该检查是几何回归门槛，不是人体性别分类、审美或 RSI 的能力分数。
+`bodyFrame=adult-proportions-v15` 包含方向性胸腰衣料、重新导出的骨盆／大腿连续裤装和 ±2.5% 的身份宽度变化。`BODY_SILHOUETTE_PASS` 测量近远景的胸腰、骨盆／大腿截面关系；已有动态穿插、臂腿绑定及工具接触检查继续执行。该检查是几何回归门槛，不是人体性别分类、审美或 RSI 的能力分数。
 
 
 `visual-handling-transitions.json` 使用公开 `handling-transitions` 面板：固定 60 Hz、冻结模拟、十二秒循环、六个实际居民视口，覆盖根节点靠近与拾取、工具／生活切换和双手交接。默认第 30 帧起每 24 帧采样，共 30 帧；画廊不创建模拟居民或结算资源。`INTERACTION_SEQUENCE_PASS` 核对实际接触、停稳和取消语义，不是自然度或 RSI 分数。`contact-sequencing-v4`、`contact-transfer-v3`、`prepared-gesture-v5` 与 `settled-arrival-v3` 改变表现过渡与执行代价；旧视觉和耗时基线需保留其原始版本，不能只替换标签继续比较。
@@ -203,4 +203,10 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 `visual-shoulder-elevation.json` / `panel=shoulder-elevation` 是十二秒肩袖范围观察：上排男性外观、下排女性外观，三列为正面、固定侧面和背面。固定 60 Hz、零模拟步进，默认从第 30 帧每 24 帧采样，共 30 帧；左右臂各占六秒：1.5 秒抬起至 135°、一秒保持、1.5 秒放下、两秒休息。它使用实际游戏网格、肩肘腕求解和蒙皮，可用于同版本下的视觉比较，不是 RSI 成绩、帧率测试或医学动作评分。正常作业循环仍由 `visual-shoulder-motion.json` 覆盖。两者必须记录同一 `shoulderSkin`、`shoulderMotion`、构图与灯光后再作对照。
 
 
-`swing-twist-sleeve-v5` 含三十六个平面／高度／轴向扭转驱动的位置／法线姿态修正，`hinge-plane-motion-v7` 以锁骨弧线移动肩点、以旋转肩胛平台带动肩上衣片，并以实际肩肘腕平面确定肱骨朝向、运输肘平面及约束收回姿态，`adult-proportions-v14` 加入来源上臂截面及受短边约束的姿态修整。这些变化涉及网格、启动时缓存及 GPU 形态混合开销，应重新采样相同配置的视觉与耗时基线，不能把更换表示方式算作 RSI 或纯程序加速。表面法线角误差只针对指定姿态的实际三角面，不代表整体人体自然度或任意动作的质量。
+`anatomical-sleeve-v6` 含七十二个平面／高度／轴向扭转驱动的位置／法线姿态修正，`captured-arm-motion-v8` 以锁骨弧线移动肩点、以旋转肩胛平台带动肩上衣片，并以实际肩肘腕平面确定肱骨朝向、运输肘平面及约束收回姿态，`adult-proportions-v15` 加入来源上臂截面及受短边约束的姿态修整。这些变化涉及网格、启动时缓存及 GPU 形态混合开销，应重新采样相同配置的视觉与耗时基线，不能把更换表示方式算作 RSI 或纯程序加速。表面法线角误差只针对指定姿态的实际三角面，不代表整体人体自然度或任意动作的质量。
+
+### 来源动作观察
+
+`visual-captured-stretch.json` 使用 `captured-stretch` 图册，固定 60 Hz、零模拟推进，观察来源 120 Hz 的 CMU 143_30 如何映射到实际游戏的两种成人外观。暖场 30 帧、测量 609 帧，默认每 20 帧取样；完整动图另每三帧采样。`renderQuality.motionReference=cmu-143-30-v1`、`shoulderSurface=source-weighted-surface-v1` 和当前肩袖标签共同标识数据与呈现版本。
+
+来源表面的法向贴合残差用于检查衣料是否更贴近已变形的人体支撑，来源方向／手腕误差用于检查重定向是否保留输入。它们不构成审美、肌肉仿真或 RSI 分数。新增形态与缓存改变了启动和 GPU 开销，效率比较须冻结同一来源、配置、资产与版本。

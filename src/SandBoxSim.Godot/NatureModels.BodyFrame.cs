@@ -159,6 +159,7 @@ internal sealed partial class NatureModels
             if(tailored&&sleeveDistance.Length==points.Length)
             {
                 FitUpperArmSupport(points,pattern,sleeveDistance);
+                FitShoulderSurface(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern,sleeveDistance);
                 sleeveDistance=SleeveDistances(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
             }
             var girdle=tailored&&sleeveDistance.Length==points.Length

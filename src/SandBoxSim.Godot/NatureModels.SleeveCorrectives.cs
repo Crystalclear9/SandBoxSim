@@ -44,7 +44,7 @@ internal sealed partial class NatureModels
         }
         rig.DetailedBodyMesh=corrected;rig.BodySkin.Mesh=corrected;
     }
-    private static Godot.Collections.Array<Godot.Collections.Array> BakeSleevePoses(Godot.Collections.Array arrays,ResidentRig rig)
+    private Godot.Collections.Array<Godot.Collections.Array> BakeSleevePoses(Godot.Collections.Array arrays,ResidentRig rig)
     {
         var source=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
         var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
@@ -58,10 +58,10 @@ internal sealed partial class NatureModels
         {int a=ids[i+j],b=ids[i+(j+1)%3];adjacent[a].Add(b);adjacent[b].Add(a);}
         var patches=ShoulderSurfacePatches(source,ids,adjacent,uv,girdleWeights);
         var result=new Godot.Collections.Array<Godot.Collections.Array>();
-        for(int side=0;side<2;side++)for(int plane=0;plane<3;plane++)for(int height=0;height<2;height++)for(int roll=0;roll<3;roll++)
+        for(int side=0;side<2;side++)for(int plane=0;plane<ResidentRig.SleevePlaneCount;plane++)for(int height=0;height<ResidentRig.SleeveHeightCount;height++)for(int roll=0;roll<3;roll++)
         {
-            float angle=Mathf.DegToRad(height==0?90:135);
-            float planeAngle=plane*MathF.PI/4;
+            float angle=Mathf.DegToRad((height+1)*45);
+            float planeAngle=(plane-1)*MathF.PI/4;
             var outward=new Vector3((side==0?-1:1)*MathF.Cos(planeAngle),0,-MathF.Sin(planeAngle));
             var axis=Vector3.Down.Cross(outward).Normalized();var direction=Vector3.Down.Rotated(axis,angle);
             var swing=new Basis(new Quaternion(Vector3.Down,direction));
@@ -92,6 +92,8 @@ internal sealed partial class NatureModels
                     active[i]=uv[i].X>=0?1-Mathf.SmoothStep(.17f,.23f,uv[i].X):girdleWeights[i];
             }
             var target=(Vector3[])posed.Clone();
+            var anatomy=FitPosedShoulder(source,posed,target,ids,uv,active,rig,side,rotation,girdle);
+            var anatomicalTarget=(Vector3[])target.Clone();
             // Fair the entire shoulder/armhole transition, not an isolated
             // sleeve with a pinned ridge at its root. Metric surface patches
             // and area weights avoid dependence on the tiny cap-ring edges.
@@ -103,28 +105,58 @@ internal sealed partial class NatureModels
                 for(int i=0;i<target.Length;i++)if(active[i]>0)
                 {
                     var average=Vector3.Zero;foreach(var (index,weight) in patches[i])average+=target[index]*weight;
-                    var offset=(target[i]+(average-target[i])*amount*active[i])-posed[i];
+                    var offset=(target[i]+(average-target[i])*amount*active[i])-anatomicalTarget[i];
                     if(offset.Length()>.004f)offset=offset.Normalized()*.004f;
-                    next[i]=posed[i]+offset;
+                    next[i]=anatomicalTarget[i]+offset;
                 }
                 target=next;
             }
             var points=(Vector3[])source.Clone();var correctedNormals=(Vector3[])normals.Clone();
             var offsets=new Vector3[source.Length];
             for(int i=0;i<source.Length;i++)if(active[i]>0)offsets[i]=blends[i].AffineInverse()*target[i]-source[i];
-            // A 4 mm edit can still tear a 0.3 mm compressed cap edge.
+            // Even a small edit can tear a 0.3 mm compressed cap edge.
             // Constrain differences in bind space before producing normals,
             // retaining pinned endpoints and the actual final posed surface.
             for(int pass=0;pass<24;pass++)
+            {
                 for(int a=0;a<source.Length;a++)foreach(int b in adjacent[a])if(b>a)
                 {
-                    var difference=offsets[a]-offsets[b];float length=difference.Length(),limit=source[a].DistanceTo(source[b])*.20f;
+                    var difference=offsets[a]-offsets[b];float length=difference.Length(),limit=source[a].DistanceTo(source[b])*.30f;
                     if(length<=limit||length<.0000001f)continue;
                     float freeA=active[a]>0?1:0,freeB=active[b]>0?1:0;if(freeA+freeB==0)continue;
                     var correction=difference*((length-limit)/length/(freeA+freeB));
                     offsets[a]-=correction*freeA;offsets[b]+=correction*freeB;
                 }
+                // Bind-space smoothness alone misses a stretched shared
+                // armhole after the different skin transforms are applied.
+                // Project that actual posed edge as well, with margin for
+                // interpolation between the sampled rotations.
+                for(int a=0;a<source.Length;a++)foreach(int b in adjacent[a])if(b>a)
+                {
+                    float wa=active[a]>0?1:0,wb=active[b]>0?1:0;if(wa+wb==0)continue;
+                    var pa=blends[a]*(source[a]+offsets[a]);var pb=blends[b]*(source[b]+offsets[b]);
+                    var edge=pa-pb;float length=edge.Length();
+                    float limit=MathF.Max(source[a].DistanceTo(source[b])*3.6f,posed[a].DistanceTo(posed[b])*1.01f);
+                    if(length<=limit||length<.0000001f)continue;
+                    var correction=edge*((length-limit)/length/(wa+wb));
+                    if(wa>0)offsets[a]=blends[a].AffineInverse()*(pa-correction)-source[a];
+                    if(wb>0)offsets[b]=blends[b].AffineInverse()*(pb+correction)-source[b];
+                }
+            }
             for(int i=0;i<source.Length;i++){points[i]+=offsets[i];target[i]=blends[i]*points[i];}
+            for(int i=0;i<source.Length;i++)if(anatomy.Active[i]>.5f)
+            {
+                _posedShoulderBefore+=MathF.Abs((posed[i]-anatomy.Goals[i]).Dot(anatomy.Normals[i]));
+                _posedShoulderAfter+=MathF.Abs((target[i]-anatomy.Goals[i]).Dot(anatomy.Normals[i]));_posedShoulderSamples++;
+                // The visible cap horns lay beyond the former 4 cm search
+                // radius. Check their full surface distance, not only the
+                // normal component or a mean dominated by nearby vertices.
+                float before=posed[i].DistanceTo(anatomy.Goals[i]);
+                if(before>.04f)
+                {
+                    _protrudingCapBefore+=before;_protrudingCapAfter+=target[i].DistanceTo(anatomy.Goals[i]);_protrudingCapSamples++;
+                }
+            }
             var targetNormals=ClothSurfaceNormals(target,ids);
             for(int i=0;i<source.Length;i++)
             {
