@@ -154,22 +154,46 @@ internal sealed partial class NatureModels
             }
             var bones=arrays[(int)Mesh.ArrayType.Bones].VariantType==Variant.Type.Nil?Array.Empty<int>():arrays[(int)Mesh.ArrayType.Bones].AsInt32Array();
             var weights=arrays[(int)Mesh.ArrayType.Weights].VariantType==Variant.Type.Nil?Array.Empty<float>():arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();
-            if(BodyFrame==1&&bones.Length==points.Length*4)
+            var sleeveDistance=bones.Length==points.Length*4&&pattern.Length==points.Length
+                ?SleeveDistances(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern):Array.Empty<float>();
+            if(bones.Length==points.Length*4)
                 for(int i=0;i<points.Length;i++)
                 {
                     float arm=0;for(int j=0;j<4;j++)if(bones[i*4+j] is 1 or 2)arm+=weights[i*4+j];
                     if(arm<=0)continue;arm=Math.Clamp(arm,0,1);
                     int side=points[i].X<0?0:1;
-                    // Split the same influence over two half-angle spans.
-                    // The cuff still follows the full arm; the cap follows an
-                    // intermediate rotation instead of the torso/arm chord.
-                    bones[i*4]=0;bones[i*4+1]=side+1;bones[i*4+2]=side+4;bones[i*4+3]=0;
-                    weights[i*4]=MathF.Max(0,1-2*arm);weights[i*4+1]=MathF.Max(0,2*arm-1);
-                    weights[i*4+2]=1-MathF.Abs(2*arm-1);weights[i*4+3]=0;
+                    if(arm>=.999999f)
+                    {
+                        // One exact cuff influence, not two duplicate bones
+                        // whose 16-bit decoded weights can sum below one.
+                        bones[i*4]=side+1;bones[i*4+1]=bones[i*4+2]=bones[i*4+3]=0;
+                        weights[i*4]=1;weights[i*4+1]=weights[i*4+2]=weights[i*4+3]=0;continue;
+                    }
+                    float scaled=ResidentRig.SleeveSpans*arm;
+                    int segment=Math.Min(ResidentRig.SleeveSpans-1,(int)scaled);
+                    float t=scaled-segment;
+                    int lower=segment==0?0:ResidentRig.SleeveSupportBone(side,segment);
+                    int upper=segment==ResidentRig.SleeveSpans-1?side+1:ResidentRig.SleeveSupportBone(side,segment+1);
+                    bones[i*4]=0;bones[i*4+1]=lower;bones[i*4+2]=upper;bones[i*4+3]=0;
+                    weights[i*4]=segment==0?1-t:0;weights[i*4+1]=segment==0?0:1-t;
+                    weights[i*4+2]=t;weights[i*4+3]=0;
+                    if(pattern.Length==points.Length&&pattern[i].X>0)
+                    {
+                        // The sleeve's section-centre correction belongs to
+                        // the sleeve, not to the adjacent chest. Fade it in
+                        // using sewn distances, continuously from the seam.
+                        float gather=Math.Clamp(sleeveDistance[i]/.263f,0,1);
+                        int lowerCap=segment==0?0:ResidentRig.SleeveSupportBone(side,segment,true);
+                        int upperCap=segment==ResidentRig.SleeveSpans-1?side+1:ResidentRig.SleeveSupportBone(side,segment+1,true);
+                        bones[i*4]=lower;bones[i*4+1]=upper;bones[i*4+2]=lowerCap;bones[i*4+3]=upperCap;
+                        weights[i*4]=(1-t)*(1-gather);weights[i*4+1]=t*(1-gather);
+                        weights[i*4+2]=(1-t)*gather;weights[i*4+3]=t*gather;
+                    }
                 }
             if(tailored&&bones.Length==points.Length*4)
                 for(int i=0;i<points.Length;i++)
                 {
+                    if(pattern.Length==points.Length&&pattern[i].X>=0)continue;
                     float lower=ResidentRig.PelvicClothWeight(points[i].Y);
                     // The fourth slot carries the lower trunk; the first
                     // three retain the torso/arm/intermediate sleeve blend.
@@ -235,13 +259,13 @@ internal sealed partial class NatureModels
             skin.AddBind(side+1,new Transform3D(Basis.Identity,-rest));
         }
         skin.AddBind(3,Transform3D.Identity);
-        if(BodyFrame==1)
+        if(!rig.IsChild)
         {
             rig.HasShoulderSupports=true;
-            for(int side=0;side<2;side++)
+            for(int family=0;family<2;family++)for(int span=1;span<ResidentRig.SleeveSpans;span++)for(int side=0;side<2;side++)
             {
-                int bone=4+side;var rest=rig.ShoulderRest(side);
-                rig.ShoulderSkeleton.AddBone(side==0?"LeftSleeveSupport":"RightSleeveSupport");
+                int bone=ResidentRig.SleeveSupportBone(side,span,family==1);var rest=rig.ShoulderRest(side);
+                rig.ShoulderSkeleton.AddBone((side==0?"Left":"Right")+(family==0?"SleeveSupport":"SleeveCap")+span);
                 rig.ShoulderSkeleton.SetBoneParent(bone,0);rig.ShoulderSkeleton.SetBoneRest(bone,new Transform3D(Basis.Identity,rest));
                 skin.AddBind(bone,new Transform3D(Basis.Identity,-rest));
             }

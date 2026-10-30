@@ -193,8 +193,9 @@ internal partial class ResidentRig
         if(bend.LengthSquared()<.0001f){var hint=new Vector3(side==0?-1:1,.2f,.1f);bend=hint-direction*hint.Dot(direction);}
         bend=bend.Normalized();
         float radius=MathF.Sqrt(MathF.Max(0,upper*upper-along*along));
-        if(!bare&&radius>.0001f)
+        void FitWristPole(float limit)
         {
+            if(bare||radius<=.0001f)return;
             // Start from the downward elbow preference, then use only as much
             // pole rotation as needed for a comfortable wrist. This avoids
             // trading a natural elbow for a folded wrist at a fixed shaft.
@@ -202,7 +203,7 @@ internal partial class ResidentRig
             if(wristPole.LengthSquared()>.00001f)
             {
                 wristPole=wristPole.Normalized();
-                float turn=bend.SignedAngleTo(wristPole,direction),limit=MathF.Cos(Mathf.DegToRad(43));
+                float turn=bend.SignedAngleTo(wristPole,direction);
                 float Alignment(float t)=>(shoulder+direction*along+bend.Rotated(direction,turn*t)*radius-wrist).Normalized().Dot(handBasis.Y);
                 if(Alignment(0)<limit&&Alignment(1)>Alignment(0))
                 {
@@ -212,6 +213,7 @@ internal partial class ResidentRig
                 }
             }
         }
+        FitWristPole(MathF.Cos(Mathf.DegToRad(43)));
         if(_poseStep>0)
         {
             var prior=(elbowHint??_previousElbows[side])-shoulder;
@@ -228,6 +230,32 @@ internal partial class ResidentRig
             }
         }
         Vector3 elbow=shoulder+direction*along+bend*radius;
+        float wristAlignment=MathF.Min(.999f,(elbow-wrist).Normalized().Dot(handBasis.Y));
+        // Support follows humeral elevation, not wrist height: bending the
+        // elbow alone must not shrug the shoulder. Refine the girdle and the
+        // same exact-length IK twice, keeping the displayed elbow plane and
+        // wrist target. The correction is bounded to the existing girdle.
+        for(int pass=0;pass<2;pass++)
+        {
+            shoulder=ShoulderForReach(side,wrist,elbow-shoulder);
+            delta=wrist-shoulder;distance=Math.Clamp(delta.Length(),.08f,upper+lower-.002f);direction=delta.Normalized();
+            wrist=shoulder+direction*distance;
+            along=(upper*upper-lower*lower+distance*distance)/(2*distance);
+            bend-=direction*bend.Dot(direction);
+            if(bend.LengthSquared()<.000001f)
+            {
+                var fallback=MathF.Abs(direction.Y)<.9f?Vector3.Down:Vector3.Right;
+                bend=fallback-direction*fallback.Dot(direction);
+            }
+            bend=bend.Normalized();
+            radius=MathF.Sqrt(MathF.Max(0,upper*upper-along*along));
+            // Preserve the wrist comfort achieved before moving the girdle,
+            // including a transitional elbow plane; do not tighten the wrist
+            // by moving the shoulder after its original pole solve.
+            FitWristPole(wristAlignment);
+            elbow=shoulder+direction*along+bend*radius;
+        }
+        Arms[side].Position=shoulder;
         Basis LimbFrame(Vector3 direction,Vector3 rightHint)
         {
             var up=-direction;var right=rightHint-up*rightHint.Dot(up);
@@ -270,11 +298,11 @@ internal partial class ResidentRig
     private Vector3 ReachBodyPoint(Vector3 point)=>BodyPoint(new(point.X*ReachLateralScale,point.Y,point.Z));
     internal float ShoulderHalfWidth=.202f,ShoulderDrop;
     internal Vector3 ShoulderRest(int side)=>new(side==0?-ShoulderHalfWidth:ShoulderHalfWidth,BodyY(1.18f)-ShoulderDrop,0);
-    private Vector3 ShoulderForReach(int side,Vector3 wrist)
+    private Vector3 ShoulderForReach(int side,Vector3 wrist,Vector3? upperDirection=null)
     {
         var rest=ShoulderRest(side);var reach=wrist-rest;
         if(reach.LengthSquared()<.000001f)return rest;
-        float elevation=MathF.Acos(Math.Clamp(reach.Normalized().Dot(Vector3.Down),-1,1));
+        float elevation=MathF.Acos(Math.Clamp((upperDirection??reach).Normalized().Dot(Vector3.Down),-1,1));
         // Bounded shoulder-girdle support, not a clinical scapular solver.
         // Below 30 degrees the humerus carries most motion; reaching higher
         // lifts the shoulder slightly, while forward reach protracts it.

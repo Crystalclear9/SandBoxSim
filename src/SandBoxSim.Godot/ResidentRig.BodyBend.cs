@@ -43,9 +43,29 @@ internal partial class ResidentRig
         var rotation=Arms[side].Basis.GetRotationQuaternion();
         ShoulderSkeleton.SetBonePoseRotation(side+1,rotation);
         ShoulderSkeleton.SetBonePosePosition(side+1,Arms[side].Position);
-        if(!HasShoulderSupports)return;
-        ShoulderSkeleton.SetBonePoseRotation(side+4,Quaternion.Identity.Slerp(rotation,.5f));
-        ShoulderSkeleton.SetBonePosePosition(side+4,ShoulderRest(side).Lerp(Arms[side].Position,.5f));
+        // Far bodies use an unskinned proxy. Recovery synchronizes all these
+        // supports in SetHandDetail before the detailed mesh is displayed.
+        if(!HasShoulderSupports||!_detailedHands)return;
+        for(int span=1;span<SleeveSpans;span++)
+        {
+            float weight=(float)span/SleeveSpans;int bone=SleeveSupportBone(side,span),cap=SleeveSupportBone(side,span,true);
+            var fraction=Quaternion.Identity.Slerp(rotation,weight);
+            var centre=ShoulderRest(side).Lerp(Arms[side].Position,weight);
+            ShoulderSkeleton.SetBonePoseRotation(bone,fraction);ShoulderSkeleton.SetBonePosePosition(bone,centre);
+            ShoulderSkeleton.SetBonePoseRotation(cap,fraction);ShoulderSkeleton.SetBonePosePosition(cap,centre+SleeveCapCorrection(rotation,weight));
+        }
+    }
+    internal static Vector3 SleeveCapCorrection(Quaternion rotation,float weight)
+    {
+        // A section rotates by the support fraction to preserve its radius,
+        // but its centre must travel with the upper arm, not on that smaller
+        // rotation's arc. Move the section centre to the raised arm axis.
+        // Vertex weights scale this unit-length correction by their actual
+        // sewn distance along the 26.3 cm sleeve, independently of the
+        // rotation influence. The seam and fully rotated cuff stay attached.
+        var station=Vector3.Down*.263f;
+        var fraction=Quaternion.Identity.Slerp(rotation,weight);
+        return rotation*station-fraction*station;
     }
     private void UpdateBodyBend(Vector3 translation,Basis pelvis)
     {

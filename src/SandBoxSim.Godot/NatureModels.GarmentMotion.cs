@@ -59,7 +59,8 @@ internal sealed partial class NatureModels
                             // Godot quantizes skin weights to 16 bits. Compare
                             // with the decoded weights actually rendered, not
                             // an ideal sum=1 that introduces a 10–20 μm error.
-                            var trunk=source[i]*(weights[i*4]+weights[i*4+1]+weights[i*4+2])+(rig.PelvicClothPose*source[i])*weights[i*4+3];
+                            var trunk=Vector3.Zero;
+                            for(int j=0;j<4;j++)trunk+=(bones[i*4+j]==3?rig.PelvicClothPose*source[i]:source[i])*weights[i*4+j];
                             if((MathF.Abs(source[i].X)<.04f||source[i].Y<.90f||(source[i].Y>1.25f&&seam[i].X<=0))&&point.DistanceTo(trunk)>.000002f)
                                 throw new InvalidOperationException($"Arm motion pulls the garment centre, neckline or pelvic waist: {identity}/{job}/{action}, source={source[i]}, posed={point}, expected={trunk}, weights={weights[i*4]}/{weights[i*4+1]}/{weights[i*4+2]}/{weights[i*4+3]}");
                             if(seam[i].X<0&&source[i].Y<ResidentRig.BodyY(1.18f)-.10f&&point.DistanceTo(trunk)>.035f)

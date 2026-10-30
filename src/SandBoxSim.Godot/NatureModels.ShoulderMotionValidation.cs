@@ -7,10 +7,11 @@ namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
     // Check the displayed upper-arm frame as well as hand positions. A reach
-    // can satisfy every endpoint test while rolling the sleeve through 180°.
+    // can satisfy every endpoint test while rolling the sleeve through 180掳.
     private void ValidateShoulderMotion()
     {
         ValidateShoulderFit();
+        ValidateElevationSurface();
         float maxTwist=0,maxStep=0;int samples=0,supportSamples=0;string worst="",worstStep="";
         foreach(int identity in new[]{17,42,55})
         foreach(var job in new[]{JobType.None,JobType.Farmer,JobType.Builder})
@@ -49,13 +50,13 @@ internal sealed partial class NatureModels
     private void ValidateShoulderFit()
     {
         float maximum=0;
-        foreach(int identity in new[]{42,55})
+        foreach(int identity in new[]{17,42,55})
         {
             var neutral=Resident(identity,false,JobType.None);
             var carrying=Resident(identity,false,JobType.Builder);
             try
             {
-                if(MathF.Abs(neutral.ShoulderHalfWidth-FemaleShoulderWidth)>.00001f)
+                if(identity!=17&&MathF.Abs(neutral.ShoulderHalfWidth-FemaleShoulderWidth)>.00001f)
                     throw new InvalidOperationException($"Female shoulder uses a generic width instead of its source joint: actual={neutral.ShoulderHalfWidth}, source={FemaleShoulderWidth}");
                 for(int frame=0;frame<240;frame++)
                 {
@@ -64,14 +65,14 @@ internal sealed partial class NatureModels
                 }
                 var free=InTorso(neutral.Hands[1],neutral.Torso).Origin;
                 var held=InTorso(carrying.Hands[1],carrying.Torso).Origin;
-                float difference=MathF.Abs(held.X-free.X);maximum=MathF.Max(maximum,difference);
-                if(!carrying.ToolHeld||difference>.025f)
+                float difference=MathF.Abs(held.X-free.X);if(identity!=17)maximum=MathF.Max(maximum,difference);
+                if(!carrying.ToolHeld||(identity!=17&&difference>.025f))
                     throw new InvalidOperationException($"Narrow shoulder reaches outward to the common carry target: {identity}, free={free}, held={held}");
-                if(!neutral.HasShoulderSupports||neutral.ShoulderSkeleton.GetBoneCount()!=6||neutral.DetailedBodySkin.GetBindCount()!=6)
+                if(!neutral.HasShoulderSupports||neutral.ShoulderSkeleton.GetBoneCount()!=ResidentRig.SupportedBodyBones||neutral.DetailedBodySkin.GetBindCount()!=ResidentRig.SupportedBodyBones)
                     throw new InvalidOperationException("Fitted sleeve lacks intermediate supports");
                 var arrays=neutral.DetailedBodyMesh.SurfaceGetArrays(0);var bones=arrays[(int)Mesh.ArrayType.Bones].AsInt32Array();
                 var weights=arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();int supported=0;
-                for(int i=0;i<bones.Length;i++)if(bones[i] is 4 or 5&&weights[i]>.01f)supported++;
+                for(int i=0;i<bones.Length;i++)if(bones[i]>=4&&weights[i]>.01f)supported++;
                 if(supported<100)throw new InvalidOperationException("Intermediate sleeve bones have no fitted surface influence");
                 for(int side=0;side<2;side++)
                     if(!(neutral.ShoulderSkeleton.GetBoneRest(side+1)*neutral.DetailedBodySkin.GetBindPose(side+1)).IsEqualApprox(Transform3D.Identity))
@@ -80,30 +81,34 @@ internal sealed partial class NatureModels
                 for(int frame=0;frame<60;frame++)carrying.PoseAction(1f/60,ActionKind.BuildHouse,ActionPhase.Executing,false,0);
                 carrying.SetHandDetail(true);
                 for(int side=0;side<2;side++)ValidateSleeveSupport(carrying,side);
-                var frozen=carrying.ShoulderSkeleton.GetBonePose(5);
+                var frozen=new Transform3D[ResidentRig.SupportedBodyBones];
+                for(int bone=0;bone<frozen.Length;bone++)frozen[bone]=carrying.ShoulderSkeleton.GetBonePose(bone);
                 carrying.PoseAction(1,ActionKind.BuildHouse,ActionPhase.Executing,true,0);
-                if(frozen!=carrying.ShoulderSkeleton.GetBonePose(5))throw new InvalidOperationException("Paused sleeve support keeps moving");
+                for(int bone=0;bone<frozen.Length;bone++)if(frozen[bone]!=carrying.ShoulderSkeleton.GetBonePose(bone))throw new InvalidOperationException("Paused sleeve support keeps moving");
             }
             finally{neutral.Free();carrying.Free();}
         }
-        GD.Print($"SHOULDER_FIT_PASS: two female identities, source half-width={FemaleShoulderWidth:F5} m, neutral/carry wrist lateral difference={maximum:F4} m, fitted inverse binds");
+        GD.Print($"SHOULDER_FIT_PASS: three adult identities, source half-width={FemaleShoulderWidth:F5} m, neutral/carry wrist lateral difference={maximum:F4} m, fitted inverse binds");
     }
     private static void ValidateSleeveSupport(ResidentRig rig,int side)
     {
-        int bone=side+4;var pose=rig.ShoulderSkeleton.GetBonePose(bone);var arm=rig.Arms[side].Transform;
-        var rotation=Quaternion.Identity.Slerp(arm.Basis.GetRotationQuaternion(),.5f);
-        var centre=rig.ShoulderRest(side).Lerp(arm.Origin,.5f);
-        if(pose.Origin.DistanceTo(centre)>.00001f||MathF.Abs(rotation.Dot(pose.Basis.GetRotationQuaternion()))<.99999f)
-            throw new InvalidOperationException("Intermediate sleeve pose does not track the displayed arm");
-        var transformed=pose*rig.DetailedBodySkin.GetBindPose(bone);
-        // Probe a ring about the real fitted pivot, using the actual skin
-        // transform. A half-weight matrix blend collapses this radius; the
-        // half-rotation support must keep it, including after LOD recovery.
-        foreach(var axis in new[]{Vector3.Right,Vector3.Back})
+        for(int family=0;family<2;family++)for(int span=1;span<ResidentRig.SleeveSpans;span++)
         {
-            var point=transformed*(rig.ShoulderRest(side)+axis*.06f);
-            if(MathF.Abs(point.DistanceTo(centre)-.06f)>.00002f)
-                throw new InvalidOperationException("Intermediate sleeve support scales the shoulder cross-section");
+            int bone=ResidentRig.SleeveSupportBone(side,span,family==1);float fraction=(float)span/ResidentRig.SleeveSpans;var pose=rig.ShoulderSkeleton.GetBonePose(bone);var arm=rig.Arms[side].Transform;
+            var rotation=Quaternion.Identity.Slerp(arm.Basis.GetRotationQuaternion(),fraction);
+            var centre=rig.ShoulderRest(side).Lerp(arm.Origin,fraction)+(family==1?ResidentRig.SleeveCapCorrection(arm.Basis.GetRotationQuaternion(),fraction):Vector3.Zero);
+            if(pose.Origin.DistanceTo(centre)>.00001f||MathF.Abs(rotation.Dot(pose.Basis.GetRotationQuaternion()))<.99999f)
+                throw new InvalidOperationException("Intermediate sleeve pose does not track the displayed arm");
+            var transformed=pose*rig.DetailedBodySkin.GetBindPose(bone);
+            // Probe a ring about the real fitted pivot, using the actual skin
+            // transform. Each fractional-rotation support must preserve the
+            // radius around its fitted pivot, including after LOD recovery.
+            foreach(var axis in new[]{Vector3.Right,Vector3.Back})
+            {
+                var point=transformed*(rig.ShoulderRest(side)+axis*.06f);
+                if(MathF.Abs(point.DistanceTo(centre)-.06f)>.00002f)
+                    throw new InvalidOperationException("Intermediate sleeve support scales the shoulder cross-section");
+            }
         }
     }
 }

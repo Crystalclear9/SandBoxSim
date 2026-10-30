@@ -37,7 +37,8 @@ internal partial class ModelGallery : PanelContainer
         if(Collection=="wardrobe")body.GetChild<Label>(0).Text="衣装剪裁 · 实际职业模型的正面与背面";
         grid.AddThemeConstantOverride("h_separation",12); grid.AddThemeConstantOverride("v_separation",12); body.AddChild(grid);
         var models=new NatureModels();
-        if(Collection=="handling-transitions")BuildInteractionFlow(models,grid,body.GetChild<Label>(0));
+        if(Collection=="shoulder-elevation")BuildElevationStudy(models,grid,body.GetChild<Label>(0));
+        else if(Collection=="handling-transitions")BuildInteractionFlow(models,grid,body.GetChild<Label>(0));
         else if(Collection=="shoulder-motion")
         {
             grid.Columns=3;body.GetChild<Label>(0).Text="肩肘动作 · 正面、工作臂侧面与背面";
@@ -271,7 +272,7 @@ internal partial class ModelGallery : PanelContainer
             else animal.Pose((float)delta,Collection is not ("model-details" or "animal-details" or "animal-heads")&&((int)(_elapsed/3)%3)!=0,false,Collection is not ("model-details" or "animal-details" or "animal-heads")&&((int)(_elapsed/3)%3)==0);
         foreach(var (rig,action) in _animated)
         {
-            if(Collection=="handling-transitions")continue;
+            if(Collection is "handling-transitions" or "shoulder-elevation")continue;
             if(Collection=="arm-swing")
             {
                 float t=_elapsed%10;
@@ -288,6 +289,7 @@ internal partial class ModelGallery : PanelContainer
             else rig.PoseAction((float)delta,action,Collection=="body-motion"&&action==ActionKind.Wander?ActionPhase.Moving:cycle>.65f&&cycle<4.5f?ActionPhase.Executing:ActionPhase.Idle,false,0);
         }
         if(Collection=="handling-transitions")AdvanceInteractionFlow((float)delta);
+        if(Collection=="shoulder-elevation")AdvanceElevationStudy((float)delta);
         foreach(var (rig,camera) in _handViews)
         {
             var target=rig.Hands[1].GlobalPosition+new Vector3(0,.015f,0);

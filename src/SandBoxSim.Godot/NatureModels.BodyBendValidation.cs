@@ -15,7 +15,7 @@ internal sealed partial class NatureModels
             var rig=Resident(identity,false,job);
             try
             {
-                if(rig.ShoulderSkeleton.GetBoneCount()!=(rig.HasShoulderSupports?6:4)||rig.DetailedBodySkin.GetBindCount()!=rig.ShoulderSkeleton.GetBoneCount())
+                if(rig.ShoulderSkeleton.GetBoneCount()!=(rig.HasShoulderSupports?ResidentRig.SupportedBodyBones:4)||rig.DetailedBodySkin.GetBindCount()!=rig.ShoulderSkeleton.GetBoneCount())
                     throw new InvalidOperationException("Adult garment lacks its pelvic cloth binding");
                 var cloth=rig.DetailedBodyMesh.SurfaceGetArrays(0);var p=cloth[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                 var bones=cloth[(int)Mesh.ArrayType.Bones].AsInt32Array();var w=cloth[(int)Mesh.ArrayType.Weights].AsFloat32Array();
