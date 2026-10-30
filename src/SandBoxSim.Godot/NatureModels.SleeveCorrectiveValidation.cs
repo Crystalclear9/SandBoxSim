@@ -47,8 +47,8 @@ internal sealed partial class NatureModels
                         float distance=source[i].DistanceTo(points[i]);displacement=MathF.Max(displacement,distance);
                         if(!points[i].IsFinite()||!normals[i].IsFinite()||MathF.Abs(normals[i].Length()-1)>.001f||distance>.006f)
                             throw new InvalidOperationException("Corrective has an invalid normal or exceeds its bounded surface edit");
-                        if((uv[i].X<=0||uv[i].X>=.23f)&&distance>.000001f)
-                            throw new InvalidOperationException("Shoulder corrective moves a pinned seam, cuff or trunk");
+                        if((MathF.Abs(source[i].X)<.04f||source[i].Y<.90f||uv[i].X>=.23f)&&distance>.000001f)
+                            throw new InvalidOperationException("Shoulder corrective moves the fixed neck, centre, waist or cuff");
                         vertices++;
                     }
                 }
@@ -93,7 +93,7 @@ internal sealed partial class NatureModels
             }
             finally{rig.Free();}
         }
-        GD.Print($"SLEEVE_CORRECTIVES_PASS: adultFrames=2, cuts=3, poses={ResidentRig.SleevePoseCount}, vertices={vertices}, maximumBindEdit={displacement:F5} m; normalized engine bake, pinned seam/cuff/trunk, LOD and pause");
+        GD.Print($"SLEEVE_CORRECTIVES_PASS: adultFrames=2, cuts=3, poses={ResidentRig.SleevePoseCount}, vertices={vertices}, maximumBindEdit={displacement:F5} m; normalized engine bake, shared shoulder seam, fixed neck/centre/waist/cuff, LOD and pause");
         GD.Print($"SLEEVE_NORMAL_METRICS: samples={normalSamples}, original={oldNormalError/normalSamples:F4} rad, corrective={newNormalError/normalSamples:F4} rad; geometric reference on the actual morphed/skinned cap");
         if(newNormalError>=oldNormalError)throw new InvalidOperationException("Pose normals do not improve agreement with the actual deformed surface");
     }

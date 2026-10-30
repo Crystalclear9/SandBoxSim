@@ -5,7 +5,7 @@ namespace SandBoxSim.Client;
 
 internal partial class ResidentRig
 {
-    internal static int GirdleBone(int side)=>16+side;
+    internal static int GirdleBone(int side)=>4+4*(SleeveSpans-1)+side;
     // Presentation model, not a clinical joint reconstruction. Separate the
     // sternoclavicular arc (joint position) from scapular upward rotation and
     // posterior tilt (the platform from which the humerus rotates).
@@ -39,5 +39,16 @@ internal partial class ResidentRig
         // transition, as the common origin of skin, limb and equipment.
         pose.Origin=Arms[side].Position;return pose;
     }
-    internal static Quaternion SleeveRotation(Quaternion girdle,Quaternion arm,float weight)=>girdle.Slerp(arm,weight);
+    internal static Quaternion SleeveRotation(Quaternion girdle,Quaternion arm,float weight)
+    {
+        var relative=(girdle.Inverse()*arm).Normalized();if(relative.W<0)relative=-relative;
+        // Swing aims the arm; twist rolls around its local long axis. Delay
+        // axial twist through the shoulder cap and distribute it down the
+        // upper arm, rather than twisting the deltoid/chest with the biceps.
+        var twist=new Quaternion(0,relative.Y,0,relative.W);
+        twist=twist.LengthSquared()<.00000001f?Quaternion.Identity:twist.Normalized();
+        var swing=(relative*twist.Inverse()).Normalized();
+        float roll=Mathf.SmoothStep(.20f,1,weight);
+        return (girdle*Quaternion.Identity.Slerp(swing,weight)*Quaternion.Identity.Slerp(twist,roll)).Normalized();
+    }
 }

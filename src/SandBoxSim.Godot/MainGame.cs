@@ -74,7 +74,7 @@ public partial class MainGame : Control
         if(OS.GetCmdlineUserArgs().Contains("--test-resident-motion"))
         {
             SetProcess(false);SetPhysicsProcess(false);SetProcessInput(false);
-            try{new NatureModels().ValidateResidentMotion();GD.Print("RESIDENT_MOTION_TEST_PASS: shoulder, corrective surface and garment motion");GetTree().Quit();}
+            try{new NatureModels().ValidateResidentMotion();GD.Print("RESIDENT_MOTION_TEST_PASS: shoulder, corrective surface, garment and reach trajectories");GetTree().Quit();}
             catch(Exception exception){GD.PushError(exception.ToString());GetTree().Quit(1);}
             return;
         }

@@ -88,7 +88,7 @@ internal sealed partial class NatureModels
                         var b=ResidentRig.SleeveRotation(platform,rotation,(float)(span+1)/ResidentRig.SleeveSpans);
                         float radius=((a*radial+b*radial)*.5f).Length();
                         minimumRadius=MathF.Min(minimumRadius,radius);
-                        if(radius<.94f)throw new InvalidOperationException("Raised sleeve loses excessive rotational radius");
+                        if(radius<.94f)throw new InvalidOperationException($"Raised sleeve loses rotational radius: identity={identity}, side={side}, plane={plane}, frame={frame}, radius={radius}, interval={span}, arm={rotation}, platform={platform}");
                     }
                     poses++;
                 }

@@ -8,6 +8,7 @@ internal sealed partial class NatureModels
 {
     private void ValidateGirdleMotion()
     {
+        ValidateSleeveSwingTwist();
         int samples=0;float maximumArc=0,maximumStep=0;
         foreach(int identity in new[]{17,55})
         {
@@ -38,7 +39,7 @@ internal sealed partial class NatureModels
                             foreach(float offset in new[]{-.55f,0f,.55f})
                             {
                                 float total=0;
-                                var arm=new Basis(upper,Math.Clamp(ResidentRig.SleeveNeutralRoll(upper,side)+offset,-ResidentRig.UpperArmRollLimit,ResidentRig.UpperArmRollLimit))*swing;
+                                var arm=new Basis(upper,Math.Clamp(ResidentRig.SleeveNeutralRoll(upper,side)+offset,-ResidentRig.SleeveRollSampleLimit,ResidentRig.SleeveRollSampleLimit))*swing;
                                 for(int p=0;p<3;p++)for(int h=0;h<2;h++)for(int roll=0;roll<3;roll++)
                                 {
                                     float weight=ResidentRig.SleevePoseWeight(arm,side,p,h,roll);
@@ -60,5 +61,40 @@ internal sealed partial class NatureModels
         // extreme-pose tests. Catch a protraction jump near the vertical arm.
         if(maximumStep>.001f)throw new InvalidOperationException("Shoulder platform jumps between neighbouring elevation samples");
         GD.Print($"SHOULDER_GIRDLE_PASS: samples={samples}, mirrored adult clavicle arcs, rotating scapular platforms, maximum endpoint travel={maximumArc:F4} m, largest one-degree step={maximumStep:F5} m, normalized orientation-driven corrections");
+    }
+    private static void ValidateSleeveSwingTwist()
+    {
+        int samples=0;float minimumRadius=1;
+        foreach(float turn in new[]{-1.65f,-.75f,0f,.75f,1.65f})
+        foreach(float lift in new[]{0f,.7f,1.7f})
+        {
+            var platform=new Quaternion(Vector3.Right,.22f);
+            var swing=new Quaternion(Vector3.Back,lift);
+            var arm=platform*swing*new Quaternion(Vector3.Down,turn);
+            for(int i=0;i<=ResidentRig.SleeveSpans;i++)
+            {
+                float fraction=(float)i/ResidentRig.SleeveSpans;
+                var pose=ResidentRig.SleeveRotation(platform,arm,fraction);
+                var signed=ResidentRig.SleeveRotation(-platform,-arm,fraction);
+                var expected=platform*new Quaternion(Vector3.Back,lift*fraction)*Vector3.Down;
+                if((pose*Vector3.Down).DistanceTo(expected)>.00001f||MathF.Abs(pose.Dot(signed))<.99999f)
+                    throw new InvalidOperationException("Axial sleeve twist changes its swing direction or depends on quaternion sign");
+                if(i==0&&MathF.Abs(pose.Dot(platform))<.99999f||i==ResidentRig.SleeveSpans&&MathF.Abs(pose.Dot(arm))<.99999f)
+                    throw new InvalidOperationException("Swing/twist sleeve detaches its shoulder root or cuff");
+                if(lift==0&&i==1&&(pose*Vector3.Right).DistanceTo(platform*Vector3.Right)>.00001f)
+                    throw new InvalidOperationException("Pure upper-arm twist turns the shoulder cap instead of the biceps");
+                if(i>0)
+                {
+                    var prior=ResidentRig.SleeveRotation(platform,arm,(float)(i-1)/ResidentRig.SleeveSpans);
+                    foreach(var axis in new[]{Vector3.Right,Vector3.Up,Vector3.Back})
+                    {
+                        float radius=((pose*axis+prior*axis)*.5f).Length();minimumRadius=MathF.Min(minimumRadius,radius);
+                        if(radius<.94f)throw new InvalidOperationException("Swing/twist support intervals lose too much volume");
+                    }
+                }
+                samples++;
+            }
+        }
+        GD.Print($"SLEEVE_SWING_TWIST_PASS: samples={samples}, fixed cap under pure axial roll, exact endpoints, independent swing direction, quaternion sign invariance, minimum interval radius={minimumRadius:F4}");
     }
 }

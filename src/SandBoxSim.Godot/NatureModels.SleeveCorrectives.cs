@@ -56,6 +56,7 @@ internal sealed partial class NatureModels
         var adjacent=new HashSet<int>[source.Length];for(int i=0;i<source.Length;i++)adjacent[i]=new();
         for(int i=0;i<ids.Length;i+=3)for(int j=0;j<3;j++)
         {int a=ids[i+j],b=ids[i+(j+1)%3];adjacent[a].Add(b);adjacent[b].Add(a);}
+        var patches=ShoulderSurfacePatches(source,ids,adjacent,uv,girdleWeights);
         var result=new Godot.Collections.Array<Godot.Collections.Array>();
         for(int side=0;side<2;side++)for(int plane=0;plane<3;plane++)for(int height=0;height<2;height++)for(int roll=0;roll<3;roll++)
         {
@@ -87,19 +88,21 @@ internal sealed partial class NatureModels
                     basis.X+=transform.Basis.X*w;basis.Y+=transform.Basis.Y*w;basis.Z+=transform.Basis.Z*w;origin+=transform.Origin*w;
                 }
                 blends[i]=new(basis,origin);posed[i]=blends[i]*source[i];
-                if((source[i].X<0)==(side==0)&&uv[i].X>=0)
-                    active[i]=Mathf.SmoothStep(0,.025f,uv[i].X)*(1-Mathf.SmoothStep(.17f,.23f,uv[i].X));
+                if((source[i].X<0)==(side==0))
+                    active[i]=uv[i].X>=0?1-Mathf.SmoothStep(.17f,.23f,uv[i].X):girdleWeights[i];
             }
             var target=(Vector3[])posed.Clone();
-            // Tangential cap fairing in posed space removes compressed little
-            // ledges without inflating the sleeve or shrinking the whole arm.
-            // Both seam and cuff are pinned. Bound the final edit to 4 mm.
-            for(int iteration=0;iteration<6;iteration++)
+            // Fair the entire shoulder/armhole transition, not an isolated
+            // sleeve with a pinned ridge at its root. Metric surface patches
+            // and area weights avoid dependence on the tiny cap-ring edges.
+            // The neckline, waist and cuff stay fixed; the shared seam moves
+            // as one surface. Keep the existing four-millimetre edit bound.
+            for(int iteration=0;iteration<4;iteration++)
             {
-                var next=(Vector3[])target.Clone();float amount=iteration%2==0?.45f:-.47f;
+                var next=(Vector3[])target.Clone();float amount=iteration%2==0?.45f:-.40f;
                 for(int i=0;i<target.Length;i++)if(active[i]>0)
                 {
-                    var average=Vector3.Zero;foreach(int j in adjacent[i])average+=target[j];average/=adjacent[i].Count;
+                    var average=Vector3.Zero;foreach(var (index,weight) in patches[i])average+=target[index]*weight;
                     var offset=(target[i]+(average-target[i])*amount*active[i])-posed[i];
                     if(offset.Length()>.004f)offset=offset.Normalized()*.004f;
                     next[i]=posed[i]+offset;
@@ -135,6 +138,43 @@ internal sealed partial class NatureModels
             }
             var shape=new Godot.Collections.Array();shape.Resize((int)Mesh.ArrayType.Max);
             shape[(int)Mesh.ArrayType.Vertex]=points;shape[(int)Mesh.ArrayType.Normal]=correctedNormals;result.Add(shape);
+        }
+        return result;
+    }
+    private static (int Index,float Weight)[][] ShoulderSurfacePatches(Vector3[] points,int[] triangles,HashSet<int>[] adjacent,Vector2[] uv,float[] girdle)
+    {
+        var area=new float[points.Length];
+        for(int i=0;i<triangles.Length;i+=3)
+        {
+            int a=triangles[i],b=triangles[i+1],c=triangles[i+2];
+            float value=(points[b]-points[a]).Cross(points[c]-points[a]).Length()/6;
+            area[a]+=value;area[b]+=value;area[c]+=value;
+        }
+        const float radius=.025f;
+        var result=new (int,float)[points.Length][];
+        for(int i=0;i<points.Length;i++)
+        {
+            if((uv[i].X<0&&girdle[i]<=0)||uv[i].X>=.23f){result[i]=Array.Empty<(int,float)>();continue;}
+            var distance=new Dictionary<int,float>{{i,0}};var queue=new PriorityQueue<int,float>();queue.Enqueue(i,0);
+            while(queue.TryDequeue(out int a,out float travelled))
+            {
+                if(travelled>distance[a])continue;
+                foreach(int b in adjacent[a])
+                {
+                    float next=travelled+points[a].DistanceTo(points[b]);
+                    if(next>=radius||distance.TryGetValue(b,out float prior)&&prior<=next)continue;
+                    distance[b]=next;queue.Enqueue(b,next);
+                }
+            }
+            var patch=new List<(int,float)>();float total=0;
+            foreach(var pair in distance)
+            {
+                float kernel=1-pair.Value/radius,weight=area[pair.Key]*kernel*kernel;
+                patch.Add((pair.Key,weight));total+=weight;
+            }
+            if(total<=0)throw new InvalidOperationException("Shoulder patch has no surface area");
+            for(int j=0;j<patch.Count;j++)patch[j]=(patch[j].Item1,patch[j].Item2/total);
+            result[i]=patch.ToArray();
         }
         return result;
     }

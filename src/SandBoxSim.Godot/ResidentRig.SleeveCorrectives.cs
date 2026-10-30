@@ -14,9 +14,9 @@ internal partial class ResidentRig
         if(horizontal.LengthSquared()<.000001f)horizontal=new Vector3(side==0?-1:1,0,0);
         var axis=Vector3.Down.Cross(horizontal.Normalized());
         var swing=new Basis(new Quaternion(Vector3.Down,direction));
-        return Math.Clamp(swing.X.SignedAngleTo(axis,direction),-UpperArmRollLimit,UpperArmRollLimit);
+        return Math.Clamp(swing.X.SignedAngleTo(axis,direction),-SleeveRollSampleLimit,SleeveRollSampleLimit);
     }
-    internal static float SleeveRollSample(Vector3 direction,int side,int roll)=>Math.Clamp(SleeveNeutralRoll(direction,side)+(roll-1)*.60f,-UpperArmRollLimit,UpperArmRollLimit);
+    internal static float SleeveRollSample(Vector3 direction,int side,int roll)=>Math.Clamp(SleeveNeutralRoll(direction,side)+(roll-1)*.60f,-SleeveRollSampleLimit,SleeveRollSampleLimit);
     internal static float SleevePoseWeight(Basis arm,int side,int plane,int height,int roll)
     {
         Span<float> weights=stackalloc float[SleevePosesPerSide];FillSleevePoseWeights(arm,side,weights);

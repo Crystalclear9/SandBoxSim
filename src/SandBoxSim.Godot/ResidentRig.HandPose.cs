@@ -32,10 +32,18 @@ internal partial class ResidentRig
         var goal=(rest*offset).Lerp(target,weight);var origin=previous*offset;
         var palm=origin;
         DampMotion(ref palm,ref _bareVelocity[side],goal,.035f,_poseStep);
-        // Preserve incoming velocity at target changes. Keep the existing
-        // metre/second safety bound, including large target resynchronisations.
-        if(palm.DistanceTo(origin)>_poseStep&&_poseStep>0)
-        {palm=origin.MoveToward(palm,_poseStep);_bareVelocity[side]=(palm-origin)/_poseStep;}
+        // A smooth speed knee preserves the incoming tangent instead of
+        // snapping to a constant-speed segment at a hard clipping threshold.
+        // Limit the palm before IK, so the exact elbow can follow continuously.
+        if(_poseStep>0)
+        {
+            var step=palm-origin;float speed=step.Length()/_poseStep;
+            if(speed>.65f)
+            {
+                float limited=.65f+.25f*(1-MathF.Exp(-(speed-.65f)/.25f));
+                float scale=limited/speed;palm=origin+step*scale;_bareVelocity[side]*=scale;
+            }
+        }
         SolveBareHand(side,palm,new Basis(orientation));
     }
     private readonly Vector3[,] _returnAngularVelocity=new Vector3[2,3];
@@ -81,7 +89,9 @@ internal partial class ResidentRig
             DampMotion(ref position,ref _returnShoulderVelocity[side],armTarget.Origin,.055f,_poseStep);
             Arms[side].Position=position;
             Arms[side].Quaternion=ReturnArmRotation(_priorArms[side].Basis.GetRotationQuaternion(),ref _returnAngularVelocity[side,0],armTarget.Basis.GetRotationQuaternion());
-            Elbows[side].Quaternion=ReturnArmRotation(_priorForearms[side].Basis.GetRotationQuaternion(),ref _returnAngularVelocity[side,1],elbowTarget.Basis.GetRotationQuaternion());
+            var returned=ReturnArmRotation(_priorForearms[side].Basis.GetRotationQuaternion(),ref _returnAngularVelocity[side,1],elbowTarget.Basis.GetRotationQuaternion());
+            Elbows[side].Basis=HingeForearmBasis(new Basis(returned),Hands[side].Position.Normalized());
+            _returnAngularVelocity[side,1]=RotationVelocity(_priorForearms[side].Basis,Elbows[side].Basis,_poseStep);
             Hands[side].Quaternion=ReturnArmRotation(_priorWrists[side].Basis.GetRotationQuaternion(),ref _returnAngularVelocity[side,2],wristTarget.Basis.GetRotationQuaternion());
             float remaining=MathF.Max(1-MathF.Abs(Arms[side].Quaternion.Dot(armTarget.Basis.GetRotationQuaternion())),
                 MathF.Max(1-MathF.Abs(Elbows[side].Quaternion.Dot(elbowTarget.Basis.GetRotationQuaternion())),1-MathF.Abs(Hands[side].Quaternion.Dot(wristTarget.Basis.GetRotationQuaternion()))));
@@ -173,12 +183,11 @@ internal partial class ResidentRig
     }
     private void SolveBareHand(int side,Vector3 target,Basis desired)
     {
-        var elbowHint=_previousElbows[side];
         // Solve the reach once. Feeding a clamped wrist back into the palm
         // offset moves the target and can select another elbow plane mid-frame.
         // Forearm roll is resolved by the limb frame; only the residual wrist
         // rotation is limited here, without moving the shoulder or elbow again.
-        SolveHand(side,target,desired,true,0,elbowHint);
+        SolveHand(side,target,desired,true);
         var relative=Hands[side].Basis.GetRotationQuaternion();
         if(relative.W<0)relative=-relative;
         float angle=relative.GetAngle();
@@ -203,7 +212,7 @@ internal partial class ResidentRig
         // Pronation is resolved by the lower-arm frame, independently of pole.
         var relaxedPole=new Vector3((side==0?-.35f:.35f)*ReachLateralScale,-.85f,-.10f);
         var carryingPole=new Vector3((side==0?-.75f:.75f)*ReachLateralScale,-.45f,.15f);
-        var pole=bare?relaxedPole:relaxedPole.Lerp(handBasis.Y,.12f).Lerp(carryingPole,carry);
+        var pole=elbowHint.HasValue?elbowHint.Value-shoulder:bare?relaxedPole:relaxedPole.Lerp(handBasis.Y,.12f).Lerp(carryingPole,carry);
         var bend=pole-direction*pole.Dot(direction);
         if(bend.LengthSquared()<.0001f){var hint=new Vector3(side==0?-1:1,.2f,.1f);bend=hint-direction*hint.Dot(direction);}
         bend=bend.Normalized();
@@ -231,7 +240,15 @@ internal partial class ResidentRig
         FitWristPole(MathF.Cos(Mathf.DegToRad(43)));
         if(_poseStep>0)
         {
-            var prior=(elbowHint??_previousElbows[side])-shoulder;
+            var priorShoulder=_priorArms[side].Origin;
+            var previousDirection=(_previousHands[side].Origin-priorShoulder).Normalized();
+            var prior=_previousElbows[side]-priorShoulder;
+            prior-=previousDirection*prior.Dot(previousDirection);
+            if(prior.LengthSquared()<.000001f)prior=previousDirection.Cross(_priorArms[side].Basis.X);
+            // Transport the previous bend plane with the moving shoulder-to-
+            // wrist ray. Projecting the old elbow onto a new ray can flip the
+            // plane near extension even when the hand trajectory is smooth.
+            prior=new Quaternion(previousDirection,direction)*prior;
             prior-=direction*prior.Dot(direction);
             if(prior.LengthSquared()>.000001f)
             {
@@ -240,7 +257,7 @@ internal partial class ResidentRig
                 // pose rebuilt at the start of this frame. Limit swivel while
                 // preserving the exact two-bone lengths and wrist target.
                 float turn=prior.SignedAngleTo(bend,direction);
-                float limit=3*_poseStep*(1-MathF.Exp(-MathF.Abs(turn)/.30f));
+                float limit=(bare?2:3)*_poseStep*(1-MathF.Exp(-MathF.Abs(turn)/.30f));
                 bend=prior.Rotated(direction,Math.Clamp(turn,-limit,limit));
             }
         }
@@ -281,35 +298,32 @@ internal partial class ResidentRig
         var lowerBasis=LimbFrame((wrist-elbow).Normalized(),handBasis.X)*new Basis(new Quaternion(Hands[side].Position.Normalized(),Vector3.Down));
         Arms[side].Basis=upperBasis;Elbows[side].Basis=upperBasis.Inverse()*lowerBasis;Hands[side].Basis=lowerBasis.Inverse()*handBasis;
     }
-    internal const float UpperArmRollLimit=1.65f;
+    internal const float SleeveRollSampleLimit=1.65f;
     private Basis ReachUpperArmFrame(int side,Vector3 upper,Vector3 lower)
     {
         var direction=upper.Normalized();
-        var swing=new Basis(new Quaternion(Vector3.Down,direction));
         var hinge=direction.Cross(lower.Normalized());
-        float bend=hinge.Length();
-        // Transport the complete previous frame with the shortest change of
-        // arm direction. Projection alone loses roll as the arm rises sideways.
-        var previousDirection=-_priorArms[side].Basis.Y;
-        var transported=new Quaternion(previousDirection,direction)*_priorArms[side].Basis.X;
-        float prior=swing.X.SignedAngleTo(transported,direction),wanted=prior;
-        if(bend>.0001f)
+        if(hinge.LengthSquared()>.00000001f)
         {
-            hinge/=bend;
-            // This is a signed flexion axis: flipping it reverses elbow
-            // flexion and asks the forearm to compensate with a half-turn.
-            // A lateral raise needs more roll in this swing coordinate system
-            // than a forward reach; the old 0.8 rad cap prevented alignment.
-            float raw=Math.Clamp(swing.X.SignedAngleTo(hinge,direction),-UpperArmRollLimit,UpperArmRollLimit);
-            wanted=prior+Mathf.Wrap(raw-prior,-MathF.PI,MathF.PI)*Mathf.SmoothStep(.08f,.35f,bend);
+            // Pole transport controls temporal continuity. Do not lag this
+            // frame independently: doing so bends the elbow outside its hinge
+            // while the lower-arm frame compensates to preserve the wrist.
+            hinge=hinge.Normalized();var up=-direction;
+            return new Basis(hinge,up,hinge.Cross(up)).Orthonormalized();
         }
-        // Transport the displayed frame onto the new upper-arm direction.
-        // Near extension the elbow plane is ill-conditioned, so recover the
-        // neutral frame gradually instead of following the raw cross product.
-        float difference=Mathf.Wrap(wanted-prior,-MathF.PI,MathF.PI);
-        float limit=2.6f*_poseStep*(1-MathF.Exp(-MathF.Abs(difference)/.20f));
-        float twist=Math.Clamp(prior+Math.Clamp(difference,-limit,limit),-UpperArmRollLimit,UpperArmRollLimit);
-        return new Basis(direction,twist)*swing;
+        var transport=new Quaternion(-_priorArms[side].Basis.Y,direction);
+        return new Basis(transport)*_priorArms[side].Basis;
+    }
+    private static Basis HingeForearmBasis(Basis source,Vector3 bind)
+    {
+        var direction=source*bind;
+        float angle=MathF.Atan2(-direction.Z,-direction.Y)-MathF.Atan2(-bind.Z,-bind.Y);
+        var bend=new Basis(Vector3.Right,angle);
+        var remainder=(bend.Inverse()*source).GetRotationQuaternion();
+        var axial=bind*new Vector3(remainder.X,remainder.Y,remainder.Z).Dot(bind);
+        var twist=new Quaternion(axial.X,axial.Y,axial.Z,remainder.W);
+        if(twist.LengthSquared()<.00000001f)twist=Quaternion.Identity;else twist=twist.Normalized();
+        return bend*new Basis(twist);
     }
     // Body-relative reaches adapt to the fitted shoulder span. Physical cargo
     // supports and the head's actual mouth contact remain in their own space.

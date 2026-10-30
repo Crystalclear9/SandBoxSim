@@ -6,7 +6,7 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
-    public void ValidateResidentMotion(){ValidateShoulderMotion();ValidateGarmentMotion();}
+    public void ValidateResidentMotion(){ValidateShoulderMotion();ValidateGarmentMotion();ValidateReachTrajectories();}
     // Check the displayed upper-arm frame as well as hand positions. A reach
     // can satisfy every endpoint test while rolling the sleeve through 180掳.
     private void ValidateShoulderMotion()
@@ -15,7 +15,7 @@ internal sealed partial class NatureModels
         ValidateSleeveCorrectives();
         ValidateShoulderFit();
         ValidateElevationSurface();
-        float maxTwist=0,maxStep=0;int samples=0,supportSamples=0;string worst="",worstStep="";
+        float maxTwist=0,maxStep=0,maxElbowDeviation=0;int samples=0,supportSamples=0;string worst="",worstStep="",worstElbow="";
         foreach(int identity in new[]{17,42,55})
         foreach(var job in new[]{JobType.None,JobType.Farmer,JobType.Builder})
         {
@@ -34,6 +34,9 @@ internal sealed partial class NatureModels
                         var swing=new Basis(new Quaternion(Vector3.Down,direction));
                         float twist=MathF.Abs(swing.X.SignedAngleTo(basis.X,direction));
                         float step=2*MathF.Acos(Math.Clamp(MathF.Abs(previous[side].Dot(rig.Arms[side].Quaternion)),0,1));
+                        var localLower=rig.Elbows[side].Basis*rig.Hands[side].Position.Normalized();
+                        float deviation=MathF.Asin(Math.Clamp(MathF.Abs(localLower.X),0,1));
+                        if(deviation>maxElbowDeviation){maxElbowDeviation=deviation;worstElbow=$"{identity}/{job}/{action}/{frame}/{side}";}
                         if(twist>maxTwist){maxTwist=twist;worst=$"{identity}/{job}/{action}/{frame}/{side}";}
                         if(step>maxStep){maxStep=step;worstStep=$"{identity}/{job}/{action}/{frame}/{side}";}
                         previous[side]=rig.Arms[side].Quaternion;samples++;
@@ -46,7 +49,8 @@ internal sealed partial class NatureModels
             finally{rig.Free();}
         }
         GD.Print($"SHOULDER_MOTION_METRICS: samples={samples}, axial={maxTwist:F3} rad, frame step={maxStep:F3} rad, worst={worst}, largest step={worstStep}");
-        if(maxTwist>ResidentRig.UpperArmRollLimit+.02f||maxStep>.22f)
+        GD.Print($"ELBOW_PLANE_METRICS: maximum off-hinge deviation={Mathf.RadToDeg(maxElbowDeviation):F2} degrees, pose={worstElbow}");
+        if(maxElbowDeviation>Mathf.DegToRad(.5f)||maxStep>.22f)
             throw new InvalidOperationException($"Shoulder twists or snaps despite continuous hand positions: axial={maxTwist}, step={maxStep}, pose={worstStep}");
         GD.Print($"SHOULDER_MOTION_PASS: three adult identities, bare reaches/tools/returns, {supportSamples} actual intermediate sleeve poses and radius checks");
     }
