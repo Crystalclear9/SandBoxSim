@@ -46,17 +46,19 @@ internal partial class ResidentRig
         // Far bodies use an unskinned proxy. Recovery synchronizes all these
         // supports in SetHandDetail before the detailed mesh is displayed.
         if(!HasShoulderSupports||!_detailedHands)return;
+        var girdle=DisplayedGirdle(side);var girdleRotation=girdle.Basis.GetRotationQuaternion();
+        ShoulderSkeleton.SetBonePose(GirdleBone(side),girdle);
         for(int span=1;span<SleeveSpans;span++)
         {
             float weight=(float)span/SleeveSpans;int bone=SleeveSupportBone(side,span),cap=SleeveSupportBone(side,span,true);
-            var fraction=Quaternion.Identity.Slerp(rotation,weight);
-            var centre=ShoulderRest(side).Lerp(Arms[side].Position,weight);
+            var fraction=SleeveRotation(girdleRotation,rotation,weight);
+            var centre=Arms[side].Position;
             ShoulderSkeleton.SetBonePoseRotation(bone,fraction);ShoulderSkeleton.SetBonePosePosition(bone,centre);
-            ShoulderSkeleton.SetBonePoseRotation(cap,fraction);ShoulderSkeleton.SetBonePosePosition(cap,centre+SleeveCapCorrection(rotation,weight));
+            ShoulderSkeleton.SetBonePoseRotation(cap,fraction);ShoulderSkeleton.SetBonePosePosition(cap,centre+SleeveCapCorrection(rotation,weight,girdleRotation));
         }
         UpdateSleeveCorrectives(side);
     }
-    internal static Vector3 SleeveCapCorrection(Quaternion rotation,float weight)
+    internal static Vector3 SleeveCapCorrection(Quaternion rotation,float weight,Quaternion? girdle=null)
     {
         // A section rotates by the support fraction to preserve its radius,
         // but its centre must travel with the upper arm, not on that smaller
@@ -65,7 +67,7 @@ internal partial class ResidentRig
         // sewn distance along the 26.3 cm sleeve, independently of the
         // rotation influence. The seam and fully rotated cuff stay attached.
         var station=Vector3.Down*.263f;
-        var fraction=Quaternion.Identity.Slerp(rotation,weight);
+        var fraction=SleeveRotation(girdle??Quaternion.Identity,rotation,weight);
         return rotation*station-fraction*station;
     }
     private void UpdateBodyBend(Vector3 translation,Basis pelvis)

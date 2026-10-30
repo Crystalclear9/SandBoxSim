@@ -52,28 +52,30 @@ internal sealed partial class NatureModels
         var bones=arrays[(int)Mesh.ArrayType.Bones].AsInt32Array();
         var weights=arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();
         var uv=arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
+        var girdleWeights=GirdleWeights(source,ids,uv);
         var adjacent=new HashSet<int>[source.Length];for(int i=0;i<source.Length;i++)adjacent[i]=new();
         for(int i=0;i<ids.Length;i+=3)for(int j=0;j<3;j++)
         {int a=ids[i+j],b=ids[i+(j+1)%3];adjacent[a].Add(b);adjacent[b].Add(a);}
         var result=new Godot.Collections.Array<Godot.Collections.Array>();
-        for(int side=0;side<2;side++)for(int plane=0;plane<3;plane++)for(int height=0;height<2;height++)
+        for(int side=0;side<2;side++)for(int plane=0;plane<3;plane++)for(int height=0;height<2;height++)for(int roll=0;roll<3;roll++)
         {
             float angle=Mathf.DegToRad(height==0?90:135);
             float planeAngle=plane*MathF.PI/4;
             var outward=new Vector3((side==0?-1:1)*MathF.Cos(planeAngle),0,-MathF.Sin(planeAngle));
             var axis=Vector3.Down.Cross(outward).Normalized();var direction=Vector3.Down.Rotated(axis,angle);
             var swing=new Basis(new Quaternion(Vector3.Down,direction));
-            float twist=Math.Clamp(swing.X.SignedAngleTo(axis,direction),-1.65f,1.65f);
+            float twist=ResidentRig.SleeveRollSample(direction,side,roll);
             var rotation=(new Basis(direction,twist)*swing).GetRotationQuaternion();
-            var rest=rig.ShoulderRest(side);float lift=Mathf.SmoothStep(Mathf.DegToRad(30),Mathf.DegToRad(105),angle);
-            var shoulder=rest+new Vector3((side==0?-1:1)*.004f*lift,.020f*lift,-.014f*Mathf.SmoothStep(.10f,.40f,-direction.Z*.55f));
+            var girdle=rig.ShoulderGirdle(side,direction);var girdleRotation=girdle.Basis.GetRotationQuaternion();
+            var shoulder=girdle.Origin;
             var transforms=new Transform3D[ResidentRig.SupportedBodyBones];Array.Fill(transforms,Transform3D.Identity);
             transforms[side+1]=new Transform3D(new Basis(rotation),shoulder)*rig.DetailedBodySkin.GetBindPose(side+1);
+            transforms[ResidentRig.GirdleBone(side)]=girdle*rig.DetailedBodySkin.GetBindPose(ResidentRig.GirdleBone(side));
             for(int span=1;span<ResidentRig.SleeveSpans;span++)for(int family=0;family<2;family++)
             {
                 float fraction=(float)span/ResidentRig.SleeveSpans;int bone=ResidentRig.SleeveSupportBone(side,span,family==1);
-                var centre=rest.Lerp(shoulder,fraction)+(family==1?ResidentRig.SleeveCapCorrection(rotation,fraction):Vector3.Zero);
-                transforms[bone]=new Transform3D(new Basis(Quaternion.Identity.Slerp(rotation,fraction)),centre)*rig.DetailedBodySkin.GetBindPose(bone);
+                var centre=shoulder+(family==1?ResidentRig.SleeveCapCorrection(rotation,fraction,girdleRotation):Vector3.Zero);
+                transforms[bone]=new Transform3D(new Basis(ResidentRig.SleeveRotation(girdleRotation,rotation,fraction)),centre)*rig.DetailedBodySkin.GetBindPose(bone);
             }
             var posed=new Vector3[source.Length];var blends=new Transform3D[source.Length];var active=new float[source.Length];
             for(int i=0;i<source.Length;i++)
@@ -124,7 +126,7 @@ internal sealed partial class NatureModels
             for(int i=0;i<source.Length;i++)
             {
                 bool own=(source[i].X<0)==(side==0);
-                float normalWeight=own&&uv[i].X>=0?1-Mathf.SmoothStep(.22f,.263f,uv[i].X):0;
+                float normalWeight=!own?0:uv[i].X>=0?1-Mathf.SmoothStep(.22f,.263f,uv[i].X):girdleWeights[i];
                 if(normalWeight<=0)continue;
                 var inverse=blends[i].AffineInverse();
                 var corrected=(inverse.Basis*targetNormals[i]).Normalized();

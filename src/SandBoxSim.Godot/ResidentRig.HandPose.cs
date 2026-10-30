@@ -321,12 +321,6 @@ internal partial class ResidentRig
     {
         var rest=ShoulderRest(side);var reach=wrist-rest;
         if(reach.LengthSquared()<.000001f)return rest;
-        float elevation=MathF.Acos(Math.Clamp((upperDirection??reach).Normalized().Dot(Vector3.Down),-1,1));
-        // Bounded shoulder-girdle support, not a clinical scapular solver.
-        // Below 30 degrees the humerus carries most motion; reaching higher
-        // lifts the shoulder slightly, while forward reach protracts it.
-        float lift=Mathf.SmoothStep(Mathf.DegToRad(30),Mathf.DegToRad(105),elevation);
-        float forward=Mathf.SmoothStep(.10f,.40f,-reach.Z);
-        return rest+new Vector3((side==0?-1:1)*.004f*lift,.020f*lift,-.014f*forward);
+        return ShoulderGirdle(side,upperDirection??reach).Origin;
     }
 }

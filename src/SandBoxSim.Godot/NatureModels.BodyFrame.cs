@@ -161,11 +161,35 @@ internal sealed partial class NatureModels
                 FitUpperArmSupport(points,pattern,sleeveDistance);
                 sleeveDistance=SleeveDistances(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
             }
+            var girdle=tailored&&sleeveDistance.Length==points.Length
+                ?GirdleWeights(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern):Array.Empty<float>();
+            var sleeveInfluence=girdle.Length==points.Length
+                ?SleeveInfluences(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern,sleeveDistance):Array.Empty<float>();
             if(bones.Length==points.Length*4)
                 for(int i=0;i<points.Length;i++)
                 {
+                    if(girdle.Length==points.Length&&pattern[i].X<=0)
+                    {
+                        // Chest panels follow the shoulder platform, never
+                        // the humerus. Carrying old arm weights into this
+                        // region adds humeral swing to scapular rotation and
+                        // pulls the lower axilla into a wing.
+                        float g=girdle[i];bones[i*4]=0;bones[i*4+1]=ResidentRig.GirdleBone(points[i].X<0?0:1);
+                        bones[i*4+2]=bones[i*4+3]=0;weights[i*4]=1-g;weights[i*4+1]=g;weights[i*4+2]=weights[i*4+3]=0;
+                        continue;
+                    }
                     float arm=0;for(int j=0;j<4;j++)if(bones[i*4+j] is 1 or 2)arm+=weights[i*4+j];
-                    if(arm<=0)continue;arm=Math.Clamp(arm,0,1);
+                    if(sleeveInfluence.Length==points.Length)arm=sleeveInfluence[i];
+                    if(arm<=0)
+                    {
+                        if(girdle.Length==points.Length)
+                        {
+                            float g=girdle[i];bones[i*4]=0;bones[i*4+1]=ResidentRig.GirdleBone(points[i].X<0?0:1);
+                            bones[i*4+2]=bones[i*4+3]=0;weights[i*4]=1-g;weights[i*4+1]=g;weights[i*4+2]=weights[i*4+3]=0;
+                        }
+                        continue;
+                    }
+                    arm=Math.Clamp(arm,0,1);
                     int side=points[i].X<0?0:1;
                     if(arm>=.999999f)
                     {
@@ -177,10 +201,10 @@ internal sealed partial class NatureModels
                     float scaled=ResidentRig.SleeveSpans*arm;
                     int segment=Math.Min(ResidentRig.SleeveSpans-1,(int)scaled);
                     float t=scaled-segment;
-                    int lower=segment==0?0:ResidentRig.SleeveSupportBone(side,segment);
+                    int lower=segment==0?ResidentRig.GirdleBone(side):ResidentRig.SleeveSupportBone(side,segment);
                     int upper=segment==ResidentRig.SleeveSpans-1?side+1:ResidentRig.SleeveSupportBone(side,segment+1);
                     bones[i*4]=0;bones[i*4+1]=lower;bones[i*4+2]=upper;bones[i*4+3]=0;
-                    weights[i*4]=segment==0?1-t:0;weights[i*4+1]=segment==0?0:1-t;
+                    weights[i*4]=0;weights[i*4+1]=1-t;
                     weights[i*4+2]=t;weights[i*4+3]=0;
                     if(pattern.Length==points.Length&&pattern[i].X>0)
                     {
@@ -188,11 +212,19 @@ internal sealed partial class NatureModels
                         // the sleeve, not to the adjacent chest. Fade it in
                         // using sewn distances, continuously from the seam.
                         float gather=Math.Clamp(sleeveDistance[i]/.263f,0,1);
-                        int lowerCap=segment==0?0:ResidentRig.SleeveSupportBone(side,segment,true);
+                        int lowerCap=segment==0?ResidentRig.GirdleBone(side):ResidentRig.SleeveSupportBone(side,segment,true);
                         int upperCap=segment==ResidentRig.SleeveSpans-1?side+1:ResidentRig.SleeveSupportBone(side,segment+1,true);
                         bones[i*4]=lower;bones[i*4+1]=upper;bones[i*4+2]=lowerCap;bones[i*4+3]=upperCap;
                         weights[i*4]=(1-t)*(1-gather);weights[i*4+1]=t*(1-gather);
                         weights[i*4+2]=(1-t)*gather;weights[i*4+3]=t*gather;
+                    }
+                    else if(segment==0)
+                    {
+                        // Only the torso's residual fraction blends from the
+                        // fixed chest to its shoulder platform. Sleeve roots
+                        // use the same platform as the shared armhole.
+                        float g=girdle.Length==points.Length?girdle[i]:0;
+                        weights[i*4]=(1-t)*(1-g);weights[i*4+1]=(1-t)*g;
                     }
                 }
             if(tailored&&bones.Length==points.Length*4)
@@ -271,6 +303,13 @@ internal sealed partial class NatureModels
             {
                 int bone=ResidentRig.SleeveSupportBone(side,span,family==1);var rest=rig.ShoulderRest(side);
                 rig.ShoulderSkeleton.AddBone((side==0?"Left":"Right")+(family==0?"SleeveSupport":"SleeveCap")+span);
+                rig.ShoulderSkeleton.SetBoneParent(bone,0);rig.ShoulderSkeleton.SetBoneRest(bone,new Transform3D(Basis.Identity,rest));
+                skin.AddBind(bone,new Transform3D(Basis.Identity,-rest));
+            }
+            for(int side=0;side<2;side++)
+            {
+                int bone=ResidentRig.GirdleBone(side);var rest=rig.ShoulderRest(side);
+                rig.ShoulderSkeleton.AddBone((side==0?"Left":"Right")+"ShoulderGirdle");
                 rig.ShoulderSkeleton.SetBoneParent(bone,0);rig.ShoulderSkeleton.SetBoneRest(bone,new Transform3D(Basis.Identity,rest));
                 skin.AddBind(bone,new Transform3D(Basis.Identity,-rest));
             }

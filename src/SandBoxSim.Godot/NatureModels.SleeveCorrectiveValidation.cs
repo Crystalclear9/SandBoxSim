@@ -55,7 +55,7 @@ internal sealed partial class NatureModels
                 // Both arms simultaneously: normalized shapes must remain
                 // additive when their combined weights exceed one. Compare
                 // with the engine's own morph bake, not only our formula.
-                for(int shape=0;shape<ResidentRig.SleevePoseCount;shape++)rig.BodySkin.SetBlendShapeValue(shape,shape%6==1?.6f:shape%6==3?.4f:0);
+                for(int shape=0;shape<ResidentRig.SleevePoseCount;shape++)rig.BodySkin.SetBlendShapeValue(shape,shape%ResidentRig.SleevePosesPerSide==4?.6f:shape%ResidentRig.SleevePosesPerSide==10?.4f:0);
                 var expected=CorrectedSleeveSource(rig,source);
                 using(var baked=rig.BodySkin.BakeMeshFromCurrentBlendShapeMix())
                 {
@@ -84,7 +84,7 @@ internal sealed partial class NatureModels
                 }
                 rig.SetHandDetail(false);rig.StudyArmElevation(1f/60,1.5f,.4f);rig.SetHandDetail(true);
                 float total=0;
-                for(int shape=6;shape<ResidentRig.SleevePoseCount;shape++)total+=rig.BodySkin.GetBlendShapeValue(shape);
+                for(int shape=ResidentRig.SleevePosesPerSide;shape<ResidentRig.SleevePoseCount;shape++)total+=rig.BodySkin.GetBlendShapeValue(shape);
                 if(total<.5f)throw new InvalidOperationException("LOD recovery lost the displayed sleeve corrective weights");
                 var frozen=new float[ResidentRig.SleevePoseCount];
                 for(int i=0;i<frozen.Length;i++)frozen[i]=rig.BodySkin.GetBlendShapeValue(i);

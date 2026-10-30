@@ -28,7 +28,7 @@ internal partial class ResidentRig : Node3D
     internal bool HasShoulderSupports;
     internal const int SleeveSpans=4;
     internal static int SleeveSupportBone(int side,int span,bool corrected=false)=>4+(corrected?2*(SleeveSpans-1):0)+(span-1)*2+side;
-    internal const int SupportedBodyBones=4+4*(SleeveSpans-1);
+    internal const int SupportedBodyBones=6+4*(SleeveSpans-1);
     public readonly Skeleton3D[] HandSkeletons=new Skeleton3D[2];
     public Mesh ShoulderGeometry=null!,DetailedBodyMesh=null!,DistantBodyMesh=null!;
     public Skin DetailedBodySkin=null!;

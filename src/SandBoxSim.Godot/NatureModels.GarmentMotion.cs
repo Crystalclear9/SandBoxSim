@@ -48,7 +48,9 @@ internal sealed partial class NatureModels
                             var expected=rig.Arms[side].Transform*rig.DetailedBodySkin.GetBindPose(side+1);
                             if(!transforms[side+1].IsEqualApprox(expected))throw new InvalidOperationException("Garment skeleton does not match the actual upper-arm pose");
                             float excursion=rig.Arms[side].Position.DistanceTo(rig.ShoulderRest(side));
-                            if(excursion>.026f)throw new InvalidOperationException("Shoulder girdle exceeds its bounded reach support");
+                            // At eight degrees of elevation/retraction the
+                            // fitted clavicle endpoint stays within 4 cm.
+                            if(excursion>.040f)throw new InvalidOperationException("Shoulder girdle exceeds its clavicular arc");
                             shoulderExcursion=MathF.Max(shoulderExcursion,excursion);
                         }
                         for(int i=0;i<source.Length;i++)
@@ -62,7 +64,9 @@ internal sealed partial class NatureModels
                             // an ideal sum=1 that introduces a 10–20 μm error.
                             var trunk=Vector3.Zero;
                             for(int j=0;j<4;j++)trunk+=(bones[i*4+j]==3?rig.PelvicClothPose*source[i]:source[i])*weights[i*4+j];
-                            if((MathF.Abs(source[i].X)<.04f||source[i].Y<.90f||(source[i].Y>1.25f&&seam[i].X<=0))&&point.DistanceTo(trunk)>.000002f)
+                            // The outer shoulder panel now follows the girdle;
+                            // only the actual neck opening stays fixed above.
+                            if((MathF.Abs(source[i].X)<.04f||source[i].Y<.90f)&&point.DistanceTo(trunk)>.000002f)
                                 throw new InvalidOperationException($"Arm motion pulls the garment centre, neckline or pelvic waist: {identity}/{job}/{action}, source={source[i]}, posed={point}, expected={trunk}, weights={weights[i*4]}/{weights[i*4+1]}/{weights[i*4+2]}/{weights[i*4+3]}");
                             if(seam[i].X<0&&source[i].Y<ResidentRig.BodyY(1.18f)-.10f&&point.DistanceTo(trunk)>.035f)
                                 throw new InvalidOperationException("Arm motion drags the lower side chest into a wing");

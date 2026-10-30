@@ -11,6 +11,7 @@ internal sealed partial class NatureModels
     // can satisfy every endpoint test while rolling the sleeve through 180掳.
     private void ValidateShoulderMotion()
     {
+        ValidateGirdleMotion();
         ValidateSleeveCorrectives();
         ValidateShoulderFit();
         ValidateElevationSurface();
@@ -94,11 +95,14 @@ internal sealed partial class NatureModels
     }
     private static void ValidateSleeveSupport(ResidentRig rig,int side)
     {
+        if(!rig.ShoulderSkeleton.GetBonePose(ResidentRig.GirdleBone(side)).IsEqualApprox(rig.DisplayedGirdle(side)))
+            throw new InvalidOperationException("Rendered shoulder platform does not track the displayed arm");
         for(int family=0;family<2;family++)for(int span=1;span<ResidentRig.SleeveSpans;span++)
         {
             int bone=ResidentRig.SleeveSupportBone(side,span,family==1);float fraction=(float)span/ResidentRig.SleeveSpans;var pose=rig.ShoulderSkeleton.GetBonePose(bone);var arm=rig.Arms[side].Transform;
-            var rotation=Quaternion.Identity.Slerp(arm.Basis.GetRotationQuaternion(),fraction);
-            var centre=rig.ShoulderRest(side).Lerp(arm.Origin,fraction)+(family==1?ResidentRig.SleeveCapCorrection(arm.Basis.GetRotationQuaternion(),fraction):Vector3.Zero);
+            var girdle=rig.DisplayedGirdle(side).Basis.GetRotationQuaternion();
+            var rotation=ResidentRig.SleeveRotation(girdle,arm.Basis.GetRotationQuaternion(),fraction);
+            var centre=arm.Origin+(family==1?ResidentRig.SleeveCapCorrection(arm.Basis.GetRotationQuaternion(),fraction,girdle):Vector3.Zero);
             if(pose.Origin.DistanceTo(centre)>.00001f||MathF.Abs(rotation.Dot(pose.Basis.GetRotationQuaternion()))<.99999f)
                 throw new InvalidOperationException("Intermediate sleeve pose does not track the displayed arm");
             var transformed=pose*rig.DetailedBodySkin.GetBindPose(bone);
