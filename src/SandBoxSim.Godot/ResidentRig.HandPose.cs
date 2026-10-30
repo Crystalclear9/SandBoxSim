@@ -120,7 +120,11 @@ internal partial class ResidentRig
         var rotation=kind==ResidentTool.Hammer
             ?new Basis(Vector3.Right,.15f+lift*.90f)*new Basis(Vector3.Up,-1.35f)*new Basis(Vector3.Right,MathF.PI)
             :Basis.FromEuler(new Vector3(.55f+lift*1.05f,arc*.08f,.45f));
-        return (new((kind==ResidentTool.Hammer?.20f:.10f)+arc*.025f,.92f+lift*.26f,-.30f+lift*.10f+arc*.028f),rotation);
+        // The hammer head points back toward the character at the apex.
+        // Keep its hand path in front of the chest instead of drawing the
+        // head inward toward the cheek while lifting it.
+        float depth=-.30f+lift*(kind==ResidentTool.Hammer?-.06f:.10f)+arc*.028f;
+        return (new((kind==ResidentTool.Hammer?.20f:.10f)+arc*.025f,.92f+lift*.26f,depth),rotation);
     }
     // Zero velocity and acceleration at both ends of an intentional reach.
     internal static float ReachEase(float t){t=Math.Clamp(t,0,1);return t*t*t*(10+t*(-15+6*t));}

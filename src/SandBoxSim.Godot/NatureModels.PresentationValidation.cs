@@ -62,6 +62,17 @@ internal sealed partial class NatureModels
     }
     private void ValidateEffortPresentation()
     {
+        var profile=Resident(17,false,JobType.Builder);
+        try
+        {
+            float peak=0;for(int i=0;i<2000;i++)if(profile.WorkLift(i/2000f)>profile.WorkLift(peak))peak=i/2000f;
+            if(profile.WorkLift(peak)-profile.WorkLift(peak-.02f)<.001f||profile.WorkLift(peak)-profile.WorkLift(peak+.02f)<.001f)
+                throw new InvalidOperationException("Work apex still holds a flat key pose");
+            if(MathF.Abs(profile.WorkLift(-.001f)-profile.WorkLift(.999f))>.00001f||
+                MathF.Abs(profile.WorkLift(.001f)-profile.WorkLift(1.001f))>.00001f)
+                throw new InvalidOperationException("Work cycle is discontinuous at its wrap");
+        }
+        finally{profile.Free();}
         var rigs=new[]{Resident(17,false,JobType.Builder),Resident(55,false,JobType.Builder),Resident(55,false,JobType.Builder)};
         int[] peaks=new int[3];float[] lean=new float[3];
         try

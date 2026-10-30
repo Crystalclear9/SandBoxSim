@@ -18,12 +18,14 @@ internal partial class ResidentRig
         MathF.Max(.65f,WorkCapacity)*(1+.20f*_workFatigue+.15f*(1-_workHealth)),.60f,1.70f);
     private float WorkPeriod=>(CurrentTool==ResidentTool.Hoe?1.55f:CurrentTool==ResidentTool.Pick?1.35f:CurrentTool==ResidentTool.Axe?1.25f:1.05f)*
         (1+.18f*(RelativeWorkLoad-1)+.20f*_workFatigue);
-    private float WorkLift(float phase)
+    internal float WorkLift(float phase)
     {
-        float t=Mathf.PosMod(phase,1),prepare=.48f+.055f*RelativeWorkLoad;
-        if(t<prepare)return ReachEase(t/prepare);
-        if(t<.79f)return 1-ReachEase((t-prepare)/(.79f-prepare));
-        // Small absorption and recovery after contact; no frozen final quarter.
-        return -.045f*MathF.Sin(MathF.PI*ReachEase((t-.79f)/.21f));
+        float t=Mathf.PosMod(phase,1);
+        // A periodic phase warp gives a longer preparation and shorter return.
+        // Unlike concatenated quintic segments, the apex has nonzero curvature:
+        // the limb reverses direction without settling into a held key pose.
+        float skew=.30f+.06f*(RelativeWorkLoad-1);
+        float cycle=t-skew*(1-MathF.Cos(MathF.Tau*t))/MathF.Tau;
+        return .5f-.5f*MathF.Cos(MathF.Tau*cycle);
     }
 }

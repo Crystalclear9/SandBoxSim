@@ -217,8 +217,11 @@ internal partial class ResidentRig : Node3D
             (1-_activity)*(1-Smooth(_pickupBlend)));
         float effort=executing&&usingTool?(.5f-WorkLift(_strokePhase+.035f))*.045f*RelativeWorkLoad*Smooth(_workBlend):0;
         float desiredLean=resting?-.16f:Mathf.Lerp(usingTool?-.035f-.065f*Smooth(_workBlend)-effort:-.025f*_activity+.007f*MathF.Sin(_phase*.53f+identityPhase)*(1-_activity),-.58f,Smooth(_pickupBlend));
+        float bareParticipation=Smooth(_bareBlend)*(1-Smooth(_pickupBlend));
+        float reachLean=-Math.Clamp(-_previousHands[1].Origin.Z-.12f,0,.26f)*.12f*bareParticipation;
+        float reachTurn=Math.Clamp(_previousHands[1].Origin.X,-.22f,.22f)*.09f*bareParticipation;
         var torsoAngles=Torso.Rotation;
-        DampMotion(ref torsoAngles,ref _torsoVelocity,new(desiredLean,(usingTool?effort*1.8f:0)+wave*GaitPelvisYaw*.65f*gaitWeight+_gaitTurn*.16f*gaitWeight,MathF.Sin(_gaitCycle*MathF.Tau)*GaitPelvisRoll*.35f*gaitWeight),.060f,delta);
+        DampMotion(ref torsoAngles,ref _torsoVelocity,new(desiredLean+reachLean,(usingTool?effort*1.8f:0)+reachTurn+wave*GaitPelvisYaw*.85f*gaitWeight+_gaitTurn*.16f*gaitWeight,MathF.Sin(_gaitCycle*MathF.Tau)*GaitPelvisRoll*.35f*gaitWeight),.060f,delta);
         var torsoBasis=Basis.FromEuler(torsoAngles);
         var restSupport=RestSupport(delta,!moving&&_activity<.001f&&!usingTool&&!resting&&!pickup,identityPhase);
         var gaitOffset=_gaitOffset*(1-Smooth(_pickupBlend))*(resting?0:1);

@@ -14,13 +14,13 @@ internal partial class ResidentRig
         // Opposite arm and leg, with a small forearm lag. Elbow flexion grows
         // during the forward arm excursion, not while the arm is behind us.
         float phase=_gaitCycle*MathF.Tau+side*MathF.PI;
-        float forward=-MathF.Cos(phase-.10f),lag=-MathF.Cos(phase-.32f);
+        float forward=-MathF.Cos(phase-.10f),lag=-MathF.Cos(phase-.38f);
         float speedScale=.74f+.24f*MathF.Min(_gaitSpeed,1.7f);
-        float amplitude=(GaitArmSwing*.67f+GaitIndividual*.012f)*(1-.12f*_workFatigue)*speedScale;
+        float amplitude=(GaitArmSwing*.74f+GaitIndividual*.012f)*(1-.12f*_workFatigue)*speedScale;
         float outside=.040f+ArmRestClearance*.50f+.010f*_activity;
-        var shoulderTarget=new Vector3(-.045f+forward*amplitude*_activity,-mirror*.055f,-mirror*outside);
-        float follow=.055f+.075f*lag+.012f*MathF.Cos(phase*2-.80f);
-        var forearmTarget=new Vector3(.19f+follow*_activity*speedScale,mirror*1.40f,0);
+        var shoulderTarget=new Vector3(-.025f+forward*amplitude*_activity,-mirror*.055f,-mirror*outside);
+        float follow=.045f+.090f*lag+.014f*MathF.Cos(phase*2-.80f);
+        var forearmTarget=new Vector3(.17f+follow*_activity*speedScale,mirror*1.40f,0);
         // Filter free-motion targets independently of solved interaction joints.
         // This retains momentum without pulling an attached tool off its grip.
         DampMotion(ref _freeShoulder[side],ref _freeShoulderVelocity[side],shoulderTarget,.055f,dt);
