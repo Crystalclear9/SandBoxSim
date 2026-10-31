@@ -44,7 +44,7 @@ def joint(points,name):
 reference=joint(body('male'),'joint-l-shoulder').x
 for sex in ('male','female'):
     points=body(sex);hip=joint(points,'joint-l-upper-leg');knee=joint(points,'joint-l-knee')
-    half=.122 if sex=='female' else .100
+    half=.100 # Shared neutral stance; source pelvis volume remains independent.
     used=sorted({i for face in faces for i in face});lookup={v:i for i,v in enumerate(used)}
     support_path=Path(__file__).resolve().parents[1]/('src/SandBoxSim.Godot/assets/models/human/trunk-'+('feminine' if sex=='female' else 'masculine')+'-cage.json')
     support=json.loads(support_path.read_text());radii=support['radii']
@@ -65,7 +65,7 @@ for sex in ('male','female'):
         z=-(p.z-(hip.z*(1-t)+knee.z*t))*.1
         r=math.hypot(x,z);blend=min(1,max(0,(y-.70)/.07));blend=blend*blend*(3-2*blend)
         if r>1e-8:
-            fit=min(1,max(.04,radius(y,math.atan2(z,x))-.010)/r)
+            fit=min(1.30,max(.04,radius(y,math.atan2(z,x))+.007)/r)
             factor=1+(fit-1)*blend;x*=factor;z*=factor
         # Bury open knee cuffs inside the existing boot rim.
         cuff=1-min(1,max(0,(y-.40)/.09));cuff=cuff*cuff*(3-2*cuff)
@@ -74,23 +74,22 @@ for sex in ('male','female'):
         if length>1e-8:
             x=x*(1-cuff)+(centre_x+(x-centre_x)/length)*cuff
             z=z*(1-cuff)+(z/length)*cuff
-        # Keep the CC0 topology and anatomical surface, but restore a continuous
-        # iliac/gluteal envelope instead of a pair of similarly thick thigh tubes.
-        # These are clothing/art parameters, not population measurements.
-        upper=math.exp(-((y-.63)/.105)**2)
+        # Dress the source thigh with a small cloth clearance. Keep the
+        # inseam and buried boot opening clear; the source pelvic/gluteal
+        # form needs no additional sex-dependent volume displacement.
         centre_x=(1 if x>=0 else -1)*half
-        x=centre_x+(x-centre_x)*(1-(.11 if sex=='female' else .025)*upper)
-        if z<0:z*=1-(.105 if sex=='female' else .015)*upper
-        if sex=='female':
-            pelvis=math.exp(-((y-.775)/.105)**2)
-            x+=.034*math.tanh(x/.065)*pelvis
-            back=min(1.,max(0.,z/.055));back=back*back*(3-2*back)
-            z+=.033*back*pelvis
-        else:
-            back=min(1.,max(0.,z/.055));back=back*back*(3-2*back)
-            z+=.005*back*math.exp(-((y-.775)/.105)**2)
-            front=min(1.,max(0.,-z/.06));front=front*front*(3-2*front)
-            z-=.004*front*upper*(1-cuff)
+        dx=x-centre_x;radial=math.hypot(dx,z)
+        edge=min(1.,max(0.,(abs(x)-.035)/.045));edge=edge*edge*(3-2*edge)
+        lower=1-min(1.,max(0.,(y-.71)/.12));lower=lower*lower*(3-2*lower)
+        clearance=.007*edge*lower*(1-cuff)
+        if radial>1e-8:
+            # Compression folds terminate near the hip/boot supports, rather
+            # than adding a periodic ripple to the whole leg.
+            front=max(0.,-z/radial)**2
+            hip_fold=.0025*math.exp(-math.pow((y-(.735-.35*abs(dx)))/.013,2))
+            knee_fold=.0020*math.exp(-math.pow((y-(.475+.18*dx))/.012,2))
+            fold=front*(hip_fold-knee_fold)*(1-cuff)
+            x+=dx/radial*(clearance+fold);z+=z/radial*(clearance+fold)
         mapped.append((x,y,z))
     mesh=bpy.data.meshes.new('trousers');mesh.from_pydata(mapped,[],[tuple(lookup[i] for i in f) for f in faces]);mesh.update()
     bm=bmesh.new();bm.from_mesh(mesh)
@@ -117,7 +116,7 @@ for sex in ('male','female'):
     result=bpy.data.meshes.new_from_object(evaluated)
     bm=bmesh.new();bm.from_mesh(result);bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces));bm.to_mesh(result);bm.free()
     result.update();result.calc_loop_triangles()
-    data=dict(schemaVersion=2,source='MakeHuman CC0 HM08 helper-tights',frame=sex,hipHalfWidth=half,jointCount=5,cuffSkin='knee-transition-v1',physique='adult-proportions-v13',
+    data=dict(schemaVersion=2,source='MakeHuman CC0 HM08 helper-tights',frame=sex,hipHalfWidth=half,jointCount=5,cuffSkin='knee-transition-v1',physique='source-tailoring-v16',tailoring=dict(thighEaseMetres=.007,maximumFoldMetres=.0025,pelvis='source-envelope',bootOpening='pinned'),
         sourceSha256={name:manifest[name]['sha256'] for name in ('base.obj','basemesh_vertex_groups.json',f'caucasian-{sex}-young.target','caucasian-male-young.target')},
         supportSha256=hashlib.sha256(support_path.read_bytes().replace(b'\r\n',b'\n')).hexdigest(),positions=[],normals=[],uv=[],bones=[],weights=[],indices=[])
     for v in result.vertices:
@@ -132,6 +131,7 @@ for sex in ('male','female'):
             data['weights']+=[round((1-knee)*(1-side),7),round((1-knee)*side,7),round(knee*(1-side),7),round(knee*side,7)]
         else:
             data['bones']+=[0,1,2,0];data['weights']+=[round(1-t,7),round(t*(1-side),7),round(t*side,7),0]
+    if any(abs(v.co.x)>.26 or abs(v.co.z)>.20 or not .3849<=v.co.y<=.9401 for v in result.vertices):raise ValueError('Trouser deformation escaped the metric body envelope')
     for tri in result.loop_triangles:data['indices']+= [tri.vertices[0],tri.vertices[2],tri.vertices[1]]
     if not data['indices'] or len(data['indices'])//3>10000:raise ValueError('Trouser budget exceeded')
     target=out/f'trousers-{sex}.mesh.json'

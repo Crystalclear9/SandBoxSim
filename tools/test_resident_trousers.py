@@ -14,17 +14,23 @@ class TrouserTests(unittest.TestCase):
             points=list(zip(*(iter(data[sex]['positions']),)*3))
             rows=[p for p in points if abs(p[1]-y)<.008]
             return max(p[0] for p in rows)-min(p[0] for p in rows),max(p[2] for p in rows)
-        for sex in data:self.assertEqual(data[sex]['physique'],'adult-proportions-v13')
+        for sex in data:
+            self.assertEqual(data[sex]['physique'],'source-tailoring-v16')
+            self.assertEqual(data[sex]['tailoring']['pelvis'],'source-envelope')
+            points=list(zip(*(iter(data[sex]['positions']),)*3))
+            self.assertTrue(all(abs(x)<.26 and .3849<=y<=.9401 and abs(z)<.20 for x,y,z in points))
+            support=json.loads((ROOT/('trunk-'+('feminine' if sex=='female' else 'masculine')+'-cage.json')).read_text())
+            row=round((.78-.74)/.005);radii=support['radii'];expected=radii[row*128]+radii[row*128+64]+.014
+            self.assertLess(abs(section(sex,.78)[0]-expected),.018)
         male,back_m=section('male',.78);female,back_f=section('female',.78)
-        self.assertGreater(female/male,1.20)
-        self.assertGreater(back_f-back_m,.012)
+        self.assertGreater(female,male)
         self.assertGreater(section('female',.78)[0],section('female',.64)[0])
         self.assertEqual(data['male']['hipHalfWidth'],.10)
-        self.assertEqual(data['female']['hipHalfWidth'],.122)
+        self.assertEqual(data['female']['hipHalfWidth'],.10)
 
     def test_provenance_and_connected_clothing(self):
         manifest=json.loads((ROOT/'head-sources.json').read_text())['files']
-        for sex,sha in [('male','ca7bae401aad82e94016ea190e472e17fc7934a85a3a727dd455e4d0a9c27658'),('female','3159ec553da44d982f32f19bda62eed5a881e86bb2c8fafa614f28431d49cc6a')]:
+        for sex,sha in [('male','62a3c8ecbff53566f692f10c450fa75f2ee62357abf5e903251e1afd9d3bcf95'),('female','adcb2e8faa457d2ce6f00e33c73a3de4dccdb9cdf7ea0d0156561d12a967d571')]:
             raw=(ROOT/f'trousers-{sex}.mesh.json').read_bytes().replace(b'\r\n',b'\n');self.assertEqual(hashlib.sha256(raw).hexdigest(),sha)
             data=json.loads(raw);count=len(data['positions'])//3
             for name,digest in data['sourceSha256'].items():self.assertEqual(digest,manifest[name]['sha256'])

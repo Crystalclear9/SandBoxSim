@@ -6,7 +6,7 @@ namespace SandBoxSim.Client;
 
 internal partial class ResidentRig
 {
-    internal static float PelvicClothWeight(float y)=>1-Mathf.SmoothStep(.86f,1.12f,y);
+    internal static float PelvicClothWeight(float y)=>1-Mathf.SmoothStep(.94f,1.12f,y);
     internal Transform3D PelvicClothPose=Transform3D.Identity;
     internal Transform3D LowerGarmentFrame=Transform3D.Identity;
     private readonly List<(Node3D Mount,Transform3D Bind)> _bodyMounts=new();

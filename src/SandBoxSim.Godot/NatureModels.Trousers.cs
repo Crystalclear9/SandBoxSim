@@ -12,7 +12,7 @@ internal sealed partial class NatureModels
         if(_meshes.TryGetValue(key,out var cached))return cached;
         string raw=FileAccess.GetFileAsString("res://assets/models/human/trousers-"+frame+".mesh.json").Replace("\r\n","\n",StringComparison.Ordinal);
         string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
-        if(hash!=(BodyFrame==1?"3159ec553da44d982f32f19bda62eed5a881e86bb2c8fafa614f28431d49cc6a":"ca7bae401aad82e94016ea190e472e17fc7934a85a3a727dd455e4d0a9c27658"))
+        if(hash!=(BodyFrame==1?"adcb2e8faa457d2ce6f00e33c73a3de4dccdb9cdf7ea0d0156561d12a967d571":"62a3c8ecbff53566f692f10c450fa75f2ee62357abf5e903251e1afd9d3bcf95"))
             throw new InvalidOperationException("Changed source trousers");
         using var doc=JsonDocument.Parse(raw);var data=doc.RootElement;
         float[] Floats(string field){var a=new float[data.GetProperty(field).GetArrayLength()];int i=0;foreach(var v in data.GetProperty(field).EnumerateArray())a[i++]=v.GetSingle();return a;}
@@ -25,7 +25,7 @@ internal sealed partial class NatureModels
         {
             points[i]=new(p[i*3],p[i*3+1],p[i*3+2]);normals[i]=new(n[i*3],n[i*3+1],n[i*3+2]);coords[i]=new(uv[i*2],uv[i*2+1]);
             float total=0;for(int j=0;j<4;j++){int k=i*4+j;if(b[k]<0||b[k]>4||!float.IsFinite(w[k])||w[k]<0)throw new InvalidOperationException("Invalid trouser weight");total+=w[k];}
-            if(!points[i].IsFinite()||!normals[i].IsFinite()||MathF.Abs(normals[i].Length()-1)>.01f||MathF.Abs(total-1)>.0001f)
+            if(!points[i].IsFinite()||MathF.Abs(points[i].X)>.26f||MathF.Abs(points[i].Z)>.20f||points[i].Y<.3849f||points[i].Y>.9401f||!normals[i].IsFinite()||MathF.Abs(normals[i].Length()-1)>.01f||MathF.Abs(total-1)>.0001f)
                 throw new InvalidOperationException("Invalid trouser geometry");
         }
         foreach(int id in ids)if(id<0||id>=count)throw new InvalidOperationException("Invalid trouser index");
@@ -53,6 +53,14 @@ internal sealed partial class NatureModels
         }
         skeleton.ResetBonePoses();
         rig.Trousers=new MeshInstance3D {Name="ContinuousTrousers",Mesh=ContinuousTrousers(),Skin=skin,Skeleton=new NodePath("../TrouserSkeleton")};rig.AddChild(rig.Trousers);
+        // Fit the unloaded arm clearance to the actual clothed thigh, not
+        // a sex-specific joint-spacing proxy. Reserve palm width and ease.
+        var points=rig.Trousers.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        float wristHeight=rig.ShoulderRest(1).Y-.28f-rig.Hands[1].Position.Length(),half=0;
+        foreach(var point in points)if(MathF.Abs(point.Y-wristHeight)<.04f)half=MathF.Max(half,MathF.Abs(point.X));
+        if(half<=0)throw new InvalidOperationException("Missing actual thigh section for resting arm clearance");
+        float spread=MathF.Asin(Math.Clamp((half+.034f-rig.ShoulderHalfWidth)/(.28f+rig.Hands[1].Position.Length()),0,.3f));
+        rig.ArmRestClearance=MathF.Max(0,2*(spread-.040f));
         rig.SyncTrousers();
     }
     private void ValidateContinuousTrousers()

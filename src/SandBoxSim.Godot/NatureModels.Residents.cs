@@ -271,11 +271,11 @@ internal sealed partial class NatureModels
         if (child) { rig.Scale = new Vector3(.72f, .65f, .72f); rig.Head.Scale = Vector3.One * 1.15f; }
         else
         {
-            // Local chest/waist/pelvis fitting provides the silhouette. Keep
-            // outer width close enough that it does not erase the hip volume.
-            float frame=HumanFamily==2?.94f:.98f;
-            rig.Scale = new Vector3(frame*(1 + ((variation >> 8) % 5 - 2f) * .0125f), 1.005f + ((variation >> 12) % 5) * .012f, 1);
-            rig.Head.Scale*=new Vector3(1/rig.Scale.X,1,1);
+            // Fit the source anatomy once. Height variation scales the whole
+            // body coherently instead of narrowing X while stretching Y and
+            // compensating the head with another inverse scale.
+            float stature=1.005f+((variation>>12)%5)*.012f;
+            rig.Scale=Vector3.One*stature;
         }
         rig.WorkCapacity=(BodyFrame==1?.94f:1.03f)+(((variation>>20)%9)-4f)*.035f;
         rig.GaitIndividual=(((variation>>10)%11)-5f)/5;

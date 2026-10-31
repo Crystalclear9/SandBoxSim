@@ -124,14 +124,20 @@ internal partial class ResidentRig
             HandProxies[side].Mesh=curl>.5f?HandClosed[side]:HandOpen[side];
         }
     }
-    private static (Vector3,Basis) CarryPose(ResidentTool kind,float stride)
+    private (Vector3,Basis) CarryPose(ResidentTool kind,float stride)
     {
         // The shaft crosses the closed palm's radial axis (the grip has a
         // quarter-turn bind). Keep that bind when lowering the arm; treating
         // the tool axis as the hand's long axis folds the wrist by 90 degrees.
         float yaw=kind==ResidentTool.Hammer?.25f:1.35f;
         var basis=new Basis(Vector3.Up,yaw)*Basis.FromEuler(new Vector3(.08f+stride*.025f,0,1.42f));
-        return (new(.27f,.56f,-.12f+stride*.015f),basis);
+        // PoseFreeArm has established this frame's unloaded FK posture.
+        // Carry at its actual lateral grip, including fitted shoulder/stance
+        // clearance. A shared fixed X forces narrow bodies to reach sideways.
+        var freeWrist=Arms[1].Transform*Elbows[1].Transform*Hands[1].Transform;
+        var desiredHand=basis*Grip!.Basis.Inverse();
+        float lateral=freeWrist.Origin.X+(desiredHand*Grip.Position).X;
+        return (new(lateral/ReachLateralScale,.56f,-.12f+stride*.015f),basis);
     }
     private (Vector3,Basis) WorkPose(ResidentTool kind,float phase)
     {

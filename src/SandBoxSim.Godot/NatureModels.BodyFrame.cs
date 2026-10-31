@@ -70,30 +70,13 @@ internal sealed partial class NatureModels
             // hid the natural waist-to-pelvis transition under a straight box.
             float supportY=MathF.Max(.80f,panelHeight);
             float target=ClothEnvelope(support,supportY,angle);
-            float lateral=MathF.Cos(angle)*MathF.Cos(angle);
-            if(feminine)
-            {
-                float paired=MathF.Exp(-MathF.Pow((MathF.Cos(angle)-.42f)/.35f,2))+MathF.Exp(-MathF.Pow((MathF.Cos(angle)+.42f)/.35f,2));
-                target+=(.012f+.014f*paired)*front*front*MathF.Exp(-MathF.Pow((panelHeight-1.14f)/.085f,2));
-                target-=.003f*lateral*MathF.Exp(-MathF.Pow((panelHeight-1.00f)/.075f,2));
-                target-=.006f*lateral*MathF.Exp(-MathF.Pow((panelHeight-1.065f)/.065f,2));
-                target-=.005f*front*front*MathF.Exp(-MathF.Pow((panelHeight-1.00f)/.075f,2));
-                float back=MathF.Max(0,MathF.Sin(angle));
-                target+=.008f*back*back*MathF.Exp(-MathF.Pow((panelHeight-1.035f)/.13f,2));
-                // The lower panel needs its own ease over the fitted pelvis,
-                // including when pelvis and chest rotate apart during pickup.
-                target+=.005f*back*back*MathF.Exp(-MathF.Pow((panelHeight-.89f)/.09f,2));
-                target+=.003f*lateral*MathF.Exp(-MathF.Pow((panelHeight-.875f)/.085f,2));
-            }
-            else
-            {
-                float rib=MathF.Exp(-MathF.Pow((panelHeight-1.14f)/.095f,2));
-                float waist=MathF.Exp(-MathF.Pow((panelHeight-1.00f)/.085f,2));
-                target+=.018f*lateral*rib-.012f*lateral*waist;
-                target+=.008f*front*front*rib-.004f*front*front*waist;
-                float back=MathF.Max(0,MathF.Sin(angle));
-                target+=.006f*back*back*rib;
-            }
+            // The overlapping shirt is the outer layer. Reserve common
+            // movement ease over the trouser waistband through lumbar flexion,
+            // independently of body sex and its anatomical proportions.
+            target+=.008f*(1-Mathf.SmoothStep(.94f,1.06f,panelHeight));
+            // The source already contains the thorax, waist and pelvic form.
+            // Garment ease is added by ClothEnvelope; applying another chest
+            // bulge or carved waist here duplicates those anatomical features.
             target+=.020f*front*(1-Mathf.SmoothStep(.80f,.94f,panelHeight));
             float ratio=Math.Clamp(target/TrunkSample(GarmentFrameReference(),point.Y,angle),.65f,1.35f);
             ratio=Mathf.Lerp(1,ratio,active);fitted=new(point.X*ratio,point.Y,point.Z*ratio);
@@ -115,11 +98,6 @@ internal sealed partial class NatureModels
                 // A fitted blouse ends above the fullest hip instead of hiding
                 // the pelvis under the same bell-shaped tunic as every worker.
                 result.Y+=panelHeight-point.Y;
-            }
-            else
-            {
-                float lower=(1-Mathf.SmoothStep(.82f,1.03f,point.Y))*Mathf.SmoothStep(.70f,.78f,point.Y);
-                result.X*=1-.14f*lower*(1-upper);
             }
         }
         return result;
@@ -283,17 +261,12 @@ internal sealed partial class NatureModels
         Walk(rig,Transform3D.Identity);
         rig.DetailedBodyMesh=rig.BodySkin.Mesh;
         rig.DistantBodyMesh=FrameMesh(rig.DistantBodyMesh,Transform3D.Identity,true);
-        rig.HipHalfWidth=BodyFrame==1?.122f:.10f;
+        rig.HipHalfWidth=.10f;
         rig.ArmRestClearance=0;
         for(int side=0;side<2;side++)rig.Legs[side].Position=new(side==0?-rig.HipHalfWidth:rig.HipHalfWidth,ResidentRig.HipHeight,0);
         // The fitted sleeve vertices, joint rest and inverse bind must move
         // together. Scaling the mesh alone leaves a male-width moving rig.
         rig.ShoulderHalfWidth=.202f*ArmWidthScale;
-        if(BodyFrame==1)
-        {
-            float spread=MathF.Asin(Math.Clamp((rig.HipHalfWidth+.102f-rig.ShoulderHalfWidth)/(.28f+rig.Hands[1].Position.Length()),0,.3f));
-            rig.ArmRestClearance=MathF.Max(0,2*(spread-.040f));
-        }
         rig.ShoulderDrop=BodyFrame==1?.014f:.009f;
         rig.ShoulderSkeleton.AddBone("PelvicCloth");rig.ShoulderSkeleton.SetBoneParent(3,0);rig.ShoulderSkeleton.SetBoneRest(3,Transform3D.Identity);
         var skin=new Skin();skin.AddBind(0,Transform3D.Identity);
@@ -360,8 +333,8 @@ internal sealed partial class NatureModels
             if(hemRise<.085f||hemRise>.110f||MathF.Abs(Hem(female.DetailedBodyMesh)-.852f)>.002f)
                 throw new InvalidOperationException("Tailored hem loses trouser coverage or retains the common long cut");
             GD.Print($"BODY_CUT_PASS: raised garment hem={hemRise:F4} m, preserved trouser overlap and separate lower-body geometry");
-            if(female.HipHalfWidth<male.HipHalfWidth+.01f||female.Holster.Position.Y<male.Holster.Position.Y+.10f)
-                throw new InvalidOperationException("Adult pelvis span or waist-mounted tool retains the common position");
+            if(MathF.Abs(female.HipHalfWidth-.10f)>.00001f||MathF.Abs(male.HipHalfWidth-.10f)>.00001f||female.Holster.Position.Y<male.Holster.Position.Y+.10f)
+                throw new InvalidOperationException("Neutral stance or waist-mounted tool does not match the fitted clothing");
             if(male.DetailedBodyMesh==female.DetailedBodyMesh||male.DistantBodyMesh==female.DistantBodyMesh)
                 throw new InvalidOperationException("Adult frames share their fitted body cache");
             if(female.ShoulderHalfWidth>=male.ShoulderHalfWidth-.01f||female.DetailedBodySkin==male.DetailedBodySkin)
@@ -373,8 +346,8 @@ internal sealed partial class NatureModels
                 male.SatchelMount.GetChild<MeshInstance3D>(0).Mesh.GetAabb()!=female.SatchelMount.GetChild<MeshInstance3D>(0).Mesh.GetAabb())
                 throw new InvalidOperationException("Body fitting stretches the rigid satchel instead of adapting its mount");
             foreach(var rig in new[]{male,female})
-                if(rig.Scale.X*rig.Head.Scale.X<.985f||rig.Scale.X*rig.Head.Scale.X>1.035f)
-                    throw new InvalidOperationException("Body width distorts the adult head proportions");
+                if(MathF.Abs(rig.Scale.X-rig.Scale.Y)>.00001f||MathF.Abs(rig.Scale.X-rig.Scale.Z)>.00001f||rig.Head.Scale.X<.98f||rig.Head.Scale.X>1.04f)
+                    throw new InvalidOperationException("Stature scaling distorts the adult body or head proportions");
             female.ValidateDistanceMeshes();
             void CheckFrameCaches(Node3D parent)
             {
@@ -476,15 +449,27 @@ internal sealed partial class NatureModels
             float femaleHip=MathF.Max(ClothSectionWidth(f,.78f,femaleDye,true),ClothSectionWidth(female.Trousers!.Mesh,.78f))*female.Scale.X;
             float maleWaist=ClothSectionWidth(m,1.00f,maleDye)*male.Scale.X,femaleWaist=ClothSectionWidth(f,1.00f,femaleDye)*female.Scale.X;
             float maleShoulder=male.ShoulderHalfWidth*2*male.Scale.X,femaleShoulder=female.ShoulderHalfWidth*2*female.Scale.X;
-            if(femaleHip/maleHip<1.09f||femaleHip/maleHip>1.25f||femaleWaist/femaleHip>=maleWaist/maleHip-.14f||
-                femaleShoulder/femaleHip>=maleShoulder/maleHip-.32f)
-                throw new InvalidOperationException($"Adult silhouette difference lost in {(distant?"distant":"near")} mesh: hip {femaleHip/maleHip:F3}, waist/hip {maleWaist/maleHip:F3}/{femaleWaist/femaleHip:F3}, shoulder/hip {maleShoulder/maleHip:F3}/{femaleShoulder/femaleHip:F3}");
-            GD.Print($"ADULT_CONTOUR_SECTION: {(distant?"far":"near")} shoulder/hip={maleShoulder/maleHip:F3}/{femaleShoulder/femaleHip:F3}, waist/hip={maleWaist/maleHip:F3}/{femaleWaist/femaleHip:F3}, hip width={maleHip:F3}/{femaleHip:F3} m");
-            float rib=ClothSectionWidth(m,1.135f,maleDye)*male.Scale.X;
-            float thigh=ClothSectionWidth(female.Trousers!.Mesh,.60f)*female.Scale.X;
-            if(rib/maleWaist<1.24f||femaleHip/thigh<1.12f)
-                throw new InvalidOperationException($"Clothed rib/waist or pelvis/thigh silhouette loses its shape: {rib/maleWaist:F3}/{femaleHip/thigh:F3}");
-            GD.Print($"BODY_SILHOUETTE_PASS: {(distant?"far":"near")}, clothed rib/waist={rib/maleWaist:F3}, pelvis/thigh={femaleHip/thigh:F3}, fixed source joints");
+            // Compare clothing with the same source body instead of forcing
+            // a fixed sex-specific hourglass ratio onto every character.
+            var sourceMale=FrameRadii("trunk-masculine-cage.json","27836b278e247921af480fca63edca7c4d65f11655cb1272a19fb3909e43821c");
+            var sourceFemale=FrameRadii("trunk-feminine-cage.json","0868f6499f700995e3fb0eaea1ed7aea623406fbbfa5486b38a35e5d74d3fcad");
+            float Width(float[] source,float y)=>TrunkSample(source,y,0)+TrunkSample(source,y,MathF.PI);
+            void Check(ResidentRig rig,Mesh body,Color? dye,float[] source)
+            {
+                foreach(float y in new[]{1.00f,1.135f})
+                {
+                    float actual=ClothSectionWidth(body,y,dye),skin=Width(source,y);
+                    if(actual<skin+.008f||actual>skin+.056f)
+                        throw new InvalidOperationException($"Clothing duplicates or cuts through the source trunk at {y}: {actual}/{skin}");
+                }
+                float hip=ClothSectionWidth(rig.Trousers!.Mesh,.78f),expected=Width(source,.78f)+.014f;
+                if(MathF.Abs(hip-expected)>.018f)
+                    throw new InvalidOperationException($"Trouser pelvis departs from its source envelope: {hip}/{expected}");
+            }
+            Check(male,m,maleDye,sourceMale);Check(female,f,femaleDye,sourceFemale);
+            if(femaleShoulder>=maleShoulder||ClothSectionWidth(female.Trousers!.Mesh,.78f)<=ClothSectionWidth(male.Trousers!.Mesh,.78f))
+                throw new InvalidOperationException("Source shoulder/pelvis contrast was lost during clothing or LOD conversion");
+            GD.Print($"ADULT_CONTOUR_SECTION: {(distant?"far":"near")} shoulder/hip={maleShoulder/maleHip:F3}/{femaleShoulder/femaleHip:F3}, waist/hip={maleWaist/maleHip:F3}/{femaleWaist/femaleHip:F3}, hip width={maleHip:F3}/{femaleHip:F3} m; source-bound clothing");
         }
         float Front(Mesh mesh,float y)
         {
@@ -503,9 +488,12 @@ internal sealed partial class NatureModels
         }
         float maleProjection=Front(male.DetailedBodyMesh,1.00f)-Front(male.DetailedBodyMesh,1.135f);
         float femaleProjection=Front(female.DetailedBodyMesh,1.00f)-Front(female.DetailedBodyMesh,1.135f);
-        if(femaleProjection<maleProjection+.012f||femaleProjection>.065f)
-            throw new InvalidOperationException($"Clothed trunk profiles collapse to one shape: {maleProjection:F4}/{femaleProjection:F4} m");
-        GD.Print($"TRUNK_PROFILE_PASS: final chest-to-waist projection={maleProjection:F4}/{femaleProjection:F4} m, fitted waist/tool mounts and distinct pelvis span");
+        var sourceM=FrameRadii("trunk-masculine-cage.json","27836b278e247921af480fca63edca7c4d65f11655cb1272a19fb3909e43821c");
+        var sourceF=FrameRadii("trunk-feminine-cage.json","0868f6499f700995e3fb0eaea1ed7aea623406fbbfa5486b38a35e5d74d3fcad");
+        float ExpectedProjection(float[] source)=>TrunkSample(source,1.135f,-MathF.PI/2)-TrunkSample(source,1.00f,-MathF.PI/2);
+        if(MathF.Abs(maleProjection-ExpectedProjection(sourceM))>.016f||MathF.Abs(femaleProjection-ExpectedProjection(sourceF))>.016f)
+            throw new InvalidOperationException($"Garment adds an artificial chest/waist projection: {maleProjection:F4}/{femaleProjection:F4}");
+        GD.Print($"TRUNK_PROFILE_PASS: source-bound chest-to-waist projection={maleProjection:F4}/{femaleProjection:F4} m, fitted mounts and distinct source pelvis");
         // All eight adult identities use the same smooth mapping for normals
         // and attached facial parts. Test local invertibility across the actual
         // authored skin, rather than only checking a few designed landmarks.
