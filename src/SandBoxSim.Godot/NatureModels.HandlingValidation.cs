@@ -333,11 +333,17 @@ internal sealed partial class NatureModels
                 }
             }
             if(!blinked||transfers!=2||travel<.03f||rig.ToolHeld||rig.CurrentTool!=rig.DefaultTool)
-                throw new InvalidOperationException($"Incomplete take/use/stow cycle: {action}, transfers={transfers}, travel={travel:F4}, blinked={blinked}, held={rig.ToolHeld}, tool={rig.CurrentTool}/{rig.DefaultTool}");
+                throw new InvalidOperationException($"Incomplete take/use/stow cycle: {action}, transfers={transfers}, travel={travel:F4}, blinked={blinked}, held={rig.ToolHeld}, tool={rig.CurrentTool}/{rig.DefaultTool}, handling={rig.Handling}");
             // A different work action must replace the tool after stowing, rather than deadlocking the draw state.
             foreach(var next in new[]{ActionKind.GatherWood,ActionKind.GatherIron,ActionKind.Farm})
             {
-                for(int i=0;i<100;i++)rig.PoseAction(1f/60,next,ActionPhase.Executing,false,0);
+                for(int i=0;i<100;i++)
+                {
+                    var before=rig.CurrentTool;
+                    rig.PoseAction(1f/60,next,ActionPhase.Executing,false,0);
+                    if(before!=rig.CurrentTool&&!rig.ToolHeld&&rig.Fingers[1,1].Rotation.X>.18f)
+                        throw new InvalidOperationException("Tool model changes while the displayed hand is still closed around the holster");
+                }
                 if(rig.CurrentTool!=ResidentRig.ToolFor(next)||!rig.ToolHeld)throw new InvalidOperationException("Tool switch failed");
             }
             rig.ShowCargo(true,ResourceKind.Wood);

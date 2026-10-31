@@ -13,6 +13,8 @@ internal sealed partial class NatureModels
     {
         ValidateForearmTwist();
         ValidateAnatomicalArmReference();
+        ValidateElbowSwivelInertia();
+        ValidateSleeveDetail();
         ValidateGirdleMotion();
         ValidateMotionReference();
         ValidateSleeveCorrectives();
@@ -60,6 +62,29 @@ internal sealed partial class NatureModels
         if(maxElbowDeviation>Mathf.DegToRad(.5f)||maxStep>.22f)
             throw new InvalidOperationException($"Shoulder twists or snaps despite continuous hand positions: axial={maxTwist}, step={maxStep}, pose={worstStep}");
         GD.Print($"SHOULDER_MOTION_PASS: three adult identities, bare reaches/tools/returns, {supportSamples} actual intermediate sleeve poses and radius checks");
+    }
+    private static void ValidateElbowSwivelInertia()
+    {
+        float Run(int hz)
+        {
+            float angle=0,speed=0,dt=1f/hz;bool reversed=false;
+            for(int frame=0;frame<hz*4;frame++)
+            {
+                float target=frame<hz/10?1:frame<hz/2?-1:.5f;
+                float previous=speed;
+                float step=ResidentRig.StepElbowSwivel(target-angle,ref speed,2,dt);angle+=step;
+                if(MathF.Abs(speed-previous)>12*dt+.00001f||MathF.Abs(step)>2*dt+.00001f)
+                    throw new InvalidOperationException("Elbow swivel reverses abruptly or exceeds its speed/acceleration budget");
+                if(frame==hz/10){reversed=true;if(speed<=0)throw new InvalidOperationException("An elbow target change discards the incoming swivel velocity");}
+            }
+            if(!reversed||MathF.Abs(angle-.5f)>.002f||MathF.Abs(speed)>.02f)
+                throw new InvalidOperationException("Elbow swivel inertia does not settle at the requested plane");
+            return angle;
+        }
+        float coarse=Run(60),fine=Run(120);
+        if(MathF.Abs(coarse-fine)>.002f)throw new InvalidOperationException("Elbow swivel settling depends on frame rate");
+        GD.Print("ELBOW_INERTIA_PASS: target reversal retains incoming speed, bounded acceleration, pause and 60/120 Hz settling");
+        float held=1;if(ResidentRig.StepElbowSwivel(1,ref held,2,0)!=0||held!=1)throw new InvalidOperationException("Paused elbow swivel changes state");
     }
     private void ValidateAnatomicalArmReference()
     {

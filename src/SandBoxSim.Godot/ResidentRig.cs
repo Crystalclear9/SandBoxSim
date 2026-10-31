@@ -180,6 +180,7 @@ internal partial class ResidentRig : Node3D
         _poseStep=delta;
         for(int side=0;side<2;side++)
         {
+            if(!_armSolvedThisStep[side])_elbowSwivelVelocity[side]=0;
             _armSolvedThisStep[side]=false;
             _priorArms[side]=Arms[side].Transform;_priorForearms[side]=Elbows[side].Transform;_priorWrists[side]=Hands[side].Transform;
             _previousHands[side]=Arms[side].Transform*Elbows[side].Transform*Hands[side].Transform;
@@ -322,7 +323,6 @@ internal partial class ResidentRig : Node3D
         }
         else
         {
-            if(usingTool&&CurrentTool!=wanted)SelectTool(wanted);
             if(_releaseTime>0)
             {
                 SolveHand(1,Holster.Position,Holster.Basis*Grip!.Basis.Inverse());CurlHand(1,_releaseTime/.16f);_releaseTime=MathF.Max(0,_releaseTime-delta);
@@ -330,6 +330,11 @@ internal partial class ResidentRig : Node3D
             else
             {
                 _releaseTime=0;
+                // Inventory presentation can change after the fingers have
+                // released a holstered tool. Do not wait for the empty arm
+                // to reach rest, or replace the tool under a closed hand.
+                var available=usingTool?wanted:DefaultTool;
+                if(CurrentTool!=available)SelectTool(available);
                 if(_reach==0)_toolReachRest=_previousHands[1];
                 float reachDuration=usingTool?.48f:Math.Clamp(Holster.Position.DistanceTo(_toolReachRest*Grip!.Position)/.8f,.24f,.48f);
                 _reach=Mathf.MoveToward(_reach,usingTool?1:0,delta/reachDuration);
@@ -351,7 +356,6 @@ internal partial class ResidentRig : Node3D
                     }
                     else _graspTime=0;
                 }
-                else if(!usingTool&&CurrentTool!=DefaultTool)SelectTool(DefaultTool);
             }
         }
         bool consuming=executing&&action is ActionKind.Eat or ActionKind.Drink;

@@ -20,7 +20,7 @@
 
 `resident-shoulder-elevation.png` 为公开 `visual-shoulder-elevation.json` 的逻辑帧 108、1600×1000；同名 GIF 为 1600×1000、180 个原生帧，逻辑帧 30–746 每四步采样、总长十二秒，分六次等配置回放编码。两排仍为两种成人外观，三列为正面、固定侧面、背面；正交尺寸 1.38、目标 (0, 1.24, 0)，相机相对位置分别为 (0.03, 0.03, 4)、(-4, 0.03, 0.10)、(0.03, 0.03, -4)。左右臂各占六秒，在冠状面前方 30° 的平面内用 1.5 秒抬至 135°、保持一秒、1.5 秒放下、休息两秒。
 
-`resident-shoulder-motion`、`resident-shoulder-elevation` 与 `resident-captured-stretch` 的 PNG／GIF 于 2026-10-31 重采，使用 `bodyFrame=adult-proportions-v15`、`shoulderSkin=anatomical-pose-sleeve-v9`、`shoulderSurface=authored-bind-surface-v3`、`shoulderMotion=anatomical-reach-v9`、`forearmSkin=distributed-roll-v1`、`toolMotion=constraint-feedback-v4`。抬臂使用独立于屈肘的上臂参考轴，低位前伸保留下垂支撑的肘部偏好；肩袖使用一百二十个姿态样本，覆盖中性、邻近及极端轴向旋转，保留实际轴向站位与袖窿缝合过渡，来源支撑从 A 姿势直接求解；作业还记录 `workPose=raised-hammer-v1` 与 `sleeveFairing=convex-cap-v1`。三组均冻结模拟、固定 60 Hz，没有重绘、插帧或身体局部缩放；GIF 只作统一调色板编码。
+`resident-shoulder-motion`、`resident-shoulder-elevation` 与 `resident-captured-stretch` 的 PNG／GIF 于 2026-10-31 重采，使用 `bodyFrame=adult-proportions-v15`、`shoulderSkin=rest-detail-sleeve-v10`、`shoulderSurface=authored-bind-surface-v3`、`shoulderMotion=inertial-reach-v10`、`forearmSkin=distributed-roll-v1`、`toolMotion=constraint-feedback-v4`。抬臂使用独立于屈肘的上臂参考轴，低位前伸保留下垂支撑的肘部偏好；肩袖使用一百二十个姿态样本，覆盖中性、邻近及极端轴向旋转，保留实际轴向站位与袖窿缝合过渡，来源支撑从 A 姿势直接求解；作业还记录 `workPose=raised-hammer-v1` 与 `sleeveFairing=rest-detail-v2`。肩袖恢复静止衣料细节，程序交互的肘平面保留转向速度并限制加速度。三组均冻结模拟、固定 60 Hz，没有重绘、插帧或身体局部缩放；GIF 只作统一调色板编码。
 
 `resident-handling-transitions` 与 `resident-social-side-motion.gif` 保留 2026-10-30 的 `bound-surface-sleeve-v7`／`bound-anatomical-surface-v2` 采样。生活侧面 GIF 为 1600×1000、102 帧和 6.8 秒，来自 `visual-social-side.json` 逻辑帧 30–434 每四步采样，分四次回放编码。其他专题保留各自采样版本。
 

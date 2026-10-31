@@ -73,6 +73,8 @@ internal sealed partial class NatureModels
                 constraintEdges[side].Add((a,b,freeA,freeB,length*.5f,length*3));
             }
         }
+        var detailBindings=new SleeveDetail[2];
+        for(int side=0;side<2;side++)detailBindings[side]=BindSleeveDetail(source,ids,patches,activation[side]);
         var inverseBlends=new Transform3D[source.Length];
         var result=new Godot.Collections.Array<Godot.Collections.Array>();
         for(int side=0;side<2;side++)for(int plane=0;plane<ResidentRig.SleevePlaneCount;plane++)for(int height=0;height<ResidentRig.SleeveHeightCount;height++)for(int roll=0;roll<ResidentRig.SleeveRollCount;roll++)
@@ -109,26 +111,7 @@ internal sealed partial class NatureModels
             }
             var target=(Vector3[])posed.Clone();
             var anatomy=FitPosedShoulder(source,posed,target,ids,uv,active,rig,side,rotation,girdle,bindings);
-            var anatomicalTarget=(Vector3[])target.Clone();
-            // Fair the entire shoulder/armhole transition, not an isolated
-            // sleeve with a pinned ridge at its root. Metric surface patches
-            // and area weights avoid dependence on the tiny cap-ring edges.
-            // Remove convex cap ridges along the surface normal without
-            // filling the axillary hollow or sliding the seam tangentially.
-            // This is a garment silhouette edit, separate from body fitting.
-            for(int iteration=0;iteration<6;iteration++)
-            {
-                var next=(Vector3[])target.Clone();var surfaceNormals=ClothSurfaceNormals(target,ids);
-                for(int i=0;i<target.Length;i++)if(active[i]>0)
-                {
-                    var average=Vector3.Zero;foreach(var (index,weight) in patches[i])average+=target[index]*weight;
-                    var normal=surfaceNormals[i];float ridge=MathF.Min(0,(average-target[i]).Dot(normal));
-                    var offset=target[i]+normal*(ridge*.45f*active[i])-anatomicalTarget[i];
-                    if(offset.Length()>.012f)offset=offset.Normalized()*.012f;
-                    next[i]=anatomicalTarget[i]+offset;
-                }
-                target=next;
-            }
+            target=RestoreSleeveDetail(target,ids,patches,active,detailBindings[side]);
             var points=(Vector3[])source.Clone();var correctedNormals=(Vector3[])normals.Clone();
             var offsets=new Vector3[source.Length];
             for(int i=0;i<source.Length;i++)if(active[i]>0)offsets[i]=inverseBlends[i]*target[i]-source[i];

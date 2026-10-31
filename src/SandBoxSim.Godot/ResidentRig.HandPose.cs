@@ -12,6 +12,7 @@ internal partial class ResidentRig
     private readonly Transform3D[] _previousHands=new Transform3D[2];
     private readonly Vector3[] _previousElbows=new Vector3[2];
     private float _poseStep;
+    private readonly float[] _elbowSwivelVelocity=new float[2];
     private readonly Transform3D[] _priorArms=new Transform3D[2],_priorForearms=new Transform3D[2],_priorWrists=new Transform3D[2];
     private bool _hasArmReturn;
     private readonly bool[] _armSolvedThisStep=new bool[2],_armReturning=new bool[2];
@@ -267,8 +268,8 @@ internal partial class ResidentRig
                 // pose rebuilt at the start of this frame. Limit swivel while
                 // preserving the exact two-bone lengths and wrist target.
                 float turn=prior.SignedAngleTo(bend,direction);
-                float limit=(bare?2:3)*_poseStep*(1-MathF.Exp(-MathF.Abs(turn)/.30f));
-                bend=prior.Rotated(direction,Math.Clamp(turn,-limit,limit));
+                float step=StepElbowSwivel(turn,ref _elbowSwivelVelocity[side],bare?2:3,_poseStep);
+                bend=prior.Rotated(direction,step);
             }
         }
         Vector3 elbow=shoulder+direction*along+bend*radius;
@@ -320,6 +321,16 @@ internal partial class ResidentRig
         }
         Arms[side].Basis=upperBasis;Elbows[side].Basis=upperBasis.Inverse()*lowerBasis;Hands[side].Basis=lowerBasis.Inverse()*handBasis;
         if(!bare&&LimitWorkingWrist(side)&&side==1&&ToolHeld)FeedbackConstrainedTool();
+    }
+    internal static float StepElbowSwivel(float turn,ref float speed,float maximum,float dt)
+    {
+        if(dt<=0)return 0;
+        var error=new Vector3(turn,0,0);var velocity=new Vector3(-speed,0,0);
+        DampMotion(ref error,ref velocity,Vector3.Zero,.10f,dt);
+        float desired=Math.Clamp(-velocity.X,-maximum,maximum);
+        float next=Math.Clamp(desired,speed-12*dt,speed+12*dt);
+        float step=MathF.Abs(next-desired)>.000001f?(speed+next)*.5f*dt:turn-error.X;
+        speed=next;return Math.Clamp(step,-maximum*dt,maximum*dt);
     }
     private bool LimitWorkingWrist(int side)
     {
