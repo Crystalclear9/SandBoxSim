@@ -32,7 +32,15 @@ internal partial class ResidentRig
             _toolVelocity=_toolAngularVelocity=Vector3.Zero;_toolFilterReady=true;
         }
         DampMotion(ref _toolPosition,ref _toolVelocity,target,.040f,_poseStep);
-        _toolRotation=DampRotation(_toolRotation,ref _toolAngularVelocity,basis.GetRotationQuaternion(),.040f,_poseStep);
+        var previous=_toolRotation;
+        _toolRotation=DampRotation(previous,ref _toolAngularVelocity,basis.GetRotationQuaternion(),_returning?.020f:.060f,_poseStep);
+        float angle=2*MathF.Acos(Math.Clamp(MathF.Abs(previous.Dot(_toolRotation)),0,1));
+        float maximum=(_returning?6:4)*_poseStep;
+        if(angle>maximum&&angle>0)
+        {
+            float ratio=maximum/angle;
+            _toolRotation=previous.Slerp(_toolRotation,ratio);_toolAngularVelocity*=ratio;
+        }
         return (_toolPosition,new Basis(_toolRotation));
     }
 }

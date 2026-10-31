@@ -331,7 +331,7 @@ internal sealed partial class NatureModels
                 }
             }
             if(!blinked||transfers!=2||travel<.03f||rig.ToolHeld||rig.CurrentTool!=rig.DefaultTool)
-                throw new InvalidOperationException("Incomplete take/use/stow cycle: "+action);
+                throw new InvalidOperationException($"Incomplete take/use/stow cycle: {action}, transfers={transfers}, travel={travel:F4}, blinked={blinked}, held={rig.ToolHeld}, tool={rig.CurrentTool}/{rig.DefaultTool}");
             // A different work action must replace the tool after stowing, rather than deadlocking the draw state.
             foreach(var next in new[]{ActionKind.GatherWood,ActionKind.GatherIron,ActionKind.Farm})
             {

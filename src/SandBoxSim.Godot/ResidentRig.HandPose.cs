@@ -148,8 +148,12 @@ internal partial class ResidentRig
         // The hammer head points back toward the character at the apex.
         // Keep its hand path in front of the chest instead of drawing the
         // head inward toward the cheek while lifting it.
-        float depth=-.30f+lift*(kind==ResidentTool.Hammer?-.06f:.10f)+arc*.028f;
-        return (new((kind==ResidentTool.Hammer?.20f:.10f)+arc*.025f,.92f+lift*.26f,depth),rotation);
+        float depth=-.30f+lift*(kind==ResidentTool.Hammer?-.10f:.10f)+arc*.028f;
+        // A hammer preparation raises the whole arm into a working arc.
+        // Keeping the wrist below shoulder height throughout instead made
+        // this a forearm-only motion, with the head passing by the cheek.
+        float height=.92f+lift*(kind==ResidentTool.Hammer?.46f:.26f);
+        return (new((kind==ResidentTool.Hammer?.26f:.10f)+arc*.025f,height,depth),rotation);
     }
     // Zero velocity and acceleration at both ends of an intentional reach.
     internal static float ReachEase(float t){t=Math.Clamp(t,0,1);return t*t*t*(10+t*(-15+6*t));}
@@ -292,6 +296,18 @@ internal partial class ResidentRig
         }
         var upperBasis=ReachUpperArmFrame(side,elbow-shoulder,wrist-elbow);
         var lowerBasis=LimbFrame((wrist-elbow).Normalized(),handBasis.X)*new Basis(new Quaternion(Hands[side].Position.Normalized(),Vector3.Down));
+        if(_poseStep>0)
+        {
+            // A palm axis projected onto the forearm's transverse plane is
+            // ill-conditioned when that axis approaches the forearm axis.
+            // Transport the displayed frame instead; constrain pronation,
+            // while the wrist still reaches the exact requested hand frame.
+            var prior=_priorArms[side].Basis*_priorForearms[side].Basis;
+            var lowerDirection=(wrist-elbow).Normalized();
+            var transported=new Basis(new Quaternion(prior*Hands[side].Position.Normalized(),lowerDirection))*prior;
+            float turn=transported.X.SignedAngleTo(lowerBasis.X,lowerDirection);
+            lowerBasis=new Basis(lowerDirection,Math.Clamp(turn,-6*_poseStep,6*_poseStep))*transported;
+        }
         Arms[side].Basis=upperBasis;Elbows[side].Basis=upperBasis.Inverse()*lowerBasis;Hands[side].Basis=lowerBasis.Inverse()*handBasis;
     }
     internal const float SleeveRollSampleLimit=1.65f;

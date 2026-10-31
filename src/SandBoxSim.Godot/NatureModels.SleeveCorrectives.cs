@@ -98,16 +98,18 @@ internal sealed partial class NatureModels
             // Fair the entire shoulder/armhole transition, not an isolated
             // sleeve with a pinned ridge at its root. Metric surface patches
             // and area weights avoid dependence on the tiny cap-ring edges.
-            // The neckline, waist and cuff stay fixed; the shared seam moves
-            // as one surface. Keep the existing four-millimetre edit bound.
-            for(int iteration=0;iteration<4;iteration++)
+            // Remove convex cap ridges along the surface normal without
+            // filling the axillary hollow or sliding the seam tangentially.
+            // This is a garment silhouette edit, separate from body fitting.
+            for(int iteration=0;iteration<6;iteration++)
             {
-                var next=(Vector3[])target.Clone();float amount=iteration%2==0?.45f:-.40f;
+                var next=(Vector3[])target.Clone();var surfaceNormals=ClothSurfaceNormals(target,ids);
                 for(int i=0;i<target.Length;i++)if(active[i]>0)
                 {
                     var average=Vector3.Zero;foreach(var (index,weight) in patches[i])average+=target[index]*weight;
-                    var offset=(target[i]+(average-target[i])*amount*active[i])-anatomicalTarget[i];
-                    if(offset.Length()>.004f)offset=offset.Normalized()*.004f;
+                    var normal=surfaceNormals[i];float ridge=MathF.Min(0,(average-target[i]).Dot(normal));
+                    var offset=target[i]+normal*(ridge*.45f*active[i])-anatomicalTarget[i];
+                    if(offset.Length()>.012f)offset=offset.Normalized()*.012f;
                     next[i]=anatomicalTarget[i]+offset;
                 }
                 target=next;
@@ -183,7 +185,7 @@ internal sealed partial class NatureModels
             float value=(points[b]-points[a]).Cross(points[c]-points[a]).Length()/6;
             area[a]+=value;area[b]+=value;area[c]+=value;
         }
-        const float radius=.025f;
+        const float radius=.04f;
         var result=new (int,float)[points.Length][];
         for(int i=0;i<points.Length;i++)
         {

@@ -6,7 +6,7 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
-    public void ValidateResidentMotion(){ValidateShoulderMotion();ValidateGarmentMotion();ValidateReachTrajectories();}
+    public void ValidateResidentMotion(){ValidateShoulderMotion();ValidateGarmentMotion();ValidateReachTrajectories();ValidateHandling();}
     // Check the displayed upper-arm frame as well as hand positions. A reach
     // can satisfy every endpoint test while rolling the sleeve through 180掳.
     private void ValidateShoulderMotion()

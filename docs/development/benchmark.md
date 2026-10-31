@@ -216,3 +216,5 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 `renderQuality.forearmSkin=distributed-roll-v1` 标记每手 21 骨的分段旋转表面，`shoulderSurface=bound-anatomical-surface-v2` 标记固定三角面对应与缓存中的双四元数人体支撑。二者改变了缓存生成和近景骨骼开销，须冻结同一版本再比较效率；动作端点、边长和表面距离只用于几何回归，不能作为写实度或 RSI 能力分数。
 
 人体支撑 v2 的贴合残差以固定三角面对应和衣片参与规则为参考，与 v1 的逐姿态最近面查询不同；两者不能直接作为同一质量指标比较。完整 sourceFiles、骨骼／网格版本、构图和照明须一并冻结。
+
+`workPose=raised-hammer-v1` 与 `sleeveFairing=convex-cap-v1` 分别标记较高的锤击准备路径、工具角速度约束、前臂参考系运输及肩袖凸脊修整。`visual-shoulder-motion.json` 使用当前实现；这会改变视觉和缓存开销，效率比较应冻结这些标签、源文件和相同场景配置。
