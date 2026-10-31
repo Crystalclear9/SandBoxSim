@@ -33,6 +33,12 @@ internal sealed partial class NatureModels
             var rig=Resident(identity,false,job);
             try
             {
+                var cage=ShoulderSurface();
+                var neutral=PoseShoulderSupport(rig,1,Quaternion.Identity,new Transform3D(Basis.Identity,cage.Shoulder));
+                var neutralTrunk=PoseShoulderSupport(rig,1,Quaternion.Identity,new Transform3D(Basis.Identity,cage.Shoulder),true);
+                for(int i=0;i<neutral.Length;i++)
+                    if(neutral[i].DistanceTo(cage.Points[i])>.000003f||neutralTrunk[i].DistanceTo(cage.Points[i])>.000003f)
+                        throw new InvalidOperationException("Authored A-pose and runtime shoulder bind disagree");
                 var mesh=(ArrayMesh)rig.DetailedBodyMesh;
                 if(mesh.GetBlendShapeCount()!=ResidentRig.SleevePoseCount||mesh.BlendShapeMode!=Mesh.BlendShapeMode.Normalized)
                     throw new InvalidOperationException("Adult cloth lost its pose-space shapes or blend mode in LOD generation");

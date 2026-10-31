@@ -64,13 +64,16 @@ internal sealed partial class NatureModels
         Transform3D At(Quaternion q)=>new(new Basis(q),shoulder-q*cage.Shoulder);
         // Shoulder01 is a shoulder-girdle segment, not half of a humeral
         // rotation. Carry its rest-fitted surface with the scapular platform.
-        var transforms=new[]{Transform3D.Identity,At(arm),At(platform),At(clavicle)};
+        // Compose each target with its authored A-pose bind. The source
+        // surface is never skinned a second time from an LBS-adducted mesh.
+        var bind=cage.ArmBind;var helperBind=Quaternion.Identity.Slerp(bind,.5f);
+        var fixedArm=new Transform3D(new Basis(bind),cage.Shoulder-bind*cage.Shoulder);
+        var transforms=new[]{Transform3D.Identity,torso?fixedArm:At(arm*bind),At(platform*helperBind),At(clavicle)};
         var result=new Vector3[cage.Points.Length];
         for(int i=0;i<result.Length;i++)
         {
             var w=cage.Weights[i];
-            if(torso)w=new(w.X+w.Y,0,w.Z,w.W);
-            result[i]=BlendRigidShoulder(cage.Points[i],transforms,w);
+            result[i]=BlendRigidShoulder(cage.Source[i],transforms,w);
         }
         return result;
     }

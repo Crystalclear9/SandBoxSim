@@ -71,6 +71,14 @@ public partial class MainGame : Control
 
     public override void _Ready()
     {
+        string? poseExport=OS.GetCmdlineUserArgs().FirstOrDefault(a=>a.StartsWith("--export-resident-pose-study=",StringComparison.Ordinal));
+        if(poseExport!=null)
+        {
+            SetProcess(false);SetPhysicsProcess(false);SetProcessInput(false);
+            try{new NatureModels().ExportResidentPoseStudy(poseExport.Substring("--export-resident-pose-study=".Length));GetTree().Quit();}
+            catch(Exception exception){GD.PushError(exception.ToString());GetTree().Quit(2);}
+            return;
+        }
         if(OS.GetCmdlineUserArgs().Contains("--test-resident-motion"))
         {
             SetProcess(false);SetPhysicsProcess(false);SetProcessInput(false);

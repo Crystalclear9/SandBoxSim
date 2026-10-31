@@ -209,13 +209,17 @@ internal sealed partial class NatureModels
                     weights[i*4+2]=t;weights[i*4+3]=0;
                     if(pattern.Length==points.Length&&pattern[i].X>0)
                     {
-                        // Positive section-centre translation applies below
-                        // the humeral pivot. Fade it off across the cap above
-                        // that pivot rather than pushing the cap up and out.
-                        // Keep the sewn-distance field below it: raw pattern
-                        // coordinates can differ across near-coincident folds.
+                        // Centre translation is an axial station, not a cloth
+                        // geodesic. Around the armhole the surface can travel
+                        // several centimetres while remaining at the pivot's
+                        // height. Using that distance lifts a false cap horn.
+                        // With d=(pivotY-y), Rf*(radial-down*d) plus
+                        // (R-Rf)*down*d keeps the centre on the humeral axis.
                         float shoulderY=ResidentRig.BodyY(1.18f)-(BodyFrame==1?.014f:.009f);
-                        float gather=Math.Clamp(sleeveDistance[i]/.263f,0,1)*(1-Mathf.SmoothStep(shoulderY,shoulderY+.06f,points[i].Y));
+                        // The sewn boundary remains on its scapular support;
+                        // introduce the axial correction over four centimetres
+                        // of cloth before requiring a free sleeve centreline.
+                        float gather=Math.Clamp((shoulderY-points[i].Y)/.263f,0,1)*Mathf.SmoothStep(0,.04f,sleeveDistance[i]);
                         int lowerCap=segment==0?ResidentRig.GirdleBone(side):ResidentRig.SleeveSupportBone(side,segment,true);
                         int upperCap=segment==ResidentRig.SleeveSpans-1?side+1:ResidentRig.SleeveSupportBone(side,segment+1,true);
                         bones[i*4]=lower;bones[i*4+1]=upper;bones[i*4+2]=lowerCap;bones[i*4+3]=upperCap;

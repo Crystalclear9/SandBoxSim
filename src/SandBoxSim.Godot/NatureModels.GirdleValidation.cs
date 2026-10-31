@@ -9,6 +9,7 @@ internal sealed partial class NatureModels
     private void ValidateGirdleMotion()
     {
         ValidateSleeveSwingTwist();
+        ValidateSleeveAxialStations();
         int samples=0;float maximumArc=0,maximumStep=0;
         foreach(int identity in new[]{17,55})
         {
@@ -61,6 +62,51 @@ internal sealed partial class NatureModels
         // extreme-pose tests. Catch a protraction jump near the vertical arm.
         if(maximumStep>.001f)throw new InvalidOperationException("Shoulder platform jumps between neighbouring elevation samples");
         GD.Print($"SHOULDER_GIRDLE_PASS: samples={samples}, mirrored adult clavicle arcs, rotating scapular platforms, maximum endpoint travel={maximumArc:F4} m, largest one-degree step={maximumStep:F5} m, normalized orientation-driven corrections");
+    }
+    private void ValidateSleeveAxialStations()
+    {
+        int samples=0;float maximum=0;
+        foreach(int identity in new[]{17,55})
+        {
+            var rig=Resident(identity,false,JobType.None);
+            try
+            {
+                var arrays=rig.DetailedBodyMesh.SurfaceGetArrays(0);
+                var source=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                var bones=arrays[(int)Mesh.ArrayType.Bones].AsInt32Array();
+                var weights=arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();
+                var pattern=arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
+                var distance=SleeveDistances(source,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
+                foreach(int side in new[]{0,1})foreach(float plane in new[]{0f,30f,75f})foreach(float elevation in new[]{45f,90f,135f})
+                {
+                    for(int step=0;step<60;step++)rig.StudyArmElevation(1f/60,Mathf.DegToRad(elevation),Mathf.DegToRad(plane),side);
+                    var palette=new Transform3D[ResidentRig.SupportedBodyBones];
+                    for(int bone=0;bone<palette.Length;bone++)palette[bone]=rig.ShoulderSkeleton.GetBonePose(bone)*rig.DetailedBodySkin.GetBindPose(bone);
+                    var pivot=rig.ShoulderRest(side);
+                    for(int i=0;i<source.Length;i++)
+                    {
+                        float station=pivot.Y-source[i].Y;
+                        if((source[i].X<0)!=(side==0)||station<=.005f||station>=.263f||distance[i]<.04f)continue;
+                        bool supported=true;float total=0;
+                        for(int j=0;j<4;j++)if(weights[i*4+j]>0)
+                        {int bone=bones[i*4+j];if(bone<4||bone>=ResidentRig.GirdleBone(0))supported=false;total+=weights[i*4+j];}
+                        if(!supported)continue;
+                        var axial=Vector3.Down*station;var radial=source[i]-pivot-axial;
+                        var expected=(rig.Arms[side].Position+rig.Arms[side].Basis*axial)*total;
+                        var actual=Vector3.Zero;
+                        for(int j=0;j<4;j++)
+                        {var pose=palette[bones[i*4+j]];float w=weights[i*4+j];actual+=pose*source[i]*w;expected+=pose.Basis*radial*w;}
+                        float error=actual.DistanceTo(expected);maximum=MathF.Max(maximum,error);samples++;
+                        // Four independently quantized 16-bit skin weights
+                        // permit at most about 32 micrometres at this scale.
+                        if(error>.00004f)throw new InvalidOperationException($"Sleeve centre leaves the humeral station: {identity}/{side}/{plane}/{elevation}, error={error}");
+                    }
+                }
+            }
+            finally{rig.Free();}
+        }
+        if(samples<500)throw new InvalidOperationException("Insufficient evaluated sleeve station coverage");
+        GD.Print($"SLEEVE_AXIAL_STATION_PASS: {samples} actual skinned samples, both adult frames/arms and three planes; centreline error={maximum:F7} m");
     }
     private static void ValidateSleeveSwingTwist()
     {

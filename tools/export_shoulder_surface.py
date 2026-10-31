@@ -12,6 +12,20 @@ from pathlib import Path
 from export_upper_arm_support import add,sub,mul,dot,cross,unit
 
 
+def bind_shoulder(point,shoulder,axis,angle,weights):
+    """DQ blend about a common pivot, reduced to a normalized quaternion.
+
+    Keep the authored A-pose as the input. Blending already-adducted vertices
+    again makes a different deformation and carries LBS collapse into poses.
+    The source shoulder helper uses half the bind rotation, the trunk none.
+    """
+    arm,helper=weights[1:3]
+    sine=arm*math.sin(angle/2)+helper*math.sin(angle/4)
+    cosine=weights[0]+weights[3]+arm*math.cos(angle/2)+helper*math.cos(angle/4)
+    turn=2*math.atan2(sine,cosine);local=sub(point,shoulder)
+    return add(shoulder,add(add(mul(local,math.cos(turn)),mul(cross(axis,local),math.sin(turn))),mul(axis,dot(axis,local)*(1-math.cos(turn)))))
+
+
 def subdivide(attributes,faces):
     """One Catmull-Clark step, interpolating source skin weights with position."""
     def average(values):return tuple(sum(v[j] for v in values)/len(values) for j in range(len(attributes[0])))
@@ -78,11 +92,10 @@ def export(folder,sex):
     def mapped(p):return (p[0]*.202/reference[0]*(1 if sex=='female' else 1.04),shoulder_y+(p[1]-origin[1])*.09,-(p[2]-origin[2])*.1)
     points=list(map(mapped,points));shoulder=mapped(origin);elbow=joint(points,'elbow')
     axis=unit(sub(elbow,shoulder));target=(0.,-1.,0.);normal=unit(cross(axis,target));angle=math.acos(max(-1,min(1,dot(axis,target))))
-    influence=[0.]*len(points);arm=[0.]*len(points);helper=[0.]*len(points);clavicle=[0.]*len(points)
+    arm=[0.]*len(points);helper=[0.]*len(points);clavicle=[0.]*len(points)
     for name,entries in weights['weights'].items():
         if not name.endswith('.L'):continue
         amount=.5 if name=='shoulder01.L' else 1. if name.startswith(('upperarm','lowerarm','wrist','finger','hand')) else 0.
-        for index,weight in entries:influence[index]+=weight*amount
         for index,weight in entries:
             if name=='shoulder01.L':helper[index]+=weight
             elif name=='clavicle.L':clavicle[index]+=weight
@@ -92,19 +105,15 @@ def export(folder,sex):
         total=max(1,arm[i]+helper[i]+clavicle[i]);packed.append((*p,max(0,1-arm[i]-helper[i]-clavicle[i])/total,arm[i]/total,helper[i]/total,clavicle[i]/total))
     packed,quads=subdivide(packed,quads)
     points=[p[:3] for p in packed];original=list(points);arm=[p[4] for p in packed];helper=[p[5] for p in packed];clavicle=[p[6] for p in packed]
-    influence=[min(1,a+.5*h) for a,h in zip(arm,helper)]
     faces=[(f[0],f[i],f[i+1]) for f in quads for i in range(1,len(f)-1)]
-    def rotated(p):
-        local=sub(p,shoulder)
-        return add(shoulder,add(add(mul(local,math.cos(angle)),mul(cross(normal,local),math.sin(angle))),mul(normal,dot(normal,local)*(1-math.cos(angle)))))
-    points=[add(mul(p,1-min(1,w)),mul(rotated(p),min(1,w))) for p,w in zip(points,influence)]
+    points=[bind_shoulder(p,shoulder,normal,angle,w[3:7]) for p,w in zip(points,packed)]
     selected=[]
     for face in faces:
         center=mul(add(add(points[face[0]],points[face[1]]),points[face[2]]),1/3)
         if .045<center[0]<.36 and shoulder_y-.17<center[1]<shoulder_y+.115 and abs(center[2])<.20:selected.append(face)
     used=sorted({i for f in selected for i in f});mapping={i:n for n,i in enumerate(used)}
     if len(selected)<400:raise ValueError('Incomplete shoulder surface')
-    return {'schemaVersion':2,'license':'CC0-1.0','source':'MakeHuman HM08 '+sex+' young; one Catmull-Clark level with authored weights; A-pose to hanging-arm bind',
+    return {'schemaVersion':3,'license':'CC0-1.0','source':'MakeHuman HM08 '+sex+' young; authored A-pose, common-pivot dual-quaternion hanging-arm bind',
             'sourceSha256':expected,'shoulder':shoulder,'armBind':[round(x*math.sin(angle/2),8) for x in normal]+[round(math.cos(angle/2),8)],
             'vertices':[[round(x,7) for x in points[i]] for i in used],
             'aPoseVertices':[[round(x,7) for x in original[i]] for i in used],

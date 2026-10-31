@@ -64,7 +64,7 @@ internal partial class ResidentRig
         // but its centre must travel with the upper arm, not on that smaller
         // rotation's arc. Move the section centre to the raised arm axis.
         // Vertex weights scale this unit-length correction by their actual
-        // sewn distance along the 26.3 cm sleeve, independently of the
+        // axial station below the humeral pivot, independently of the
         // rotation influence. The seam and fully rotated cuff stay attached.
         var station=Vector3.Down*.263f;
         var fraction=SleeveRotation(girdle??Quaternion.Identity,rotation,weight);

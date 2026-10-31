@@ -15,7 +15,7 @@ internal partial class ModelGallery
         for(int frame=0;frame<2;frame++)for(int view=0;view<3;view++)
         {
             var rig=models.Resident(frame==0?17:55,false,JobType.None);
-            Closeup(grid,(frame==0?"男性外观":"女性外观")+(view==0?" · 正面":view==1?" · 侧面":" · 背面"),rig,1.65f,new(0,1.12f,0),view==0?new(.03f,.03f,4):view==1?new(-4,.03f,.10f):new(.03f,.03f,-4),true);
+            Closeup(grid,(frame==0?"男性外观":"女性外观")+(view==0?" · 正面":view==1?" · 侧面":" · 背面"),rig,1.38f,new(0,1.24f,0),view==0?new(.03f,.03f,4):view==1?new(-4,.03f,.10f):new(.03f,.03f,-4),true);
             _elevationStudies.Add(rig);
         }
     }

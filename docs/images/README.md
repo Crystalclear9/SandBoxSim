@@ -18,9 +18,11 @@
 
 `resident-shoulder-motion.png` 来自公开 `visual-shoulder-motion.json` 的逻辑帧 156，1600×1000；同名 GIF 为 1600×1000、102 个原生帧，逻辑帧 30–434 每四步采样、总长 6.8 秒，分四次等配置回放编码。上排男性外观、下排女性外观，三列为正面、工作臂侧面和背面；正交尺寸 1.04、目标 (0, 1.08, 0)，相机相对位置分别为 (0.03, 0.04, 4)、(-4, 0.04, 0.15)、(-1.5, 0.04, -4)。
 
-`resident-shoulder-elevation.png` 为公开 `visual-shoulder-elevation.json` 的逻辑帧 108、1600×1000；同名 GIF 为 1600×1000、180 个原生帧，逻辑帧 30–746 每四步采样、总长十二秒，分六次等配置回放编码。两排仍为两种成人外观，三列为正面、固定侧面、背面；正交尺寸 1.65、目标 (0, 1.12, 0)，相机相对位置分别为 (0.03, 0.03, 4)、(-4, 0.03, 0.10)、(0.03, 0.03, -4)。左右臂各占六秒，在冠状面前方 30° 的平面内用 1.5 秒抬至 135°、保持一秒、1.5 秒放下、休息两秒。
+`resident-shoulder-elevation.png` 为公开 `visual-shoulder-elevation.json` 的逻辑帧 108、1600×1000；同名 GIF 为 1600×1000、180 个原生帧，逻辑帧 30–746 每四步采样、总长十二秒，分六次等配置回放编码。两排仍为两种成人外观，三列为正面、固定侧面、背面；正交尺寸 1.38、目标 (0, 1.24, 0)，相机相对位置分别为 (0.03, 0.03, 4)、(-4, 0.03, 0.10)、(0.03, 0.03, -4)。左右臂各占六秒，在冠状面前方 30° 的平面内用 1.5 秒抬至 135°、保持一秒、1.5 秒放下、休息两秒。
 
-上述两组、`resident-handling-transitions.png`／GIF 及 `resident-social-side-motion.gif` 于 2026-10-30 重采，使用 `bodyFrame=adult-proportions-v15`、`shoulderSkin=bound-surface-sleeve-v7`、`shoulderMotion=captured-arm-motion-v8`，来源观察另记录 `motionReference=cmu-143-30-v1`、`shoulderSurface=bound-anatomical-surface-v2`。它们显示分离摆动／轴向扭转的肩袖、实际屈肘平面、共同修整的袖窿及来源上臂体积，分段扭转的前臂（`forearmSkin=distributed-roll-v1`），以及后斜至前向四平面、三个高度及扭转驱动的七十二个位置／法线修正。生活侧面 GIF 同为 1600×1000、102 帧和 6.8 秒，来自 `visual-social-side.json` 逻辑帧 30–434 每四步采样，分四次回放编码。均冻结模拟、固定 60 Hz，没有重绘、插帧或对身体局部另作缩放；GIF 只作统一调色板编码。其他既有动作专题保留原采样版本。
+`resident-shoulder-motion`、`resident-shoulder-elevation` 与 `resident-captured-stretch` 的 PNG／GIF 于 2026-10-31 重采，使用 `bodyFrame=adult-proportions-v15`、`shoulderSkin=axial-station-sleeve-v8`、`shoulderSurface=authored-bind-surface-v3`、`shoulderMotion=captured-arm-motion-v8`、`forearmSkin=distributed-roll-v1`。袖管补偿使用实际轴向站位与袖窿缝合过渡，来源支撑从 A 姿势直接求解；作业还记录 `workPose=raised-hammer-v1` 与 `sleeveFairing=convex-cap-v1`。三组均冻结模拟、固定 60 Hz，没有重绘、插帧或身体局部缩放；GIF 只作统一调色板编码。
+
+`resident-handling-transitions` 与 `resident-social-side-motion.gif` 保留 2026-10-30 的 `bound-surface-sleeve-v7`／`bound-anatomical-surface-v2` 采样。生活侧面 GIF 为 1600×1000、102 帧和 6.8 秒，来自 `visual-social-side.json` 逻辑帧 30–434 每四步采样，分四次回放编码。其他专题保留各自采样版本。
 
 
 既有衣装近景、全身体型、身体动态、作业静态图与行走／摆臂 PNG 和 GIF 保留 `bodyFrame=adult-proportions-v13`、`garmentMaterial=faired-panel-linen-v15` 的采样网格。衣装图来自公开 `visual-wardrobe` 第 90 帧，1600×1000，正交尺寸 0.88、目标 (0, 1.13, 0)、相机相对位置 (0.10, 0.035, 3)；展示三种职业衣装的正背面、连续袖山与较薄卷边。成人身材图同步展示按实际成衣高度贴合的胸腰／上髋、连续臀腿及同步适配的上臂与袖口；配对身份、衣色、布光和镜头保持相同。其他专题保留各自的采样版本。
@@ -110,5 +112,3 @@
 旧程序动物的毛束和眨眼说明不适用于当前授权动物。
 
 木材捆独立近景保留搬运功能版本的采样；腰侧工具挂环的当前位置以新版配件图和人物观察窗为准。
-
-作业肩袖的 PNG／GIF 于 2026-10-31 更新，仍采用上述构图与逻辑帧范围，新增 `workPose=raised-hammer-v1` 与 `sleeveFairing=convex-cap-v1`；其他专题保留 2026-10-30 的采样版本。锤击准备包含更高的手掌路径、工具角速度限制及前臂参考系运输，肩袖采用只收回凸脊的法向修整。

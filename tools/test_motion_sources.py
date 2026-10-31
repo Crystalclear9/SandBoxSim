@@ -5,7 +5,7 @@ from pathlib import Path
 import unittest
 
 from export_cmu_arm_motion import export,parse_asf,parse_amc,forward
-from export_shoulder_surface import export as export_shoulder
+from export_shoulder_surface import export as export_shoulder,bind_shoulder
 
 ROOT=Path(__file__).resolve().parents[1]
 MOTION=ROOT/'src/SandBoxSim.Godot/assets/motions/cmu-143-30-stretch.json'
@@ -13,6 +13,15 @@ HUMAN=ROOT/'src/SandBoxSim.Godot/assets/models/human'
 
 
 class MotionSourceTests(unittest.TestCase):
+    def test_authored_bind_preserves_pivot_radius(self):
+        pivot=(.2,1.2,0);point=(.27,1.21,-.04)
+        before=math.dist(point,pivot)
+        for angle in (0,.5,1.2):
+            for weights in ((1,0,0,0),(0,1,0,0),(.2,.4,.3,.1),(0,0,1,0)):
+                posed=bind_shoulder(point,pivot,(0,0,1),angle,weights)
+                self.assertAlmostEqual(math.dist(posed,pivot),before,places=12)
+        self.assertEqual(bind_shoulder(point,pivot,(0,0,1),1.2,(1,0,0,0)),point)
+
     def test_asf_axis_basis_and_parent_rotation(self):
         text=':bonedata\nbegin\nname arm\ndirection 1 0 0\nlength 2\naxis 0 0 0 XYZ\ndof rz\nend\n:hierarchy\nbegin\nroot arm\nend'
         bones,children=parse_asf(text);frames=parse_amc(':DEGREES\n1\nroot 0 0 0 0 0 90\narm 90')
