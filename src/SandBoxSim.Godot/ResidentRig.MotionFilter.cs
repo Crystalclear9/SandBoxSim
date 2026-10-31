@@ -8,6 +8,15 @@ internal partial class ResidentRig
     private Vector3 _toolPosition,_toolVelocity,_toolAngularVelocity,_torsoVelocity,_headVelocity;
     private Quaternion _toolRotation=Quaternion.Identity;
     private bool _toolFilterReady;
+    private void FeedbackConstrainedTool()
+    {
+        if(!_toolFilterReady||_poseStep<=0)return;
+        var actual=Arms[1].Transform*Elbows[1].Transform*Hands[1].Transform*Grip!.Transform;
+        var previous=_previousHands[1]*Grip.Transform;
+        _toolPosition=actual.Origin;_toolRotation=actual.Basis.GetRotationQuaternion();
+        _toolVelocity=(actual.Origin-previous.Origin)/_poseStep;
+        _toolAngularVelocity=RotationVelocity(previous.Basis,actual.Basis,_poseStep);
+    }
     // Exact critically damped step for a stationary target over this interval.
     // Retain velocity across target changes; do not damp already solved joints.
     internal static void DampMotion(ref Vector3 value,ref Vector3 velocity,Vector3 target,float halfLife,float dt)

@@ -169,6 +169,8 @@ internal sealed partial class NatureModels
         foreach(var action in new[]{ActionKind.GatherWood,ActionKind.GatherIron,ActionKind.Farm,ActionKind.BuildHouse})
         {
             var rig=Resident(17,false,JobType.Gatherer);
+            try
+            {
             if(action==ActionKind.GatherWood)foreach(var hand in rig.HandSkins)ValidateHandSurface(hand.Mesh);
             int transfers=0;float travel=0;Vector3 previous=Vector3.Zero;bool blinked=false;
             var bridgeArrays=rig.ShoulderGeometry.SurfaceGetArrays(0);var bridgeVertices=bridgeArrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var bridgeWeights=bridgeArrays[(int)Mesh.ArrayType.Color].AsColorArray();
@@ -363,7 +365,8 @@ internal sealed partial class NatureModels
             rig.SetHandDetail(true);
             if(rig.ForearmProxies[0].Visible||rig.ForearmProxies[1].Visible||!rig.HandSkins[0].Visible||!rig.HandSkins[1].Visible)
                 throw new InvalidOperationException("Near joined arm draws a duplicate forearm");
-            rig.Free();
+            }
+            finally{rig.Free();}
         }
         var shortAction=Resident(17,false,JobType.Gatherer);bool visibleStroke=false;int attachments=0;
         for(int frame=0;frame<260;frame++)

@@ -58,8 +58,24 @@ internal sealed partial class NatureModels
         {int a=ids[i+j],b=ids[i+(j+1)%3];adjacent[a].Add(b);adjacent[b].Add(a);}
         var patches=ShoulderSurfacePatches(source,ids,adjacent,uv,girdleWeights);
         var bindings=BindShoulderSurface(source,ids,uv);
+        var activation=new float[2][];
+        var constraintEdges=new List<(int A,int B,float FreeA,float FreeB,float BindLimit,float PoseLimit)>[2];
+        for(int side=0;side<2;side++)
+        {
+            activation[side]=new float[source.Length];constraintEdges[side]=new();
+            for(int i=0;i<source.Length;i++)if((source[i].X<0)==(side==0))
+                activation[side][i]=uv[i].X>=0?1-Mathf.SmoothStep(.17f,.23f,uv[i].X):girdleWeights[i];
+            for(int a=0;a<source.Length;a++)foreach(int b in adjacent[a])if(b>a)
+            {
+                float freeA=activation[side][a]>0?1:0,freeB=activation[side][b]>0?1:0;
+                if(freeA+freeB==0)continue;
+                float length=source[a].DistanceTo(source[b]);
+                constraintEdges[side].Add((a,b,freeA,freeB,length*.5f,length*3));
+            }
+        }
+        var inverseBlends=new Transform3D[source.Length];
         var result=new Godot.Collections.Array<Godot.Collections.Array>();
-        for(int side=0;side<2;side++)for(int plane=0;plane<ResidentRig.SleevePlaneCount;plane++)for(int height=0;height<ResidentRig.SleeveHeightCount;height++)for(int roll=0;roll<3;roll++)
+        for(int side=0;side<2;side++)for(int plane=0;plane<ResidentRig.SleevePlaneCount;plane++)for(int height=0;height<ResidentRig.SleeveHeightCount;height++)for(int roll=0;roll<ResidentRig.SleeveRollCount;roll++)
         {
             float angle=Mathf.DegToRad((height+1)*45);
             float planeAngle=(plane-1)*MathF.PI/4;
@@ -79,7 +95,7 @@ internal sealed partial class NatureModels
                 var centre=shoulder+(family==1?ResidentRig.SleeveCapCorrection(rotation,fraction,girdleRotation):Vector3.Zero);
                 transforms[bone]=new Transform3D(new Basis(ResidentRig.SleeveRotation(girdleRotation,rotation,fraction)),centre)*rig.DetailedBodySkin.GetBindPose(bone);
             }
-            var posed=new Vector3[source.Length];var blends=new Transform3D[source.Length];var active=new float[source.Length];
+            var posed=new Vector3[source.Length];var blends=new Transform3D[source.Length];var active=activation[side];
             for(int i=0;i<source.Length;i++)
             {
                 var basis=new Basis(Vector3.Zero,Vector3.Zero,Vector3.Zero);var origin=Vector3.Zero;
@@ -89,8 +105,7 @@ internal sealed partial class NatureModels
                     basis.X+=transform.Basis.X*w;basis.Y+=transform.Basis.Y*w;basis.Z+=transform.Basis.Z*w;origin+=transform.Origin*w;
                 }
                 blends[i]=new(basis,origin);posed[i]=blends[i]*source[i];
-                if((source[i].X<0)==(side==0))
-                    active[i]=uv[i].X>=0?1-Mathf.SmoothStep(.17f,.23f,uv[i].X):girdleWeights[i];
+                inverseBlends[i]=blends[i].AffineInverse();
             }
             var target=(Vector3[])posed.Clone();
             var anatomy=FitPosedShoulder(source,posed,target,ids,uv,active,rig,side,rotation,girdle,bindings);
@@ -116,17 +131,16 @@ internal sealed partial class NatureModels
             }
             var points=(Vector3[])source.Clone();var correctedNormals=(Vector3[])normals.Clone();
             var offsets=new Vector3[source.Length];
-            for(int i=0;i<source.Length;i++)if(active[i]>0)offsets[i]=blends[i].AffineInverse()*target[i]-source[i];
+            for(int i=0;i<source.Length;i++)if(active[i]>0)offsets[i]=inverseBlends[i]*target[i]-source[i];
             // Even a small edit can tear a 0.3 mm compressed cap edge.
             // Constrain differences in bind space before producing normals,
             // retaining pinned endpoints and the actual final posed surface.
             for(int pass=0;pass<64;pass++)
             {
-                for(int a=0;a<source.Length;a++)foreach(int b in adjacent[a])if(b>a)
+                foreach(var (a,b,freeA,freeB,limit,_) in constraintEdges[side])
                 {
-                    var difference=offsets[a]-offsets[b];float length=difference.Length(),limit=source[a].DistanceTo(source[b])*.5f;
+                    var difference=offsets[a]-offsets[b];float length=difference.Length();
                     if(length<=limit||length<.0000001f)continue;
-                    float freeA=active[a]>0?1:0,freeB=active[b]>0?1:0;if(freeA+freeB==0)continue;
                     var correction=difference*((length-limit)/length/(freeA+freeB));
                     offsets[a]-=correction*freeA;offsets[b]+=correction*freeB;
                 }
@@ -134,16 +148,14 @@ internal sealed partial class NatureModels
                 // armhole after the different skin transforms are applied.
                 // Project that actual posed edge as well, with margin for
                 // interpolation between the sampled rotations.
-                for(int a=0;a<source.Length;a++)foreach(int b in adjacent[a])if(b>a)
+                foreach(var (a,b,wa,wb,_,limit) in constraintEdges[side])
                 {
-                    float wa=active[a]>0?1:0,wb=active[b]>0?1:0;if(wa+wb==0)continue;
                     var pa=blends[a]*(source[a]+offsets[a]);var pb=blends[b]*(source[b]+offsets[b]);
                     var edge=pa-pb;float length=edge.Length();
-                    float limit=source[a].DistanceTo(source[b])*3;
                     if(length<=limit||length<.0000001f)continue;
                     var correction=edge*((length-limit)/length/(wa+wb));
-                    if(wa>0)offsets[a]=blends[a].AffineInverse()*(pa-correction)-source[a];
-                    if(wb>0)offsets[b]=blends[b].AffineInverse()*(pb+correction)-source[b];
+                    if(wa>0)offsets[a]=inverseBlends[a]*(pa-correction)-source[a];
+                    if(wb>0)offsets[b]=inverseBlends[b]*(pb+correction)-source[b];
                 }
             }
             for(int i=0;i<source.Length;i++){points[i]+=offsets[i];target[i]=blends[i]*points[i];}
@@ -166,7 +178,7 @@ internal sealed partial class NatureModels
                 bool own=(source[i].X<0)==(side==0);
                 float normalWeight=!own?0:uv[i].X>=0?1-Mathf.SmoothStep(.22f,.263f,uv[i].X):girdleWeights[i];
                 if(normalWeight<=0)continue;
-                var inverse=blends[i].AffineInverse();
+                var inverse=inverseBlends[i];
                 var corrected=(inverse.Basis*targetNormals[i]).Normalized();
                 correctedNormals[i]=normals[i].Slerp(corrected,normalWeight).Normalized();
                 if(!points[i].IsFinite()||!correctedNormals[i].IsFinite())throw new InvalidOperationException("Invalid sleeve corrective pose");

@@ -61,7 +61,11 @@ internal sealed partial class NatureModels
         {
             // Shoulder panels move, the neck opening, sternum and waist do
             // not. Distance is on the sewn surface, not a Y-only chest mask.
-            result[i]=pattern[i].X>0?1:(1-Mathf.SmoothStep(0,.16f,distance[i]))
+            // Lower side-chest cloth is anchored to the ribs. Confine its
+            // shoulder participation close to the armhole while retaining
+            // the same value at the shared seam; the upper yoke is broader.
+            float reach=Mathf.Lerp(.06f,.16f,Mathf.SmoothStep(1.08f,1.19f,points[i].Y));
+            result[i]=pattern[i].X>0?1:(1-Mathf.SmoothStep(0,reach,distance[i]))
                 *Mathf.SmoothStep(.04f,.105f,MathF.Abs(points[i].X))*Mathf.SmoothStep(.96f,1.075f,points[i].Y);
         }
         return result;

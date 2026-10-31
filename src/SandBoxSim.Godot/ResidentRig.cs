@@ -331,7 +331,8 @@ internal partial class ResidentRig : Node3D
             {
                 _releaseTime=0;
                 if(_reach==0)_toolReachRest=_previousHands[1];
-                _reach=Mathf.MoveToward(_reach,usingTool?1:0,delta/.48f);
+                float reachDuration=usingTool?.48f:Math.Clamp(Holster.Position.DistanceTo(_toolReachRest*Grip!.Position)/.8f,.24f,.48f);
+                _reach=Mathf.MoveToward(_reach,usingTool?1:0,delta/reachDuration);
                 if(_reach>0)
                 {
                     var rest=_toolReachRest;

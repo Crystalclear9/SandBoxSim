@@ -16,10 +16,11 @@ internal partial class ResidentRig
         var outward=new Vector3((side==0?-1:1)*MathF.Cos(plane),0,-MathF.Sin(plane));
         var axis=Vector3.Down.Cross(outward).Normalized();
         var upper=Vector3.Down.Rotated(axis,elevation);
-        var lower=Vector3.Down.Rotated(axis,elevation+flexion);
+        var reference=PreferredArmFrame(side,upper);
+        var lower=upper.Rotated(reference.X,flexion);
         var elbow=ShoulderRest(side)+upper*.28f;
         var wrist=elbow+lower*Hands[side].Position.Length();
-        var right=axis;var up=-lower;var basis=new Basis(right,up,right.Cross(up)).Orthonormalized();
+        var right=reference.X;var up=-lower;var basis=new Basis(right,up,right.Cross(up)).Orthonormalized();
         basis=new Basis(lower,pronation)*basis;
         var grip=side==1?Grip!.Position:new Vector3(0,-.035f,-.0286f);
         SolveHand(side,wrist+basis*grip,basis,true,0,elbow);

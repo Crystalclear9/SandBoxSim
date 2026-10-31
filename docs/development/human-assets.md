@@ -146,7 +146,7 @@ python -m unittest discover -s tools -p test_resident_trousers.py
 
 可复用工具 [export_upper_arm_support.py](../../tools/export_upper_arm_support.py) 只依赖 Python 标准库，使用 `.tools/sources/makehuman` 中已校验来源，不重新下载素材。重建命令为 `python tools/export_upper_arm_support.py --source .tools/sources/makehuman --output src/SandBoxSim.Godot/assets/models/human`；对应测试同时检查来源重建一致性、有效截面和方向性体积。修改来源或配方后须同步审查运行时固定哈希。
 
-衣袖在当前体型拟合后加入上臂支撑、布料松量，保留共享袖窿拓扑和袖口连接，姿态修正共同整理肩上衣片及袖窿，再生成七十二个有限姿态的表面修正。修正覆盖抬臂平面、高度及轴向扭转，包括位置和重建后的法线；静止法线不能直接当作抬臂后皮肤／衣料的真实朝向。当前仍为有限姿态插值、程序动作及衣料蒙皮，没有裸露上臂皮肤、肌肉动力学或布料碰撞；空闲伸展的捕捉数据见下节。算法、边界和运行入口见[模型系统](models.md)。
+衣袖在当前体型拟合后加入上臂支撑、布料松量，保留共享袖窿拓扑和袖口连接，姿态修正共同整理肩上衣片及袖窿，再生成一百二十个有限姿态的表面修正。修正覆盖抬臂平面、高度及轴向扭转，包括位置和重建后的法线；静止法线不能直接当作抬臂后皮肤／衣料的真实朝向。当前仍为有限姿态插值、程序动作及衣料蒙皮，没有裸露上臂皮肤、肌肉动力学或布料碰撞；空闲伸展的捕捉数据见下节。算法、边界和运行入口见[模型系统](models.md)。
 
 ## 三维肩部来源与捕捉动作
 

@@ -41,7 +41,7 @@ internal sealed partial class NatureModels
                             {
                                 float total=0;
                                 var arm=new Basis(upper,Math.Clamp(ResidentRig.SleeveNeutralRoll(upper,side)+offset,-ResidentRig.SleeveRollSampleLimit,ResidentRig.SleeveRollSampleLimit))*swing;
-                                for(int p=0;p<ResidentRig.SleevePlaneCount;p++)for(int h=0;h<ResidentRig.SleeveHeightCount;h++)for(int roll=0;roll<3;roll++)
+                                for(int p=0;p<ResidentRig.SleevePlaneCount;p++)for(int h=0;h<ResidentRig.SleeveHeightCount;h++)for(int roll=0;roll<ResidentRig.SleeveRollCount;roll++)
                                 {
                                     float weight=ResidentRig.SleevePoseWeight(arm,side,p,h,roll);
                                     if(!float.IsFinite(weight)||weight<0||weight>1)throw new InvalidOperationException("Invalid orientation-driven shoulder shape weight");

@@ -15,6 +15,7 @@ internal sealed partial class NatureModels
     {
         Directory.CreateDirectory(folder);
         float[][] V(Vector3[] points)=>points.Select(p=>new[]{p.X,p.Y,p.Z}).ToArray();
+        float[][] B(Basis basis)=>V(new[]{basis.X,basis.Y,basis.Z});
         foreach(int identity in new[]{17,55})
         {
             var rig=Resident(identity,false,JobType.None);
@@ -42,6 +43,9 @@ internal sealed partial class NatureModels
                         rest=V(rest),rendered=V(displayed),indices,bones,weights,
                         pattern=pattern.Select(p=>new[]{p.X,p.Y}).ToArray(),
                         support=V(support),supportIndices=ShoulderSurface().Triangles,
+                        upperArmBasisColumns=B(rig.Arms[1].Basis),
+                        forearmBasisColumns=B(rig.Arms[1].Basis*rig.Elbows[1].Basis),
+                        palmBasisColumns=B(rig.Arms[1].Basis*rig.Elbows[1].Basis*rig.Hands[1].Basis),
                         shoulder=V(new[]{rig.Arms[1].Position}),
                         elbow=V(new[]{rig.Arms[1].Transform*rig.Elbows[1].Position})};
                     File.WriteAllText(Path.Combine(folder,$"resident-{identity}-{degrees}.json"),JsonSerializer.Serialize(data));

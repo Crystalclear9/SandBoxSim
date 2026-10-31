@@ -202,7 +202,11 @@ internal partial class ResidentRig
         _armSolvedThisStep[side]=true;_armReturning[side]=true;
         Vector3 gripOffset=side==1?Grip!.Position:new(0,-.035f,-.0286f);
         Vector3 wrist=gripTarget-handBasis*gripOffset;
-        Vector3 shoulder=ShoulderForReach(side,wrist);Arms[side].Position=shoulder;
+        // Seed the shoulder from the displayed upper arm, or an explicit
+        // elbow hint. Wrist height includes elbow flexion and must not create
+        // a fresh shrug before the coupled shoulder/elbow refinement below.
+        var upperHint=elbowHint.HasValue?elbowHint.Value-ShoulderRest(side):-_priorArms[side].Basis.Y;
+        Vector3 shoulder=ShoulderForReach(side,wrist,upperHint);Arms[side].Position=shoulder;
         float upper=.28f,lower=Hands[side].Position.Length();
         Vector3 delta=wrist-shoulder;float distance=Math.Clamp(delta.Length(),.08f,upper+lower-.002f);var direction=delta.Normalized();
         wrist=shoulder+direction*distance;
@@ -210,9 +214,15 @@ internal partial class ResidentRig
         // Keep the elbow below and slightly outside the shoulder. A tool's
         // shaft orientation must not drag the elbow up into a winged pose.
         // Pronation is resolved by the lower-arm frame, independently of pole.
-        var relaxedPole=new Vector3((side==0?-.35f:.35f)*ReachLateralScale,-.85f,-.10f);
+        // Flexion bends the forearm forward from a hanging neutral arm;
+        // the elbow itself lies behind the shoulder-to-wrist ray. Derive
+        // that preference from the arm frame, not a constant world pole.
+        var neutralPole=direction.Cross(PreferredArmFrame(side,direction).X);
+        var supportedPole=new Vector3((side==0?-.35f:.35f)*ReachLateralScale,-.85f,-.10f);
+        float dependent=1-Mathf.SmoothStep(Mathf.DegToRad(15),Mathf.DegToRad(60),MathF.Acos(Math.Clamp(direction.Dot(Vector3.Down),-1,1)));
+        var relaxedPole=supportedPole.Lerp(neutralPole,dependent);
         var carryingPole=new Vector3((side==0?-.75f:.75f)*ReachLateralScale,-.45f,.15f);
-        var pole=elbowHint.HasValue?elbowHint.Value-shoulder:bare?relaxedPole:relaxedPole.Lerp(handBasis.Y,.12f).Lerp(carryingPole,carry);
+        var pole=elbowHint.HasValue?elbowHint.Value-shoulder:relaxedPole.Lerp(carryingPole,carry);
         var bend=pole-direction*pole.Dot(direction);
         if(bend.LengthSquared()<.0001f){var hint=new Vector3(side==0?-1:1,.2f,.1f);bend=hint-direction*hint.Dot(direction);}
         bend=bend.Normalized();
@@ -309,6 +319,19 @@ internal partial class ResidentRig
             lowerBasis=new Basis(lowerDirection,Math.Clamp(turn,-6*_poseStep,6*_poseStep))*transported;
         }
         Arms[side].Basis=upperBasis;Elbows[side].Basis=upperBasis.Inverse()*lowerBasis;Hands[side].Basis=lowerBasis.Inverse()*handBasis;
+        if(!bare&&LimitWorkingWrist(side)&&side==1&&ToolHeld)FeedbackConstrainedTool();
+    }
+    private bool LimitWorkingWrist(int side)
+    {
+        var wrist=Hands[side].Quaternion;
+        var swing=new Quaternion(Vector3.Up,Hands[side].Basis.Y);
+        float angle=swing.GetAngle(),limit=Mathf.DegToRad(47);
+        if(angle<=limit)return false;
+        // Preserve axial orientation while projecting the local wrist swing
+        // into its comfort cone. Do not kick the elbow plane to satisfy a
+        // temporarily infeasible requested tool orientation.
+        Hands[side].Quaternion=(Quaternion.Identity.Slerp(swing,limit/angle)*swing.Inverse()*wrist).Normalized();
+        return true;
     }
     internal const float SleeveRollSampleLimit=1.65f;
     private Basis ReachUpperArmFrame(int side,Vector3 upper,Vector3 lower)

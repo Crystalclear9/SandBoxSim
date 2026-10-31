@@ -12,6 +12,7 @@ internal sealed partial class NatureModels
     private void ValidateShoulderMotion()
     {
         ValidateForearmTwist();
+        ValidateAnatomicalArmReference();
         ValidateGirdleMotion();
         ValidateMotionReference();
         ValidateSleeveCorrectives();
@@ -59,6 +60,55 @@ internal sealed partial class NatureModels
         if(maxElbowDeviation>Mathf.DegToRad(.5f)||maxStep>.22f)
             throw new InvalidOperationException($"Shoulder twists or snaps despite continuous hand positions: axial={maxTwist}, step={maxStep}, pose={worstStep}");
         GD.Print($"SHOULDER_MOTION_PASS: three adult identities, bare reaches/tools/returns, {supportSamples} actual intermediate sleeve poses and radius checks");
+    }
+    private void ValidateAnatomicalArmReference()
+    {
+        int samples=0;float maximumArmChange=0;
+        foreach(int identity in new[]{17,55})
+        {
+            var rig=Resident(identity,false,JobType.None);
+            try
+            {
+                foreach(int side in new[]{0,1})
+                {
+                    for(int step=0;step<180;step++)rig.StudyArmElevation(1f/60,0,Mathf.DegToRad(30),side);
+                    var lower=(rig.Arms[side].Basis*rig.Elbows[side].Basis*rig.Hands[side].Position).Normalized();
+                    var upper=-rig.Arms[side].Basis.Y;
+                    var swing=new Basis(new Quaternion(Vector3.Down,upper));
+                    float axial=MathF.Abs(swing.X.SignedAngleTo(rig.Arms[side].Basis.X,upper));
+                    // The live coupled solver retains a small settling error;
+                    // distinguish neutral axial twist from elevation itself.
+                    if(axial>Mathf.DegToRad(2)||upper.AngleTo(Vector3.Down)>Mathf.DegToRad(1)||lower.Z>-.25f)
+                        throw new InvalidOperationException($"Hanging arm begins axially twisted or flexes the forearm sideways/backwards: {identity}/{side}, axial={axial}, upper={upper}, lower={lower}");
+                    for(int step=0;step<180;step++)rig.StudyArmElevation(1f/60,Mathf.DegToRad(70),Mathf.DegToRad(30),side,0,1);
+                    var fixedArm=rig.Arms[side].Quaternion;float firstRoll=rig.ForearmRoll(side),rollTravel=0;
+                    for(int step=0;step<=120;step++)
+                    {
+                        float pronation=.9f*MathF.Sin(MathF.Tau*step/120);
+                        rig.StudyArmElevation(1f/60,Mathf.DegToRad(70),Mathf.DegToRad(30),side,pronation,1);
+                        float change=rig.Arms[side].Quaternion.AngleTo(fixedArm);maximumArmChange=MathF.Max(maximumArmChange,change);
+                        rollTravel=MathF.Max(rollTravel,MathF.Abs(rig.ForearmRoll(side)-firstRoll));samples++;
+                        if(change>.005f)throw new InvalidOperationException("Forearm pronation rotates the upper arm reference and shoulder skin");
+                    }
+                    if(rollTravel<.5f)throw new InvalidOperationException("Pronation test has no displayed forearm rotation");
+                }
+                var eating=Resident(identity,false,JobType.None);
+                try
+                {
+                    for(int step=0;step<240;step++)
+                    {
+                        eating.PoseAction(1f/60,ActionKind.Eat,ActionPhase.Executing,false,.3f);
+                        var wrist=InTorso(eating.Hands[1],eating.Torso).Origin;
+                        if(step>60&&wrist.Y<eating.Arms[1].Position.Y+.02f&&wrist.Z<-.12f
+                            &&(-eating.Arms[1].Basis.Y).AngleTo(Vector3.Down)>Mathf.DegToRad(65))
+                            throw new InvalidOperationException("Low front eating reach flares the upper arm instead of supporting the elbow below the shoulder");
+                    }
+                }
+                finally{eating.Free();}
+            }
+            finally{rig.Free();}
+        }
+        GD.Print($"ANATOMICAL_ARM_REFERENCE_PASS: {samples} adult/left/right pronation samples, neutral hanging flexion forward, maximum humeral change={maximumArmChange:F6} rad");
     }
     private void ValidateShoulderFit()
     {

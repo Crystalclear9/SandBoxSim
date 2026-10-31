@@ -69,7 +69,7 @@ internal sealed partial class NatureModels
                             if((MathF.Abs(source[i].X)<.04f||source[i].Y<.90f)&&point.DistanceTo(trunk)>.000002f)
                                 throw new InvalidOperationException($"Arm motion pulls the garment centre, neckline or pelvic waist: {identity}/{job}/{action}, source={source[i]}, posed={point}, expected={trunk}, weights={weights[i*4]}/{weights[i*4+1]}/{weights[i*4+2]}/{weights[i*4+3]}");
                             if(seam[i].X<0&&source[i].Y<ResidentRig.BodyY(1.18f)-.10f&&point.DistanceTo(trunk)>.035f)
-                                throw new InvalidOperationException("Arm motion drags the lower side chest into a wing");
+                                throw new InvalidOperationException($"Arm motion drags the lower side chest into a wing: {identity}/{job}/{action}, source={source[i]}, point={point}, excursion={point.DistanceTo(trunk)}");
                             if(seam[i].X>.2629f)
                             {
                                 var cuff=transforms[source[i].X<0?1:2]*source[i];
@@ -84,7 +84,11 @@ internal sealed partial class NatureModels
                             {
                                 var a=Vector3.Zero;var b=Vector3.Zero;
                                 for(int j=0;j<4;j++){a+=transforms[bones[edge.A*4+j]]*source[edge.A]*weights[edge.A*4+j];b+=transforms[bones[edge.B*4+j]]*source[edge.B]*weights[edge.B*4+j];}
-                                throw new InvalidOperationException($"Stretched garment action edge: {job}/{action}, ratio={ratio}, baseRatio={a.DistanceTo(b)/source[edge.A].DistanceTo(source[edge.B])}, rest={source[edge.A]} -> {source[edge.B]}, seam={seam[edge.A]} -> {seam[edge.B]}");
+                                var arm=rig.Arms[source[edge.A].X<0?0:1].Basis;var direction=-arm.Y;
+                                float elevation=MathF.Acos(Math.Clamp(direction.Dot(Vector3.Down),-1,1));
+                                float plane=MathF.Atan2(-direction.Z,MathF.Abs(direction.X));
+                                float roll=new Basis(new Quaternion(Vector3.Down,direction)).X.SignedAngleTo(arm.X,direction);
+                                throw new InvalidOperationException($"Stretched garment action edge: {identity}/{job}/{action}/{frame}, elevation/plane/roll={Mathf.RadToDeg(elevation)}/{Mathf.RadToDeg(plane)}/{Mathf.RadToDeg(roll)}, ratio={ratio}, baseRatio={a.DistanceTo(b)/source[edge.A].DistanceTo(source[edge.B])}, rest={source[edge.A]} -> {source[edge.B]}, seam={seam[edge.A]} -> {seam[edge.B]}");
                             }
                         }
                         poses++;
