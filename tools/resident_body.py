@@ -91,6 +91,6 @@ def body_provenance(frame):
     raw = (ASSETS/'body-profiles.json').read_bytes().replace(b'\r\n', b'\n')
     manifest = source_manifest()
     names = ('base.obj', 'basemesh_vertex_groups.json', 'caucasian-male-young.target', f'caucasian-{frame}-young.target', *recipe(frame)['targets'])
-    return dict(profile='scan-retarget-physique-v23', profileSha256=hashlib.sha256(raw).hexdigest(),
+    return dict(profile=json.loads(raw)['profile'], profileSha256=hashlib.sha256(raw).hexdigest(),
                 coordinateFrame='uniform-baseline-shoulder-hip-v1',
                 targets=recipe(frame)['targets'], sourceSha256={n: manifest[n]['sha256'] for n in names})

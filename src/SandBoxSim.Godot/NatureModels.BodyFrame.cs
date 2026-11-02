@@ -10,8 +10,8 @@ internal sealed partial class NatureModels
     private readonly float[][] _garmentFrameReference=new float[3][];
     private readonly float[][] _sewnFrameReference=new float[3][];
     private const int TrunkRows=113,TrunkColumns=128;
-    private const string MaleTrunkHash="6bc43390f0ff188f5467a56a627e76e2d8abca1f86bafa0c740879375b3d21a9";
-    private const string FemaleTrunkHash="8a073e8d401f731e84715bb07e51146044f762f2c7e845bda401998252f91f95";
+    private const string MaleTrunkHash="7f7d0b66541f07a21df494879b6780c01827f77c96ac79dfb59ec39e8aa22c08";
+    private const string FemaleTrunkHash="c97291b79dda6b1718f4d514fce6f29f3aca16c07c5527230f5b724c6c88ddf4";
     private const float TrunkLow=.74f,TrunkHigh=1.30f;
     private const float GarmentReferenceLow=.64f;
     private const int GarmentReferenceRows=133;
@@ -400,7 +400,16 @@ internal sealed partial class NatureModels
             }
             if(male.DetailedBodyMesh==female.DetailedBodyMesh||male.DistantBodyMesh==female.DistantBodyMesh)
                 throw new InvalidOperationException("Adult frames share their fitted body cache");
-            if(female.ShoulderHalfWidth>=male.ShoulderHalfWidth-.01f||female.DetailedBodySkin==male.DetailedBodySkin)
+            float SourceShoulder(string file)
+            {
+                using var doc=JsonDocument.Parse(FileAccess.GetFileAsString("res://assets/models/human/"+file));
+                return doc.RootElement.GetProperty("sourceShoulder")[0].GetSingle()*doc.RootElement.GetProperty("scale")[0].GetSingle();
+            }
+            // Check the selected source guides, not a fixed sex-gap that
+            // pressures art direction into ever narrower female shoulders.
+            if(MathF.Abs(male.ShoulderHalfWidth-SourceShoulder("trunk-masculine-cage.json"))>.000001f
+                ||MathF.Abs(female.ShoulderHalfWidth-SourceShoulder("trunk-feminine-cage.json"))>.000001f
+                ||female.ShoulderHalfWidth>=male.ShoulderHalfWidth||female.DetailedBodySkin==male.DetailedBodySkin)
                 throw new InvalidOperationException("Adult shoulder fit retains the common width or inverse binds");
             for(int side=0;side<2;side++)
                 if(!(female.ShoulderSkeleton.GetBoneRest(side+1)*female.DetailedBodySkin.GetBindPose(side+1)).IsEqualApprox(Transform3D.Identity))

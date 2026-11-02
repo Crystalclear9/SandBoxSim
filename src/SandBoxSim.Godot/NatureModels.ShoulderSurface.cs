@@ -14,7 +14,7 @@ internal sealed partial class NatureModels
         int frame=BodyFrame==1?1:0;if(_shoulderSurfaces[frame] is {} cached)return cached;
         string name=frame==0?"male":"female",raw=FileAccess.GetFileAsString("res://assets/models/human/shoulder-surface-"+name+".json").Replace("\r\n","\n",StringComparison.Ordinal);
         string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
-        if(hash!=(frame==0?"5adfe116266f1fab028e5bab620e4ff924cf5fed197674290d64a495f247582f":"af7c70cd3fcc1ebd2393ec7e5b59dadd648cf0bbc757977011b093246ad37c86"))throw new InvalidOperationException("Changed anatomical shoulder surface");
+        if(hash!=(frame==0?"3cbc249d89aedc0c6d59296d7222036a965c6c5208810bd01765d7f00a33361e":"9efd8bb64ff53fc9dd403ff4ecb1079d877946437f4af37b63539be09740d5cd"))throw new InvalidOperationException("Changed anatomical shoulder surface");
         using var json=JsonDocument.Parse(raw);var root=json.RootElement;
         if(root.GetProperty("schemaVersion").GetInt32()!=3||root.GetProperty("license").GetString()!="CC0-1.0")throw new InvalidOperationException("Invalid shoulder surface contract");
         var vertices=new List<Vector3>();var indices=new List<int>();

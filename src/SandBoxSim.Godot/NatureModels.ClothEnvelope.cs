@@ -63,6 +63,7 @@ internal sealed partial class NatureModels
                     data[row*TrunkColumns+col]=radius+ease/MathF.Max(.55f,incidence);
                 }
             }
+            RelaxClothMeridians(data);
             // Cloth hangs from higher supports instead of following every
             // inward turn of the abdomen. A bounded one-sided envelope bridges
             // the hollows below the chest without enlarging the source pelvis.
@@ -83,6 +84,36 @@ internal sealed partial class NatureModels
             _clothEnvelopes[key]=data;
         }
         return TrunkSample(_clothEnvelopes[key],y,angle);
+    }
+
+    // Minimise bending along the fabric's vertical fibres, subject to the
+    // source skin and fixed collar/belt. Independent convex rings otherwise
+    // reproduce abrupt under-bust and lumbar turns as moulded body armour.
+    private void RelaxClothMeridians(float[] data)
+    {
+        var source=(float[])data.Clone();var freedom=new float[data.Length];var allowance=new float[data.Length];
+        for(int row=0;row<TrunkRows;row++)for(int col=0;col<TrunkColumns;col++)
+        {
+            float y=TrunkLow+row*.005f,a=col*Mathf.Tau/TrunkColumns;
+            float pin=Mathf.SmoothStep(.015f,.050f,MathF.Abs(y-FinishedBeltHeight(a)));
+            freedom[row*TrunkColumns+col]=pin*Mathf.SmoothStep(.83f,.90f,y)*(1-Mathf.SmoothStep(1.17f,1.23f,y));
+            float side=MathF.Abs(MathF.Cos(a));
+            allowance[row*TrunkColumns+col]=Mathf.Lerp(.016f,.006f,side*side)*freedom[row*TrunkColumns+col];
+        }
+        const float bending=12;
+        for(int pass=0;pass<96;pass++)for(int sweep=0;sweep<2;sweep++)
+        for(int r=2;r<TrunkRows-2;r++)for(int col=0;col<TrunkColumns;col++)
+        {
+            int row=sweep==0?r:TrunkRows-1-r,i=row*TrunkColumns+col;
+            if(freedom[i]<=0)continue;
+            float candidate=(source[i]+bending*(4*(data[i-TrunkColumns]+data[i+TrunkColumns])
+                -data[i-2*TrunkColumns]-data[i+2*TrunkColumns]))/(1+6*bending);
+            data[i]=Math.Clamp(candidate,source[i],source[i]+allowance[i]);
+        }
+        for(int i=0;i<data.Length;i++)
+            if(!float.IsFinite(data[i])||data[i]<source[i]||data[i]>source[i]+.016001f
+                ||(freedom[i]==0&&data[i]!=source[i]))
+                throw new InvalidOperationException("Cloth meridian loses skin clearance or a fixed support");
     }
 
     private static Vector3[] ClothSurfaceNormals(Vector3[] points,int[] indices)

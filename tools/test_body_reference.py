@@ -19,7 +19,7 @@ class BodyReferenceTests(unittest.TestCase):
         self.assertEqual(manifest['source']['sha256'],'3c121505651140ceb4d69fd1d8923f7788ffadd81672f5be14845a5f2c75c137')
         for sex,geometry in [('male','4b09cfc4e2989072c7d4c525998bfeca248eafad4c51a9f4f5a445bc3207bcaa'),('female','b6290d86a6c4e6a704bf04342958270bc37507b57b5cf50fe527462b75e05566')]:
             name=f'reference-shape-{sex}.json';raw=(ASSETS/name).read_bytes();d=json.loads(raw)
-            self.assertEqual(profile['frames'][sex]['targets'],{name:1.0})
+            self.assertEqual(profile['frames'][sex]['targets'],{name:.75 if sex=='female' else 1.0})
             self.assertEqual((len(raw),hashlib.sha256(raw).hexdigest()),(manifest['files'][name]['bytes'],manifest['files'][name]['sha256']))
             self.assertEqual(d['sourceGeometrySha256'],geometry)
             self.assertEqual(d['sourceBundleSha256'],manifest['source']['sha256'])
@@ -39,13 +39,16 @@ class BodyReferenceTests(unittest.TestCase):
         scale=body_metric_scale(SOURCE)
         for sex in ('male','female'):
             d=json.loads((ASSETS/f'reference-shape-{sex}.json').read_text(encoding='utf-8'));points=body_points(SOURCE,sex)
-            def mean(name):
+            baseline=body_points(SOURCE,sex,baseline=True)
+            weight=json.loads((ASSETS/'body-profiles.json').read_text())['frames'][sex]['targets'][f'reference-shape-{sex}.json']
+            def mean(name,vertices):
                 ids=[i for a,b in groups[name] for i in range(a,b+1)]
-                return [sum(points[i][j] for i in ids)/len(ids) for j in range(3)]
-            shoulder=mean('joint-l-shoulder')
+                return [sum(vertices[i][j] for i in ids)/len(ids) for j in range(3)]
+            shoulder=mean('joint-l-shoulder',points);original_shoulder=mean('joint-l-shoulder',baseline)
             for name,expected in d['targetJoints'].items():
-                p=mean(name);actual=[p[0]*scale,1.23+(p[1]-shoulder[1])*scale,-(p[2]-shoulder[2])*scale]
-                for a,b in zip(actual,expected):self.assertAlmostEqual(a,b,places=6,msg=(sex,name))
+                p=mean(name,points);actual=[p[0]*scale,1.23+(p[1]-shoulder[1])*scale,-(p[2]-shoulder[2])*scale]
+                q=mean(name,baseline);original=[q[0]*scale,1.23+(q[1]-original_shoulder[1])*scale,-(q[2]-original_shoulder[2])*scale]
+                for a,b,c in zip(actual,expected,original):self.assertAlmostEqual(a,b*weight+c*(1-weight),places=6,msg=(sex,name))
 
     @unittest.skipUnless((SOURCE/'rig/default_weights.mhw').is_file(),'Optional source skeleton cache')
     def test_arm_region_includes_palm_and_excludes_leg(self):

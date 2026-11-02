@@ -166,7 +166,7 @@ for sex in ('male','female'):
             skin_support.append(round(math.hypot((hit.x-origin.x)*metric_scale,(hit.z-origin.z)*metric_scale),7))
     provenance=body_provenance(sex)
     source_hashes=provenance.pop('sourceSha256')
-    data=dict(schemaVersion=2,source='MakeHuman CC0 HM08 helper topology and anatomical body sections',frame=sex,hipHalfWidth=half,jointCount=5,cuffSkin='knee-transition-v1',physique='scan-retarget-physique-v23',shapeRecipe=provenance,tailoring=dict(thighEaseMetres=.0045,maximumFoldMetres=.0085,pelvis='source-envelope',bootOpening='pinned',detail='sewn-support-folds-v1',legSupport='source-body-rays-v1',anatomicalSamples=anatomical_samples),
+    data=dict(schemaVersion=2,source='MakeHuman CC0 HM08 helper topology and anatomical body sections',frame=sex,hipHalfWidth=half,jointCount=5,cuffSkin='knee-transition-v1',physique=provenance['profile'],shapeRecipe=provenance,tailoring=dict(thighEaseMetres=.0045,maximumFoldMetres=.0085,pelvis='source-envelope',bootOpening='pinned',detail='sewn-support-folds-v1',legSupport='source-body-rays-v1',anatomicalSamples=anatomical_samples),
         sourceSha256=source_hashes,
         supportSha256=hashlib.sha256(support_path.read_bytes().replace(b'\r\n',b'\n')).hexdigest(),anatomicalSupport=dict(low=.49,step=.01,rows=21,columns=64,radii=skin_support),positions=[],normals=[],uv=[],bones=[],weights=[],indices=[])
     for v in result.vertices:

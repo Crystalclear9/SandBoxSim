@@ -37,7 +37,7 @@ Both files record verified inputs, scales and the sampling recipe. Runtime
 cloth ease and body fitting are SandBoxSim artistic modifications.
 
 REFERENCE BODY SHAPES (CC0)
-body-profiles.json defines the scan-retarget-physique-v23 adult references.
+body-profiles.json defines the balanced-source-physique-v24 adult references.
 reference-shape-male.json and reference-shape-female.json transfer the CC0
 Body Male - Realistic and Body Female - Realistic assets by Dan Ulrich,
 from the official Blender Human Base Meshes v1.4.1 bundle, onto HM08 topology.
@@ -50,7 +50,9 @@ is not included in the game; the reusable exporter is
 SandBoxSim modifications: neutral shoulder/pelvis-axis retargeting, 41
 joint/surface controls, bounded surface transfer, displacement fairing,
 helper correspondence and joint-guide restoration. Both input body sources
-are CC0. The current body targets have weight 1.0 for their respective frame.
+are CC0. The male reference target has weight 1.0. The female reference target has
+weight 0.75, retaining 25% of the original female base shape to balance the
+shoulder/waist transition. All five body and clothing supports use this recipe.
 The existing head, hand, clothing and motion inputs retain their separate
 attributions below and above; CC0 body references do not replace those terms.
 

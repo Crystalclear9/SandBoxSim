@@ -18,7 +18,7 @@ class HumanAssetTests(unittest.TestCase):
     def test_body_recipe_is_shared_by_all_anatomical_supports(self):
         raw=(ROOT/'body-profiles.json').read_bytes().replace(b'\r\n',b'\n')
         profile=json.loads(raw);sha=hashlib.sha256(raw).hexdigest()
-        self.assertEqual(profile['profile'],'scan-retarget-physique-v23')
+        self.assertEqual(profile['profile'],'balanced-source-physique-v24')
         self.assertEqual(profile['license'],'CC0-1.0')
         manifest=source_manifest()
         for sex,label in (('male','masculine'),('female','feminine')):
@@ -43,15 +43,14 @@ class HumanAssetTests(unittest.TestCase):
             self.assertAlmostEqual(shoulder['shoulder'][0],expected,places=6)
         # The upper trunk must exclude each source's A-pose arm. A common
         # male-width clip previously made the female upper section as broad.
-        references={sex:json.loads((ROOT/f'reference-shape-{sex}.json').read_text(encoding='utf-8')) for sex in ('male','female')}
-        expected_gap=.92*(references['male']['targetJoints']['joint-l-shoulder'][0]-references['female']['targetJoints']['joint-l-shoulder'][0])
+        expected_gap=.92*(m['sourceShoulder'][0]*m['scale'][0]-f['sourceShoulder'][0]*f['scale'][0])
         self.assertAlmostEqual(m['armholeHalfWidth']-f['armholeHalfWidth'],expected_gap,places=6)
         row=round((1.18-.74)/.005)*128
         self.assertLess(f['radii'][row]+f['radii'][row+64],m['radii'][row]+m['radii'][row+64])
 
     def test_complete_trunk_sources_and_shape_sections(self):
-        expected=('6bc43390f0ff188f5467a56a627e76e2d8abca1f86bafa0c740879375b3d21a9',
-                  '8a073e8d401f731e84715bb07e51146044f762f2c7e845bda401998252f91f95')
+        expected=('7f7d0b66541f07a21df494879b6780c01827f77c96ac79dfb59ec39e8aa22c08',
+                  'c97291b79dda6b1718f4d514fce6f29f3aca16c07c5527230f5b724c6c88ddf4')
         sources=source_manifest()
         frames=[]
         for frame,digest in zip(('masculine','feminine'),expected):
