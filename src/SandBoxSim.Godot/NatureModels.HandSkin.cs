@@ -51,6 +51,15 @@ internal sealed partial class NatureModels
             var fitted=RefineForearmProfile(new(p[i*3],p[i*3+1],p[i*3+2]),new(n[i*3],n[i*3+1],n[i*3+2]),BodyFrame);
             points[i]=new(fitted.Point.X*mirror,fitted.Point.Y,fitted.Point.Z);normals[i]=new(fitted.Normal.X*mirror,fitted.Normal.Y,fitted.Normal.Z);uv[i]=new(tex[i*2],tex[i*2+1]);
         }
+        if(BodyFrame==1)
+        {
+            var fairPoints=new Vector3[points.Length];
+            for(int i=0;i<points.Length;i++)fairPoints[i]=new(points[i].X*mirror,points[i].Y,points[i].Z);
+            var fairNormals=new Vector3[normals.Length];
+            for(int i=0;i<normals.Length;i++)fairNormals[i]=new(normals[i].X*mirror,normals[i].Y,normals[i].Z);
+            FairForearmRest(fairPoints,fairNormals,Integers("indices"),BodyFrame,lowDetail?"hand-lod":"hand");
+            for(int i=0;i<points.Length;i++){points[i]=new(fairPoints[i].X*mirror,fairPoints[i].Y,fairPoints[i].Z);normals[i]=new(fairNormals[i].X*mirror,fairNormals[i].Y,fairNormals[i].Z);}
+        }
         var bones=Integers("bones");var weights=Floats("weights");var mesh=new ArrayMesh();
         for(int i=0;i<points.Length;i++)if(points[i].Y>.005f&&points[i].Y<=.0451f)
         {

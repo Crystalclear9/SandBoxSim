@@ -43,7 +43,7 @@
 
 `resident-body-motion.png` 为 `visual-body-motion.json` 扩展采样的第 60 帧、1600×1000；同名 GIF 为 120 个原生采样，逻辑帧 60–417 每三步采样、20 fps、六秒，分四次固定 60 Hz、零模拟步进的回放编码。每批另保留早期窗口检查帧。六格配对展示放松站立、行走与弯身取物，使用当前 `scan-retarget-physique-v23` 模型、实际裤装和腰部衣料绑定。镜头正交尺寸 2.25、目标 (0, 0.82, 0)、相对位置 (1.8, 0.08, 4)，没有身体局部缩放、插帧或重绘。
 
-`resident-forearm-frames.png` 为公开 `visual-forearm-frames.json` 第 90 帧的小臂对照，正交尺寸 0.46，1600×1000，使用实际分离观察网格，不代表游戏中存在开放切口。该图于 2026-11-02 使用 `scan-retarget-physique-v23` 重采，保留原雕刻与腕口，按同配方的肘腕截面约束肌腹；头脸 `regional-adult-v2` 独立保留。旧 `resident-forearm-detail.png` 仅保留来源拓扑专题，不表示当前肌腹截面；身体轮廓以本次全身与前臂配对图为准。
+`resident-forearm-frames.png` 为公开 `visual-forearm-frames.json` 第 90 帧的小臂对照，正交尺寸 0.46，1600×1000，使用实际分离观察网格，不代表游戏中存在开放切口。该图于 2026-11-02 使用 `scan-retarget-physique-v23` 重采，保留原雕刻与腕口，按同配方的肘腕截面约束肌腹；头脸采用 `balanced-adult-v3`，原始来源拓扑独立保留。旧 `resident-forearm-detail.png` 仅保留来源拓扑专题，不表示当前肌腹截面；身体轮廓以本次全身与前臂配对图为准。
 
 除本节开头说明的当前肩袖与生活侧面专题外，工具／作业／生活的既有动作演示保留 `limbCoordination=hinge-carry-v4` 和 `shoulderMotion=source-fitted-reach-v3`，保留工具握柄的实际绑定方向，协调上臂屈伸轴与肘部平面；生活动作另使用 `socialMotion=mouth-facing-v4`，按实际食指三段骨骼末端估计指腹位置，控制靠近嘴部与返回的轨迹，不表示已经实现食物、杯具或嘴唇接触物理。`resident-tool-motion.gif` 为单人手锤取出、作业与返回低位携带；`resident-work-effort.gif` 为同工具、不同成人外观及疲劳状态的四格对照；`resident-social-motion.gif` 展示交谈、递交与进食，`resident-social-side-motion.gif` 为同组生活动作的侧面。旧工具与生活正面两段为 1280×800，当前生活侧面与作业状态对照为 1280×1000，均为原生客户端的 102 帧，固定 60 Hz、冻结模拟，在逻辑帧 30–434 每四步采样；受单次最多 32 张采样限制，每段分为四次等配置回放后按逻辑帧拼接，总时长 6.8 秒，没有重绘或插帧，不是帧率测试或人体实测。侧面相机相对 (0, 1, 0) 为 (4, 0.06, 1)，交谈正面为 (0.12, 0.06, 4)，两段交谈图正交尺寸均为 1.6。手锤全身演示使用正交尺寸 1.85、目标 (0, 0.83, 0)、相对位置 (0, 0.07, 4)。`resident-social.png` 为生活动作逻辑帧 150。公开复现配置为 `visual-motion.json`、`visual-work-effort.json`、`visual-social.json` 与 `visual-social-side.json`；完整 102 帧演示采用上述分批采样。
 
@@ -129,6 +129,8 @@
 
 当前身体动态与抬臂图使用 `shoulderMotion=source-clavicle-v11`，锁骨内端与肩点均来自当前转移体型；旧的专项肩袖图仍保留其原采样版本。
 
-当前身体、衣装、前臂及抬臂配图保留 `bodyFrame=scan-retarget-physique-v23`，腕臂使用 `wristContour=continuous-source-v2`、`forearmProfile=continuous-source-volume-v2`、`forearmSkin=distributed-wrist-v2`。腕部连接为 30 毫米切线约束表面，宽深与中心线按各自身体来源拟合。较早的手部、工具和捕捉专项配图仍保留其各自采样版本。
+当前身体、衣装、前臂及抬臂配图保留 `bodyFrame=scan-retarget-physique-v23`，腕臂使用 `wristContour=continuous-source-v2`、`forearmProfile=fair-source-volume-v3`、`forearmSkin=distributed-wrist-v2`。腕部连接为 30 毫米切线约束表面，宽深与中心线按各自身体来源拟合。较早的手部、工具和捕捉专项配图仍保留其各自采样版本。
 
 `resident-wrist-motion.png` 取自 `visual-wrist-motion.json` 的第 90 帧；GIF 使用 120 个原生采样，逻辑帧 30–506 每四步采样，固定 60 Hz、零模拟步进，时长八秒，分四次等配置回放。展示实际连体蒙皮，观察镜头沿前臂坐标定位，主补光随观察方向旋转；可见层只隔离该手臂，避免躯干遮住反向视角，没有修改模型或对图像重绘。GIF 仅采用统一调色板编码。
+
+当前身体、衣装、前臂、腕部、连续抬臂及两组头脸配图使用 `garmentFit=normal-fairing-v1`、`forearmProfile=fair-source-volume-v3`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2`。来源身体配方仍是 v23；较早人物观察窗和动作专题保留其原采样版本。`resident-face-frames.png` 与 `resident-face-detail.png` 分别来自公开 `visual-face-frames` 与 `visual-faces` 第 90 帧，本次均为 1600×1000；额前发根与静止眼睑属于实际运行形体及材质参数，没有重绘或局部图像修饰。

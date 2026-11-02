@@ -295,11 +295,16 @@ internal sealed partial class NatureModels
         speaker.MouthMaterial.SetShaderParameter("speech",1f);
         if(ReferenceEquals(speaker.MouthMaterial,listener.MouthMaterial)||listener.MouthMaterial.GetShaderParameter("speech").AsSingle()!=0)
             throw new InvalidOperationException("Residents share facial animation material state");
+        float listenerBlink=listener.LidMaterial.GetShaderParameter("blink").AsSingle();
+        if(listenerBlink!=listener.RestLid||listener.RestLid<0||listener.RestLid>.14f
+            ||listener.LashMaterial!.GetShaderParameter("blink").AsSingle()!=listenerBlink
+            ||listener.TearMaterial!.GetShaderParameter("blink").AsSingle()!=listenerBlink)
+            throw new InvalidOperationException("Resident resting lid/lash/tear states disagree");
         speaker.LidMaterial.SetShaderParameter("blink",1f);
-        if(ReferenceEquals(speaker.LidMaterial,listener.LidMaterial)||listener.LidMaterial.GetShaderParameter("blink").AsSingle()!=0)
+        if(ReferenceEquals(speaker.LidMaterial,listener.LidMaterial)||listener.LidMaterial.GetShaderParameter("blink").AsSingle()!=listenerBlink)
             throw new InvalidOperationException("Residents share eyelid animation state");
         speaker.LashMaterial!.SetShaderParameter("blink",1f);
-        if(speaker.Lashes!.Mesh!=listener.Lashes!.Mesh||speaker.LashMaterial==listener.LashMaterial||listener.LashMaterial!.GetShaderParameter("blink").AsSingle()!=0)
+        if(speaker.Lashes!.Mesh!=listener.Lashes!.Mesh||speaker.LashMaterial==listener.LashMaterial||listener.LashMaterial!.GetShaderParameter("blink").AsSingle()!=listenerBlink)
             throw new InvalidOperationException("Eyelash geometry is not shared or blink leaks between residents");
         speaker.SetHeadDetail(false);if(speaker.Lashes.Visible)throw new InvalidOperationException("Distant resident keeps near eyelashes");speaker.SetHeadDetail(true);
         // A nonzero identity phase requests a real off-centre target on the

@@ -6,6 +6,7 @@ namespace SandBoxSim.Client;
 
 internal partial class ResidentRig
 {
+    internal float RestLid;
     internal static float FaceBlink(float time,float identity)
     {
         // Staggered, deterministic windows; fast closure and slower reopening.

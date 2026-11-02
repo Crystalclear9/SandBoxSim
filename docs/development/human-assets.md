@@ -231,3 +231,5 @@ python -m unittest discover -s tools -p test_resident_trousers.py
 腕部专项检查：`./tools/godot.ps1 -Mode test -HandContinuityOnly`。近景公开回放：`python tools/evaluate.py run benchmarks/scenarios/visual-wrist-motion.json --output .tools/tmp/wrist-study`；普通可运行包仍直接使用已导出的模型。
 
 重新烘焙手部时，先生成连体 `human-hand.mesh.json` 与其 LOD，再执行 `export_upper_arm_support.py --region forearm`；后者直接测量当前连体表面，不能与旧版手部截面混用。手掌原索引和指甲分区保留，腕部连接的顶点、法线及运行权重按当前转换流程生成。
+
+当前成人脸部拟合标识为 `balanced-adult-v3`，额前发根为 `framed-source-root-v2`。来源头脸与发片文件、UV 和许可保持各自定义；运行时减少夸张的下脸收缩与颊部修饰，并按来源头皮运输女性额前发片。皮肤、睫毛与泪线共用有限的静止闭合及原眨眼形变。完整参数与衣装、前臂的受限表面松弛见[模型系统](models.md)。女性前臂的 0.8 毫米局部松弛在来源截面拟合后执行，按来源缓存，不修改原始雕刻文件或握柄区域。

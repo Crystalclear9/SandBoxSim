@@ -42,6 +42,14 @@ internal sealed partial class NatureModels
         var ids=new List<int>();foreach(var value in root.GetProperty("indices").EnumerateArray())
         {int index=value.GetInt32();if(index<0||index>=count)throw new InvalidOperationException("Invalid anatomical forearm index");ids.Add(index);}
         var indices=ids.ToArray();
+        if(BodyFrame==1)
+        {
+            var canonical=new Vector3[points.Length];var sourceNormals=new Vector3[normals.Length];var origin=new Vector3(0,.255f,.010f);
+            for(int i=0;i<points.Length;i++){canonical[i]=new(points[i].X*mirror,points[i].Y,points[i].Z);canonical[i]+=origin;sourceNormals[i]=new(normals[i].X*mirror,normals[i].Y,normals[i].Z);}
+            FairForearmRest(canonical,sourceNormals,indices,BodyFrame,"forearm");
+            for(int i=0;i<points.Length;i++){var q=canonical[i]-origin;points[i]=new(q.X*mirror,q.Y,q.Z);normals[i]=new(sourceNormals[i].X*mirror,sourceNormals[i].Y,sourceNormals[i].Z);}
+        }
+
         if(indices.Length%3!=0)throw new InvalidOperationException("Incomplete anatomical forearm triangles");
         if(mirror<0)for(int i=0;i<indices.Length;i+=3)(indices[i+1],indices[i+2])=(indices[i+2],indices[i+1]);
         var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);
@@ -62,6 +70,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateForearmSurfaces()
     {
+        ValidateRestFairing();
         ValidateWristContour();
         var left=AnatomicalForearm(0);var right=AnatomicalForearm(1);
         var l=left.SurfaceGetArrays(0);var r=right.SurfaceGetArrays(0);

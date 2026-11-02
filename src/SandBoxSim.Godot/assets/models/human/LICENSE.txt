@@ -66,6 +66,9 @@ Retarget hair cards to the head; retain the open-forehead ponytail;
 apply independent actor blink/speech uniforms and age-dependent proportions.
 The former Blender head meshes, separate eyelid overlays and three old head
 normal atlases have been replaced. No MakeHuman application code is bundled.
+Current runtime modifications also balance adult regional facial fits,
+transport the female frontal hairline on source scalp sections and share
+a source-aperture resting closure across lids, lashes and the tear meniscus.
 Exporter: tools/export_resident_faces.py
 Source fetcher: tools/fetch-human-assets.py
 
@@ -97,6 +100,8 @@ Runtime mirrors geometry, normals and winding.
 Runtime derivatives also fit the muscle volume with continuous transverse
 scales, preserving the wrist/grip and hidden elbow boundary; near/far adult
 presentation profiles share that fit and transformed surface normals.
+Current female runtime derivatives additionally apply bounded 0.8 mm
+rest-surface fairing, retaining finger/grip and wrist/elbow boundaries.
 Exporter: tools/export_human_forearm.py.
 
 Retain this hand/forearm attribution and note further changes on redistribution.

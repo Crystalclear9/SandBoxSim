@@ -124,10 +124,10 @@ internal sealed partial class NatureModels
         if(!ChildHead)
         {
             float jaw=MathF.Exp(-MathF.Pow((y+.065f)/.035f,2));
-            float amount=HumanFamily==2?-.060f:.085f;
+            float amount=HumanFamily==2?-.025f:.045f;
             derivative=derivative*(1+amount*jaw)-width*amount*jaw*2*(y+.065f)/(.035f*.035f);
             width*=1+amount*jaw;
-            float neck=MathF.Exp(-MathF.Pow((y+.112f)/.026f,2)),neckAmount=HumanFamily==2?-.055f:.10f;
+            float neck=MathF.Exp(-MathF.Pow((y+.112f)/.026f,2)),neckAmount=HumanFamily==2?-.030f:.065f;
             derivative=derivative*(1+neckAmount*neck)-width*neckAmount*neck*2*(y+.112f)/(.026f*.026f);
             width*=1+neckAmount*neck;
         }
@@ -156,13 +156,13 @@ internal sealed partial class NatureModels
             // Regional soft-tissue fit, in metres, rather than scaling an
             // entire head. Preserve the eye aperture and use this very same
             // map for eyelids, lips, hair, landmarks and the distant head.
-            z-=front*(HumanFamily==2?-.0012f*brow+.0030f*cheek+.0021f*forehead:.0040f*brow+.0028f*chin+.0016f*nose-.0007f*cheek);
+            z-=front*(HumanFamily==2?-.0004f*brow+.0012f*cheek+.0008f*forehead:.0025f*brow+.0016f*chin+.0010f*nose-.0004f*cheek);
             if(HumanFamily==2)
             {
                 // Shorten the lower facial segment without lifting the neck
                 // seam. Eye/lip parts and landmarks use this same mapping.
                 float lower=Mathf.SmoothStep(.025f,.090f,-p.Y)*(1-Mathf.SmoothStep(.105f,.145f,-p.Y));
-                y+=.0045f*lower;
+                y+=.0015f*lower;
             }
         }
         float x=p.X*HumanWidth(p.Y,out _);
@@ -171,7 +171,7 @@ internal sealed partial class NatureModels
             float front=Mathf.SmoothStep(.025f,.060f,-p.Z);
             float nasal=MathF.Exp(-MathF.Pow(p.X/.022f,4)-MathF.Pow((p.Y+.018f)/.035f,2));
             float malar=MathF.Exp(-MathF.Pow((MathF.Abs(p.X)-.048f)/.025f,2)-MathF.Pow((p.Y+.020f)/.028f,2));
-            x*=1+front*(HumanFamily==2?-.045f*nasal+.022f*malar:.030f*nasal);
+            x*=1+front*(HumanFamily==2?-.020f*nasal+.008f*malar:.020f*nasal);
         }
         return new(x,y,z);
     }
@@ -226,7 +226,8 @@ internal sealed partial class NatureModels
         var origin=kind=="eye"?HumanEyeCenter(side):kind=="mouth"?HumanMouthCenter:Vector3.Zero;
         for(int i=0;i<points.Length;i++)
         {
-            var p=HumanPoint(source.Points[i]);var n=HumanNormal(source.Points[i],source.Normals[i]);
+            var p=kind=="hair"?FramedHairPoint(source.Points[i]):HumanPoint(source.Points[i]);
+            var n=kind=="hair"?FramedHairNormal(source.Points[i],source.Normals[i]):HumanNormal(source.Points[i],source.Normals[i]);
             if(kind=="head"||kind=="lod")
             {
                 points[i]=new(p.X/.177f,p.Y/.220f,p.Z/.195f);
@@ -292,6 +293,7 @@ internal sealed partial class NatureModels
             _faceVariant=variant;_facePoints=null;_faceIndices=null;
             var data=HumanData();
             ValidateHairlineSource();
+            ValidateHairFraming();
             if(data.Radii.Length!=data.Rows*data.Columns||data.Centers.Length!=data.Rows||data.High<=data.Low)
                 throw new InvalidOperationException("Incomplete scalp surface lookup");
             foreach(float radius in data.Radii)if(!float.IsFinite(radius)||radius<=0)throw new InvalidOperationException("Invalid scalp sample");

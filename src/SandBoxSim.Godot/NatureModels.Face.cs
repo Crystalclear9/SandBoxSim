@@ -98,6 +98,12 @@ internal sealed partial class NatureModels
     }
     private void AddResidentFace(ResidentRig rig,string skin)
     {
+        var source=HumanData();var upper=source.UpperLids[0];var lower=source.LowerLids[0];
+        float width=MathF.Abs(HumanPoint(upper[^1]).X-HumanPoint(upper[0]).X);
+        float height=HumanPoint(upper[upper.Length/2]).Y-HumanPoint(lower[lower.Length/2]).Y;
+        // An artistic relaxed aperture, measured from this source rather than
+        // enlarging eyes or giving every identity the same closure.
+        rig.RestLid=ChildHead||height<=0?0:Math.Clamp(1-width*.30f/height,0,.14f);
         // Blink deforms the authored eyelid vertices on the skin itself. Each
         // actor owns its surface override while geometry remains shared.
         for(int surface=0;surface<rig.HeadSkin.Mesh.GetSurfaceCount();surface++)
@@ -105,6 +111,7 @@ internal sealed partial class NatureModels
             var material=rig.HeadSkin.Mesh.SurfaceGetMaterial(surface);
             if(!material.HasMeta("UsesSkinAtlas"))continue;
             rig.LidMaterial=(ShaderMaterial)material.Duplicate();
+            rig.LidMaterial.SetShaderParameter("blink",rig.RestLid);
             rig.HeadSkin.SetSurfaceOverrideMaterial(surface,rig.LidMaterial);
         }
         _eyeShader??=new Shader {Code=@"shader_type spatial;
@@ -121,14 +128,14 @@ CLEARCOAT=.65;CLEARCOAT_ROUGHNESS=.12;
 uniform float blink=0.0;
 void vertex(){VERTEX.yz+=UV2*blink;}
 void fragment(){ALBEDO=vec3(.027,.022,.017);ROUGHNESS=.83;SPECULAR=.16;}"};
-        rig.LashMaterial=new ShaderMaterial {Shader=_lashShader};rig.LashMaterial.SetShaderParameter("blink",0f);
+        rig.LashMaterial=new ShaderMaterial {Shader=_lashShader};rig.LashMaterial.SetShaderParameter("blink",rig.RestLid);
         rig.Lashes=Sculpt(rig.Head,Eyelashes(),Vector3.Zero,rig.LashMaterial);
         rig.Lashes.Name="AnatomicalLashes";rig.Lashes.CastShadow=GeometryInstance3D.ShadowCastingSetting.Off;
         rig.TearMaterial=new ShaderMaterial {Shader=new Shader {Code=@"shader_type spatial;
 uniform float blink=0.0;uniform vec4 tone:source_color;
 void vertex(){VERTEX.yz+=UV2*blink;}
 void fragment(){ALBEDO=mix(tone.rgb,vec3(.25,.075,.055),.32);ROUGHNESS=.13;SPECULAR=.42;}"}};
-        rig.TearMaterial.SetShaderParameter("tone",new Color(skin));rig.TearMaterial.SetShaderParameter("blink",0f);
+        rig.TearMaterial.SetShaderParameter("tone",new Color(skin));rig.TearMaterial.SetShaderParameter("blink",rig.RestLid);
         rig.TearLine=Sculpt(rig.Head,TearMeniscus(),Vector3.Zero,rig.TearMaterial);rig.TearLine.Name="AnatomicalTearMeniscus";
         rig.TearLine.CastShadow=GeometryInstance3D.ShadowCastingSetting.Off;
         rig.EyeMaterial.SetShaderParameter("eye_albedo",GD.Load<Texture2D>("res://assets/models/human/eye_albedo.png"));
@@ -156,9 +163,9 @@ void fragment(){ALBEDO=mix(tone.rgb,vec3(.25,.075,.055),.32);ROUGHNESS=.13;SPECU
             {
                 float u=(hair+.5f)/72,fullness=MathF.Pow(MathF.Sin(u*MathF.PI),.55f);
                 bool feminine=BodyFrame==1;
-                float arch=ChildHead?.004f:feminine?.0055f:.0025f;
-                float x=eye.X+side*(-.016f+u*.035f),y=eye.Y+(ChildHead?.015f:feminine?.0165f:.0135f)+MathF.Sin(u*MathF.PI*.95f)*arch-u*.003f;
-                float length=(.0012f+.0021f*fullness)*(1+(hair%3-1)*.12f)*(BodyFrame==1?.84f:1.04f);
+                float arch=ChildHead?.004f:feminine?.0035f:.0025f;
+                float x=eye.X+side*(-.016f+u*.035f),y=eye.Y+(ChildHead?.015f:feminine?.0135f:.0135f)+MathF.Sin(u*MathF.PI*.95f)*arch-u*.003f;
+                float length=(.0012f+.0021f*fullness)*(1+(hair%3-1)*.12f)*(BodyFrame==1?.98f:1.04f);
                 Vector3 Point(float t,float across)
                 {
                     float px=x+side*t*(.0006f+.0015f*u),py=y+length*(t-.55f);

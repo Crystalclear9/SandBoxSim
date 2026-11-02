@@ -261,7 +261,7 @@ internal partial class ResidentRig : Node3D
         _faceTime+=delta;
         if(_detailedHead)
         {
-            float blink=FaceBlink(_faceTime,expressionPhase);
+            float blink=RestLid+(1-RestLid)*FaceBlink(_faceTime,expressionPhase);
             LidMaterial.SetShaderParameter("blink",blink);
             LashMaterial?.SetShaderParameter("blink",blink);TearMaterial?.SetShaderParameter("blink",blink);
             float attention=MathF.Floor(_faceTime*.55f+expressionPhase*.37f);
