@@ -51,6 +51,23 @@ internal sealed partial class NatureModels
                     data[row*TrunkColumns+col]=radius+.014f+.004f*MathF.Exp(-MathF.Pow((height-1.02f)/.13f,2));
                 }
             }
+            // Cloth hangs from higher supports instead of following every
+            // inward turn of the abdomen. A bounded one-sided envelope bridges
+            // the hollows below the chest without enlarging the source pelvis.
+            // The belt gradually gathers this ease at its actual fitted height.
+            var skin=(float[])data.Clone();
+            for(int row=0;row<TrunkRows;row++)for(int col=0;col<TrunkColumns;col++)
+            {
+                float height=TrunkLow+row*.005f;
+                float belt=frame==1?ResidentRig.BodyY(.7615f+.13f):ResidentRig.BodyY(.7615f);
+                float free=Mathf.SmoothStep(belt+.018f,belt+.11f,height)*(1-Mathf.SmoothStep(1.16f,1.21f,height));
+                float sampleAngle=col*Mathf.Tau/TrunkColumns;
+                free*=1-MathF.Pow(MathF.Abs(MathF.Cos(sampleAngle)),4);
+                float radius=skin[row*TrunkColumns+col],hanging=radius;
+                for(int step=1;step<=24&&row+step<TrunkRows;step++)
+                    hanging=MathF.Max(hanging,skin[(row+step)*TrunkColumns+col]-step*.005f*.22f);
+                data[row*TrunkColumns+col]=radius+MathF.Min(.007f,hanging-radius)*free;
+            }
             _clothEnvelopes[frame]=data;
         }
         return TrunkSample(_clothEnvelopes[frame],y,angle);

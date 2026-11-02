@@ -8,8 +8,11 @@ internal sealed partial class NatureModels
 {
     private float[]? _trunkMale,_trunkFeminine;
     private readonly float[][] _garmentFrameReference=new float[3][];
+    private readonly float[][] _sewnFrameReference=new float[3][];
     private const int TrunkRows=113,TrunkColumns=128;
     private const float TrunkLow=.74f,TrunkHigh=1.30f;
+    private const float GarmentReferenceLow=.64f;
+    private const int GarmentReferenceRows=133;
     private static float[] FrameRadii(string file,string expected)
     {
         string raw=FileAccess.GetFileAsString("res://assets/models/human/"+file).Replace("\r\n","\n",StringComparison.Ordinal);
@@ -39,22 +42,32 @@ internal sealed partial class NatureModels
     private float[] GarmentFrameReference()
     {
         if(_garmentFrameReference[_garmentCut]!=null)return _garmentFrameReference[_garmentCut];
-        var samples=new float[TrunkRows*TrunkColumns];
-        for(int row=0;row<TrunkRows;row++)for(int col=0;col<TrunkColumns;col++)
+        var samples=new float[GarmentReferenceRows*TrunkColumns];
+        for(int row=0;row<GarmentReferenceRows;row++)for(int col=0;col<TrunkColumns;col++)
         {
-            float y=TrunkLow+row*.005f;
+            float y=GarmentReferenceLow+row*.005f;
             float fraction=Math.Clamp((ResidentRig.SourceBodyY(y)-GarmentBottom)/(1.28f-GarmentBottom),0,1);
             var p=GarmentPoint(fraction,col*Mathf.Tau/TrunkColumns);
             samples[row*TrunkColumns+col]=new Vector2(p.X,p.Z).Length();
         }
         return _garmentFrameReference[_garmentCut]=samples;
     }
+    private static float GarmentReferenceSample(float[] data,float y,float angle)
+    {
+        float row=Math.Clamp((y-GarmentReferenceLow)/.005f,0,GarmentReferenceRows-1);
+        float column=Mathf.PosMod(angle,Mathf.Tau)/Mathf.Tau*TrunkColumns;
+        int r=Math.Min(GarmentReferenceRows-2,(int)row),c=(int)column;float u=column-c,v=row-r;
+        float At(int h)=>Mathf.Lerp(data[h*TrunkColumns+c],data[h*TrunkColumns+(c+1)%TrunkColumns],u);
+        return Mathf.Lerp(At(r),At(r+1),v);
+    }
     private Vector3 FramePoint(Vector3 point,float sleeve=0,bool tailored=false)
     {
         bool feminine=BodyFrame==1;
         float upper=MathF.Max(sleeve,Mathf.SmoothStep(1.19f,1.27f,point.Y));
-        float panelHeight=feminine&&tailored?Mathf.Lerp(point.Y,TailoredPanelHeight(point),1-upper):point.Y;
-        float active=Mathf.SmoothStep(.70f,.735f,point.Y)*(1-Mathf.SmoothStep(1.19f,1.27f,point.Y));
+        float panelHeight=tailored?Mathf.Lerp(point.Y,TailoredPanelHeight(point),1-upper):point.Y;
+        // Coverage is defined in finished-clothing space. A long coat's
+        // construction hem starts below .70 m before its panel is remapped.
+        float active=Mathf.SmoothStep(.70f,.735f,panelHeight)*(1-Mathf.SmoothStep(1.19f,1.27f,point.Y));
         var fitted=point;
         if(active>0&&point.X*point.X+point.Z*point.Z>.00001f)
         {
@@ -68,7 +81,7 @@ internal sealed partial class NatureModels
             // Sample the anatomy where the finished panel actually lands.
             // Using its pre-shortening height inflated the upper hip/hem and
             // hid the natural waist-to-pelvis transition under a straight box.
-            float supportY=MathF.Max(.80f,panelHeight);
+            float supportY=MathF.Max(TrunkLow,panelHeight);
             float target=ClothEnvelope(support,supportY,angle);
             // The overlapping shirt is the outer layer. Reserve common
             // movement ease over the trouser waistband through lumbar flexion,
@@ -78,7 +91,15 @@ internal sealed partial class NatureModels
             // Garment ease is added by ClothEnvelope; applying another chest
             // bulge or carved waist here duplicates those anatomical features.
             target+=.020f*front*(1-Mathf.SmoothStep(.80f,.94f,panelHeight));
-            float ratio=Math.Clamp(target/TrunkSample(GarmentFrameReference(),point.Y,angle),.65f,1.35f);
+            target+=GarmentDrapeDetail(panelHeight,angle);
+            // The shirt is outside the actual finished trousers, not only
+            // outside the unclothed source. This includes a coat's lower skirt.
+            if(panelHeight<.94f)target=MathF.Max(target,TrouserLayerRadius(panelHeight,angle));
+            // Clothing, belts and mounts must share the actual sewn reference.
+            // Mixing it with the analytic construction cage buries accessories
+            // when the torso's retopology changes its radial section.
+            var reference=SewnFrameReference();
+            float ratio=Math.Clamp(target/GarmentReferenceSample(reference,point.Y,angle),.65f,1.35f);
             ratio=Mathf.Lerp(1,ratio,active);fitted=new(point.X*ratio,point.Y,point.Z*ratio);
         }
         // The arm root, sewn sleeve and inverse bind use the same lateral
@@ -93,12 +114,7 @@ internal sealed partial class NatureModels
         // equipment retain their original length and attachment transforms.
         if(tailored)
         {
-            if(feminine)
-            {
-                // A fitted blouse ends above the fullest hip instead of hiding
-                // the pelvis under the same bell-shaped tunic as every worker.
-                result.Y+=panelHeight-point.Y;
-            }
+            result.Y+=panelHeight-point.Y;
         }
         return result;
     }
@@ -227,6 +243,15 @@ internal sealed partial class NatureModels
             // function. Rebuild the sewn panel normals from final triangles;
             // otherwise its sleeve/torso seam receives mismatched gradients.
             if(tailored)normals=ClothSurfaceNormals(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array());
+            // Preserve metric rest coordinates for the torso's side seams and
+            // back yoke. Negative X remains the torso sentinel everywhere in
+            // the rig; sleeve geodesic coordinates retain their exact contract.
+            if(tailored&&pattern.Length==points.Length)
+            {
+                for(int i=0;i<points.Length;i++)if(pattern[i].X<0)
+                    pattern[i]=new(-2-MathF.Atan2(points[i].Z,points[i].X)/Mathf.Tau,points[i].Y);
+                arrays[(int)Mesh.ArrayType.TexUV2]=pattern;
+            }
             arrays[(int)Mesh.ArrayType.Vertex]=points;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.Tangent]=default(Variant);
             result.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);result.SurfaceSetMaterial(s,source.SurfaceGetMaterial(s));
         }
@@ -310,6 +335,7 @@ internal sealed partial class NatureModels
             foreach(var rig in new[]{male,female})
             {
                 ValidateArmClothingFit(rig);
+                ValidateRenderedBelt(rig);
                 var a=rig.DetailedBodyMesh.SurfaceGetArrays(0);
                 var vertices=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                 var detail=a[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
@@ -330,11 +356,19 @@ internal sealed partial class NatureModels
                 return y;
             }
             float hemRise=Hem(female.DetailedBodyMesh)-Hem(male.DetailedBodyMesh);
-            if(hemRise<.085f||hemRise>.110f||MathF.Abs(Hem(female.DetailedBodyMesh)-.852f)>.002f)
+            if(MathF.Abs(hemRise-.035f)>.003f||MathF.Abs(Hem(female.DetailedBodyMesh)-.86f)>.002f
+                ||MathF.Abs(Hem(male.DetailedBodyMesh)-.825f)>.002f)
                 throw new InvalidOperationException("Tailored hem loses trouser coverage or retains the common long cut");
             GD.Print($"BODY_CUT_PASS: raised garment hem={hemRise:F4} m, preserved trouser overlap and separate lower-body geometry");
-            if(MathF.Abs(female.HipHalfWidth-.10f)>.00001f||MathF.Abs(male.HipHalfWidth-.10f)>.00001f||female.Holster.Position.Y<male.Holster.Position.Y+.10f)
-                throw new InvalidOperationException("Neutral stance or waist-mounted tool does not match the fitted clothing");
+            if(MathF.Abs(female.HipHalfWidth-.10f)>.00001f||MathF.Abs(male.HipHalfWidth-.10f)>.00001f)
+                throw new InvalidOperationException("Neutral stance does not match the fitted clothing");
+            foreach(var rig in new[]{male,female})
+            {
+                float gap=float.PositiveInfinity;
+                foreach(var point in rig.DetailedBodyMesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
+                    gap=MathF.Min(gap,point.DistanceTo(rig.Holster.Position));
+                if(gap>.055f)throw new InvalidOperationException($"Belt-mounted tool loop separates from the actual shirt: {gap}");
+            }
             if(male.DetailedBodyMesh==female.DetailedBodyMesh||male.DistantBodyMesh==female.DistantBodyMesh)
                 throw new InvalidOperationException("Adult frames share their fitted body cache");
             if(female.ShoulderHalfWidth>=male.ShoulderHalfWidth-.01f||female.DetailedBodySkin==male.DetailedBodySkin)

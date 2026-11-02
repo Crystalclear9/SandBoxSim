@@ -12,6 +12,9 @@ import sys
 import bpy
 import bmesh
 from mathutils import Vector
+sys.dont_write_bytecode=True
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from resident_clothing import trouser_fold
 
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--source',required=True)
@@ -114,9 +117,26 @@ for sex in ('male','female'):
     modifier=obj.modifiers.new('Cloth surface','SUBSURF');modifier.levels=1
     dg=bpy.context.evaluated_depsgraph_get();evaluated=obj.evaluated_get(dg)
     result=bpy.data.meshes.new_from_object(evaluated)
-    bm=bmesh.new();bm.from_mesh(result);bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces));bm.to_mesh(result);bm.free()
+    # Resolve folds on the subdivided cloth, so narrow support creases have
+    # enough samples without changing the rig, topology or triangle budget.
+    for vertex in result.vertices:
+        p=vertex.co;centre_x=(1 if p.x>=0 else -1)*half
+        radial=Vector((p.x-centre_x,0,p.z))
+        if radial.length>1e-9:p+=radial.normalized()*trouser_fold(p.x,p.y,p.z,half)
+    bm=bmesh.new();bm.from_mesh(result)
+    # Relax the tiny folded medial join without welding opposite crotch
+    # sheets into a non-manifold edge. Preserve every index and boundary.
+    medial=[v for v in bm.verts if abs(v.co.x)<.004 and .70<v.co.y<.74]
+    for _ in range(6):
+        bmesh.ops.smooth_vert(bm,verts=medial,factor=.5,use_axis_x=True,use_axis_y=True,use_axis_z=True)
+    bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces));bm.to_mesh(result);bm.free()
     result.update();result.calc_loop_triangles()
-    data=dict(schemaVersion=2,source='MakeHuman CC0 HM08 helper-tights',frame=sex,hipHalfWidth=half,jointCount=5,cuffSkin='knee-transition-v1',physique='source-tailoring-v16',tailoring=dict(thighEaseMetres=.007,maximumFoldMetres=.0025,pelvis='source-envelope',bootOpening='pinned'),
+    for triangle in result.loop_triangles:
+        a,b,c=(result.vertices[i] for i in triangle.vertices)
+        cross=(b.co-a.co).cross(c.co-a.co)
+        if cross.length_squared<=1e-14 or cross.dot(a.normal+b.normal+c.normal)<=0:
+            raise ValueError('Folded or degenerate trouser triangle')
+    data=dict(schemaVersion=2,source='MakeHuman CC0 HM08 helper-tights',frame=sex,hipHalfWidth=half,jointCount=5,cuffSkin='knee-transition-v1',physique='support-drape-v17',tailoring=dict(thighEaseMetres=.007,maximumFoldMetres=.0085,pelvis='source-envelope',bootOpening='pinned',detail='sewn-support-folds-v1'),
         sourceSha256={name:manifest[name]['sha256'] for name in ('base.obj','basemesh_vertex_groups.json',f'caucasian-{sex}-young.target','caucasian-male-young.target')},
         supportSha256=hashlib.sha256(support_path.read_bytes().replace(b'\r\n',b'\n')).hexdigest(),positions=[],normals=[],uv=[],bones=[],weights=[],indices=[])
     for v in result.vertices:

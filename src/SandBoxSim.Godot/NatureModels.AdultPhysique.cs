@@ -32,12 +32,21 @@ internal sealed partial class NatureModels
         if(_garmentCut==2&&panel<ResidentRig.BodyY(.80f))
         {
             float angle=MathF.Atan2(point.Z,point.X);
-            float vent=.075f*MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),16)+.040f*MathF.Pow(MathF.Max(0,MathF.Sin(angle)),16);
+            // The sewn mesh's radial angle differs from its original pattern
+            // parameter. Recover the actual hem instead of re-evaluating the
+            // pattern's cosine here, which left a raised scalloped front.
+            float vent=ResidentRig.SourceBodyY(SourceHemHeight(angle))-GarmentBottom;
             float k=vent/(.80f-GarmentBottom);
             panel=ResidentRig.BodyY((ResidentRig.SourceBodyY(panel)-.80f*k)/(1-k));
         }
-        return panel+(.852f-hem)*(1-Mathf.SmoothStep(hem,1.15f,panel));
+        // Three actual clothing cuts, not a common thigh-length tunic for men
+        // and an identical cropped panel for every woman. The work shirt ends
+        // above the full thigh; the travelling coat retains a longer skirt.
+        float finished=FinishedGarmentHem;
+        return panel+(finished-hem)*(1-Mathf.SmoothStep(hem,1.15f,panel));
     }
+    private float FinishedGarmentHem=>_garmentCut==2?(BodyFrame==1?.78f:.745f)
+        :_garmentCut==1?(BodyFrame==1?.86f:.825f):(BodyFrame==1?.85f:.805f);
 
     // The sewn sleeve, separate rolled facing and far arm proxy must use the
     // same local cross-section. A smaller arm inside the common cuff leaves

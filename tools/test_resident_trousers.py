@@ -15,7 +15,7 @@ class TrouserTests(unittest.TestCase):
             rows=[p for p in points if abs(p[1]-y)<.008]
             return max(p[0] for p in rows)-min(p[0] for p in rows),max(p[2] for p in rows)
         for sex in data:
-            self.assertEqual(data[sex]['physique'],'source-tailoring-v16')
+            self.assertEqual(data[sex]['physique'],'support-drape-v17')
             self.assertEqual(data[sex]['tailoring']['pelvis'],'source-envelope')
             points=list(zip(*(iter(data[sex]['positions']),)*3))
             self.assertTrue(all(abs(x)<.26 and .3849<=y<=.9401 and abs(z)<.20 for x,y,z in points))
@@ -30,7 +30,7 @@ class TrouserTests(unittest.TestCase):
 
     def test_provenance_and_connected_clothing(self):
         manifest=json.loads((ROOT/'head-sources.json').read_text())['files']
-        for sex,sha in [('male','62a3c8ecbff53566f692f10c450fa75f2ee62357abf5e903251e1afd9d3bcf95'),('female','adcb2e8faa457d2ce6f00e33c73a3de4dccdb9cdf7ea0d0156561d12a967d571')]:
+        for sex,sha in [('male','a440b3f9d644abc6d18a59fb51b68878d33e8cb4b57cdc1572a16e2d3b5225f5'),('female','973396b92fee9fcbc197c28c2603109715861b3a83b6e2be8efde6cc0d28b9b1')]:
             raw=(ROOT/f'trousers-{sex}.mesh.json').read_bytes().replace(b'\r\n',b'\n');self.assertEqual(hashlib.sha256(raw).hexdigest(),sha)
             data=json.loads(raw);count=len(data['positions'])//3
             for name,digest in data['sourceSha256'].items():self.assertEqual(digest,manifest[name]['sha256'])
@@ -63,5 +63,20 @@ class TrouserTests(unittest.TestCase):
                 while stack:
                     for v in adjacency[stack.pop()]&boundary:boundary.remove(v);stack.append(v)
             self.assertEqual(rings,3)
+
+    def test_rendered_faces_have_area_and_consistent_normals(self):
+        # A connected manifold can still contain folded sub-millimetre crotch
+        # triangles. Check the shipped faces, not only export parameters.
+        for sex in ('male','female'):
+            data=json.loads((ROOT/f'trousers-{sex}.mesh.json').read_text())
+            points=list(zip(*[iter(data['positions'])]*3))
+            normals=list(zip(*[iter(data['normals'])]*3))
+            for a,b,c in zip(*[iter(data['indices'])]*3):
+                u=[points[b][k]-points[a][k] for k in range(3)]
+                v=[points[c][k]-points[a][k] for k in range(3)]
+                cross=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]]
+                self.assertGreater(sum(x*x for x in cross),1e-14,(sex,a,b,c))
+                # Godot's front faces use clockwise winding.
+                self.assertLess(sum(cross[k]*(normals[a][k]+normals[b][k]+normals[c][k]) for k in range(3)),0,(sex,a,b,c))
 
 if __name__=='__main__':unittest.main()

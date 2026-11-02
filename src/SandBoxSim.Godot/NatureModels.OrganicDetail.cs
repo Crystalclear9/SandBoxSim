@@ -43,7 +43,10 @@ internal sealed partial class NatureModels
 
     private static void BootSection(float t,out float width,out float bottom,out float top,out float taper)
     {
-        taper=MathF.Sqrt(MathF.Max(0,MathF.Sin(t*MathF.PI)));
+        // A work boot has a rounded toe box and heel, not a conical point.
+        // A fuller longitudinal superellipse keeps the shared upper/sole
+        // outline and all fitted laces on the same last.
+        taper=MathF.Pow(MathF.Max(0,MathF.Sin(t*MathF.PI)),.30f);
         width=(.051f+.007f*MathF.Exp(-MathF.Pow((t-.25f)*5,2)))*taper;
         bottom=-.053f+.018f*MathF.Exp(-MathF.Pow((t-.64f)*6,2));
         top=.016f+.050f*MathF.Exp(-MathF.Pow((t-.66f)*4,2));

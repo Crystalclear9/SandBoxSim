@@ -12,7 +12,7 @@ internal sealed partial class NatureModels
         if(_meshes.TryGetValue(key,out var cached))return cached;
         string raw=FileAccess.GetFileAsString("res://assets/models/human/trousers-"+frame+".mesh.json").Replace("\r\n","\n",StringComparison.Ordinal);
         string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
-        if(hash!=(BodyFrame==1?"adcb2e8faa457d2ce6f00e33c73a3de4dccdb9cdf7ea0d0156561d12a967d571":"62a3c8ecbff53566f692f10c450fa75f2ee62357abf5e903251e1afd9d3bcf95"))
+        if(hash!=(BodyFrame==1?"973396b92fee9fcbc197c28c2603109715861b3a83b6e2be8efde6cc0d28b9b1":"a440b3f9d644abc6d18a59fb51b68878d33e8cb4b57cdc1572a16e2d3b5225f5"))
             throw new InvalidOperationException("Changed source trousers");
         using var doc=JsonDocument.Parse(raw);var data=doc.RootElement;
         float[] Floats(string field){var a=new float[data.GetProperty(field).GetArrayLength()];int i=0;foreach(var v in data.GetProperty(field).EnumerateArray())a[i++]=v.GetSingle();return a;}
@@ -30,9 +30,12 @@ internal sealed partial class NatureModels
         }
         foreach(int id in ids)if(id<0||id>=count)throw new InvalidOperationException("Invalid trouser index");
         var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);
-        arrays[(int)Mesh.ArrayType.Vertex]=points;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.TexUV]=coords;
+        var seam=new Vector2[count];
+        for(int i=0;i<count;i++)seam[i]=new(MathF.Atan2(points[i].Z,MathF.Abs(points[i].X)-.10f),points[i].Y);
+        arrays[(int)Mesh.ArrayType.Vertex]=points;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.TexUV]=coords;arrays[(int)Mesh.ArrayType.TexUV2]=seam;
         arrays[(int)Mesh.ArrayType.Bones]=b;arrays[(int)Mesh.ArrayType.Weights]=w;arrays[(int)Mesh.ArrayType.Index]=ids;
-        var mesh=new ArrayMesh();mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);mesh.SurfaceSetMaterial(0,Fabric("#645e53"));
+        var material=(ShaderMaterial)Fabric("#645e53");material.SetShaderParameter("trouser_details",true);
+        var mesh=new ArrayMesh();mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);mesh.SurfaceSetMaterial(0,material);
         return _meshes[key]=WithScreenLods(mesh);
     }
     private void AddContinuousTrousers(ResidentRig rig)

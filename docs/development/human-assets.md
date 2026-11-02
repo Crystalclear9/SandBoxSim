@@ -105,7 +105,7 @@ Godot 三平台导出包含模型 JSON、许可文本与导入纹理；发行包
 
 三套上衣采用 `faired-panel-v8` 连续缝片构造。原始胸肩从 MakeHuman CC0 身体采样，`torso-cage.json` 和 `torso-feminine-cage.json` 保存 65×128 的胸肩支撑与来源哈希。当前运行体型另使用 [trunk-masculine-cage.json](../../src/SandBoxSim.Godot/assets/models/human/trunk-masculine-cage.json) 和 [trunk-feminine-cage.json](../../src/SandBoxSim.Godot/assets/models/human/trunk-feminine-cage.json)，各包含 113×128 个覆盖骨盆、腰背与胸廓的平面截面凸包采样。两套青年宏目标及原始基础体均来自现有已校验的 CC0 来源，不改变头脸、手部来源或许可。
 
-`NatureModels.BodyFrame.cs` 根据来源截面拟合完整躯干并留出衣料松量。当前 `source-tailoring-v16` 保留两种来源体型，采用整体等比身高变化、共同中性站姿及独立的衣装拟合；肩袖、卷边、实际关节与逆绑定共同适配。上衣保留原面数，低段随骨盆运动，胸廓与腰部平滑过渡；裤装采用下述连续来源表面。详细参数与局限见[成人身体说明](models.md)。
+`NatureModels.BodyFrame.cs` 根据来源截面拟合完整躯干并留出衣料松量。当前 `support-drape-v17` 保留两种来源体型，采用整体等比身高变化、共同中性站姿及独立的衣装拟合；肩袖、卷边、实际关节与逆绑定共同适配。上衣保留原面数，低段随骨盆运动，胸廓与腰部平滑过渡；裤装采用下述连续来源表面。详细参数与局限见[成人身体说明](models.md)。
 
 宽松衣身参考 [V&A 的衬衫结构](https://www.vam.ac.uk/articles/sew-your-own-customisable-shirt)，胸腹衔接保留布料松量，减少刻画肌肉的重复褶皱；背部肩部拼接以贴面短针脚表示。头部整体上移 18 毫米以露出源颈部。袖窿收至肩侧，袖根延续衣身切平面，左右三角面方向对应。袖身权重按边长离线平滑并约束空间变化；领口、中线与腰带固定，袖口随肩骨，原手柄和手掌长度不变。当前成品为 7,320／7,320／7,200 三角形。改变原始衣片或其胸肩基础体后须重烘焙三套衣装；完整躯干体型在运行模型创建时拟合，单独重建 trunk 文件不要求重烘焙原衣片。普通构建与运行不需要 Blender。成人运行绑定另以独立肩胛带及六个摆动／轴向扭转分离区间保持肩袖截面，并按拟合网格上的袖窿最短路径距离分配袖管位置修正；两种体型共用二十六骨结构，每顶点至多四个影响，袖窿与袖口之间在实际边长上重新求解过渡，原始烘焙网格与来源哈希不变。肩部范围及实际作业入口见[肩袖绑定与动作说明](models.md)。
 
@@ -128,7 +128,7 @@ python -m unittest discover -s tools -p test_garment_pattern.py
 
 ## 连续裤装来源
 
-`trousers-male.mesh.json`／`trousers-female.mesh.json` 从同一 CC0 HM08 的 `helper-tights` 服装辅助几何生成，分别应用青年男女目标；不是旧骨盆和大腿截面体的增面。导出器校验源文件、去掉 A 姿势腿部偏移、裁切并保留单连通衣料，拟合裤腰与靴口，输出五骨权重和原始输入哈希。当前 `source-tailoring-v16` 按来源骨盆包络、中性站姿和衣料松量组织腰臀与上腿，输出记录 `physique` 配方标记，运行时仍校验完整成品 SHA-256。运行时用骨盆、实际大腿与膝关节驱动连续表面；面数、约束与测试见[模型系统](models.md)。现有头脸文件和手部授权保持独立。
+`trousers-male.mesh.json`／`trousers-female.mesh.json` 从同一 CC0 HM08 的 `helper-tights` 服装辅助几何生成，分别应用青年男女目标；不是旧骨盆和大腿截面体的增面。导出器校验源文件、去掉 A 姿势腿部偏移、裁切并保留单连通衣料，拟合裤腰与靴口，输出五骨权重和原始输入哈希。当前 `support-drape-v17` 按来源骨盆包络、中性站姿和衣料松量组织腰臀与上腿，输出记录 `physique` 配方标记，运行时仍校验完整成品 SHA-256。运行时用骨盆、实际大腿与膝关节驱动连续表面；面数、约束与测试见[模型系统](models.md)。现有头脸文件和手部授权保持独立。
 
 在上述项目临时环境中，使用同一 Blender 重建裤装：
 
@@ -145,7 +145,7 @@ if ($process.ExitCode -ne 0) { throw 'Trouser export failed' }
 python -m unittest discover -s tools -p test_resident_trousers.py
 ```
 
-当前 `source-tailoring-v16` 的裤装为男性 2,925 顶点／5,696 三角面、女性 2,731 顶点／5,296 三角面，保持五骨蒙皮、共享材质和原始 CC0 输入来源。导出器、工具测试与运行加载器校验成品 SHA-256、连通性及米制范围；胸腰和骨盆的成衣截面直接与来源比较，具体边界见[模型系统](models.md)。
+当前 `support-drape-v17` 的裤装为男性 2,925 顶点／5,696 三角面、女性 2,731 顶点／5,296 三角面，保持五骨蒙皮、共享材质和原始 CC0 输入来源。导出器、工具测试与运行加载器校验成品 SHA-256、连通性及米制范围；胸腰和骨盆的成衣截面直接与来源比较，具体边界见[模型系统](models.md)。
 
 
 ## 上臂解剖支撑与姿态表面
@@ -165,3 +165,5 @@ python -m unittest discover -s tools -p test_resident_trousers.py
 [cmu-143-30-stretch.json](../../src/SandBoxSim.Godot/assets/motions/cmu-143-30-stretch.json) 来自 [CMU 143_30 / Stretch And Yawn](http://mocap.cs.cmu.edu/search.php?subjectnumber=143)，原始 `143.asf` 与 `143_30.amc` 的 SHA-256 分别为 `6d7207da3bb9eceeaa32f23fb641b69f5836d11242b00c052e7d64f0cbe20a35`、`ffd7b2b3344cf41eef16a3b9b2910424dc27c24ac1f4d6c3b68b6c719e7b22e3`。数据可用于研究及商业产品，但不得直接转售原始或转换后的数据；它不属于 CC0，必须保留[CMU 来源与许可说明](../../src/SandBoxSim.Godot/assets/motions/LICENSE.txt)。The data used in this project was obtained from mocap.cs.cmu.edu. The database was created with funding from NSF EIA-0196217.
 
 重建命令为 `python -B tools/export_cmu_arm_motion.py --source .tools/sources/mocap/cmu-143 --output src/SandBoxSim.Godot/assets/motions/cmu-143-30-stretch.json`。工具遵循 [ASF/AMC 格式](https://research.cs.wisc.edu/graphics/Courses/cs-838-1999/Jeff/ASF-AMC.html)，排除根位移和未捕捉的指／拇指通道；运行器固定校验导出哈希。导出、来源重建及数据契约由 `tools/test_motion_sources.py` 检查。
+
+当前裤装在细分表面加入腰下／膝上压褶和侧缝形体，并对中线裤裆的极窄翻折接缝作局部表面松弛，保留原始索引与面数；不改变裤腰及两只靴口的开放边界。`tools/resident_clothing.py` 提供独立于 Blender 的米制褶皱配方，导出时约束在来源骨盆与靴口之间。运行时上衣的近景拟合取实际缝合网格截面，成衣下摆按三套款式区分；详细参数见[模型系统](models.md)。

@@ -13,6 +13,7 @@ uniform vec4 dye : source_color;
 uniform sampler2D weave_map:source_color,filter_linear_mipmap_anisotropic,repeat_enable;
 uniform sampler2D fibre_map:filter_linear_mipmap_anisotropic,repeat_enable;
 uniform bool sleeve_details=false;
+uniform bool trouser_details=false;
 varying vec3 cloth_position;varying vec3 cloth_normal;
 varying vec3 cloth_axis_x;varying vec3 cloth_axis_y;varying vec3 cloth_axis_z;
 void vertex(){ cloth_position = VERTEX;cloth_normal=NORMAL;
@@ -45,6 +46,27 @@ float underarm=1.0-smoothstep(.0004,.0011+aa,abs(UV2.y-.003));
 float stitch=.6+.4*smoothstep(-.2,.4,sin(UV2.x*2094.395));
 float sewn=clamp(cap_line+underarm*stitch,0.0,1.0)*step(0.0,UV2.x)*detail_fade;
 ALBEDO*=1.0-sewn*.075;
+if(UV2.x < -1.1){
+float angle=(-UV2.x-2.0)*6.2831853;
+float side_distance=abs(sin(angle))*.15;
+float side_aa=max(fwidth(side_distance),.0001);
+float side_seam=1.0-smoothstep(.0008,.0018+side_aa,side_distance);
+float yoke_distance=abs(UV2.y-1.19);
+float yoke_aa=max(fwidth(UV2.y),.0001);
+float yoke=(1.0-smoothstep(.0006,.0015+yoke_aa,yoke_distance))*smoothstep(.1,.5,sin(angle));
+float near_fade=1.0-smoothstep(.002,.007,max(side_aa,yoke_aa));
+ALBEDO*=1.0-max(side_seam,yoke)*.13*near_fade;
+}
+}
+if(trouser_details){
+// UV2 is an independent rest-space seam chart, so stitches cannot slide
+// over the thigh when its bones rotate or the material is shared.
+float seam_distance=abs(sin(UV2.x))*.065;
+float aa=max(fwidth(seam_distance),.0001);
+float line=1.0-smoothstep(.0006,.0016+aa,seam_distance);
+float stitch=.65+.35*smoothstep(-.2,.3,sin(UV2.y*2094.395));
+float fade=1.0-smoothstep(.002,.006,aa);
+ALBEDO*=1.0-line*stitch*.16*fade;
 }
 vec3 grain=vec3(0,(nx.g*2.0-1.0)*side.x,nx.r*2.0-1.0)*w.x+vec3(ny.r*2.0-1.0,0,ny.g*2.0-1.0)*w.y+vec3(nz.r*2.0-1.0,(nz.g*2.0-1.0)*-side.z,0)*w.z;
 grain-=base*dot(grain,base);

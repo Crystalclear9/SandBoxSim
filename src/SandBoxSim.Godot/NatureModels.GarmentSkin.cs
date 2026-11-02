@@ -122,9 +122,16 @@ internal sealed partial class NatureModels
             var sourceDetails=ContinuousGarment().SurfaceGetArrays(0)[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
             var coordinates=new HashSet<Vector2>(sourceDetails);
             int detailed=0;
-            foreach(var value in finalDetails)
+            var finalPoints=finalArrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            for(int i=0;i<finalDetails.Length;i++)
             {
-                if(!value.IsFinite()||!coordinates.Contains(value))throw new InvalidOperationException("Merged garment alters metric seam coordinates");
+                var value=finalDetails[i];
+                if(!value.IsFinite()||(value.X>=0&&!coordinates.Contains(value)))throw new InvalidOperationException("Merged garment alters metric sleeve seam coordinates");
+                if(value.X<0&&(value.X< -2.501f||value.X> -1.499f||value.Y<.70f||value.Y>1.40f))
+                    throw new InvalidOperationException("Fitted garment loses its metric torso seam chart");
+                if(value.X<0&&(MathF.Abs(value.Y-finalPoints[i].Y)>.00001f||
+                    MathF.Abs(Mathf.PosMod((-value.X-2)*Mathf.Tau-MathF.Atan2(finalPoints[i].Z,finalPoints[i].X)+MathF.PI,Mathf.Tau)-MathF.PI)>.0001f))
+                    throw new InvalidOperationException("Torso seams do not follow the final fitted cloth surface");
                 if(value.X>0)detailed++;
             }
             if(detailed<500)throw new InvalidOperationException("Skinned garment lost its sewn sleeve surface");

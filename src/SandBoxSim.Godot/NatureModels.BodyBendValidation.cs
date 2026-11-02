@@ -48,9 +48,10 @@ internal sealed partial class NatureModels
                         rig.Legs[0].Transform*rig.Knees[0].Transform*rig.Trousers.Skin.GetBindPose(3),rig.Legs[1].Transform*rig.Knees[1].Transform*rig.Trousers.Skin.GetBindPose(4)};
                     for(int i=0;i<pp.Length;i+=9)
                     {
-                        // A short blouse deliberately exposes the hip. Check
-                        // the actual overlapping waistband, not exposed pants.
-                        if(pp[i].Y<MathF.Max(.82f,hem+.020f)||pp[i].Y>.91f)continue;
+                        // Check the whole overlapping panel, including the
+                        // travelling coat below the hip. A fixed .82 m floor
+                        // hid lower-hem penetration in otherwise passing tests.
+                        if(pp[i].Y<hem+.020f||pp[i].Y>.91f)continue;
                         var point=Vector3.Zero;for(int j=0;j<4;j++)point+=trouserTransforms[pb[i*4+j]]*pp[i]*pw[i*4+j];
                         float front=float.PositiveInfinity,back=float.NegativeInfinity;
                         for(int t=0;t<ids.Length;t+=3)
