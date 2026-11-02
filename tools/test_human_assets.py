@@ -14,9 +14,33 @@ NAMES = ('human-head', 'human-scan', 'human-feminine')
 
 
 class HumanAssetTests(unittest.TestCase):
+    def test_body_recipe_is_shared_by_all_anatomical_supports(self):
+        raw=(ROOT/'body-profiles.json').read_bytes().replace(b'\r\n',b'\n')
+        profile=json.loads(raw);sha=hashlib.sha256(raw).hexdigest()
+        self.assertEqual(profile['profile'],'source-physique-v19')
+        self.assertEqual(profile['license'],'CC0-1.0')
+        manifest=json.loads((ROOT/'head-sources.json').read_text(encoding='utf-8'))['files']
+        for sex,label in (('male','masculine'),('female','feminine')):
+            shapes=[]
+            for file in (f'trunk-{label}-cage.json',f'upper-arm-{sex}.json',f'shoulder-surface-{sex}.json',f'trousers-{sex}.mesh.json'):
+                asset=json.loads((ROOT/file).read_text(encoding='utf-8'))
+                recipe=asset['shapeRecipe'];shapes.append(recipe)
+                self.assertEqual(recipe['profileSha256'],sha,file)
+                self.assertEqual(recipe['targets'],profile['frames'][sex]['targets'],file)
+                for name in recipe['targets']:
+                    self.assertEqual(asset['sourceSha256'][name],manifest[name]['sha256'],file)
+            self.assertTrue(all(shape==shapes[0] for shape in shapes))
+        m=json.loads((ROOT/'trunk-masculine-cage.json').read_text(encoding='utf-8'))
+        f=json.loads((ROOT/'trunk-feminine-cage.json').read_text(encoding='utf-8'))
+        # The upper trunk must exclude each source's A-pose arm. A common
+        # male-width clip previously made the female upper section as broad.
+        self.assertLess(f['armholeHalfWidth'],m['armholeHalfWidth']-.025)
+        row=round((1.18-.74)/.005)*128
+        self.assertLess(f['radii'][row]+f['radii'][row+64],m['radii'][row]+m['radii'][row+64]-.04)
+
     def test_complete_trunk_sources_and_shape_sections(self):
-        expected=('27836b278e247921af480fca63edca7c4d65f11655cb1272a19fb3909e43821c',
-                  '0868f6499f700995e3fb0eaea1ed7aea623406fbbfa5486b38a35e5d74d3fcad')
+        expected=('97434c8cc2f972cf7b592c32b2958f3df36140bb38531e2dc4ae13a9a7410fb0',
+                  'e7989a98db574c09d6b0fbae9fd9e5d91e1fc5746ae5e1fdec503508edb9ae15')
         sources=json.loads((ROOT/'head-sources.json').read_text())['files']
         frames=[]
         for frame,digest in zip(('masculine','feminine'),expected):
@@ -29,7 +53,9 @@ class HumanAssetTests(unittest.TestCase):
             self.assertTrue(all(math.isfinite(x) and .025<x<.34 for x in data['radii']))
             for name,sha in data['sourceSha256'].items():self.assertEqual(sha,sources[name]['sha256'])
         def width(data,y):
-            row=round((y-.74)/.005);return data['radii'][row*128]+data['radii'][row*128+64]
+            row=round((y-.74)/.005)
+            x=[r*math.cos(i*math.tau/128) for i,r in enumerate(data['radii'][row*128:(row+1)*128])]
+            return max(x)-min(x)
         male,female=frames
         self.assertLess(width(female,1.04)/width(female,.82),width(male,1.04)/width(male,.82)-.15)
         self.assertGreater(width(female,.82),width(male,.82)+.02)

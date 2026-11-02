@@ -35,6 +35,20 @@ including the gap between upper thighs; A-pose arms are excluded laterally.
 Both files record verified inputs, scales and the sampling recipe. Runtime
 cloth ease and body fitting are SandBoxSim artistic modifications.
 
+body-profiles.json defines the source-physique-v19 adult artistic recipes.
+The trunk, upper-arm, weighted shoulder surface and trouser exporters share
+tools/resident_body.py and embed the same shapeRecipe and recipe SHA-256.
+Additional CC0 MakeHuman targets, from commit
+a8bc2d54ff0ac92e78ff71431b1023eda42bf482:
+  universal-male-young-maxmuscle-averageweight.target (weight 0.35)
+  torso-vshape-incr.target (male weight 0.18)
+  hip-scale-horiz-incr.target (female weight 0.35)
+  female-young-averagemuscle-averageweight-maxcup-averagefirmness.target
+    (weight 0.35)
+These are character art choices, not demographic measurements. Face and hand
+assets keep their independent recipes. File URLs and hashes are recorded in
+head-sources.json; the source assets retain the CC0 terms above.
+
 Exact input filenames, URLs, sizes and SHA-256 are in head-sources.json.
 Each runtime JSON also records the inputs actually used for that variant and
 the checksums of its skin, hair and eye texture atlases.
@@ -81,8 +95,8 @@ The general software license does not replace the individual model licenses.
 
 CONTINUOUS TROUSERS (CC0)
 trousers-male.mesh.json and trousers-female.mesh.json derive from the
-MakeHuman HM08 helper-tights clothing geometry and the verified young
-male/female macro targets in head-sources.json. SandBoxSim retargets limb
+MakeHuman HM08 helper-tights clothing geometry and the verified adult body
+recipes in body-profiles.json/head-sources.json. SandBoxSim retargets limb
 centrelines, crops the waist and cuffs, removes disconnected helper parts,
 fits hidden waist layers and boot overlap, subdivides, recalculates normals
 and assigns waist, left/right thigh and left/right knee skinning. The cuffs

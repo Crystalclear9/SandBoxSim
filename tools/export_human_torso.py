@@ -11,6 +11,9 @@ from pathlib import Path
 import sys
 from mathutils import Vector
 from mathutils.bvhtree import BVHTree
+sys.dont_write_bytecode=True
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from resident_body import body_points, body_provenance
 
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--source',required=True)
@@ -37,16 +40,22 @@ base=[p.copy() for p in points]
 for line in (root/('caucasian-'+args.frame+'-young.target')).read_text().splitlines():
     t=line.split()
     if len(t)==4 and not line.startswith('#'):points[int(t[0])]+=Vector(map(float,t[1:]))
+if args.region=='trunk':
+    points=[Vector(p) for p in body_points(root,args.frame)]
 groups=json.loads((root/'basemesh_vertex_groups.json').read_text())
 ids=[i for a,b in groups['joint-l-shoulder'] for i in range(a,b+1)]
 shoulder=sum((points[i] for i in ids),Vector())/len(ids)
 reference=shoulder
-if args.frame=='female':
+if args.region=='trunk':
+    reference_points=[Vector(p) for p in body_points(root,'male',baseline=True)]
+    reference=sum((reference_points[i] for i in ids),Vector())/len(ids)
+elif args.frame=='female':
     for line in (root/'caucasian-male-young.target').read_text().splitlines():
         t=line.split()
         if len(t)==4 and not line.startswith('#'):base[int(t[0])]+=Vector(map(float,t[1:]))
     reference=sum((base[i] for i in ids),Vector())/len(ids)
 mapped=[Vector((p.x*.202/reference.x,1.23+(p.y-shoulder.y)*.09,-(p.z-shoulder.z)*.1)) for p in points]
+armhole_half_width=min(.185,shoulder.x*.202/reference.x*.92) if args.region=='trunk' else .185
 bvh=BVHTree.FromPolygons(mapped,faces,all_triangles=False)
 low,high,rows,columns=(.74,1.30,113,128) if args.region=='trunk' else (1.02,1.34,65,128)
 radii=[0.]*(rows*columns) if args.region=='trunk' else []
@@ -71,7 +80,10 @@ for row in range(rows):
         # the body. Intersect the actual skin with a plane, then bridge the two
         # thighs with cloth's convex section. Exclude the A-pose arms laterally.
         y=low+(high-low)*row/(rows-1)
-        lateral=.23-(.23-.185)*min(1.,max(0.,(y-1.03)/.06))
+        # The medial sleeve boundary belongs to this source shoulder. A common
+        # male-width clip retained part of the female A-pose arm in the chest
+        # cage, inflating the upper rib cage into a square shoulder shelf.
+        lateral=.23-(.23-armhole_half_width)*min(1.,max(0.,(y-1.03)/.06))
         section=[]
         for face in faces:
             for ia,ib in zip(face,face[1:]+face[:1]):
@@ -107,9 +119,13 @@ radii=[round(v,7) for v in radii]
 if not all(math.isfinite(v) and .025<v<.34 for v in radii):raise ValueError('Invalid smoothed support section')
 result={'schemaVersion':1,'source':f'MakeHuman CC0 body; {args.frame} young macro, existing source bundle',
         'sourceSha256':expected,'low':low,'high':high,'rows':rows,'columns':columns,
-        'shoulder':[.202,1.23,0],'armholeHalfWidth':.185,'sourceShoulder':[round(v,7) for v in shoulder],
+        'shoulder':[.202,1.23,0],'armholeHalfWidth':round(armhole_half_width,7),'sourceShoulder':[round(v,7) for v in shoulder],
         'scale':[round(.202/reference.x,7),.09,.1],'clothEnvelope':'convex-sections-four-pass-filter','radii':radii}
-if args.region=='trunk':result['region']='trunk-plane-sections'
+if args.region=='trunk':
+    result['region']='trunk-plane-sections'
+    provenance=body_provenance(args.frame)
+    result['sourceSha256']=provenance.pop('sourceSha256')
+    result['shapeRecipe']=provenance
 output=Path(args.output);output.parent.mkdir(parents=True,exist_ok=True)
 output.write_text(json.dumps(result,separators=(',',':'))+'\n',encoding='utf-8',newline='\n')
 print('TORSO_CAGE_EXPORTED',len(faces),'source faces;',len(radii),'radial samples;',hashlib.sha256(output.read_bytes()).hexdigest())

@@ -26,6 +26,12 @@
 
 来源、文件大小与 SHA-256 位于 [head-sources.json](../../src/SandBoxSim.Godot/assets/models/human/head-sources.json)，每套模型也记录实际输入和纹理哈希。普通构建及 CI 不运行 Blender、不联网。
 
+## 成人身体配方
+
+[body-profiles.json](../../src/SandBoxSim.Godot/assets/models/human/body-profiles.json) 与 [resident_body.py](../../tools/resident_body.py) 是 `source-physique-v19` 的共同入口。男性在青年基础体上组合平均体重的肌肉形变与躯干 V 形；女性组合髋部横向形变与平均硬度的胸部体积形变。具体权重见[身体比例](models.md)。四个新增 CC0 目标均来自固定的 MakeHuman 提交 `a8bc2d54ff0ac92e78ff71431b1023eda42bf482`，URL、长度与 SHA-256 固定在 `head-sources.json`，下载器复用本地已校验文件。
+
+躯干截面、上臂截面、肩部原始 A 姿势／绑定三角面和连续裤装各自记录相同的 `shapeRecipe`：配方标记、配方文件 SHA-256 与实际目标权重。来源测试检查四者一致，运行加载器继续校验完整成品哈希。修改身体配方后须按顺序重建两套 trunk、上臂、肩面和裤装；仅保留其中一组会混合不同体型。原胸肩衣片构造体、头脸、手部和 CMU 捕捉数据独立保留，不要求因身体配方变化而重烘焙未改变的原始衣片。
+
 ## 肘部与前臂
 
 [human-forearm.mesh.json](../../src/SandBoxSim.Godot/assets/models/human/human-forearm.mesh.json) 来自 Julien Kaspar / Blender Studio 的授权人体的肘部、前臂区域 12/102，共 1,928 顶点、3,687 三角面。它替换了运行时的球形肘部和规则管状前臂，保留原作者的肘尖、肌腹与近腕骨形体；不是肌肉或软组织物理。
@@ -69,7 +75,7 @@ python tools/fetch-human-assets.py
 python tools/fetch-human-assets.py --verify
 ```
 
-下载器仅通过 HTTP Range 提取固定 ZIP 成员，校验文件长度、CRC 和 SHA-256，现有合格文件直接复用；不会下载整个约 268 MiB 的素材包。23 个所需输入共约 25 MiB，包括许可证。`--verify` 不访问网络。
+下载器仅通过 HTTP Range 提取固定 ZIP 成员，校验文件长度、CRC 和 SHA-256，现有合格文件直接复用；不会下载整个约 268 MiB 的素材包。27 个所需输入共约 25 MiB，包括许可证。`--verify` 不访问网络。
 
 ```powershell
 $faceBlender = './.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
@@ -105,30 +111,51 @@ Godot 三平台导出包含模型 JSON、许可文本与导入纹理；发行包
 
 三套上衣采用 `faired-panel-v8` 连续缝片构造。原始胸肩从 MakeHuman CC0 身体采样，`torso-cage.json` 和 `torso-feminine-cage.json` 保存 65×128 的胸肩支撑与来源哈希。当前运行体型另使用 [trunk-masculine-cage.json](../../src/SandBoxSim.Godot/assets/models/human/trunk-masculine-cage.json) 和 [trunk-feminine-cage.json](../../src/SandBoxSim.Godot/assets/models/human/trunk-feminine-cage.json)，各包含 113×128 个覆盖骨盆、腰背与胸廓的平面截面凸包采样。两套青年宏目标及原始基础体均来自现有已校验的 CC0 来源，不改变头脸、手部来源或许可。
 
-`NatureModels.BodyFrame.cs` 根据来源截面拟合完整躯干并留出衣料松量。当前 `anatomical-limbs-v18` 保留两种来源体型，采用整体等比身高变化、共同中性站姿及独立的衣装拟合；肩袖、卷边、实际关节与逆绑定共同适配。上衣保留原面数，低段随骨盆运动，胸廓与腰部平滑过渡；裤装采用下述连续来源表面。详细参数与局限见[成人身体说明](models.md)。
+`NatureModels.BodyFrame.cs` 根据来源截面拟合完整躯干并留出衣料松量。当前 `source-physique-v19` 保留两种来源体型，采用整体等比身高变化、共同中性站姿及独立的衣装拟合；肩袖、卷边、实际关节与逆绑定共同适配。上衣保留原面数，低段随骨盆运动，胸廓与腰部平滑过渡；裤装采用下述连续来源表面。详细参数与局限见[成人身体说明](models.md)。
 
 宽松衣身参考 [V&A 的衬衫结构](https://www.vam.ac.uk/articles/sew-your-own-customisable-shirt)，胸腹衔接保留布料松量，减少刻画肌肉的重复褶皱；背部肩部拼接以贴面短针脚表示。头部整体上移 18 毫米以露出源颈部。袖窿收至肩侧，袖根延续衣身切平面，左右三角面方向对应。袖身权重按边长离线平滑并约束空间变化；领口、中线与腰带固定，袖口随肩骨，原手柄和手掌长度不变。当前成品为 7,320／7,320／7,200 三角形。改变原始衣片或其胸肩基础体后须重烘焙三套衣装；完整躯干体型在运行模型创建时拟合，单独重建 trunk 文件不要求重烘焙原衣片。普通构建与运行不需要 Blender。成人运行绑定另以独立肩胛带及六个摆动／轴向扭转分离区间保持肩袖截面，并按拟合网格上的袖窿最短路径距离分配袖管位置修正；两种体型共用二十六骨结构，每顶点至多四个影响，袖窿与袖口之间在实际边长上重新求解过渡，原始烘焙网格与来源哈希不变。肩部范围及实际作业入口见[肩袖绑定与动作说明](models.md)。
 
-在项目根目录使用已下载的源数据重建：
+在项目根目录使用已校验的源数据重建当前身体配方。顺序为躯干、上臂、肩面、裤装；所有进程完成后再检查成品哈希和运行：
 
 ```powershell
-$torsoTemp = Join-Path (Get-Location) '.tools/tmp/torso-bake'
-New-Item -ItemType Directory -Force $torsoTemp | Out-Null
-$env:TEMP = $torsoTemp; $env:TMP = $torsoTemp
-& './.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe' --background --factory-startup --disable-autoexec --python-exit-code 2 --python tools/export_human_torso.py -- --source .tools/sources/makehuman --output src/SandBoxSim.Godot/assets/models/human/torso-cage.json
-& './.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe' --background --factory-startup --disable-autoexec --python-exit-code 2 --python tools/export_human_torso.py -- --frame female --source .tools/sources/makehuman --output src/SandBoxSim.Godot/assets/models/human/torso-feminine-cage.json
-& './.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe' --background --factory-startup --disable-autoexec --python-exit-code 2 --python tools/export_human_torso.py -- --frame male --region trunk --source .tools/sources/makehuman --output src/SandBoxSim.Godot/assets/models/human/trunk-masculine-cage.json
-& './.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe' --background --factory-startup --disable-autoexec --python-exit-code 2 --python tools/export_human_torso.py -- --frame female --region trunk --source .tools/sources/makehuman --output src/SandBoxSim.Godot/assets/models/human/trunk-feminine-cage.json
-./tools/bake-garments.ps1
-python -m unittest discover -s tools -p test_garment_pattern.py
+$bodyTemp = Join-Path (Get-Location) '.tools/tmp/body-export'
+New-Item -ItemType Directory -Force $bodyTemp | Out-Null
+$previousTemp, $previousTmp = $env:TEMP, $env:TMP
+$bodyBlender = (Resolve-Path './.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe').Path
+$bodyOutput = 'src/SandBoxSim.Godot/assets/models/human'
+try {
+    $env:TEMP = $bodyTemp; $env:TMP = $bodyTemp
+    foreach ($frame in 'male','female') {
+        $label = if ($frame -eq 'male') { 'masculine' } else { 'feminine' }
+        $arguments = @('--background','--factory-startup','--disable-autoexec','--python-exit-code','1',
+            '--python','tools/export_human_torso.py','--','--source','.tools/sources/makehuman',
+            '--frame',$frame,'--region','trunk','--output',"$bodyOutput/trunk-$label-cage.json")
+        $process = Start-Process -FilePath $bodyBlender -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru
+        if ($process.ExitCode -ne 0) { throw "Trunk export failed: $frame" }
+    }
+    python -B tools/export_upper_arm_support.py --source .tools/sources/makehuman --output $bodyOutput
+    if ($LASTEXITCODE -ne 0) { throw 'Upper-arm export failed' }
+    python -B tools/export_shoulder_surface.py --source .tools/sources/makehuman --output $bodyOutput
+    if ($LASTEXITCODE -ne 0) { throw 'Shoulder export failed' }
+    $arguments = @('--background','--factory-startup','--disable-autoexec','--python-exit-code','1',
+        '--python','tools/export_resident_trousers.py','--','--source','.tools/sources/makehuman','--output',$bodyOutput)
+    $process = Start-Process -FilePath $bodyBlender -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru
+    if ($process.ExitCode -ne 0) { throw 'Trouser export failed' }
+} finally { $env:TEMP = $previousTemp; $env:TMP = $previousTmp }
+python -B -m unittest discover -s tools -p test_human_assets.py
+python -B -m unittest discover -s tools -p test_resident_trousers.py
+python -B -m unittest discover -s tools -p test_upper_arm_support.py
+python -B -m unittest discover -s tools -p test_motion_sources.py
 ./tools/godot.ps1 -Mode test
 ```
 
-导出器固定写入 UTF-8、LF 换行；运行时先将 CRLF 统一为 LF，再校验 `NatureModels.TorsoAnatomy.cs` 中固定的 SHA-256。Windows、Linux、macOS 的文本换行差异不改变模型身份；几何数据、元数据或其他文本改变仍会被拒绝。客户端自检覆盖两种换行与有效 JSON 中的半径篡改。更改拟合配方后，要同步审查成品哈希；不要直接跳过校验。人物肩点与衣服骨骼同步作有界位移，肘部偏好和握持手腕限制共同参与求解；具体形态、动作边界与研究来源见[模型系统](models.md)。
+原始衣片与胸肩构造参考采用独立流程：`export_human_torso.py` 不传 `--region trunk` 时生成 65×128 的胸肩构造体，可用 `--frame female` 生成女性构造参考；改变它们或 `garment_pattern.py` 后执行 `./tools/bake-garments.ps1`。只修改当前身体配方时不需要重烘焙未改变的原衣片。
+
+导出器固定写入 UTF-8、LF 换行；运行时先将 CRLF 统一为 LF，再校验 `NatureModels.TorsoAnatomy.cs`、`NatureModels.BodyFrame.cs` 及各模型加载器中固定的 SHA-256。Windows、Linux、macOS 的文本换行差异不改变模型身份；几何数据、元数据或其他文本改变仍会被拒绝。客户端自检覆盖两种换行与有效 JSON 中的半径篡改。更改拟合配方后，要同步审查成品哈希；不要直接跳过校验。人物肩点与衣服骨骼同步作有界位移，肘部偏好和握持手腕限制共同参与求解；具体形态、动作边界与研究来源见[模型系统](models.md)。
 
 ## 连续裤装来源
 
-`trousers-male.mesh.json`／`trousers-female.mesh.json` 从同一 CC0 HM08 的 `helper-tights` 服装辅助几何生成，分别应用青年男女目标；不是旧骨盆和大腿截面体的增面。导出器校验源文件、去掉 A 姿势腿部偏移、裁切并保留单连通衣料，拟合裤腰与靴口，输出五骨权重和原始输入哈希。当前 `anatomical-limbs-v18` 按来源骨盆包络、中性站姿和衣料松量组织腰臀与上腿，输出记录 `physique` 配方标记，运行时仍校验完整成品 SHA-256。运行时用骨盆、实际大腿与膝关节驱动连续表面；面数、约束与测试见[模型系统](models.md)。现有头脸文件和手部授权保持独立。
+`trousers-male.mesh.json`／`trousers-female.mesh.json` 从同一 CC0 HM08 的 `helper-tights` 服装辅助几何生成，分别应用共同身体配方；不是旧骨盆和大腿截面体的增面。导出器校验源文件、去掉 A 姿势腿部偏移、裁切并保留单连通衣料，拟合裤腰与靴口，输出五骨权重和原始输入哈希。当前 `source-physique-v19` 按来源骨盆包络、中性站姿和衣料松量组织腰臀与上腿，输出记录 `physique` 配方标记，运行时仍校验完整成品 SHA-256。运行时用骨盆、实际大腿与膝关节驱动连续表面；面数、约束与测试见[模型系统](models.md)。现有头脸文件和手部授权保持独立。
 
 在上述项目临时环境中，使用同一 Blender 重建裤装：
 
@@ -145,12 +172,12 @@ if ($process.ExitCode -ne 0) { throw 'Trouser export failed' }
 python -m unittest discover -s tools -p test_resident_trousers.py
 ```
 
-当前 `anatomical-limbs-v18` 的裤装为男性 2,925 顶点／5,696 三角面、女性 2,731 顶点／5,296 三角面，保持五骨蒙皮、共享材质和原始 CC0 输入来源。导出器、工具测试与运行加载器校验成品 SHA-256、连通性及米制范围；胸腰和骨盆的成衣截面直接与来源比较，具体边界见[模型系统](models.md)。
+当前 `source-physique-v19` 的裤装为男性 2,901 顶点／5,648 三角面、女性 2,731 顶点／5,296 三角面，保持五骨蒙皮、共享材质和原始 CC0 输入来源。导出器、工具测试与运行加载器校验成品 SHA-256、连通性及米制范围；胸腰和骨盆的成衣截面直接与来源比较，具体边界见[模型系统](models.md)。
 
 
 ## 上臂解剖支撑与姿态表面
 
-[upper-arm-male.json](../../src/SandBoxSim.Godot/assets/models/human/upper-arm-male.json) 和 [upper-arm-female.json](../../src/SandBoxSim.Godot/assets/models/human/upper-arm-female.json) 来自本项目现有、哈希校验的 MakeHuman HM08 基础网格、青年宏目标和肩肘关节组，核心素材许可为 [CC0](https://www.makehumancommunity.org/about/license.html)。两个文件分别保存肩肘来源坐标、来源哈希、目标臂长和 25×64 个上臂截面半径；截面在来源肩肘轴内计算，保留三角肌区域向肘部收束的轮廓与方向差异，不能当作肌肉运动实测数据。运行时对 LF／CRLF 统一后检查完整文件哈希。
+[upper-arm-male.json](../../src/SandBoxSim.Godot/assets/models/human/upper-arm-male.json) 和 [upper-arm-female.json](../../src/SandBoxSim.Godot/assets/models/human/upper-arm-female.json) 来自本项目现有、哈希校验的 MakeHuman HM08 基础网格、共同身体配方和肩肘关节组，核心素材许可为 [CC0](https://www.makehumancommunity.org/about/license.html)。两个文件分别保存肩肘来源坐标、来源哈希、目标臂长和 25×64 个上臂截面半径；截面在来源肩肘轴内计算，保留三角肌区域向肘部收束的轮廓与方向差异，不能当作肌肉运动实测数据。运行时对 LF／CRLF 统一后检查完整文件哈希。
 
 可复用工具 [export_upper_arm_support.py](../../tools/export_upper_arm_support.py) 只依赖 Python 标准库，使用 `.tools/sources/makehuman` 中已校验来源，不重新下载素材。重建命令为 `python tools/export_upper_arm_support.py --source .tools/sources/makehuman --output src/SandBoxSim.Godot/assets/models/human`；对应测试同时检查来源重建一致性、有效截面和方向性体积。修改来源或配方后须同步审查运行时固定哈希。
 
@@ -158,7 +185,7 @@ python -m unittest discover -s tools -p test_resident_trousers.py
 
 ## 三维肩部来源与捕捉动作
 
-[shoulder-surface-male.json](../../src/SandBoxSim.Godot/assets/models/human/shoulder-surface-male.json) 与[女性表面](../../src/SandBoxSim.Godot/assets/models/human/shoulder-surface-female.json) 使用同一 CC0 人体来源，另采用 MakeHuman 的 `default.mhskel`（SHA-256 `99f179bce0aa850b45d4191a1d0d234c5851f881c057439470ded3bddf729a24`）和 `default_weights.mhw`（`0f3641d651ae3d00ad6b4ccee43142edb109d3bd909d27d9e4139ef1beed8625`）。两份文件的来源元数据均明确为 CC0，作者为 Data Collection AB、Joel Palmius、Jonas Hauquier；[骨架](https://github.com/makehumancommunity/makehuman/blob/master/makehuman/data/rigs/default.mhskel)、[权重](https://github.com/makehumancommunity/makehuman/blob/master/makehuman/data/rigs/default_weights.mhw)保留原定义。原权重存在千分位舍入，导出时先归一化，再与网格一起细分。导出包含静止表面、原始 A 姿势、四组权重、肩点和绑定旋转，保留完整来源重建信息。当前为 schema 3：垂臂绑定以共同肩点的归一化四元数混合生成，保持来源截面；运行时从原始 A 姿势出发，将每根目标变换与相应绑定旋转组合后作双四元数混合。固定三角面对应仍建立在垂臂表面，胸片保留肱骨的静止绑定，袖片参与实际肱骨旋转。导出与运行时的中性姿态有逐顶点一致性检查，详见[模型系统](models.md)。
+[shoulder-surface-male.json](../../src/SandBoxSim.Godot/assets/models/human/shoulder-surface-male.json) 与[女性表面](../../src/SandBoxSim.Godot/assets/models/human/shoulder-surface-female.json) 使用同一 CC0 人体来源及当前共同身体配方，另采用 MakeHuman 的 `default.mhskel`（SHA-256 `99f179bce0aa850b45d4191a1d0d234c5851f881c057439470ded3bddf729a24`）和 `default_weights.mhw`（`0f3641d651ae3d00ad6b4ccee43142edb109d3bd909d27d9e4139ef1beed8625`）。两份文件的来源元数据均明确为 CC0，作者为 Data Collection AB、Joel Palmius、Jonas Hauquier；[骨架](https://github.com/makehumancommunity/makehuman/blob/master/makehuman/data/rigs/default.mhskel)、[权重](https://github.com/makehumancommunity/makehuman/blob/master/makehuman/data/rigs/default_weights.mhw)保留原定义。原权重存在千分位舍入，导出时先归一化，再与网格一起细分。导出包含静止表面、原始 A 姿势、四组权重、肩点和绑定旋转，保留完整来源重建信息。当前为 schema 3：垂臂绑定以共同肩点的归一化四元数混合生成，保持来源截面；运行时从原始 A 姿势出发，将每根目标变换与相应绑定旋转组合后作双四元数混合。固定三角面对应仍建立在垂臂表面，胸片保留肱骨的静止绑定，袖片参与实际肱骨旋转。导出与运行时的中性姿态有逐顶点一致性检查，详见[模型系统](models.md)。
 
 重建使用 [export_shoulder_surface.py](../../tools/export_shoulder_surface.py)：`python -B tools/export_shoulder_surface.py --source .tools/sources/makehuman --output src/SandBoxSim.Godot/assets/models/human`，原始两份骨架文件存于该来源目录的 `rig/`。工具只依赖 Python 标准库，运行与普通构建不需要 Blender。
 

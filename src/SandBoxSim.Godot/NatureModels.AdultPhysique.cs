@@ -6,25 +6,25 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
-    private float? _femaleShoulderWidth;
-    private float FemaleShoulderWidth
+    private readonly float[] _adultShoulderWidths=new float[2];
+    private float AdultShoulderWidth
     {
         get
         {
-            if(_femaleShoulderWidth.HasValue)return _femaleShoulderWidth.Value;
-            const string file="trunk-feminine-cage.json";
-            _trunkFeminine??=FrameRadii(file,"0868f6499f700995e3fb0eaea1ed7aea623406fbbfa5486b38a35e5d74d3fcad");
+            int frame=BodyFrame==1?1:0;
+            if(_adultShoulderWidths[frame]>0)return _adultShoulderWidths[frame];
+            string file=frame==1?"trunk-feminine-cage.json":"trunk-masculine-cage.json";
+            _=FrameRadii(file,frame==1?FemaleTrunkHash:MaleTrunkHash);
             using var doc=JsonDocument.Parse(FileAccess.GetFileAsString("res://assets/models/human/"+file));
             var root=doc.RootElement;
-            // The cage uses the male reference's X scale for both bodies.
-            // Its nominal 'shoulder' field is an export reference, not the
-            // female joint centre. Recover that centre from the source macro.
+            // Both bodies use the baseline male coordinate scale; recover
+            // each shaped source's actual joint, not its nominal reference.
             float width=root.GetProperty("sourceShoulder")[0].GetSingle()*root.GetProperty("scale")[0].GetSingle();
-            if(!float.IsFinite(width)||width<.14f||width>.19f)throw new InvalidOperationException("Invalid source shoulder centre");
-            return (_femaleShoulderWidth=width).Value;
+            if(!float.IsFinite(width)||width<.14f||width>.22f)throw new InvalidOperationException("Invalid source shoulder centre");
+            return _adultShoulderWidths[frame]=width;
         }
     }
-    private float ArmWidthScale=>BodyFrame==1?FemaleShoulderWidth/.202f:1.04f;
+    private float ArmWidthScale=>AdultShoulderWidth/.202f;
 
     private float TailoredPanelHeight(Vector3 point)
     {

@@ -10,9 +10,12 @@ internal sealed partial class NatureModels
     private readonly float[][] _garmentFrameReference=new float[3][];
     private readonly float[][] _sewnFrameReference=new float[3][];
     private const int TrunkRows=113,TrunkColumns=128;
+    private const string MaleTrunkHash="97434c8cc2f972cf7b592c32b2958f3df36140bb38531e2dc4ae13a9a7410fb0";
+    private const string FemaleTrunkHash="e7989a98db574c09d6b0fbae9fd9e5d91e1fc5746ae5e1fdec503508edb9ae15";
     private const float TrunkLow=.74f,TrunkHigh=1.30f;
     private const float GarmentReferenceLow=.64f;
     private const int GarmentReferenceRows=133;
+    private const float SleeveAxialBlendDistance=.06f;
     private static float[] FrameRadii(string file,string expected)
     {
         string raw=FileAccess.GetFileAsString("res://assets/models/human/"+file).Replace("\r\n","\n",StringComparison.Ordinal);
@@ -38,6 +41,19 @@ internal sealed partial class NatureModels
         int r=Math.Min(TrunkRows-2,(int)row),c=(int)column;float u=column-c,v=row-r;
         float At(int h)=>Mathf.Lerp(data[h*TrunkColumns+c],data[h*TrunkColumns+(c+1)%TrunkColumns],u);
         return Mathf.Lerp(At(r),At(r+1),v);
+    }
+    private static float TrunkSectionWidth(float[] data,float y)
+    {
+        float low=float.PositiveInfinity,high=float.NegativeInfinity;
+        for(int col=0;col<TrunkColumns;col++)
+        {
+            float angle=col*Mathf.Tau/TrunkColumns;
+            float x=MathF.Cos(angle)*TrunkSample(data,y,angle);
+            low=MathF.Min(low,x);high=MathF.Max(high,x);
+        }
+        // Opposing centre rays measure a chord, not the breadth of a torso
+        // whose widest lateral points lie forward/backward of the origin.
+        return high-low;
     }
     private float[] GarmentFrameReference()
     {
@@ -71,8 +87,8 @@ internal sealed partial class NatureModels
         var fitted=point;
         if(active>0&&point.X*point.X+point.Z*point.Z>.00001f)
         {
-            _trunkMale??=FrameRadii("trunk-masculine-cage.json","27836b278e247921af480fca63edca7c4d65f11655cb1272a19fb3909e43821c");
-            _trunkFeminine??=FrameRadii("trunk-feminine-cage.json","0868f6499f700995e3fb0eaea1ed7aea623406fbbfa5486b38a35e5d74d3fcad");
+            _trunkMale??=FrameRadii("trunk-masculine-cage.json",MaleTrunkHash);
+            _trunkFeminine??=FrameRadii("trunk-feminine-cage.json",FemaleTrunkHash);
             float angle=MathF.Atan2(point.Z,point.X),front=MathF.Max(0,-MathF.Sin(angle));
             // Fit the source skin's complete thorax/lumbar/pelvic envelope.
             // Millimetre-scale ease bridges the skin, rather than shrinking
@@ -90,7 +106,7 @@ internal sealed partial class NatureModels
             // The source already contains the thorax, waist and pelvic form.
             // Garment ease is added by ClothEnvelope; applying another chest
             // bulge or carved waist here duplicates those anatomical features.
-            target+=.020f*front*(1-Mathf.SmoothStep(.80f,.94f,panelHeight));
+            target+=.012f*front*(1-Mathf.SmoothStep(.80f,.94f,panelHeight));
             target+=GarmentDrapeDetail(panelHeight,angle);
             // The shirt is outside the actual finished trousers, not only
             // outside the unclothed source. This includes a coat's lower skirt.
@@ -211,9 +227,10 @@ internal sealed partial class NatureModels
                         // (R-Rf)*down*d keeps the centre on the humeral axis.
                         float shoulderY=ResidentRig.BodyY(1.18f)-(BodyFrame==1?.014f:.009f);
                         // The sewn boundary remains on its scapular support;
-                        // introduce the axial correction over four centimetres
-                        // of cloth before requiring a free sleeve centreline.
-                        float gather=Math.Clamp((shoulderY-points[i].Y)/.263f,0,1)*Mathf.SmoothStep(0,.04f,sleeveDistance[i]);
+                        // Spread centreline transport over the shoulder cap.
+                        // A four-centimetre ramp produced a steep translation
+                        // gradient across short edges of shaped armholes.
+                        float gather=Math.Clamp((shoulderY-points[i].Y)/.263f,0,1)*Mathf.SmoothStep(0,SleeveAxialBlendDistance,sleeveDistance[i]);
                         int lowerCap=segment==0?ResidentRig.GirdleBone(side):ResidentRig.SleeveSupportBone(side,segment,true);
                         int upperCap=segment==ResidentRig.SleeveSpans-1?side+1:ResidentRig.SleeveSupportBone(side,segment+1,true);
                         bones[i*4]=lower;bones[i*4+1]=upper;bones[i*4+2]=lowerCap;bones[i*4+3]=upperCap;
@@ -485,12 +502,12 @@ internal sealed partial class NatureModels
             float maleShoulder=male.ShoulderHalfWidth*2*male.Scale.X,femaleShoulder=female.ShoulderHalfWidth*2*female.Scale.X;
             // Compare clothing with the same source body instead of forcing
             // a fixed sex-specific hourglass ratio onto every character.
-            var sourceMale=FrameRadii("trunk-masculine-cage.json","27836b278e247921af480fca63edca7c4d65f11655cb1272a19fb3909e43821c");
-            var sourceFemale=FrameRadii("trunk-feminine-cage.json","0868f6499f700995e3fb0eaea1ed7aea623406fbbfa5486b38a35e5d74d3fcad");
-            float Width(float[] source,float y)=>TrunkSample(source,y,0)+TrunkSample(source,y,MathF.PI);
+            var sourceMale=FrameRadii("trunk-masculine-cage.json",MaleTrunkHash);
+            var sourceFemale=FrameRadii("trunk-feminine-cage.json",FemaleTrunkHash);
+            float Width(float[] source,float y)=>TrunkSectionWidth(source,y);
             void Check(ResidentRig rig,Mesh body,Color? dye,float[] source)
             {
-                foreach(float y in new[]{1.00f,1.135f})
+                foreach(float y in new[]{.97f,1.00f,1.04f,1.08f,1.10f,1.135f})
                 {
                     float actual=ClothSectionWidth(body,y,dye),skin=Width(source,y);
                     if(actual<skin+.008f||actual>skin+.056f)
@@ -501,6 +518,14 @@ internal sealed partial class NatureModels
                     throw new InvalidOperationException($"Trouser pelvis departs from its source envelope: {hip}/{expected}");
             }
             Check(male,m,maleDye,sourceMale);Check(female,f,femaleDye,sourceFemale);
+            // Preserve the authored body references after clothing, outer
+            // scale and distant batching, rather than checking only a sign.
+            float sourceHipDifference=(Width(sourceFemale,.78f)-Width(sourceMale,.78f));
+            float actualHipDifference=ClothSectionWidth(female.Trousers!.Mesh,.78f)-ClothSectionWidth(male.Trousers!.Mesh,.78f);
+            float sourceChestDifference=Width(sourceMale,1.135f)-Width(sourceFemale,1.135f);
+            float actualChestDifference=ClothSectionWidth(m,1.135f,maleDye)-ClothSectionWidth(f,1.135f,femaleDye);
+            if(MathF.Abs(actualHipDifference-sourceHipDifference)>.015f||MathF.Abs(actualChestDifference-sourceChestDifference)>.015f)
+                throw new InvalidOperationException($"Clothing or LOD erases the authored body contrast: hip={actualHipDifference}/{sourceHipDifference}, chest={actualChestDifference}/{sourceChestDifference}");
             if(femaleShoulder>=maleShoulder||ClothSectionWidth(female.Trousers!.Mesh,.78f)<=ClothSectionWidth(male.Trousers!.Mesh,.78f))
                 throw new InvalidOperationException("Source shoulder/pelvis contrast was lost during clothing or LOD conversion");
             GD.Print($"ADULT_CONTOUR_SECTION: {(distant?"far":"near")} shoulder/hip={maleShoulder/maleHip:F3}/{femaleShoulder/femaleHip:F3}, waist/hip={maleWaist/maleHip:F3}/{femaleWaist/femaleHip:F3}, hip width={maleHip:F3}/{femaleHip:F3} m; source-bound clothing");
@@ -522,8 +547,8 @@ internal sealed partial class NatureModels
         }
         float maleProjection=Front(male.DetailedBodyMesh,1.00f)-Front(male.DetailedBodyMesh,1.135f);
         float femaleProjection=Front(female.DetailedBodyMesh,1.00f)-Front(female.DetailedBodyMesh,1.135f);
-        var sourceM=FrameRadii("trunk-masculine-cage.json","27836b278e247921af480fca63edca7c4d65f11655cb1272a19fb3909e43821c");
-        var sourceF=FrameRadii("trunk-feminine-cage.json","0868f6499f700995e3fb0eaea1ed7aea623406fbbfa5486b38a35e5d74d3fcad");
+        var sourceM=FrameRadii("trunk-masculine-cage.json",MaleTrunkHash);
+        var sourceF=FrameRadii("trunk-feminine-cage.json",FemaleTrunkHash);
         float ExpectedProjection(float[] source)=>TrunkSample(source,1.135f,-MathF.PI/2)-TrunkSample(source,1.00f,-MathF.PI/2);
         if(MathF.Abs(maleProjection-ExpectedProjection(sourceM))>.016f||MathF.Abs(femaleProjection-ExpectedProjection(sourceF))>.016f)
             throw new InvalidOperationException($"Garment adds an artificial chest/waist projection: {maleProjection:F4}/{femaleProjection:F4}");

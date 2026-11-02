@@ -8,6 +8,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
+from resident_body import body_points, body_provenance
 
 
 def add(a,b):return tuple(x+y for x,y in zip(a,b))
@@ -26,25 +27,18 @@ def export(source,frame):
     if frame=='female':expected['caucasian-female-young.target']='118379f6e8ba9266247fdb8788a20e1df40a239f97ced0b9905bcbcc74f6e820'
     for name,digest in expected.items():
         if hashlib.sha256((source/name).read_bytes()).hexdigest()!=digest:raise ValueError('Changed source: '+name)
-    points=[];faces=[];group=''
+    faces=[];group=''
     for line in (source/'base.obj').read_text(encoding='utf-8').splitlines():
         t=line.split()
         if not t:continue
-        if t[0]=='v':points.append(tuple(map(float,t[1:4])))
-        elif t[0]=='g':group=t[1]
+        if t[0]=='g':group=t[1]
         elif t[0]=='f' and group=='body':faces.append(tuple(int(v.split('/')[0])-1 for v in t[1:]))
-    def macro(name):
-        result=list(points)
-        for line in (source/name).read_text(encoding='utf-8').splitlines():
-            t=line.split()
-            if len(t)==4 and not line.startswith('#'):result[int(t[0])]=add(result[int(t[0])],tuple(map(float,t[1:])))
-        return result
     groups=json.loads((source/'basemesh_vertex_groups.json').read_text(encoding='utf-8'))
     def joint(vertices,name):
         ids=[i for a,b in groups['joint-l-'+name] for i in range(a,b+1)]
         return mul(tuple(sum(vertices[i][j] for i in ids) for j in range(3)),1/len(ids))
-    reference=joint(macro('caucasian-male-young.target'),'shoulder')
-    vertices=macro('caucasian-'+frame+'-young.target');raw_shoulder=joint(vertices,'shoulder')
+    reference=joint(body_points(source,'male',baseline=True),'shoulder')
+    vertices=body_points(source,frame);raw_shoulder=joint(vertices,'shoulder')
     def mapped(p):return (p[0]*.202/reference[0],1.23+(p[1]-raw_shoulder[1])*.09,-(p[2]-raw_shoulder[2])*.1)
     vertices=[mapped(p) for p in vertices];shoulder=mapped(raw_shoulder);elbow=joint(vertices,'elbow')
     axis=unit(sub(elbow,shoulder));length=math.dist(elbow,shoulder)
@@ -80,8 +74,10 @@ def export(source,frame):
     for _ in range(3):
         old=radii
         radii=[sum(old[min(rows-1,max(0,r+dr))*columns+(c+dc)%columns]*w for dr,dc,w in ((0,0,.5),(-1,0,.15),(1,0,.15),(0,-1,.1),(0,1,.1))) for r in range(rows) for c in range(columns)]
-    return {'schemaVersion':1,'license':'CC0-1.0','source':'MakeHuman HM08 '+frame+' young macro; existing verified source bundle',
-            'sourceSha256':expected,'sourceShoulder':shoulder,'sourceElbow':elbow,'sourceLength':length,
+    provenance=body_provenance(frame)
+    expected=provenance.pop('sourceSha256')
+    return {'schemaVersion':1,'license':'CC0-1.0','source':'MakeHuman HM08 '+frame+' young macro and source body recipe',
+            'sourceSha256':expected,'shapeRecipe':provenance,'sourceShoulder':shoulder,'sourceElbow':elbow,'sourceLength':length,
             'targetLength':.28,'low':low,'high':high,'rows':rows,'columns':columns,'radii':[round(r,7) for r in radii]}
 
 

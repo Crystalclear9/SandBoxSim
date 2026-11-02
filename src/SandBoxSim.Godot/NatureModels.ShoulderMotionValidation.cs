@@ -144,8 +144,8 @@ internal sealed partial class NatureModels
             var carrying=Resident(identity,false,JobType.Builder);
             try
             {
-                if(identity!=17&&MathF.Abs(neutral.ShoulderHalfWidth-FemaleShoulderWidth)>.00001f)
-                    throw new InvalidOperationException($"Female shoulder uses a generic width instead of its source joint: actual={neutral.ShoulderHalfWidth}, source={FemaleShoulderWidth}");
+                if(MathF.Abs(neutral.ShoulderHalfWidth-AdultShoulderWidth)>.00001f)
+                    throw new InvalidOperationException($"Adult shoulder uses a generic width instead of its source joint: actual={neutral.ShoulderHalfWidth}, source={AdultShoulderWidth}");
                 for(int frame=0;frame<240;frame++)
                 {
                     neutral.PoseAction(1f/60,ActionKind.None,ActionPhase.Idle,false,0);
@@ -176,7 +176,7 @@ internal sealed partial class NatureModels
             }
             finally{neutral.Free();carrying.Free();}
         }
-        GD.Print($"SHOULDER_FIT_PASS: three adult identities, source half-width={FemaleShoulderWidth:F5} m, neutral/carry wrist lateral difference={maximum:F4} m, fitted inverse binds");
+        GD.Print($"SHOULDER_FIT_PASS: three adult identities, source half-width={AdultShoulderWidth:F5} m, neutral/carry wrist lateral difference={maximum:F4} m, fitted inverse binds");
     }
     private static void ValidateSleeveSupport(ResidentRig rig,int side)
     {

@@ -20,7 +20,9 @@
 
 `resident-shoulder-elevation.png` 为公开 `visual-shoulder-elevation.json` 的逻辑帧 108、1600×1000；同名 GIF 为 1600×1000、180 个原生帧，逻辑帧 30–746 每四步采样、总长十二秒，分六次等配置回放编码。两排仍为两种成人外观，三列为正面、固定侧面、背面；正交尺寸 1.38、目标 (0, 1.24, 0)，相机相对位置分别为 (0.03, 0.03, 4)、(-4, 0.03, 0.10)、(0.03, 0.03, -4)。左右臂各占六秒，在冠状面前方 30° 的平面内用 1.5 秒抬至 135°、保持一秒、1.5 秒放下、休息两秒。
 
-`resident-shoulder-motion`、`resident-shoulder-elevation` 与 `resident-captured-stretch` 的 PNG／GIF 于 2026-10-31 重采，使用 `bodyFrame=adult-proportions-v15`、`shoulderSkin=rest-detail-sleeve-v10`、`shoulderSurface=authored-bind-surface-v3`、`shoulderMotion=inertial-reach-v10`、`forearmSkin=distributed-roll-v1`、`toolMotion=constraint-feedback-v4`。抬臂使用独立于屈肘的上臂参考轴，低位前伸保留下垂支撑的肘部偏好；肩袖使用一百二十个姿态样本，覆盖中性、邻近及极端轴向旋转，保留实际轴向站位与袖窿缝合过渡，来源支撑从 A 姿势直接求解；作业还记录 `workPose=raised-hammer-v1` 与 `sleeveFairing=rest-detail-v2`。肩袖恢复静止衣料细节，程序交互的肘平面保留转向速度并限制加速度。三组均冻结模拟、固定 60 Hz，没有重绘、插帧或身体局部缩放；GIF 只作统一调色板编码。
+`resident-shoulder-elevation` 的 PNG／GIF 于 2026-11-02 使用 `bodyFrame=source-physique-v19` 重采，同一配方生成躯干、上臂、肩面与裤装。衣袖中心线位移在距袖窿 0–60 毫米内连续接入。180 个原生采样的逻辑间隔为四步；GIF 以 70／60／70 毫秒循环量化播放时间，保持总长十二秒，未插帧或改绘。它与下列两组旧图分别记录模型版本。
+
+`resident-shoulder-motion` 与 `resident-captured-stretch` 的 PNG／GIF 于 2026-10-31 重采，使用 `bodyFrame=adult-proportions-v15`、`shoulderSkin=rest-detail-sleeve-v10`、`shoulderSurface=authored-bind-surface-v3`、`shoulderMotion=inertial-reach-v10`、`forearmSkin=distributed-roll-v1`、`toolMotion=constraint-feedback-v4`。抬臂使用独立于屈肘的上臂参考轴，低位前伸保留下垂支撑的肘部偏好；肩袖使用一百二十个姿态样本，覆盖中性、邻近及极端轴向旋转，保留实际轴向站位与袖窿缝合过渡，来源支撑从 A 姿势直接求解；作业还记录 `workPose=raised-hammer-v1` 与 `sleeveFairing=rest-detail-v2`。肩袖恢复静止衣料细节，程序交互的肘平面保留转向速度并限制加速度。这些采样均冻结模拟、固定 60 Hz，没有重绘、插帧或身体局部缩放；GIF 只作统一调色板编码。
 
 `resident-handling-transitions` 与 `resident-social-side-motion.gif` 保留 2026-10-30 的 `bound-surface-sleeve-v7`／`bound-anatomical-surface-v2` 采样。生活侧面 GIF 为 1600×1000、102 帧和 6.8 秒，来自 `visual-social-side.json` 逻辑帧 30–434 每四步采样，分四次回放编码。其他专题保留各自采样版本。
 
@@ -35,11 +37,11 @@
 
 `resident-face-frames.png` 为男女成人外观的正面及三刻面，来自公开 `visual-face-frames` 第 90 帧，1600×1000。身份 17 与 55 使用相同衣色、肤色及布光；头宽独立于身体随机宽度，来源额部 RGB 参考及曝光在线性颜色空间校准，保留照片局部色差。`resident-work-effort.gif` 为同一手锤的男女外观、良好／疲劳状态四格对照，1280×1000、102 帧、6.8 秒，按 60 Hz 每四步采样一次；`resident-work-effort.png` 为公开场景第 180 帧，1600×1000。上述头脸和作业图保留各自采样时的成人轮廓、关节协调与携带姿态，当前整体身材以下述三视图为准。作业对照镜头为正交尺寸 1.15、目标 (0, 1.05, 0)，展示上身与握柄。两套公开场景均冻结模拟，动画照常推进；系数是表现参数，不能由图像推断真实力量。
 
-`resident-body-frames.png` 使用 `anatomical-limbs-v18`，来自公开 `visual-body-frames.json` 第 90 帧、1600×1000。宽屏下为单排六列，依次配对两种成人外观的正面、侧面、背面；身份 17 与 55 使用相同衣色、肤色与布光。当前身体按来源胸腰／骨盆截面拟合，身高整体等比变化；上衣保留外层活动松量，裤装使用来源包络、共同中性站姿和五骨蒙皮。正交尺寸 1.80，目标 (0, 0.82, 0)，相机相对位置为 (0.05, 0.04, 4)、(4, 0.04, 0.2)、(0.05, 0.04, −4)。
+`resident-body-frames.png` 使用 `source-physique-v19`，来自公开 `visual-body-frames.json` 第 90 帧、1600×1000。宽屏下为单排六列，依次配对两种成人外观的正面、侧面、背面；身份 17 与 55 使用相同衣色、肤色与布光。当前身体按来源胸腰／骨盆截面拟合，身高整体等比变化；上衣保留外层活动松量，裤装使用来源包络、共同中性站姿和五骨蒙皮。正交尺寸 1.80，目标 (0, 0.82, 0)，相机相对位置为 (0.05, 0.04, 4)、(4, 0.04, 0.2)、(0.05, 0.04, −4)。
 
 较早作业静态图与移动演示使用 2026-10-29 的 `adult-proportions-v13` 采样；其他人物观察窗保留各自采样版本。
 
-`resident-body-motion.png` 为公开 `visual-body-motion.json` 第 180 帧、1600×1000；同名 GIF 为 120 个原生采样，逻辑帧 60–417 每三步采样、20 fps、六秒，分四次固定 60 Hz、零模拟步进的回放编码。每批另保留早期窗口检查帧。六格配对展示放松站立、行走与弯身取物，使用当前 `anatomical-limbs-v18` 模型、实际裤装和腰部衣料绑定。镜头正交尺寸 2.25、目标 (0, 0.82, 0)、相对位置 (1.8, 0.08, 4)，没有身体局部缩放、插帧或重绘。
+`resident-body-motion.png` 为公开 `visual-body-motion.json` 第 180 帧、1600×1000；同名 GIF 为 120 个原生采样，逻辑帧 60–417 每三步采样、20 fps、六秒，分四次固定 60 Hz、零模拟步进的回放编码。每批另保留早期窗口检查帧。六格配对展示放松站立、行走与弯身取物，使用当前 `source-physique-v19` 模型、实际裤装和腰部衣料绑定。镜头正交尺寸 2.25、目标 (0, 0.82, 0)、相对位置 (1.8, 0.08, 4)，没有身体局部缩放、插帧或重绘。
 
 `resident-forearm-frames.png` 为公开 `visual-forearm-frames.json` 第 90 帧的小臂对照，正交尺寸 0.46，1600×1000，使用实际分离观察网格，不代表游戏中存在开放切口。头脸、小臂专题及动作 GIF 保留各自采样，`regional-adult-v2` 头脸与小臂映射未改变；GIF 展示控制器的运动节奏，成人躯干局部轮廓以全身三视图与当前作业静态图为准。
 
@@ -114,8 +116,10 @@
 木材捆独立近景保留搬运功能版本的采样；腰侧工具挂环的当前位置以新版配件图和人物观察窗为准。
 
 
-全身体型、身体动态与 `wardrobe-detail.png` 于 2026-11-02 使用 `bodyFrame=anatomical-limbs-v18` 重采；身体动态 GIF 展示实际连续网格与绑定。肩袖、作业及捕捉伸展三组旧演示保留各自记录的 `adult-proportions-v15` 身体采样，整体身材以本段 v18 配图为准；各图片的采样版本独立记录。
+全身体型、身体动态与 `wardrobe-detail.png` 于 2026-11-02 使用 `bodyFrame=source-physique-v19` 重采；身体动态 GIF 展示实际连续网格与绑定。肩袖抬臂同步使用 v19；作业及捕捉伸展两组旧演示保留各自记录的 `adult-proportions-v15` 身体采样，整体身材以本段 v19 配图为准；各图片的采样版本独立记录。
 
-当前 `wardrobe-detail.png` 来自公开 `visual-wardrobe` 第 90 帧，1600×1000，正交尺寸 0.88、目标 (0, 1.13, 0)、相机相对位置 (0.10, 0.035, 3)，展示三套成衣正背面。`anatomical-limbs-v18` 与 `rest-seam-linen-v16` 使用实际缝合衣身截面、按款式组织的下摆、受支撑褶皱、静止表面坐标中的缝线及圆头鞋楦；腰带与衣身共用同一拟合参考。
+当前 `wardrobe-detail.png` 来自公开 `visual-wardrobe` 第 90 帧，1600×1000，正交尺寸 0.88、目标 (0, 1.13, 0)、相机相对位置 (0.10, 0.035, 3)，展示三套成衣正背面。`source-physique-v19` 与 `rest-seam-linen-v16` 使用实际缝合衣身截面、按款式组织的下摆、受支撑褶皱、静止表面坐标中的缝线及圆头鞋楦；腰带与衣身共用同一拟合参考。
 
-当前身体三视图与身体动态图使用 `anatomical-limbs-v18`、`residentLocomotion=ankle-offset-v4`：裤装由来源人体腿部截面支撑，站姿与步态分离踝关节和鞋楦中心偏移。其他动作专题保留各自采样版本，不能以当前标签替换旧图的模型身份。
+当前身体三视图与身体动态图使用 `source-physique-v19`、`residentLocomotion=ankle-offset-v4`：裤装由来源人体腿部截面支撑，站姿与步态分离踝关节和鞋楦中心偏移。其他动作专题保留各自采样版本，不能以当前标签替换旧图的模型身份。
+
+`source-physique-v19` 的身体三视图、身体动态和衣装近景使用共同来源体型配方；躯干、上臂、肩面与裤装均记录相同配方哈希。截图仍由原生视口输出，镜头、衣色和光照保持配对。

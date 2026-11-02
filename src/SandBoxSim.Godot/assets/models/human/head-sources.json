@@ -121,6 +121,26 @@
       "archiveMember": "hair/ponytail01/ponytail01_diffuse.png",
       "sha256": "dcb364300cac06ce8bef91b2f7c0970baf310898bbdd06b0c6b884ee9306eb97",
       "bytes": 3910782
+    },
+    "universal-male-young-maxmuscle-averageweight.target": {
+      "url": "https://raw.githubusercontent.com/makehumancommunity/makehuman/a8bc2d54ff0ac92e78ff71431b1023eda42bf482/makehuman/data/targets/macrodetails/universal-male-young-maxmuscle-averageweight.target",
+      "bytes": 147110,
+      "sha256": "c171ff9cc95e96273beb3e3b1969a01988c2d4982ebc6fe04bf81cf72ee3b295"
+    },
+    "hip-scale-horiz-incr.target": {
+      "url": "https://raw.githubusercontent.com/makehumancommunity/makehuman/a8bc2d54ff0ac92e78ff71431b1023eda42bf482/makehuman/data/targets/hip/hip-scale-horiz-incr.target",
+      "bytes": 32914,
+      "sha256": "2863ee4478f548cd2cdd932037fcd21e6b364b9a2d86911d3b603be18f598da7"
+    },
+    "female-young-averagemuscle-averageweight-maxcup-averagefirmness.target": {
+      "url": "https://raw.githubusercontent.com/makehumancommunity/makehuman/a8bc2d54ff0ac92e78ff71431b1023eda42bf482/makehuman/data/targets/breast/female-young-averagemuscle-averageweight-maxcup-averagefirmness.target",
+      "bytes": 15334,
+      "sha256": "b5aaa1595cf4efcee69022fc60034d93ab6f6fc473e6f8e162e5526803b074bf"
+    },
+    "torso-vshape-incr.target": {
+      "url": "https://raw.githubusercontent.com/makehumancommunity/makehuman/a8bc2d54ff0ac92e78ff71431b1023eda42bf482/makehuman/data/targets/torso/torso-vshape-incr.target",
+      "bytes": 95207,
+      "sha256": "9d0ac9eec39a14d51d7db50e48292b3db67aed9b91e654b379f4dbe348644684"
     }
   }
 }

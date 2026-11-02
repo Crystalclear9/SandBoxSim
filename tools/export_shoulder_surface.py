@@ -10,6 +10,7 @@ import json
 import math
 from pathlib import Path
 from export_upper_arm_support import add,sub,mul,dot,cross,unit
+from resident_body import body_points, body_provenance
 
 
 def bind_shoulder(point,shoulder,axis,angle,weights):
@@ -66,30 +67,23 @@ def export(folder,sex):
     rig=json.loads((folder/'rig/default.mhskel').read_text(encoding='utf-8'))
     weights=json.loads((folder/'rig/default_weights.mhw').read_text(encoding='utf-8'))
     if rig['license']!='CC0' or weights['license']!='CC0':raise ValueError('Unexpected source license')
-    vertices=[];faces=[];quads=[];group=''
+    faces=[];quads=[];group=''
     for line in (folder/'base.obj').read_text(encoding='utf-8').splitlines():
         t=line.split()
         if not t:continue
-        if t[0]=='v':vertices.append(tuple(map(float,t[1:4])))
-        elif t[0]=='g':group=t[1]
+        if t[0]=='g':group=t[1]
         elif t[0]=='f' and group=='body':
             ids=[int(p.split('/')[0])-1 for p in t[1:]]
             quads.append(tuple(ids))
             faces.extend((ids[0],ids[i],ids[i+1]) for i in range(1,len(ids)-1))
-    def macro(name):
-        points=list(vertices)
-        for line in (folder/name).read_text(encoding='utf-8').splitlines():
-            t=line.split()
-            if len(t)==4 and not line.startswith('#'):points[int(t[0])]=add(points[int(t[0])],tuple(map(float,t[1:])))
-        return points
     groups=json.loads((folder/'basemesh_vertex_groups.json').read_text(encoding='utf-8'))
     def joint(points,name):
         ids=[i for a,b in groups['joint-l-'+name] for i in range(a,b+1)]
         return mul(tuple(sum(points[i][j] for i in ids) for j in range(3)),1/len(ids))
-    reference=joint(macro('caucasian-male-young.target'),'shoulder')
-    points=macro('caucasian-'+sex+'-young.target');origin=joint(points,'shoulder')
+    reference=joint(body_points(folder,'male',baseline=True),'shoulder')
+    points=body_points(folder,sex);origin=joint(points,'shoulder')
     shoulder_y=1.23-(.014 if sex=='female' else .009)
-    def mapped(p):return (p[0]*.202/reference[0]*(1 if sex=='female' else 1.04),shoulder_y+(p[1]-origin[1])*.09,-(p[2]-origin[2])*.1)
+    def mapped(p):return (p[0]*.202/reference[0],shoulder_y+(p[1]-origin[1])*.09,-(p[2]-origin[2])*.1)
     points=list(map(mapped,points));shoulder=mapped(origin);elbow=joint(points,'elbow')
     axis=unit(sub(elbow,shoulder));target=(0.,-1.,0.);normal=unit(cross(axis,target));angle=math.acos(max(-1,min(1,dot(axis,target))))
     arm=[0.]*len(points);helper=[0.]*len(points);clavicle=[0.]*len(points)
@@ -113,8 +107,10 @@ def export(folder,sex):
         if .045<center[0]<.36 and shoulder_y-.17<center[1]<shoulder_y+.115 and abs(center[2])<.20:selected.append(face)
     used=sorted({i for f in selected for i in f});mapping={i:n for n,i in enumerate(used)}
     if len(selected)<400:raise ValueError('Incomplete shoulder surface')
-    return {'schemaVersion':3,'license':'CC0-1.0','source':'MakeHuman HM08 '+sex+' young; authored A-pose, common-pivot dual-quaternion hanging-arm bind',
-            'sourceSha256':expected,'shoulder':shoulder,'armBind':[round(x*math.sin(angle/2),8) for x in normal]+[round(math.cos(angle/2),8)],
+    provenance=body_provenance(sex)
+    expected.update(provenance.pop('sourceSha256'))
+    return {'schemaVersion':3,'license':'CC0-1.0','source':'MakeHuman HM08 '+sex+' source body recipe; authored A-pose, common-pivot dual-quaternion hanging-arm bind',
+            'sourceSha256':expected,'shapeRecipe':provenance,'shoulder':shoulder,'armBind':[round(x*math.sin(angle/2),8) for x in normal]+[round(math.cos(angle/2),8)],
             'vertices':[[round(x,7) for x in points[i]] for i in used],
             'aPoseVertices':[[round(x,7) for x in original[i]] for i in used],
             'skinWeights':[[round(w/max(1,arm[i]+helper[i]+clavicle[i]),7) for w in (max(0,1-arm[i]-helper[i]-clavicle[i]),arm[i],helper[i],clavicle[i])] for i in used],

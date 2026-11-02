@@ -86,7 +86,7 @@ internal sealed partial class NatureModels
                     for(int i=0;i<source.Length;i++)
                     {
                         float station=pivot.Y-source[i].Y;
-                        if((source[i].X<0)!=(side==0)||station<=.005f||station>=.263f||distance[i]<.04f)continue;
+                        if((source[i].X<0)!=(side==0)||station<=.005f||station>=.263f||distance[i]<SleeveAxialBlendDistance)continue;
                         bool supported=true;float total=0;
                         for(int j=0;j<4;j++)if(weights[i*4+j]>0)
                         {int bone=bones[i*4+j];if(bone<4||bone>=ResidentRig.GirdleBone(0))supported=false;total+=weights[i*4+j];}

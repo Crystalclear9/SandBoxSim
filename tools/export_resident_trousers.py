@@ -16,6 +16,7 @@ from mathutils.bvhtree import BVHTree
 sys.dont_write_bytecode=True
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from resident_clothing import trouser_fold
+from resident_body import body_points, body_provenance
 
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--source',required=True)
@@ -38,15 +39,11 @@ for line in read('base.obj').splitlines():
     elif t[0]=='f' and group=='body':skin_faces.append(tuple(int(c.split('/')[0])-1 for c in t[1:]))
 groups=json.loads(read('basemesh_vertex_groups.json'))
 def body(sex):
-    points=[v.copy() for v in base]
-    for line in read(f'caucasian-{sex}-young.target').splitlines():
-        t=line.split()
-        if len(t)==4 and not line.startswith('#'):points[int(t[0])]+=Vector(map(float,t[1:]))
-    return points
+    return [Vector(p) for p in body_points(root,sex)]
 def joint(points,name):
     ids=[i for a,b in groups[name] for i in range(a,b+1)]
     return sum((points[i] for i in ids),Vector())/len(ids)
-reference=joint(body('male'),'joint-l-shoulder').x
+reference=joint([Vector(p) for p in body_points(root,'male',baseline=True)],'joint-l-shoulder').x
 for sex in ('male','female'):
     points=body(sex);hip=joint(points,'joint-l-upper-leg');knee=joint(points,'joint-l-knee')
     anatomy=BVHTree.FromPolygons(points,skin_faces,all_triangles=False)
@@ -167,8 +164,10 @@ for sex in ('male','female'):
             hit,normal,index,distance=anatomy.ray_cast(origin,direction,4.)
             if hit is None:raise ValueError('Incomplete anatomical leg reference')
             skin_support.append(round(math.hypot((hit.x-origin.x)*.202/reference,(hit.z-origin.z)*.1),7))
-    data=dict(schemaVersion=2,source='MakeHuman CC0 HM08 helper topology and anatomical body sections',frame=sex,hipHalfWidth=half,jointCount=5,cuffSkin='knee-transition-v1',physique='anatomical-limbs-v18',tailoring=dict(thighEaseMetres=.006,maximumFoldMetres=.0085,pelvis='source-envelope',bootOpening='pinned',detail='sewn-support-folds-v1',legSupport='source-body-rays-v1',anatomicalSamples=anatomical_samples),
-        sourceSha256={name:manifest[name]['sha256'] for name in ('base.obj','basemesh_vertex_groups.json',f'caucasian-{sex}-young.target','caucasian-male-young.target')},
+    provenance=body_provenance(sex)
+    source_hashes=provenance.pop('sourceSha256')
+    data=dict(schemaVersion=2,source='MakeHuman CC0 HM08 helper topology and anatomical body sections',frame=sex,hipHalfWidth=half,jointCount=5,cuffSkin='knee-transition-v1',physique='source-physique-v19',shapeRecipe=provenance,tailoring=dict(thighEaseMetres=.006,maximumFoldMetres=.0085,pelvis='source-envelope',bootOpening='pinned',detail='sewn-support-folds-v1',legSupport='source-body-rays-v1',anatomicalSamples=anatomical_samples),
+        sourceSha256=source_hashes,
         supportSha256=hashlib.sha256(support_path.read_bytes().replace(b'\r\n',b'\n')).hexdigest(),anatomicalSupport=dict(low=.49,step=.01,rows=21,columns=64,radii=skin_support),positions=[],normals=[],uv=[],bones=[],weights=[],indices=[])
     for v in result.vertices:
         p=v.co;n=v.normal.normalized()

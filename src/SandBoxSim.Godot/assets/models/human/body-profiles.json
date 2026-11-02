@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "profile": "source-physique-v19",
+  "license": "CC0-1.0",
+  "description": "Project adult body references blended from attributed HM08 targets; art choices, not population averages. Baseline young macros remain at weight 1; the male baseline shoulder defines the common coordinate scale.",
+  "frames": {
+    "male": {
+      "targets": {
+        "universal-male-young-maxmuscle-averageweight.target": 0.35,
+        "torso-vshape-incr.target": 0.18
+      }
+    },
+    "female": {
+      "targets": {
+        "hip-scale-horiz-incr.target": 0.35,
+        "female-young-averagemuscle-averageweight-maxcup-averagefirmness.target": 0.35
+      }
+    }
+  }
+}
