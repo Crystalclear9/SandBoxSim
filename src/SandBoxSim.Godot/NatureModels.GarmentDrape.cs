@@ -35,8 +35,11 @@ internal sealed partial class NatureModels
             }
             _sourceHemHeight[_garmentCut]=hem;
         }
-        float column=Mathf.PosMod(angle,Mathf.Tau)/Mathf.Tau*TrunkColumns;int c=(int)column;
-        return Mathf.Lerp(_sourceHemHeight[_garmentCut][c],_sourceHemHeight[_garmentCut][(c+1)%TrunkColumns],column-c);
+        float column=Mathf.PosMod(angle,Mathf.Tau)/Mathf.Tau*TrunkColumns;
+        // A negative angle very close to zero can round to exactly Tau.
+        // Wrap both table indices, while retaining the fractional parameter.
+        int c=(int)column%TrunkColumns;
+        return Mathf.Lerp(_sourceHemHeight[_garmentCut][c],_sourceHemHeight[_garmentCut][(c+1)%TrunkColumns],column-MathF.Floor(column));
     }
 
     private readonly float[][] _trouserClothEnvelope=new float[2][];
@@ -76,7 +79,7 @@ internal sealed partial class NatureModels
                         if(distance>0&&t>=-.00001f&&t<=1.00001f)radius=MathF.Min(radius,distance);
                     }
                     if(!float.IsFinite(radius))throw new InvalidOperationException("Open actual trouser envelope");
-                    result[row*TrunkColumns+col]=radius+.010f;
+                    result[row*TrunkColumns+col]=radius+.006f;
                 }
             }
             _trouserClothEnvelope[frame]=result;
@@ -176,7 +179,7 @@ internal sealed partial class NatureModels
     {
         static float Bell(float distance,float width)=>MathF.Exp(-MathF.Pow(distance/width,2));
         float x=MathF.Cos(angle),front=MathF.Max(0,-MathF.Sin(angle)),back=MathF.Max(0,MathF.Sin(angle));
-        float belt=ResidentRig.BodyY(.7615f+BeltRise);
+        float belt=FinishedBeltHeight(angle);
         float above=height-belt;
         // Narrow trough beside a broader crest: a folded panel, not a sine
         // wave passing through the entire chest. Leave the button stand flat.

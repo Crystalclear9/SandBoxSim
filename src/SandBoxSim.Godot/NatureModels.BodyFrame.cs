@@ -10,8 +10,8 @@ internal sealed partial class NatureModels
     private readonly float[][] _garmentFrameReference=new float[3][];
     private readonly float[][] _sewnFrameReference=new float[3][];
     private const int TrunkRows=113,TrunkColumns=128;
-    private const string MaleTrunkHash="250d268b435d96439c7e2b98c5b44bcb97c4e9ebd99dc722ec92369e1987f714";
-    private const string FemaleTrunkHash="bc6cc6ed312c17227c42a8bed7655ff0fe2d908b3112f4e0ff7d7f262f39237d";
+    private const string MaleTrunkHash="74ae5d1ae1c0f4a557316278bc2bf9086114386dda55e6f6b8f08babdc725749";
+    private const string FemaleTrunkHash="da15cb20a4f5a3ade5926a47e24ad5a1926008bb9250ef58da654c68e1327aa8";
     private const float TrunkLow=.74f,TrunkHigh=1.30f;
     private const float GarmentReferenceLow=.64f;
     private const int GarmentReferenceRows=133;
@@ -38,7 +38,7 @@ internal sealed partial class NatureModels
     private static float TrunkSample(float[] data,float y,float angle)
     {
         float row=Math.Clamp((y-TrunkLow)/.005f,0,TrunkRows-1),column=Mathf.PosMod(angle,Mathf.Tau)/Mathf.Tau*TrunkColumns;
-        int r=Math.Min(TrunkRows-2,(int)row),c=(int)column;float u=column-c,v=row-r;
+        int r=Math.Min(TrunkRows-2,(int)row),c=(int)column%TrunkColumns;float u=column-MathF.Floor(column),v=row-r;
         float At(int h)=>Mathf.Lerp(data[h*TrunkColumns+c],data[h*TrunkColumns+(c+1)%TrunkColumns],u);
         return Mathf.Lerp(At(r),At(r+1),v);
     }
@@ -72,18 +72,23 @@ internal sealed partial class NatureModels
     {
         float row=Math.Clamp((y-GarmentReferenceLow)/.005f,0,GarmentReferenceRows-1);
         float column=Mathf.PosMod(angle,Mathf.Tau)/Mathf.Tau*TrunkColumns;
-        int r=Math.Min(GarmentReferenceRows-2,(int)row),c=(int)column;float u=column-c,v=row-r;
+        int r=Math.Min(GarmentReferenceRows-2,(int)row),c=(int)column%TrunkColumns;float u=column-MathF.Floor(column),v=row-r;
         float At(int h)=>Mathf.Lerp(data[h*TrunkColumns+c],data[h*TrunkColumns+(c+1)%TrunkColumns],u);
         return Mathf.Lerp(At(r),At(r+1),v);
     }
     private Vector3 FramePoint(Vector3 point,float sleeve=0,bool tailored=false)
     {
         bool feminine=BodyFrame==1;
-        float upper=MathF.Max(sleeve,Mathf.SmoothStep(1.19f,1.27f,point.Y));
+        // Carry the source thorax into the central clavicular panel without
+        // radially shrinking the acromion or the open neck boundary. Their
+        // support is the three-dimensional shoulder surface, not a torso ray.
+        float clavicle=(1-Mathf.SmoothStep(.070f,.130f,MathF.Abs(point.X)))*(1-Mathf.SmoothStep(1.245f,1.29f,point.Y));
+        float neck=Mathf.SmoothStep(1.19f,1.27f,point.Y)*(1-.35f*clavicle);
+        float upper=MathF.Max(sleeve,neck);
         float panelHeight=tailored?Mathf.Lerp(point.Y,TailoredPanelHeight(point),1-upper):point.Y;
         // Coverage is defined in finished-clothing space. A long coat's
         // construction hem starts below .70 m before its panel is remapped.
-        float active=Mathf.SmoothStep(.70f,.735f,panelHeight)*(1-Mathf.SmoothStep(1.19f,1.27f,point.Y));
+        float active=Mathf.SmoothStep(.70f,.735f,panelHeight)*(1-neck);
         var fitted=point;
         if(active>0&&point.X*point.X+point.Z*point.Z>.00001f)
         {
@@ -105,7 +110,7 @@ internal sealed partial class NatureModels
             // The source already contains the thorax, waist and pelvic form.
             // Garment ease is added by ClothEnvelope; applying another chest
             // bulge or carved waist here duplicates those anatomical features.
-            target+=.006f*front*(1-Mathf.SmoothStep(.80f,.94f,panelHeight));
+            target+=.003f*front*(1-Mathf.SmoothStep(.80f,.94f,panelHeight));
             target+=GarmentDrapeDetail(panelHeight,angle);
             // The shirt is outside the actual finished trousers, not only
             // outside the unclothed source. This includes a coat's lower skirt.
@@ -505,19 +510,22 @@ internal sealed partial class NatureModels
             var sourceMale=FrameRadii("trunk-masculine-cage.json",MaleTrunkHash);
             var sourceFemale=FrameRadii("trunk-feminine-cage.json",FemaleTrunkHash);
             float Width(float[] source,float y)=>TrunkSectionWidth(source,y);
+            float maximumWidthAllowance=0;
             void Check(ResidentRig rig,Mesh body,Color? dye,float[] source)
             {
                 foreach(float y in new[]{.97f,1.00f,1.04f,1.08f,1.10f,1.135f})
                 {
                     float actual=ClothSectionWidth(body,y,dye),skin=Width(source,y);
-                    if(actual<skin+.008f||actual>skin+.056f)
+                    maximumWidthAllowance=MathF.Max(maximumWidthAllowance,actual-skin);
+                    if(actual<skin+.008f||actual>skin+.040f)
                         throw new InvalidOperationException($"Clothing duplicates or cuts through the source trunk at {y}: {actual}/{skin}");
                 }
-                float hip=ClothSectionWidth(rig.Trousers!.Mesh,.78f),expected=Width(source,.78f)+.014f;
+                float hip=ClothSectionWidth(rig.Trousers!.Mesh,.78f),expected=Width(source,.78f)+.010f;
                 if(MathF.Abs(hip-expected)>.018f)
                     throw new InvalidOperationException($"Trouser pelvis departs from its source envelope: {hip}/{expected}");
             }
             Check(male,m,maleDye,sourceMale);Check(female,f,femaleDye,sourceFemale);
+            GD.Print($"TAILORED_VOLUME_PASS: {(distant?"far":"near")} final cloth section width allowance <=40 mm, measured max={maximumWidthAllowance*1000:F2} mm, source-bound support");
             // Preserve the authored body references after clothing, outer
             // scale and distant batching, rather than checking only a sign.
             float sourceHipDifference=(Width(sourceFemale,.78f)-Width(sourceMale,.78f));

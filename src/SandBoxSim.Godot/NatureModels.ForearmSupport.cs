@@ -15,7 +15,7 @@ internal sealed partial class NatureModels
         string name=frame==1?"female":"male";
         string raw=FileAccess.GetFileAsString("res://assets/models/human/forearm-fit-"+name+".json").Replace("\r\n","\n",StringComparison.Ordinal);
         string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
-        if(hash!=(frame==1?"6f66acac9564a08309957cbbf4f0a009886dba024292afd50c138c80f11c288f":"63348a6c63696fcda9c1d55210bca4ed51ac895e0ac8f1a55e5e4a3a9c796cf6"))throw new InvalidOperationException("Changed forearm support profile");
+        if(hash!=(frame==1?"c15c3f0888d0052dc1b666475994b37a5b840876a2fe0937988aecac46e2f89c":"bf72170041c18904b1cb53ef86468e7c49482b0447ba0d686950605b0fb176c6"))throw new InvalidOperationException("Changed forearm support profile");
         using var doc=JsonDocument.Parse(raw);var root=doc.RootElement;
         if(root.GetProperty("rows").GetInt32()!=35||root.GetProperty("low").GetSingle()!=.075f||root.GetProperty("high").GetSingle()!=.245f||root.GetProperty("license").GetString()!="CC0-1.0 AND CC-BY-4.0")
             throw new InvalidOperationException("Invalid forearm support contract");

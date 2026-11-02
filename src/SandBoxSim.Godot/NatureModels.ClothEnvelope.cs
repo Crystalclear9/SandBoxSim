@@ -6,7 +6,7 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
-    private readonly float[][] _clothEnvelopes=new float[2][];
+    private readonly float[][] _clothEnvelopes=new float[6][];
 
     // A woven panel spans hollows between its supports. Use the convex section
     // of the attributed body, rather than reproducing every muscular groove.
@@ -14,7 +14,8 @@ internal sealed partial class NatureModels
     private float ClothEnvelope(float[] support,float y,float angle)
     {
         int frame=BodyFrame==1?1:0;
-        if(_clothEnvelopes[frame]==null)
+        int key=frame*3+_garmentCut;
+        if(_clothEnvelopes[key]==null)
         {
             var data=new float[TrunkRows*TrunkColumns];
             static float Cross(Vector2 a,Vector2 b,Vector2 c)=>(b-a).Cross(c-a);
@@ -38,17 +39,28 @@ internal sealed partial class NatureModels
                 for(int col=0;col<TrunkColumns;col++)
                 {
                     float a=col*Mathf.Tau/TrunkColumns;var ray=new Vector2(MathF.Cos(a),MathF.Sin(a));
-                    float radius=float.PositiveInfinity;
+                    float radius=float.PositiveInfinity,incidence=1;
                     for(int i=0;i<hull.Count;i++)
                     {
                         var p=hull[i];var edge=hull[(i+1)%hull.Count]-p;
                         float divisor=ray.Cross(edge);if(MathF.Abs(divisor)<1e-7f)continue;
                         float t=p.Cross(edge)/divisor,u=p.Cross(ray)/divisor;
-                        if(t>0&&u>=-.00001f&&u<=1.00001f)radius=MathF.Min(radius,t);
+                        if(t>0&&u>=-.00001f&&u<=1.00001f&&t<radius)
+                        {
+                            radius=t;
+                            incidence=MathF.Abs(new Vector2(edge.Y,-edge.X).Normalized().Dot(ray));
+                        }
                     }
                     if(!float.IsFinite(radius))throw new InvalidOperationException("Incomplete convex cloth section");
-                    // Ease belongs to the garment, not to an extra chest bulge.
-                    data[row*TrunkColumns+col]=radius+.010f+.002f*MathF.Exp(-MathF.Pow((height-1.02f)/.13f,2));
+                    // A tailoring allowance is measured normal to the cloth,
+                    // rather than adding the same radial volume to a sternum,
+                    // flank and lumbar hollow. Gather the shell at its belt;
+                    // keep a little more freedom across the scapular panel.
+                    float side=MathF.Pow(MathF.Abs(ray.X),2),back=MathF.Max(0,ray.Y);
+                    float belt=FinishedBeltHeight(a);
+                    float gather=MathF.Exp(-MathF.Pow((height-belt)/.045f,2));
+                    float ease=.0055f+.0015f*side+.001f*back-.001f*gather;
+                    data[row*TrunkColumns+col]=radius+ease/MathF.Max(.55f,incidence);
                 }
             }
             // Cloth hangs from higher supports instead of following every
@@ -59,18 +71,18 @@ internal sealed partial class NatureModels
             for(int row=0;row<TrunkRows;row++)for(int col=0;col<TrunkColumns;col++)
             {
                 float height=TrunkLow+row*.005f;
-                float belt=frame==1?ResidentRig.BodyY(.7615f+.13f):ResidentRig.BodyY(.7615f);
-                float free=Mathf.SmoothStep(belt+.018f,belt+.11f,height)*(1-Mathf.SmoothStep(1.16f,1.21f,height));
                 float sampleAngle=col*Mathf.Tau/TrunkColumns;
+                float belt=FinishedBeltHeight(sampleAngle);
+                float free=Mathf.SmoothStep(belt+.018f,belt+.11f,height)*(1-Mathf.SmoothStep(1.16f,1.21f,height));
                 free*=1-MathF.Pow(MathF.Abs(MathF.Cos(sampleAngle)),4);
                 float radius=skin[row*TrunkColumns+col],hanging=radius;
                 for(int step=1;step<=24&&row+step<TrunkRows;step++)
                     hanging=MathF.Max(hanging,skin[(row+step)*TrunkColumns+col]-step*.005f*.22f);
                 data[row*TrunkColumns+col]=radius+MathF.Min(.007f,hanging-radius)*free;
             }
-            _clothEnvelopes[frame]=data;
+            _clothEnvelopes[key]=data;
         }
-        return TrunkSample(_clothEnvelopes[frame],y,angle);
+        return TrunkSample(_clothEnvelopes[key],y,angle);
     }
 
     private static Vector3[] ClothSurfaceNormals(Vector3[] points,int[] indices)

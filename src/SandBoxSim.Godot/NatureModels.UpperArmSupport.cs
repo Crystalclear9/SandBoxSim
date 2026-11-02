@@ -15,7 +15,7 @@ internal sealed partial class NatureModels
             string name=frame==0?"male":"female";
             string raw=FileAccess.GetFileAsString("res://assets/models/human/upper-arm-"+name+".json").Replace("\r\n","\n",StringComparison.Ordinal);
             string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
-            string expected=frame==0?"fa48b8f99e80b4787562685b1b2c0270bd68021dd7999a28e8480fa11c287e28":"220a291ab36dff5414aedc95d7546f440086184d6df39f4eba14576c1e3d9f05";
+            string expected=frame==0?"3424c6fca68b335bd79f2de1b194db85d474d1098ccf9516cb91b14e700ae0a8":"3d6b4118bd0ea31ead20808e7cefe5ec9cd0860655f261071ae1c9213b64b2bc";
             if(hash!=expected)throw new InvalidOperationException("Changed upper-arm anatomical support");
             using var doc=JsonDocument.Parse(raw);var root=doc.RootElement;
             if(root.GetProperty("rows").GetInt32()!=25||root.GetProperty("columns").GetInt32()!=64||root.GetProperty("license").GetString()!="CC0-1.0")

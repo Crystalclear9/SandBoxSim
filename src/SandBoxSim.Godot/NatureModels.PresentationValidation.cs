@@ -81,21 +81,44 @@ internal sealed partial class NatureModels
             rigs[2].SetWorkCondition(.8f,1);
             for(int index=0;index<rigs.Length;index++)
             {
-                var rig=rigs[index];bool high=false;
-                for(int frame=0;frame<800;frame++)
+                var rig=rigs[index];bool rising=false,observed=false,completed=false;
+                float trough=0,crest=0;int anchor=-1;
+                for(int frame=0;frame<1500;frame++)
                 {
                     rig.PoseAction(1f/60,ActionKind.BuildHouse,ActionPhase.Executing,false,0);
                     if(!rig.ToolHeld)continue;
                     var tool=InTorso(rig.ToolMesh,rig.Torso);var palm=InTorso(rig.Hands[1],rig.Torso)*rig.Grip!.Position;
                     if(palm.DistanceTo(tool.Origin)>.001f)throw new InvalidOperationException("Effort profile detaches the held tool");
-                    bool raised=tool.Origin.Y>1.12f;
-                    if(frame>150)
+                    // Count actual excursions, not crossings of an absolute
+                    // world height. Different shoulder/holster fits can put
+                    // the same stroke on opposite sides of that old plane.
+                    float y=tool.Origin.Y;
+                    if(!observed){trough=crest=y;observed=true;}
+                    bool peak=false;
+                    if(rising)
                     {
-                        if(raised&&!high)peaks[index]++;
-                        lean[index]=MathF.Max(lean[index],MathF.Abs(rig.Torso.Rotation.X));
+                        crest=MathF.Max(crest,y);
+                        if(crest-y>=.06f){peak=true;rising=false;trough=y;}
                     }
-                    high=raised;
+                    else
+                    {
+                        trough=MathF.Min(trough,y);
+                        if(y-trough>=.06f){rising=true;crest=y;}
+                    }
+                    // Align each measurement to its first settled excursion,
+                    // so body-dependent draw time does not shift the window.
+                    if(peak&&frame>150)
+                    {
+                        if(anchor<0)anchor=frame;
+                        else peaks[index]++;
+                    }
+                    if(anchor>=0)
+                    {
+                        lean[index]=MathF.Max(lean[index],MathF.Abs(rig.Torso.Rotation.X));
+                        if(frame-anchor>=650){completed=true;break;}
+                    }
                 }
+                if(!completed)throw new InvalidOperationException("Effort observation never reaches a complete settled measurement window");
             }
             if(peaks[0]<5||peaks[0]!=peaks[1]||peaks[2]>=peaks[1]||lean[2]<lean[1]+.003f)
                 throw new InvalidOperationException($"Effort does not reflect capacity/condition: peaks={string.Join(',',peaks)}, lean={string.Join(',',lean)}");

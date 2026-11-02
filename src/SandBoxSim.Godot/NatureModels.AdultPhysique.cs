@@ -51,6 +51,9 @@ internal sealed partial class NatureModels
     private float FinishedGarmentHem=>_garmentCut==2?(BodyFrame==1?.78f:.745f)
         :_garmentCut==1?(BodyFrame==1?.86f:.825f):(BodyFrame==1?.85f:.805f);
 
+    private float FinishedBeltHeight(float angle)=>TailoredPanelHeight(new Vector3(
+        .10f*MathF.Cos(angle),ResidentRig.BodyY(.7615f+BeltRise),.10f*MathF.Sin(angle)));
+
     // The sewn sleeve, separate rolled facing and far arm proxy must use the
     // same local cross-section. A smaller arm inside the common cuff leaves
     // an oversized ring even when the torso itself has distinct proportions.

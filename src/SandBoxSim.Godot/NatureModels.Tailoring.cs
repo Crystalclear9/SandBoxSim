@@ -158,6 +158,24 @@ internal sealed partial class NatureModels
             var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
             for(int i=0;i<points.Length;i++)if(!points[i].IsFinite()||!normals[i].IsFinite())
                 throw new InvalidOperationException("Garment facing has invalid geometry");
+            float seamBelt=FinishedBeltHeight(0),seamHem=SourceHemHeight(0);
+            var panelReference=GarmentFrameReference();
+            var maleSupport=FrameRadii("trunk-masculine-cage.json",MaleTrunkHash);
+            var femaleSupport=FrameRadii("trunk-feminine-cage.json",FemaleTrunkHash);
+            foreach(float angle in new[]{-MathF.Tau,-.000001f,-.00000001f,0,.00000001f,.000001f,MathF.Tau,2*MathF.Tau})
+            {
+                float belt=FinishedBeltHeight(angle),hem=SourceHemHeight(angle);
+                if(!float.IsFinite(belt)||!float.IsFinite(hem)||MathF.Abs(belt-seamBelt)>.00001f||MathF.Abs(hem-seamHem)>.00001f)
+                    throw new InvalidOperationException("Tailored belt or sewn hem breaks at the angular seam");
+                foreach(float y in new[]{GarmentReferenceLow,TrunkLow,1.04f,TrunkHigh})
+                {
+                    if(MathF.Abs(GarmentReferenceSample(panelReference,y,angle)-GarmentReferenceSample(panelReference,y,0))>.00001f)
+                        throw new InvalidOperationException("Sewn panel reference breaks at the angular seam");
+                    foreach(var source in new[]{maleSupport,femaleSupport})
+                        if(MathF.Abs(TrunkSample(source,y,angle)-TrunkSample(source,y,0))>.00001f)
+                            throw new InvalidOperationException("Source trunk support breaks at the angular seam");
+                }
+            }
             foreach(var key in new[]{"belt","apron","armor","placket","shoulder-front","shoulder-back"})
             {
                 bool rear=key=="shoulder-back";
@@ -181,6 +199,7 @@ internal sealed partial class NatureModels
         ValidateNeckBinding();
         SelectGarmentCut(previous);
         GD.Print("GARMENT_CUTS_PASS: three cached silhouettes, sewn hems, folded cuffs/neckline and fitted layers per cut");
+        GD.Print("TAILORING_SEAM_PASS: three cuts, two source bodies, signed near-zero/whole-turn angles, belt/hem/panel/support continuity including final rows");
     }
     private void ValidateNeckBinding()
     {
