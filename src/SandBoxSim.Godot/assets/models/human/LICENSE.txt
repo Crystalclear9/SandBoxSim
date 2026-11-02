@@ -35,16 +35,17 @@ including the gap between upper thighs; A-pose arms are excluded laterally.
 Both files record verified inputs, scales and the sampling recipe. Runtime
 cloth ease and body fitting are SandBoxSim artistic modifications.
 
-body-profiles.json defines the source-physique-v19 adult artistic recipes.
+body-profiles.json defines the metric-physique-v20 adult artistic recipes.
 The trunk, upper-arm, weighted shoulder surface and trouser exporters share
 tools/resident_body.py and embed the same shapeRecipe and recipe SHA-256.
 Additional CC0 MakeHuman targets, from commit
 a8bc2d54ff0ac92e78ff71431b1023eda42bf482:
-  universal-male-young-maxmuscle-averageweight.target (weight 0.35)
-  torso-vshape-incr.target (male weight 0.18)
-  hip-scale-horiz-incr.target (female weight 0.35)
+  universal-male-young-maxmuscle-averageweight.target (male weight 0.15)
+  torso-vshape-incr.target (male weight 0.10)
   female-young-averagemuscle-averageweight-maxcup-averagefirmness.target
-    (weight 0.35)
+    (female weight 0.20)
+The shared source scale is uniform on all three axes, derived from the
+baseline male shoulder-to-hip span matching 0.43 client metres.
 These are character art choices, not demographic measurements. Face and hand
 assets keep their independent recipes. File URLs and hashes are recorded in
 head-sources.json; the source assets retain the CC0 terms above.

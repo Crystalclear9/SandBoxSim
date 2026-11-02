@@ -1,19 +1,18 @@
 {
   "schemaVersion": 1,
-  "profile": "source-physique-v19",
+  "profile": "metric-physique-v20",
   "license": "CC0-1.0",
-  "description": "Project adult body references blended from attributed HM08 targets; art choices, not population averages. Baseline young macros remain at weight 1; the male baseline shoulder defines the common coordinate scale.",
+  "description": "Project adult references from attributed HM08 targets. One uniform source scale maps the baseline male shoulder-to-hip span to 0.43 metres for both frames. Shapes are art choices, not population measurements.",
   "frames": {
     "male": {
       "targets": {
-        "universal-male-young-maxmuscle-averageweight.target": 0.35,
-        "torso-vshape-incr.target": 0.18
+        "universal-male-young-maxmuscle-averageweight.target": 0.15,
+        "torso-vshape-incr.target": 0.10
       }
     },
     "female": {
       "targets": {
-        "hip-scale-horiz-incr.target": 0.35,
-        "female-young-averagemuscle-averageweight-maxcup-averagefirmness.target": 0.35
+        "female-young-averagemuscle-averageweight-maxcup-averagefirmness.target": 0.20
       }
     }
   }

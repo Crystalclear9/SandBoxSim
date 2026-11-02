@@ -43,7 +43,10 @@ internal sealed partial class NatureModels
         // and an identical cropped panel for every woman. The work shirt ends
         // above the full thigh; the travelling coat retains a longer skirt.
         float finished=FinishedGarmentHem;
-        return panel+(finished-hem)*(1-Mathf.SmoothStep(hem,1.15f,panel));
+        // Carry hem shortening through the whole trunk. Combining a narrow
+        // anatomical waist with a short 1.15 m height ramp over-compressed the
+        // lower panels, even though the radial map remained invertible.
+        return panel+(finished-hem)*(1-Mathf.SmoothStep(hem,1.23f,panel));
     }
     private float FinishedGarmentHem=>_garmentCut==2?(BodyFrame==1?.78f:.745f)
         :_garmentCut==1?(BodyFrame==1?.86f:.825f):(BodyFrame==1?.85f:.805f);

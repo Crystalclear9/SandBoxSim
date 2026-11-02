@@ -10,8 +10,8 @@ internal sealed partial class NatureModels
     private readonly float[][] _garmentFrameReference=new float[3][];
     private readonly float[][] _sewnFrameReference=new float[3][];
     private const int TrunkRows=113,TrunkColumns=128;
-    private const string MaleTrunkHash="97434c8cc2f972cf7b592c32b2958f3df36140bb38531e2dc4ae13a9a7410fb0";
-    private const string FemaleTrunkHash="e7989a98db574c09d6b0fbae9fd9e5d91e1fc5746ae5e1fdec503508edb9ae15";
+    private const string MaleTrunkHash="7314a5a0656b243476ac693102c017ae469e2cc37cd8aba94539cf62bff7320a";
+    private const string FemaleTrunkHash="2f6ad14475b1e02ced5302dbfb3b4b3e33220d309d8b35f2eeb5d8dda1a7f3c1";
     private const float TrunkLow=.74f,TrunkHigh=1.30f;
     private const float GarmentReferenceLow=.64f;
     private const int GarmentReferenceRows=133;
@@ -99,14 +99,13 @@ internal sealed partial class NatureModels
             // hid the natural waist-to-pelvis transition under a straight box.
             float supportY=MathF.Max(TrunkLow,panelHeight);
             float target=ClothEnvelope(support,supportY,angle);
-            // The overlapping shirt is the outer layer. Reserve common
-            // movement ease over the trouser waistband through lumbar flexion,
-            // independently of body sex and its anatomical proportions.
-            target+=.008f*(1-Mathf.SmoothStep(.94f,1.06f,panelHeight));
+            // Fit one clothing envelope. The finished trousers below provide
+            // the outer-layer clearance; adding another lumbar pad here
+            // counted that same movement allowance twice.
             // The source already contains the thorax, waist and pelvic form.
             // Garment ease is added by ClothEnvelope; applying another chest
             // bulge or carved waist here duplicates those anatomical features.
-            target+=.012f*front*(1-Mathf.SmoothStep(.80f,.94f,panelHeight));
+            target+=.006f*front*(1-Mathf.SmoothStep(.80f,.94f,panelHeight));
             target+=GarmentDrapeDetail(panelHeight,angle);
             // The shirt is outside the actual finished trousers, not only
             // outside the unclothed source. This includes a coat's lower skirt.
@@ -115,7 +114,7 @@ internal sealed partial class NatureModels
             // Mixing it with the analytic construction cage buries accessories
             // when the torso's retopology changes its radial section.
             var reference=SewnFrameReference();
-            float ratio=Math.Clamp(target/GarmentReferenceSample(reference,point.Y,angle),.65f,1.35f);
+            float ratio=Math.Clamp(target/GarmentReferenceSample(reference,point.Y,angle),.50f,1.35f);
             ratio=Mathf.Lerp(1,ratio,active);fitted=new(point.X*ratio,point.Y,point.Z*ratio);
         }
         // The arm root, sewn sleeve and inverse bind use the same lateral

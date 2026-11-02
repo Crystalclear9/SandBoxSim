@@ -16,7 +16,7 @@ from mathutils.bvhtree import BVHTree
 sys.dont_write_bytecode=True
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from resident_clothing import trouser_fold
-from resident_body import body_points, body_provenance
+from resident_body import body_points, body_provenance, body_metric_scale
 
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--source',required=True)
@@ -43,7 +43,7 @@ def body(sex):
 def joint(points,name):
     ids=[i for a,b in groups[name] for i in range(a,b+1)]
     return sum((points[i] for i in ids),Vector())/len(ids)
-reference=joint([Vector(p) for p in body_points(root,'male',baseline=True)],'joint-l-shoulder').x
+metric_scale=body_metric_scale(root)
 for sex in ('male','female'):
     points=body(sex);hip=joint(points,'joint-l-upper-leg');knee=joint(points,'joint-l-knee')
     anatomy=BVHTree.FromPolygons(points,skin_faces,all_triangles=False)
@@ -61,12 +61,12 @@ for sex in ('male','female'):
     for i in used:
         p=points[i];t=min(1.,max(0.,(hip.y-p.y)/(hip.y-knee.y)))
         centre=hip.x*(1-t)+knee.x*t
-        x=p.x*.202/reference
+        x=p.x*metric_scale
         # Remove source A-pose leg splay, preserving the radial thigh form.
         influence=min(1.,abs(x)/.055);influence=influence*influence*(3-2*influence)
-        x+=(1 if x>=0 else -1)*(half-centre*.202/reference)*influence
+        x+=(1 if x>=0 else -1)*(half-centre*metric_scale)*influence
         y=.80+(p.y-hip.y)*.38/(hip.y-knee.y)
-        z=-(p.z-(hip.z*(1-t)+knee.z*t))*.1
+        z=-(p.z-(hip.z*(1-t)+knee.z*t))*metric_scale
         def smooth(a,b,value):
             u=min(1.,max(0.,(value-a)/(b-a)));return u*u*(3-2*u)
         anatomical_weight=smooth(.43,.49,y)*(1-smooth(.69,.77,y))*smooth(.03,.065,abs(x))
@@ -77,7 +77,7 @@ for sex in ('male','female'):
             if direction.length<1e-8:raise ValueError('Missing anatomical thigh direction')
             hit,normal,index,distance=anatomy.ray_cast(origin,direction.normalized(),4.)
             if hit is None:raise ValueError('Anatomical thigh section is open')
-            radial=Vector(((hit.x-origin.x)*.202/reference,0,-(hit.z-origin.z)*.1))
+            radial=Vector(((hit.x-origin.x)*metric_scale,0,-(hit.z-origin.z)*metric_scale))
             if not .025<radial.length<.20:raise ValueError(f'Anatomical thigh radius escaped its source region: {sex}/{i}, radius={radial.length}')
             radial+=radial.normalized()*.006
             fitted=Vector((side*half+radial.x,y,radial.z))
@@ -160,13 +160,13 @@ for sex in ('male','female'):
         origin=hip.lerp(knee,t)
         for col in range(64):
             angle=col*math.tau/64
-            direction=Vector((math.cos(angle)/(.202/reference),0,-math.sin(angle)/.1)).normalized()
+            direction=Vector((math.cos(angle),0,-math.sin(angle)))
             hit,normal,index,distance=anatomy.ray_cast(origin,direction,4.)
             if hit is None:raise ValueError('Incomplete anatomical leg reference')
-            skin_support.append(round(math.hypot((hit.x-origin.x)*.202/reference,(hit.z-origin.z)*.1),7))
+            skin_support.append(round(math.hypot((hit.x-origin.x)*metric_scale,(hit.z-origin.z)*metric_scale),7))
     provenance=body_provenance(sex)
     source_hashes=provenance.pop('sourceSha256')
-    data=dict(schemaVersion=2,source='MakeHuman CC0 HM08 helper topology and anatomical body sections',frame=sex,hipHalfWidth=half,jointCount=5,cuffSkin='knee-transition-v1',physique='source-physique-v19',shapeRecipe=provenance,tailoring=dict(thighEaseMetres=.006,maximumFoldMetres=.0085,pelvis='source-envelope',bootOpening='pinned',detail='sewn-support-folds-v1',legSupport='source-body-rays-v1',anatomicalSamples=anatomical_samples),
+    data=dict(schemaVersion=2,source='MakeHuman CC0 HM08 helper topology and anatomical body sections',frame=sex,hipHalfWidth=half,jointCount=5,cuffSkin='knee-transition-v1',physique='metric-physique-v20',shapeRecipe=provenance,tailoring=dict(thighEaseMetres=.006,maximumFoldMetres=.0085,pelvis='source-envelope',bootOpening='pinned',detail='sewn-support-folds-v1',legSupport='source-body-rays-v1',anatomicalSamples=anatomical_samples),
         sourceSha256=source_hashes,
         supportSha256=hashlib.sha256(support_path.read_bytes().replace(b'\r\n',b'\n')).hexdigest(),anatomicalSupport=dict(low=.49,step=.01,rows=21,columns=64,radii=skin_support),positions=[],normals=[],uv=[],bones=[],weights=[],indices=[])
     for v in result.vertices:

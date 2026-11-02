@@ -48,7 +48,7 @@ internal sealed partial class NatureModels
                     }
                     if(!float.IsFinite(radius))throw new InvalidOperationException("Incomplete convex cloth section");
                     // Ease belongs to the garment, not to an extra chest bulge.
-                    data[row*TrunkColumns+col]=radius+.014f+.004f*MathF.Exp(-MathF.Pow((height-1.02f)/.13f,2));
+                    data[row*TrunkColumns+col]=radius+.010f+.002f*MathF.Exp(-MathF.Pow((height-1.02f)/.13f,2));
                 }
             }
             // Cloth hangs from higher supports instead of following every

@@ -10,7 +10,7 @@ import json
 import math
 from pathlib import Path
 from export_upper_arm_support import add,sub,mul,dot,cross,unit
-from resident_body import body_points, body_provenance
+from resident_body import body_points, body_provenance, body_metric_scale
 
 
 def bind_shoulder(point,shoulder,axis,angle,weights):
@@ -80,10 +80,10 @@ def export(folder,sex):
     def joint(points,name):
         ids=[i for a,b in groups['joint-l-'+name] for i in range(a,b+1)]
         return mul(tuple(sum(points[i][j] for i in ids) for j in range(3)),1/len(ids))
-    reference=joint(body_points(folder,'male',baseline=True),'shoulder')
     points=body_points(folder,sex);origin=joint(points,'shoulder')
     shoulder_y=1.23-(.014 if sex=='female' else .009)
-    def mapped(p):return (p[0]*.202/reference[0],shoulder_y+(p[1]-origin[1])*.09,-(p[2]-origin[2])*.1)
+    scale=body_metric_scale(folder)
+    def mapped(p):return (p[0]*scale,shoulder_y+(p[1]-origin[1])*scale,-(p[2]-origin[2])*scale)
     points=list(map(mapped,points));shoulder=mapped(origin);elbow=joint(points,'elbow')
     axis=unit(sub(elbow,shoulder));target=(0.,-1.,0.);normal=unit(cross(axis,target));angle=math.acos(max(-1,min(1,dot(axis,target))))
     arm=[0.]*len(points);helper=[0.]*len(points);clavicle=[0.]*len(points)

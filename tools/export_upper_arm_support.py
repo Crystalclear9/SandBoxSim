@@ -8,7 +8,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
-from resident_body import body_points, body_provenance
+from resident_body import body_points, body_provenance, body_metric_scale
 
 
 def add(a,b):return tuple(x+y for x,y in zip(a,b))
@@ -37,9 +37,9 @@ def export(source,frame):
     def joint(vertices,name):
         ids=[i for a,b in groups['joint-l-'+name] for i in range(a,b+1)]
         return mul(tuple(sum(vertices[i][j] for i in ids) for j in range(3)),1/len(ids))
-    reference=joint(body_points(source,'male',baseline=True),'shoulder')
     vertices=body_points(source,frame);raw_shoulder=joint(vertices,'shoulder')
-    def mapped(p):return (p[0]*.202/reference[0],1.23+(p[1]-raw_shoulder[1])*.09,-(p[2]-raw_shoulder[2])*.1)
+    scale=body_metric_scale(source)
+    def mapped(p):return (p[0]*scale,1.23+(p[1]-raw_shoulder[1])*scale,-(p[2]-raw_shoulder[2])*scale)
     vertices=[mapped(p) for p in vertices];shoulder=mapped(raw_shoulder);elbow=joint(vertices,'elbow')
     axis=unit(sub(elbow,shoulder));length=math.dist(elbow,shoulder)
     radial=unit(sub((1.,0.,0.),mul(axis,axis[0])));back=cross(axis,radial)
