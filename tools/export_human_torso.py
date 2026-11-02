@@ -42,9 +42,16 @@ for line in (root/('caucasian-'+args.frame+'-young.target')).read_text().splitli
     if len(t)==4 and not line.startswith('#'):points[int(t[0])]+=Vector(map(float,t[1:]))
 if args.region=='trunk':
     points=[Vector(p) for p in body_points(root,args.frame)]
+    # A new source A-pose may put the forearm beside the waist. Exclude it by
+    # semantic skin weights, rather than relying on one lateral distance.
+    from resident_body import limb_weights
+    arm=limb_weights(root,('upperarm01.L','upperarm01.R'))
+    faces=[f for f in faces if all(arm.get(i,0)<.65 for i in f)]
 groups=json.loads((root/'basemesh_vertex_groups.json').read_text())
 ids=[i for a,b in groups['joint-l-shoulder'] for i in range(a,b+1)]
 shoulder=sum((points[i] for i in ids),Vector())/len(ids)
+clavicle_ids=[i for a,b in groups['joint-l-clavicle'] for i in range(a,b+1)]
+clavicle=sum((points[i] for i in clavicle_ids),Vector())/len(clavicle_ids)
 reference=shoulder
 if args.region=='trunk':
     reference_points=[Vector(p) for p in body_points(root,'male',baseline=True)]
@@ -91,7 +98,10 @@ for row in range(rows):
                 a,b=mapped[ia],mapped[ib]
                 if (a.y-y)*(b.y-y)>0 or abs(b.y-a.y)<1e-9:continue
                 hit=a.lerp(b,(y-a.y)/(b.y-a.y))
-                if abs(hit.x)<=lateral:section.append((hit.x,hit.z))
+                # Semantic arm exclusion above already isolates the trunk.
+                # A fixed lateral clip would cut off the real pectoral wall
+                # when a reference has more medial shoulder joint guides.
+                section.append((hit.x,hit.z))
         section=sorted(set(section))
         if len(section)<16:raise ValueError(f'Incomplete trunk section: {row}')
     else:
@@ -117,15 +127,21 @@ for _ in range(4):
     old=radii
     radii=[sum(old[min(rows-1,max(0,r+dr))*columns+(c+dc)%columns]*weight for dr,dc,weight in ((0,0,.4),(-1,0,.15),(1,0,.15),(0,-1,.15),(0,1,.15))) for r in range(rows) for c in range(columns)]
 radii=[round(v,7) for v in radii]
-if not all(math.isfinite(v) and .025<v<.34 for v in radii):raise ValueError('Invalid smoothed support section')
+if not all(math.isfinite(v) and .025<v<.34 for v in radii):
+    i=next(i for i,v in enumerate(radii) if not math.isfinite(v) or not .025<v<.34)
+    raise ValueError(f'Invalid smoothed support section: frame={args.frame}, row={i//columns}, column={i%columns}, radius={radii[i]}, range={min(radii)}/{max(radii)}')
 result={'schemaVersion':1,'source':f'MakeHuman CC0 body; {args.frame} young macro, existing source bundle',
         'sourceSha256':expected,'low':low,'high':high,'rows':rows,'columns':columns,
         'shoulder':[.202,1.23,0],'armholeHalfWidth':round(armhole_half_width,7),'sourceShoulder':[round(v,7) for v in shoulder],
         'scale':[round(v,7) for v in scales],'clothEnvelope':'convex-sections-four-pass-filter','radii':radii}
 if args.region=='trunk':
     result['region']='trunk-plane-sections'
+    result['armExclusion']='source-skin-weights-v1'
+    result['sourceClavicle']=[round(v,7) for v in clavicle]
     provenance=body_provenance(args.frame)
     result['sourceSha256']=provenance.pop('sourceSha256')
+    result['sourceSha256']['rig/default_weights.mhw']=hashlib.sha256((root/'rig/default_weights.mhw').read_bytes()).hexdigest()
+    result['sourceSha256']['rig/default.mhskel']=hashlib.sha256((root/'rig/default.mhskel').read_bytes()).hexdigest()
     result['shapeRecipe']=provenance
 output=Path(args.output);output.parent.mkdir(parents=True,exist_ok=True)
 output.write_text(json.dumps(result,separators=(',',':'))+'\n',encoding='utf-8',newline='\n')

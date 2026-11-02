@@ -28,7 +28,9 @@ class UpperArmSupportTests(unittest.TestCase):
             r=d['radii'];self.assertGreater(sum(r[4*64:5*64]),sum(r[20*64:21*64]))
             for row in range(25):
                 band=r[row*64:(row+1)*64]
-                self.assertGreater(max(band)-min(band),.005) # Authored asymmetry, not circular tubes.
+                # Relative angular variation remains meaningful on a slimmer
+                # reference arm; a fixed 5 mm floor encouraged inflating it.
+                self.assertGreater((max(band)-min(band))/(sum(band)/len(band)),.10)
         self.assertGreater(sum(data[0]['radii'][8*64:20*64]),sum(data[1]['radii'][8*64:20*64]))
 
     @unittest.skipUnless((ROOT/'.tools/sources/makehuman/base.obj').exists(),'Verified source bundle is optional for consumers')

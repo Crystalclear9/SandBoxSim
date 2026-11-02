@@ -6,7 +6,8 @@ namespace SandBoxSim.Client;
 internal partial class ResidentRig
 {
     private Vector3 _supportAngle,_supportVelocity;
-    internal float HipHalfWidth=.10f,ArmRestClearance;
+    internal const float NeutralHipHalfWidth=.085f;
+    internal float HipHalfWidth=NeutralHipHalfWidth,ArmRestClearance;
     // A sagittal planted stance. Preserve the authored thigh/shin lengths and
     // the anatomical ankle; the shoe centre offset is applied in foot space.
     private (Vector3 Hip,float Thigh,float Knee) WorkSupport(float delta,bool active,float weight)

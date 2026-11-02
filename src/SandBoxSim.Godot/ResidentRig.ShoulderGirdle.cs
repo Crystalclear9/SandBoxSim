@@ -6,6 +6,7 @@ namespace SandBoxSim.Client;
 internal partial class ResidentRig
 {
     internal static int GirdleBone(int side)=>4+4*(SleeveSpans-1)+side;
+    internal Vector3 ClavicleRest=new(.052f,1.238f,.008f);
     // Presentation model, not a clinical joint reconstruction. Separate the
     // sternoclavicular arc (joint position) from scapular upward rotation and
     // posterior tilt (the platform from which the humerus rotates).
@@ -21,7 +22,7 @@ internal partial class ResidentRig
         // overhead while low forward reaches can protract. A bent elbow by
         // itself does not drive this mechanism.
         var clavicle=ClavicleRotation(side,direction);
-        var medial=new Vector3(sign*.052f,rest.Y+.008f,.008f);
+        var medial=ClavicleRest;medial.X*=sign;
         var shoulder=medial+clavicle*(rest-medial);
         var plane=horizontal.LengthSquared()>.000001f?horizontal.Normalized():new Vector3(sign,0,0);
         var axis=Vector3.Down.Cross(plane).Normalized();

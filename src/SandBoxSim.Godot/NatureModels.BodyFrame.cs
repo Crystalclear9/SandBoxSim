@@ -10,8 +10,8 @@ internal sealed partial class NatureModels
     private readonly float[][] _garmentFrameReference=new float[3][];
     private readonly float[][] _sewnFrameReference=new float[3][];
     private const int TrunkRows=113,TrunkColumns=128;
-    private const string MaleTrunkHash="74ae5d1ae1c0f4a557316278bc2bf9086114386dda55e6f6b8f08babdc725749";
-    private const string FemaleTrunkHash="da15cb20a4f5a3ade5926a47e24ad5a1926008bb9250ef58da654c68e1327aa8";
+    private const string MaleTrunkHash="6bc43390f0ff188f5467a56a627e76e2d8abca1f86bafa0c740879375b3d21a9";
+    private const string FemaleTrunkHash="8a073e8d401f731e84715bb07e51146044f762f2c7e845bda401998252f91f95";
     private const float TrunkLow=.74f,TrunkHigh=1.30f;
     private const float GarmentReferenceLow=.64f;
     private const int GarmentReferenceRows=133;
@@ -124,7 +124,12 @@ internal sealed partial class NatureModels
         }
         // The arm root, sewn sleeve and inverse bind use the same lateral
         // fit. Authored pattern coordinates keep trunk fitting off the cuffs.
-        var sleevePoint=new Vector3(point.X*ArmWidthScale,point.Y,point.Z*(feminine?.90f:1));
+        var cuff=ArmCuffScale();float along=ResidentRig.BodyY(1.18f)-point.Y;
+        float taper=Mathf.SmoothStep(.04f,.24f,along);
+        float girthX=Mathf.Lerp(feminine?.90f:1,cuff.X,taper),girthZ=Mathf.Lerp(feminine?.90f:1,cuff.Y,taper);
+        float armX=(point.X<0?-1:1)*(AdultShoulderWidth+(MathF.Abs(point.X)-.202f)*girthX);
+        float lateral=Mathf.Lerp(ShoulderPanelX(point.X),armX,sleeve);
+        var sleevePoint=new Vector3(lateral,point.Y,point.Z*Mathf.Lerp(1,girthZ,sleeve));
         var result=fitted.Lerp(sleevePoint,upper);
         // A continuous neck-to-acromion slope, carried through the entire
         // sleeve. The joint rest and inverse bind receive the same drop.
@@ -307,12 +312,13 @@ internal sealed partial class NatureModels
         Walk(rig,Transform3D.Identity);
         rig.DetailedBodyMesh=rig.BodySkin.Mesh;
         rig.DistantBodyMesh=FrameMesh(rig.DistantBodyMesh,Transform3D.Identity,true);
-        rig.HipHalfWidth=.10f;
+        rig.HipHalfWidth=ResidentRig.NeutralHipHalfWidth;
         rig.ArmRestClearance=0;
         for(int side=0;side<2;side++)rig.Legs[side].Position=new(side==0?-rig.HipHalfWidth:rig.HipHalfWidth,ResidentRig.HipHeight,0);
         // The fitted sleeve vertices, joint rest and inverse bind must move
         // together. Scaling the mesh alone leaves a male-width moving rig.
         rig.ShoulderHalfWidth=.202f*ArmWidthScale;
+        rig.ClavicleRest=AdultClavicleRest;
         rig.ShoulderDrop=BodyFrame==1?.014f:.009f;
         rig.ShoulderSkeleton.AddBone("PelvicCloth");rig.ShoulderSkeleton.SetBoneParent(3,0);rig.ShoulderSkeleton.SetBoneRest(3,Transform3D.Identity);
         var skin=new Skin();skin.AddBind(0,Transform3D.Identity);
@@ -382,7 +388,7 @@ internal sealed partial class NatureModels
                 ||MathF.Abs(Hem(male.DetailedBodyMesh)-.825f)>.002f)
                 throw new InvalidOperationException("Tailored hem loses trouser coverage or retains the common long cut");
             GD.Print($"BODY_CUT_PASS: raised garment hem={hemRise:F4} m, preserved trouser overlap and separate lower-body geometry");
-            if(MathF.Abs(female.HipHalfWidth-.10f)>.00001f||MathF.Abs(male.HipHalfWidth-.10f)>.00001f)
+            if(MathF.Abs(female.HipHalfWidth-ResidentRig.NeutralHipHalfWidth)>.00001f||MathF.Abs(male.HipHalfWidth-ResidentRig.NeutralHipHalfWidth)>.00001f)
                 throw new InvalidOperationException("Neutral stance does not match the fitted clothing");
             foreach(var rig in new[]{male,female})
             {

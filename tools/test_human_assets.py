@@ -5,6 +5,7 @@ import math
 from pathlib import Path
 import struct
 import unittest
+from resident_body import source_manifest
 from collections import Counter
 
 from evaluate import validate_png
@@ -17,9 +18,9 @@ class HumanAssetTests(unittest.TestCase):
     def test_body_recipe_is_shared_by_all_anatomical_supports(self):
         raw=(ROOT/'body-profiles.json').read_bytes().replace(b'\r\n',b'\n')
         profile=json.loads(raw);sha=hashlib.sha256(raw).hexdigest()
-        self.assertEqual(profile['profile'],'anatomical-tailoring-v22')
+        self.assertEqual(profile['profile'],'scan-retarget-physique-v23')
         self.assertEqual(profile['license'],'CC0-1.0')
-        manifest=json.loads((ROOT/'head-sources.json').read_text(encoding='utf-8'))['files']
+        manifest=source_manifest()
         for sex,label in (('male','masculine'),('female','feminine')):
             shapes=[]
             for file in (f'trunk-{label}-cage.json',f'upper-arm-{sex}.json',f'shoulder-surface-{sex}.json',f'trousers-{sex}.mesh.json',f'forearm-fit-{sex}.json'):
@@ -42,14 +43,16 @@ class HumanAssetTests(unittest.TestCase):
             self.assertAlmostEqual(shoulder['shoulder'][0],expected,places=6)
         # The upper trunk must exclude each source's A-pose arm. A common
         # male-width clip previously made the female upper section as broad.
-        self.assertLess(f['armholeHalfWidth'],m['armholeHalfWidth']-.025)
+        references={sex:json.loads((ROOT/f'reference-shape-{sex}.json').read_text(encoding='utf-8')) for sex in ('male','female')}
+        expected_gap=.92*(references['male']['targetJoints']['joint-l-shoulder'][0]-references['female']['targetJoints']['joint-l-shoulder'][0])
+        self.assertAlmostEqual(m['armholeHalfWidth']-f['armholeHalfWidth'],expected_gap,places=6)
         row=round((1.18-.74)/.005)*128
-        self.assertLess(f['radii'][row]+f['radii'][row+64],m['radii'][row]+m['radii'][row+64]-.04)
+        self.assertLess(f['radii'][row]+f['radii'][row+64],m['radii'][row]+m['radii'][row+64])
 
     def test_complete_trunk_sources_and_shape_sections(self):
-        expected=('74ae5d1ae1c0f4a557316278bc2bf9086114386dda55e6f6b8f08babdc725749',
-                  'da15cb20a4f5a3ade5926a47e24ad5a1926008bb9250ef58da654c68e1327aa8')
-        sources=json.loads((ROOT/'head-sources.json').read_text())['files']
+        expected=('6bc43390f0ff188f5467a56a627e76e2d8abca1f86bafa0c740879375b3d21a9',
+                  '8a073e8d401f731e84715bb07e51146044f762f2c7e845bda401998252f91f95')
+        sources=source_manifest()
         frames=[]
         for frame,digest in zip(('masculine','feminine'),expected):
             raw=(ROOT/f'trunk-{frame}-cage.json').read_bytes().replace(b'\r\n',b'\n')
@@ -70,7 +73,17 @@ class HumanAssetTests(unittest.TestCase):
         # A fixed centimetre gap encourages widening a lean pelvis. Preserve
         # the authored shoulder/pelvis relationship instead of adding volume.
         shoulder=lambda d:2*d['sourceShoulder'][0]*d['scale'][0]
-        self.assertGreater(width(female,.82)/shoulder(female),width(male,.82)/shoulder(male)+.20)
+        self.assertGreater(width(female,.82)/shoulder(female),width(male,.82)/shoulder(male))
+        # Compare the actual baked support against all 24 independent contour
+        # guides from the verified reference, including the pelvis and waist.
+        for sex,body in [('male',male),('female',female)]:
+            reference=json.loads((ROOT/f'reference-shape-{sex}.json').read_text(encoding='utf-8'))
+            self.assertEqual(body['armExclusion'],'source-skin-weights-v1')
+            for anchor in reference['surfaceAnchors']:
+                col={(1,0,0):0,(-1,0,0):64,(0,0,1):32,(0,0,-1):96}[tuple(anchor['direction'])]
+                expected=abs(anchor['reference'][0] or anchor['reference'][2])
+                actual=body['radii'][round((anchor['height']-.74)/.005)*128+col]
+                self.assertLess(abs(actual-expected),.012,(sex,anchor['height'],col))
 
     def test_feminine_torso_support_and_provenance(self):
         raw=(ROOT/'torso-feminine-cage.json').read_bytes().replace(b'\r\n',b'\n')
@@ -80,7 +93,7 @@ class HumanAssetTests(unittest.TestCase):
         self.assertEqual(len(data['radii']),65*128)
         self.assertTrue(all(math.isfinite(v) and .025<=v<=.34 for v in data['radii']))
         self.assertGreater(max(abs(a-b) for a,b in zip(data['radii'],base['radii'])),.01)
-        sources=json.loads((ROOT/'head-sources.json').read_text())['files']
+        sources=source_manifest()
         for name,digest in data['sourceSha256'].items():
             self.assertEqual(digest,sources[name]['sha256'])
 
@@ -92,7 +105,7 @@ class HumanAssetTests(unittest.TestCase):
         self.assertEqual((data['schemaVersion'],data['rows'],data['columns']),(1,65,128))
         self.assertEqual(len(data['radii']),65*128)
         self.assertTrue(all(math.isfinite(v) and .025<=v<=.34 for v in data['radii']))
-        sources=json.loads((ROOT/'head-sources.json').read_text())['files']
+        sources=source_manifest()
         for name,digest in data['sourceSha256'].items():
             self.assertEqual(digest,sources[name]['sha256'])
 

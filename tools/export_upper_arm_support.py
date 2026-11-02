@@ -8,7 +8,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
-from resident_body import body_points, body_provenance, body_metric_scale
+from resident_body import body_points, body_provenance, body_metric_scale,read_source,limb_weights
 
 
 def add(a,b):return tuple(x+y for x,y in zip(a,b))
@@ -34,6 +34,8 @@ def export(source,frame,region='upper-arm'):
         if t[0]=='g':group=t[1]
         elif t[0]=='f' and group=='body':faces.append(tuple(int(v.split('/')[0])-1 for v in t[1:]))
     groups=json.loads((source/'basemesh_vertex_groups.json').read_text(encoding='utf-8'))
+    weights=limb_weights(source,('lowerarm01.L' if region=='forearm' else 'upperarm01.L',))
+    faces=[face for face in faces if sum(weights.get(i,0) for i in face)/len(face)>.25]
     def joint(vertices,name):
         ids=[i for a,b in groups['joint-l-'+name] for i in range(a,b+1)]
         return mul(tuple(sum(vertices[i][j] for i in ids) for j in range(3)),1/len(ids))
@@ -81,6 +83,8 @@ def export(source,frame,region='upper-arm'):
         radii=[sum(old[min(rows-1,max(0,r+dr))*columns+(c+dc)%columns]*w for dr,dc,w in ((0,0,.5),(-1,0,.15),(1,0,.15),(0,-1,.1),(0,1,.1))) for r in range(rows) for c in range(columns)]
     provenance=body_provenance(frame)
     expected=provenance.pop('sourceSha256')
+    expected['rig/default_weights.mhw']=hashlib.sha256((source/'rig/default_weights.mhw').read_bytes()).hexdigest()
+    expected['rig/default.mhskel']=hashlib.sha256((source/'rig/default.mhskel').read_bytes()).hexdigest()
     result={'schemaVersion':1,'license':'CC0-1.0','source':'MakeHuman HM08 '+frame+' young macro and source body recipe',
             'sourceSha256':expected,'shapeRecipe':provenance,'sourceShoulder':shoulder,'sourceElbow':elbow,'sourceLength':length,
             'targetLength':target_length,'low':low,'high':high,'rows':rows,'columns':columns,'radii':[round(r,7) for r in radii]}

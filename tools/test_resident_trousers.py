@@ -4,6 +4,7 @@ import hashlib
 import json
 import math
 import unittest
+from resident_body import source_manifest
 from collections import Counter
 
 ROOT=Path(__file__).resolve().parents[1]/'src/SandBoxSim.Godot/assets/models/human'
@@ -23,7 +24,7 @@ class TrouserTests(unittest.TestCase):
                         a,b=p[i],p[j]
                         if (a[1]-height)*(b[1]-height)>0 or abs(b[1]-a[1])<1e-9:continue
                         u=(height-a[1])/(b[1]-a[1])
-                        hits.append((a[0]+u*(b[0]-a[0])-.10,a[2]+u*(b[2]-a[2])))
+                        hits.append((a[0]+u*(b[0]-a[0])-d['hipHalfWidth'],a[2]+u*(b[2]-a[2])))
                     if len(hits)==2:segments.append(hits)
                 for col in (0,16,48):
                     angle=col*math.tau/64;ray=(math.cos(angle),math.sin(angle));hits=[]
@@ -44,7 +45,7 @@ class TrouserTests(unittest.TestCase):
             rows=[p for p in points if abs(p[1]-y)<.008]
             return max(p[0] for p in rows)-min(p[0] for p in rows),max(p[2] for p in rows)
         for sex in data:
-            self.assertEqual(data[sex]['physique'],'anatomical-tailoring-v22')
+            self.assertEqual(data[sex]['physique'],'scan-retarget-physique-v23')
             self.assertEqual(data[sex]['tailoring']['pelvis'],'source-envelope')
             points=list(zip(*(iter(data[sex]['positions']),)*3))
             self.assertTrue(all(abs(x)<.26 and .3849<=y<=.9401 and abs(z)<.20 for x,y,z in points))
@@ -54,12 +55,12 @@ class TrouserTests(unittest.TestCase):
         male,back_m=section('male',.78);female,back_f=section('female',.78)
         self.assertGreater(female,male)
         self.assertGreater(section('female',.78)[0],section('female',.64)[0])
-        self.assertEqual(data['male']['hipHalfWidth'],.10)
-        self.assertEqual(data['female']['hipHalfWidth'],.10)
+        self.assertEqual(data['male']['hipHalfWidth'],.085)
+        self.assertEqual(data['female']['hipHalfWidth'],.085)
 
     def test_provenance_and_connected_clothing(self):
-        manifest=json.loads((ROOT/'head-sources.json').read_text())['files']
-        for sex,sha in [('male','6ea003898dc3dfc00c0fd4bc692971770803b69e7be26cb4da5ea446c0aa159b'),('female','e17fca5a7e4b3e3725694fa22844cf77ce6ca11c2de6e5cabbecaebb2d4323c1')]:
+        manifest=source_manifest()
+        for sex,sha in [('male','2e078491586f66e28098e064a890f37bbea0ddc84195fe1433e06dee85d5b8b0'),('female','ac8c30ccae383fa8c45851cf23708cec5632849cec87205d8963a2e2e9b849e6')]:
             raw=(ROOT/f'trousers-{sex}.mesh.json').read_bytes().replace(b'\r\n',b'\n');self.assertEqual(hashlib.sha256(raw).hexdigest(),sha)
             data=json.loads(raw);count=len(data['positions'])//3
             for name,digest in data['sourceSha256'].items():self.assertEqual(digest,manifest[name]['sha256'])

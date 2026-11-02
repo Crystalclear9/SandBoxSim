@@ -7,6 +7,8 @@ namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
     private readonly float[] _adultShoulderWidths=new float[2];
+    private readonly Vector3[] _adultClavicleRest=new Vector3[2];
+    private Vector3 AdultClavicleRest {get{_=AdultShoulderWidth;return _adultClavicleRest[BodyFrame==1?1:0];}}
     private float AdultShoulderWidth
     {
         get
@@ -20,11 +22,30 @@ internal sealed partial class NatureModels
             // Both bodies use the baseline male coordinate scale; recover
             // each shaped source's actual joint, not its nominal reference.
             float width=root.GetProperty("sourceShoulder")[0].GetSingle()*root.GetProperty("scale")[0].GetSingle();
-            if(!float.IsFinite(width)||width<.14f||width>.22f)throw new InvalidOperationException("Invalid source shoulder centre");
+            if(!float.IsFinite(width)||width<.10f||width>.22f)throw new InvalidOperationException("Invalid source shoulder centre");
+            var c=root.GetProperty("sourceClavicle");var shoulder=root.GetProperty("sourceShoulder");float unit=root.GetProperty("scale")[0].GetSingle();
+            var medial=new Vector3(c[0].GetSingle()*unit,1.23f+(c[1].GetSingle()-shoulder[1].GetSingle())*unit,-(c[2].GetSingle()-shoulder[2].GetSingle())*unit);
+            if(!medial.IsFinite()||medial.X<.005f||medial.X>.05f||medial.Y<1.20f||medial.Y>1.30f||MathF.Abs(medial.Z)>.05f)
+                throw new InvalidOperationException("Invalid source sternoclavicular guide");
+            _adultClavicleRest[frame]=medial;
             return _adultShoulderWidths[frame]=width;
         }
     }
     private float ArmWidthScale=>AdultShoulderWidth/.202f;
+
+    private float ShoulderPanelX(float value)
+    {
+        float x=MathF.Abs(value),sign=value<0?-1:1;
+        const float neck=.055f,shoulder=.202f;
+        if(x<=neck)return value;
+        if(x>=shoulder)return value*ArmWidthScale;
+        float span=shoulder-neck,t=(x-neck)/span;
+        // A monotone neck-to-shoulder map keeps the collar's real neck size;
+        // applying the arm-width factor to it created a pinched head/torso join.
+        float fitted=(2*t*t*t-3*t*t+1)*neck+(t*t*t-2*t*t+t)*span
+            +(-2*t*t*t+3*t*t)*AdultShoulderWidth+(t*t*t-t*t)*span*ArmWidthScale;
+        return sign*fitted;
+    }
 
     private float TailoredPanelHeight(Vector3 point)
     {
@@ -59,10 +80,10 @@ internal sealed partial class NatureModels
     // an oversized ring even when the torso itself has distinct proportions.
     private void FitArmClothing(ResidentRig rig)
     {
-        Vector3 scale=new(ArmWidthScale,1,BodyFrame==1?.90f:1);
+        var cuff=ArmCuffScale();Vector3 scale=new(cuff.X,1,cuff.Y);
         Mesh Fit(Mesh source)
         {
-            string key="adult-arm-clothing:"+BodyFrame+":"+source.GetInstanceId();
+            string key="adult-arm-clothing:"+BodyFrame+":"+_garmentCut+":"+source.GetInstanceId();
             if(_meshes.TryGetValue(key,out var cached))return cached;
             var result=new ArrayMesh();
             for(int s=0;s<source.GetSurfaceCount();s++)

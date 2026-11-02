@@ -7,7 +7,7 @@ namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
     private readonly float[][] _upperArmSupport=new float[2][];
-    private void FitUpperArmSupport(Vector3[] points,Vector2[] pattern,float[] distance)
+    private float[] UpperArmRadii()
     {
         int frame=BodyFrame==1?1:0;
         if(_upperArmSupport[frame]==null)
@@ -15,7 +15,7 @@ internal sealed partial class NatureModels
             string name=frame==0?"male":"female";
             string raw=FileAccess.GetFileAsString("res://assets/models/human/upper-arm-"+name+".json").Replace("\r\n","\n",StringComparison.Ordinal);
             string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
-            string expected=frame==0?"3424c6fca68b335bd79f2de1b194db85d474d1098ccf9516cb91b14e700ae0a8":"3d6b4118bd0ea31ead20808e7cefe5ec9cd0860655f261071ae1c9213b64b2bc";
+            string expected=frame==0?"324dd2ab30bd12b74fd1045fe5188578f1c121c5b735ebf2fe8623e5c38be3ad":"67cc6ff5a894e4bdd68482116537caf8d98c94809bff55352cd92845c64b6b84";
             if(hash!=expected)throw new InvalidOperationException("Changed upper-arm anatomical support");
             using var doc=JsonDocument.Parse(raw);var root=doc.RootElement;
             if(root.GetProperty("rows").GetInt32()!=25||root.GetProperty("columns").GetInt32()!=64||root.GetProperty("license").GetString()!="CC0-1.0")
@@ -29,7 +29,34 @@ internal sealed partial class NatureModels
             if(index!=values.Length)throw new InvalidOperationException("Incomplete upper-arm support");
             _upperArmSupport[frame]=values;
         }
-        var radii=_upperArmSupport[frame];float shoulder=ResidentRig.BodyY(1.18f)-(frame==1?.014f:.009f);
+        return _upperArmSupport[frame];
+    }
+    private readonly Vector2[] _armCuffScales=new Vector2[6];
+    private Vector2 ArmCuffScale()
+    {
+        int key=(BodyFrame==1?3:0)+_garmentCut;
+        if(_armCuffScales[key].X>0)return _armCuffScales[key];
+        var radii=UpperArmRadii();float x0=float.PositiveInfinity,x1=float.NegativeInfinity,z0=x0,z1=x1;
+        for(int c=0;c<64;c++)
+        {
+            float a=c*MathF.Tau/64,r=radii[24*64+c];
+            float x=r*MathF.Cos(a),z=r*MathF.Sin(a);x0=MathF.Min(x0,x);x1=MathF.Max(x1,x);z0=MathF.Min(z0,z);z1=MathF.Max(z1,z);
+        }
+        var arrays=ContinuousGarment().SurfaceGetArrays(0);var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var uv=arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
+        float lowX=float.PositiveInfinity,highX=float.NegativeInfinity,lowZ=lowX,highZ=highX;
+        for(int i=0;i<p.Length;i++)if(uv[i].X>.2628f)
+        {
+            float x=MathF.Abs(p[i].X)-.202f;lowX=MathF.Min(lowX,x);highX=MathF.Max(highX,x);lowZ=MathF.Min(lowZ,p[i].Z);highZ=MathF.Max(highZ,p[i].Z);
+        }
+        var scale=new Vector2((x1-x0+.014f)/(highX-lowX),(z1-z0+.014f)/(highZ-lowZ));
+        if(!scale.IsFinite()||scale.X<.40f||scale.X>1.15f||scale.Y<.40f||scale.Y>1.15f)
+            throw new InvalidOperationException("Source elbow does not fit the sewn cuff envelope");
+        return _armCuffScales[key]=scale;
+    }
+    private void FitUpperArmSupport(Vector3[] points,Vector2[] pattern,float[] distance)
+    {
+        int frame=BodyFrame==1?1:0;var radii=UpperArmRadii();float shoulder=ResidentRig.BodyY(1.18f)-(frame==1?.014f:.009f);
         for(int i=0;i<points.Length;i++)if(pattern[i].X>0)
         {
             var p=points[i];float side=p.X<0?-1:1,centre=side*.202f*ArmWidthScale;

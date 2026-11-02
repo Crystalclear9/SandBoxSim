@@ -67,7 +67,7 @@ internal sealed partial class NatureModels
             if(child is MeshInstance3D part&&part.Mesh!=null)part.Mesh=ProportionedMesh(part.Mesh,part.Transform,true);
         for(int side=0;side<2;side++)
         {
-            rig.Legs[side].Position=new(side==0?-.10f:.10f,ResidentRig.HipHeight,0);
+            rig.Legs[side].Position=new(side==0?-ResidentRig.NeutralHipHalfWidth:ResidentRig.NeutralHipHalfWidth,ResidentRig.HipHeight,0);
             rig.Knees[side].Position=new(0,-ResidentRig.ThighLength,0);
             rig.Feet[side].Position=new(0,-ResidentRig.ShinLength,-.04f);
             foreach(Node child in rig.Legs[side].GetChildren())

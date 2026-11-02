@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "license": "CC0-1.0",
+  "author": "Dan Ulrich / Blender Studio and community contributors",
+  "source": {
+    "url": "https://download.blender.org/demo/asset-bundles/human-base-meshes/human-base-meshes-bundle-v1.4.1.zip",
+    "archiveBytes": 50643039,
+    "member": "human-base-meshes-bundle-v1.4.1/human_base_meshes_bundle.blend",
+    "memberBytes": 49420489,
+    "memberCrc32": 3540975974,
+    "sha256": "3c121505651140ceb4d69fd1d8923f7788ffadd81672f5be14845a5f2c75c137"
+  },
+  "files": {
+    "reference-shape-male.json": {
+      "bytes": 608739,
+      "sha256": "3e97a9c526a21f55426b0dad35948bbc708cacd079c8f035fdac5efabf1e33f4",
+      "frame": "male"
+    },
+    "reference-shape-female.json": {
+      "bytes": 605450,
+      "sha256": "935e7bda8b88cc8071e9d175afed69c4c9967ef4168529b4a83d09a975d4bd83",
+      "frame": "female"
+    }
+  }
+}

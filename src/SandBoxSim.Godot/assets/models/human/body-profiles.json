@@ -1,22 +1,17 @@
 {
   "schemaVersion": 1,
-  "profile": "anatomical-tailoring-v22",
+  "profile": "scan-retarget-physique-v23",
   "license": "CC0-1.0",
-  "description": "Project adult references from attributed HM08 targets. One uniform source scale maps the baseline male shoulder-to-hip span to 0.43 metres for both frames. Shapes are art choices, not population measurements.",
+  "description": "CC0 Dan Ulrich / Blender Studio realistic body surfaces retargeted onto HM08 topology; fixed anatomical region guides, bounded surface transfer and one canonical client scale. Project references, not population measurements.",
   "frames": {
     "male": {
       "targets": {
-        "universal-male-young-maxmuscle-averageweight.target": 0.12,
-        "universal-male-young-averagemuscle-minweight.target": 0.38,
-        "universal-male-young-maxmuscle-minweight.target": 0.12,
-        "torso-vshape-incr.target": 0.16
+        "reference-shape-male.json": 1.0
       }
     },
     "female": {
       "targets": {
-        "universal-female-young-averagemuscle-minweight.target": 0.5,
-        "female-young-averagemuscle-averageweight-maxcup-averagefirmness.target": 0.125,
-        "female-young-averagemuscle-minweight-maxcup-averagefirmness.target": 0.125
+        "reference-shape-female.json": 1.0
       }
     }
   }

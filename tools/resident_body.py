@@ -10,12 +10,36 @@ from pathlib import Path
 ASSETS = Path(__file__).resolve().parents[1]/'src/SandBoxSim.Godot/assets/models/human'
 
 
+def source_manifest():
+    files=json.loads((ASSETS/'head-sources.json').read_text(encoding='utf-8'))['files']
+    reference=ASSETS/'reference-shape-sources.json'
+    if reference.exists():files.update(json.loads(reference.read_text(encoding='utf-8'))['files'])
+    return files
+
+
 def read_source(source, name):
-    record = json.loads((ASSETS/'head-sources.json').read_text(encoding='utf-8'))['files'][name]
-    raw = (Path(source)/name).read_bytes()
+    record = source_manifest()[name]
+    path=ASSETS/name if name in ('reference-shape-male.json','reference-shape-female.json') else Path(source)/name
+    raw = path.read_bytes()
     if len(raw) != record['bytes'] or hashlib.sha256(raw).hexdigest() != record['sha256']:
         raise ValueError('Changed resident source: '+name)
     return raw.decode('utf-8')
+
+
+def limb_weights(source,roots):
+    """Semantic source regions include every descendant, including metacarpals."""
+    bones=json.loads(read_source(source,'rig/default.mhskel'))['bones']
+    selected=set(roots)
+    if not selected.issubset(bones):raise ValueError('Missing source limb root')
+    while True:
+        expanded=selected|{name for name,bone in bones.items() if bone.get('parent') in selected}
+        if expanded==selected:break
+        selected=expanded
+    result={}
+    for name,entries in json.loads(read_source(source,'rig/default_weights.mhw'))['weights'].items():
+        if name in selected:
+            for index,weight in entries:result[index]=result.get(index,0)+weight
+    return result
 
 
 def recipe(frame):
@@ -46,7 +70,15 @@ def body_points(source, frame, *, baseline=False):
     for name, weight in targets.items():
         if not 0 < weight <= 1:
             raise ValueError('Invalid body target weight')
-        for line in read_source(source, name).splitlines():
+        text=read_source(source,name)
+        if name.startswith('reference-shape-'):
+            data=json.loads(text)
+            if data['schemaVersion']!=1 or data['license']!='CC0-1.0' or len(data['deltas'])!=len(points)*3:
+                raise ValueError('Invalid reference body deformation')
+            for i,p in enumerate(points):
+                for axis in range(3):p[axis]+=data['deltas'][i*3+axis]*weight
+            continue
+        for line in text.splitlines():
             fields = line.split()
             if len(fields) == 4 and not line.startswith('#'):
                 p = points[int(fields[0])]
@@ -57,8 +89,8 @@ def body_points(source, frame, *, baseline=False):
 
 def body_provenance(frame):
     raw = (ASSETS/'body-profiles.json').read_bytes().replace(b'\r\n', b'\n')
-    manifest = json.loads((ASSETS/'head-sources.json').read_text(encoding='utf-8'))['files']
+    manifest = source_manifest()
     names = ('base.obj', 'basemesh_vertex_groups.json', 'caucasian-male-young.target', f'caucasian-{frame}-young.target', *recipe(frame)['targets'])
-    return dict(profile='anatomical-tailoring-v22', profileSha256=hashlib.sha256(raw).hexdigest(),
+    return dict(profile='scan-retarget-physique-v23', profileSha256=hashlib.sha256(raw).hexdigest(),
                 coordinateFrame='uniform-baseline-shoulder-hip-v1',
                 targets=recipe(frame)['targets'], sourceSha256={n: manifest[n]['sha256'] for n in names})
