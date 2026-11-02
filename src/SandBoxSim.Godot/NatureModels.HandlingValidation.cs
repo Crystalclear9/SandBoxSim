@@ -287,9 +287,9 @@ internal sealed partial class NatureModels
                             if(wristRing)
                             {
                                 var wrist=InTorso(rig.Elbows[hand],rig.Torso).AffineInverse()*(handTransform*point);
-                                float oval=wrist.X*wrist.X/(WristHalfWidth*WristHalfWidth)+wrist.Z*wrist.Z/(WristHalfDepth*WristHalfDepth);
-                                if(MathF.Abs(wrist.Y+.210f)>.001f||MathF.Abs(oval-1)>.015f)
-                                    throw new InvalidOperationException($"Animated wrist leaves forearm: {action}, side={hand}, frame={frame}, y={wrist.Y}, oval={oval}");
+                                var expected=points[v]+new Vector3(0,-.255f,-.010f);
+                                if(wrist.DistanceTo(expected)>.001f)
+                                    throw new InvalidOperationException($"Animated wrist leaves its fitted source forearm: {action}, side={hand}, frame={frame}, error={wrist.DistanceTo(expected)}");
                                 continue;
                             }
                             float gap=(handTransform*point-toolTransform.Origin).Cross(axis).Length();

@@ -81,6 +81,10 @@ human-hand.mesh.json: extract palm/finger/web topology, smoothly retarget
 phalanges, fit wrist, mirror anatomy, recompute normals, generate 16-bone
 weights and retain dorsal nail partitions. Join the anatomical forearm through
 a shared wrist transition, preserving original hand indices and nail surfaces.
+Current modifications: a 30 mm tangent-constrained loft with seven 96-column
+intermediate rings, filtered boundary slopes and recalculated normals.
+Runtime source-section fitting transports width, depth and the wrist
+centreline; four additional quaternion wrist supports distribute bending.
 Exporters: tools/export_human_hands.py and tools/join_human_arm.py.
 
 human-hand-lod.mesh.json: reduce to 1,400 triangles, barycentrically transfer
@@ -110,9 +114,10 @@ and support hashes. Exporter: tools/export_resident_trousers.py.
 
 FOREARM BODY FITS (CC0 AND CC BY 4.0)
 forearm-fit-male.json and forearm-fit-female.json combine MakeHuman CC0
-elbow/wrist cross sections with measurements derived from human-forearm.mesh.json
+elbow/wrist cross sections with measurements derived from human-hand.mesh.json
 by Julien Kaspar / Blender Studio (CC BY 4.0, attribution and links above).
-SandBoxSim derives a non-enlarging profile with fixed wrist/grip boundaries.
-The sculpt, topology and skin weights are retained. Each fit records the
+SandBoxSim derives a non-enlarging profile with fixed finger/grip boundaries and a fitted wrist centreline.
+Original palm/finger topology is retained; the shared wrist loft is rebuilt
+and runtime wrist weights are augmented. Each fit records the
 reference sculpt checksum, body recipe and source checksums.
 Exporter: tools/export_upper_arm_support.py --region forearm.

@@ -5,8 +5,19 @@ namespace SandBoxSim.Client;
 
 internal partial class ResidentRig
 {
-    internal const int HandBoneCount=21,ForearmIntervals=5;
+    internal const int HandBoneCount=25,ForearmIntervals=5,WristIntervals=5;
     internal static int ForearmBone(int station)=>station==ForearmIntervals?15:16+station;
+    internal static int WristBone(int station)=>station==0?0:station==WristIntervals?15:20+station;
+    internal Transform3D WristSectionPose(int side,float fraction)
+        =>new(new Basis(Quaternion.Identity.Slerp(Hands[side].Basis.Inverse().GetRotationQuaternion(),fraction)),Vector3.Zero);
+    internal void StudyWrist(float delta,float time)
+    {
+        float phase=Mathf.PosMod(time,8),progress=ReachEase((phase%2)/2),wave=MathF.Sin(MathF.Tau*progress);
+        StudyArmElevation(delta,.45f,.55f,1,phase>=4&&phase<6?wave:0,1.15f);
+        Hands[1].Basis=Basis.FromEuler(new(phase<2?.55f*wave:0,0,phase>=2&&phase<4?.25f*wave:0));
+        CurlHand(1,phase>=6?.15f+.85f*(.5f-.5f*MathF.Cos(MathF.Tau*progress)):.15f);
+        UpdateHandBones(1);
+    }
     private readonly float[] _forearmRoll={float.NaN,float.NaN};
     internal float ForearmRoll(int side)
     {
@@ -33,5 +44,7 @@ internal partial class ResidentRig
         _wristSkinRotation[side]=wrist;_forearmRoll[side]=roll;
         for(int station=0;station<=ForearmIntervals;station++)
             HandSkeletons[side].SetBonePose(ForearmBone(station),ForearmSectionPose(side,(float)station/ForearmIntervals));
+        for(int station=1;station<WristIntervals;station++)
+            HandSkeletons[side].SetBonePose(WristBone(station),WristSectionPose(side,(float)station/WristIntervals));
     }
 }

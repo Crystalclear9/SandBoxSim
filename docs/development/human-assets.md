@@ -69,21 +69,21 @@ python -B tools/fetch-body-reference.py --verify
 
 ### 与身体配方共用的前臂截面
 
-`forearm-fit-male.json`／`forearm-fit-female.json` 由 `export_upper_arm_support.py --region forearm` 生成。工具沿同一 MakeHuman 身体的肘—腕轴取 35×64 个截面，将 0.075–0.245 米的宽深与已有 Blender 前臂雕刻比较；记录身体配方、来源哈希、原雕刻哈希及拟合宽深。两份数据混合 CC0 身体参考与 Julien Kaspar / Blender Studio 的 CC BY 4.0 衍生测量，许可明确为 `CC0-1.0 AND CC-BY-4.0`。
+`forearm-fit-male.json`／`forearm-fit-female.json` 由 `export_upper_arm_support.py --region forearm` 生成。沿当前共同身体配方的肘—腕轴取 49×64 个截面，覆盖掌根以上 0.005–0.245 米；与实际连体手臂比较，记录宽深、横向缩放和中心线偏移。两份数据混合 CC0 身体参考与 Julien Kaspar / Blender Studio 的 CC BY 4.0 衍生测量，许可为 `CC0-1.0 AND CC-BY-4.0`。
 
-运行时保留原雕刻拓扑、骨权重、肌腱与肘部细节，用单调三次插值和连续淡入淡出匹配身体截面。该附加拟合只收束原表面，腕口、手指和握柄坐标固定；共同 54×37 毫米腕部约束保留 3 毫米宽度余量，避免因来源腕部尺寸不同形成细颈。近手、远景前臂共用映射，法线包含宽深变化导数，动画帧不重采样网格。`FOREARM_BODY_SUPPORT_PASS` 比较实际连体蒙皮三个截面的宽深与目标，保留 2 毫米几何容差；这不是人群尺寸或审美评分。
+当前拟合将来源身体的实际截面传递到连体雕刻，不另设共用的 57 毫米前臂宽度下限。掌根到前臂的中心线以平滑曲线衔接，避免原来短距离内的 10 毫米中心偏移形成腕口台阶。单调三次插值与端点缓入缓出共同处理宽深及偏移，法线包含完整映射导数。手指、甲面和掌心握柄区保持原坐标；近手、远景前臂及远手使用同一拟合。`FOREARM_BODY_SUPPORT_PASS` 比较实际连体蒙皮六个腕臂截面的宽深，容差仍为 2 毫米。
 
 ## 解剖手部
 
 [human-hand.mesh.json](../../src/SandBoxSim.Godot/assets/models/human/human-hand.mesh.json) 从 Julien Kaspar / Blender Studio 的授权人体提取手掌、指缝与五指。近景文件包含连续的前臂和手部，共 9,154 个顶点、18,205 个三角面；其中原始手部区域有 7,255 个顶点、14,464 个三角面，`handVertexCount` 保留该分界，供远景只提取手部。甲面从实际指背曲面提取，运行时仅上传甲面引用的顶点。
 
-手部使用平滑位移场接入掌指骨，左右手镜像骨骼位置与展开方向；腕环与前臂在运行坐标中对齐；`join_human_arm.py` 用共顶点过渡环接入前臂，并重新计算连续表面法线。掌根在相邻指骨间平滑分配权重，手指保留近节、中节与末节。来源为每手 16 骨，运行时增加五个前臂扭转支撑，成为 21 骨；与原有握持、取用和收纳动作共用。指甲与皮肤使用同一表面分区、共享权重，随手指一起变形，避免叠面闪烁。
+手部使用平滑位移场接入掌指骨，左右手镜像骨骼位置与展开方向。`join_human_arm.py` 保留原手掌与指甲索引，以 30 毫米长、七个中间环、每环 96 列的切线约束连接接入前臂；不规则切口的切线先在统一角度上过滤，避免纵向皱棱。重算法线后导出连通表面。来源每手 16 骨，运行时增加五个前臂扭转支撑和四个腕部支撑，共 25 骨，每顶点仍至多四个影响。四个腕部支撑以四元数渐进分配屈伸及侧偏，减少掌根与前臂直接线性混合造成的收缩。指甲与皮肤共享权重，不增加重叠表面。
 
 `NatureModels.HandSurface.cs` 在原网格上增加分区材质：第一 UV、拓扑、两表面与骨骼不变，第二 UV 保存未摆姿的来源坐标，顶点色红通道保存掌背掩码；甲面使用对应的局部坐标。掌纹、屈曲折痕与指腹只出现在相应手掌区域，指背指节、甲床半月、短游离缘和角质边分别处理，随蒙皮运动，不依赖摆姿后的世界位置。远景跳过细纹计算，仍使用原有低模与缓存。
 
 造型参考 [Leeds 指甲组织说明](https://histology.leeds.ac.uk/home/skin/nails/)及[掌纹分析研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC2998791/)，用于区分一般表面区域，不是医学复原、指纹模板或新扫描。没有下载新的人体照片、替换原手部许可，亦没有增加软组织或肌腱物理；材质不能补回原网格中不存在的几何细节。
 
-`NatureModels.WristContour.cs` 在加载时对原近圆腕环作局部椭圆拟合：54×48 毫米调整为项目美术选用的 54×37 毫米，并以 C2 过渡延续前臂与掌根。近手、前臂、远手共用映射，法线包含纵向形变导数；源文件和哈希、拓扑、UV、骨权重不变，手指、甲面与握柄区不移动。参考 [AO Foundation 远端前臂解剖](https://surgeryreference.aofoundation.org/orthopedic-trauma/adult-trauma/distal-forearm/approach/anatomy-of-the-distal-forearm) 保留掌背结构差异；37 毫米不是该资料提供的医学尺寸。
+`NatureModels.WristContour.cs` 与 `ForearmSupport.cs` 在创建缓存时共用来源截面场，取消固定 54×37 毫米腕环。掌背与桡尺侧结构的区分参考 [AO Foundation 远端前臂解剖](https://surgeryreference.aofoundation.org/orthopedic-trauma/adult-trauma/distal-forearm/approach/anatomy-of-the-distal-forearm)，连续基础表面的制作参考 [Blender Studio](https://studio.blender.org/training/realistic-human-research/use-of-base-meshes/)。这是项目角色的几何与蒙皮近似，没有肌肉或桡尺骨物理。
 
 近景、远景、指根和拇指骨骼共用 `ResidentRig.HandMirror` 的左右约定。远景张手与握拳网格按左右独立缓存，镜像时同步反转法线、切线手性和三角面朝向；拇指轮廓位于食指一侧并露出掌缘，避免默认视距把两只手显示成同一侧。`--panel=handedness` 可并排查看同一角色的左右掌心、手背以及远景简模。自检覆盖镜像拓扑、拇指方向、骨骼张合、LOD 切换，以及主手和支撑手的实际蒙皮与工具轴间距。
 
@@ -227,3 +227,7 @@ python -m unittest discover -s tools -p test_resident_trousers.py
 当前裤装在细分表面加入腰下／膝上压褶和侧缝形体，并对中线裤裆的极窄翻折接缝作局部表面松弛，保留原始索引与面数；不改变裤腰及两只靴口的开放边界。`tools/resident_clothing.py` 提供独立于 Blender 的米制褶皱配方，导出时约束在来源骨盆与靴口之间。运行时上衣的近景拟合取实际缝合网格截面，成衣下摆按三套款式区分；详细参数见[模型系统](models.md)。
 
 当前腿部由同一已校验 HM08 身体表面提供径向截面支撑，服装辅助网格仅保留为连续拓扑；导出器在髋—膝中心线上取样、添加一次衣料间隙，并保留骨盆与靴口的渐变区。每套输出的 `anatomicalSupport` 包含 21×64 个来源半径，供最终成衣截面检查；没有添加新的素材许可或运行依赖。具体绑定与鞋楦偏移见[模型系统](models.md)。
+
+腕部专项检查：`./tools/godot.ps1 -Mode test -HandContinuityOnly`。近景公开回放：`python tools/evaluate.py run benchmarks/scenarios/visual-wrist-motion.json --output .tools/tmp/wrist-study`；普通可运行包仍直接使用已导出的模型。
+
+重新烘焙手部时，先生成连体 `human-hand.mesh.json` 与其 LOD，再执行 `export_upper_arm_support.py --region forearm`；后者直接测量当前连体表面，不能与旧版手部截面混用。手掌原索引和指甲分区保留，腕部连接的顶点、法线及运行权重按当前转换流程生成。

@@ -67,6 +67,7 @@
 | `resident-body-frames.png` | 男性／女性成人外观的同衣色全身正侧背面；`body-frames` |
 | `resident-body-motion.png`、`resident-body-motion.gif` | 站立、行走、弯身拾取的六格配对；`body-motion` |
 | `resident-forearm-frames.png` | 两种外观的小臂掌侧、背侧与侧面；`forearm-frames` |
+| `resident-wrist-motion.png`、`resident-wrist-motion.gif` | 两种成人外观的屈伸、侧偏、旋腕与握拳，手背／掌侧／侧面近景；`wrist-motion` |
 | `world-camera-controls.png` | 按需展开的镜头预设、真实选中反馈与鼠标说明；实际点击“视角与操作” |
 | `tool-palette.png` | 416 像素工具库、分类和搜索、最近四种工具；实际跨分类选择后采样 |
 | `tool-palette-compact.png` | 1280×800 下标题区“最近”菜单展开状态；实际鼠标与键盘回放 |
@@ -127,3 +128,7 @@
 `scan-retarget-physique-v23` 的身体三视图、衣装、前臂和身体动态均使用官方 CC0 写实身体的转移形体；肩点、颈口和袖口围度独立适配。图片仍是实际游戏网格，不能将参考来源的艺术质量直接当作运行时自然度评分。
 
 当前身体动态与抬臂图使用 `shoulderMotion=source-clavicle-v11`，锁骨内端与肩点均来自当前转移体型；旧的专项肩袖图仍保留其原采样版本。
+
+当前身体、衣装、前臂及抬臂配图保留 `bodyFrame=scan-retarget-physique-v23`，腕臂使用 `wristContour=continuous-source-v2`、`forearmProfile=continuous-source-volume-v2`、`forearmSkin=distributed-wrist-v2`。腕部连接为 30 毫米切线约束表面，宽深与中心线按各自身体来源拟合。较早的手部、工具和捕捉专项配图仍保留其各自采样版本。
+
+`resident-wrist-motion.png` 取自 `visual-wrist-motion.json` 的第 90 帧；GIF 使用 120 个原生采样，逻辑帧 30–506 每四步采样，固定 60 Hz、零模拟步进，时长八秒，分四次等配置回放。展示实际连体蒙皮，观察镜头沿前臂坐标定位，主补光随观察方向旋转；可见层只隔离该手臂，避免躯干遮住反向视角，没有修改模型或对图像重绘。GIF 仅采用统一调色板编码。

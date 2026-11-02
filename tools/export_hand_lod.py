@@ -18,7 +18,7 @@ parser.add_argument('--source', required=True)
 parser.add_argument('--output', required=True)
 args = parser.parse_args(sys.argv[sys.argv.index('--') + 1:])
 raw = pathlib.Path(args.source).read_bytes()
-if hashlib.sha256(raw).hexdigest() != '03fb4ec965287396050ecf2f2009b765aa034f7e16fa2819d0bd8aaa22e979ba':
+if hashlib.sha256(raw).hexdigest() != 'f96bc538fe0963d1d7bf85b75bb71203e1d4e84be1ecaf3f7c03fca618c0fdb8':
     raise ValueError('Anatomical source mismatch')
 source = json.loads(raw)
 # The distant hand stays separate from the rigid forearm. Near skin includes

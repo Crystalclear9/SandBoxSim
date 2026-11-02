@@ -37,7 +37,8 @@ internal partial class ModelGallery : PanelContainer
         if(Collection=="wardrobe")body.GetChild<Label>(0).Text="衣装剪裁 · 实际职业模型的正面与背面";
         grid.AddThemeConstantOverride("h_separation",12); grid.AddThemeConstantOverride("v_separation",12); body.AddChild(grid);
         var models=new NatureModels();
-        if(Collection=="arm-articulation")BuildArmArticulation(models,grid,body.GetChild<Label>(0));
+        if(Collection=="wrist-motion")BuildWristStudy(models,grid,body.GetChild<Label>(0));
+        else if(Collection=="arm-articulation")BuildArmArticulation(models,grid,body.GetChild<Label>(0));
         else if(Collection=="captured-stretch")BuildCapturedStudy(models,grid,body.GetChild<Label>(0));
         else if(Collection=="shoulder-elevation")BuildElevationStudy(models,grid,body.GetChild<Label>(0));
         else if(Collection=="handling-transitions")BuildInteractionFlow(models,grid,body.GetChild<Label>(0));
@@ -294,6 +295,7 @@ internal partial class ModelGallery : PanelContainer
         if(Collection=="shoulder-elevation")AdvanceElevationStudy((float)delta);
         if(Collection=="captured-stretch")AdvanceCapturedStudy((float)delta);
         if(Collection=="arm-articulation")AdvanceArmArticulation((float)delta);
+        if(Collection=="wrist-motion")AdvanceWristStudy((float)delta);
         foreach(var (rig,camera) in _handViews)
         {
             var target=rig.Hands[1].GlobalPosition+new Vector3(0,.015f,0);
@@ -356,7 +358,7 @@ internal partial class ModelGallery : PanelContainer
         int index=grid.GetChildCount()-1;
         string semanticLabel=Collection=="animal-heads"?(index<2?"deer":"wolf"):Collection=="animal-details"?(index<3?"deer":"wolf"):Collection=="forearms"?"resident":Collection=="ecology-details"?new[]{"tree","tree","fern","grass","rock","shrub"}[index]:model is ResidentRig?"resident":Collection=="model-details"?(index==2?"deer":index==3?"wolf":"house"):Collection=="architecture"?(index<5?"house":"storage"):Collection=="characters"?(index==4?"deer":"wolf"):index<2?"tree":index==2?"farm":index==3?"mine":index==4?"ruins":"grove";
         if(model is AnimalRig fauna)semanticLabel=fauna.Predator?"wolf":"deer";
-        if(Collection=="forearm-frames")semanticLabel="resident";
+        if(Collection is "forearm-frames" or "wrist-motion")semanticLabel="resident";
         _evaluationRegions.Add((view,semanticLabel));
         var viewport=new SubViewport { OwnWorld3D=true,Size=new(420,280),Msaa3D=Viewport.Msaa.Msaa4X,RenderTargetUpdateMode=SubViewport.UpdateMode.Once }; view.AddChild(viewport);
         var stage=new Node3D(); viewport.AddChild(stage);
@@ -372,7 +374,8 @@ internal partial class ModelGallery : PanelContainer
         if(model is AnimalRig creature){_animals.Add(creature);viewport.RenderTargetUpdateMode=SubViewport.UpdateMode.WhenVisible;}
         if(model is ResidentRig resident&&Collection!="equipment")
         {
-            Animate(resident,ActionKind.None);viewport.RenderTargetUpdateMode=SubViewport.UpdateMode.WhenVisible;
+            if(Collection!="wrist-motion")Animate(resident,ActionKind.None);
+            viewport.RenderTargetUpdateMode=SubViewport.UpdateMode.WhenVisible;
         }
         stage.AddChild(model); model.Rotation=new(0,(animal ? Mathf.Pi : 0)-.60f,0);
         var camera=new Camera3D { Current=true,Projection=Camera3D.ProjectionType.Orthogonal,Size=size,Position=new(0,size*(animal ? .90f : 1.4f),size*2) }; stage.AddChild(camera);

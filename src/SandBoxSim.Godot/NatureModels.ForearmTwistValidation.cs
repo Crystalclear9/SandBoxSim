@@ -8,7 +8,7 @@ internal sealed partial class NatureModels
 {
     private void ValidateForearmTwist()
     {
-        int samples=0;float minimumRadius=1,maximumWristError=0,maximumElbowError=0;
+        int samples=0;float minimumRadius=1,minimumWristRadius=1,maximumWristError=0,maximumElbowError=0;
         foreach(int identity in new[]{17,55})
         {
             var rig=Resident(identity,false,JobType.None);
@@ -39,20 +39,100 @@ internal sealed partial class NatureModels
                             samples++;
                         }
                     }
-                    var frozen=new Transform3D[ResidentRig.ForearmIntervals+1];
-                    for(int station=0;station<frozen.Length;station++)frozen[station]=skeleton.GetBonePose(ResidentRig.ForearmBone(station));
+                    for(int station=0;station<=ResidentRig.WristIntervals;station++)
+                    {
+                        var pose=skeleton.GetBonePose(ResidentRig.WristBone(station));
+                        var expected=rig.WristSectionPose(side,(float)station/ResidentRig.WristIntervals);
+                        // Skeleton3D decomposes and reconstitutes the basis;
+                        // use a metre/axis tolerance, not per-component relative
+                        // equality on near-zero quaternion reconstruction terms.
+                        if(pose.Origin.DistanceTo(expected.Origin)>.00001f||pose.Basis.X.DistanceTo(expected.Basis.X)>.00001f||pose.Basis.Y.DistanceTo(expected.Basis.Y)>.00001f||pose.Basis.Z.DistanceTo(expected.Basis.Z)>.00001f)
+                            throw new InvalidOperationException($"Displayed wrist station misses its continuous rotation: identity={identity}, side={side}, turn={turn}, station={station}, actual={pose}, expected={rig.WristSectionPose(side,(float)station/ResidentRig.WristIntervals)}");
+                        if(station==0)continue;
+                        var prior=skeleton.GetBonePose(ResidentRig.WristBone(station-1));
+                        foreach(var radial in new[]{Vector3.Right,Vector3.Back})
+                            minimumWristRadius=MathF.Min(minimumWristRadius,((pose.Basis*radial+prior.Basis*radial)*.5f).Length());
+                    }
+                    var supports=new int[ResidentRig.ForearmIntervals+ResidentRig.WristIntervals];
+                    for(int i=0;i<=ResidentRig.ForearmIntervals;i++)supports[i]=ResidentRig.ForearmBone(i);
+                    for(int i=1;i<ResidentRig.WristIntervals;i++)supports[ResidentRig.ForearmIntervals+i]=ResidentRig.WristBone(i);
+                    var frozen=new Transform3D[supports.Length];
+                    for(int i=0;i<frozen.Length;i++)frozen[i]=skeleton.GetBonePose(supports[i]);
                     rig.PoseAction(1,ActionKind.None,ActionPhase.Idle,true,0);
                     rig.SetHandDetail(false);rig.SetHandDetail(true);
-                    for(int station=0;station<frozen.Length;station++)if(!frozen[station].IsEqualApprox(skeleton.GetBonePose(ResidentRig.ForearmBone(station))))throw new InvalidOperationException("Pause or LOD changes a displayed forearm support");
+                    for(int i=0;i<frozen.Length;i++)if(!frozen[i].IsEqualApprox(skeleton.GetBonePose(supports[i])))throw new InvalidOperationException("Pause or LOD changes a displayed wrist/forearm support");
                     if(skeleton.GetBoneCount()!=ResidentRig.HandBoneCount)throw new InvalidOperationException("Forearm supports lost on LOD recovery");
                 }
             }
             finally{rig.Free();}
         }
         if(maximumElbowError>.00001f||maximumWristError>.00001f||minimumRadius<.97f)throw new InvalidOperationException("Forearm twist rolls the elbow, detaches the wrist or collapses an interval");
+        if(minimumWristRadius<.985f)throw new InvalidOperationException("Wrist flexion collapses a displayed cross section");
         var transforms=new[]{Transform3D.Identity,new Transform3D(new Basis(Vector3.Up,2.2f),Vector3.Zero),Transform3D.Identity,Transform3D.Identity};
         var rigid=BlendRigidShoulder(Vector3.Right,transforms,new(.5f,.5f,0,0));
         if(MathF.Abs(rigid.Length()-1)>.00001f)throw new InvalidOperationException("Baked shoulder support still collapses under rotation blending");
-        GD.Print($"FOREARM_TWIST_PASS: samples={samples}, adultFrames=2, both arms, elbow/wrist error={maximumElbowError:F6}/{maximumWristError:F6} m, minimum interval radius={minimumRadius:F4}; anatomical supports, hand contacts unchanged");
+        GD.Print($"FOREARM_TWIST_PASS: samples={samples}, adultFrames=2, both arms, elbow/wrist error={maximumElbowError:F6}/{maximumWristError:F6} m, minimum forearm/wrist interval radius={minimumRadius:F4}/{minimumWristRadius:F4}; hand contacts, pause and LOD retained");
+        ValidateWristMotion();
+    }
+    public void ValidateHandContinuity()
+    {
+        ValidateForearmSurfaces();ValidateForearmTwist();
+        for(int frame=0;frame<2;frame++)
+        {
+            var rig=Resident(frame==0?17:55,false,JobType.None);
+            try{ValidateForearmSupport(rig,frame);}finally{rig.Free();}
+        }
+        ValidateHandling();
+    }
+    private void ValidateWristMotion()
+    {
+        float minimumVolume=1,maxStep=0,maxSeam=0;int samples=0;
+        for(int frame=0;frame<2;frame++)
+        {
+            var rig=Resident(frame==0?17:55,false,JobType.None);
+            try
+            {
+                rig.SetHandDetail(true);
+                var a=rig.HandSkins[1].Mesh.SurfaceGetArrays(0);
+                var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                var b=a[(int)Mesh.ArrayType.Bones].AsInt32Array();var w=a[(int)Mesh.ArrayType.Weights].AsFloat32Array();
+                var prior=new Vector3[p.Length];
+                var palette=new Transform3D[ResidentRig.HandBoneCount];
+                var global=new Transform3D[palette.Length];
+                for(int tick=0;tick<480;tick++)
+                {
+                    rig.StudyWrist(1f/60,tick/60f);
+                    // These substeps occur inside one engine frame. Recompose
+                    // from current local poses and actual inverse binds instead
+                    // of reading the renderer's deferred global-pose cache.
+                    var skeleton=rig.HandSkeletons[1];
+                    for(int bone=0;bone<palette.Length;bone++)
+                    {
+                        var local=skeleton.GetBoneRest(bone)*skeleton.GetBonePose(bone);int parent=skeleton.GetBoneParent(bone);
+                        global[bone]=parent<0?local:global[parent]*local;
+                        palette[bone]=global[bone]*rig.HandSkins[1].Skin.GetBindPose(bone);
+                    }
+                    for(int i=0;i<p.Length;i++)if(p[i].Y>.005f&&p[i].Y<=.075f)
+                    {
+                        Vector3 q=Vector3.Zero,x=Vector3.Zero,y=x,z=x;
+                        for(int j=0;j<4;j++)
+                        {
+                            var pose=palette[b[i*4+j]];float weight=w[i*4+j];
+                            q+=(pose*p[i])*weight;x+=pose.Basis.X*weight;y+=pose.Basis.Y*weight;z+=pose.Basis.Z*weight;
+                        }
+                        if(!q.IsFinite())throw new InvalidOperationException("Wrist motion has a nonfinite displayed surface");
+                        minimumVolume=MathF.Min(minimumVolume,new Basis(x,y,z).Determinant());
+                        var displayed=rig.Hands[1].Basis*q;
+                        if(tick>0)maxStep=MathF.Max(maxStep,displayed.DistanceTo(prior[i]));prior[i]=displayed;
+                        if(MathF.Abs(p[i].Y-.045f)<.000001f)maxSeam=MathF.Max(maxSeam,displayed.DistanceTo(p[i]));
+                        samples++;
+                    }
+                }
+            }
+            finally{rig.Free();}
+        }
+        if(minimumVolume<.990f||maxStep>.006f||maxSeam>.0001f)
+            throw new InvalidOperationException($"Displayed wrist loses volume/continuity: determinant={minimumVolume}, step={maxStep}, seam={maxSeam}");
+        GD.Print($"WRIST_MOTION_PASS: {samples} actual two-frame skin samples over flexion/deviation/pronation/grip; minimum blended determinant={minimumVolume:F4}, max step/seam={maxStep:F5}/{maxSeam:F6} m");
     }
 }

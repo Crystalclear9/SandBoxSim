@@ -48,7 +48,7 @@ def export(source,frame,region='upper-arm'):
     axis=unit(sub(end,origin));length=math.dist(end,origin)
     radial=unit(sub((1.,0.,0.),mul(axis,axis[0])));back=cross(axis,radial)
     local=[(dot(sub(p,origin),radial),dot(sub(p,origin),axis),dot(sub(p,origin),back)) for p in vertices]
-    rows,columns,low,high=(35,64,.075,.245) if region=='forearm' else (25,64,.025,.255)
+    rows,columns,low,high=(49,64,.005,.245) if region=='forearm' else (25,64,.025,.255)
     target_length=.255 if region=='forearm' else .28
     radii=[]
     for row in range(rows):
@@ -76,7 +76,9 @@ def export(source,frame,region='upper-arm'):
                 if abs(den)<1e-10:continue
                 radius=turn(a,edge)/den;t=turn(a,direction)/den
                 if radius>0 and -.000001<=t<=1.000001:hits.append(radius)
-            if not hits or not .012<min(hits)<.105:raise ValueError('Invalid upper-arm envelope')
+            minimum=.0075 if region=='forearm' and height<.075 else .012
+            if not hits or not minimum<min(hits)<.105:
+                raise ValueError(f'Invalid source arm envelope: {frame}/{region}/{height}/{col}: {min(hits) if hits else None}')
             radii.append(min(hits))
     for _ in range(3):
         old=radii
@@ -89,10 +91,10 @@ def export(source,frame,region='upper-arm'):
             'sourceSha256':expected,'shapeRecipe':provenance,'sourceShoulder':shoulder,'sourceElbow':elbow,'sourceLength':length,
             'targetLength':target_length,'low':low,'high':high,'rows':rows,'columns':columns,'radii':[round(r,7) for r in radii]}
     if region=='forearm':
-        reference_path=Path(__file__).resolve().parents[1]/'src/SandBoxSim.Godot/assets/models/human/human-forearm.mesh.json'
+        reference_path=Path(__file__).resolve().parents[1]/'src/SandBoxSim.Godot/assets/models/human/human-hand.mesh.json'
         raw=reference_path.read_bytes();reference=json.loads(raw)
-        points=[(x,y+.255,z+.010) for x,y,z in zip(*[iter(reference['positions'])]*3)]
-        widths=[];depths=[];reference_widths=[];reference_depths=[];anatomical_widths=[];anatomical_depths=[]
+        points=list(zip(*[iter(reference['positions'])]*3))
+        widths=[];depths=[];reference_widths=[];reference_depths=[];anatomical_widths=[];anatomical_depths=[];centres_x=[];centres_z=[]
         def smooth5(t):
             t=min(1.,max(0.,t));return t*t*t*(10+t*(-15+6*t))
         for row in range(rows):
@@ -103,26 +105,35 @@ def export(source,frame,region='upper-arm'):
                     if (p[1]-height)*(q[1]-height)>0 or abs(q[1]-p[1])<1e-9:continue
                     t=(height-p[1])/(q[1]-p[1]);section.append((p[0]+(q[0]-p[0])*t,p[2]+(q[2]-p[2])*t))
             if not section:raise ValueError('Missing sculpted forearm reference section')
-            old_weight=smooth5((height-.075)/.070)*(1-smooth5((height-.255)/.020))
-            wrist_weight=smooth5((height-.018)/.020)*(1-smooth5((height-.070)/.080))
-            reference_widths.append((max(p[0] for p in section)-min(p[0] for p in section))*(1-(.18 if frame=='female' else .10)*old_weight))
-            reference_depths.append((max(p[1] for p in section)-min(p[1] for p in section))*(1-(1-.0185/.024)*wrist_weight)*(1-(.26 if frame=='female' else .18)*old_weight))
+            reference_widths.append(max(p[0] for p in section)-min(p[0] for p in section))
+            reference_depths.append(max(p[1] for p in section)-min(p[1] for p in section))
+            centres_x.append((max(p[0] for p in section)+min(p[0] for p in section))/2)
+            centres_z.append((max(p[1] for p in section)+min(p[1] for p in section))/2)
             ring=radii[row*columns:(row+1)*columns]
             x=[r*math.cos(c*math.tau/columns) for c,r in enumerate(ring)]
             z=[r*math.sin(c*math.tau/columns) for c,r in enumerate(ring)]
             anatomical_widths.append(max(x)-min(x));anatomical_depths.append(max(z)-min(z))
-            # A boundary-constrained transfer: keep the shared 54x37 mm wrist
-            # and never enlarge the existing sculpt. The 3 mm width reserve
-            # prevents a source wrist of different size creating a thin notch.
-            widths.append(min(reference_widths[-1],max(.057,anatomical_widths[-1])))
-            depths.append(min(reference_depths[-1],max(.040,anatomical_depths[-1])))
+            widths.append(min(reference_widths[-1],anatomical_widths[-1]))
+            depths.append(min(reference_depths[-1],anatomical_depths[-1]))
+        sx=[a/b for a,b in zip(widths,reference_widths)];sz=[a/b for a,b in zip(depths,reference_depths)]
+        # The old wrist ellipse had a 10 mm centre offset from the palm,
+        # concentrated within one short bridge. Transport the centre along a
+        # smooth palm-to-forearm curve as well as transferring actual girth.
+        offsets_z=[]
+        for row,centre in enumerate(centres_z):
+            y=low+row*.005;t=smooth5((y-.005)/.145)
+            goal=centres_z[0]*(1-t)+centres_z[29]*t
+            blend=1-smooth5((y-.10)/.05)
+            desired=centre+(goal-centre)*blend
+            offsets_z.append(desired-centre*sz[row])
         result.update(license='CC0-1.0 AND CC-BY-4.0',sourceWrist=wrist,
             referenceMeshSha256=hashlib.sha256(raw).hexdigest(),
+            profile='continuous-wrist-source-v2',
             anatomicalWidths=[round(v,7) for v in anatomical_widths],anatomicalDepths=[round(v,7) for v in anatomical_depths],
-            wristWidth=.054,wristDepth=.037,minimumForearmWidth=.057,
             targetWidths=[round(v,7) for v in widths],targetDepths=[round(v,7) for v in depths],
             referenceWidths=[round(v,7) for v in reference_widths],referenceDepths=[round(v,7) for v in reference_depths],
-            scaleX=[round(a/b,7) for a,b in zip(widths,reference_widths)],scaleZ=[round(a/b,7) for a,b in zip(depths,reference_depths)])
+            scaleX=[round(v,7) for v in sx],scaleZ=[round(v,7) for v in sz],
+            offsetX=[round(c*(1-s),7) for c,s in zip(centres_x,sx)],offsetZ=[round(v,7) for v in offsets_z])
     return result
 
 

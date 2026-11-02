@@ -85,6 +85,8 @@ internal sealed partial class NatureModels
             }
         }
         int wrist=0,elbow=0;
+        using var originalDoc=JsonDocument.Parse(FileAccess.GetFileAsString("res://assets/models/human/human-forearm.mesh.json"));
+        var originalPositions=originalDoc.RootElement.GetProperty("positions");
         foreach(var pair in edges)
         {
             if(pair.Value>2)throw new InvalidOperationException("Non-manifold forearm");
@@ -93,8 +95,13 @@ internal sealed partial class NatureModels
             {
                 if(MathF.Abs(p[v].Y+.210f)<.00001f)
                 {
-                    float oval=p[v].X*p[v].X/(WristHalfWidth*WristHalfWidth)+p[v].Z*p[v].Z/(WristHalfDepth*WristHalfDepth);
-                    if(MathF.Abs(oval-1)>.0001f)throw new InvalidOperationException("Forearm wrist does not match the hand ring");
+                    // Check the full fitted source point, including the new
+                    // centreline transport, rather than a fixed ellipse.
+                    var data=originalPositions;
+                    var origin=new Vector3(0,.255f,.010f);
+                    var original=new Vector3(data[v*3].GetSingle(),data[v*3+1].GetSingle(),data[v*3+2].GetSingle())+origin;
+                    var fitted=RefineForearmProfile(original,Vector3.Back,BodyFrame).Point-origin;
+                    if(fitted.DistanceTo(p[v])>.0001f)throw new InvalidOperationException("Forearm wrist loses its fitted source surface");
                     wrist++;
                 }
                 else if(MathF.Abs(p[v].Y-.020f)<.00001f)elbow++;

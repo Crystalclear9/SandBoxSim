@@ -140,7 +140,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `reachMotion=palm-trajectory-v2` 记录手掌轨迹过渡、朝向插值、错开的社交手势与循环进食表现。动作轨迹改变需要重采相同场景的视觉及耗时基线，不能与旧动作混作效率对照。
 
-`bodyFrame=scan-retarget-physique-v23`、`faceContour=regional-adult-v2` 和 `forearmProfile=tapered-volume-v1` 记录完整来源躯干、头脸区域与小臂体积拟合。它们改变轮廓和模型构建成本，视觉及性能对照须使用同一版本、居民身份与近远景条件。
+`bodyFrame=scan-retarget-physique-v23`、`faceContour=regional-adult-v2` 和 `forearmProfile=continuous-source-volume-v2` 记录完整来源躯干、头脸区域与小臂体积拟合。它们改变轮廓和模型构建成本，视觉及性能对照须使用同一版本、居民身份与近远景条件。
 
 无窗口自检的花株接地检查使用 CPU 保存的实例位置；图形模式额外核对 GPU 实例变换。渲染服务器的占位读回不作为几何证据。快捷操作检查覆盖居民、鹿狼和土地的真实目标位置、失效实体身份拒绝、靠近的实际相机距离、人物观察窗／土地手记及观察纯度。
 
@@ -213,7 +213,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `visual-arm-articulation.json` / `panel=arm-articulation` 提供实际上肢近景：暖场 30 帧、测量 480 帧，固定 60 Hz、零模拟推进，默认每 16 帧取样。八秒循环依次抬臂／屈肘、翻掌、放下；三列为正侧背面，两排为两种成人外观。完整动图每三帧采样，原生 1600×1000、160 个采样和八秒，分五次回放。
 
-`renderQuality.forearmSkin=distributed-roll-v1` 标记每手 21 骨的分段旋转表面，`shoulderSurface=authored-bind-surface-v3` 标记来源 A 姿势直接求解、绑定变换组合及固定三角面对应的双四元数人体支撑。二者改变了缓存生成和近景骨骼开销，须冻结同一版本再比较效率；动作端点、边长和表面距离只用于几何回归，不能作为写实度或 RSI 能力分数。
+`renderQuality.forearmSkin=distributed-wrist-v2` 标记每手 21 骨的分段旋转表面，`shoulderSurface=authored-bind-surface-v3` 标记来源 A 姿势直接求解、绑定变换组合及固定三角面对应的双四元数人体支撑。二者改变了缓存生成和近景骨骼开销，须冻结同一版本再比较效率；动作端点、边长和表面距离只用于几何回归，不能作为写实度或 RSI 能力分数。
 
 人体支撑 v2 的贴合残差以固定三角面对应和衣片参与规则为参考，与 v1 的逐姿态最近面查询不同；两者不能直接作为同一质量指标比较。完整 sourceFiles、骨骼／网格版本、构图和照明须一并冻结。
 
@@ -234,3 +234,5 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 这些变化影响轮廓、蒙皮和缓存构建成本。效率或视觉能力对照应固定相同源码、完整资产、居民身份、衣色、相机、灯光、姿态和 LOD；旧体型与旧图片不能只改标签混作同一输入。身体截面、工具接触与变形边界检查是项目回归约束，不是人体真实度、性别识别、医学或 RSI 评分，也不能把更换体型计为程序加速收益。
 
 成人锁骨内端取自转移后体型的 `joint-l-clavicle`，再镜像到另一侧；`source-clavicle-v11` 将这一来源支点用于肩带弧线，避免较窄肩点继续绕固定旧支点旋转。肩胛旋转、腕部接触和衣袖边长约束继续独立验证。
+
+`wristContour=continuous-source-v2`、`forearmProfile=continuous-source-volume-v2` 与 `forearmSkin=distributed-wrist-v2` 分别标记连续腕臂截面、中心线拟合与腕部渐进蒙皮。新增公开 `wrist-motion` 面板及 `visual-wrist-motion.json`，在冻结模拟、固定 60 Hz 下，对照两种成人外观的手背、掌侧和侧面，循环观察屈伸、侧偏、前臂旋转和握拳。它使用真实居民网格与骨架，不测量人体医学能力，也不作为 RSI 分数。新的连接拓扑、25 骨近手与腕部支撑会改变构建和动画成本，效率对照必须冻结同一素材、渲染版本、输入及源码。

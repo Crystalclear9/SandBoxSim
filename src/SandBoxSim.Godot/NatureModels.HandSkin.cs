@@ -40,7 +40,7 @@ internal sealed partial class NatureModels
         string key="anatomical-hand:"+side+skin+lowDetail+":"+BodyFrame;if(_meshes.TryGetValue(key,out var cached))return cached;
         string raw=FileAccess.GetFileAsString("res://assets/models/human/"+(lowDetail?"human-hand-lod.mesh.json":"human-hand.mesh.json"));
         string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
-        if(hash!=(lowDetail?"fd12b6c389014590c0a58bf0b089b36ca690d6e3bbd437f0f8f34368d45dffa4":"03fb4ec965287396050ecf2f2009b765aa034f7e16fa2819d0bd8aaa22e979ba"))throw new InvalidOperationException("Anatomical hand source mismatch");
+        if(hash!=(lowDetail?"023e2e71ec63daeccd5d859e8b4a489905347a002c4115f180fd3d8a799c7b40":"f96bc538fe0963d1d7bf85b75bb71203e1d4e84be1ecaf3f7c03fca618c0fdb8"))throw new InvalidOperationException("Anatomical hand source mismatch");
         using var document=System.Text.Json.JsonDocument.Parse(raw);var root=document.RootElement;
         float[] Floats(string name){var e=root.GetProperty(name);var f=new float[e.GetArrayLength()];int i=0;foreach(var item in e.EnumerateArray())f[i++]=item.GetSingle();return f;}
         int[] Integers(string name){var e=root.GetProperty(name);var f=new int[e.GetArrayLength()];int i=0;foreach(var item in e.EnumerateArray())f[i++]=item.GetInt32();return f;}
@@ -52,6 +52,16 @@ internal sealed partial class NatureModels
             points[i]=new(fitted.Point.X*mirror,fitted.Point.Y,fitted.Point.Z);normals[i]=new(fitted.Normal.X*mirror,fitted.Normal.Y,fitted.Normal.Z);uv[i]=new(tex[i*2],tex[i*2+1]);
         }
         var bones=Integers("bones");var weights=Floats("weights");var mesh=new ArrayMesh();
+        for(int i=0;i<points.Length;i++)if(points[i].Y>.005f&&points[i].Y<=.0451f)
+        {
+            // Quaternion stations distribute wrist flexion/deviation across the
+            // actual bridge instead of collapsing one palm/forearm blend.
+            float t=Mathf.SmoothStep(.005f,.045f,points[i].Y)*ResidentRig.WristIntervals;
+            int low=Math.Min(ResidentRig.WristIntervals-1,(int)t);float fraction=t-low;
+            for(int j=0;j<4;j++){bones[i*4+j]=0;weights[i*4+j]=0;}
+            bones[i*4]=ResidentRig.WristBone(low);weights[i*4]=1-fraction;
+            bones[i*4+1]=ResidentRig.WristBone(low+1);weights[i*4+1]=fraction;
+        }
         for(int i=0;i<points.Length;i++)if(points[i].Y>.0451f)
         {
             var influences=new System.Collections.Generic.Dictionary<int,float>();
@@ -97,7 +107,7 @@ internal sealed partial class NatureModels
             for(int i=0;i<sourceMap.Length;i++)
             {
                 int source=sourceMap[i];vertices[i]=points[source];surfaceNormals[i]=normals[source];surfaceUv[i]=uv[source];
-                var canonical=new Vector3(p[source*3],p[source*3+1],p[source*3+2]);
+                var canonical=new Vector3(points[source].X*mirror,points[source].Y,points[source].Z);
                 detailUv[i]=nail?HandNailCoordinates(canonical):new Vector2(canonical.X,canonical.Y);
                 detailMask[i]=new Color(Math.Clamp(n[source*3+2]*.5f+.5f,0,1),1,1,1);
                 for(int b=0;b<4;b++){surfaceBones[i*4+b]=bones[source*4+b];surfaceWeights[i*4+b]=weights[source*4+b];}
