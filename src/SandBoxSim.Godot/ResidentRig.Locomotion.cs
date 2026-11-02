@@ -89,15 +89,16 @@ internal partial class ResidentRig
         // Let the planted leg approach extension at mid-stance. A permanent
         // downward sine offset made every step look like a crouched march.
         float height=HipHeight;
-        float reach=ThighLength+MathF.Sqrt(ShinLength*ShinLength+.0016f)-.004f;
+        float reach=ThighLength+ShinLength-.004f;
         for(int side=0;side<2;side++)
         {
-            var foot=WalkingFootPath(side);float z=foot.Z-.04f;
+            var foot=WalkingFootPath(side);var offset=new Basis(Vector3.Right,foot.Pitch)*FootCenterOffset;
+            float z=foot.Z-.04f-offset.Z;
             float sole=.065f;
             foreach(var p in BootSoleCurve)sole=MathF.Max(sole,-p.Y*MathF.Cos(foot.Pitch)+p.Z*MathF.Sin(foot.Pitch));
             // The approaching swing foot also constrains reach. Waiting for
             // its contact flag caused an abrupt pelvis drop at heel strike.
-            height=MathF.Min(height,sole+foot.Lift+MathF.Sqrt(MathF.Max(.05f,reach*reach-z*z-.000144f)));
+            height=MathF.Min(height,sole+foot.Lift-offset.Y+MathF.Sqrt(MathF.Max(.05f,reach*reach-z*z-.000144f)));
         }
         // A quiet double-support arc avoids transmitting the swing foot's
         // rapid clearance lift into the whole torso. Reach remains a ceiling.
@@ -130,22 +131,22 @@ internal partial class ResidentRig
         SolveLegTo(side,ankle,new Basis(Vector3.Right,pitch));
     }
 
-    private void SolveLegTo(int side,Vector3 ankle,Basis soleBasis)
+    private void SolveLegTo(int side,Vector3 footCenter,Basis soleBasis)
     {
         var leg=Legs[side];
-        var target=ankle-leg.Position;
+        var target=footCenter-soleBasis*FootCenterOffset-leg.Position;
         float roll=MathF.Atan2(target.X,-target.Y);var lateral=new Basis(Vector3.Back,roll);
-        var sagittal=lateral.Inverse()*target;float lower=MathF.Sqrt(ShinLength*ShinLength+.04f*.04f);
-        float distance=Math.Clamp(sagittal.Length(),.12f,ThighLength+lower-.0001f);
+        var sagittal=lateral.Inverse()*target;float lower=ShinLength;
+        float distance=Math.Clamp(sagittal.Length(),.12f,ThighLength+lower);
         sagittal=sagittal.Normalized()*distance;
         float hip=MathF.Atan2(-sagittal.Z,-sagittal.Y)+MathF.Acos(Math.Clamp(
             (ThighLength*ThighLength+distance*distance-lower*lower)/(2*ThighLength*distance),-1,1));
         var solved=lateral*new Basis(Vector3.Right,hip);
         var remainder=sagittal-new Basis(Vector3.Right,hip)*new Vector3(0,-ThighLength,0);
-        float knee=MathF.Atan2(-remainder.Z,-remainder.Y)-MathF.Atan2(.04f,ShinLength)-hip;
+        float knee=MathF.Atan2(-remainder.Z,-remainder.Y)-hip;
         leg.Basis=solved;
         Knees[side].Rotation=new(knee,0,0);
-        Feet[side].Basis=(solved*new Basis(Vector3.Right,knee)).Inverse()*soleBasis;
+        SetFootOrientation(side,(solved*new Basis(Vector3.Right,knee)).Inverse()*soleBasis);
     }
 
     internal void ConformFoot(int side,Vector3 offset,Vector3 groundNormal)

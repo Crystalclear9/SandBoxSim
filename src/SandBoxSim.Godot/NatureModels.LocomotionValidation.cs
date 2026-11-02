@@ -27,7 +27,7 @@ internal sealed partial class NatureModels
                         var ankle=InTorso(rig.Feet[side],rig).Origin;
                         float jump=ankle.DistanceTo(previous[side]);maxStep=MathF.Max(maxStep,jump);previous[side]=ankle;
                         if(!ankle.IsFinite()||jump>.060f||MathF.Abs(rig.Knees[side].Position.Length()-ResidentRig.ThighLength)>1e-6f||
-                            MathF.Abs(rig.Feet[side].Position.Length()-MathF.Sqrt(ResidentRig.ShinLength*ResidentRig.ShinLength+.0016f))>1e-6f)
+                            (rig.Feet[side].Position-rig.Feet[side].Basis*ResidentRig.FootCenterOffset-Vector3.Down*ResidentRig.ShinLength).Length()>1e-6f)
                             throw new InvalidOperationException($"Locomotion limb discontinuity: {frame}/{side}, step={jump}");
                         if(frame>=180&&frame<600)
                         {

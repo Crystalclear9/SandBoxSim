@@ -104,7 +104,7 @@ internal sealed partial class NatureModels
             }
             finally{rig.Free();}
         }
-        if(sway<.005f||knee<.05f)throw new InvalidOperationException("Relaxed stance retains locked knees and a fixed pelvis");
+        if(sway<.005f||knee<.05f||knee>.12f)throw new InvalidOperationException("Relaxed stance locks the knees or crouches from the shoe-origin offset");
         GD.Print($"LUMBAR_CLOTH_PASS: 2 frames/3 cuts, 3 actions, {probes} actual posed trouser-clearance rays; pelvic/chest excursion={excursion:F3} m, rigid mounts and pause");
         GD.Print($"RELAXED_STANCE_PASS: 2 frames/480 steps, planted level soles after 0.35s entry, entry drift={entryDrift:F4} m, fixed thigh lengths, sway={sway:F3} m, knee={knee:F3} rad and pause");
     }

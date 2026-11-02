@@ -251,7 +251,7 @@ internal partial class ResidentRig : Node3D
             Legs[i].Position=pelvis*new Vector3(i==0?-HipHalfWidth:HipHalfWidth,HipHeight,0);
             Legs[i].Rotation=new(.55f*Smooth(_pickupBlend)+stance.Thigh,0,0);
             Knees[i].Rotation=new(-1.1f*Smooth(_pickupBlend)+stance.Knee,0,0);
-            Feet[i].Rotation=new(-(Legs[i].Rotation.X+Knees[i].Rotation.X),0,0);
+            SetFootOrientation(i,(Legs[i].Basis*Knees[i].Basis).Inverse());
             if(_restSupport>.00001f)PlantRestLeg(i);
             PlantPickupLeg(i,Smooth(_pickupBlend));
             PoseWalkingLeg(i,gaitWeight);

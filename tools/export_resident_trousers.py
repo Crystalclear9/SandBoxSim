@@ -12,6 +12,7 @@ import sys
 import bpy
 import bmesh
 from mathutils import Vector
+from mathutils.bvhtree import BVHTree
 sys.dont_write_bytecode=True
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 from resident_clothing import trouser_fold
@@ -27,13 +28,14 @@ def read(name):
     raw=(root/name).read_bytes()
     if hashlib.sha256(raw).hexdigest()!=manifest[name]['sha256']:raise ValueError('Changed source '+name)
     return raw.decode('utf-8')
-base=[];faces=[];group=''
+base=[];faces=[];skin_faces=[];group=''
 for line in read('base.obj').splitlines():
     t=line.split()
     if not t:continue
     if t[0]=='v':base.append(Vector(map(float,t[1:4])))
     elif t[0]=='g':group=t[1]
     elif t[0]=='f' and group=='helper-tights':faces.append(tuple(int(c.split('/')[0])-1 for c in t[1:]))
+    elif t[0]=='f' and group=='body':skin_faces.append(tuple(int(c.split('/')[0])-1 for c in t[1:]))
 groups=json.loads(read('basemesh_vertex_groups.json'))
 def body(sex):
     points=[v.copy() for v in base]
@@ -47,6 +49,8 @@ def joint(points,name):
 reference=joint(body('male'),'joint-l-shoulder').x
 for sex in ('male','female'):
     points=body(sex);hip=joint(points,'joint-l-upper-leg');knee=joint(points,'joint-l-knee')
+    anatomy=BVHTree.FromPolygons(points,skin_faces,all_triangles=False)
+    anatomical_samples=0
     half=.100 # Shared neutral stance; source pelvis volume remains independent.
     used=sorted({i for face in faces for i in face});lookup={v:i for i,v in enumerate(used)}
     support_path=Path(__file__).resolve().parents[1]/('src/SandBoxSim.Godot/assets/models/human/trunk-'+('feminine' if sex=='female' else 'masculine')+'-cage.json')
@@ -66,6 +70,23 @@ for sex in ('male','female'):
         x+=(1 if x>=0 else -1)*(half-centre*.202/reference)*influence
         y=.80+(p.y-hip.y)*.38/(hip.y-knee.y)
         z=-(p.z-(hip.z*(1-t)+knee.z*t))*.1
+        def smooth(a,b,value):
+            u=min(1.,max(0.,(value-a)/(b-a)));return u*u*(3-2*u)
+        anatomical_weight=smooth(.43,.49,y)*(1-smooth(.69,.77,y))*smooth(.03,.065,abs(x))
+        if anatomical_weight>0:
+            side=1 if p.x>=0 else -1
+            origin=Vector((side*centre,p.y,hip.z*(1-t)+knee.z*t))
+            direction=Vector((p.x-origin.x,0,p.z-origin.z))
+            if direction.length<1e-8:raise ValueError('Missing anatomical thigh direction')
+            hit,normal,index,distance=anatomy.ray_cast(origin,direction.normalized(),4.)
+            if hit is None:raise ValueError('Anatomical thigh section is open')
+            radial=Vector(((hit.x-origin.x)*.202/reference,0,-(hit.z-origin.z)*.1))
+            if not .025<radial.length<.20:raise ValueError(f'Anatomical thigh radius escaped its source region: {sex}/{i}, radius={radial.length}')
+            radial+=radial.normalized()*.006
+            fitted=Vector((side*half+radial.x,y,radial.z))
+            x=x*(1-anatomical_weight)+fitted.x*anatomical_weight
+            z=z*(1-anatomical_weight)+fitted.z*anatomical_weight
+            anatomical_samples+=1
         r=math.hypot(x,z);blend=min(1,max(0,(y-.70)/.07));blend=blend*blend*(3-2*blend)
         if r>1e-8:
             fit=min(1.30,max(.04,radius(y,math.atan2(z,x))+.007)/r)
@@ -84,7 +105,7 @@ for sex in ('male','female'):
         dx=x-centre_x;radial=math.hypot(dx,z)
         edge=min(1.,max(0.,(abs(x)-.035)/.045));edge=edge*edge*(3-2*edge)
         lower=1-min(1.,max(0.,(y-.71)/.12));lower=lower*lower*(3-2*lower)
-        clearance=.007*edge*lower*(1-cuff)
+        clearance=.007*edge*lower*(1-cuff)*(1-anatomical_weight)
         if radial>1e-8:
             # Compression folds terminate near the hip/boot supports, rather
             # than adding a periodic ripple to the whole leg.
@@ -136,9 +157,19 @@ for sex in ('male','female'):
         cross=(b.co-a.co).cross(c.co-a.co)
         if cross.length_squared<=1e-14 or cross.dot(a.normal+b.normal+c.normal)<=0:
             raise ValueError('Folded or degenerate trouser triangle')
-    data=dict(schemaVersion=2,source='MakeHuman CC0 HM08 helper-tights',frame=sex,hipHalfWidth=half,jointCount=5,cuffSkin='knee-transition-v1',physique='support-drape-v17',tailoring=dict(thighEaseMetres=.007,maximumFoldMetres=.0085,pelvis='source-envelope',bootOpening='pinned',detail='sewn-support-folds-v1'),
+    skin_support=[]
+    for row in range(21):
+        height=.49+row*.01;t=(.80-height)/.38
+        origin=hip.lerp(knee,t)
+        for col in range(64):
+            angle=col*math.tau/64
+            direction=Vector((math.cos(angle)/(.202/reference),0,-math.sin(angle)/.1)).normalized()
+            hit,normal,index,distance=anatomy.ray_cast(origin,direction,4.)
+            if hit is None:raise ValueError('Incomplete anatomical leg reference')
+            skin_support.append(round(math.hypot((hit.x-origin.x)*.202/reference,(hit.z-origin.z)*.1),7))
+    data=dict(schemaVersion=2,source='MakeHuman CC0 HM08 helper topology and anatomical body sections',frame=sex,hipHalfWidth=half,jointCount=5,cuffSkin='knee-transition-v1',physique='anatomical-limbs-v18',tailoring=dict(thighEaseMetres=.006,maximumFoldMetres=.0085,pelvis='source-envelope',bootOpening='pinned',detail='sewn-support-folds-v1',legSupport='source-body-rays-v1',anatomicalSamples=anatomical_samples),
         sourceSha256={name:manifest[name]['sha256'] for name in ('base.obj','basemesh_vertex_groups.json',f'caucasian-{sex}-young.target','caucasian-male-young.target')},
-        supportSha256=hashlib.sha256(support_path.read_bytes().replace(b'\r\n',b'\n')).hexdigest(),positions=[],normals=[],uv=[],bones=[],weights=[],indices=[])
+        supportSha256=hashlib.sha256(support_path.read_bytes().replace(b'\r\n',b'\n')).hexdigest(),anatomicalSupport=dict(low=.49,step=.01,rows=21,columns=64,radii=skin_support),positions=[],normals=[],uv=[],bones=[],weights=[],indices=[])
     for v in result.vertices:
         p=v.co;n=v.normal.normalized()
         data['positions']+= [round(x,7) for x in p];data['normals']+= [round(x,7) for x in n]

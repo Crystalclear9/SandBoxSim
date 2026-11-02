@@ -8,6 +8,35 @@ from collections import Counter
 
 ROOT=Path(__file__).resolve().parents[1]/'src/SandBoxSim.Godot/assets/models/human'
 class TrouserTests(unittest.TestCase):
+    def test_clothed_thigh_clearance_against_source_skin(self):
+        for sex in ('male','female'):
+            d=json.loads((ROOT/f'trousers-{sex}.mesh.json').read_text())
+            self.assertEqual(d['tailoring']['legSupport'],'source-body-rays-v1')
+            self.assertGreater(d['tailoring']['anatomicalSamples'],200)
+            skin=d['anatomicalSupport'];self.assertEqual(len(skin['radii']),skin['rows']*skin['columns'])
+            p=list(zip(*[iter(d['positions'])]*3))
+            for height in (.55,.61,.67):
+                segments=[]
+                for tri in zip(*[iter(d['indices'])]*3):
+                    hits=[]
+                    for i,j in zip(tri,tri[1:]+tri[:1]):
+                        a,b=p[i],p[j]
+                        if (a[1]-height)*(b[1]-height)>0 or abs(b[1]-a[1])<1e-9:continue
+                        u=(height-a[1])/(b[1]-a[1])
+                        hits.append((a[0]+u*(b[0]-a[0])-.10,a[2]+u*(b[2]-a[2])))
+                    if len(hits)==2:segments.append(hits)
+                for col in (0,16,48):
+                    angle=col*math.tau/64;ray=(math.cos(angle),math.sin(angle));hits=[]
+                    for a,b in segments:
+                        edge=(b[0]-a[0],b[1]-a[1]);cross=ray[0]*edge[1]-ray[1]*edge[0]
+                        if abs(cross)<1e-10:continue
+                        r=(a[0]*edge[1]-a[1]*edge[0])/cross;t=(a[0]*ray[1]-a[1]*ray[0])/cross
+                        if r>0 and 0<=t<=1:hits.append(r)
+                    expected=skin['radii'][round((height-skin['low'])/skin['step'])*64+col]
+                    gap=min(hits)-expected
+                    self.assertGreater(gap,.0005,(sex,height,col,'cloth cuts into source skin'))
+                    self.assertLess(gap,.012,(sex,height,col,'cloth duplicates anatomical volume'))
+
     def test_pelvis_gluteal_and_thigh_sections(self):
         data={sex:json.loads((ROOT/f'trousers-{sex}.mesh.json').read_text()) for sex in ('male','female')}
         def section(sex,y):
@@ -15,7 +44,7 @@ class TrouserTests(unittest.TestCase):
             rows=[p for p in points if abs(p[1]-y)<.008]
             return max(p[0] for p in rows)-min(p[0] for p in rows),max(p[2] for p in rows)
         for sex in data:
-            self.assertEqual(data[sex]['physique'],'support-drape-v17')
+            self.assertEqual(data[sex]['physique'],'anatomical-limbs-v18')
             self.assertEqual(data[sex]['tailoring']['pelvis'],'source-envelope')
             points=list(zip(*(iter(data[sex]['positions']),)*3))
             self.assertTrue(all(abs(x)<.26 and .3849<=y<=.9401 and abs(z)<.20 for x,y,z in points))
@@ -30,7 +59,7 @@ class TrouserTests(unittest.TestCase):
 
     def test_provenance_and_connected_clothing(self):
         manifest=json.loads((ROOT/'head-sources.json').read_text())['files']
-        for sex,sha in [('male','a440b3f9d644abc6d18a59fb51b68878d33e8cb4b57cdc1572a16e2d3b5225f5'),('female','973396b92fee9fcbc197c28c2603109715861b3a83b6e2be8efde6cc0d28b9b1')]:
+        for sex,sha in [('male','febd1203f864b22df3d0e01e20cfab8ae01d4331730dda46cdc3d257da1dbf17'),('female','d3a4a190276586235b1d34f5b6b7c5fcb1701fd54571b2c85b6070201ce35ef1')]:
             raw=(ROOT/f'trousers-{sex}.mesh.json').read_bytes().replace(b'\r\n',b'\n');self.assertEqual(hashlib.sha256(raw).hexdigest(),sha)
             data=json.loads(raw);count=len(data['positions'])//3
             for name,digest in data['sourceSha256'].items():self.assertEqual(digest,manifest[name]['sha256'])

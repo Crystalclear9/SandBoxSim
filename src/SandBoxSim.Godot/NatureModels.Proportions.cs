@@ -6,6 +6,14 @@ namespace SandBoxSim.Client;
 internal partial class ResidentRig
 {
     internal const float HipHeight=.80f, ThighLength=.38f, ShinLength=.355f;
+    internal static readonly Vector3 FootCenterOffset=new(0,0,-.04f);
+    private void SetFootOrientation(int side,Basis orientation)
+    {
+        // The shoe last's centre is an offset from the ankle, not a longer
+        // diagonal tibia. Rotate that offset in foot space, after leg IK.
+        Feet[side].Basis=orientation;
+        Feet[side].Position=Vector3.Down*ShinLength+orientation*FootCenterOffset;
+    }
     // Retain the authored head, hands and arm lengths; shorten the barrel-like
     // trunk while raising the pelvis. These coordinates also drive action IK.
     internal static float BodyY(float y)=>y<.67f?y+.13f:y<1.18f?.80f+(y-.67f)*(.43f/.51f):y+.05f;

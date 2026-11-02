@@ -25,7 +25,8 @@ internal sealed partial class NatureModels
                         float drift=foot.Origin.DistanceTo(anchors[side].Origin);maxDrift=MathF.Max(maxDrift,drift);
                         if(drift>.0001f||foot.Basis.Y.Dot(Vector3.Up)<.99999f)
                             throw new InvalidOperationException($"Working stance slides or lifts the ankle: {identity}/{action}/{frame}, {drift}");
-                        if(MathF.Abs(rig.Knees[side].Position.Length()-ResidentRig.ThighLength)>.000001f||MathF.Abs(rig.Feet[side].Position.Length()-MathF.Sqrt(ResidentRig.ShinLength*ResidentRig.ShinLength+.04f*.04f))>.000001f)
+                        if(MathF.Abs(rig.Knees[side].Position.Length()-ResidentRig.ThighLength)>.000001f||
+                            (rig.Feet[side].Position-rig.Feet[side].Basis*ResidentRig.FootCenterOffset-Vector3.Down*ResidentRig.ShinLength).Length()>.000001f)
                             throw new InvalidOperationException("Working stance changes leg lengths");
                         maxKnee=MathF.Max(maxKnee,MathF.Abs(rig.Knees[side].Rotation.X));
                         hipRange=MathF.Max(hipRange,MathF.Abs(rig.Legs[side].Position.Y-ResidentRig.HipHeight));

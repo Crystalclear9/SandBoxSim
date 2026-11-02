@@ -8,7 +8,7 @@ internal partial class ResidentRig
     private Vector3 _supportAngle,_supportVelocity;
     internal float HipHalfWidth=.10f,ArmRestClearance;
     // A sagittal planted stance. Preserve the authored thigh/shin lengths and
-    // the ankle's forward offset, rather than translating the knees or feet.
+    // the anatomical ankle; the shoe centre offset is applied in foot space.
     private (Vector3 Hip,float Thigh,float Knee) WorkSupport(float delta,bool active,float weight)
     {
         // Integrate only this cheap support filter at close-up cadence when a
@@ -22,9 +22,9 @@ internal partial class ResidentRig
         }
         float thigh=Math.Clamp(_supportAngle.X,0,.26f)*weight;
         float hipZ=-.035f*thigh;
-        float lower=MathF.Sqrt(ShinLength*ShinLength+.04f*.04f),ankleAngle=MathF.Atan2(.04f,ShinLength);
-        float shinAngle=MathF.Asin(Math.Clamp((.04f+hipZ-ThighLength*MathF.Sin(thigh))/lower,-1,1));
+        float lower=ShinLength;
+        float shinAngle=MathF.Asin(Math.Clamp((hipZ-ThighLength*MathF.Sin(thigh))/lower,-1,1));
         float hipY=HipHeight-ThighLength-ShinLength+ThighLength*MathF.Cos(thigh)+lower*MathF.Cos(shinAngle);
-        return (new(0,hipY-HipHeight,hipZ),thigh,shinAngle-ankleAngle-thigh);
+        return (new(0,hipY-HipHeight,hipZ),thigh,shinAngle-thigh);
     }
 }
