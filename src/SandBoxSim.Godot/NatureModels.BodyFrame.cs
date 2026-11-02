@@ -10,8 +10,8 @@ internal sealed partial class NatureModels
     private readonly float[][] _garmentFrameReference=new float[3][];
     private readonly float[][] _sewnFrameReference=new float[3][];
     private const int TrunkRows=113,TrunkColumns=128;
-    private const string MaleTrunkHash="7314a5a0656b243476ac693102c017ae469e2cc37cd8aba94539cf62bff7320a";
-    private const string FemaleTrunkHash="2f6ad14475b1e02ced5302dbfb3b4b3e33220d309d8b35f2eeb5d8dda1a7f3c1";
+    private const string MaleTrunkHash="250d268b435d96439c7e2b98c5b44bcb97c4e9ebd99dc722ec92369e1987f714";
+    private const string FemaleTrunkHash="bc6cc6ed312c17227c42a8bed7655ff0fe2d908b3112f4e0ff7d7f262f39237d";
     private const float TrunkLow=.74f,TrunkHigh=1.30f;
     private const float GarmentReferenceLow=.64f;
     private const int GarmentReferenceRows=133;
@@ -348,6 +348,7 @@ internal sealed partial class NatureModels
         try
         {
             ValidateAdultContourSections(male,female);
+            ValidateForearmSupport(male,0);ValidateForearmSupport(female,1);
             foreach(var rig in new[]{male,female})
             {
                 ValidateArmClothingFit(rig);

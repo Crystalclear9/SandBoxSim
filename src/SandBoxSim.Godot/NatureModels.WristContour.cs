@@ -23,8 +23,9 @@ internal sealed partial class NatureModels
         float weight=rise.V*(1-fall.V),derivative=rise.D*(1-fall.V)-rise.V*fall.D;
         float rx=frame==1?.18f:.10f,rz=frame==1?.26f:.18f;
         float sx=1-rx*weight,sz=1-rz*weight,z=point.Z-.010f;
-        return(new(point.X*sx,point.Y,.010f+z*sz),
-            new Vector3(normal.X/sx,normal.Y+normal.X*point.X*rx*derivative/sx+normal.Z*z*rz*derivative/sz,normal.Z/sz).Normalized());
+        var sculpted=new Vector3(point.X*sx,point.Y,.010f+z*sz);
+        var fittedNormal=new Vector3(normal.X/sx,normal.Y+normal.X*point.X*rx*derivative/sx+normal.Z*z*rz*derivative/sz,normal.Z/sz).Normalized();
+        return FitForearmSupport(sculpted,fittedNormal,frame);
     }
 
     private static (float Value,float Derivative) WristContourBlend(float y)

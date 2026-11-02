@@ -12,7 +12,7 @@ internal sealed partial class NatureModels
         if(_meshes.TryGetValue(key,out var cached))return cached;
         string raw=FileAccess.GetFileAsString("res://assets/models/human/trousers-"+frame+".mesh.json").Replace("\r\n","\n",StringComparison.Ordinal);
         string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
-        if(hash!=(BodyFrame==1?"f9f6a16dfc13e603ed1d4b1fa60774a097d91dab4937b31f16fc1fdf12445795":"07eff9c8917d8ada810e6019635aefd4a3c1abdf3e555cebc8ae906c815d0315"))
+        if(hash!=(BodyFrame==1?"a148dcd1fa3ac4f1e520bff2153c66cf9cad2d0a8e56802283e24219fb580f88":"b1be165ae1ea3ad0692172fa97252f8751fb7cf9eced59df1573a2c419657f40"))
             throw new InvalidOperationException("Changed source trousers");
         using var doc=JsonDocument.Parse(raw);var data=doc.RootElement;
         float[] Floats(string field){var a=new float[data.GetProperty(field).GetArrayLength()];int i=0;foreach(var v in data.GetProperty(field).EnumerateArray())a[i++]=v.GetSingle();return a;}

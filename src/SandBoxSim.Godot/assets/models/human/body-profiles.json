@@ -1,18 +1,22 @@
 {
   "schemaVersion": 1,
-  "profile": "metric-physique-v20",
+  "profile": "lean-limb-physique-v21",
   "license": "CC0-1.0",
   "description": "Project adult references from attributed HM08 targets. One uniform source scale maps the baseline male shoulder-to-hip span to 0.43 metres for both frames. Shapes are art choices, not population measurements.",
   "frames": {
     "male": {
       "targets": {
-        "universal-male-young-maxmuscle-averageweight.target": 0.15,
+        "universal-male-young-maxmuscle-averageweight.target": 0.14,
+        "universal-male-young-averagemuscle-minweight.target": 0.24,
+        "universal-male-young-maxmuscle-minweight.target": 0.06,
         "torso-vshape-incr.target": 0.10
       }
     },
     "female": {
       "targets": {
-        "female-young-averagemuscle-averageweight-maxcup-averagefirmness.target": 0.20
+        "universal-female-young-averagemuscle-minweight.target": 0.30,
+        "female-young-averagemuscle-averageweight-maxcup-averagefirmness.target": 0.14,
+        "female-young-averagemuscle-minweight-maxcup-averagefirmness.target": 0.06
       }
     }
   }

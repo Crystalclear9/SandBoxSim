@@ -28,9 +28,9 @@
 
 ## 成人身体配方
 
-[body-profiles.json](../../src/SandBoxSim.Godot/assets/models/human/body-profiles.json) 与 [resident_body.py](../../tools/resident_body.py) 是 `metric-physique-v20` 的共同入口。男性在青年基础体上组合较克制的肌肉形变与躯干 V 形；女性使用较克制的胸部体积形变，骨盆保留基础来源轮廓。四组导出统一使用基础男性肩髋纵向 0.43 米定义的三轴比例，约为 0.0922173；不使用独立的横向、纵向和深度缩放。具体权重见[身体比例](models.md)。活动配方中的三个 CC0 目标均来自固定的 MakeHuman 提交 `a8bc2d54ff0ac92e78ff71431b1023eda42bf482`，URL、长度与 SHA-256 固定在 `head-sources.json`，下载器复用本地已校验文件。
+[body-profiles.json](../../src/SandBoxSim.Godot/assets/models/human/body-profiles.json) 与 [resident_body.py](../../tools/resident_body.py) 是 `lean-limb-physique-v21` 的共同入口。男性在青年基础体上组合较克制的肌肉形变与躯干 V 形；女性使用较克制的胸部体积形变，骨盆保留基础来源轮廓。五组支撑统一使用基础男性肩髋纵向 0.43 米定义的三轴比例，约为 0.0922173；不使用独立的横向、纵向和深度缩放。具体权重见[身体比例](models.md)。活动配方中的体重、肌肉与胸部 CC0 目标均来自固定的 MakeHuman 提交 `a8bc2d54ff0ac92e78ff71431b1023eda42bf482`，URL、长度与 SHA-256 固定在 `head-sources.json`，下载器复用本地已校验文件。
 
-躯干截面、上臂截面、肩部原始 A 姿势／绑定三角面和连续裤装各自记录相同的 `shapeRecipe`：配方标记、配方文件 SHA-256 与实际目标权重。来源测试检查四者一致，运行加载器继续校验完整成品哈希。修改身体配方后须按顺序重建两套 trunk、上臂、肩面和裤装；仅保留其中一组会混合不同体型。原胸肩衣片构造体、头脸、手部和 CMU 捕捉数据独立保留，不要求因身体配方变化而重烘焙未改变的原始衣片。
+躯干截面、上臂截面、肩部原始 A 姿势／绑定三角面、连续裤装与前臂拟合截面各自记录相同的 `shapeRecipe`：配方标记、配方文件 SHA-256 与实际目标权重。来源测试检查五组一致，运行加载器继续校验完整成品哈希。修改身体配方后须按顺序重建两套 trunk、上臂、肩面、裤装和前臂截面；仅保留其中一组会混合不同体型。原胸肩衣片构造体、头脸、手部和 CMU 捕捉数据独立保留，不要求因身体配方变化而重烘焙未改变的原始衣片。
 
 ## 肘部与前臂
 
@@ -45,6 +45,12 @@
 当前小臂另通过 `RefineForearmProfile` 收束肌腹，并以连续曲率过渡保留腕部及隐藏肘缘。两种成人外观拥有独立缓存，近手、远手与前臂保持同源轮廓；法线包含体积形变导数，手指和握柄区不改变。形态依据、项目拟合范围与局限见[成人体型与前臂说明](models.md)。新增公开评测面板 `body-frames` 与 `forearm-frames`，分别复现同衣色体型和小臂正侧面比较；对应 `visual-body-frames.json` 与 `visual-forearm-frames.json`。
 
 发根表现参考 [MakeHuman 官方材质](https://static.makehumancommunity.org/assets/creatingassets/makeclothes/makeclothes_materials.html)和[Godot 透明材质](https://docs.godotengine.org/en/stable/tutorials/3d/standard_material_3d.html)。当前固定 Compatibility 路径仍使用原 Scissor；没有声称启用 Alpha-to-Coverage，也没有新增扫描或全部毛发几何。
+
+### 与身体配方共用的前臂截面
+
+`forearm-fit-male.json`／`forearm-fit-female.json` 由 `export_upper_arm_support.py --region forearm` 生成。工具沿同一 MakeHuman 身体的肘—腕轴取 35×64 个截面，将 0.075–0.245 米的宽深与已有 Blender 前臂雕刻比较；记录身体配方、来源哈希、原雕刻哈希及拟合宽深。两份数据混合 CC0 身体参考与 Julien Kaspar / Blender Studio 的 CC BY 4.0 衍生测量，许可明确为 `CC0-1.0 AND CC-BY-4.0`。
+
+运行时保留原雕刻拓扑、骨权重、肌腱与肘部细节，用单调三次插值和连续淡入淡出匹配身体截面。该附加拟合只收束原表面，腕口、手指和握柄坐标固定；共同 54×37 毫米腕部约束保留 3 毫米宽度余量，避免因来源腕部尺寸不同形成细颈。近手、远景前臂共用映射，法线包含宽深变化导数，动画帧不重采样网格。`FOREARM_BODY_SUPPORT_PASS` 比较实际连体蒙皮三个截面的宽深与目标，保留 2 毫米几何容差；这不是人群尺寸或审美评分。
 
 ## 解剖手部
 
@@ -75,7 +81,7 @@ python tools/fetch-human-assets.py
 python tools/fetch-human-assets.py --verify
 ```
 
-下载器仅通过 HTTP Range 提取固定 ZIP 成员，校验文件长度、CRC 和 SHA-256，现有合格文件直接复用；不会下载整个约 268 MiB 的素材包。27 个所需输入共约 25 MiB，包括许可证。`--verify` 不访问网络。
+下载器仅通过 HTTP Range 提取固定 ZIP 成员，校验文件长度、CRC 和 SHA-256，现有合格文件直接复用；不会下载整个约 268 MiB 的素材包。31 个所需输入共约 26 MiB，包括许可证。`--verify` 不访问网络。
 
 ```powershell
 $faceBlender = './.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
@@ -111,7 +117,7 @@ Godot 三平台导出包含模型 JSON、许可文本与导入纹理；发行包
 
 三套上衣采用 `faired-panel-v8` 连续缝片构造。原始胸肩从 MakeHuman CC0 身体采样，`torso-cage.json` 和 `torso-feminine-cage.json` 保存 65×128 的胸肩支撑与来源哈希。当前运行体型另使用 [trunk-masculine-cage.json](../../src/SandBoxSim.Godot/assets/models/human/trunk-masculine-cage.json) 和 [trunk-feminine-cage.json](../../src/SandBoxSim.Godot/assets/models/human/trunk-feminine-cage.json)，各包含 113×128 个覆盖骨盆、腰背与胸廓的平面截面凸包采样。两套青年宏目标及原始基础体均来自现有已校验的 CC0 来源，不改变头脸、手部来源或许可。
 
-`NatureModels.BodyFrame.cs` 根据来源截面拟合完整躯干并留出衣料松量。当前 `metric-physique-v20` 保留两种来源体型，采用整体等比身高变化、共同中性站姿及独立的衣装拟合；肩袖、卷边、实际关节与逆绑定共同适配。上衣保留原面数，低段随骨盆运动，胸廓与腰部平滑过渡；裤装采用下述连续来源表面。详细参数与局限见[成人身体说明](models.md)。
+`NatureModels.BodyFrame.cs` 根据来源截面拟合完整躯干并留出衣料松量。当前 `lean-limb-physique-v21` 保留两种来源体型，采用整体等比身高变化、共同中性站姿及独立的衣装拟合；肩袖、卷边、实际关节与逆绑定共同适配。上衣保留原面数，低段随骨盆运动，胸廓与腰部平滑过渡；裤装采用下述连续来源表面。详细参数与局限见[成人身体说明](models.md)。
 
 宽松衣身参考 [V&A 的衬衫结构](https://www.vam.ac.uk/articles/sew-your-own-customisable-shirt)，胸腹衔接保留布料松量，减少刻画肌肉的重复褶皱；背部肩部拼接以贴面短针脚表示。头部整体上移 18 毫米以露出源颈部。袖窿收至肩侧，袖根延续衣身切平面，左右三角面方向对应。袖身权重按边长离线平滑并约束空间变化；领口、中线与腰带固定，袖口随肩骨，原手柄和手掌长度不变。当前成品为 7,320／7,320／7,200 三角形。改变原始衣片或其胸肩基础体后须重烘焙三套衣装；完整躯干体型在运行模型创建时拟合，单独重建 trunk 文件不要求重烘焙原衣片。普通构建与运行不需要 Blender。成人运行绑定另以独立肩胛带及六个摆动／轴向扭转分离区间保持肩袖截面，并按拟合网格上的袖窿最短路径距离分配袖管位置修正；两种体型共用二十六骨结构，每顶点至多四个影响，袖窿与袖口之间在实际边长上重新求解过渡，原始烘焙网格与来源哈希不变。肩部范围及实际作业入口见[肩袖绑定与动作说明](models.md)。
 
@@ -135,6 +141,8 @@ try {
     }
     python -B tools/export_upper_arm_support.py --source .tools/sources/makehuman --output $bodyOutput
     if ($LASTEXITCODE -ne 0) { throw 'Upper-arm export failed' }
+    python -B tools/export_upper_arm_support.py --source .tools/sources/makehuman --output $bodyOutput --region forearm
+    if ($LASTEXITCODE -ne 0) { throw 'Forearm fit export failed' }
     python -B tools/export_shoulder_surface.py --source .tools/sources/makehuman --output $bodyOutput
     if ($LASTEXITCODE -ne 0) { throw 'Shoulder export failed' }
     $arguments = @('--background','--factory-startup','--disable-autoexec','--python-exit-code','1',
@@ -146,6 +154,7 @@ python -B -m unittest discover -s tools -p test_human_assets.py
 python -B -m unittest discover -s tools -p test_resident_trousers.py
 python -B -m unittest discover -s tools -p test_upper_arm_support.py
 python -B -m unittest discover -s tools -p test_motion_sources.py
+python -B -m unittest discover -s tools -p test_forearm_fit.py
 ./tools/godot.ps1 -Mode test
 ```
 
@@ -155,7 +164,7 @@ python -B -m unittest discover -s tools -p test_motion_sources.py
 
 ## 连续裤装来源
 
-`trousers-male.mesh.json`／`trousers-female.mesh.json` 从同一 CC0 HM08 的 `helper-tights` 服装辅助几何生成，分别应用共同身体配方；不是旧骨盆和大腿截面体的增面。导出器校验源文件、去掉 A 姿势腿部偏移、裁切并保留单连通衣料，拟合裤腰与靴口，输出五骨权重和原始输入哈希。当前 `metric-physique-v20` 按来源骨盆包络、中性站姿和衣料松量组织腰臀与上腿，输出记录 `physique` 配方标记，运行时仍校验完整成品 SHA-256。运行时用骨盆、实际大腿与膝关节驱动连续表面；面数、约束与测试见[模型系统](models.md)。现有头脸文件和手部授权保持独立。
+`trousers-male.mesh.json`／`trousers-female.mesh.json` 从同一 CC0 HM08 的 `helper-tights` 服装辅助几何生成，分别应用共同身体配方；不是旧骨盆和大腿截面体的增面。导出器校验源文件、去掉 A 姿势腿部偏移、裁切并保留单连通衣料，拟合裤腰与靴口，输出五骨权重和原始输入哈希。当前 `lean-limb-physique-v21` 按来源骨盆包络、中性站姿和衣料松量组织腰臀与上腿，输出记录 `physique` 配方标记，运行时仍校验完整成品 SHA-256。运行时用骨盆、实际大腿与膝关节驱动连续表面；面数、约束与测试见[模型系统](models.md)。现有头脸文件和手部授权保持独立。
 
 在上述项目临时环境中，使用同一 Blender 重建裤装：
 
@@ -172,7 +181,7 @@ if ($process.ExitCode -ne 0) { throw 'Trouser export failed' }
 python -m unittest discover -s tools -p test_resident_trousers.py
 ```
 
-当前 `metric-physique-v20` 的裤装为男性 2,909 顶点／5,664 三角面、女性 2,731 顶点／5,296 三角面，保持五骨蒙皮、共享材质和原始 CC0 输入来源。导出器、工具测试与运行加载器校验成品 SHA-256、连通性及米制范围；胸腰和骨盆的成衣截面直接与来源比较，具体边界见[模型系统](models.md)。
+当前 `lean-limb-physique-v21` 的裤装为男性 2,909 顶点／5,664 三角面、女性 2,731 顶点／5,296 三角面，保持五骨蒙皮、共享材质和原始 CC0 输入来源。导出器、工具测试与运行加载器校验成品 SHA-256、连通性及米制范围；胸腰和骨盆的成衣截面直接与来源比较，具体边界见[模型系统](models.md)。
 
 
 ## 上臂解剖支撑与姿态表面

@@ -17,12 +17,12 @@ class HumanAssetTests(unittest.TestCase):
     def test_body_recipe_is_shared_by_all_anatomical_supports(self):
         raw=(ROOT/'body-profiles.json').read_bytes().replace(b'\r\n',b'\n')
         profile=json.loads(raw);sha=hashlib.sha256(raw).hexdigest()
-        self.assertEqual(profile['profile'],'metric-physique-v20')
+        self.assertEqual(profile['profile'],'lean-limb-physique-v21')
         self.assertEqual(profile['license'],'CC0-1.0')
         manifest=json.loads((ROOT/'head-sources.json').read_text(encoding='utf-8'))['files']
         for sex,label in (('male','masculine'),('female','feminine')):
             shapes=[]
-            for file in (f'trunk-{label}-cage.json',f'upper-arm-{sex}.json',f'shoulder-surface-{sex}.json',f'trousers-{sex}.mesh.json'):
+            for file in (f'trunk-{label}-cage.json',f'upper-arm-{sex}.json',f'shoulder-surface-{sex}.json',f'trousers-{sex}.mesh.json',f'forearm-fit-{sex}.json'):
                 asset=json.loads((ROOT/file).read_text(encoding='utf-8'))
                 recipe=asset['shapeRecipe'];shapes.append(recipe)
                 self.assertEqual(recipe['profileSha256'],sha,file)
@@ -47,8 +47,8 @@ class HumanAssetTests(unittest.TestCase):
         self.assertLess(f['radii'][row]+f['radii'][row+64],m['radii'][row]+m['radii'][row+64]-.04)
 
     def test_complete_trunk_sources_and_shape_sections(self):
-        expected=('7314a5a0656b243476ac693102c017ae469e2cc37cd8aba94539cf62bff7320a',
-                  '2f6ad14475b1e02ced5302dbfb3b4b3e33220d309d8b35f2eeb5d8dda1a7f3c1')
+        expected=('250d268b435d96439c7e2b98c5b44bcb97c4e9ebd99dc722ec92369e1987f714',
+                  'bc6cc6ed312c17227c42a8bed7655ff0fe2d908b3112f4e0ff7d7f262f39237d')
         sources=json.loads((ROOT/'head-sources.json').read_text())['files']
         frames=[]
         for frame,digest in zip(('masculine','feminine'),expected):
@@ -66,7 +66,11 @@ class HumanAssetTests(unittest.TestCase):
             return max(x)-min(x)
         male,female=frames
         self.assertLess(width(female,1.04)/width(female,.82),width(male,1.04)/width(male,.82)-.15)
-        self.assertGreater(width(female,.82),width(male,.82)+.02)
+        self.assertGreater(width(female,.82),width(male,.82))
+        # A fixed centimetre gap encourages widening a lean pelvis. Preserve
+        # the authored shoulder/pelvis relationship instead of adding volume.
+        shoulder=lambda d:2*d['sourceShoulder'][0]*d['scale'][0]
+        self.assertGreater(width(female,.82)/shoulder(female),width(male,.82)/shoulder(male)+.20)
 
     def test_feminine_torso_support_and_provenance(self):
         raw=(ROOT/'torso-feminine-cage.json').read_bytes().replace(b'\r\n',b'\n')
