@@ -237,10 +237,12 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `wristContour=continuous-source-v2`、`forearmProfile=fair-source-volume-v3` 与 `forearmSkin=distributed-wrist-v2` 分别标记连续腕臂截面、中心线拟合与腕部渐进蒙皮。新增公开 `wrist-motion` 面板及 `visual-wrist-motion.json`，在冻结模拟、固定 60 Hz 下，对照两种成人外观的手背、掌侧和侧面，循环观察屈伸、侧偏、前臂旋转和握拳。它使用真实居民网格与骨架，不测量人体医学能力，也不作为 RSI 分数。新的连接拓扑、25 骨近手与腕部支撑会改变构建和动画成本，效率对照必须冻结同一素材、渲染版本、输入及源码。
 
-`garmentFit=bridged-front-v7`、`forearmProfile=fair-source-volume-v3`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2` 区分衣片纵向弯曲／表面松弛、女性前臂表面、成人脸部比例、额前发根和静止眼睑。它们改变实际网格、缓存创建成本及显示像素；视觉／效率比较须同时冻结这些标识、输入和源码。身体配方为 `lifted-thorax-physique-v27`：女性参考混合为 0.75，男性为 1.0；五类身体支撑共享同一配方哈希。不能仅凭头脸或动作版本判断身体呈现相同。几何固定点、体积、截面与三角形检查用于回归，不是 RSI 得分。
+`garmentFit=sloped-yoke-v8`、`forearmProfile=fair-source-volume-v3`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2` 区分衣片纵向弯曲／表面松弛、女性前臂表面、成人脸部比例、额前发根和静止眼睑。它们改变实际网格、缓存创建成本及显示像素；视觉／效率比较须同时冻结这些标识、输入和源码。身体配方为 `lifted-thorax-physique-v27`：女性参考混合为 0.75，男性为 1.0；五类身体支撑共享同一配方哈希。不能仅凭头脸或动作版本判断身体呈现相同。几何固定点、体积、截面与三角形检查用于回归，不是 RSI 得分。
 
-`bodyPresentation=continuous-bodice-v4` 标识成人女性前领、小腿及鞋部的运行时成品拟合。它改变像素与网格构建成本；比较时须与 `bodyFrame=lifted-thorax-physique-v27`、`garmentFit=bridged-front-v7` 及源码哈希一并冻结。
+`bodyPresentation=soft-shoulder-v5` 标识成人女性前领、小腿及鞋部的运行时成品拟合。它改变像素与网格构建成本；比较时须与 `bodyFrame=lifted-thorax-physique-v27`、`garmentFit=sloped-yoke-v8` 及源码哈希一并冻结。
 
-`continuous-bodice-v4` 的女性成人衣装还使用独立材质状态、浅色内衫／绿灰外衣分片，以及近远景共用的静止缝片函数。远景顶点颜色保留来源染色数据，另用材质标记选择分片；因此几何截面检查不会把配色变更当成体型变更。新材质、下摆与源码均需冻结后才能比较视觉或效率结果。
+`soft-shoulder-v5` 的女性成人衣装还使用独立材质状态、浅色内衫／绿灰外衣分片，以及近远景共用的静止缝片函数。远景顶点颜色保留来源染色数据，另用材质标记选择分片；因此几何截面检查不会把配色变更当成体型变更。新材质、下摆与源码均需冻结后才能比较视觉或效率结果。
 
-`bridged-front-v7` 与 `continuous-bodice-v4` 还记录前胸横向拟合、折痕分布、短门襟和缝线表现；来源身体继续为 v27。横向拟合只在成衣缓存创建时运行，但会影响首次构建成本与显示像素，效率比较应区分缓存构建和稳定回放。`CHEST_PANEL_PASS` 是最终三角面连续性与近远景一致性的回归检查，不计入 RSI 能力得分。
+`sloped-yoke-v8` 与 `soft-shoulder-v5` 还记录前胸横向拟合、折痕分布、短门襟和缝线表现；来源身体继续为 v27。横向拟合只在成衣缓存创建时运行，但会影响首次构建成本与显示像素，效率比较应区分缓存构建和稳定回放。`CHEST_PANEL_PASS` 是最终三角面连续性与近远景一致性的回归检查，不计入 RSI 能力得分。
+
+`soft-shoulder-v5`／`sloped-yoke-v8` 还覆盖女性肩背来源的运行时形体场与中性支撑重建；虽然原始 CC0 资产及 v27 配方未变，实际中性网格、姿态修正和缓存构建会改变。视觉及效率对照须冻结这些呈现标识和源码，不能仅按原始资产哈希判断输入相同。

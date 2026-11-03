@@ -147,6 +147,7 @@ internal sealed partial class NatureModels
             // map. The attributed skin neck remains underneath the lowered arc.
             float frontNeck=Mathf.SmoothStep(.020f,.055f,-point.Z)*(1-Mathf.SmoothStep(.035f,.075f,MathF.Abs(point.X)));
             result.Y-=.012f*frontNeck*Mathf.SmoothStep(1.24f,1.32f,point.Y);
+            result=SoftShoulderPoint(result);
         }
         return result;
     }
@@ -362,6 +363,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateBodyFrames()
     {
+        ValidateSoftShoulderField();
         int previous=_faceVariant;
         var male=Resident(17,false,SandBoxSim.Core.Agents.JobType.Gatherer);
         var female=Resident(42,false,SandBoxSim.Core.Agents.JobType.Gatherer);

@@ -9,6 +9,36 @@ internal sealed partial class NatureModels
 {
     private sealed record ShoulderCage(Vector3[] Points,int[] Triangles,Vector3[] Source,Vector4[] Weights,Vector3 Shoulder,Quaternion ArmBind);
     private readonly ShoulderCage?[] _shoulderSurfaces=new ShoulderCage?[2];
+    // A restrained neck-to-shoulder saddle. Preserve the neck opening and
+    // acromial pivot; reduce the raised medial shoulder and posterior bulk.
+    private static Vector3 SoftShoulderPoint(Vector3 p)
+    {
+        float mask=Mathf.SmoothStep(.043f,.065f,MathF.Abs(p.X))
+            *(1-Mathf.SmoothStep(.095f,.120f,MathF.Abs(p.X)))
+            *Mathf.SmoothStep(1.18f,1.23f,p.Y)*(1-Mathf.SmoothStep(1.29f,1.34f,p.Y))
+            *Mathf.SmoothStep(-.060f,.015f,p.Z);
+        return p-new Vector3(0,.008f*mask,.003f*mask*Mathf.SmoothStep(0,.060f,p.Z));
+    }
+    private static void ValidateSoftShoulderField()
+    {
+        float maximum=0;
+        for(int ix=0;ix<=16;ix++)for(int iy=0;iy<=18;iy++)for(int iz=0;iz<=10;iz++)
+        {
+            var p=new Vector3(ix*.01f,1.17f+iy*.01f,-.10f+iz*.02f);var q=SoftShoulderPoint(p);
+            maximum=MathF.Max(maximum,p.DistanceTo(q));const float h=.0001f;
+            var jacobian=new Basis((SoftShoulderPoint(p+Vector3.Right*h)-SoftShoulderPoint(p-Vector3.Right*h))/(2*h),
+                (SoftShoulderPoint(p+Vector3.Up*h)-SoftShoulderPoint(p-Vector3.Up*h))/(2*h),
+                (SoftShoulderPoint(p+Vector3.Back*h)-SoftShoulderPoint(p-Vector3.Back*h))/(2*h));
+            if(!q.IsFinite()||q.Y>p.Y||q.X!=p.X||jacobian.Determinant()<.60f||p.DistanceTo(q)>.009f)
+                throw new InvalidOperationException("Soft shoulder field folds or exceeds its design bound");
+            var mirror=SoftShoulderPoint(new(-p.X,p.Y,p.Z));
+            if(!mirror.IsEqualApprox(new Vector3(-q.X,q.Y,q.Z))
+                ||((p.X<=.043f||p.X>=.120f||p.Z<=-.060f)&&q!=p))
+                throw new InvalidOperationException("Soft shoulder field moves its neck/pivot/front boundary or loses symmetry");
+        }
+        if(maximum<.007f)throw new InvalidOperationException("Missing soft shoulder surface refinement");
+        GD.Print($"SOFT_SHOULDER_PASS: symmetric bounded neck/shoulder saddle, maximum={maximum*1000:F2} mm, fixed neck/outer shoulder/front chest and positive Jacobian");
+    }
     private ShoulderCage ShoulderSurface()
     {
         int frame=BodyFrame==1?1:0;if(_shoulderSurfaces[frame] is {} cached)return cached;
@@ -36,6 +66,21 @@ internal sealed partial class NatureModels
         if(source.Count!=vertices.Count||weights.Count!=vertices.Count)throw new InvalidOperationException("Shoulder cage skin topology differs");
         var s=root.GetProperty("shoulder");var bind=root.GetProperty("armBind");
         var result=new ShoulderCage(vertices.ToArray(),indices.ToArray(),source.ToArray(),weights.ToArray(),new(s[0].GetSingle(),s[1].GetSingle(),s[2].GetSingle()),new Quaternion(bind[0].GetSingle(),bind[1].GetSingle(),bind[2].GetSingle(),bind[3].GetSingle()).Normalized());
+        if(frame==1)
+        {
+            // Rebuild neutral supports from the edited A-pose through the same
+            // rigid blend used for animation. Editing only the neutral cage
+            // would make the original bulky shape return as the arm moves.
+            Transform3D At(Quaternion q)=>new(new Basis(q),result.Shoulder-q*result.Shoulder);
+            var transforms=new[]{Transform3D.Identity,At(result.ArmBind),At(Quaternion.Identity.Slerp(result.ArmBind,.5f)),Transform3D.Identity};
+            for(int i=0;i<result.Source.Length;i++)
+            {
+                var shaped=SoftShoulderPoint(result.Source[i]);
+                if(shaped==result.Source[i])continue;
+                result.Source[i]=shaped;
+                result.Points[i]=BlendRigidShoulder(shaped,transforms,result.Weights[i]);
+            }
+        }
         _shoulderSurfaces[frame]=result;return result;
     }
     private static Vector3 ClosestShoulderPoint(Vector3 p,Vector3 a,Vector3 b,Vector3 c)
@@ -71,7 +116,9 @@ internal sealed partial class NatureModels
             if(!found)continue;
             // Fit along the cloth normal: preserve tangential panel layout,
             // use an actual axilla/deltoid surface rather than a convex tube.
-            float amount=Math.Clamp((hit+surfaceNormal*.009f-sample).Dot(normal),-.025f,.025f)*mask;
+            float ease=.009f;
+            if(BodyFrame==1)ease-=.004f*Mathf.SmoothStep(1.23f,1.27f,p.Y)*(1-Mathf.SmoothStep(.085f,.120f,MathF.Abs(p.X)));
+            float amount=Math.Clamp((hit+surfaceNormal*ease-sample).Dot(normal),-.025f,.025f)*mask;
             offsets[i]=normals[i]*amount;free[i]=true;fitted++;
         }
         if(candidates==0)return;
