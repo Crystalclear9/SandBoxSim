@@ -12,7 +12,7 @@ internal sealed partial class NatureModels
         var rig=Resident(identity,false,SandBoxSim.Core.Agents.JobType.Gatherer);
         rig.SetHandDetail(true);rig.PoseHandReference(0);
         var elbow=rig.Elbows[side];elbow.GetParent().RemoveChild(elbow);
-        elbow.Position=new(0,.35f,0);elbow.Rotation=Vector3.Zero;
+        elbow.Position=new(0,.35f,0);elbow.Rotation=Vector3.Zero;rig.ResetForearmStudy(side);
         rig.Free();return elbow;
     }
     private Mesh AnatomicalForearm(int side)
@@ -42,7 +42,6 @@ internal sealed partial class NatureModels
         var ids=new List<int>();foreach(var value in root.GetProperty("indices").EnumerateArray())
         {int index=value.GetInt32();if(index<0||index>=count)throw new InvalidOperationException("Invalid anatomical forearm index");ids.Add(index);}
         var indices=ids.ToArray();
-        if(BodyFrame==1)
         {
             var canonical=new Vector3[points.Length];var sourceNormals=new Vector3[normals.Length];var origin=new Vector3(0,.255f,.010f);
             for(int i=0;i<points.Length;i++){canonical[i]=new(points[i].X*mirror,points[i].Y,points[i].Z);canonical[i]+=origin;sourceNormals[i]=new(normals[i].X*mirror,normals[i].Y,normals[i].Z);}

@@ -5,9 +5,9 @@ namespace SandBoxSim.Client;
 
 internal partial class ResidentRig
 {
-    internal const int HandBoneCount=25,ForearmIntervals=5,WristIntervals=5;
+    internal const int HandBoneCount=56,ForearmIntervals=36,WristIntervals=5;
     internal static int ForearmBone(int station)=>station==ForearmIntervals?15:16+station;
-    internal static int WristBone(int station)=>station==0?0:station==WristIntervals?15:20+station;
+    internal static int WristBone(int station)=>station==0?0:station==WristIntervals?15:15+ForearmIntervals+station;
     internal Transform3D WristSectionPose(int side,float fraction)
         =>new(new Basis(Quaternion.Identity.Slerp(Hands[side].Basis.Inverse().GetRotationQuaternion(),fraction)),Vector3.Zero);
     internal void StudyWrist(float delta,float time)
@@ -19,6 +19,7 @@ internal partial class ResidentRig
         UpdateHandBones(1);
     }
     private readonly float[] _forearmRoll={float.NaN,float.NaN};
+    private readonly Quaternion[] _elbowSkinRotation={Quaternion.Identity,Quaternion.Identity};
     internal float ForearmRoll(int side)
     {
         var bind=Hands[side].Position.Normalized();var direction=Elbows[side].Basis*bind;
@@ -30,21 +31,37 @@ internal partial class ResidentRig
     }
     internal Transform3D ForearmSectionPose(int side,float fraction)
     {
-        // The elbow skin follows flexion; pronation accumulates towards the
-        // wrist. Compensate inside the existing connected hand/forearm skin,
-        // leaving the actual wrist, grip and elbow nodes exactly where IK put them.
-        var wristInverse=Hands[side].Basis.Inverse();var axis=Hands[side].Position.Normalized();
-        var turn=new Basis(axis,-ForearmRoll(side)*(1-fraction));var pivot=-Hands[side].Position;
-        return new(wristInverse*turn,wristInverse*(pivot-turn*pivot));
+        var inverse=Hands[side].Basis.Inverse();var axis=Hands[side].Position.Normalized();float roll=ForearmRoll(side);
+        var unhinge=(Elbows[side].Basis*new Basis(axis,-roll)).Inverse().GetRotationQuaternion();
+        return ForearmSection(fraction,inverse,axis,-Hands[side].Position,roll,unhinge);
+    }
+    private static Transform3D ForearmSection(float fraction,Basis inverse,Vector3 axis,Vector3 pivot,float roll,Quaternion unhinge)
+    {
+        // The proximal ring follows the upper arm; the shaft gradually takes
+        // the elbow hinge and pronation. Wrist/grip nodes remain exact IK nodes.
+        float bridge=1-ReachEase(fraction/.45f);
+        float pronation=Mathf.SmoothStep(.02f,.85f,fraction*fraction);
+        var turn=new Basis(axis,-roll*(1-pronation))*new Basis(Quaternion.Identity.Slerp(unhinge,bridge));
+        return new(inverse*turn,inverse*(pivot-turn*pivot));
+    }
+    internal static float ForearmSkinFraction(float height)
+        =>MathF.Sqrt(Math.Clamp((.255f-height)/.210f,0,1));
+    internal void ResetForearmStudy(int side)
+    {
+        Elbows[side].Basis=Basis.Identity;Hands[side].Basis=Basis.Identity;
+        _forearmRoll[side]=float.NaN;UpdateHandBones(side);
     }
     private void UpdateForearmSkin(int side)
     {
-        float roll=ForearmRoll(side);var wrist=Hands[side].Basis.Inverse().GetRotationQuaternion();
-        if(MathF.Abs(wrist.Dot(_wristSkinRotation[side]))>=.999999f&&MathF.Abs(roll-_forearmRoll[side])<.00001f)return;
-        _wristSkinRotation[side]=wrist;_forearmRoll[side]=roll;
+        float roll=ForearmRoll(side);var inverse=Hands[side].Basis.Inverse();var wrist=inverse.GetRotationQuaternion();
+        var elbow=Elbows[side].Basis.GetRotationQuaternion();
+        if(MathF.Abs(wrist.Dot(_wristSkinRotation[side]))>=.999999f&&MathF.Abs(roll-_forearmRoll[side])<.00001f&&MathF.Abs(elbow.Dot(_elbowSkinRotation[side]))>=.999999f)return;
+        _wristSkinRotation[side]=wrist;_forearmRoll[side]=roll;_elbowSkinRotation[side]=elbow;
+        var axis=Hands[side].Position.Normalized();var pivot=-Hands[side].Position;
+        var unhinge=(Elbows[side].Basis*new Basis(axis,-roll)).Inverse().GetRotationQuaternion();
         for(int station=0;station<=ForearmIntervals;station++)
-            HandSkeletons[side].SetBonePose(ForearmBone(station),ForearmSectionPose(side,(float)station/ForearmIntervals));
+            HandSkeletons[side].SetBonePose(ForearmBone(station),ForearmSection((float)station/ForearmIntervals,inverse,axis,pivot,roll,unhinge));
         for(int station=1;station<WristIntervals;station++)
-            HandSkeletons[side].SetBonePose(WristBone(station),WristSectionPose(side,(float)station/WristIntervals));
+            HandSkeletons[side].SetBonePose(WristBone(station),new Transform3D(new Basis(Quaternion.Identity.Slerp(wrist,(float)station/WristIntervals)),Vector3.Zero));
     }
 }

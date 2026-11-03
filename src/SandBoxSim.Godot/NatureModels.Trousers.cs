@@ -29,6 +29,16 @@ internal sealed partial class NatureModels
                 throw new InvalidOperationException("Invalid trouser geometry");
         }
         foreach(int id in ids)if(id<0||id>=count)throw new InvalidOperationException("Invalid trouser index");
+        if(BodyFrame==1)
+        {
+            var freedom=new float[points.Length];
+            for(int i=0;i<points.Length;i++)
+                freedom[i]=Mathf.SmoothStep(.58f,.64f,points[i].Y)*(1-Mathf.SmoothStep(.80f,.87f,points[i].Y))
+                    *Mathf.SmoothStep(.07f,.11f,MathF.Abs(points[i].X));
+            FairRestSurface(points,ids,freedom,.001f,roundRelief:true);
+            var fitted=FairingNormals(points,ids,freedom);
+            for(int i=0;i<points.Length;i++)if(freedom[i]>0)normals[i]=fitted[i];
+        }
         var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);
         var seam=new Vector2[count];
         for(int i=0;i<count;i++)seam[i]=new(MathF.Atan2(points[i].Z,MathF.Abs(points[i].X)-.10f),points[i].Y);

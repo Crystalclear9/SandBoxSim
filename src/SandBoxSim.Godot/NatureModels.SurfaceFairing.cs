@@ -91,6 +91,17 @@ internal sealed partial class NatureModels
                 *(1-Mathf.SmoothStep(.08f,.13f,MathF.Abs(p.X)));
         }
         FairRestSurface(points,indices,freedom,.008f,true);
+        if(BodyFrame==0)
+        {
+            for(int i=0;i<points.Length;i++)
+            {
+                var p=points[i];
+                freedom[i]=Mathf.SmoothStep(.065f,.110f,MathF.Abs(p.X))
+                    *Mathf.SmoothStep(1.14f,1.19f,p.Y)*(1-Mathf.SmoothStep(1.26f,1.29f,p.Y))
+                    *(1-Mathf.SmoothStep(.17f,.23f,MathF.Max(0,pattern[i].X)));
+            }
+            FairRestSurface(points,indices,freedom,.003f,roundRelief:true);
+        }
         if(BodyFrame==1)
         {
             // Fair the shared front cloth, not two isolated breast patches.
@@ -196,14 +207,14 @@ internal sealed partial class NatureModels
     private readonly Dictionary<string,(Vector3[] Points,Vector3[] Normals)> _forearmFairings=new();
     private void FairForearmRest(Vector3[] points,Vector3[] normals,int[] indices,int frame,string source)
     {
-        if(frame!=1)return;
+        source=frame+":"+source;
         if(_forearmFairings.TryGetValue(source,out var cached))
         {
             Array.Copy(cached.Points,points,points.Length);Array.Copy(cached.Normals,normals,normals.Length);return;
         }
         var freedom=new float[points.Length];
-        for(int i=0;i<points.Length;i++)freedom[i]=Mathf.SmoothStep(.080f,.120f,points[i].Y)*(1-Mathf.SmoothStep(.225f,.250f,points[i].Y));
-        FairRestSurface(points,indices,freedom,.0008f);
+        for(int i=0;i<points.Length;i++)freedom[i]=Mathf.SmoothStep(.055f,.095f,points[i].Y)*(1-Mathf.SmoothStep(.225f,.250f,points[i].Y));
+        FairRestSurface(points,indices,freedom,frame==1?.0008f:.00065f);
         var updated=FairingNormals(points,indices,freedom);
         for(int i=0;i<points.Length;i++)if(freedom[i]>0)normals[i]=updated[i];
         _forearmFairings[source]=((Vector3[])points.Clone(),(Vector3[])normals.Clone());

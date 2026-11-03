@@ -6,7 +6,7 @@
 
 ## 当前配图
 
-`resident-arm-articulation.png`／GIF 来自公开 `visual-arm-articulation.json`，使用实际游戏的肩肘腕控制器和连接皮肤。两排为男性／女性外观，三列正面、侧面及背面；正交尺寸 1.04、目标 (0, 1.17, 0)，相机相对位置为 (0.03, 0.03, 4)、(-4, 0.03, 0.10)、(0.03, 0.03, -4)。PNG 取逻辑帧 270；GIF 为原生 1600×1000、160 个采样，逻辑帧 30–507 每三帧取样，20 fps、八秒，分五次固定配置回放编码。动作包含抬臂／屈肘、旋前／旋后和放下，读取 `forearmSkin=distributed-roll-v1`、`shoulderSkin=bound-surface-sleeve-v7` 与 `shoulderSurface=bound-anatomical-surface-v2`；没有重绘、插帧或局部缩放。
+`resident-arm-junctions.png`／GIF 来自公开 `visual-arm-articulation.json`，使用实际游戏的肩肘腕控制器和连接皮肤。两排为男性／女性外观，三列正面、侧面及背面；正交尺寸 1.04、目标 (0, 1.17, 0)，相机相对位置为 (0.03, 0.03, 4)、(-4, 0.03, 0.10)、(0.03, 0.03, -4)。PNG 取逻辑帧 270；GIF 为原生 1600×1000、160 个采样，逻辑帧 30–507 每三帧取样，20 fps、八秒，分五次固定配置回放编码。动作包含抬臂／屈肘、旋前／旋后和放下，读取 `forearmSkin=hinge-bridge-v3`、`forearmProfile=paired-fair-volume-v4`、`shoulderSkin=rest-detail-sleeve-v10` 与 `shoulderSurface=authored-bind-surface-v3`；没有重绘、插帧或局部缩放。
 
 
 `resident-captured-stretch.png` 与同名 GIF 使用 `visual-captured-stretch.json` 的实际游戏模型，读取 CMU 143_30 的上／前臂方向及手腕朝向。两排为两种成人外观，三列为正面、侧面和背面；正交尺寸 1.70、目标 (0, 1.10, 0)，相机相对位置为 (0.03, 0.03, 4)、(-4, 0.03, 0.10)、(0.03, 0.03, -4)。PNG 是逻辑帧 110、1600×1000；GIF 为同分辨率、203 个原生采样，逻辑帧 30–636 每三帧取样，20 fps、总长 10.15 秒，分七次等配置回放编码。来源记录为 120 Hz，播放周期包含 3.075 秒捕捉和两秒休息；不是原始演员视频，也没有用概念图或重绘替代模型。来源、条款和重建见[人物素材](../development/human-assets.md)。
@@ -129,33 +129,36 @@
 
 当前身体动态与抬臂图使用 `shoulderMotion=source-clavicle-v11`，锁骨内端与肩点均来自当前转移体型；旧的专项肩袖图仍保留其原采样版本。
 
-当前身体、衣装、前臂及抬臂配图保留 `bodyFrame=lifted-thorax-physique-v27`，腕臂使用 `wristContour=continuous-source-v2`、`forearmProfile=fair-source-volume-v3`、`forearmSkin=distributed-wrist-v2`。腕部连接为 30 毫米切线约束表面，宽深与中心线按各自身体来源拟合。较早的手部、工具和捕捉专项配图仍保留其各自采样版本。
+当前身体、衣装、前臂及抬臂配图保留 `bodyFrame=lifted-thorax-physique-v27`，腕臂使用 `wristContour=continuous-source-v2`、`forearmProfile=paired-fair-volume-v4`、`forearmSkin=hinge-bridge-v3`。腕部连接为 30 毫米切线约束表面，宽深与中心线按各自身体来源拟合。较早的手部、工具和捕捉专项配图仍保留其各自采样版本。
 
 `resident-wrist-motion.png` 取自 `visual-wrist-motion.json` 的第 90 帧；GIF 使用 120 个原生采样，逻辑帧 30–506 每四步采样，固定 60 Hz、零模拟步进，时长八秒，分四次等配置回放。展示实际连体蒙皮，观察镜头沿前臂坐标定位，主补光随观察方向旋转；可见层只隔离该手臂，避免躯干遮住反向视角，没有修改模型或对图像重绘。GIF 仅采用统一调色板编码。
 
-当前身体、衣装、连续抬臂及两组头脸配图使用 `garmentFit=rounded-chest-v14`、`forearmProfile=fair-source-volume-v3`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2`。来源身体配方为 v27，女性参考权重为 0.75、男性为 1.0；衣料使用纵横向拟合，五类来源支撑共享 v27 配方。较早人物观察窗和动作专题保留其原采样版本。`resident-face-frames.png` 与 `resident-face-detail.png` 分别来自公开 `visual-face-frames` 与 `visual-faces` 第 90 帧，本次均为 1600×1000；额前发根与静止眼睑属于实际运行形体及材质参数，没有重绘或局部图像修饰。
+当前身体、衣装、连续抬臂及两组头脸配图使用 `garmentFit=rounded-chest-v14`、`forearmProfile=paired-fair-volume-v4`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2`。来源身体配方为 v27，女性参考权重为 0.75、男性为 1.0；衣料使用纵横向拟合，五类来源支撑共享 v27 配方。较早人物观察窗和动作专题保留其原采样版本。`resident-face-frames.png` 与 `resident-face-detail.png` 分别来自公开 `visual-face-frames` 与 `visual-faces` 第 90 帧，本次均为 1600×1000；额前发根与静止眼睑属于实际运行形体及材质参数，没有重绘或局部图像修饰。
 
-当前全身、衣装、身体动态、抬臂和头脸图使用 `bodyPresentation=rounded-thorax-v11`；前领、小腿与鞋部属于实际游戏网格。相机、成人身份、肤色与来源染色参数保留原配置，女性衣装采用分层配色，动态回放仍来自固定步进的原生视口。
+当前全身、衣装、身体动态、抬臂和头脸图使用 `bodyPresentation=soft-junctions-v12`；前领、小腿与鞋部属于实际游戏网格。相机、成人身份、肤色与来源染色参数保留原配置，女性衣装采用分层配色，动态回放仍来自固定步进的原生视口。
 
 当前女性全身、头肩、衣装与身体动态图展示浅色内衫、绿灰贴体外衣及弧形短下摆；近远景使用同一缝片规则，材质分片直接由游戏着色器输出，未对采样图重绘。
 
 [resident-world-distance.png](resident-world-distance.png) 展示默认世界视距的角色分层配色：`field` 面板、种子 839102、40 名居民、零模拟步进、第 90 帧、1600×1000，俯角约 46°、距离约 41 米。图片直接复制游戏原生视口；该静态世界采样记录了一次窗口恢复，与上述零窗口恢复的角色动态批次分别记录。
 
-当前全身、头肩、衣装和连续动态专题使用 `lifted-thorax-physique-v27`、`rounded-chest-v14` 与 `rounded-thorax-v11`，包含胸廓向上重分配、减少胸下衣料垂落和抬高外衣分界；默认世界视距的静态图仍保留其 `layered-figure-v2` 原采样版本。
+当前全身、头肩、衣装和连续动态专题使用 `lifted-thorax-physique-v27`、`rounded-chest-v14` 与 `soft-junctions-v12`，包含胸廓向上重分配、减少胸下衣料垂落和抬高外衣分界；默认世界视距的静态图仍保留其 `layered-figure-v2` 原采样版本。
 
-当前前胸衣料采用横向曲面拟合，减弱胸前成对折痕及深色缝线，浅色门襟、纽扣和针脚止于上胸。全身、头肩、衣装与连续抬臂使用 `garmentFit=rounded-chest-v14`、`bodyPresentation=rounded-thorax-v11`；前臂图册和腕部 PNG／GIF 保留 2026-11-03 的 `supported-bodice-v6`、`supported-figure-v3` 原采样，来源身体同为 v27。
+当前前胸衣料采用横向曲面拟合，减弱胸前成对折痕及深色缝线，浅色门襟、纽扣和针脚止于上胸。全身、头肩、衣装与连续抬臂使用 `garmentFit=rounded-chest-v14`、`bodyPresentation=soft-junctions-v12`；前臂图册和腕部 PNG／GIF 保留 2026-11-03 的 `supported-bodice-v6`、`supported-figure-v3` 原采样，来源身体同为 v27。
 
-当前全身、头肩、衣装与两组连续动态图使用 `rounded-thorax-v11`／`rounded-chest-v14`，呈现女性颈肩鞍形过渡及较薄的上肩衣料间隙；前臂与腕部专题继续保留前述独立原采样。
+当前全身、头肩、衣装与两组连续动态图使用 `soft-junctions-v12`／`rounded-chest-v14`，呈现女性颈肩鞍形过渡及较薄的上肩衣料间隙；前臂与腕部专题继续保留前述独立原采样。
 
-当前全身、头肩、衣装及两组连续动态图使用 `rounded-chest-v14`／`rounded-thorax-v11`，展示较低圆领、薄折边和简化的腰胯衣料细节。前臂与腕部专题仍保留前述独立原采样。
+当前全身、头肩、衣装及两组连续动态图使用 `rounded-chest-v14`／`soft-junctions-v12`，展示较低圆领、薄折边和简化的腰胯衣料细节。前臂与腕部专题仍保留前述独立原采样。
 
-[resident-thorax-detail.png](resident-thorax-detail.png) 来自 `visual-thorax-frames.json` 第 90 帧，1600×1000、固定 60 Hz、零模拟步进，正面／三刻面／侧面展示同一成年女性衣装。相机正交尺寸 0.56 米、目标 (0, 1.13, 0)，没有局部图像重绘。当前全身、头肩、衣装、身体动态及连续抬臂采样同时使用 `rounded-thorax-v11`／`rounded-chest-v14`；前臂、腕部及既有世界视距图继续保留各自原采样。
+[resident-thorax-detail.png](resident-thorax-detail.png) 来自 `visual-thorax-frames.json` 第 90 帧，1600×1000、固定 60 Hz、零模拟步进，正面／三刻面／侧面展示同一成年女性衣装。相机正交尺寸 0.56 米、目标 (0, 1.13, 0)，没有局部图像重绘。当前全身、头肩、衣装、身体动态及连续抬臂采样同时使用 `soft-junctions-v12`／`rounded-chest-v14`；前臂、腕部及既有世界视距图继续保留各自原采样。
 
 
-当前胸廓近景、身体／头肩、三种衣装及身体和抬臂动态采用 `rounded-thorax-v11`／`rounded-chest-v14`，显示局部内收后的前侧体积与较少的外侧衣料松量。`resident-thorax-detail.png` 保留公开 `visual-thorax-frames` 的同一成人、同衣色、同正交镜头和第 90 帧，便于直接观察正面、三刻面及侧面的形体变化；它不证明所有体态或动作都已达到审美目标。
+当前胸廓近景、身体／头肩、三种衣装及身体和抬臂动态采用 `soft-junctions-v12`／`rounded-chest-v14`，显示局部内收后的前侧体积与较少的外侧衣料松量。`resident-thorax-detail.png` 保留公开 `visual-thorax-frames` 的同一成人、同衣色、同正交镜头和第 90 帧，便于直接观察正面、三刻面及侧面的形体变化；它不证明所有体态或动作都已达到审美目标。
 
-当前身体、头肩、衣装、胸廓与两组连续动态采用 `rounded-thorax-v11`／`rounded-chest-v14`，包括宽缓腰腹／侧腰过渡与弧形领根插片，保留原身份、相机和灯光。较早前臂、腕部及其他专题继续使用各自原采样版本。
+当前身体、头肩、衣装、胸廓与两组连续动态采用 `soft-junctions-v12`／`rounded-chest-v14`，包括宽缓腰腹／侧腰过渡与弧形领根插片，保留原身份、相机和灯光。较早前臂、腕部及其他专题继续使用各自原采样版本。
 
-当前胸廓、全身、头肩、衣装及两组连续动态使用 `rounded-thorax-v11`／`rounded-chest-v14`，包含连续前胸体积及较窄的前胸衣料采样范围。公开 `visual-thorax-frames` 第 90 帧继续使用原身份、配色、灯光及正交镜头，便于观察前向投影、胸骨浅过渡和胸下曲线。
+当前胸廓、全身、头肩、衣装及两组连续动态使用 `soft-junctions-v12`／`rounded-chest-v14`，包含连续前胸体积及较窄的前胸衣料采样范围。公开 `visual-thorax-frames` 第 90 帧继续使用原身份、配色、灯光及正交镜头，便于观察前向投影、胸骨浅过渡和胸下曲线。
 
-当前身体、头肩、胸廓、衣装和两组连续动态使用 `rounded-thorax-v11`／`rounded-chest-v14`，显示圆顺后的胸廓截面与渐进外侧收束；身份、材质、灯光和镜头保持原配置。诊断用截线图与临时姿势导出不属于正式配图，正式结果仍是公开场景的原生像素。
+当前身体、头肩、胸廓、衣装和两组连续动态使用 `soft-junctions-v12`／`rounded-chest-v14`，显示圆顺后的胸廓截面与渐进外侧收束；身份、材质、灯光和镜头保持原配置。诊断用截线图与临时姿势导出不属于正式配图，正式结果仍是公开场景的原生像素。
+
+
+当前上肢动作、静态前臂、身体／衣装／头肩及身体和抬臂动态使用 `forearmSkin=hinge-bridge-v3`、`forearmProfile=paired-fair-volume-v4`、`bodyPresentation=soft-junctions-v12`，反映男女近肘隐藏连接、延续的体型拟合与分别缓存的圆顺表面。`resident-arm-junctions.png` 仍为第 270 帧，GIF 仍为五次回放的 160 帧、20 fps、八秒原生采样，保持原镜头；静态前臂来自公开场景第 90 帧，1600×1000。较早 `resident-wrist-motion` PNG／GIF 保留 `forearmSkin=distributed-wrist-v2` 与 `forearmProfile=fair-source-volume-v3` 的原采样，其他未重采专题继续保留各自版本，不能只更换标签解释旧图。

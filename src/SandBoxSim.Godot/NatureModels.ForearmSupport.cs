@@ -48,14 +48,14 @@ internal sealed partial class NatureModels
     }
     private static (Vector3 Point,Vector3 Normal) FitForearmSupport(Vector3 point,Vector3 normal,int frame)
     {
-        if(point.Y<=.005f||point.Y>=.275f)return(point,normal);
+        if(point.Y<=.005f||point.Y>=.290f)return(point,normal);
         var fit=ForearmSupport(frame);
         (float V,float D) Ramp(float low,float high)
         {
             float t=Math.Clamp((point.Y-low)/(high-low),0,1);
             return(t*t*t*(10+t*(-15+6*t)),30*t*t*(1-t)*(1-t)/(high-low));
         }
-        var rise=Ramp(.005f,.035f);var fall=Ramp(.245f,.275f);
+        var rise=Ramp(.005f,.035f);var fall=Ramp(.275f,.290f);
         float w=rise.V*(1-fall.V),dw=rise.D*(1-fall.V)-rise.V*fall.D;
         var x=ForearmProfileSample(fit.X,point.Y);var z=ForearmProfileSample(fit.Z,point.Y);
         var ox=ForearmProfileSample(fit.OffsetX,point.Y);var oz=ForearmProfileSample(fit.OffsetZ,point.Y);

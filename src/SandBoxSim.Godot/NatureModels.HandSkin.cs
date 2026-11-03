@@ -51,7 +51,6 @@ internal sealed partial class NatureModels
             var fitted=RefineForearmProfile(new(p[i*3],p[i*3+1],p[i*3+2]),new(n[i*3],n[i*3+1],n[i*3+2]),BodyFrame);
             points[i]=new(fitted.Point.X*mirror,fitted.Point.Y,fitted.Point.Z);normals[i]=new(fitted.Normal.X*mirror,fitted.Normal.Y,fitted.Normal.Z);uv[i]=new(tex[i*2],tex[i*2+1]);
         }
-        if(BodyFrame==1)
         {
             var fairPoints=new Vector3[points.Length];
             for(int i=0;i<points.Length;i++)fairPoints[i]=new(points[i].X*mirror,points[i].Y,points[i].Z);
@@ -76,9 +75,9 @@ internal sealed partial class NatureModels
             var influences=new System.Collections.Generic.Dictionary<int,float>();
             void Add(int bone,float weight){if(weight>0){influences.TryGetValue(bone,out float prior);influences[bone]=prior+weight;}}
             // Keep the wrist seam rigid and the buried elbow ring unrolled.
-            // Five small twist intervals avoid rotating the muscle belly as
+            // Small hinge/twist intervals avoid rotating the muscle belly as
             // one solid tube; preserve all original finger/palm influences.
-            float fraction=Mathf.SmoothStep(.02f,.85f,Math.Clamp((.255f-points[i].Y)/.210f,0,1));
+            float fraction=ResidentRig.ForearmSkinFraction(points[i].Y);
             float station=fraction*ResidentRig.ForearmIntervals;int low=Math.Min(ResidentRig.ForearmIntervals-1,(int)station);float t=station-low;
             for(int j=0;j<4;j++)
                 if(bones[i*4+j]==15){Add(ResidentRig.ForearmBone(low),weights[i*4+j]*(1-t));Add(ResidentRig.ForearmBone(low+1),weights[i*4+j]*t);}

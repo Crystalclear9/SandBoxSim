@@ -28,7 +28,7 @@ internal sealed partial class NatureModels
                         {
                             var p=elbow+axis*(.21f*station/ResidentRig.ForearmIntervals)+offset;
                             var displayed=upper*(rig.Hands[side].Position+wrist*(pose*p));
-                            if(station==0)maximumElbowError=MathF.Max(maximumElbowError,displayed.DistanceTo(noRoll*offset));
+                            if(station==0)maximumElbowError=MathF.Max(maximumElbowError,displayed.DistanceTo(offset));
                             if(station==ResidentRig.ForearmIntervals)maximumWristError=MathF.Max(maximumWristError,displayed.DistanceTo(upper*(p+rig.Hands[side].Position)));
                             if(station>0)
                             {
@@ -76,13 +76,71 @@ internal sealed partial class NatureModels
     }
     public void ValidateHandContinuity()
     {
-        ValidateForearmSurfaces();ValidateForearmTwist();
+        ValidateForearmSurfaces();ValidateForearmTwist();ValidateElbowSkin();
         for(int frame=0;frame<2;frame++)
         {
             var rig=Resident(frame==0?17:55,false,JobType.None);
             try{ValidateForearmSupport(rig,frame);}finally{rig.Free();}
         }
         ValidateHandling();
+    }
+    private void ValidateElbowSkin()
+    {
+        int samples=0;float maxRoot=0,maxShaft=0,minimumVolume=1;
+        foreach(int identity in new[]{17,55})
+        {
+            var rig=Resident(identity,false,JobType.None);
+            try
+            {
+                for(int side=0;side<2;side++)
+                {
+                    var arrays=rig.HandSkins[side].Mesh.SurfaceGetArrays(0);
+                    var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                    var bones=arrays[(int)Mesh.ArrayType.Bones].AsInt32Array();var weights=arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();
+                    foreach(float bend in new[]{0f,.3f,.8f,1.3f,1.8f,.5f})
+                    {
+                        rig.StudyArmElevation(1f/60,.7f,.5f,side,0,bend);
+                        foreach(float height in new[]{.06f,.12f,.18f,.21f})
+                        {
+                            var axis=rig.Hands[side].Position.Normalized();var pivot=-rig.Hands[side].Position;
+                            var centre=pivot+axis*((pivot.Y-height)/(-axis.Y));
+                            float station=ResidentRig.ForearmSkinFraction(height)*ResidentRig.ForearmIntervals;
+                            int low=Math.Min((int)station,ResidentRig.ForearmIntervals-1);float t=station-low;
+                            var a=rig.HandSkeletons[side].GetBonePose(ResidentRig.ForearmBone(low))*centre;
+                            var b=rig.HandSkeletons[side].GetBonePose(ResidentRig.ForearmBone(low+1))*centre;
+                            var actual=rig.Elbows[side].Basis*(rig.Hands[side].Position+rig.Hands[side].Basis*a.Lerp(b,t));
+                            var expected=rig.Elbows[side].Basis*(centre+rig.Hands[side].Position);
+                            maxShaft=MathF.Max(maxShaft,actual.DistanceTo(expected));
+                        }
+                        for(int i=0;i<points.Length;i++)if(points[i].Y>.0451f)
+                        {
+                            Vector3 q=Vector3.Zero,x=q,y=q,z=q;
+                            for(int j=0;j<4;j++)
+                            {
+                                var pose=rig.HandSkeletons[side].GetBonePose(bones[i*4+j]);float w=weights[i*4+j];
+                                q+=(pose*points[i])*w;x+=pose.Basis.X*w;y+=pose.Basis.Y*w;z+=pose.Basis.Z*w;
+                            }
+                            minimumVolume=MathF.Min(minimumVolume,new Basis(x,y,z).Determinant());
+                            if(points[i].Y>.260f)
+                            {
+                                var support=ForearmSupport(identity==55?1:0);
+                                if(MathF.Abs(points[i].X)>support.Width[^1]*.65f||MathF.Abs(points[i].Z)>support.Depth[^1]*.80f)
+                                    throw new InvalidOperationException("Proximal forearm returns to the oversized generic sculpt");
+                            }
+                            if(points[i].Y>=.255f)
+                            {
+                                var actual=rig.Elbows[side].Basis*(rig.Hands[side].Position+rig.Hands[side].Basis*q);
+                                maxRoot=MathF.Max(maxRoot,actual.DistanceTo(points[i]+rig.Hands[side].Position));samples++;
+                            }
+                        }
+                    }
+                }
+            }
+            finally{rig.Free();}
+        }
+        if(samples<100||maxRoot>.0001f||maxShaft>.0003f||minimumVolume<.97f)
+            throw new InvalidOperationException($"Elbow bridge loses upper-arm attachment or muscle volume: samples={samples}, root={maxRoot}, shaft={maxShaft}, determinant={minimumVolume}");
+        GD.Print($"ELBOW_SKIN_PASS: {samples} actual proximal skin samples, both adults/arms, flexion-only reversals; upper-arm root/shaft error={maxRoot:F6}/{maxShaft:F6} m, minimum blended determinant={minimumVolume:F4}");
     }
     private void ValidateWristMotion()
     {

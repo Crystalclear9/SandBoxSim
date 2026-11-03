@@ -140,7 +140,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `reachMotion=palm-trajectory-v2` 记录手掌轨迹过渡、朝向插值、错开的社交手势与循环进食表现。动作轨迹改变需要重采相同场景的视觉及耗时基线，不能与旧动作混作效率对照。
 
-`bodyFrame=lifted-thorax-physique-v27`、`faceContour=balanced-adult-v3` 和 `forearmProfile=fair-source-volume-v3` 记录完整来源躯干、头脸区域与小臂体积拟合。它们改变轮廓和模型构建成本，视觉及性能对照须使用同一版本、居民身份与近远景条件。
+`bodyFrame=lifted-thorax-physique-v27`、`faceContour=balanced-adult-v3` 和 `forearmProfile=paired-fair-volume-v4` 记录完整来源躯干、头脸区域与小臂体积拟合。它们改变轮廓和模型构建成本，视觉及性能对照须使用同一版本、居民身份与近远景条件。
 
 无窗口自检的花株接地检查使用 CPU 保存的实例位置；图形模式额外核对 GPU 实例变换。渲染服务器的占位读回不作为几何证据。快捷操作检查覆盖居民、鹿狼和土地的真实目标位置、失效实体身份拒绝、靠近的实际相机距离、人物观察窗／土地手记及观察纯度。
 
@@ -213,7 +213,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `visual-arm-articulation.json` / `panel=arm-articulation` 提供实际上肢近景：暖场 30 帧、测量 480 帧，固定 60 Hz、零模拟推进，默认每 16 帧取样。八秒循环依次抬臂／屈肘、翻掌、放下；三列为正侧背面，两排为两种成人外观。完整动图每三帧采样，原生 1600×1000、160 个采样和八秒，分五次回放。
 
-`renderQuality.forearmSkin=distributed-wrist-v2` 标记每手 21 骨的分段旋转表面，`shoulderSurface=authored-bind-surface-v3` 标记来源 A 姿势直接求解、绑定变换组合及固定三角面对应的双四元数人体支撑。二者改变了缓存生成和近景骨骼开销，须冻结同一版本再比较效率；动作端点、边长和表面距离只用于几何回归，不能作为写实度或 RSI 能力分数。
+`renderQuality.forearmSkin=hinge-bridge-v3` 标记每手 21 骨的分段旋转表面，`shoulderSurface=authored-bind-surface-v3` 标记来源 A 姿势直接求解、绑定变换组合及固定三角面对应的双四元数人体支撑。二者改变了缓存生成和近景骨骼开销，须冻结同一版本再比较效率；动作端点、边长和表面距离只用于几何回归，不能作为写实度或 RSI 能力分数。
 
 人体支撑 v2 的贴合残差以固定三角面对应和衣片参与规则为参考，与 v1 的逐姿态最近面查询不同；两者不能直接作为同一质量指标比较。完整 sourceFiles、骨骼／网格版本、构图和照明须一并冻结。
 
@@ -235,32 +235,34 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 成人锁骨内端取自转移后体型的 `joint-l-clavicle`，再镜像到另一侧；`source-clavicle-v11` 将这一来源支点用于肩带弧线，避免较窄肩点继续绕固定旧支点旋转。肩胛旋转、腕部接触和衣袖边长约束继续独立验证。
 
-`wristContour=continuous-source-v2`、`forearmProfile=fair-source-volume-v3` 与 `forearmSkin=distributed-wrist-v2` 分别标记连续腕臂截面、中心线拟合与腕部渐进蒙皮。新增公开 `wrist-motion` 面板及 `visual-wrist-motion.json`，在冻结模拟、固定 60 Hz 下，对照两种成人外观的手背、掌侧和侧面，循环观察屈伸、侧偏、前臂旋转和握拳。它使用真实居民网格与骨架，不测量人体医学能力，也不作为 RSI 分数。新的连接拓扑、25 骨近手与腕部支撑会改变构建和动画成本，效率对照必须冻结同一素材、渲染版本、输入及源码。
+`wristContour=continuous-source-v2`、`forearmProfile=paired-fair-volume-v4` 与 `forearmSkin=hinge-bridge-v3` 分别标记连续腕臂截面、中心线拟合与腕部渐进蒙皮。新增公开 `wrist-motion` 面板及 `visual-wrist-motion.json`，在冻结模拟、固定 60 Hz 下，对照两种成人外观的手背、掌侧和侧面，循环观察屈伸、侧偏、前臂旋转和握拳。它使用真实居民网格与骨架，不测量人体医学能力，也不作为 RSI 分数。新的连接拓扑、56 骨近手与腕部支撑会改变构建和动画成本，效率对照必须冻结同一素材、渲染版本、输入及源码。
 
-`garmentFit=rounded-chest-v14`、`forearmProfile=fair-source-volume-v3`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2` 区分衣片纵向弯曲／表面松弛、女性前臂表面、成人脸部比例、额前发根和静止眼睑。它们改变实际网格、缓存创建成本及显示像素；视觉／效率比较须同时冻结这些标识、输入和源码。身体配方为 `lifted-thorax-physique-v27`：女性参考混合为 0.75，男性为 1.0；五类身体支撑共享同一配方哈希。不能仅凭头脸或动作版本判断身体呈现相同。几何固定点、体积、截面与三角形检查用于回归，不是 RSI 得分。
+`garmentFit=rounded-chest-v14`、`forearmProfile=paired-fair-volume-v4`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2` 区分衣片纵向弯曲／表面松弛、女性前臂表面、成人脸部比例、额前发根和静止眼睑。它们改变实际网格、缓存创建成本及显示像素；视觉／效率比较须同时冻结这些标识、输入和源码。身体配方为 `lifted-thorax-physique-v27`：女性参考混合为 0.75，男性为 1.0；五类身体支撑共享同一配方哈希。不能仅凭头脸或动作版本判断身体呈现相同。几何固定点、体积、截面与三角形检查用于回归，不是 RSI 得分。
 
-`bodyPresentation=rounded-thorax-v11` 标识成人女性前领、小腿及鞋部的运行时成品拟合。它改变像素与网格构建成本；比较时须与 `bodyFrame=lifted-thorax-physique-v27`、`garmentFit=rounded-chest-v14` 及源码哈希一并冻结。
+`bodyPresentation=soft-junctions-v12` 标识成人女性前领、小腿及鞋部的运行时成品拟合。它改变像素与网格构建成本；比较时须与 `bodyFrame=lifted-thorax-physique-v27`、`garmentFit=rounded-chest-v14` 及源码哈希一并冻结。
 
-`rounded-thorax-v11` 的女性成人衣装还使用独立材质状态、浅色内衫／绿灰外衣分片，以及近远景共用的静止缝片函数。远景顶点颜色保留来源染色数据，另用材质标记选择分片；因此几何截面检查不会把配色变更当成体型变更。新材质、下摆与源码均需冻结后才能比较视觉或效率结果。
+`soft-junctions-v12` 的女性成人衣装还使用独立材质状态、浅色内衫／绿灰外衣分片，以及近远景共用的静止缝片函数。远景顶点颜色保留来源染色数据，另用材质标记选择分片；因此几何截面检查不会把配色变更当成体型变更。新材质、下摆与源码均需冻结后才能比较视觉或效率结果。
 
-`rounded-chest-v14` 与 `rounded-thorax-v11` 还记录前胸横向拟合、折痕分布、短门襟和缝线表现；来源身体继续为 v27。横向拟合只在成衣缓存创建时运行，但会影响首次构建成本与显示像素，效率比较应区分缓存构建和稳定回放。`CHEST_PANEL_PASS` 是最终三角面连续性与近远景一致性的回归检查，不计入 RSI 能力得分。
+`rounded-chest-v14` 与 `soft-junctions-v12` 还记录前胸横向拟合、折痕分布、短门襟和缝线表现；来源身体继续为 v27。横向拟合只在成衣缓存创建时运行，但会影响首次构建成本与显示像素，效率比较应区分缓存构建和稳定回放。`CHEST_PANEL_PASS` 是最终三角面连续性与近远景一致性的回归检查，不计入 RSI 能力得分。
 
-`rounded-thorax-v11`／`rounded-chest-v14` 还覆盖女性肩背来源的运行时形体场与中性支撑重建；虽然原始 CC0 资产及 v27 配方未变，实际中性网格、姿态修正和缓存构建会改变。视觉及效率对照须冻结这些呈现标识和源码，不能仅按原始资产哈希判断输入相同。
+`soft-junctions-v12`／`rounded-chest-v14` 还覆盖女性肩背来源的运行时形体场与中性支撑重建；虽然原始 CC0 资产及 v27 配方未变，实际中性网格、姿态修正和缓存构建会改变。视觉及效率对照须冻结这些呈现标识和源码，不能仅按原始资产哈希判断输入相同。
 
-`rounded-chest-v14`／`rounded-thorax-v11` 还包括圆领开口、薄折边、下摆／背褶与窄缝线；它们改变成衣几何及像素，来源 v27 不能单独标识相同视觉输入。`NECK_COVERAGE_PASS` 属于成品连接回归约束，不作为形体美观、人体分类或 RSI 分数。
+`rounded-chest-v14`／`soft-junctions-v12` 还包括圆领开口、薄折边、下摆／背褶与窄缝线；它们改变成衣几何及像素，来源 v27 不能单独标识相同视觉输入。`NECK_COVERAGE_PASS` 属于成品连接回归约束，不作为形体美观、人体分类或 RSI 分数。
 
 
-`rounded-thorax-v11` 还覆盖女性连续颈部的运行时延展，虽然原始头部文件未变，实际头颈顶点及像素会改变。视觉比较不能只按原始文件哈希或面部区域的旧标识判断输入相同。
+`soft-junctions-v12` 还覆盖女性连续颈部的运行时延展，虽然原始头部文件未变，实际头颈顶点及像素会改变。视觉比较不能只按原始文件哈希或面部区域的旧标识判断输入相同。
 
-`rounded-thorax-v11`／`rounded-chest-v14` 区分前胸皮肤采样与衣料凸包，并改变实际衣装曲面及上胸分片。`thorax-frames`／`visual-thorax-frames.json` 提供冻结模拟的成年衣装近景正面、三刻面和侧面；它是视觉输入及连接观察，不能把画面变化计为 RSI 能力或程序加速收益。来源检查同时覆盖 `skinRadii`、保留的 `radii` 与下游支持哈希。
+`soft-junctions-v12`／`rounded-chest-v14` 区分前胸皮肤采样与衣料凸包，并改变实际衣装曲面及上胸分片。`thorax-frames`／`visual-thorax-frames.json` 提供冻结模拟的成年衣装近景正面、三刻面和侧面；它是视觉输入及连接观察，不能把画面变化计为 RSI 能力或程序加速收益。来源检查同时覆盖 `skinRadii`、保留的 `radii` 与下游支持哈希。
 
 当前前胸远景含局部共享边细分与邻面补齐，再执行表面转移及索引 LOD 重建；这会改变远景顶点／索引与冷缓存创建成本。比较效率时需冻结源码和成品版本，区分冷构建与稳定回放；本次形体变化本身不代表程序加速。
 
 
-前胸外侧检查使用 `rounded-thorax-v11`／`rounded-chest-v14`。运行时从 v27 原始采样构建局部向内重分配的支撑，来源文件哈希仍与原始身体对应；比较视觉输入必须同时固定形体与衣装标记。`BodyFramesOnly` 是原生几何回归入口，测量最终近远景前侧轮廓及来源间隙，不是 RSI 测试或审美评分。支撑求交只在缓存首次创建时执行；不能据此推断稳定帧率提升。
+前胸外侧检查使用 `soft-junctions-v12`／`rounded-chest-v14`。运行时从 v27 原始采样构建局部向内重分配的支撑，来源文件哈希仍与原始身体对应；比较视觉输入必须同时固定形体与衣装标记。`BodyFramesOnly` 是原生几何回归入口，测量最终近远景前侧轮廓及来源间隙，不是 RSI 测试或审美评分。支撑求交只在缓存首次创建时执行；不能据此推断稳定帧率提升。
 
-`rounded-thorax-v11`／`rounded-chest-v14` 还包含腰腹／侧腰的独立修形、连续衣身分片和纵向衣料弯曲参数。即使原始 v27 资产未变，视觉及效率比较仍须固定这些运行时标记和源码；几何回归不计为 RSI 得分。
+`soft-junctions-v12`／`rounded-chest-v14` 还包含腰腹／侧腰的独立修形、连续衣身分片和纵向衣料弯曲参数。即使原始 v27 资产未变，视觉及效率比较仍须固定这些运行时标记和源码；几何回归不计为 RSI 得分。
 
-`rounded-thorax-v11`／`rounded-chest-v14` 包含连续前胸体积与自适应纵向衣料滤波；它改变运行时支撑和最终显示像素，原始 v27 资产哈希不能单独标识相同视觉输入。`CHEST_VOLUME_PASS` 测量最终穿衣截面深度差，属于形体回归，不是人体体积积分、审美评分或 RSI 能力指标。
+`soft-junctions-v12`／`rounded-chest-v14` 包含连续前胸体积与自适应纵向衣料滤波；它改变运行时支撑和最终显示像素，原始 v27 资产哈希不能单独标识相同视觉输入。`CHEST_VOLUME_PASS` 测量最终穿衣截面深度差，属于形体回归，不是人体体积积分、审美评分或 RSI 能力指标。
 
-`rounded-thorax-v11`／`rounded-chest-v14` 改变胸廓缓存中的前侧截面圆顺和衣料收束函数。`CHEST_CURVE_PASS` 是实际衣面等间距截线的二阶深度差回归，补充体积／宽度检查，不表示审美质量、医学曲率或 RSI 能力。视觉和效率比较仍需固定运行时标记、完整源码、资产及采样条件。
+`soft-junctions-v12`／`rounded-chest-v14` 改变胸廓缓存中的前侧截面圆顺和衣料收束函数。`CHEST_CURVE_PASS` 是实际衣面等间距截线的二阶深度差回归，补充体积／宽度检查，不表示审美质量、医学曲率或 RSI 能力。视觉和效率比较仍需固定运行时标记、完整源码、资产及采样条件。
+
+`hinge-bridge-v3`／`paired-fair-volume-v4`／`soft-junctions-v12` 分别标识肘部过渡、男女前臂表面与隐藏肘口拟合，以及肩袖／腰胯圆顺。近景每手从 25 骨增加到 56 骨，公共变换按每只手复用；远景维持静态代理策略。效率比较必须固定实际 LOD、近景人数、动作和缓存状态，不能将形体更新计为加速收益。`ELBOW_SKIN_PASS` 测量实际顶点连接和混合行列式，不是医学肌肉能力或 RSI 评分。

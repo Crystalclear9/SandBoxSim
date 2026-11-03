@@ -13,13 +13,13 @@ internal sealed partial class NatureModels
         int samples=0;
         for(int frame=0;frame<2;frame++)
         {
-            foreach(float y in new[]{-.10f,-.02f,0f,.005f,.275f,.30f})
+            foreach(float y in new[]{-.10f,-.02f,0f,.005f,.290f,.30f})
             {
                 var p=new Vector3(-.019f,y,.026f);var n=new Vector3(.3f,.4f,.8660254f).Normalized();
                 var fitted=RefineForearmProfile(p,n,frame);
                 if(fitted.Point!=p||fitted.Normal!=n)throw new InvalidOperationException("Wrist fit changes fingers, grip or buried elbow");
             }
-            foreach(float y in new[]{.005f,.035f,.245f,.275f})
+            foreach(float y in new[]{.005f,.035f,.245f,.275f,.290f})
             {
                 const float e=.000001f;var p=new Vector3(.025f,y,.028f);
                 var a=RefineForearmProfile(p-Vector3.Up*e,Vector3.Back,frame);

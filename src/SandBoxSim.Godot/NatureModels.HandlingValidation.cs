@@ -275,11 +275,20 @@ internal sealed partial class NatureModels
                             {
                                 var forearm=InTorso(rig.Elbows[hand],rig.Torso).AffineInverse()*(handTransform*point);
                                 var expected=points[v]+new Vector3(0,-.255f,-.010f);
-                                var longAxis=rig.Hands[hand].Position.Normalized();
-                                float along=expected.Dot(longAxis),actualAlong=forearm.Dot(longAxis);
-                                float radius=(expected-longAxis*along).Length(),actualRadius=(forearm-longAxis*actualAlong).Length();
-                                if(!forearm.IsFinite()||MathF.Abs(along-actualAlong)>.001f||actualRadius<radius*.94f-.0001f||actualRadius>radius+.0001f)
-                                    throw new InvalidOperationException("Distributed forearm twist shortens or collapses the anatomical skin");
+                                // The proximal skin bridges the elbow hinge. Measure
+                                // distortion in its continuous anatomical frame,
+                                // not against the old rigid straight forearm.
+                                var framePose=rig.ForearmSectionPose(hand,ResidentRig.ForearmSkinFraction(points[v].Y));
+                                var unposed=framePose.AffineInverse()*(rig.Hands[hand].Basis.Inverse()*(forearm-rig.Hands[hand].Position))+rig.Hands[hand].Position;
+                                Vector3 bx=Vector3.Zero,by=bx,bz=bx;
+                                for(int b=0;b<4;b++)
+                                {
+                                    var basis=palette[bones[v*4+b]].Basis;float w=skinWeights[v*4+b];
+                                    bx+=basis.X*w;by+=basis.Y*w;bz+=basis.Z*w;
+                                }
+                                float volume=new Basis(bx,by,bz).Determinant();
+                                if(!forearm.IsFinite()||unposed.DistanceTo(expected)>.001f||volume<.97f)
+                                    throw new InvalidOperationException($"Elbow/forearm skin misses its anatomical frame or loses volume: action={action}, side={hand}, y={points[v].Y}, error={unposed.DistanceTo(expected)}, determinant={volume}");
                                 if(points[v].Y<.065f&&forearm.DistanceTo(expected)>.001f)
                                     throw new InvalidOperationException("Forearm twist separates the fixed wrist transition");
                                 continue;
