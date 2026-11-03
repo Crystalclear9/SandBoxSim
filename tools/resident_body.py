@@ -84,6 +84,10 @@ def body_points(source, frame, *, baseline=False):
                 p = points[int(fields[0])]
                 for axis in range(3):
                     p[axis] += float(fields[axis+1])*weight
+    if not baseline and recipe(frame).get('surfaceStyle'):
+        if recipe(frame)['surfaceStyle']!='soft-contours-v1':raise ValueError('Unknown body surface style')
+        from resident_shape import apply_soft_contours
+        points=apply_soft_contours(points,json.loads(read_source(source,'basemesh_vertex_groups.json')),body_metric_scale(source))
     return points
 
 
@@ -93,4 +97,4 @@ def body_provenance(frame):
     names = ('base.obj', 'basemesh_vertex_groups.json', 'caucasian-male-young.target', f'caucasian-{frame}-young.target', *recipe(frame)['targets'])
     return dict(profile=json.loads(raw)['profile'], profileSha256=hashlib.sha256(raw).hexdigest(),
                 coordinateFrame='uniform-baseline-shoulder-hip-v1',
-                targets=recipe(frame)['targets'], sourceSha256={n: manifest[n]['sha256'] for n in names})
+                targets=recipe(frame)['targets'], surfaceStyle=recipe(frame).get('surfaceStyle'), sourceSha256={n: manifest[n]['sha256'] for n in names})

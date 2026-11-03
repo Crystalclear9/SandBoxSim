@@ -12,6 +12,21 @@ SOURCE=ROOT/'.tools/sources/makehuman'
 
 
 class BodyReferenceTests(unittest.TestCase):
+    def test_soft_contours_preserve_orientation_symmetry_and_source_budget(self):
+        from resident_shape import soft_contour
+        maximum=0
+        for x in (.025,.065,.10,.145,.18):
+            for y in (.53,.635,.72,.80,.90,1.015,1.075,1.135,1.22):
+                for z in (-.15,-.09,-.03,.03,.09):
+                    p=(x,y,z);q=soft_contour(p);other=soft_contour((-x,y,z))
+                    self.assertAlmostEqual(q[0],-other[0]);self.assertAlmostEqual(q[2],other[2]);self.assertEqual(q[1],y)
+                    maximum=max(maximum,math.dist(p,q));h=1e-5
+                    dx=[(a-b)/(2*h) for a,b in zip(soft_contour((x+h,y,z)),soft_contour((x-h,y,z)))]
+                    dz=[(a-b)/(2*h) for a,b in zip(soft_contour((x,y,z+h)),soft_contour((x,y,z-h)))]
+                    determinant=dx[0]*dz[2]-dx[2]*dz[0]
+                    self.assertGreater(determinant,.75);self.assertLess(determinant,1.25)
+        self.assertGreater(maximum,.003);self.assertLess(maximum,.008)
+
     def test_verified_surface_and_shape_identity(self):
         manifest=json.loads((ASSETS/'reference-shape-sources.json').read_text(encoding='utf-8'))
         profile=json.loads((ASSETS/'body-profiles.json').read_text(encoding='utf-8'))
