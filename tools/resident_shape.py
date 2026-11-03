@@ -16,12 +16,12 @@ def soft_contour(point):
     side=1 if x>=0 else -1
     bell=lambda h,w:math.exp(-((y-h)/w)**2)
     lateral=smooth(.045,.095,abs(x))
-    # Broaden the transition through the waist, rather than carving a smaller
-    # waist or adding a second breast/pelvic bulge over the attributed source.
-    dx=side*lateral*(.0025*bell(1.02,.070)-.004*bell(.80,.090))
+    # A broad pelvic shelf and gentle waist transition establish the large
+    # silhouette. The former negative pelvic offset erased most frame contrast.
+    dx=side*lateral*(.0005*bell(1.02,.070)+.006*bell(.80,.100))
     front=smooth(.030,.085,-z)
-    chest=math.exp(-((abs(x)-.065)/.045)**2)
-    dz=front*chest*(.003*bell(1.135,.040)-.0015*bell(1.075,.040))
+    chest=math.exp(-((abs(x)-.055)/.075)**2)
+    dz=front*chest*(-.006*bell(1.140,.060)-.0015*bell(1.075,.050))
     dz+=smooth(.008,.035,z)*.0025*bell(1.015,.075)
     # A broad lateral-thigh transition; no displacement of knees/ankles or
     # the medial join. Torso and thigh envelopes overlap continuously.

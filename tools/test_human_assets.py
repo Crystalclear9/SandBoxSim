@@ -18,7 +18,7 @@ class HumanAssetTests(unittest.TestCase):
     def test_body_recipe_is_shared_by_all_anatomical_supports(self):
         raw=(ROOT/'body-profiles.json').read_bytes().replace(b'\r\n',b'\n')
         profile=json.loads(raw);sha=hashlib.sha256(raw).hexdigest()
-        self.assertEqual(profile['profile'],'soft-contour-physique-v25')
+        self.assertEqual(profile['profile'],'readable-soft-physique-v26')
         self.assertEqual(profile['license'],'CC0-1.0')
         manifest=source_manifest()
         for sex,label in (('male','masculine'),('female','feminine')):
@@ -49,8 +49,8 @@ class HumanAssetTests(unittest.TestCase):
         self.assertLess(f['radii'][row]+f['radii'][row+64],m['radii'][row]+m['radii'][row+64])
 
     def test_complete_trunk_sources_and_shape_sections(self):
-        expected=('fe5344bfdbc51d19bda2ca1a42db12e5b6a1b4b2ba2db7fd2c46c0eb9cb1a09b',
-                  '4fd98fa6bc2e6c26ab627b4eac46a5688f277cc40aa70bd534757a026241b580')
+        expected=('129ca0c8958493b47f15a42a6541c769e7371d7ff4c3978430d3095a3d76b3b8',
+                  '8de7345e11cdb5e1b9b663e0fb6f0470a7df43497631f5e5ce3ac10c0cb58823')
         sources=source_manifest()
         frames=[]
         for frame,digest in zip(('masculine','feminine'),expected):

@@ -10,8 +10,8 @@ internal sealed partial class NatureModels
     private readonly float[][] _garmentFrameReference=new float[3][];
     private readonly float[][] _sewnFrameReference=new float[3][];
     private const int TrunkRows=113,TrunkColumns=128;
-    private const string MaleTrunkHash="fe5344bfdbc51d19bda2ca1a42db12e5b6a1b4b2ba2db7fd2c46c0eb9cb1a09b";
-    private const string FemaleTrunkHash="4fd98fa6bc2e6c26ab627b4eac46a5688f277cc40aa70bd534757a026241b580";
+    private const string MaleTrunkHash="129ca0c8958493b47f15a42a6541c769e7371d7ff4c3978430d3095a3d76b3b8";
+    private const string FemaleTrunkHash="8de7345e11cdb5e1b9b663e0fb6f0470a7df43497631f5e5ce3ac10c0cb58823";
     private const float TrunkLow=.74f,TrunkHigh=1.30f;
     private const float GarmentReferenceLow=.64f;
     private const int GarmentReferenceRows=133;
@@ -436,8 +436,17 @@ internal sealed partial class NatureModels
                 }
             }
             CheckFrameCaches(female);
-            var p=new Vector3(.08f,1.16f,-.13f);
-            if(FramePoint(p).DistanceTo(p)<.002f)throw new InvalidOperationException("Source female frame has no chest contour difference");
+            // A single construction point can lie on a newly authored body.
+            // Check the map across thorax/waist sections; actual paired-frame
+            // silhouette differences are checked on the final meshes above.
+            float maximumFrameFit=0;
+            foreach(float height in new[]{1.00f,1.08f,1.135f,1.16f})
+            foreach(float angle in new[]{-.5f,-1.0f,-1.5f})
+            {
+                var sample=new Vector3(.15f*MathF.Cos(angle),height,.15f*MathF.Sin(angle));
+                maximumFrameFit=MathF.Max(maximumFrameFit,FramePoint(sample).DistanceTo(sample));
+            }
+            if(maximumFrameFit<.002f)throw new InvalidOperationException("Source body map retains the unmodified construction cage");
             foreach(float y in new[]{.035f,.075f,.10f,.145f,.20f,.255f,.265f,.275f})
             foreach(int frame in new[]{0,1})
             {
@@ -546,6 +555,8 @@ internal sealed partial class NatureModels
             // scale and distant batching, rather than checking only a sign.
             float sourceHipDifference=(Width(sourceFemale,.78f)-Width(sourceMale,.78f));
             float actualHipDifference=ClothSectionWidth(female.Trousers!.Mesh,.78f)-ClothSectionWidth(male.Trousers!.Mesh,.78f);
+            if(actualHipDifference<.014f)
+                throw new InvalidOperationException("Current adult designs lose their intended clothed pelvic silhouette contrast");
             float sourceChestDifference=Width(sourceMale,1.135f)-Width(sourceFemale,1.135f);
             float actualChestDifference=ClothSectionWidth(m,1.135f,maleDye)-ClothSectionWidth(f,1.135f,femaleDye);
             if(MathF.Abs(actualHipDifference-sourceHipDifference)>.015f||MathF.Abs(actualChestDifference-sourceChestDifference)>.015f)
@@ -571,6 +582,9 @@ internal sealed partial class NatureModels
         }
         float maleProjection=Front(male.DetailedBodyMesh,1.00f)-Front(male.DetailedBodyMesh,1.135f);
         float femaleProjection=Front(female.DetailedBodyMesh,1.00f)-Front(female.DetailedBodyMesh,1.135f);
+        if(femaleProjection-maleProjection<.006f)
+            throw new InvalidOperationException("Current adult designs lose their intended clothed side-profile contrast");
+        GD.Print($"FRAME_READABILITY_PASS: clothed front pelvis and side-profile contrast retained; projection gap={(femaleProjection-maleProjection)*1000:F2} mm; design regression, not identity classification");
         var sourceM=FrameRadii("trunk-masculine-cage.json",MaleTrunkHash);
         var sourceF=FrameRadii("trunk-feminine-cage.json",FemaleTrunkHash);
         float ExpectedProjection(float[] source)=>TrunkSample(source,1.135f,-MathF.PI/2)-TrunkSample(source,1.00f,-MathF.PI/2);

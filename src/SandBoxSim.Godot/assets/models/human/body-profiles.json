@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "profile": "soft-contour-physique-v25",
+  "profile": "readable-soft-physique-v26",
   "license": "CC0-1.0",
   "description": "CC0 Dan Ulrich / Blender Studio body reference on HM08 topology. Female frame retains 75% of the transferred reference and 25% of the original female base to soften the narrow shoulder/waist contrast; one shared recipe for body, limbs and clothing. Art direction, not population measurements.",
   "frames": {
@@ -10,7 +10,7 @@
       }
     },
     "female": {
-      "surfaceStyle": "soft-contours-v1",
+      "surfaceStyle": "readable-soft-contours-v2",
       "targets": {
         "reference-shape-female.json": 0.75
       }
