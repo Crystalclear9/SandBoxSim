@@ -8,12 +8,13 @@ internal sealed partial class NatureModels
     private Shader? _fabricShader;
     private Material Fabric(string color)
     {
-        _fabricShader ??= new Shader { Code = @"shader_type spatial;
+        _fabricShader ??= new Shader { Code = "shader_type spatial;"+FigureFabricFunctions+@"
 uniform vec4 dye : source_color;
 uniform sampler2D weave_map:source_color,filter_linear_mipmap_anisotropic,repeat_enable;
 uniform sampler2D fibre_map:filter_linear_mipmap_anisotropic,repeat_enable;
 uniform bool sleeve_details=false;
 uniform bool trouser_details=false;
+uniform bool fitted_bodice=false;
 varying vec3 cloth_position;varying vec3 cloth_normal;
 varying vec3 cloth_axis_x;varying vec3 cloth_axis_y;varying vec3 cloth_axis_z;
 void vertex(){ cloth_position = VERTEX;cloth_normal=NORMAL;
@@ -34,7 +35,7 @@ float thread=dot(cx*w.x+cy*w.y+cz*w.z,vec3(.2126,.7152,.0722));
 // The pinned linen map has mean linear luminance .3962. Normalize in the
 // same colour space as texture sampling, retaining its photographed weave.
 float textile=clamp(1.0+(thread-.3962)*2.0/.3962,.65,1.25);
-ALBEDO=dye.rgb*.68*(textile+yarn*.018+twill*.008+slub+dye_variation);
+ALBEDO=figure_colour(dye.rgb,UV2,fitted_bodice)*.68*(textile+yarn*.018+twill*.008+slub+dye_variation);
 // On the actual sewn sleeve UV2 stores rest-space metric distances. These
 // subdued stitch lines follow skinning, rather than floating above the cloth.
 // Filter in metric space so they disappear cleanly at world-camera distances.
@@ -45,7 +46,7 @@ float cap_line=(1.0-smoothstep(.0004,.0011+aa,abs(UV2.x-.006)))+(1.0-smoothstep(
 float underarm=1.0-smoothstep(.0004,.0011+aa,abs(UV2.y-.003));
 float stitch=.6+.4*smoothstep(-.2,.4,sin(UV2.x*2094.395));
 float sewn=clamp(cap_line+underarm*stitch,0.0,1.0)*step(0.0,UV2.x)*detail_fade;
-ALBEDO*=1.0-sewn*.075;
+ALBEDO*=1.0-sewn*(fitted_bodice?.025:.075);
 if(UV2.x < -1.1){
 float angle=(-UV2.x-2.0)*6.2831853;
 float side_distance=abs(sin(angle))*.15;
@@ -55,7 +56,7 @@ float yoke_distance=abs(UV2.y-1.19);
 float yoke_aa=max(fwidth(UV2.y),.0001);
 float yoke=(1.0-smoothstep(.0006,.0015+yoke_aa,yoke_distance))*smoothstep(.1,.5,sin(angle));
 float near_fade=1.0-smoothstep(.002,.007,max(side_aa,yoke_aa));
-ALBEDO*=1.0-max(side_seam,yoke)*.13*near_fade;
+ALBEDO*=1.0-max(side_seam,yoke)*(fitted_bodice?.08:.13)*near_fade;
 }
 }
 if(trouser_details){
@@ -70,7 +71,7 @@ ALBEDO*=1.0-line*stitch*.16*fade;
 }
 vec3 grain=vec3(0,(nx.g*2.0-1.0)*side.x,nx.r*2.0-1.0)*w.x+vec3(ny.r*2.0-1.0,0,ny.g*2.0-1.0)*w.y+vec3(nz.r*2.0-1.0,(nz.g*2.0-1.0)*-side.z,0)*w.z;
 grain-=base*dot(grain,base);
-NORMAL=normalize(NORMAL+(cloth_axis_x*grain.x+cloth_axis_y*grain.y+cloth_axis_z*grain.z)*.35);
+NORMAL=normalize(NORMAL+(cloth_axis_x*grain.x+cloth_axis_y*grain.y+cloth_axis_z*grain.z)*(fitted_bodice?.16:.35));
 ROUGHNESS=clamp(nx.b*w.x+ny.b*w.y+nz.b*w.z,.78,.96);SPECULAR=.21;RIM=.10;RIM_TINT=.72;
 }" };
         var material = new ShaderMaterial { Shader = _fabricShader };material.SetShaderParameter("dye",new Color(color));

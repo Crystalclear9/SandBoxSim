@@ -67,7 +67,14 @@ internal sealed partial class NatureModels
         // Carry hem shortening through the whole trunk. Combining a narrow
         // anatomical waist with a short 1.15 m height ramp over-compressed the
         // lower panels, even though the radial map remained invertible.
-        return panel+(finished-hem)*(1-Mathf.SmoothStep(hem,1.23f,panel));
+        float result=panel+(finished-hem)*(1-Mathf.SmoothStep(hem,1.23f,panel));
+        if(FittedFigure&&_garmentCut!=2)
+        {
+            float angle=MathF.Atan2(point.Z,point.X);
+            float front=MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),6),back=MathF.Pow(MathF.Max(0,MathF.Sin(angle)),6);
+            result-=(.012f*front+.006f*back)*(1-Mathf.SmoothStep(finished,finished+.10f,result));
+        }
+        return result;
     }
     private float FinishedGarmentHem=>_garmentCut==2?(BodyFrame==1?.78f:.745f)
         :_garmentCut==1?(BodyFrame==1?.86f:.825f):(BodyFrame==1?.85f:.805f);

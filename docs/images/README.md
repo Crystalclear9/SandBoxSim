@@ -133,6 +133,10 @@
 
 `resident-wrist-motion.png` 取自 `visual-wrist-motion.json` 的第 90 帧；GIF 使用 120 个原生采样，逻辑帧 30–506 每四步采样，固定 60 Hz、零模拟步进，时长八秒，分四次等配置回放。展示实际连体蒙皮，观察镜头沿前臂坐标定位，主补光随观察方向旋转；可见层只隔离该手臂，避免躯干遮住反向视角，没有修改模型或对图像重绘。GIF 仅采用统一调色板编码。
 
-当前身体、衣装、前臂、腕部、连续抬臂及两组头脸配图使用 `garmentFit=soft-neckline-drape-v4`、`forearmProfile=fair-source-volume-v3`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2`。来源身体配方为 v26，女性参考权重为 0.75、男性为 1.0；衣料纵向形体与五类来源支撑同步更新。较早人物观察窗和动作专题保留其原采样版本。`resident-face-frames.png` 与 `resident-face-detail.png` 分别来自公开 `visual-face-frames` 与 `visual-faces` 第 90 帧，本次均为 1600×1000；额前发根与静止眼睑属于实际运行形体及材质参数，没有重绘或局部图像修饰。
+当前身体、衣装、前臂、腕部、连续抬臂及两组头脸配图使用 `garmentFit=bodice-hem-v5`、`forearmProfile=fair-source-volume-v3`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2`。来源身体配方为 v26，女性参考权重为 0.75、男性为 1.0；衣料纵向形体与五类来源支撑同步更新。较早人物观察窗和动作专题保留其原采样版本。`resident-face-frames.png` 与 `resident-face-detail.png` 分别来自公开 `visual-face-frames` 与 `visual-faces` 第 90 帧，本次均为 1600×1000；额前发根与静止眼睑属于实际运行形体及材质参数，没有重绘或局部图像修饰。
 
-当前全身、衣装、身体动态、抬臂、头脸和腕臂图使用 `bodyPresentation=soft-neck-calf-v1`；前领、小腿与鞋部属于实际游戏网格。相机、成人身份、肤色与衣色保留原配置，动态回放仍来自固定步进的原生视口。
+当前全身、衣装、身体动态、抬臂、头脸和腕臂图使用 `bodyPresentation=layered-figure-v2`；前领、小腿与鞋部属于实际游戏网格。相机、成人身份、肤色与来源染色参数保留原配置，女性衣装采用分层配色，动态回放仍来自固定步进的原生视口。
+
+当前女性全身、头肩、衣装与身体动态图展示浅色内衫、绿灰贴体外衣及弧形短下摆；近远景使用同一缝片规则，材质分片直接由游戏着色器输出，未对采样图重绘。
+
+[resident-world-distance.png](resident-world-distance.png) 展示默认世界视距的角色分层配色：`field` 面板、种子 839102、40 名居民、零模拟步进、第 90 帧、1600×1000，俯角约 46°、距离约 41 米。图片直接复制游戏原生视口；该静态世界采样记录了一次窗口恢复，与上述零窗口恢复的角色动态批次分别记录。

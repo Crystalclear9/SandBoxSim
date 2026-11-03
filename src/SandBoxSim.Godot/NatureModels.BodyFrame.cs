@@ -392,7 +392,7 @@ internal sealed partial class NatureModels
                 return y;
             }
             float hemRise=Hem(female.DetailedBodyMesh)-Hem(male.DetailedBodyMesh);
-            if(MathF.Abs(hemRise-.035f)>.003f||MathF.Abs(Hem(female.DetailedBodyMesh)-.86f)>.002f
+            if(MathF.Abs(hemRise-.023f)>.003f||MathF.Abs(Hem(female.DetailedBodyMesh)-.848f)>.002f
                 ||MathF.Abs(Hem(male.DetailedBodyMesh)-.825f)>.002f)
                 throw new InvalidOperationException("Tailored hem loses trouser coverage or retains the common long cut");
             GD.Print($"BODY_CUT_PASS: raised garment hem={hemRise:F4} m, preserved trouser overlap and separate lower-body geometry");
@@ -470,7 +470,7 @@ internal sealed partial class NatureModels
             var rim=new System.Collections.Generic.List<Vector3>();
             float hem=Hem(female.DetailedBodyMesh);
             foreach(var point in female.DetailedBodyMesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
-                if(point.Y<=hem+.009f)rim.Add(point);
+                if(point.Y<=hem+.025f)rim.Add(point);
             foreach(var rig in new[]{male,female})
             foreach(var action in new[]{SandBoxSim.Core.Agents.ActionKind.Eat,SandBoxSim.Core.Agents.ActionKind.BuildHouse,SandBoxSim.Core.Agents.ActionKind.Take})
             for(int f=0;f<150;f++)

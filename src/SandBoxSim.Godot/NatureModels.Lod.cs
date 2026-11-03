@@ -9,7 +9,8 @@ internal sealed partial class NatureModels
     {
         string key="distant-colors:"+source.GetInstanceId();
         if(_meshes.TryGetValue(key,out var cached))return cached;
-        using var tool=new SurfaceTool();tool.Begin(Mesh.PrimitiveType.Triangles);tool.SetMaterial(_distantColorMaterial);
+        bool fitted=false;for(int s=0;s<source.GetSurfaceCount();s++)if(source.SurfaceGetMaterial(s)?.HasMeta("FittedBodice")==true)fitted=true;
+        using var tool=new SurfaceTool();tool.Begin(Mesh.PrimitiveType.Triangles);tool.SetMaterial(fitted?FittedDistantMaterial():_distantColorMaterial);
         for(int s=0;s<source.GetSurfaceCount();s++)
         {
             var material=source.SurfaceGetMaterial(s);Color tint=new("#8c806e");
@@ -31,6 +32,7 @@ internal sealed partial class NatureModels
             for(int i=0;i<count;i++)
             {
                 int v=indices.Length>0?indices[i]:i;tool.SetColor(colors.Length==points.Length?tint*colors[v]:tint);
+                tool.SetUV(new Vector2(material?.HasMeta("FittedBodice")==true?1:0,0));
                 tool.SetUV2(detail.Length==points.Length?detail[v]:new Vector2(-1,0));
                 tool.SetNormal(normals[v]);tool.AddVertex(points[v]);
             }

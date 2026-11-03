@@ -179,7 +179,7 @@ internal sealed partial class NatureModels
         string hair = (variation & 1) == 0 ? "#42352c" : "#695344";
         var rig = new ResidentRig { Name = "Resident", IsChild = child };
         rig.Torso = new Node3D { Name = "Torso" }; rig.AddChild(rig.Torso);
-        rig.Torso.AddChild(new MeshInstance3D { Mesh = Garment(), MaterialOverride = ResidentMaterial(cloth) });
+        rig.Torso.AddChild(new MeshInstance3D { Mesh = Garment(), MaterialOverride = FigureGarmentMaterial(cloth) });
         // Collar, placket and the hem distinguish tailored cloth from the body's silhouette.
         Sculpt(rig.Torso,TurnedNeckline(),Vector3.Zero,CollarMaterial(cloth));
         if(_garmentCut==2)foreach(float side in new[]{-1f,1f})

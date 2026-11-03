@@ -16,14 +16,15 @@ internal sealed partial class NatureModels
             _shoulderSkin=new Skin();_shoulderSkin.AddBind(0,Transform3D.Identity);
             for(int side=0;side<2;side++)_shoulderSkin.AddBind(side+1,new Transform3D(Basis.Identity,-rig.Arms[side].Position));
         }
-        string key="shoulder-fabric:"+cloth;
+        string key="shoulder-fabric:"+cloth+":"+FittedFigure;
         if(!_residentMaterials.TryGetValue(key,out var material))
         {
-            var source=(ShaderMaterial)ResidentMaterial(cloth);
+            var source=(ShaderMaterial)FigureGarmentMaterial(cloth);
             _shoulderFabric??=new Shader {Code=source.Shader.Code.Replace("shader_type spatial;","shader_type spatial; render_mode cull_disabled;").Replace("void fragment(){","void fragment(){if(!OUTPUT_IS_SRGB&&!FRONT_FACING){NORMAL=-NORMAL;}")};
             // Preserve every material parameter, especially scanned colour and
             // normal/roughness maps. Copying shader text alone leaves white samplers.
             var fabric=(ShaderMaterial)source.Duplicate();fabric.Shader=_shoulderFabric;fabric.SetShaderParameter("sleeve_details",true);
+            if(FittedFigure)fabric.SetMeta("FittedBodice",true);
             material=fabric;_residentMaterials[key]=material;
         }
         rig.ShoulderGeometry=JoinedShoulders();
