@@ -134,7 +134,10 @@ internal sealed partial class NatureModels
                     // the anatomical section has already been fitted. Limit
                     // that outer-quadrant excess before restoring clearance.
                     float outer=Mathf.SmoothStep(.055f,.085f,MathF.Abs(p.X));
-                    float excess=MathF.Max(0,radius-TrunkSample(skin,p.Y,angle)-.006f)*outer*active;
+                    float outside=radius-TrunkSample(skin,p.Y,angle)-.006f;
+                    // C1 onset: the old max(0, outside) introduced a tangent
+                    // break exactly at the outer chest/under-bust transition.
+                    float excess=(outside<=0?0:outside<.004f?outside*outside/.008f:outside-.002f)*outer*active;
                     if(excess>.012f)throw new InvalidOperationException($"Outer anterior fairing exceeds its bounded refit: p={p}, correction={excess}");
                     float inset=1-excess/radius;
                     p=new(p.X*inset,p.Y,p.Z*inset);radius-=excess;

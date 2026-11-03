@@ -671,6 +671,16 @@ internal sealed partial class NatureModels
         float chestRelief=.5f*(PairedFront(1.085f)+PairedFront(1.205f))-PairedFront(1.15f);
         if(chestRelief<.012f)throw new InvalidOperationException($"Final cloth erases the adult anterior chest volume: {chestRelief}");
         GD.Print($"CHEST_VOLUME_PASS: final paired cloth profile relief={chestRelief*1000:F2} mm, continuous upper/lower supports; existing sternum, skin and LOD constraints retained");
+        float maximumChestBend=0;
+        foreach(float x in new[]{0f,.045f,.075f,.09f})
+            for(int row=1;row<26;row++)
+            {
+                float y=1.075f+row*.005f;
+                float bend=MathF.Abs(Front(female.DetailedBodyMesh,y-.005f,x)-2*Front(female.DetailedBodyMesh,y,x)+Front(female.DetailedBodyMesh,y+.005f,x));
+                maximumChestBend=MathF.Max(maximumChestBend,bend);
+            }
+        if(maximumChestBend>.003f)throw new InvalidOperationException($"Final chest retains an abrupt meridian tangent break: {maximumChestBend}");
+        GD.Print($"CHEST_CURVE_PASS: final four anterior meridians, 5 mm sampling, maximum second depth difference={maximumChestBend*1000:F2} mm <=3 mm; source contact and LOD checks retained");
         // Measure the outer front contour independently of full trunk breadth:
         // the latter can stay unchanged even when anterior volume splays out.
         static float AnteriorWidth(float[] support,float y,float depth)

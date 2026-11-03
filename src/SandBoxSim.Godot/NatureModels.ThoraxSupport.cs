@@ -35,9 +35,10 @@ internal sealed partial class NatureModels
         float x=MathF.Abs(p.X);
         float height=Mathf.SmoothStep(1.075f,1.105f,p.Y)*(1-Mathf.SmoothStep(1.195f,1.235f,p.Y));
         float root=Mathf.SmoothStep(.008f,.028f,x)*(1-Mathf.SmoothStep(.085f,.115f,x));
-        float oval=MathF.Exp(-MathF.Pow((x-.047f)/.032f,2)-MathF.Pow((p.Y-1.150f)/.045f,2));
+        float vertical=Mathf.Lerp(.048f,.072f,Mathf.SmoothStep(1.13f,1.17f,p.Y));
+        float oval=MathF.Exp(-MathF.Pow((x-.047f)/.044f,2)-MathF.Pow((p.Y-1.150f)/vertical,2));
         float front=Mathf.SmoothStep(.040f,.100f,-p.Z);
-        return p-new Vector3(0,0,.008f*height*root*oval*front);
+        return p-new Vector3(0,0,.005f*height*root*oval*front);
     }
 
     private void ValidateChestVolume()
@@ -48,9 +49,9 @@ internal sealed partial class NatureModels
             var p=new Vector3(col*.01f,1.06f+row*.005f,depth*.02f);const float h=.0001f;
             var q=ChestVolumePoint(p);maximum=MathF.Max(maximum,p.DistanceTo(q));
             var mirror=ChestVolumePoint(new(-p.X,p.Y,p.Z));
-            if(q.X!=p.X||q.Y!=p.Y||MathF.Abs(q.Z-mirror.Z)>1e-6f||p.DistanceTo(q)>.008001f
+            if(q.X!=p.X||q.Y!=p.Y||MathF.Abs(q.Z-mirror.Z)>1e-6f||p.DistanceTo(q)>.005001f
                 ||(MathF.Abs(p.X)<=.008f||MathF.Abs(p.X)>=.115f||p.Z>=-.040f)&&q!=p)
-                throw new InvalidOperationException("Anterior chest volume loses symmetry, fixed roots or its 8 mm bound");
+                throw new InvalidOperationException("Anterior chest volume loses symmetry, fixed roots or its 5 mm bound");
             var dx=(ChestVolumePoint(p+Vector3.Right*h)-ChestVolumePoint(p-Vector3.Right*h))/(2*h);
             var dy=(ChestVolumePoint(p+Vector3.Up*h)-ChestVolumePoint(p-Vector3.Up*h))/(2*h);
             var dz=(ChestVolumePoint(p+Vector3.Back*h)-ChestVolumePoint(p-Vector3.Back*h))/(2*h);
@@ -116,6 +117,24 @@ internal sealed partial class NatureModels
                 if(!float.IsFinite(radius)||radius<.025f||radius>.34f)
                     throw new InvalidOperationException("Medial thorax loses its anatomical radial section");
                 result[row*TrunkColumns+col]=radius;
+            }
+        }
+        // Round changes of meridian tangent in the fitted body reference itself.
+        // Contact recovery would otherwise restore the sharp source crease after
+        // every cloth smoothing pass. Keep the neck/waist/back outside this edit.
+        var mapped=(float[])result.Clone();
+        for(int pass=0;pass<8;pass++)
+        {
+            var old=(float[])result.Clone();
+            for(int row=1;row<TrunkRows-1;row++)for(int col=0;col<TrunkColumns;col++)
+            {
+                float y=TrunkLow+row*.005f,a=col*Mathf.Tau/TrunkColumns;
+                float active=Mathf.SmoothStep(1.055f,1.09f,y)*(1-Mathf.SmoothStep(1.195f,1.235f,y))
+                    *MathF.Pow(MathF.Max(0,-MathF.Sin(a)),2);
+                int i=row*TrunkColumns+col;
+                float target=.25f*old[i-TrunkColumns]+.5f*old[i]+.25f*old[i+TrunkColumns];
+                result[i]=Mathf.Lerp(old[i],target,active);
+                if(MathF.Abs(result[i]-mapped[i])>.006f)throw new InvalidOperationException("Rounded thorax exceeds its 6 mm meridian bound");
             }
         }
         return _feminineThoraxSupport=result;

@@ -236,19 +236,21 @@ python -m unittest discover -s tools -p test_resident_trousers.py
 
 女性配方另包含 `surfaceStyle=balanced-thorax-v3`。重建消费者应使用 `resident_body.body_points`，应用来源目标混合后再执行柔和形体场；该场包含前胸的有界向上重分配与胸下回收，使用三轴米制位移，并固定关节辅助点。只叠加 `targets` 无法复现当前成品。每份支撑的 `shapeRecipe.surfaceStyle` 与配方哈希共同标识这一处理。
 
-当前成衣 `contoured-chest-v13` 在缓存构建时增加有界的前胸横向曲面拟合，并同步门襟、纽扣、针脚和分片缝线；它改变运行时成衣网格，来源身体及五类支撑仍使用 `lifted-thorax-physique-v27`。参数及最终三角面检查见[模型系统](models.md)。
+当前成衣 `rounded-chest-v14` 在缓存构建时增加有界的前胸横向曲面拟合，并同步门襟、纽扣、针脚和分片缝线；它改变运行时成衣网格，来源身体及五类支撑仍使用 `lifted-thorax-physique-v27`。参数及最终三角面检查见[模型系统](models.md)。
 
-肩背的运行时形体处理标记为 `contoured-thorax-v10`／`contoured-chest-v13`；来源身体与原始肩面文件仍为 v27。读取原始肩面不能替代运行时肩背映射及中性绑定重建，详见[模型系统](models.md)。
+肩背的运行时形体处理标记为 `rounded-thorax-v11`／`rounded-chest-v14`；来源身体与原始肩面文件仍为 v27。读取原始肩面不能替代运行时肩背映射及中性绑定重建，详见[模型系统](models.md)。
 
-当前圆领、薄折边及腰胯衣料细节使用 `contoured-chest-v13`／`contoured-thorax-v10`，由已有来源在运行时生成。没有更换原始人体文件；颈部覆盖检查读取实际头部网格与成品衣领，详细参数见[模型系统](models.md)。
+当前圆领、薄折边及腰胯衣料细节使用 `rounded-chest-v14`／`rounded-thorax-v11`，由已有来源在运行时生成。没有更换原始人体文件；颈部覆盖检查读取实际头部网格与成品衣领，详细参数见[模型系统](models.md)。
 
 女性躯干支持新增 `skinRadii` 与 `anatomicalSampling=source-anterior-skin-rays-v1`，来源为同一 CC0 身体。旧 `radii` 凸包继续保留；重建时应同时输出两层，随后重新导出引用支持文件哈希的裤装，并更新运行时与来源测试的成品哈希。源文件读取与形体配方仍使用已有工具，详见[模型系统](models.md)。
 
 前胸近景回放：`python tools/evaluate.py run benchmarks/scenarios/visual-thorax-frames.json --output .tools/tmp/thorax-study --resolution 1600x1000`。该面板展示同一成年居民的三种观察方向，冻结模拟，用于观察当前衣装形体。
 
 
-女性成人前胸的运行时支撑由 `FemaleThoraxSupport` 从原始 `skinRadii` 缓存生成：前侧体积局部向内重分配，再按变形截面求径向支撑，供成衣拟合与皮肤间隙检查共用。原始身体、五类来源支撑及裤装没有重导出，既有来源哈希继续有效；当前衣装表现为 `contoured-chest-v13`、整体形体表现为 `contoured-thorax-v10`。外侧衣面在肩胸松弛之后再次受支撑约束，最终前侧轮廓由原生三角面回归验证，参数见[模型系统](models.md)。
+女性成人前胸的运行时支撑由 `FemaleThoraxSupport` 从原始 `skinRadii` 缓存生成：前侧体积局部向内重分配，再按变形截面求径向支撑，供成衣拟合与皮肤间隙检查共用。原始身体、五类来源支撑及裤装没有重导出，既有来源哈希继续有效；当前衣装表现为 `rounded-chest-v14`、整体形体表现为 `rounded-thorax-v11`。外侧衣面在肩胸松弛之后再次受支撑约束，最终前侧轮廓由原生三角面回归验证，参数见[模型系统](models.md)。
 
 当前腰腹与侧腰使用 `BalancedTorsoPoint` 的独立有界场，并与前胸修形共同重采运行时截面；不修改原始 v27 资产哈希。实际衣身、腰带与挂点共同拟合，成人正侧背与胸廓近景展示当前成品。具体边界和测量入口见[模型系统](models.md)。
 
-当前前胸体积场 `ChestVolumePoint` 与既有内收／腰腹映射共同构建女性成人运行时支撑，最大新增前向位移 8 毫米。来源身体仍是 v27，成品采用 `contoured-thorax-v10`／`contoured-chest-v13` 标识；原始文件哈希与许可保持原状。前胸局部滤波、成衣截面及固定根部检查见[模型系统](models.md)。
+当前前胸体积场 `ChestVolumePoint` 与既有内收／腰腹映射共同构建女性成人运行时支撑，最大新增前向位移 5 毫米。来源身体仍是 v27，成品采用 `rounded-thorax-v11`／`rounded-chest-v14` 标识；原始文件哈希与许可保持原状。前胸局部滤波、成衣截面及固定根部检查见[模型系统](models.md)。
+
+当前运行时胸廓支撑在映射后增加有界的前侧纵向圆顺，再用于成衣与接触恢复；前向体积采用较宽的上胸与胸下衰减，最大新增 5 毫米，原始资产哈希继续保留。`rounded-thorax-v11`／`rounded-chest-v14` 与 `CHEST_CURVE_PASS` 参数见[模型系统](models.md)。
