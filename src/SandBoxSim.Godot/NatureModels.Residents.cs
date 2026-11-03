@@ -191,11 +191,13 @@ internal sealed partial class NatureModels
             Sculpt(rig.Torso,SewnButton(),anchor,ResidentMaterial("#514237"));
             FineBeam(rig.Torso,anchor+new Vector3(-.0014f,-.0010f,-.0038f),anchor+new Vector3(.0014f,.0010f,-.0038f),.00055f,"#a09380");
         }
-        Sculpt(rig.Torso, FittedRibbon("belt", .748f+BeltRise, .775f+BeltRise), Vector3.Zero, ResidentMaterial("#514237"));
+        float beltHalf=BodyFrame==1?.009f:.0135f;
+        Sculpt(rig.Torso, FittedRibbon("belt", .7615f-beltHalf+BeltRise, .7615f+beltHalf+BeltRise), Vector3.Zero, ResidentMaterial("#514237"));
         var buckle=TorsoSurface(.015f,.7615f+BeltRise,false,.009f);
-        var buckleCorners=new[]{buckle+new Vector3(-.0205f,-.0155f,0),buckle+new Vector3(.0205f,-.0155f,0),buckle+new Vector3(.0205f,.0155f,0),buckle+new Vector3(-.0205f,.0155f,0)};
-        for(int edge=0;edge<4;edge++)FineBeam(rig.Torso,buckleCorners[edge],buckleCorners[(edge+1)%4],.004f,"#b8a17b");
-        FineBeam(rig.Torso,buckle+new Vector3(-.006f,0,-.002f),buckle+new Vector3(.0205f,0,-.002f),.003f,"#b8a17b");
+        float buckleWidth=BodyFrame==1?.014f:.0205f,buckleHeight=BodyFrame==1?.011f:.0155f;
+        var buckleCorners=new[]{buckle+new Vector3(-buckleWidth,-buckleHeight,0),buckle+new Vector3(buckleWidth,-buckleHeight,0),buckle+new Vector3(buckleWidth,buckleHeight,0),buckle+new Vector3(-buckleWidth,buckleHeight,0)};
+        for(int edge=0;edge<4;edge++)FineBeam(rig.Torso,buckleCorners[edge],buckleCorners[(edge+1)%4],BodyFrame==1?.0025f:.004f,"#b8a17b");
+        FineBeam(rig.Torso,buckle+new Vector3(-.006f,0,-.002f),buckle+new Vector3(buckleWidth,0,-.002f),BodyFrame==1?.002f:.003f,"#b8a17b");
         // The attributed head already includes a continuous anatomical neck.
         // A second torso-mounted neck intersects it when the head turns.
         // Expose the authored neck instead of crowding the jaw into the collar.

@@ -100,7 +100,7 @@ internal sealed partial class NatureModels
             float side=MathF.Abs(MathF.Cos(a));
             allowance[row*TrunkColumns+col]=Mathf.Lerp(.016f,.006f,side*side)*freedom[row*TrunkColumns+col];
         }
-        const float bending=12;
+        float bending=BodyFrame==1?180:12;
         for(int pass=0;pass<96;pass++)for(int sweep=0;sweep<2;sweep++)
         for(int r=2;r<TrunkRows-2;r++)for(int col=0;col<TrunkColumns;col++)
         {

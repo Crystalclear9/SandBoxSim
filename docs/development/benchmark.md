@@ -237,4 +237,4 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `wristContour=continuous-source-v2`、`forearmProfile=fair-source-volume-v3` 与 `forearmSkin=distributed-wrist-v2` 分别标记连续腕臂截面、中心线拟合与腕部渐进蒙皮。新增公开 `wrist-motion` 面板及 `visual-wrist-motion.json`，在冻结模拟、固定 60 Hz 下，对照两种成人外观的手背、掌侧和侧面，循环观察屈伸、侧偏、前臂旋转和握拳。它使用真实居民网格与骨架，不测量人体医学能力，也不作为 RSI 分数。新的连接拓扑、25 骨近手与腕部支撑会改变构建和动画成本，效率对照必须冻结同一素材、渲染版本、输入及源码。
 
-`garmentFit=meridian-drape-v2`、`forearmProfile=fair-source-volume-v3`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2` 区分衣片纵向弯曲／表面松弛、女性前臂表面、成人脸部比例、额前发根和静止眼睑。它们改变实际网格、缓存创建成本及显示像素；视觉／效率比较须同时冻结这些标识、输入和源码。身体配方为 `balanced-source-physique-v24`：女性参考混合为 0.75，男性为 1.0；五类身体支撑共享同一配方哈希。不能仅凭头脸或动作版本判断身体呈现相同。几何固定点、体积、截面与三角形检查用于回归，不是 RSI 得分。
+`garmentFit=rounded-shoulder-drape-v3`、`forearmProfile=fair-source-volume-v3`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2` 区分衣片纵向弯曲／表面松弛、女性前臂表面、成人脸部比例、额前发根和静止眼睑。它们改变实际网格、缓存创建成本及显示像素；视觉／效率比较须同时冻结这些标识、输入和源码。身体配方为 `balanced-source-physique-v24`：女性参考混合为 0.75，男性为 1.0；五类身体支撑共享同一配方哈希。不能仅凭头脸或动作版本判断身体呈现相同。几何固定点、体积、截面与三角形检查用于回归，不是 RSI 得分。
