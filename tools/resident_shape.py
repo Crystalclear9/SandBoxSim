@@ -21,13 +21,16 @@ def soft_contour(point):
     dx=side*lateral*(.0005*bell(1.02,.070)+.006*bell(.80,.100))
     front=smooth(.030,.085,-z)
     chest=math.exp(-((abs(x)-.055)/.075)**2)
-    dz=front*chest*(-.006*bell(1.140,.060)-.0015*bell(1.075,.050))
+    # Redistribute the anterior thoracic surface upward, rather than adding
+    # volume to its lower pole. Keep a broad transition into the upper abdomen.
+    dy=.016*front*chest*bell(1.125,.060)*(1-smooth(1.20,1.25,y))
+    dz=front*chest*(-.004*bell(1.165,.055)+.003*bell(1.080,.040))
     dz+=smooth(.008,.035,z)*.0025*bell(1.015,.075)
     # A broad lateral-thigh transition; no displacement of knees/ankles or
     # the medial join. Torso and thigh envelopes overlap continuously.
     thigh=bell(.635,.080)*smooth(.090,.135,abs(x))
     dx-=side*.0025*thigh
-    return x+dx,y,z+dz
+    return x+dx,y+dy,z+dz
 
 
 def apply_soft_contours(points,groups,scale):
@@ -46,6 +49,6 @@ def apply_soft_contours(points,groups,scale):
             result.append(p[:]);continue
         fitted=soft_contour(q)
         offset=[(b-a)*weight for a,b in zip(q,fitted)]
-        if math.sqrt(sum(v*v for v in offset))>.008:raise ValueError('Soft contour exceeds its 8 mm source bound')
-        result.append([p[0]+offset[0]/scale,p[1],p[2]-offset[2]/scale])
+        if math.sqrt(sum(v*v for v in offset))>.018:raise ValueError('Thoracic contour exceeds its 18 mm source bound')
+        result.append([p[0]+offset[0]/scale,p[1]+offset[1]/scale,p[2]-offset[2]/scale])
     return result

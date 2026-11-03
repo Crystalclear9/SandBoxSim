@@ -85,7 +85,7 @@ def body_points(source, frame, *, baseline=False):
                 for axis in range(3):
                     p[axis] += float(fields[axis+1])*weight
     if not baseline and recipe(frame).get('surfaceStyle'):
-        if recipe(frame)['surfaceStyle']!='readable-soft-contours-v2':raise ValueError('Unknown body surface style')
+        if recipe(frame)['surfaceStyle']!='balanced-thorax-v3':raise ValueError('Unknown body surface style')
         from resident_shape import apply_soft_contours
         points=apply_soft_contours(points,json.loads(read_source(source,'basemesh_vertex_groups.json')),body_metric_scale(source))
     return points

@@ -79,7 +79,7 @@ internal sealed partial class NatureModels
                 float radius=skin[row*TrunkColumns+col],hanging=radius;
                 for(int step=1;step<=24&&row+step<TrunkRows;step++)
                     hanging=MathF.Max(hanging,skin[(row+step)*TrunkColumns+col]-step*.005f*.22f);
-                data[row*TrunkColumns+col]=radius+MathF.Min(.007f,hanging-radius)*free;
+                data[row*TrunkColumns+col]=radius+MathF.Min(BodyFrame==1?.003f:.007f,hanging-radius)*free;
             }
             _clothEnvelopes[key]=data;
         }
@@ -98,7 +98,13 @@ internal sealed partial class NatureModels
             float pin=Mathf.SmoothStep(.015f,.050f,MathF.Abs(y-FinishedBeltHeight(a)));
             freedom[row*TrunkColumns+col]=pin*Mathf.SmoothStep(.83f,.90f,y)*(1-Mathf.SmoothStep(1.17f,1.23f,y));
             float side=MathF.Abs(MathF.Cos(a));
-            allowance[row*TrunkColumns+col]=Mathf.Lerp(.016f,.006f,side*side)*freedom[row*TrunkColumns+col];
+            float limit=Mathf.Lerp(.016f,.006f,side*side);
+            if(BodyFrame==1)
+            {
+                float chest=Mathf.SmoothStep(1.04f,1.07f,y)*(1-Mathf.SmoothStep(1.18f,1.22f,y))*MathF.Pow(MathF.Max(0,-MathF.Sin(a)),2);
+                limit=Mathf.Lerp(limit,.004f,chest);
+            }
+            allowance[row*TrunkColumns+col]=limit*freedom[row*TrunkColumns+col];
         }
         float bending=BodyFrame==1?180:12;
         for(int pass=0;pass<96;pass++)for(int sweep=0;sweep<2;sweep++)

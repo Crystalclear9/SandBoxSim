@@ -10,8 +10,8 @@ internal sealed partial class NatureModels
     private readonly float[][] _garmentFrameReference=new float[3][];
     private readonly float[][] _sewnFrameReference=new float[3][];
     private const int TrunkRows=113,TrunkColumns=128;
-    private const string MaleTrunkHash="129ca0c8958493b47f15a42a6541c769e7371d7ff4c3978430d3095a3d76b3b8";
-    private const string FemaleTrunkHash="8de7345e11cdb5e1b9b663e0fb6f0470a7df43497631f5e5ce3ac10c0cb58823";
+    private const string MaleTrunkHash="b6006b48444c898845ce45762277e73639ac5527b9f6e29998de5f6ee7ffdcf0";
+    private const string FemaleTrunkHash="2b935a400793900b415c69615891b60a8f90d321bcefb62d42b5bc7a3ef4962e";
     private const float TrunkLow=.74f,TrunkHigh=1.30f;
     private const float GarmentReferenceLow=.64f;
     private const int GarmentReferenceRows=133;
@@ -587,14 +587,28 @@ internal sealed partial class NatureModels
             if(!float.IsFinite(front))throw new InvalidOperationException("Missing final garment profile sample");
             return front;
         }
-        float maleProjection=Front(male.DetailedBodyMesh,1.00f)-Front(male.DetailedBodyMesh,1.135f);
-        float femaleProjection=Front(female.DetailedBodyMesh,1.00f)-Front(female.DetailedBodyMesh,1.135f);
-        if(femaleProjection-maleProjection<.006f)
-            throw new InvalidOperationException("Current adult designs lose their intended clothed side-profile contrast");
-        GD.Print($"FRAME_READABILITY_PASS: clothed front pelvis and side-profile contrast retained; projection gap={(femaleProjection-maleProjection)*1000:F2} mm; design regression, not identity classification");
+        (float Projection,float Apex) ThoraxProfile(Mesh mesh)
+        {
+            float minimum=float.PositiveInfinity,apex=0;
+            for(int row=0;row<=22;row++)
+            {
+                float y=1.09f+row*.005f,z=Front(mesh,y);
+                if(z<minimum){minimum=z;apex=y;}
+            }
+            return(Front(mesh,1.00f)-minimum,apex);
+        }
+        var maleThorax=ThoraxProfile(male.DetailedBodyMesh);var femaleThorax=ThoraxProfile(female.DetailedBodyMesh);
+        float maleProjection=maleThorax.Projection,femaleProjection=femaleThorax.Projection;
+        if(femaleThorax.Apex<1.145f||femaleProjection<.008f)
+            throw new InvalidOperationException("Fitted female thoracic profile loses its authored supported apex");
+        GD.Print($"FRAME_READABILITY_PASS: clothed pelvic contrast retained; female thoracic apex={femaleThorax.Apex:F3} m, projection={femaleProjection*1000:F2} mm; design regression, not identity classification");
         var sourceM=FrameRadii("trunk-masculine-cage.json",MaleTrunkHash);
         var sourceF=FrameRadii("trunk-feminine-cage.json",FemaleTrunkHash);
-        float ExpectedProjection(float[] source)=>TrunkSample(source,1.135f,-MathF.PI/2)-TrunkSample(source,1.00f,-MathF.PI/2);
+        float ExpectedProjection(float[] source)
+        {
+            float peak=0;for(int row=0;row<=22;row++)peak=MathF.Max(peak,TrunkSample(source,1.09f+row*.005f,-MathF.PI/2));
+            return peak-TrunkSample(source,1.00f,-MathF.PI/2);
+        }
         if(MathF.Abs(maleProjection-ExpectedProjection(sourceM))>.016f||MathF.Abs(femaleProjection-ExpectedProjection(sourceF))>.016f)
             throw new InvalidOperationException($"Garment adds an artificial chest/waist projection: {maleProjection:F4}/{femaleProjection:F4}");
         GD.Print($"TRUNK_PROFILE_PASS: source-bound chest-to-waist projection={maleProjection:F4}/{femaleProjection:F4} m, fitted mounts and distinct source pelvis");

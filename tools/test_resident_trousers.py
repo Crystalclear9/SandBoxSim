@@ -45,7 +45,7 @@ class TrouserTests(unittest.TestCase):
             rows=[p for p in points if abs(p[1]-y)<.008]
             return max(p[0] for p in rows)-min(p[0] for p in rows),max(p[2] for p in rows)
         for sex in data:
-            self.assertEqual(data[sex]['physique'],'readable-soft-physique-v26')
+            self.assertEqual(data[sex]['physique'],'lifted-thorax-physique-v27')
             self.assertEqual(data[sex]['tailoring']['pelvis'],'source-envelope')
             points=list(zip(*(iter(data[sex]['positions']),)*3))
             self.assertTrue(all(abs(x)<.26 and .3849<=y<=.9401 and abs(z)<.20 for x,y,z in points))
@@ -60,7 +60,7 @@ class TrouserTests(unittest.TestCase):
 
     def test_provenance_and_connected_clothing(self):
         manifest=source_manifest()
-        for sex,sha in [('male','5bcdad9c4ca567690854be078505261d73d0c79b0f97e5d6f9277ff3fa48cf23'),('female','687363c4857b1bed311959a40624370cc38d5fd63aa47890c8657330c3249237')]:
+        for sex,sha in [('male','6ae961ac0d9439ebe668c7da488857cfa64a9d7a3ada803945554343434ba213'),('female','dd6b106a0f8229ac5c723f6ee167cc5786e000e3b76b47a22b3278ae521668e7')]:
             raw=(ROOT/f'trousers-{sex}.mesh.json').read_bytes().replace(b'\r\n',b'\n');self.assertEqual(hashlib.sha256(raw).hexdigest(),sha)
             data=json.loads(raw);count=len(data['positions'])//3
             for name,digest in data['sourceSha256'].items():self.assertEqual(digest,manifest[name]['sha256'])

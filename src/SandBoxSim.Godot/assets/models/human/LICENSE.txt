@@ -37,7 +37,7 @@ Both files record verified inputs, scales and the sampling recipe. Runtime
 cloth ease and body fitting are SandBoxSim artistic modifications.
 
 REFERENCE BODY SHAPES (CC0)
-body-profiles.json defines the readable-soft-physique-v26 adult references.
+body-profiles.json defines the lifted-thorax-physique-v27 adult references.
 reference-shape-male.json and reference-shape-female.json transfer the CC0
 Body Male - Realistic and Body Female - Realistic assets by Dan Ulrich,
 from the official Blender Human Base Meshes v1.4.1 bundle, onto HM08 topology.
@@ -129,6 +129,10 @@ and runtime wrist weights are augmented. Each fit records the
 reference sculpt checksum, body recipe and source checksums.
 Exporter: tools/export_upper_arm_support.py --region forearm.
 
-Current CC0 body modifications also include the bounded readable-soft-contours-v2
+Current CC0 body modifications also include the bounded balanced-thorax-v3
 source-space deformation: waist/pelvis/thigh and thoracic transitions, with
 all joint helper vertices preserved. Reusable source: tools/resident_shape.py.
+
+The balanced-thorax-v3 source deformation adds a bounded upward thoracic
+redistribution and upper/lower anterior volume adjustment, preserving joint
+helper coordinates. Its reusable implementation is tools/resident_shape.py.

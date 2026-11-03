@@ -12,7 +12,7 @@ if(!enabled)return dye;
 vec3 linen=mix(dye,vec3(.82,.78,.67),.65);
 if(chart.x>=-1.1)return linen;
 float a=(-chart.x-2.0)*6.2831853;
-float top=1.145+.025*pow(abs(cos(a)),2.0)-.028*pow(max(0.0,-sin(a)),10.0);
+float top=1.175+.012*pow(abs(cos(a)),2.0)-.012*pow(max(0.0,-sin(a)),8.0);
 float aa=max(fwidth(chart.y),.0005);
 float panel=1.0-smoothstep(top-aa,top+aa,chart.y);
 vec3 outer=mix(dye*.95,vec3(.18,.28,.23),.35);
