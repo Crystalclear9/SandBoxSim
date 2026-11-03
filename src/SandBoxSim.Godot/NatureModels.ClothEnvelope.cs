@@ -70,6 +70,15 @@ internal sealed partial class NatureModels
                     float belt=FinishedBeltHeight(a);
                     float gather=MathF.Exp(-MathF.Pow((height-belt)/.045f,2));
                     float ease=.0055f+.0015f*side+.001f*back-.001f*gather;
+                    if(BodyFrame==1)
+                    {
+                        // Tailor the outer anterior quadrant independently of
+                        // the back and flank. Incidence compensation otherwise
+                        // amplifies ease into a lateral shelf at the bust root.
+                        float anterior=Mathf.SmoothStep(.20f,.65f,-ray.Y);
+                        float chest=Mathf.SmoothStep(1.07f,1.11f,height)*(1-Mathf.SmoothStep(1.18f,1.23f,height));
+                        ease-=.002f*chest*anterior*Mathf.SmoothStep(.25f,.70f,MathF.Abs(ray.X));
+                    }
                     data[row*TrunkColumns+col]=radius+ease/MathF.Max(.55f,incidence);
                 }
             }

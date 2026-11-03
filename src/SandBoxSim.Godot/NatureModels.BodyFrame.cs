@@ -99,7 +99,7 @@ internal sealed partial class NatureModels
             // Fit the source skin's complete thorax/lumbar/pelvic envelope.
             // Millimetre-scale ease bridges the skin, rather than shrinking
             // every body part with one sex-dependent actor scale.
-            var support=feminine?_trunkFeminineSkin:_trunkMale;
+            var support=feminine?FemaleThoraxSupport():_trunkMale;
             // Sample the anatomy where the finished panel actually lands.
             // Using its pre-shortening height inflated the upper hip/hem and
             // hid the natural waist-to-pelvis transition under a straight box.
@@ -368,9 +368,10 @@ internal sealed partial class NatureModels
         FitArmClothing(rig);
         rig.CaptureBodyMounts();
     }
-    private void ValidateBodyFrames()
+    public void ValidateBodyFrames()
     {
         ValidateSoftShoulderField();
+        ValidateMedialThorax();
         int previous=_faceVariant;
         var male=Resident(17,false,SandBoxSim.Core.Agents.JobType.Gatherer);
         var female=Resident(42,false,SandBoxSim.Core.Agents.JobType.Gatherer);
@@ -628,7 +629,7 @@ internal sealed partial class NatureModels
         // Inspect the rendered front panel, not the source cage or a shader
         // label. A central trough must not split the shared cloth span, and
         // distant batching must retain the same surface across that span.
-        var skinSupport=FrameRadii("trunk-feminine-cage.json",FemaleTrunkHash,"skinRadii");
+        var skinSupport=FemaleThoraxSupport();
         float SkinFront(float y,float x)
         {
             float z=float.PositiveInfinity;
@@ -664,6 +665,50 @@ internal sealed partial class NatureModels
         if(maximumLodGap>.001f)
             throw new InvalidOperationException($"Front cloth span has a central trough or inconsistent LOD: {maximumRecess}/{maximumLodGap}, at {worstLodSample}");
         GD.Print($"CHEST_PANEL_PASS: source-bound anterior relief <=5 mm, skin clearance and near/far deviation <=1 mm; measured {maximumRecess*1000:F2}/{maximumLodGap*1000:F2} mm");
+        // Measure the outer front contour independently of full trunk breadth:
+        // the latter can stay unchanged even when anterior volume splays out.
+        static float AnteriorWidth(float[] support,float y,float depth)
+        {
+            float low=float.PositiveInfinity,high=float.NegativeInfinity;
+            for(int col=0;col<TrunkColumns;col++)
+            {
+                float a=col*Mathf.Tau/TrunkColumns,b=(col+1)*Mathf.Tau/TrunkColumns;
+                float ra=TrunkSample(support,y,a),rb=TrunkSample(support,y,b);
+                float za=MathF.Sin(a)*ra,zb=MathF.Sin(b)*rb;
+                if((depth-za)*(depth-zb)>0||MathF.Abs(zb-za)<1e-8f)continue;
+                float x=Mathf.Lerp(MathF.Cos(a)*ra,MathF.Cos(b)*rb,(depth-za)/(zb-za));
+                low=MathF.Min(low,x);high=MathF.Max(high,x);
+            }
+            if(!float.IsFinite(low)||!float.IsFinite(high))throw new InvalidOperationException("Missing outer anterior support section");
+            return high-low;
+        }
+        var originalSkin=FrameRadii("trunk-feminine-cage.json",FemaleTrunkHash,"skinRadii");
+        float minimumReduction=float.PositiveInfinity,maximumOuterAllowance=0,maximumOuterLod=0;
+        foreach(float y in new[]{1.13f,1.15f,1.17f})
+        {
+            float original=AnteriorWidth(originalSkin,y,-.11f),support=AnteriorWidth(skinSupport,y,-.11f);
+            minimumReduction=MathF.Min(minimumReduction,original-support);
+            // The finished edge is where the forward garment crosses z=-.11.
+            float Edge(Mesh mesh,int side,bool far)
+            {
+                float inside=.07f,outside=.115f;
+                if(Front(mesh,y,side*inside,far)>-.11f||Front(mesh,y,side*outside,far)<-.11f)
+                    throw new InvalidOperationException("Missing final anterior cloth contour bracket");
+                for(int i=0;i<12;i++)
+                {
+                    float x=(inside+outside)*.5f;
+                    if(Front(mesh,y,side*x,far)<-.11f)inside=x;else outside=x;
+                }
+                return (inside+outside)*.5f;
+            }
+            float near=Edge(female.DetailedBodyMesh,-1,false)+Edge(female.DetailedBodyMesh,1,false);
+            float far=Edge(female.DistantBodyMesh,-1,true)+Edge(female.DistantBodyMesh,1,true);
+            maximumOuterAllowance=MathF.Max(maximumOuterAllowance,near-support);
+            maximumOuterLod=MathF.Max(maximumOuterLod,MathF.Abs(near-far));
+            if(original-support<.010f||near<support||near-support>.025f||MathF.Abs(near-far)>.002f)
+                throw new InvalidOperationException($"Anterior cloth restores excessive lateral volume: y={y}, original/support/near/far={original}/{support}/{near}/{far}");
+        }
+        GD.Print($"CHEST_LATERAL_PASS: three final anterior sections; support breadth reduction >=10 mm, measured {minimumReduction*1000:F2} mm; total cloth width allowance={maximumOuterAllowance*1000:F2} mm, near/far edge sum difference={maximumOuterLod*1000:F2} mm");
         float maleProjection=maleThorax.Projection,femaleProjection=femaleThorax.Projection;
         if(femaleThorax.Apex<1.145f||femaleProjection<.008f)
             throw new InvalidOperationException("Fitted female thoracic profile loses its authored supported apex");

@@ -120,7 +120,7 @@ internal sealed partial class NatureModels
             {
                 // Shoulder fitting and relief smoothing must not push the front
                 // cloth back through the separately retained anatomical surface.
-                var skin=_trunkFeminineSkin??=FrameRadii("trunk-feminine-cage.json",FemaleTrunkHash,"skinRadii");
+                var skin=FemaleThoraxSupport();
                 var beforeClearance=(Vector3[])points.Clone();
                 for(int i=0;i<points.Length;i++)
                 {
@@ -130,6 +130,14 @@ internal sealed partial class NatureModels
                         *(pattern[i].X<0?1:0);
                     if(active<=0)continue;
                     float radius=new Vector2(p.X,p.Z).Length(),angle=MathF.Atan2(p.Z,p.X);
+                    // Shoulder fairing can recreate a wide anterior wing after
+                    // the anatomical section has already been fitted. Limit
+                    // that outer-quadrant excess before restoring clearance.
+                    float outer=Mathf.SmoothStep(.055f,.085f,MathF.Abs(p.X));
+                    float excess=MathF.Max(0,radius-TrunkSample(skin,p.Y,angle)-.006f)*outer*active;
+                    if(excess>.012f)throw new InvalidOperationException($"Outer anterior fairing exceeds its bounded refit: p={p}, correction={excess}");
+                    float inset=1-excess/radius;
+                    p=new(p.X*inset,p.Y,p.Z*inset);radius-=excess;
                     float clearance=MathF.Max(0,TrunkSample(skin,p.Y,angle)+.002f-radius);
                     if(clearance*active>.008f)throw new InvalidOperationException($"Anterior cloth clearance exceeds its source-bound correction: p={p}, correction={clearance*active}, pattern={pattern[i]}");
                     float scale=1+clearance*active/radius;

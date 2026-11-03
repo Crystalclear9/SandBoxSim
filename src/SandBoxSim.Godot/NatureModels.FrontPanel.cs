@@ -18,7 +18,7 @@ internal sealed partial class NatureModels
             int a=ids[t],b=ids[t+1],c=ids[t+2];
             if(uv[a].X<.5f||uv[b].X<.5f||uv[c].X<.5f)continue;
             if(MathF.Max(p[a].Y,MathF.Max(p[b].Y,p[c].Y))<1.07f||MathF.Min(p[a].Y,MathF.Min(p[b].Y,p[c].Y))>1.22f
-                ||MathF.Min(p[a].X,MathF.Min(p[b].X,p[c].X))>.09f||MathF.Max(p[a].X,MathF.Max(p[b].X,p[c].X))<-.09f
+                ||MathF.Min(p[a].X,MathF.Min(p[b].X,p[c].X))>.12f||MathF.Max(p[a].X,MathF.Max(p[b].X,p[c].X))<-.12f
                 ||(p[a].Z+p[b].Z+p[c].Z)/3>-.06f)continue;
             split.Add(Edge(a,b));split.Add(Edge(b,c));split.Add(Edge(c,a));
         }
@@ -91,28 +91,34 @@ internal sealed partial class NatureModels
                 float freedom=Mathf.SmoothStep(.045f,.090f,-p[i].Z)
                     // Stop before the axilla: its shoulder/sleeve topology
                     // has a different support and is not a front-facing span.
-                    *(1-Mathf.SmoothStep(.080f,.110f,MathF.Abs(p[i].X)))
+                    *(1-Mathf.SmoothStep(.100f,.120f,MathF.Abs(p[i].X)))
                     *Mathf.SmoothStep(1.04f,1.09f,p[i].Y)*(1-Mathf.SmoothStep(1.19f,1.24f,p[i].Y));
                 if(freedom<=0)continue;
-                float depth=float.PositiveInfinity;Vector3 normal=Vector3.Zero;
+                // Follow the section's radial direction. A fixed-X depth
+                // projection exaggerates travel on a steep outer chest wall
+                // and cannot carry its lateral edge into the final contour.
+                var origin=new Vector3(0,p[i].Y,0);
+                var ray=new Vector3(p[i].X,0,p[i].Z).Normalized();
+                float radius=float.PositiveInfinity;Vector3 normal=Vector3.Zero;
                 for(int t=0;t<triangles.Length;t+=3)
                 {
                     int ia=triangles[t],ib=triangles[t+1],ic=triangles[t+2];
                     var a=vertices[ia];var b=vertices[ib];var c=vertices[ic];
-                    if(p[i].Y<MathF.Min(a.Y,MathF.Min(b.Y,c.Y))||p[i].Y>MathF.Max(a.Y,MathF.Max(b.Y,c.Y))
-                        ||p[i].X<MathF.Min(a.X,MathF.Min(b.X,c.X))||p[i].X>MathF.Max(a.X,MathF.Max(b.X,c.X)))continue;
-                    var ab=new Vector2(b.X-a.X,b.Y-a.Y);var ac=new Vector2(c.X-a.X,c.Y-a.Y);
-                    float determinant=ab.Cross(ac);if(MathF.Abs(determinant)<1e-10f)continue;
-                    var q=new Vector2(p[i].X-a.X,p[i].Y-a.Y);
-                    float v=q.Cross(ac)/determinant,w=ab.Cross(q)/determinant;
+                    if(p[i].Y<MathF.Min(a.Y,MathF.Min(b.Y,c.Y))||p[i].Y>MathF.Max(a.Y,MathF.Max(b.Y,c.Y)))continue;
+                    var ab=b-a;var ac=c-a;var face=ab.Cross(ac);float denominator=face.Dot(ray);
+                    if(MathF.Abs(denominator)<1e-10f)continue;
+                    float distance=face.Dot(a-origin)/denominator;if(distance<=0||distance>=radius)continue;
+                    var q=origin+ray*distance-a;
+                    float aa=ab.Dot(ab),bb=ab.Dot(ac),cc=ac.Dot(ac),determinant=aa*cc-bb*bb;
+                    if(determinant<1e-16f)continue;
+                    float v=(cc*q.Dot(ab)-bb*q.Dot(ac))/determinant,w=(aa*q.Dot(ac)-bb*q.Dot(ab))/determinant;
                     if(v<-.00001f||w<-.00001f||v+w>1.00001f)continue;
-                    float z=a.Z*(1-v-w)+b.Z*v+c.Z*w;
-                    if(z>=depth)continue;
-                    depth=z;normal=normals[ia]*(1-v-w)+normals[ib]*v+normals[ic]*w;
+                    radius=distance;normal=normals[ia]*(1-v-w)+normals[ib]*v+normals[ic]*w;
                 }
-                if(!float.IsFinite(depth)||MathF.Abs(depth-p[i].Z)*freedom>.012f||normal.LengthSquared()<1e-12f)
-                    throw new InvalidOperationException($"Distant front panel loses its finished cloth support: cut={_garmentCut}, p={p[i]}, target={depth}, normal={normal.LengthSquared()}, freedom={freedom}");
-                p[i].Z=Mathf.Lerp(p[i].Z,depth,freedom);
+                var target=origin+ray*radius;
+                if(!float.IsFinite(radius)||target.DistanceTo(p[i])*freedom>.012f||normal.LengthSquared()<1e-12f)
+                    throw new InvalidOperationException($"Distant front panel loses its finished cloth support: cut={_garmentCut}, p={p[i]}, target={target}, normal={normal.LengthSquared()}, freedom={freedom}");
+                p[i]=p[i].Lerp(target,freedom);
                 n[i]=n[i].Lerp(normal.Normalized(),freedom).Normalized();
                 if(chart.Length==p.Length&&chart[i].X<0)chart[i]=new(-2-MathF.Atan2(p[i].Z,p[i].X)/Mathf.Tau,p[i].Y);
             }

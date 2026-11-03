@@ -79,6 +79,13 @@ public partial class MainGame : Control
             catch(Exception exception){GD.PushError(exception.ToString());GetTree().Quit(2);}
             return;
         }
+        if(OS.GetCmdlineUserArgs().Contains("--test-body-frames"))
+        {
+            SetProcess(false);SetPhysicsProcess(false);SetProcessInput(false);
+            try{new NatureModels().ValidateBodyFrames();GD.Print("BODY_FRAMES_TEST_PASS: final near/far clothing, anterior contour, source clearance and adult body frames");GetTree().Quit();}
+            catch(Exception exception){GD.PushError(exception.ToString());GetTree().Quit(1);}
+            return;
+        }
         if(OS.GetCmdlineUserArgs().Contains("--test-hand-continuity"))
         {
             SetProcess(false);SetPhysicsProcess(false);SetProcessInput(false);
