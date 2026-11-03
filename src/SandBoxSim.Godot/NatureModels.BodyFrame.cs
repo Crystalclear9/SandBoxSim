@@ -320,6 +320,7 @@ internal sealed partial class NatureModels
         Walk(rig,Transform3D.Identity);
         rig.DetailedBodyMesh=rig.BodySkin.Mesh;
         rig.DistantBodyMesh=FrameMesh(rig.DistantBodyMesh,Transform3D.Identity,true);
+        if(FittedFigure)rig.DistantBodyMesh=MatchDistantFrontPanel(rig.DistantBodyMesh,rig.DetailedBodyMesh);
         rig.HipHalfWidth=ResidentRig.NeutralHipHalfWidth;
         rig.ArmRestClearance=0;
         for(int side=0;side<2;side++)rig.Legs[side].Position=new(side==0?-rig.HipHalfWidth:rig.HipHalfWidth,ResidentRig.HipHeight,0);
@@ -572,16 +573,20 @@ internal sealed partial class NatureModels
                 throw new InvalidOperationException("Source shoulder/pelvis contrast was lost during clothing or LOD conversion");
             GD.Print($"ADULT_CONTOUR_SECTION: {(distant?"far":"near")} shoulder/hip={maleShoulder/maleHip:F3}/{femaleShoulder/femaleHip:F3}, waist/hip={maleWaist/maleHip:F3}/{femaleWaist/femaleHip:F3}, hip width={maleHip:F3}/{femaleHip:F3} m; source-bound clothing");
         }
-        float Front(Mesh mesh,float y)
+        float Front(Mesh mesh,float y,float sampleX=0,bool fittedOnly=false)
         {
             var a=mesh.SurfaceGetArrays(0);var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();var ids=a[(int)Mesh.ArrayType.Index].AsInt32Array();
+            var uv=a[(int)Mesh.ArrayType.TexUV].AsVector2Array();
             float front=float.PositiveInfinity;
             for(int i=0;i<ids.Length;i+=3)
             {
+                // The distant batch also contains leather straps and trim.
+                // Compare cloth with cloth, using its preserved material flag.
+                if(fittedOnly&&(uv.Length!=p.Length||uv[ids[i]].X<.5f||uv[ids[i+1]].X<.5f||uv[ids[i+2]].X<.5f))continue;
                 var x=p[ids[i]];var b=p[ids[i+1]];var c=p[ids[i+2]];
                 var ab=new Vector2(b.X-x.X,b.Y-x.Y);var ac=new Vector2(c.X-x.X,c.Y-x.Y);float determinant=ab.Cross(ac);
                 if(MathF.Abs(determinant)<1e-10f)continue;
-                var hit=new Vector2(-x.X,y-x.Y);float v=hit.Cross(ac)/determinant,w=ab.Cross(hit)/determinant;
+                var hit=new Vector2(sampleX-x.X,y-x.Y);float v=hit.Cross(ac)/determinant,w=ab.Cross(hit)/determinant;
                 if(v>=0&&w>=0&&v+w<=1)front=MathF.Min(front,x.Z*(1-v-w)+b.Z*v+c.Z*w);
             }
             if(!float.IsFinite(front))throw new InvalidOperationException("Missing final garment profile sample");
@@ -598,6 +603,25 @@ internal sealed partial class NatureModels
             return(Front(mesh,1.00f)-minimum,apex);
         }
         var maleThorax=ThoraxProfile(male.DetailedBodyMesh);var femaleThorax=ThoraxProfile(female.DetailedBodyMesh);
+        // Inspect the rendered front panel, not the source cage or a shader
+        // label. A central trough must not split the shared cloth span, and
+        // distant batching must retain the same surface across that span.
+        float maximumRecess=0,maximumLodGap=0;Vector2 worstLodSample=Vector2.Zero;
+        for(int row=0;row<=8;row++)
+        {
+            float y=1.10f+row*.01f;
+            float recess=Front(female.DetailedBodyMesh,y)-.5f*(Front(female.DetailedBodyMesh,y,-.05f)+Front(female.DetailedBodyMesh,y,.05f));
+            maximumRecess=MathF.Max(maximumRecess,recess);
+            for(int col=-7;col<=7;col++)
+            {
+                float x=col*.01f;
+                float gap=MathF.Abs(Front(female.DetailedBodyMesh,y,x)-Front(female.DistantBodyMesh,y,x,true));
+                if(gap>maximumLodGap){maximumLodGap=gap;worstLodSample=new(x,y);}
+            }
+        }
+        if(maximumRecess>.0015f||maximumLodGap>.001f)
+            throw new InvalidOperationException($"Front cloth span has a central trough or inconsistent LOD: {maximumRecess}/{maximumLodGap}, at {worstLodSample}");
+        GD.Print($"CHEST_PANEL_PASS: final front centre recess <=1.5 mm, near/far deviation <=1 mm; measured {maximumRecess*1000:F2}/{maximumLodGap*1000:F2} mm");
         float maleProjection=maleThorax.Projection,femaleProjection=femaleThorax.Projection;
         if(femaleThorax.Apex<1.145f||femaleProjection<.008f)
             throw new InvalidOperationException("Fitted female thoracic profile loses its authored supported apex");

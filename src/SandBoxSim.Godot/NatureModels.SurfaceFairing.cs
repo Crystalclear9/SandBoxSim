@@ -90,6 +90,18 @@ internal sealed partial class NatureModels
         FairRestSurface(points,indices,freedom,.008f,true);
         if(BodyFrame==1)
         {
+            // Fair the shared front cloth, not two isolated breast patches.
+            // The normal-only edit rounds both ridges and hollows, keeps the
+            // neckline/waist/sleeves fixed, and uses the original triangles.
+            for(int i=0;i<points.Length;i++)
+            {
+                var p=points[i];
+                freedom[i]=Mathf.SmoothStep(.045f,.095f,-p.Z)
+                    *(1-Mathf.SmoothStep(.105f,.150f,MathF.Abs(p.X)))
+                    *Mathf.SmoothStep(1.05f,1.10f,p.Y)*(1-Mathf.SmoothStep(1.18f,1.23f,p.Y))
+                    *(pattern[i].X<0?1:0);
+            }
+            FairRestSurface(points,indices,freedom,.003f,roundRelief:true);
             // The old one-sided bridge fills hollows but retains every raised
             // cap ridge. Round the shoulder cloth in both normal directions,
             // with a small source bound and exact collar/cuff/waist supports.

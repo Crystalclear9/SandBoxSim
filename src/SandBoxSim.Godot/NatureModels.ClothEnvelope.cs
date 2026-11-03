@@ -64,6 +64,7 @@ internal sealed partial class NatureModels
                 }
             }
             RelaxClothMeridians(data);
+            if(BodyFrame==1)RelaxClothHoops(data);
             // Cloth hangs from higher supports instead of following every
             // inward turn of the abdomen. A bounded one-sided envelope bridges
             // the hollows below the chest without enlarging the source pelvis.
@@ -86,6 +87,34 @@ internal sealed partial class NatureModels
         return TrunkSample(_clothEnvelopes[key],y,angle);
     }
 
+    // Round the transverse span as well as its vertical fibres. A convex hull
+    // alone has a flat bridge with sharp changes at the two anterior supports;
+    // sewing that section directly reads as separate moulded cups. This small
+    // outward-only bend keeps the source clearance and a shared front panel.
+    private static void RelaxClothHoops(float[] data)
+    {
+        var source=(float[])data.Clone();var freedom=new float[data.Length];
+        for(int row=0;row<TrunkRows;row++)for(int col=0;col<TrunkColumns;col++)
+        {
+            float y=TrunkLow+row*.005f,a=col*Mathf.Tau/TrunkColumns;
+            freedom[row*TrunkColumns+col]=Mathf.SmoothStep(1.05f,1.10f,y)
+                *(1-Mathf.SmoothStep(1.18f,1.23f,y))*MathF.Pow(MathF.Max(0,-MathF.Sin(a)),4);
+        }
+        const float bending=24,limit=.0035f;
+        for(int pass=0;pass<96;pass++)for(int sweep=0;sweep<2;sweep++)
+        for(int row=0;row<TrunkRows;row++)for(int c=0;c<TrunkColumns;c++)
+        {
+            int col=sweep==0?c:TrunkColumns-1-c,i=row*TrunkColumns+col;
+            if(freedom[i]<=0)continue;
+            float At(int offset)=>data[row*TrunkColumns+(col+offset+TrunkColumns)%TrunkColumns];
+            float candidate=(source[i]+bending*(4*(At(-1)+At(1))-At(-2)-At(2)))/(1+6*bending);
+            data[i]=Math.Clamp(candidate,source[i],source[i]+limit*freedom[i]);
+        }
+        for(int i=0;i<data.Length;i++)
+            if(!float.IsFinite(data[i])||data[i]<source[i]||data[i]>source[i]+limit*freedom[i]+.000001f)
+                throw new InvalidOperationException("Transverse cloth bend loses source clearance or its fixed border");
+    }
+
     // Minimise bending along the fabric's vertical fibres, subject to the
     // source skin and fixed collar/belt. Independent convex rings otherwise
     // reproduce abrupt under-bust and lumbar turns as moulded body armour.
@@ -102,7 +131,10 @@ internal sealed partial class NatureModels
             if(BodyFrame==1)
             {
                 float chest=Mathf.SmoothStep(1.04f,1.07f,y)*(1-Mathf.SmoothStep(1.18f,1.22f,y))*MathF.Pow(MathF.Max(0,-MathF.Sin(a)),2);
-                limit=Mathf.Lerp(limit,.004f,chest);
+                // Let one panel span below both supports; pulling this whole
+                // region to a 4 mm skin offset moulded two separate cups.
+                float frontAllowance=.004f+.004f*(1-Mathf.SmoothStep(1.09f,1.15f,y));
+                limit=Mathf.Lerp(limit,frontAllowance,chest);
             }
             allowance[row*TrunkColumns+col]=limit*freedom[row*TrunkColumns+col];
         }

@@ -189,6 +189,13 @@ internal sealed partial class NatureModels
         float axilla=(.0025f*Bell(MathF.Abs(x)-.77f+(height-1.12f)*1.7f,.09f)
             -.0011f*Bell(MathF.Abs(x)-.88f+(height-1.12f)*1.7f,.06f))
             *Bell(height-1.105f,.09f)*front;
+        if(FittedFigure)
+        {
+            // Short gathers belong near the waist/armhole. Repeating their
+            // two ridges across the breast apex cuts one panel into two lobes.
+            float span=Mathf.SmoothStep(1.04f,1.09f,height)*(1-Mathf.SmoothStep(1.17f,1.22f,height))*front*front;
+            gathering*=1-.8f*span;axilla*=1-.8f*span;
+        }
         float backPleat=.0028f*Bell(MathF.Abs(x)-.32f,.10f)*back*back
             *Bell(height-(belt+.12f),.17f);
         // Under the belt the narrow gathers open into long, shallow flutes.

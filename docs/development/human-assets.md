@@ -235,3 +235,5 @@ python -m unittest discover -s tools -p test_resident_trousers.py
 当前成人脸部拟合标识为 `balanced-adult-v3`，额前发根为 `framed-source-root-v2`。来源头脸与发片文件、UV 和许可保持各自定义；运行时减少夸张的下脸收缩与颊部修饰，并按来源头皮运输女性额前发片。皮肤、睫毛与泪线共用有限的静止闭合及原眨眼形变。完整参数与衣装、前臂的受限表面松弛见[模型系统](models.md)。女性前臂的 0.8 毫米局部松弛在来源截面拟合后执行，按来源缓存，不修改原始雕刻文件或握柄区域。
 
 女性配方另包含 `surfaceStyle=balanced-thorax-v3`。重建消费者应使用 `resident_body.body_points`，应用来源目标混合后再执行柔和形体场；该场包含前胸的有界向上重分配与胸下回收，使用三轴米制位移，并固定关节辅助点。只叠加 `targets` 无法复现当前成品。每份支撑的 `shapeRecipe.surfaceStyle` 与配方哈希共同标识这一处理。
+
+当前成衣 `bridged-front-v7` 在缓存构建时增加有界的前胸横向曲面拟合，并同步门襟、纽扣、针脚和分片缝线；它改变运行时成衣网格，来源身体及五类支撑仍使用 `lifted-thorax-physique-v27`。参数及最终三角面检查见[模型系统](models.md)。

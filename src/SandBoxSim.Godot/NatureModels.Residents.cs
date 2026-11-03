@@ -14,7 +14,8 @@ internal sealed partial class NatureModels
         var profile=new[]{new Vector4(-.01f,0,.064f,.059f),new(.04f,.004f,.074f,.066f),new(.10f,.004f,.076f,.068f),new(.17f,.001f,.069f,.060f),new(.23f,-.002f,.061f,.055f),new(.28f,-.004f,.055f,.052f),new(.33f,-.004f,.050f,.048f)};
         return profile;
     }
-    private const float PlacketBottom=1.03f,PlacketTop=1.267f;
+    private const float PlacketTop=1.267f;
+    private float PlacketBottom=>FittedFigure?1.13f:1.03f;
     private float GarmentBottom=>_garmentCut==1?.63f:_garmentCut==2?.535f:.60f;
     private void SelectGarmentCut(int cut)
     {
@@ -187,7 +188,8 @@ internal sealed partial class NatureModels
         Sculpt(rig.Torso,FittedRibbon("placket",PlacketBottom,PlacketTop),Vector3.Zero,CollarMaterial(cloth));
         for (int button = 0; button < 3; button++)
         {
-            var anchor=TorsoSurface(.006f,1.237f-button*.067f,false,.0012f);
+            float buttonY=FittedFigure?Mathf.Lerp(1.237f,PlacketBottom+.015f,button/2f):1.237f-button*.067f;
+            var anchor=TorsoSurface(.006f,buttonY,false,.0012f);
             Sculpt(rig.Torso,SewnButton(),anchor,ResidentMaterial("#514237"));
             FineBeam(rig.Torso,anchor+new Vector3(-.0014f,-.0010f,-.0038f),anchor+new Vector3(.0014f,.0010f,-.0038f),.00055f,"#a09380");
         }
