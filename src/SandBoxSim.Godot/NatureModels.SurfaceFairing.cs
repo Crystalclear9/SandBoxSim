@@ -76,7 +76,7 @@ internal sealed partial class NatureModels
             if(before.LengthSquared()>1e-20f&&before.Dot(after)<=0)throw new InvalidOperationException("Rest fairing reverses a source triangle");
         }
     }
-    private void FairGarmentRest(Vector3[] points,int[] indices,Vector2[] pattern)
+    private void FairGarmentRest(Vector3[] points,int[] indices,Vector2[] pattern,bool fitAnterior=false)
     {
         var freedom=new float[points.Length];
         for(int i=0;i<points.Length;i++)
@@ -86,6 +86,9 @@ internal sealed partial class NatureModels
             float collar=1-Mathf.SmoothStep(1.19f,1.25f,p.Y)*(1-Mathf.SmoothStep(.055f,.085f,MathF.Abs(p.X)));
             float belt=Mathf.SmoothStep(.015f,.040f,MathF.Abs(p.Y-FinishedBeltHeight(angle)));
             freedom[i]=height*collar*belt*(1-Mathf.SmoothStep(.12f,.20f,MathF.Max(0,pattern[i].X)));
+            if(FittedFigure)freedom[i]*=1-.75f*Mathf.SmoothStep(1.07f,1.11f,p.Y)
+                *(1-Mathf.SmoothStep(1.18f,1.22f,p.Y))*Mathf.SmoothStep(.065f,.11f,-p.Z)
+                *(1-Mathf.SmoothStep(.08f,.13f,MathF.Abs(p.X)));
         }
         FairRestSurface(points,indices,freedom,.008f,true);
         if(BodyFrame==1)
@@ -113,6 +116,70 @@ internal sealed partial class NatureModels
                     *(1-Mathf.SmoothStep(.17f,.23f,MathF.Max(0,pattern[i].X)));
             }
             FairRestSurface(points,indices,freedom,.008f,roundRelief:true);
+            if(fitAnterior)
+            {
+                // Shoulder fitting and relief smoothing must not push the front
+                // cloth back through the separately retained anatomical surface.
+                var skin=_trunkFeminineSkin??=FrameRadii("trunk-feminine-cage.json",FemaleTrunkHash,"skinRadii");
+                var beforeClearance=(Vector3[])points.Clone();
+                for(int i=0;i<points.Length;i++)
+                {
+                    var p=points[i];
+                    float active=Mathf.SmoothStep(1.06f,1.10f,p.Y)*(1-Mathf.SmoothStep(1.18f,1.23f,p.Y))
+                        *(1-Mathf.SmoothStep(.08f,.13f,MathF.Abs(p.X)))*Mathf.SmoothStep(.055f,.095f,-p.Z)
+                        *(pattern[i].X<0?1:0);
+                    if(active<=0)continue;
+                    float radius=new Vector2(p.X,p.Z).Length(),angle=MathF.Atan2(p.Z,p.X);
+                    float clearance=MathF.Max(0,TrunkSample(skin,p.Y,angle)+.002f-radius);
+                    if(clearance*active>.008f)throw new InvalidOperationException($"Anterior cloth clearance exceeds its source-bound correction: p={p}, correction={clearance*active}, pattern={pattern[i]}");
+                    float scale=1+clearance*active/radius;
+                    points[i]=new(p.X*scale,p.Y,p.Z*scale);
+                }
+                var supported=(Vector3[])points.Clone();
+                float FrontAt(float x,float y)
+                {
+                    float front=float.PositiveInfinity;
+                    for(int t=0;t<indices.Length;t+=3)
+                    {
+                        var a=supported[indices[t]];var b=supported[indices[t+1]];var c=supported[indices[t+2]];
+                        var ab=new Vector2(b.X-a.X,b.Y-a.Y);var ac=new Vector2(c.X-a.X,c.Y-a.Y);
+                        float det=ab.Cross(ac);if(MathF.Abs(det)<1e-10f)continue;
+                        var q=new Vector2(x-a.X,y-a.Y);float v=q.Cross(ac)/det,w=ab.Cross(q)/det;
+                        if(v>=0&&w>=0&&v+w<=1)front=MathF.Min(front,a.Z*(1-v-w)+b.Z*v+c.Z*w);
+                    }
+                    if(!float.IsFinite(front))throw new InvalidOperationException("Missing paired cloth support span");
+                    return front;
+                }
+                var span=new float[35];
+                for(int row=0;row<span.Length;row++)
+                {
+                    float y=1.06f+row*.005f;
+                    span[row]=.5f*(FrontAt(-.05f,y)+FrontAt(.05f,y));
+                }
+                // A fitted panel retains shallow relief while spanning the deeper
+                // sternum. Use its finished side supports, after skin clearance.
+                for(int i=0;i<points.Length;i++)
+                {
+                    var p=points[i];if(pattern[i].X>=0||p.Z>=-.08f)continue;
+                    float active=(1-Mathf.SmoothStep(.015f,.05f,MathF.Abs(p.X)))
+                        *Mathf.SmoothStep(1.07f,1.11f,p.Y)*(1-Mathf.SmoothStep(1.18f,1.22f,p.Y));
+                    if(active<=0)continue;
+                    float row=Math.Clamp((p.Y-1.06f)/.005f,0,span.Length-1);
+                    int r=Math.Min((int)row,span.Length-2);
+                    float target=Mathf.Lerp(span[r],span[r+1],row-r)+.0035f;
+                    float movement=MathF.Max(0,p.Z-target)*active;
+                    if(movement>.004f)throw new InvalidOperationException("Central cloth span exceeds its bounded bridge");
+                    points[i].Z-=movement;
+                }
+                for(int t=0;t<indices.Length;t+=3)
+                {
+                    int a=indices[t],b=indices[t+1],c=indices[t+2];
+                    var original=(beforeClearance[c]-beforeClearance[a]).Cross(beforeClearance[b]-beforeClearance[a]);
+                    var updated=(points[c]-points[a]).Cross(points[b]-points[a]);
+                    if(original.LengthSquared()>1e-20f&&original.Dot(updated)<=0)
+                        throw new InvalidOperationException("Anterior skin clearance reverses a cloth triangle");
+                }
+            }
         }
     }
     private readonly Dictionary<string,(Vector3[] Points,Vector3[] Normals)> _forearmFairings=new();

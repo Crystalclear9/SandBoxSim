@@ -50,7 +50,7 @@ class HumanAssetTests(unittest.TestCase):
 
     def test_complete_trunk_sources_and_shape_sections(self):
         expected=('b6006b48444c898845ce45762277e73639ac5527b9f6e29998de5f6ee7ffdcf0',
-                  '2b935a400793900b415c69615891b60a8f90d321bcefb62d42b5bc7a3ef4962e')
+                  '266821065b0bcb0bdc90bccac4fd2d46a466754b2db5606dec128de5363ada9c')
         sources=source_manifest()
         frames=[]
         for frame,digest in zip(('masculine','feminine'),expected):

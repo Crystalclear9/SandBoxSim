@@ -236,8 +236,12 @@ python -m unittest discover -s tools -p test_resident_trousers.py
 
 女性配方另包含 `surfaceStyle=balanced-thorax-v3`。重建消费者应使用 `resident_body.body_points`，应用来源目标混合后再执行柔和形体场；该场包含前胸的有界向上重分配与胸下回收，使用三轴米制位移，并固定关节辅助点。只叠加 `targets` 无法复现当前成品。每份支撑的 `shapeRecipe.surfaceStyle` 与配方哈希共同标识这一处理。
 
-当前成衣 `rounded-opening-v9` 在缓存构建时增加有界的前胸横向曲面拟合，并同步门襟、纽扣、针脚和分片缝线；它改变运行时成衣网格，来源身体及五类支撑仍使用 `lifted-thorax-physique-v27`。参数及最终三角面检查见[模型系统](models.md)。
+当前成衣 `anatomical-span-v10` 在缓存构建时增加有界的前胸横向曲面拟合，并同步门襟、纽扣、针脚和分片缝线；它改变运行时成衣网格，来源身体及五类支撑仍使用 `lifted-thorax-physique-v27`。参数及最终三角面检查见[模型系统](models.md)。
 
-肩背的运行时形体处理标记为 `balanced-outline-v6`／`rounded-opening-v9`；来源身体与原始肩面文件仍为 v27。读取原始肩面不能替代运行时肩背映射及中性绑定重建，详见[模型系统](models.md)。
+肩背的运行时形体处理标记为 `source-thorax-v7`／`anatomical-span-v10`；来源身体与原始肩面文件仍为 v27。读取原始肩面不能替代运行时肩背映射及中性绑定重建，详见[模型系统](models.md)。
 
-当前圆领、薄折边及腰胯衣料细节使用 `rounded-opening-v9`／`balanced-outline-v6`，由已有来源在运行时生成。没有更换原始人体文件；颈部覆盖检查读取实际头部网格与成品衣领，详细参数见[模型系统](models.md)。
+当前圆领、薄折边及腰胯衣料细节使用 `anatomical-span-v10`／`source-thorax-v7`，由已有来源在运行时生成。没有更换原始人体文件；颈部覆盖检查读取实际头部网格与成品衣领，详细参数见[模型系统](models.md)。
+
+女性躯干支持新增 `skinRadii` 与 `anatomicalSampling=source-anterior-skin-rays-v1`，来源为同一 CC0 身体。旧 `radii` 凸包继续保留；重建时应同时输出两层，随后重新导出引用支持文件哈希的裤装，并更新运行时与来源测试的成品哈希。源文件读取与形体配方仍使用已有工具，详见[模型系统](models.md)。
+
+前胸近景回放：`python tools/evaluate.py run benchmarks/scenarios/visual-thorax-frames.json --output .tools/tmp/thorax-study --resolution 1600x1000`。该面板展示同一成年居民的三种观察方向，冻结模拟，用于观察当前衣装形体。

@@ -6,17 +6,17 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
-    private float[]? _trunkMale,_trunkFeminine;
+    private float[]? _trunkMale,_trunkFeminine,_trunkFeminineSkin;
     private readonly float[][] _garmentFrameReference=new float[3][];
     private readonly float[][] _sewnFrameReference=new float[3][];
     private const int TrunkRows=113,TrunkColumns=128;
     private const string MaleTrunkHash="b6006b48444c898845ce45762277e73639ac5527b9f6e29998de5f6ee7ffdcf0";
-    private const string FemaleTrunkHash="2b935a400793900b415c69615891b60a8f90d321bcefb62d42b5bc7a3ef4962e";
+    private const string FemaleTrunkHash="266821065b0bcb0bdc90bccac4fd2d46a466754b2db5606dec128de5363ada9c";
     private const float TrunkLow=.74f,TrunkHigh=1.30f;
     private const float GarmentReferenceLow=.64f;
     private const int GarmentReferenceRows=133;
     private const float SleeveAxialBlendDistance=.06f;
-    private static float[] FrameRadii(string file,string expected)
+    private static float[] FrameRadii(string file,string expected,string field="radii")
     {
         string raw=FileAccess.GetFileAsString("res://assets/models/human/"+file).Replace("\r\n","\n",StringComparison.Ordinal);
         string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
@@ -26,7 +26,7 @@ internal sealed partial class NatureModels
             throw new InvalidOperationException("Invalid body frame grid");
         if(root.GetProperty("low").GetSingle()!=TrunkLow||root.GetProperty("high").GetSingle()!=TrunkHigh)throw new InvalidOperationException("Invalid trunk sample bounds");
         var radii=new float[TrunkRows*TrunkColumns];int i=0;
-        foreach(var value in root.GetProperty("radii").EnumerateArray())
+        foreach(var value in root.GetProperty(field).EnumerateArray())
         {
             float r=value.GetSingle();
             if(i>=radii.Length||!float.IsFinite(r)||r<.025f||r>.34f)throw new InvalidOperationException("Invalid body frame radius");
@@ -94,11 +94,12 @@ internal sealed partial class NatureModels
         {
             _trunkMale??=FrameRadii("trunk-masculine-cage.json",MaleTrunkHash);
             _trunkFeminine??=FrameRadii("trunk-feminine-cage.json",FemaleTrunkHash);
+            _trunkFeminineSkin??=FrameRadii("trunk-feminine-cage.json",FemaleTrunkHash,"skinRadii");
             float angle=MathF.Atan2(point.Z,point.X),front=MathF.Max(0,-MathF.Sin(angle));
             // Fit the source skin's complete thorax/lumbar/pelvic envelope.
             // Millimetre-scale ease bridges the skin, rather than shrinking
             // every body part with one sex-dependent actor scale.
-            var support=feminine?_trunkFeminine:_trunkMale;
+            var support=feminine?_trunkFeminineSkin:_trunkMale;
             // Sample the anatomy where the finished panel actually lands.
             // Using its pre-shortening height inflated the upper hip/hem and
             // hid the natural waist-to-pelvis transition under a straight box.
@@ -193,7 +194,7 @@ internal sealed partial class NatureModels
             {
                 FitUpperArmSupport(points,pattern,sleeveDistance);
                 FitShoulderSurface(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern,sleeveDistance);
-                FairGarmentRest(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
+                FairGarmentRest(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern,source.SurfaceGetMaterial(s)?.HasMeta("FittedBodice")==true);
                 sleeveDistance=SleeveDistances(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
             }
             var girdle=tailored&&sleeveDistance.Length==points.Length
@@ -618,6 +619,7 @@ internal sealed partial class NatureModels
             for(int row=0;row<=22;row++)
             {
                 float y=1.09f+row*.005f,z=Front(mesh,y);
+                for(int col=-6;col<=6;col++)z=MathF.Min(z,Front(mesh,y,col*.01f));
                 if(z<minimum){minimum=z;apex=y;}
             }
             return(Front(mesh,1.00f)-minimum,apex);
@@ -626,22 +628,42 @@ internal sealed partial class NatureModels
         // Inspect the rendered front panel, not the source cage or a shader
         // label. A central trough must not split the shared cloth span, and
         // distant batching must retain the same surface across that span.
+        var skinSupport=FrameRadii("trunk-feminine-cage.json",FemaleTrunkHash,"skinRadii");
+        float SkinFront(float y,float x)
+        {
+            float z=float.PositiveInfinity;
+            for(int col=0;col<TrunkColumns;col++)
+            {
+                float a=col*Mathf.Tau/TrunkColumns,b=(col+1)*Mathf.Tau/TrunkColumns;
+                float ra=TrunkSample(skinSupport,y,a),rb=TrunkSample(skinSupport,y,b);
+                float ax=MathF.Cos(a)*ra,bx=MathF.Cos(b)*rb;
+                if((x-ax)*(x-bx)>0||MathF.Abs(bx-ax)<1e-8f)continue;
+                z=MathF.Min(z,Mathf.Lerp(MathF.Sin(a)*ra,MathF.Sin(b)*rb,(x-ax)/(bx-ax)));
+            }
+            if(!float.IsFinite(z))throw new InvalidOperationException("Missing anterior anatomical section");
+            return z;
+        }
         float maximumRecess=0,maximumLodGap=0;Vector2 worstLodSample=Vector2.Zero;
         for(int row=0;row<=8;row++)
         {
             float y=1.10f+row*.01f;
             float recess=Front(female.DetailedBodyMesh,y)-.5f*(Front(female.DetailedBodyMesh,y,-.05f)+Front(female.DetailedBodyMesh,y,.05f));
+            float skinRecess=SkinFront(y,0)-.5f*(SkinFront(y,-.05f)+SkinFront(y,.05f));
+            if(recess>MathF.Min(.005f,MathF.Max(0,skinRecess)+.0015f))
+                throw new InvalidOperationException($"Cloth carves a recess beyond its anatomical support: {y}/{recess}/{skinRecess}");
             maximumRecess=MathF.Max(maximumRecess,recess);
             for(int col=-7;col<=7;col++)
             {
                 float x=col*.01f;
+                if(Front(female.DetailedBodyMesh,y,x)>SkinFront(y,x)+.001f)
+                    throw new InvalidOperationException($"Front cloth enters its source skin: {x}/{y}");
                 float gap=MathF.Abs(Front(female.DetailedBodyMesh,y,x)-Front(female.DistantBodyMesh,y,x,true));
                 if(gap>maximumLodGap){maximumLodGap=gap;worstLodSample=new(x,y);}
             }
         }
-        if(maximumRecess>.0015f||maximumLodGap>.001f)
+        if(maximumLodGap>.001f)
             throw new InvalidOperationException($"Front cloth span has a central trough or inconsistent LOD: {maximumRecess}/{maximumLodGap}, at {worstLodSample}");
-        GD.Print($"CHEST_PANEL_PASS: final front centre recess <=1.5 mm, near/far deviation <=1 mm; measured {maximumRecess*1000:F2}/{maximumLodGap*1000:F2} mm");
+        GD.Print($"CHEST_PANEL_PASS: source-bound anterior relief <=5 mm, skin clearance and near/far deviation <=1 mm; measured {maximumRecess*1000:F2}/{maximumLodGap*1000:F2} mm");
         float maleProjection=maleThorax.Projection,femaleProjection=femaleThorax.Projection;
         if(femaleThorax.Apex<1.145f||femaleProjection<.008f)
             throw new InvalidOperationException("Fitted female thoracic profile loses its authored supported apex");

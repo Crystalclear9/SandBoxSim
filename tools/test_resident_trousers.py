@@ -60,7 +60,7 @@ class TrouserTests(unittest.TestCase):
 
     def test_provenance_and_connected_clothing(self):
         manifest=source_manifest()
-        for sex,sha in [('male','6ae961ac0d9439ebe668c7da488857cfa64a9d7a3ada803945554343434ba213'),('female','dd6b106a0f8229ac5c723f6ee167cc5786e000e3b76b47a22b3278ae521668e7')]:
+        for sex,sha in [('male','6ae961ac0d9439ebe668c7da488857cfa64a9d7a3ada803945554343434ba213'),('female','75cb34e17b62334faa018122bd3562c5958ddb07fdf97e229d9bf2501913224b')]:
             raw=(ROOT/f'trousers-{sex}.mesh.json').read_bytes().replace(b'\r\n',b'\n');self.assertEqual(hashlib.sha256(raw).hexdigest(),sha)
             data=json.loads(raw);count=len(data['positions'])//3
             for name,digest in data['sourceSha256'].items():self.assertEqual(digest,manifest[name]['sha256'])

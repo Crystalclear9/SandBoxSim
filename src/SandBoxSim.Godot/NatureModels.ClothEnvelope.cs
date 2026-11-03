@@ -30,6 +30,7 @@ internal sealed partial class NatureModels
                         6*TrunkSample(support,height,a)+4*TrunkSample(support,height+.015f,a)+TrunkSample(support,height+.030f,a))/16;
                     ring.Add(new(MathF.Cos(a)*r,MathF.Sin(a)*r));
                 }
+                var skinRing=ring.ToArray();
                 ring.Sort((a,b)=>a.X==b.X?a.Y.CompareTo(b.Y):a.X.CompareTo(b.X));
                 var hull=new List<Vector2>(TrunkColumns*2);
                 foreach(var p in ring){while(hull.Count>=2&&Cross(hull[^2],hull[^1],p)<=0)hull.RemoveAt(hull.Count-1);hull.Add(p);}
@@ -52,6 +53,15 @@ internal sealed partial class NatureModels
                         }
                     }
                     if(!float.IsFinite(radius))throw new InvalidOperationException("Incomplete convex cloth section");
+                    if(BodyFrame==1)
+                    {
+                        // Preserve a shallow, source-driven anterior relief.
+                        // The cloth still bridges the deeper skin concavity,
+                        // but no longer replaces the whole thorax with a bar.
+                        float span=Mathf.SmoothStep(1.07f,1.11f,height)*(1-Mathf.SmoothStep(1.18f,1.22f,height))
+                            *MathF.Pow(MathF.Max(0,-ray.Y),4);
+                        radius-=MathF.Min(MathF.Max(0,radius-skinRing[col].Length()),.004f*span);
+                    }
                     // A tailoring allowance is measured normal to the cloth,
                     // rather than adding the same radial volume to a sternum,
                     // flank and lumbar hollow. Gather the shell at its belt;
@@ -100,7 +110,7 @@ internal sealed partial class NatureModels
             freedom[row*TrunkColumns+col]=Mathf.SmoothStep(1.05f,1.10f,y)
                 *(1-Mathf.SmoothStep(1.18f,1.23f,y))*MathF.Pow(MathF.Max(0,-MathF.Sin(a)),4);
         }
-        const float bending=24,limit=.0035f;
+        const float bending=8,limit=.001f;
         for(int pass=0;pass<96;pass++)for(int sweep=0;sweep<2;sweep++)
         for(int row=0;row<TrunkRows;row++)for(int c=0;c<TrunkColumns;c++)
         {

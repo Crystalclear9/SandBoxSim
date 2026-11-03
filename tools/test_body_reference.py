@@ -12,6 +12,17 @@ SOURCE=ROOT/'.tools/sources/makehuman'
 
 
 class BodyReferenceTests(unittest.TestCase):
+    def test_anterior_skin_is_retained_separately_from_cloth_hull(self):
+        d=json.loads((ASSETS/'trunk-feminine-cage.json').read_text(encoding='utf-8'))
+        self.assertEqual(d['anatomicalSampling'],'source-anterior-skin-rays-v1')
+        self.assertGreater(d['skinSampleCount'],500)
+        self.assertEqual(len(d['skinRadii']),113*128)
+        self.assertTrue(all(math.isfinite(v) and .025<v<.34 for v in d['skinRadii']))
+        row=round((1.15-.74)/.005)
+        z=lambda c:math.sin(c*math.tau/128)*d['skinRadii'][row*128+c]
+        self.assertGreater(z(96)-.5*(z(88)+z(104)),.005)
+        self.assertGreater(d['radii'][row*128+96]-d['skinRadii'][row*128+96],.005)
+
     def test_baked_thorax_has_supported_apex_and_lower_transition(self):
         d=json.loads((ASSETS/'trunk-feminine-cage.json').read_text(encoding='utf-8'))
         samples=[(.74+r*.005,d['radii'][r*128+96]) for r in range(113) if 1.09<=.74+r*.005<=1.20]

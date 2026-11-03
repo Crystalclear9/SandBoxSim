@@ -136,3 +136,7 @@ all joint helper vertices preserved. Reusable source: tools/resident_shape.py.
 The balanced-thorax-v3 source deformation adds a bounded upward thoracic
 redistribution and upper/lower anterior volume adjustment, preserving joint
 helper coordinates. Its reusable implementation is tools/resident_shape.py.
+
+The feminine trunk support additionally retains source-anterior-skin-rays-v1
+(skinRadii) separately from the convex cloth support (radii). Both are sampled
+from the same verified CC0 body recipe by tools/export_human_torso.py.

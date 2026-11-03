@@ -70,6 +70,14 @@ internal partial class ModelGallery : PanelContainer
                 Closeup(grid,(frame==0?"男性外观":"女性外观")+(view==0?" · 正面":" · 三刻面"),
                     models.Resident(frame==0?17:55,false,JobType.Gatherer),.39f,new(0,1.45f,0),view==0?new(.03f,.02f,3):new(1.3f,.02f,2.5f),true);
         }
+        else if(Collection=="thorax-frames")
+        {
+            grid.Columns=3;body.GetChild<Label>(0).Text="成人衣装 · 前胸、胸下与腋下的连续曲面";
+            for(int view=0;view<3;view++)
+                Closeup(grid,view==0?"正面 · 胸骨两侧过渡":view==1?"三刻面 · 衣料体积":"侧面 · 上胸与胸下弧线",
+                    models.Resident(55,false,JobType.None),.56f,new(0,1.13f,0),
+                    view==0?new(.02f,.015f,4):view==1?new(2,.015f,3.4f):new(4,.015f,.05f),true);
+        }
         else if(Collection=="body-frames")
         {
             grid.Columns=GetViewportRect().Size.X>=1500?6:3;body.GetChild<Label>(0).Text="成人身材 · 同视角配对的骨盆、臀腿与衣装轮廓";

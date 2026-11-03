@@ -134,6 +134,29 @@ result={'schemaVersion':1,'source':f'MakeHuman CC0 body; {args.frame} young macr
         'sourceSha256':expected,'low':low,'high':high,'rows':rows,'columns':columns,
         'shoulder':[.202,1.23,0],'armholeHalfWidth':round(armhole_half_width,7),'sourceShoulder':[round(v,7) for v in shoulder],
         'scale':[round(v,7) for v in scales],'clothEnvelope':'convex-sections-four-pass-filter','radii':radii}
+if args.region=='trunk' and args.frame=='female':
+    # Preserve the attributed skin independently of the cloth hull. A second
+    # hull at runtime otherwise has no breast/sternal surface left to fit.
+    from resident_shape import smooth
+    skin=list(radii);sample_count=0
+    for row in range(rows):
+        y=low+row*.005
+        height=smooth(1.03,1.07,y)*(1-smooth(1.17,1.20,y))
+        if not height:continue
+        for col in range(columns):
+            a=col*math.tau/columns
+            front=smooth(.65,.90,-math.sin(a))
+            if not front:continue
+            hit,normal,index,distance=bvh.ray_cast(Vector((0,y,0)),Vector((math.cos(a),0,math.sin(a))),.4)
+            if hit is None or not .025<distance<.34:raise ValueError(f'Missing anterior skin ray: {row}/{col}')
+            weight=height*front;i=row*columns+col
+            skin[i]=radii[i]+(distance-radii[i])*weight;sample_count+=1
+    for _ in range(4):
+        old=skin
+        skin=[sum(old[min(rows-1,max(0,r+dr))*columns+(c+dc)%columns]*w for dr,dc,w in ((0,0,.4),(-1,0,.15),(1,0,.15),(0,-1,.15),(0,1,.15))) for r in range(rows) for c in range(columns)]
+    result['skinRadii']=[round(v,7) for v in skin]
+    result['anatomicalSampling']='source-anterior-skin-rays-v1'
+    result['skinSampleCount']=sample_count
 if args.region=='trunk':
     result['region']='trunk-plane-sections'
     result['armExclusion']='source-skin-weights-v1'
