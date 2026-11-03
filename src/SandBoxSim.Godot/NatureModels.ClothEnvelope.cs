@@ -157,7 +157,7 @@ internal sealed partial class NatureModels
             }
             allowance[row*TrunkColumns+col]=limit*freedom[row*TrunkColumns+col];
         }
-        float bending=BodyFrame==1?180:12;
+        float bending=BodyFrame==1?100:12;
         for(int pass=0;pass<96;pass++)for(int sweep=0;sweep<2;sweep++)
         for(int r=2;r<TrunkRows-2;r++)for(int col=0;col<TrunkColumns;col++)
         {

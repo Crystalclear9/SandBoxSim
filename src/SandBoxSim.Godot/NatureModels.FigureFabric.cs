@@ -12,16 +12,18 @@ if(!enabled)return dye;
 vec3 linen=mix(dye,vec3(.82,.78,.67),.65);
 if(chart.x>=-1.1)return linen;
 float a=(-chart.x-2.0)*6.2831853;
-float top=1.205+.006*pow(abs(cos(a)),2.0)-.006*pow(max(0.0,-sin(a)),6.0);
+// A continuous fitted body with a shallow curved linen insert at the neck.
+// The old straight colour break across the upper chest read as a box edge.
+float top=1.270-.026*pow(max(0.0,-sin(a)),6.0)-.010*pow(max(0.0,sin(a)),4.0);
 float aa=max(fwidth(chart.y),.0005);
 float panel=1.0-smoothstep(top-aa,top+aa,chart.y);
-vec3 outer=mix(dye*.95,vec3(.18,.28,.23),.35);
+vec3 outer=mix(dye,vec3(.24,.31,.27),.28);
 float edge=1.0-smoothstep(.001,.002+aa,abs(chart.y-top));
 float princess=1.0-smoothstep(.003,.007+aa*2.0,abs(abs(cos(a))-(.58+(chart.y-1.0)*.40)));
 float stitches=princess*(1.0-smoothstep(top-.02,top,chart.y));
 stitches*=1.0-.85*smoothstep(1.04,1.09,chart.y)*(1.0-smoothstep(1.17,1.22,chart.y));
 outer*=1.0-stitches*.12;
-return mix(mix(linen,outer,panel),outer*1.22,edge*.65);
+return mix(mix(linen,outer,panel),outer*1.22,edge*.30);
 }
 ";
     private Material FigureGarmentMaterial(string cloth)

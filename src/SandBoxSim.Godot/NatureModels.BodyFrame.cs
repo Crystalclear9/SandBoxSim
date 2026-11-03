@@ -372,6 +372,7 @@ internal sealed partial class NatureModels
     {
         ValidateSoftShoulderField();
         ValidateMedialThorax();
+        ValidateBalancedTorso();
         int previous=_faceVariant;
         var male=Resident(17,false,SandBoxSim.Core.Agents.JobType.Gatherer);
         var female=Resident(42,false,SandBoxSim.Core.Agents.JobType.Gatherer);
