@@ -373,6 +373,7 @@ internal sealed partial class NatureModels
         ValidateSoftShoulderField();
         ValidateMedialThorax();
         ValidateBalancedTorso();
+        ValidateChestVolume();
         int previous=_faceVariant;
         var male=Resident(17,false,SandBoxSim.Core.Agents.JobType.Gatherer);
         var female=Resident(42,false,SandBoxSim.Core.Agents.JobType.Gatherer);
@@ -666,6 +667,10 @@ internal sealed partial class NatureModels
         if(maximumLodGap>.001f)
             throw new InvalidOperationException($"Front cloth span has a central trough or inconsistent LOD: {maximumRecess}/{maximumLodGap}, at {worstLodSample}");
         GD.Print($"CHEST_PANEL_PASS: source-bound anterior relief <=5 mm, skin clearance and near/far deviation <=1 mm; measured {maximumRecess*1000:F2}/{maximumLodGap*1000:F2} mm");
+        float PairedFront(float y)=>.5f*(Front(female.DetailedBodyMesh,y,-.045f)+Front(female.DetailedBodyMesh,y,.045f));
+        float chestRelief=.5f*(PairedFront(1.085f)+PairedFront(1.205f))-PairedFront(1.15f);
+        if(chestRelief<.012f)throw new InvalidOperationException($"Final cloth erases the adult anterior chest volume: {chestRelief}");
+        GD.Print($"CHEST_VOLUME_PASS: final paired cloth profile relief={chestRelief*1000:F2} mm, continuous upper/lower supports; existing sternum, skin and LOD constraints retained");
         // Measure the outer front contour independently of full trunk breadth:
         // the latter can stay unchanged even when anterior volume splays out.
         static float AnteriorWidth(float[] support,float y,float depth)

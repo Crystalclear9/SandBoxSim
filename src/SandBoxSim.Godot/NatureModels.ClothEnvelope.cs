@@ -26,8 +26,10 @@ internal sealed partial class NatureModels
                 for(int col=0;col<TrunkColumns;col++)
                 {
                     float a=col*Mathf.Tau/TrunkColumns;
-                    float r=(TrunkSample(support,height-.030f,a)+4*TrunkSample(support,height-.015f,a)+
-                        6*TrunkSample(support,height,a)+4*TrunkSample(support,height+.015f,a)+TrunkSample(support,height+.030f,a))/16;
+                    float local=BodyFrame==1?Mathf.SmoothStep(1.08f,1.12f,height)*(1-Mathf.SmoothStep(1.18f,1.23f,height))*MathF.Pow(MathF.Max(0,-MathF.Sin(a)),2):0;
+                    float step=Mathf.Lerp(.015f,.0075f,local);
+                    float r=(TrunkSample(support,height-2*step,a)+4*TrunkSample(support,height-step,a)+
+                        6*TrunkSample(support,height,a)+4*TrunkSample(support,height+step,a)+TrunkSample(support,height+2*step,a))/16;
                     ring.Add(new(MathF.Cos(a)*r,MathF.Sin(a)*r));
                 }
                 var skinRing=ring.ToArray();

@@ -174,7 +174,7 @@ internal sealed partial class NatureModels
                     if(active<=0)continue;
                     float row=Math.Clamp((p.Y-1.06f)/.005f,0,span.Length-1);
                     int r=Math.Min((int)row,span.Length-2);
-                    float target=Mathf.Lerp(span[r],span[r+1],row-r)+.0035f;
+                    float target=Mathf.Lerp(span[r],span[r+1],row-r)+.0043f;
                     float movement=MathF.Max(0,p.Z-target)*active;
                     if(movement>.004f)throw new InvalidOperationException("Central cloth span exceeds its bounded bridge");
                     points[i].Z-=movement;

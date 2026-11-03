@@ -28,6 +28,38 @@ internal sealed partial class NatureModels
         return p+new Vector3(MathF.Sign(p.X)*.0015f*waist*flank,0,.003f*waist*front);
     }
 
+    // Continuous anterior volume on the existing adult thorax, not attached
+    // cup primitives. Leave the sternum, lateral wall and upper shoulder fixed.
+    private static Vector3 ChestVolumePoint(Vector3 p)
+    {
+        float x=MathF.Abs(p.X);
+        float height=Mathf.SmoothStep(1.075f,1.105f,p.Y)*(1-Mathf.SmoothStep(1.195f,1.235f,p.Y));
+        float root=Mathf.SmoothStep(.008f,.028f,x)*(1-Mathf.SmoothStep(.085f,.115f,x));
+        float oval=MathF.Exp(-MathF.Pow((x-.047f)/.032f,2)-MathF.Pow((p.Y-1.150f)/.045f,2));
+        float front=Mathf.SmoothStep(.040f,.100f,-p.Z);
+        return p-new Vector3(0,0,.008f*height*root*oval*front);
+    }
+
+    private void ValidateChestVolume()
+    {
+        float minimum=1,maximum=0;
+        for(int row=0;row<=36;row++)for(int col=-14;col<=14;col++)for(int depth=-8;depth<=2;depth++)
+        {
+            var p=new Vector3(col*.01f,1.06f+row*.005f,depth*.02f);const float h=.0001f;
+            var q=ChestVolumePoint(p);maximum=MathF.Max(maximum,p.DistanceTo(q));
+            var mirror=ChestVolumePoint(new(-p.X,p.Y,p.Z));
+            if(q.X!=p.X||q.Y!=p.Y||MathF.Abs(q.Z-mirror.Z)>1e-6f||p.DistanceTo(q)>.008001f
+                ||(MathF.Abs(p.X)<=.008f||MathF.Abs(p.X)>=.115f||p.Z>=-.040f)&&q!=p)
+                throw new InvalidOperationException("Anterior chest volume loses symmetry, fixed roots or its 8 mm bound");
+            var dx=(ChestVolumePoint(p+Vector3.Right*h)-ChestVolumePoint(p-Vector3.Right*h))/(2*h);
+            var dy=(ChestVolumePoint(p+Vector3.Up*h)-ChestVolumePoint(p-Vector3.Up*h))/(2*h);
+            var dz=(ChestVolumePoint(p+Vector3.Back*h)-ChestVolumePoint(p-Vector3.Back*h))/(2*h);
+            float det=new Basis(dx,dy,dz).Determinant();minimum=MathF.Min(minimum,det);
+            if(!float.IsFinite(det)||det<.85f||det>1.25f)throw new InvalidOperationException("Anterior chest volume folds the reference surface");
+        }
+        GD.Print($"CHEST_VOLUME_FIELD_PASS: continuous adult anterior volume, fixed sternum/lateral roots and height; max={maximum*1000:F2} mm, minimum Jacobian={minimum:F3}");
+    }
+
     private void ValidateBalancedTorso()
     {
         var source=FrameRadii("trunk-feminine-cage.json",FemaleTrunkHash,"skinRadii");
@@ -61,11 +93,11 @@ internal sealed partial class NatureModels
         for(int row=0;row<TrunkRows;row++)
         {
             float y=TrunkLow+row*.005f;
-            if(y<=.91f||y>=1.23f)continue;
+            if(y<=.91f||y>=1.235f)continue;
             for(int col=0;col<TrunkColumns;col++)
             {
                 float a=col*Mathf.Tau/TrunkColumns,r=source[row*TrunkColumns+col];
-                var p=BalancedTorsoPoint(MedialThoraxPoint(new(MathF.Cos(a)*r,y,MathF.Sin(a)*r)));
+                var p=ChestVolumePoint(BalancedTorsoPoint(MedialThoraxPoint(new(MathF.Cos(a)*r,y,MathF.Sin(a)*r))));
                 ring[col]=new(p.X,p.Z);
             }
             // Re-intersect the mapped polygon. Scaling radii directly would
