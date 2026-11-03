@@ -258,6 +258,7 @@ internal sealed partial class NatureModels
         AddResidentEquipment(rig, job);
         AddResidentTailoring(rig, cloth, skin, job);
         ApplyResidentProportions(rig);
+        FitFemaleLowerLegs(rig);
         rig.HeadRest=rig.Head.Position;
         MergeResidentParts(rig.Head,"resident:head:"+skin+hair+job+":"+_faceVariant);
         MergeResidentParts(rig, "resident:" + cloth + skin + hair + job+":"+_garmentCut+":"+BodyFrame);

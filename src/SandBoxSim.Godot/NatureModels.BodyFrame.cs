@@ -141,6 +141,13 @@ internal sealed partial class NatureModels
         {
             result.Y+=panelHeight-point.Y;
         }
+        if(feminine)
+        {
+            // Carry the opening, its facing and placket through one shared
+            // map. The attributed skin neck remains underneath the lowered arc.
+            float frontNeck=Mathf.SmoothStep(.020f,.055f,-point.Z)*(1-Mathf.SmoothStep(.035f,.075f,MathF.Abs(point.X)));
+            result.Y-=.012f*frontNeck*Mathf.SmoothStep(1.24f,1.32f,point.Y);
+        }
         return result;
     }
     private Mesh FrameMesh(Mesh source,Transform3D space,bool tailored=false)
