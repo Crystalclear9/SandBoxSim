@@ -147,6 +147,12 @@ internal sealed partial class NatureModels
             // map. The attributed skin neck remains underneath the lowered arc.
             float frontNeck=Mathf.SmoothStep(.020f,.055f,-point.Z)*(1-Mathf.SmoothStep(.035f,.075f,MathF.Abs(point.X)));
             result.Y-=.012f*frontNeck*Mathf.SmoothStep(1.24f,1.32f,point.Y);
+            // A lower rounded opening reveals the existing continuous neck.
+            // Carry the shirt edge, facing and placket through one map.
+            float opening=(1-Mathf.SmoothStep(.065f,.100f,MathF.Abs(point.X)))
+                *Mathf.SmoothStep(1.21f,1.28f,point.Y);
+            result.Y-=.014f*opening*(1-.35f*Mathf.SmoothStep(0,.06f,point.Z));
+            result.Z+=.006f*opening*frontNeck;
             result=SoftShoulderPoint(result);
         }
         return result;
@@ -370,6 +376,18 @@ internal sealed partial class NatureModels
         try
         {
             ValidateAdultContourSections(male,female);
+            var headMesh=female.Head.GetChild<MeshInstance3D>(0);
+            var headSpace=InTorso(headMesh,female.Torso);
+            float neckBase=float.PositiveInfinity;
+            foreach(var point in headMesh.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
+            {
+                var p=headSpace*point;
+                if(MathF.Abs(p.X)<.03f)neckBase=MathF.Min(neckBase,p.Y);
+            }
+            float openingY=FramePoint(ResidentRig.BodyPoint(GarmentPoint(1,-MathF.PI/2))).Y;
+            if(!float.IsFinite(neckBase)||neckBase>openingY-.001f)
+                throw new InvalidOperationException($"Lowered female neckline exposes the source neck boundary: skin={neckBase}, opening={openingY}");
+            GD.Print($"NECK_COVERAGE_PASS: actual central neck extends below rounded opening by {(openingY-neckBase)*1000:F2} mm");
             ValidateForearmSupport(male,0);ValidateForearmSupport(female,1);
             foreach(var rig in new[]{male,female})
             {

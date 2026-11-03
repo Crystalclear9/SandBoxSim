@@ -202,6 +202,7 @@ internal sealed partial class NatureModels
         // Their support is the waistband, so they fade out above it.
         float below=1-Mathf.SmoothStep(belt-.015f,belt+.025f,height);
         float hem=.0020f*MathF.Cos(angle*8+.25f)*below;
+        if(FittedFigure){hem*=.45f;backPleat*=.65f;}
         float clearNeck=1-Mathf.SmoothStep(1.18f,1.22f,height);
         float sideSeam=1-Mathf.SmoothStep(.90f,1,MathF.Abs(x));
         return Math.Clamp((gathering+axilla+backPleat+hem)*clearNeck*sideSeam,-.003f,.0045f);

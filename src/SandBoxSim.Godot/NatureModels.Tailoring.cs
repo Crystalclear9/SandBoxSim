@@ -63,6 +63,7 @@ internal sealed partial class NatureModels
             float angle=-MathF.PI/2+.045f+(MathF.Tau-.090f)*column/sides;
             var seam=GarmentPoint(1,angle);var radial=new Vector3(MathF.Cos(angle),0,MathF.Sin(angle));
             var profile=section[row%section.Length];
+            if(FittedFigure)profile*=.72f;
             return seam+radial*profile.X+Vector3.Up*profile.Y;
         }
         for(int row=0;row<section.Length;row++)for(int col=0;col<sides;col++)
