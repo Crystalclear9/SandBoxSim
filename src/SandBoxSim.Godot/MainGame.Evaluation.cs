@@ -47,10 +47,11 @@ internal sealed class EvaluationSpec
         if((Panel is "person" or "person-hands")&&Agents==0)throw new ArgumentException("Resident panel requires a population");
         foreach(var e in Commands)
         {
-            if(e==null||e.Value==null||e.Frame<3||e.Frame>=WarmupFrames+MeasuredFrames||!new[]{"journal.open","settings.open","escape","portrait.face","portrait.hands","portrait.body","portrait.drag","portrait.zoom","portrait.reset","portrait.expand","portrait.collapse","world.view","home.focus","home.resident"}.Contains(e.Command))throw new ArgumentException("Unknown evaluation command");
+            if(e==null||e.Value==null||e.Frame<3||e.Frame>=WarmupFrames+MeasuredFrames||!new[]{"journal.open","settings.open","escape","portrait.resident","portrait.face","portrait.hands","portrait.body","portrait.drag","portrait.zoom","portrait.reset","portrait.expand","portrait.collapse","world.view","home.focus","home.resident"}.Contains(e.Command))throw new ArgumentException("Unknown evaluation command");
             if(e.Command.StartsWith("home.")&&(Panel!="homes"||e.Value!=""))throw new ArgumentException("Home command requires the homes panel and empty value");
             if(e.Command=="world.view"&&!new[]{"near","top","oblique"}.Contains(e.Value))throw new ArgumentException("Unknown camera preset");
             if(e.Command.StartsWith("portrait.")&&Panel is not ("person" or "person-hands"))throw new ArgumentException("Portrait command requires a resident panel");
+            if(e.Command=="portrait.resident"&&(!long.TryParse(e.Value,System.Globalization.NumberStyles.None,System.Globalization.CultureInfo.InvariantCulture,out long identity)||identity<=0))throw new ArgumentException("Portrait selection requires a positive stable identity");
             if((e.Command=="portrait.drag"||e.Command=="portrait.zoom")&&(!float.TryParse(e.Value,System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out float v)||!float.IsFinite(v)||Math.Abs(v)>120))throw new ArgumentException("Invalid portrait input");
         }
     }
@@ -95,6 +96,7 @@ public partial class MainGame
             case "journal.open":ShowJournal(true);break;
             case "settings.open":ShowSettings(true);break;
             case "escape":_UnhandledKeyInput(new InputEventKey {Keycode=Key.Escape,Pressed=true});break;
+            case "portrait.resident":if(!ChooseRosterResident(long.Parse(e.Value,System.Globalization.CultureInfo.InvariantCulture),Sim))throw new InvalidOperationException("Portrait resident is not alive in the current world");break;
             case "portrait.face":_residentPortrait.EvaluationFraming("face");break;
             case "portrait.hands":_residentPortrait.EvaluationFraming("hands");break;
             case "portrait.body":_residentPortrait.EvaluationFraming("body");break;

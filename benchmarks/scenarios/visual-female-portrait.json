@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "visual-female-portrait",
+  "seed": 839102,
+  "agents": 8,
+  "previewDays": 0,
+  "panel": "person",
+  "warmupFrames": 60,
+  "measuredFrames": 120,
+  "ticksPerFrame": 0,
+  "minimumFps": 0,
+  "outputDirectory": "runs/evaluation/visual-female-portrait",
+  "captureFrames": [90, 130],
+  "commands": [
+    {"frame": 65, "command": "portrait.resident", "value": "4294967299"},
+    {"frame": 70, "command": "portrait.expand", "value": ""},
+    {"frame": 75, "command": "portrait.face", "value": ""},
+    {"frame": 100, "command": "portrait.body", "value": ""}
+  ]
+}

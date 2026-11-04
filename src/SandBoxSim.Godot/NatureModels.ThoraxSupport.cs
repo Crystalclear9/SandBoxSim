@@ -35,10 +35,10 @@ internal sealed partial class NatureModels
         float x=MathF.Abs(p.X);
         float height=Mathf.SmoothStep(1.075f,1.105f,p.Y)*(1-Mathf.SmoothStep(1.195f,1.235f,p.Y));
         float root=Mathf.SmoothStep(.008f,.028f,x)*(1-Mathf.SmoothStep(.085f,.115f,x));
-        float vertical=Mathf.Lerp(.048f,.072f,Mathf.SmoothStep(1.13f,1.17f,p.Y));
-        float oval=MathF.Exp(-MathF.Pow((x-.047f)/.044f,2)-MathF.Pow((p.Y-1.150f)/vertical,2));
+        float vertical=Mathf.Lerp(.060f,.090f,Mathf.SmoothStep(1.11f,1.17f,p.Y));
+        float oval=MathF.Exp(-MathF.Pow((x-.045f)/.050f,2)-MathF.Pow((p.Y-1.135f)/vertical,2));
         float front=Mathf.SmoothStep(.040f,.100f,-p.Z);
-        return p-new Vector3(0,0,.005f*height*root*oval*front);
+        return p-new Vector3(0,0,.0035f*height*root*oval*front);
     }
 
     private void ValidateChestVolume()

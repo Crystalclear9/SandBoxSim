@@ -32,6 +32,7 @@ internal sealed partial class NatureModels
         }
     }
     private float ArmWidthScale=>AdultShoulderWidth/.202f;
+    private float AdultShoulderDrop=>BodyFrame==1?.010f:.009f;
 
     private float ShoulderPanelX(float value)
     {

@@ -62,7 +62,7 @@ internal sealed partial class NatureModels
                         // but no longer replaces the whole thorax with a bar.
                         float span=Mathf.SmoothStep(1.07f,1.11f,height)*(1-Mathf.SmoothStep(1.18f,1.22f,height))
                             *MathF.Pow(MathF.Max(0,-ray.Y),4);
-                        radius-=MathF.Min(MathF.Max(0,radius-skinRing[col].Length()),.004f*span);
+                        radius-=MathF.Min(MathF.Max(0,radius-skinRing[col].Length()),.002f*span);
                     }
                     // A tailoring allowance is measured normal to the cloth,
                     // rather than adding the same radial volume to a sternum,

@@ -14,9 +14,15 @@ class EvaluationTests(unittest.TestCase):
         line=next(line for line in client.splitlines() if '.Contains(Panel)' in line)
         accepted=set(re.findall(r'"([a-z-]+)"',line))
         self.assertEqual(declared,accepted)
+        declared_commands=set(schema['properties']['commands']['items']['properties']['command']['enum'])
+        command_line=next(line for line in client.splitlines() if '.Contains(e.Command)' in line)
+        accepted_commands=set(re.findall(r'"([a-z.-]+)"',command_line))
+        self.assertEqual(declared_commands,accepted_commands)
         for path in (root/'benchmarks/scenarios').glob('*.json'):
             with self.subTest(scenario=path.name):
-                self.assertIn(json.loads(path.read_text(encoding='utf-8')).get('panel','field'),declared)
+                scenario=json.loads(path.read_text(encoding='utf-8'))
+                self.assertIn(scenario.get('panel','field'),declared)
+                for event in scenario.get('commands',[]):self.assertIn(event['command'],declared_commands)
 
     def test_phase_timings_keep_valid_records_among_mixed_logs(self):
         first = dict(phase="world_initialized", elapsedMs=15, frame=0)
@@ -226,6 +232,15 @@ class EvaluationTests(unittest.TestCase):
         self.result['commands']=[event|dict(before=state,state=state,simulationUnchanged=True)]
         self.save_result()
         with self.assertRaisesRegex(ValueError,'window transition'):evaluate.validate_artifacts(self.folder)
+    def test_portrait_selection_requires_the_actual_stable_identity(self):
+        request=evaluate.read(self.folder/'request.json')
+        event=dict(frame=3,command='portrait.resident',value='4294967299')
+        request['commands']=[event];evaluate.write(self.folder/'request.json',request)
+        self.result['commands']=[event|dict(before={},state=dict(portrait=dict(identity=4294967299)),simulationUnchanged=True)]
+        self.save_result();evaluate.validate_artifacts(self.folder)
+        for identity in (4294967298,None,'4294967299',4294967299.0):
+            self.result['commands'][0]['state']['portrait']['identity']=identity;self.save_result()
+            with self.assertRaisesRegex(ValueError,'resident selection'):evaluate.validate_artifacts(self.folder)
     def tearDown(self): self.temp.cleanup()
     def test_missing_answers_are_wrong(self):
         self.assertEqual(evaluate.score(self.folder, [dict(id="q1", label="house")])["accuracy"], 1)

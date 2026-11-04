@@ -55,6 +55,7 @@
         "thorax-frames",
         "work-effort",
         "wardrobe",
+        "female-wardrobe",
         "faces",
         "equipment",
         "actions",
@@ -67,7 +68,13 @@
         "social",
         "social-side",
         "shoulder-motion",
-        "handling-transitions", "shoulder-elevation", "captured-stretch", "arm-articulation", "upper-arm-flex", "elbow-joint", "wrist-motion"
+        "handling-transitions",
+        "shoulder-elevation",
+        "captured-stretch",
+        "arm-articulation",
+        "upper-arm-flex",
+        "elbow-joint",
+        "wrist-motion"
       ],
       "default": "field"
     },
@@ -129,6 +136,7 @@
               "journal.open",
               "settings.open",
               "escape",
+              "portrait.resident",
               "portrait.face",
               "portrait.hands",
               "portrait.body",
@@ -150,6 +158,27 @@
         "required": [
           "frame",
           "command"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "command": {
+                  "const": "portrait.resident"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "value": {
+                  "pattern": "^[0-9]{1,19}$",
+                  "not": {
+                    "pattern": "^0+$"
+                  }
+                }
+              }
+            }
+          }
         ]
       }
     }

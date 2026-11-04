@@ -9,21 +9,21 @@ internal sealed partial class NatureModels
     // material boundary on the actual fitted cloth, not an independent shell.
     private const string FigureFabricFunctions=@"vec3 figure_colour(vec3 dye,vec2 chart,bool enabled,float torso_weight){
 if(!enabled)return dye;
-vec3 linen=mix(dye,vec3(.72,.69,.61),.22);
+vec3 linen=mix(dye,vec3(.72,.69,.61),.12);
 
 float a=(-chart.x-2.0)*6.2831853;
 // A continuous fitted body with a shallow curved linen insert at the neck.
 // The old straight colour break across the upper chest read as a box edge.
-float top=1.270-.026*pow(max(0.0,-sin(a)),6.0)-.010*pow(max(0.0,sin(a)),4.0);
+float top=1.284-.010*pow(max(0.0,-sin(a)),6.0)-.005*pow(max(0.0,sin(a)),4.0);
 float aa=max(fwidth(chart.y),.0005);
 float panel=1.0-smoothstep(top-aa,top+aa,chart.y);
-vec3 outer=mix(dye,vec3(.29,.35,.32),.12);
+vec3 outer=mix(dye,vec3(.29,.35,.32),.06);
 float edge=1.0-smoothstep(.001,.002+aa,abs(chart.y-top));
 float princess=1.0-smoothstep(.003,.007+aa*2.0,abs(abs(cos(a))-(.58+(chart.y-1.0)*.40)));
 float stitches=princess*(1.0-smoothstep(top-.02,top,chart.y));
 stitches*=1.0-.85*smoothstep(1.04,1.09,chart.y)*(1.0-smoothstep(1.17,1.22,chart.y));
 outer*=1.0-stitches*.07;
-return mix(linen,mix(mix(linen,outer,panel),outer*1.10,edge*.18),clamp(torso_weight,0.0,1.0));
+return mix(linen,mix(mix(linen,outer,panel),outer*1.03,edge*.12),clamp(torso_weight,0.0,1.0));
 }
 ";
     private Material FigureGarmentMaterial(string cloth)

@@ -139,6 +139,11 @@ def validate_artifacts(folder):
             else:
                 if before["settingsVisible"] and (after["settingsVisible"] or after["journalVisible"] != before["journalVisible"]): raise ValueError("Escape precedence failed")
                 if not before["settingsVisible"] and before["journalVisible"] and after["journalVisible"]: raise ValueError("Journal did not close")
+        if command == "portrait.resident":
+            value=expected["value"]
+            selected=after.get("portrait",{}).get("identity")
+            if not isinstance(value,str) or not value.isascii() or not value.isdecimal() or not 0<int(value)<2**63 or type(selected) is not int or selected!=int(value):
+                raise ValueError("Portrait resident selection failed")
         if command in ("portrait.expand", "portrait.collapse") and after.get("portraitExpanded") != (command == "portrait.expand"): raise ValueError("Portrait window transition failed")
         if command in ("portrait.face", "portrait.hands", "portrait.body") and after["portrait"]["framing"] != command.split(".")[1]: raise ValueError("Portrait framing failed")
         if command == "portrait.reset" and (after["portrait"]["pitch"] != 0 or after["portrait"]["dragging"] or abs(after["portrait"]["yaw"] + .28) > .001): raise ValueError("Portrait reset failed")

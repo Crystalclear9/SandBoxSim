@@ -134,7 +134,7 @@ internal sealed partial class NatureModels
         var result=fitted.Lerp(sleevePoint,upper);
         // A continuous neck-to-acromion slope, carried through the entire
         // sleeve. The joint rest and inverse bind receive the same drop.
-        result.Y-=(feminine?.014f:.009f)*Mathf.SmoothStep(.065f,.18f,MathF.Abs(point.X))*MathF.Max(sleeve,Mathf.SmoothStep(1.08f,1.23f,point.Y));
+        result.Y-=AdultShoulderDrop*Mathf.SmoothStep(.065f,.18f,MathF.Abs(point.X))*MathF.Max(sleeve,Mathf.SmoothStep(1.08f,1.23f,point.Y));
         // Fit the garment's lower panel independently of the pelvis/trousers.
         // The raised hem still overlaps the trouser waist; sleeves and rigid
         // equipment retain their original length and attachment transforms.
@@ -253,7 +253,7 @@ internal sealed partial class NatureModels
                         // height. Using that distance lifts a false cap horn.
                         // With d=(pivotY-y), Rf*(radial-down*d) plus
                         // (R-Rf)*down*d keeps the centre on the humeral axis.
-                        float shoulderY=ResidentRig.BodyY(1.18f)-(BodyFrame==1?.014f:.009f);
+                        float shoulderY=ResidentRig.BodyY(1.18f)-AdultShoulderDrop;
                         // The sewn boundary remains on its scapular support;
                         // Spread centreline transport over the shoulder cap.
                         // A four-centimetre ramp produced a steep translation
@@ -349,7 +349,7 @@ internal sealed partial class NatureModels
         // together. Scaling the mesh alone leaves a male-width moving rig.
         rig.ShoulderHalfWidth=.202f*ArmWidthScale;
         rig.ClavicleRest=AdultClavicleRest;
-        rig.ShoulderDrop=BodyFrame==1?.014f:.009f;
+        rig.ShoulderDrop=AdultShoulderDrop;
         rig.ShoulderSkeleton.AddBone("PelvicCloth");rig.ShoulderSkeleton.SetBoneParent(3,0);rig.ShoulderSkeleton.SetBoneRest(3,Transform3D.Identity);
         var skin=new Skin();skin.AddBind(0,Transform3D.Identity);
         for(int side=0;side<2;side++)
