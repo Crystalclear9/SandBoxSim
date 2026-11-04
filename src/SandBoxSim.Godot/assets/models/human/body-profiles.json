@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "profile": "balanced-figure-physique-v28",
+  "profile": "continuous-figure-physique-v29",
   "license": "CC0-1.0",
-  "description": "CC0 Dan Ulrich / Blender Studio reference on HM08 topology. Adult female uses 75% reference / 25% HM08 with one bounded full-figure contour for thorax, relaxed waist, posterior pelvis and thigh. Art-directed natural balanced proportions, not population measurements.",
+  "description": "CC0 Dan Ulrich / Blender Studio reference on HM08 topology. Adult female uses 75% reference / 25% HM08 with a continuous bilateral thorax field, relaxed waist, posterior pelvis and thigh. Fixed source joints; art-directed natural proportions, not population measurements.",
   "frames": {
     "male": {
       "targets": {
@@ -10,7 +10,7 @@
       }
     },
     "female": {
-      "surfaceStyle": "balanced-figure-v4",
+      "surfaceStyle": "continuous-figure-v5",
       "targets": {
         "reference-shape-female.json": 0.75
       }

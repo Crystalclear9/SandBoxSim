@@ -20,7 +20,10 @@ def soft_contour(point):
     # sharpening an hourglass. The pelvic breadth merges into the upper thigh.
     dx=side*lateral*(.0030*bell(1.015,.085)+.007*bell(.810,.110))
     front=smooth(.015,.100,-z)
-    chest=math.exp(-((abs(x)-.050)/.067)**2)
+    # A differentiable even coordinate keeps the two sides tangent at the
+    # sternum; abs(x) left a crease in both vertical and depth displacement.
+    medial=math.sqrt(x*x+.012**2)-.012
+    chest=math.exp(-((medial-.040)/.067)**2)
     # A broad upper slope and a softly returning lower pole share one source
     # surface. Distribute lift over the thorax instead of a narrow raised knot.
     dy=.014*front*chest*bell(1.125,.078)*(1-smooth(1.20,1.25,y))

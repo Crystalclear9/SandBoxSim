@@ -141,7 +141,7 @@ internal sealed partial class NatureModels
         float y=p.Y;
         // Continue the existing neck below the lower rounded garment opening.
         // Broad blending preserves the jaw and avoids a separate neck column.
-        if(!ChildHead&&HumanFamily==2)y-=.012f*Mathf.SmoothStep(.080f,.180f,-p.Y);
+        if(!ChildHead&&HumanFamily==2)y-=.024f*Mathf.SmoothStep(.080f,.180f,-p.Y);
         if(ChildHead&&y<.010f)
         {
             float blend=Math.Clamp((y+.14f)/.055f,0,1);blend=blend*blend*(3-2*blend);

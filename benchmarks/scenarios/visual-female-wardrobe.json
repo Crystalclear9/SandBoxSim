@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "visual-female-wardrobe",
+  "seed": 839102,
+  "agents": 40,
+  "previewDays": 0,
+  "panel": "female-wardrobe",
+  "warmupFrames": 60,
+  "measuredFrames": 120,
+  "ticksPerFrame": 0,
+  "minimumFps": 0,
+  "captureFrames": [
+    90
+  ]
+}

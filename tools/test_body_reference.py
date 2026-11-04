@@ -47,6 +47,17 @@ class BodyReferenceTests(unittest.TestCase):
                     self.assertGreater(determinant,.75);self.assertLess(determinant,1.25)
         self.assertGreater(maximum,.012);self.assertLess(maximum,.018)
 
+    def test_source_chest_has_a_continuous_midline_tangent(self):
+        from resident_shape import soft_contour
+        h=1e-5
+        for y in (1.10,1.135,1.17,1.21):
+            for z in (-.15,-.10,-.06):
+                centre=soft_contour((0,y,z))
+                left=soft_contour((-h,y,z));right=soft_contour((h,y,z))
+                for axis in (1,2):
+                    residual=abs((right[axis]-centre[axis])/h-(centre[axis]-left[axis])/h)
+                    self.assertLess(residual,.003,(y,z,axis,'midline tangent seam'))
+
     def test_verified_surface_and_shape_identity(self):
         manifest=json.loads((ASSETS/'reference-shape-sources.json').read_text(encoding='utf-8'))
         profile=json.loads((ASSETS/'body-profiles.json').read_text(encoding='utf-8'))

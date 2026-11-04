@@ -142,6 +142,11 @@ internal sealed partial class NatureModels
                 }
             }
             for(int i=0;i<source.Length;i++){points[i]+=offsets[i];target[i]=blends[i]*points[i];}
+            if(FittedFigure)
+            {
+                CompleteBodiceSurface(target,ids,uv,source,active);
+                for(int i=0;i<source.Length;i++)points[i]=inverseBlends[i]*target[i];
+            }
             for(int i=0;i<source.Length;i++)if(anatomy.Active[i]>.5f)
             {
                 _posedShoulderBefore+=MathF.Abs((posed[i]-anatomy.Goals[i]).Dot(anatomy.Normals[i]));
@@ -169,6 +174,7 @@ internal sealed partial class NatureModels
             var shape=new Godot.Collections.Array();shape.Resize((int)Mesh.ArrayType.Max);
             shape[(int)Mesh.ArrayType.Vertex]=points;shape[(int)Mesh.ArrayType.Normal]=correctedNormals;result.Add(shape);
         }
+        if(FittedFigure)GD.Print($"BODICE_POSE_FLOW: cut={_garmentCut}, accumulated samples={_posedBodiceSamples}, maximum edit={_posedBodiceMaximum*1000:F3} mm; canonical neighbourhoods and existing shoulder participation");
         return result;
     }
     private static (int Index,float Weight)[][] ShoulderSurfacePatches(Vector3[] points,int[] triangles,HashSet<int>[] adjacent,Vector2[] uv,float[] girdle)

@@ -10,8 +10,8 @@ internal sealed partial class NatureModels
     private readonly float[][] _garmentFrameReference=new float[3][];
     private readonly float[][] _sewnFrameReference=new float[3][];
     private const int TrunkRows=113,TrunkColumns=128;
-    private const string MaleTrunkHash="24b46efe55b5c4ccb79a57f6985695a46066aa8f92e784d5dc6aa81aa900155c";
-    private const string FemaleTrunkHash="80d6ccbc2d780bd120ef2af8eab27e8c6215d7d699196b18a2ee25e8b7de7e22";
+    private const string MaleTrunkHash="49ea095322e37d3fb09fd028a8291ea02c762df04b449363b4f9e4dcd3915b2d";
+    private const string FemaleTrunkHash="1dc95acb1e330df500e4522b90cdf3bdab42d51d57d6cf1597dd77de09e42f47";
     private const float TrunkLow=.74f,TrunkHigh=1.30f;
     private const float GarmentReferenceLow=.64f;
     private const int GarmentReferenceRows=133;
@@ -147,7 +147,7 @@ internal sealed partial class NatureModels
             // Carry the opening, its facing and placket through one shared
             // map. The attributed skin neck remains underneath the lowered arc.
             float frontNeck=Mathf.SmoothStep(.020f,.055f,-point.Z)*(1-Mathf.SmoothStep(.035f,.075f,MathF.Abs(point.X)));
-            result.Y-=.012f*frontNeck*Mathf.SmoothStep(1.24f,1.32f,point.Y);
+            result.Y-=.020f*frontNeck*Mathf.SmoothStep(1.24f,1.32f,point.Y);
             // A lower rounded opening reveals the existing continuous neck.
             // Carry the shirt edge, facing and placket through one map.
             float opening=(1-Mathf.SmoothStep(.065f,.100f,MathF.Abs(point.X)))
@@ -196,6 +196,8 @@ internal sealed partial class NatureModels
                 FitShoulderSurface(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern,sleeveDistance);
                 FairGarmentRest(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern,source.SurfaceGetMaterial(s)?.HasMeta("FittedBodice")==true);
                 RelaxArmholeSurface(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
+                if(source.SurfaceGetMaterial(s)?.HasMeta("FittedBodice")==true)
+                    CompleteBodiceSurface(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
                 sleeveDistance=SleeveDistances(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
             }
             var girdle=tailored&&sleeveDistance.Length==points.Length
@@ -381,6 +383,7 @@ internal sealed partial class NatureModels
     }
     public void ValidateBodyFrames()
     {
+        ValidateBodicePatches();
         ValidateSoftShoulderField();
         ValidateMedialThorax();
         ValidateBalancedTorso();
