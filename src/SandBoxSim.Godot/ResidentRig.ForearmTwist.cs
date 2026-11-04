@@ -18,6 +18,10 @@ internal partial class ResidentRig
         CurlHand(1,phase>=6?.15f+.85f*(.5f-.5f*MathF.Cos(MathF.Tau*progress)):.15f);
         UpdateHandBones(1);
     }
+    internal void StudyWristRotation(int side,Basis rotation)
+    {
+        Hands[side].Basis=rotation;UpdateHandBones(side);
+    }
     private readonly float[] _forearmRoll={float.NaN,float.NaN};
     private readonly Quaternion[] _elbowSkinRotation={Quaternion.Identity,Quaternion.Identity};
     internal float ForearmRoll(int side)
@@ -51,11 +55,18 @@ internal partial class ResidentRig
         Elbows[side].Basis=Basis.Identity;Hands[side].Basis=Basis.Identity;
         _forearmRoll[side]=float.NaN;UpdateHandBones(side);
     }
+    // Component distance retains tiny rotations that a float32 dot product
+    // rounds to one. q and -q describe the same rotation.
+    private static bool SameSkinRotation(Quaternion a,Quaternion b)
+    {
+        var difference=a-b;var antipodal=a+b;
+        return MathF.Min(difference.Dot(difference),antipodal.Dot(antipodal))<=1e-12f;
+    }
     private void UpdateForearmSkin(int side)
     {
         float roll=ForearmRoll(side);var inverse=Hands[side].Basis.Inverse();var wrist=inverse.GetRotationQuaternion();
         var elbow=Elbows[side].Basis.GetRotationQuaternion();
-        if(MathF.Abs(wrist.Dot(_wristSkinRotation[side]))>=.999999f&&MathF.Abs(roll-_forearmRoll[side])<.00001f&&MathF.Abs(elbow.Dot(_elbowSkinRotation[side]))>=.999999f)return;
+        if(SameSkinRotation(wrist,_wristSkinRotation[side])&&MathF.Abs(roll-_forearmRoll[side])<.000001f&&SameSkinRotation(elbow,_elbowSkinRotation[side]))return;
         _wristSkinRotation[side]=wrist;_forearmRoll[side]=roll;_elbowSkinRotation[side]=elbow;
         var axis=Hands[side].Position.Normalized();var pivot=-Hands[side].Position;
         var unhinge=(Elbows[side].Basis*new Basis(axis,-roll)).Inverse().GetRotationQuaternion();

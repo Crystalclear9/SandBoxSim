@@ -64,9 +64,7 @@ internal sealed partial class NatureModels
             if(radius<.0001f)continue;
             float angle=Mathf.PosMod(MathF.Atan2(z,x),MathF.Tau),column=angle/MathF.Tau*64;
             float row=Math.Clamp((shoulder-p.Y-.025f)/(.255f-.025f)*24,0,24);
-            int r=Math.Min(23,(int)row),c=(int)column%64;float u=column-MathF.Floor(column),v=row-r;
-            float At(int at)=>Mathf.Lerp(radii[at*64+c],radii[at*64+(c+1)%64],u);
-            float anatomical=Mathf.Lerp(At(r),At(r+1),v);
+            float anatomical=UpperArmRadius(radii,row,column);
             // Cloth bridges the source with 5 mm female / 7 mm male ease. Keep
             // the shared seam, rolled cuff and source's small-scale drape.
             float weight=Mathf.SmoothStep(.012f,.080f,distance[i])*(1-Mathf.SmoothStep(.215f,.263f,pattern[i].X));

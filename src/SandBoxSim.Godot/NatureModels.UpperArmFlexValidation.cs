@@ -15,6 +15,8 @@ internal sealed partial class NatureModels
             var rig=Resident(identity,false,job);rig.AmbientMotionEnabled=false;
             try
             {
+                if(job==JobType.Farmer)ValidateUpperArmFlow();
+                ValidateSkinMicroMotion(rig);
                 var mesh=(ArrayMesh)rig.DetailedBodyMesh;
                 if(mesh.GetBlendShapeCount()!=ResidentRig.SleevePoseCount)throw new InvalidOperationException("Experimental muscle-volume shapes remain in the gameplay mesh");
                 foreach(int studySide in new[]{0,1})foreach(int degrees in new[]{0,45,90,135})

@@ -13,11 +13,14 @@ internal sealed partial class NatureModels
     // acromial pivot; reduce the raised medial shoulder and posterior bulk.
     private static Vector3 SoftShoulderPoint(Vector3 p)
     {
-        float mask=Mathf.SmoothStep(.043f,.065f,MathF.Abs(p.X))
-            *(1-Mathf.SmoothStep(.095f,.120f,MathF.Abs(p.X)))
-            *Mathf.SmoothStep(1.18f,1.23f,p.Y)*(1-Mathf.SmoothStep(1.29f,1.34f,p.Y))
-            *Mathf.SmoothStep(-.060f,.015f,p.Z);
-        return p-new Vector3(0,.008f*mask,.003f*mask*Mathf.SmoothStep(0,.060f,p.Z));
+        // Zero curvature at each boundary avoids a visible ridge where the
+        // edited saddle rejoins the unmodified neck, scapula and shoulder.
+        static float Ramp(float low,float high,float v)=>ResidentRig.ReachEase((v-low)/(high-low));
+        float mask=Ramp(.043f,.065f,MathF.Abs(p.X))
+            *(1-Ramp(.095f,.120f,MathF.Abs(p.X)))
+            *Ramp(1.18f,1.23f,p.Y)*(1-Ramp(1.29f,1.34f,p.Y))
+            *Ramp(-.060f,.015f,p.Z);
+        return p-new Vector3(0,.008f*mask,.003f*mask*Ramp(0,.060f,p.Z));
     }
     private static void ValidateSoftShoulderField()
     {
