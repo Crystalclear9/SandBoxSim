@@ -10,8 +10,8 @@ internal sealed partial class NatureModels
     private readonly float[][] _garmentFrameReference=new float[3][];
     private readonly float[][] _sewnFrameReference=new float[3][];
     private const int TrunkRows=113,TrunkColumns=128;
-    private const string MaleTrunkHash="b6006b48444c898845ce45762277e73639ac5527b9f6e29998de5f6ee7ffdcf0";
-    private const string FemaleTrunkHash="266821065b0bcb0bdc90bccac4fd2d46a466754b2db5606dec128de5363ada9c";
+    private const string MaleTrunkHash="24b46efe55b5c4ccb79a57f6985695a46066aa8f92e784d5dc6aa81aa900155c";
+    private const string FemaleTrunkHash="80d6ccbc2d780bd120ef2af8eab27e8c6215d7d699196b18a2ee25e8b7de7e22";
     private const float TrunkLow=.74f,TrunkHigh=1.30f;
     private const float GarmentReferenceLow=.64f;
     private const int GarmentReferenceRows=133;

@@ -15,21 +15,22 @@ def soft_contour(point):
     x,y,z=point
     side=1 if x>=0 else -1
     bell=lambda h,w:math.exp(-((y-h)/w)**2)
-    lateral=smooth(.045,.095,abs(x))
-    # A broad pelvic shelf and gentle waist transition establish the large
-    # silhouette. The former negative pelvic offset erased most frame contrast.
-    dx=side*lateral*(.0005*bell(1.02,.070)+.006*bell(.80,.100))
-    front=smooth(.030,.085,-z)
-    chest=math.exp(-((abs(x)-.055)/.075)**2)
-    # Redistribute the anterior thoracic surface upward, rather than adding
-    # volume to its lower pole. Keep a broad transition into the upper abdomen.
-    dy=.016*front*chest*bell(1.125,.060)*(1-smooth(1.20,1.25,y))
-    dz=front*chest*(-.004*bell(1.165,.055)+.003*bell(1.080,.040))
-    dz+=smooth(.008,.035,z)*.0025*bell(1.015,.075)
-    # A broad lateral-thigh transition; no displacement of knees/ankles or
-    # the medial join. Torso and thigh envelopes overlap continuously.
-    thigh=bell(.635,.080)*smooth(.090,.135,abs(x))
-    dx-=side*.0025*thigh
+    lateral=smooth(.025,.145,abs(x))
+    # Coordinate the large masses: retain a relaxed natural waist rather than
+    # sharpening an hourglass. The pelvic breadth merges into the upper thigh.
+    dx=side*lateral*(.0030*bell(1.015,.085)+.007*bell(.810,.110))
+    front=smooth(.015,.100,-z)
+    chest=math.exp(-((abs(x)-.050)/.067)**2)
+    # A broad upper slope and a softly returning lower pole share one source
+    # surface. Distribute lift over the thorax instead of a narrow raised knot.
+    dy=.014*front*chest*bell(1.125,.078)*(1-smooth(1.20,1.25,y))
+    dz=front*chest*(-.008*bell(1.145,.075)+.004*bell(1.080,.035))
+    # Lumbar-to-sacral continuity and posterior pelvis belong to the same
+    # figure as the chest, not to an independently padded trouser shell.
+    back=smooth(.008,.085,z)
+    dz+=back*(.004*bell(1.015,.075)+.0045*bell(.800,.100))
+    thigh=bell(.665,.095)*smooth(.090,.135,abs(x))
+    dx-=side*.0010*thigh
     return x+dx,y+dy,z+dz
 
 

@@ -175,7 +175,8 @@ internal sealed partial class NatureModels
                     // the anatomical section has already been fitted. Limit
                     // that outer-quadrant excess before restoring clearance.
                     float outer=Mathf.SmoothStep(.055f,.085f,MathF.Abs(p.X));
-                    float outside=radius-TrunkSample(skin,p.Y,angle)-.006f;
+                    float bridgeEase=.006f+.006f*(1-Mathf.SmoothStep(1.08f,1.14f,p.Y));
+                    float outside=radius-TrunkSample(skin,p.Y,angle)-bridgeEase;
                     // C1 onset: the old max(0, outside) introduced a tangent
                     // break exactly at the outer chest/under-bust transition.
                     float excess=(outside<=0?0:outside<.004f?outside*outside/.008f:outside-.002f)*outer*active;

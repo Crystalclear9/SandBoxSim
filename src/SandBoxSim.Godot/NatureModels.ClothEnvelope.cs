@@ -101,7 +101,7 @@ internal sealed partial class NatureModels
                 float radius=skin[row*TrunkColumns+col],hanging=radius;
                 for(int step=1;step<=24&&row+step<TrunkRows;step++)
                     hanging=MathF.Max(hanging,skin[(row+step)*TrunkColumns+col]-step*.005f*.22f);
-                data[row*TrunkColumns+col]=radius+MathF.Min(BodyFrame==1?.003f:.007f,hanging-radius)*free;
+                data[row*TrunkColumns+col]=radius+MathF.Min(.007f,hanging-radius)*free;
             }
             _clothEnvelopes[key]=data;
         }
@@ -154,7 +154,7 @@ internal sealed partial class NatureModels
                 float chest=Mathf.SmoothStep(1.04f,1.07f,y)*(1-Mathf.SmoothStep(1.18f,1.22f,y))*MathF.Pow(MathF.Max(0,-MathF.Sin(a)),2);
                 // Let one panel span below both supports; pulling this whole
                 // region to a 4 mm skin offset moulded two separate cups.
-                float frontAllowance=.004f+.004f*(1-Mathf.SmoothStep(1.09f,1.15f,y));
+                float frontAllowance=.004f+.009f*(1-Mathf.SmoothStep(1.085f,1.15f,y));
                 limit=Mathf.Lerp(limit,frontAllowance,chest);
             }
             allowance[row*TrunkColumns+col]=limit*freedom[row*TrunkColumns+col];

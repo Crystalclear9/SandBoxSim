@@ -34,9 +34,9 @@ class BodyReferenceTests(unittest.TestCase):
     def test_soft_contours_preserve_orientation_symmetry_and_source_budget(self):
         from resident_shape import soft_contour
         maximum=0
-        for x in (.025,.065,.10,.145,.18):
-            for y in (.53,.635,.72,.80,.90,1.015,1.075,1.135,1.22):
-                for z in (-.15,-.09,-.03,.03,.09):
+        for x in (.0,.025,.045,.065,.085,.10,.125,.145,.18):
+            for y in (.53,.635,.72,.78,.80,.86,.90,.96,1.015,1.075,1.10,1.135,1.18,1.22,1.25):
+                for z in (-.15,-.10,-.09,-.06,-.04,-.03,0,.015,.03,.045,.065,.09):
                     p=(x,y,z);q=soft_contour(p);other=soft_contour((-x,y,z))
                     self.assertAlmostEqual(q[0],-other[0]);self.assertAlmostEqual(q[2],other[2]);self.assertAlmostEqual(q[1],other[1]);self.assertGreaterEqual(q[1],y)
                     maximum=max(maximum,math.dist(p,q));h=1e-5

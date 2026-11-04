@@ -30,7 +30,7 @@
 
 ## 成人身体配方
 
-`lifted-thorax-physique-v27` 使用 Blender 官方 Human Base Meshes v1.4.1 中 Dan Ulrich 的两套 CC0 写实身体作为形体来源，保留 HM08 的拓扑和语义。来源包身份、两套转移位移及其成品哈希由 [reference-shape-sources.json](../../src/SandBoxSim.Godot/assets/models/human/reference-shape-sources.json) 固定；[body-profiles.json](../../src/SandBoxSim.Godot/assets/models/human/body-profiles.json) 分别选择 `reference-shape-male.json`、`reference-shape-female.json`，男性为 1.0、女性为 0.75 权重；女性同时保留 25% 的 HM08 女性基础体型。头脸和手部不随该形体重做而替换。
+`balanced-figure-physique-v28` 使用 Blender 官方 Human Base Meshes v1.4.1 中 Dan Ulrich 的两套 CC0 写实身体作为形体来源，保留 HM08 的拓扑和语义。来源包身份、两套转移位移及其成品哈希由 [reference-shape-sources.json](../../src/SandBoxSim.Godot/assets/models/human/reference-shape-sources.json) 固定；[body-profiles.json](../../src/SandBoxSim.Godot/assets/models/human/body-profiles.json) 分别选择 `reference-shape-male.json`、`reference-shape-female.json`，男性为 1.0、女性为 0.75 权重；女性同时保留 25% 的 HM08 女性基础体型。头脸和手部不随该形体重做而替换。
 
 [export_resident_reference.py](../../tools/export_resident_reference.py) 在项目内 Blender 中生成转移数据：41 个关节与表面参考、肩骨盆中性轴、受约束的表面位移、辅助衣片对应及关节中心恢复。输出保存原始输入哈希、参考点、投射和位移梯度边界。重建过程使用 Blender 自带 NumPy，普通游戏运行没有该依赖；具体几何与局限见[模型系统](models.md)。
 
@@ -138,7 +138,7 @@ Godot 三平台导出包含模型 JSON、许可文本与导入纹理；发行包
 
 三套上衣采用 `faired-panel-v8` 连续缝片构造。原始胸肩从 MakeHuman CC0 身体采样，`torso-cage.json` 和 `torso-feminine-cage.json` 保存 65×128 的胸肩支撑与来源哈希。当前运行体型另使用 [trunk-masculine-cage.json](../../src/SandBoxSim.Godot/assets/models/human/trunk-masculine-cage.json) 和 [trunk-feminine-cage.json](../../src/SandBoxSim.Godot/assets/models/human/trunk-feminine-cage.json)，各包含 113×128 个覆盖骨盆、腰背与胸廓的平面截面凸包采样。两套青年宏目标及原始基础体均来自现有已校验的 CC0 来源，不改变头脸、手部来源或许可。
 
-`NatureModels.BodyFrame.cs` 根据来源截面拟合完整躯干并留出衣料松量。当前 `lifted-thorax-physique-v27` 保留两种来源体型，采用整体等比身高变化、共同中性站姿及独立的衣装拟合；肩袖、卷边、实际关节与逆绑定共同适配。上衣保留原面数，低段随骨盆运动，胸廓与腰部平滑过渡；裤装采用下述连续来源表面。详细参数与局限见[成人身体说明](models.md)。 衣料松量按截面法线分配，收褶和垂落跟随成衣腰带；两种体型与三种款式分别缓存，避免服装额外体积覆盖来源轮廓。
+`NatureModels.BodyFrame.cs` 根据来源截面拟合完整躯干并留出衣料松量。当前 `balanced-figure-physique-v28` 保留两种来源体型，采用整体等比身高变化、共同中性站姿及独立的衣装拟合；肩袖、卷边、实际关节与逆绑定共同适配。上衣保留原面数，低段随骨盆运动，胸廓与腰部平滑过渡；裤装采用下述连续来源表面。详细参数与局限见[成人身体说明](models.md)。 衣料松量按截面法线分配，收褶和垂落跟随成衣腰带；两种体型与三种款式分别缓存，避免服装额外体积覆盖来源轮廓。
 
 宽松衣身参考 [V&A 的衬衫结构](https://www.vam.ac.uk/articles/sew-your-own-customisable-shirt)，胸腹衔接保留布料松量，减少刻画肌肉的重复褶皱；背部肩部拼接以贴面短针脚表示。头部整体上移 18 毫米以露出源颈部。袖窿收至肩侧，袖根延续衣身切平面，左右三角面方向对应。袖身权重按边长离线平滑并约束空间变化；领口、中线与腰带固定，袖口随肩骨，原手柄和手掌长度不变。当前成品为 7,320／7,320／7,200 三角形。改变原始衣片或其胸肩基础体后须重烘焙三套衣装；完整躯干体型在运行模型创建时拟合，单独重建 trunk 文件不要求重烘焙原衣片。普通构建与运行不需要 Blender。成人运行绑定另以独立肩胛带及六个摆动／轴向扭转分离区间保持肩袖截面，并按拟合网格上的袖窿最短路径距离分配袖管位置修正；两种体型共用二十六骨结构，每顶点至多四个影响，袖窿与袖口之间在实际边长上重新求解过渡，原始烘焙网格与来源哈希不变。肩部范围及实际作业入口见[肩袖绑定与动作说明](models.md)。
 
@@ -186,7 +186,7 @@ python -B -m unittest discover -s tools -p test_body_reference.py
 
 ## 连续裤装来源
 
-`trousers-male.mesh.json`／`trousers-female.mesh.json` 从同一 CC0 HM08 的 `helper-tights` 服装辅助几何生成，分别应用共同身体配方；不是旧骨盆和大腿截面体的增面。导出器校验源文件、去掉 A 姿势腿部偏移、裁切并保留单连通衣料，拟合裤腰与靴口，输出五骨权重和原始输入哈希。当前 `lifted-thorax-physique-v27` 按来源骨盆包络、中性站姿和衣料松量组织腰臀与上腿，输出记录 `physique` 配方标记，运行时仍校验完整成品 SHA-256。运行时用骨盆、实际大腿与膝关节驱动连续表面；面数、约束与测试见[模型系统](models.md)。现有头脸文件和手部授权保持独立。
+`trousers-male.mesh.json`／`trousers-female.mesh.json` 从同一 CC0 HM08 的 `helper-tights` 服装辅助几何生成，分别应用共同身体配方；不是旧骨盆和大腿截面体的增面。导出器校验源文件、去掉 A 姿势腿部偏移、裁切并保留单连通衣料，拟合裤腰与靴口，输出五骨权重和原始输入哈希。当前 `balanced-figure-physique-v28` 按来源骨盆包络、中性站姿和衣料松量组织腰臀与上腿，输出记录 `physique` 配方标记，运行时仍校验完整成品 SHA-256。运行时用骨盆、实际大腿与膝关节驱动连续表面；面数、约束与测试见[模型系统](models.md)。现有头脸文件和手部授权保持独立。
 
 在上述项目临时环境中，使用同一 Blender 重建裤装：
 
@@ -203,7 +203,7 @@ if ($process.ExitCode -ne 0) { throw 'Trouser export failed' }
 python -m unittest discover -s tools -p test_resident_trousers.py
 ```
 
-当前 `lifted-thorax-physique-v27` 的裤装为男性 2,741 顶点／5,328 三角面、女性 2,653 顶点／5,136 三角面，保持五骨蒙皮、共享材质和原始 CC0 输入来源。导出器、工具测试与运行加载器校验成品 SHA-256、连通性及米制范围；胸腰和骨盆的成衣截面直接与来源比较，具体边界见[模型系统](models.md)。
+当前 `balanced-figure-physique-v28` 的裤装为男性 2,741 顶点／5,328 三角面、女性 2,653 顶点／5,136 三角面，保持五骨蒙皮、共享材质和原始 CC0 输入来源。导出器、工具测试与运行加载器校验成品 SHA-256、连通性及米制范围；胸腰和骨盆的成衣截面直接与来源比较，具体边界见[模型系统](models.md)。
 
 
 ## 上臂解剖支撑与姿态表面
@@ -234,26 +234,26 @@ python -m unittest discover -s tools -p test_resident_trousers.py
 
 当前成人脸部拟合标识为 `balanced-adult-v3`，额前发根为 `framed-source-root-v2`。来源头脸与发片文件、UV 和许可保持各自定义；运行时减少夸张的下脸收缩与颊部修饰，并按来源头皮运输女性额前发片。皮肤、睫毛与泪线共用有限的静止闭合及原眨眼形变。完整参数与衣装、前臂的受限表面松弛见[模型系统](models.md)。女性前臂的 0.8 毫米局部松弛在来源截面拟合后执行，按来源缓存，不修改原始雕刻文件或握柄区域。
 
-女性配方另包含 `surfaceStyle=balanced-thorax-v3`。重建消费者应使用 `resident_body.body_points`，应用来源目标混合后再执行柔和形体场；该场包含前胸的有界向上重分配与胸下回收，使用三轴米制位移，并固定关节辅助点。只叠加 `targets` 无法复现当前成品。每份支撑的 `shapeRecipe.surfaceStyle` 与配方哈希共同标识这一处理。
+女性配方另包含 `surfaceStyle=balanced-figure-v4`。重建消费者应使用 `resident_body.body_points`，应用来源目标混合后再执行柔和形体场；该场包含前胸的有界向上重分配与胸下回收，使用三轴米制位移，并固定关节辅助点。只叠加 `targets` 无法复现当前成品。每份支撑的 `shapeRecipe.surfaceStyle` 与配方哈希共同标识这一处理。
 
-当前成衣 `source-flow-v20` 在缓存构建时增加有界的前胸横向曲面拟合，并同步门襟、纽扣、针脚和分片缝线；它改变运行时成衣网格，来源身体及五类支撑仍使用 `lifted-thorax-physique-v27`。参数及最终三角面检查见[模型系统](models.md)。
+当前成衣 `balanced-figure-v21` 在缓存构建时增加有界的前胸横向曲面拟合，并同步门襟、纽扣、针脚和分片缝线；它改变运行时成衣网格，来源身体及五类支撑仍使用 `balanced-figure-physique-v28`。参数及最终三角面检查见[模型系统](models.md)。
 
-肩背的运行时形体处理标记为 `source-flow-v18`／`source-flow-v20`；来源身体与原始肩面文件仍为 v27。读取原始肩面不能替代运行时肩背映射及中性绑定重建，详见[模型系统](models.md)。
+肩背的运行时形体处理标记为 `balanced-figure-v19`／`balanced-figure-v21`；来源身体与肩面文件均按 v28 配方重建。读取原始肩面不能替代运行时肩背映射及中性绑定重建，详见[模型系统](models.md)。
 
-当前圆领、薄折边及腰胯衣料细节使用 `source-flow-v20`／`source-flow-v18`，由已有来源在运行时生成。没有更换原始人体文件；颈部覆盖检查读取实际头部网格与成品衣领，详细参数见[模型系统](models.md)。
+当前圆领、薄折边及腰胯衣料细节使用 `balanced-figure-v21`／`balanced-figure-v19`，由已有来源在运行时生成。没有更换原始人体文件；颈部覆盖检查读取实际头部网格与成品衣领，详细参数见[模型系统](models.md)。
 
 女性躯干支持新增 `skinRadii` 与 `anatomicalSampling=source-anterior-skin-rays-v1`，来源为同一 CC0 身体。旧 `radii` 凸包继续保留；重建时应同时输出两层，随后重新导出引用支持文件哈希的裤装，并更新运行时与来源测试的成品哈希。源文件读取与形体配方仍使用已有工具，详见[模型系统](models.md)。
 
 前胸近景回放：`python tools/evaluate.py run benchmarks/scenarios/visual-thorax-frames.json --output .tools/tmp/thorax-study --resolution 1600x1000`。该面板展示同一成年居民的三种观察方向，冻结模拟，用于观察当前衣装形体。
 
 
-女性成人前胸的运行时支撑由 `FemaleThoraxSupport` 从原始 `skinRadii` 缓存生成：前侧体积局部向内重分配，再按变形截面求径向支撑，供成衣拟合与皮肤间隙检查共用。原始身体、五类来源支撑及裤装没有重导出，既有来源哈希继续有效；当前衣装表现为 `source-flow-v20`、整体形体表现为 `source-flow-v18`。外侧衣面在肩胸松弛之后再次受支撑约束，最终前侧轮廓由原生三角面回归验证，参数见[模型系统](models.md)。
+女性成人前胸的运行时支撑由 `FemaleThoraxSupport` 从原始 `skinRadii` 缓存生成：前侧体积局部向内重分配，再按变形截面求径向支撑，供成衣拟合与皮肤间隙检查共用。原始身体、五类来源支撑及裤装没有重导出，既有来源哈希继续有效；当前衣装表现为 `balanced-figure-v21`、整体形体表现为 `balanced-figure-v19`。外侧衣面在肩胸松弛之后再次受支撑约束，最终前侧轮廓由原生三角面回归验证，参数见[模型系统](models.md)。
 
-当前腰腹与侧腰使用 `BalancedTorsoPoint` 的独立有界场，并与前胸修形共同重采运行时截面；不修改原始 v27 资产哈希。实际衣身、腰带与挂点共同拟合，成人正侧背与胸廓近景展示当前成品。具体边界和测量入口见[模型系统](models.md)。
+当前腰腹与侧腰使用 `BalancedTorsoPoint` 的独立有界场，并与前胸修形共同重采运行时截面；不修改上游人体来源哈希。实际衣身、腰带与挂点共同拟合，成人正侧背与胸廓近景展示当前成品。具体边界和测量入口见[模型系统](models.md)。
 
-当前前胸体积场 `ChestVolumePoint` 与既有内收／腰腹映射共同构建女性成人运行时支撑，最大新增前向位移 5 毫米。来源身体仍是 v27，成品采用 `source-flow-v18`／`source-flow-v20` 标识；原始文件哈希与许可保持原状。前胸局部滤波、成衣截面及固定根部检查见[模型系统](models.md)。
+当前前胸体积场 `ChestVolumePoint` 与既有内收／腰腹映射共同构建女性成人运行时支撑，最大新增前向位移 5 毫米。来源身体使用 v28，成品采用 `balanced-figure-v19`／`balanced-figure-v21` 标识；上游参考文件哈希与许可保持原状，当前十份衍生支撑按 v28 重新生成。前胸局部滤波、成衣截面及固定根部检查见[模型系统](models.md)。
 
-当前运行时胸廓支撑在映射后增加有界的前侧纵向圆顺，再用于成衣与接触恢复；前向体积采用较宽的上胸与胸下衰减，最大新增 5 毫米，原始资产哈希继续保留。`source-flow-v18`／`source-flow-v20` 与 `CHEST_CURVE_PASS` 参数见[模型系统](models.md)。
+当前运行时胸廓支撑在映射后增加有界的前侧纵向圆顺，再用于成衣与接触恢复；前向体积采用较宽的上胸与胸下衰减，最大新增 5 毫米，原始资产哈希继续保留。`balanced-figure-v19`／`balanced-figure-v21` 与 `CHEST_CURVE_PASS` 参数见[模型系统](models.md)。
 
 当前运行时肘部皮肤使用 `continuous-elbow-v9` 的 56 骨手臂支撑；原始来源仍保留 16 骨和原始索引／许可。男女前臂的截面拟合延续到隐藏肘口，局部圆顺按体型分别缓存；女性裤装的有界圆顺不改变原始来源文件与五骨合同。运行时参数、固定接缝和实际蒙皮检查见[模型系统](models.md)。
 
@@ -261,9 +261,12 @@ python -m unittest discover -s tools -p test_resident_trousers.py
 
 `stable-contour-v3` 仅使用来源衣料与 120 组肩袖方向形态，不含额外上臂体积目标。固定肩位参考直接给定关节角并连续跟踪前臂参考相位；实际游玩仍使用原有握持 IK。原始身体、上臂支撑、袖片、UV、许可和哈希不变。回放与逐帧检查见[模型系统](models.md)。
 
-`source-flow-v18`／`source-flow-v20` 在运行时保留作者法线细节，肩袖细节以邻域方向运输；女性肩背、腰胯与腿部继续使用来源体型和有界圆顺。成品近景的衣料 UV 作为独立静止颜色参考，UV2 的衣片几何约定保持不变；这属于运行时表示，原始来源 UV、拓扑、资产哈希和许可未变。具体约束见[模型系统](models.md)。
+`balanced-figure-v19`／`balanced-figure-v21` 在运行时保留作者法线细节，肩袖细节以邻域方向运输；女性肩背、腰胯与腿部继续使用来源体型和有界圆顺。成品近景的衣料 UV 作为独立静止颜色参考，UV2 的衣片几何约定保持不变；这属于运行时表示，原始来源 UV、拓扑、资产哈希和许可未变。具体约束见[模型系统](models.md)。
 
-`source-flow-v18`／`source-flow-v20` 在来源拟合之后重整实际肩袖表面，原始衣片索引和来源文件保持不变；`source-flow-v15` 固定绑定会排除退化或过细的支撑面。成人静态远景从同一成品静止网格生成。前臂采用 `curvature-flow-v9` 的连续曲率插值，来源 49 排的值、原始 UV／许可与哈希保持原状。几何范围与验证条件见[模型系统](models.md)。
+`balanced-figure-v19`／`balanced-figure-v21` 在来源拟合之后重整实际肩袖表面，原始衣片索引和来源文件保持不变；`balanced-figure-v16` 固定绑定会排除退化或过细的支撑面。成人静态远景从同一成品静止网格生成。前臂采用 `curvature-flow-v9` 的连续曲率插值，来源 49 排的值、原始 UV／许可与哈希保持原状。几何范围与验证条件见[模型系统](models.md)。
 
 
 当前上臂支撑从既有 25×64 来源半径中构建周期三次 B 样条，端部固定接续，保留原有袖口与位移界限。女性颈肩场在原位移范围内使用零端曲率的五次过渡；这些处理只改变运行时成品，不改写原始人体与衣装拓扑、UV、配方或许可。慢速腕／肘更新以分量距离和稳定的小角读取实现，来源骨架及 24 组前臂形态合同保持原状；接口和检查见[模型系统](models.md)。
+
+
+`balanced-figure-v4` 的源形体场由 [resident_shape.py](../../tools/resident_shape.py) 定义，`resident_body.body_points` 在混合参考位移之后统一应用。腰侧、后腰、骨盆后侧及大腿接续与前胸共享一个来源映射；关节辅助点固定，头脸和手掌网格不参与。当前十份支撑的 `shapeRecipe`、配方 SHA-256 和运行时文件哈希一起核对，不能仅更新身体标签或修改其中一份文件。源码重建、全部来源检查与完整客户端自检共同约束当前成品。
