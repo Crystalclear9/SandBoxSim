@@ -215,7 +215,7 @@ internal sealed partial class NatureModels
         var freedom=new float[points.Length];
         for(int i=0;i<points.Length;i++)freedom[i]=Mathf.SmoothStep(.055f,.095f,points[i].Y)*(1-Mathf.SmoothStep(.225f,.250f,points[i].Y));
         FairRestSurface(points,indices,freedom,frame==1?.0008f:.00065f);
-        var updated=FairingNormals(points,indices,freedom);
+        var updated=SkinSurfaceNormals(points,indices,points);
         for(int i=0;i<points.Length;i++)if(freedom[i]>0)normals[i]=updated[i];
         _forearmFairings[source]=((Vector3[])points.Clone(),(Vector3[])normals.Clone());
     }

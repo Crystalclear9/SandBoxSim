@@ -70,7 +70,7 @@ internal sealed partial class NatureModels
             // Cloth bridges the anatomical envelope with 7 mm ease. Preserve
             // the shared seam, rolled cuff and source's small-scale drape.
             float weight=Mathf.SmoothStep(.012f,.080f,distance[i])*(1-Mathf.SmoothStep(.215f,.263f,pattern[i].X));
-            float change=Math.Clamp(anatomical+.007f-radius,-.012f,.012f)*weight;
+            float change=Math.Clamp(anatomical+(frame==1?.005f:.007f)-radius,-.012f,.012f)*weight;
             float scale=(radius+change)/radius;
             points[i]=new(centre+(p.X-centre)*scale,p.Y,p.Z*scale);
         }

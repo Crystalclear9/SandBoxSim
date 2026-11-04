@@ -76,7 +76,7 @@ internal sealed partial class NatureModels
     }
     public void ValidateHandContinuity()
     {
-        ValidateForearmSurfaces();ValidateForearmTwist();ValidateElbowSkin();
+        ValidateForearmSurfaces();ValidateForearmTwist();ValidateElbowSkin();ValidateForearmNormals();
         for(int frame=0;frame<2;frame++)
         {
             var rig=Resident(frame==0?17:55,false,JobType.None);

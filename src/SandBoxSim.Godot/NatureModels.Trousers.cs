@@ -35,7 +35,7 @@ internal sealed partial class NatureModels
             for(int i=0;i<points.Length;i++)
                 freedom[i]=Mathf.SmoothStep(.58f,.64f,points[i].Y)*(1-Mathf.SmoothStep(.80f,.87f,points[i].Y))
                     *Mathf.SmoothStep(.07f,.11f,MathF.Abs(points[i].X));
-            FairRestSurface(points,ids,freedom,.001f,roundRelief:true);
+            FairRestSurface(points,ids,freedom,.002f,roundRelief:true);
             var fitted=FairingNormals(points,ids,freedom);
             for(int i=0;i<points.Length;i++)if(freedom[i]>0)normals[i]=fitted[i];
         }

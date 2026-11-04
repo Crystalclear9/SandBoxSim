@@ -35,7 +35,7 @@ internal partial class ResidentRig
         var unhinge=(Elbows[side].Basis*new Basis(axis,-roll)).Inverse().GetRotationQuaternion();
         return ForearmSection(fraction,inverse,axis,-Hands[side].Position,roll,unhinge);
     }
-    private static Transform3D ForearmSection(float fraction,Basis inverse,Vector3 axis,Vector3 pivot,float roll,Quaternion unhinge)
+    internal static Transform3D ForearmSection(float fraction,Basis inverse,Vector3 axis,Vector3 pivot,float roll,Quaternion unhinge)
     {
         // The proximal ring follows the upper arm; the shaft gradually takes
         // the elbow hinge and pronation. Wrist/grip nodes remain exact IK nodes.
@@ -59,6 +59,7 @@ internal partial class ResidentRig
         _wristSkinRotation[side]=wrist;_forearmRoll[side]=roll;_elbowSkinRotation[side]=elbow;
         var axis=Hands[side].Position.Normalized();var pivot=-Hands[side].Position;
         var unhinge=(Elbows[side].Basis*new Basis(axis,-roll)).Inverse().GetRotationQuaternion();
+        UpdateForearmNormals(side,roll,unhinge);
         for(int station=0;station<=ForearmIntervals;station++)
             HandSkeletons[side].SetBonePose(ForearmBone(station),ForearmSection((float)station/ForearmIntervals,inverse,axis,pivot,roll,unhinge));
         for(int station=1;station<WristIntervals;station++)

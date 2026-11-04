@@ -128,6 +128,7 @@ internal sealed partial class NatureModels
         }
         Surface("indices",HandSurfaceMaterial(skin,lowDetail),false);
         Surface("nailIndices",NailSurfaceMaterial(skin,lowDetail),true);
+        if(!lowDetail)mesh=ForearmNormalMesh(mesh,side);
         _meshes[key]=mesh;return mesh;
     }
 }
