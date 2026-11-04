@@ -15,6 +15,7 @@ internal sealed partial class NatureModels
     private bool ChildHead=>_faceVariant>=8;
     private int HumanFamily=>FaceArchetype<2?0:FaceArchetype<5?1:2;
     private int BodyFrame=>!ChildHead&&HumanFamily==2?1:0;
+    private const float FemaleHeadSettle=.022f;
     // Area-weighted linear forehead samples of the pinned source atlases;
     // tools/measure_head_tones.py reproduces these exposure corrections.
     private float HumanSkinGain=>ChildHead?1:HumanFamily==1?1.299263f:HumanFamily==2?.918634f:1;
@@ -139,9 +140,10 @@ internal sealed partial class NatureModels
         // All adult regional fits and identity variations are shared by the
         // skin, eyes, lips, hair and their attachment landmarks.
         float y=p.Y;
-        // Continue the existing neck below the lower rounded garment opening.
-        // Broad blending preserves the jaw and avoids a separate neck column.
-        if(!ChildHead&&HumanFamily==2)y-=.024f*Mathf.SmoothStep(.080f,.180f,-p.Y);
+        // The female head anchor settles by the same amount recovered here at
+        // the neck root. The face travels intact; the long extended neck is
+        // compressed smoothly while its lower attachment stays in place.
+        if(!ChildHead&&HumanFamily==2)y-=(.024f-FemaleHeadSettle)*Mathf.SmoothStep(.080f,.180f,-p.Y);
         if(ChildHead&&y<.010f)
         {
             float blend=Math.Clamp((y+.14f)/.055f,0,1);blend=blend*blend*(3-2*blend);

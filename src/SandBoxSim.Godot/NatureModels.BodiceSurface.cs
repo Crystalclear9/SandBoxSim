@@ -8,6 +8,13 @@ internal sealed partial class NatureModels
 {
     private sealed record BodiceSurface(Vector3[] Source,int[] Indices,Vector2[] Pattern,Vector3[] Result);
     private readonly Dictionary<int,BodiceSurface> _bodiceSurfaces=new();
+    private sealed class BodiceNeighborhood(Vector3[] chart)
+    {
+        internal readonly Vector3[] Chart=(Vector3[])chart.Clone();
+        internal readonly int[][] Candidates=new int[chart.Length][];
+        internal int Calls;
+    }
+    private readonly Dictionary<(int Cut,bool Pose),BodiceNeighborhood> _bodiceNeighborhoods=new();
 
     // Complete the front AFTER shoulder repair, before skin weights and pose
     // baking. Area-weighted quadratic patches suppress narrow cap ridges while
@@ -43,9 +50,25 @@ internal sealed partial class NatureModels
             if(participation!=null)active[i]*=participation[i];
         }
         foreach(var edge in edges)if(edge.Value==1){active[edge.Key.Item1]=0;active[edge.Key.Item2]=0;}
+        var key=(_garmentCut,canonical!=null);
+        if(!_bodiceNeighborhoods.TryGetValue(key,out var neighborhood)||!neighborhood.Chart.AsSpan().SequenceEqual(chart))
+            _bodiceNeighborhoods[key]=neighborhood=new BodiceNeighborhood(chart);
+        int call=++neighborhood.Calls;
+        bool verify=call==1||canonical!=null&&(call==60||call==120);
         var delta=new float[points.Length];var fitted=new bool[points.Length];var depths=new float[points.Length];double before=0,after=0;int count=0;float maximum=0;
-        for(int i=0;i<rest.Length;i++)if(active[i]>0&&TryBodicePatch(rest,areas,i,out float depth,chart))
+        for(int i=0;i<rest.Length;i++)if(active[i]>0)
         {
+            // Membership depends on the immutable canonical chart, not the
+            // pose. Keep ascending source indices so summation stays bit exact.
+            var candidates=neighborhood.Candidates[i]??=BodiceCandidates(chart,i);
+            bool success=TryBodicePatch(rest,areas,i,out float depth,chart,candidates);
+            if(verify)
+            {
+                bool reference=TryBodicePatch(rest,areas,i,out float original,chart);
+                if(reference!=success||BitConverter.SingleToInt32Bits(original)!=BitConverter.SingleToInt32Bits(depth))
+                    throw new InvalidOperationException("Cached bodice neighborhood changes the reference fit");
+            }
+            if(!success)continue;
             fitted[i]=true;depths[i]=depth;
             delta[i]=Math.Clamp(depth-rest[i].Z,-.010f,.010f)*active[i];
             before+=Math.Pow(depth-rest[i].Z,2)*active[i];count++;
@@ -78,6 +101,7 @@ internal sealed partial class NatureModels
         if(canonical==null&&count<20||after>before+.00000001)throw new InvalidOperationException("Bodice completion does not reduce its narrow surface residual");
         if(canonical!=null)
         {
+            if(verify)GD.Print($"BODICE_NEIGHBOR_PASS: cut={_garmentCut}, pose={call}, active={count}; reference scan and cached candidates yield bit-identical depths");
             _posedBodiceSamples+=count;_posedBodiceMaximum=MathF.Max(_posedBodiceMaximum,maximum);return;
         }
         _bodiceSurfaces[_garmentCut]=new(rest,(int[])indices.Clone(),(Vector2[])pattern.Clone(),(Vector3[])points.Clone());
@@ -107,13 +131,27 @@ internal sealed partial class NatureModels
         GD.Print("BODICE_PATCH_PASS: preserves planar/quadratic broad forms, rejects a narrow low-area spike and a zero-area remnant");
     }
 
-    private static bool TryBodicePatch(Vector3[] points,float[] areas,int index,out float depth,Vector3[]? chart=null)
+    private static int[] BodiceCandidates(Vector3[] chart,int index)
+    {
+        const float radius=.035f;var root=chart[index];var candidates=new List<int>();
+        for(int j=0;j<chart.Length;j++)
+        {
+            var p=chart[j];
+            if(p.Z>=-.010f||MathF.Abs(p.Z-root.Z)>.045f)continue;
+            float du=(p.X-root.X)/radius,dv=(p.Y-root.Y)/radius;
+            if(du*du+dv*dv<1)candidates.Add(j);
+        }
+        return candidates.ToArray();
+    }
+
+    private static bool TryBodicePatch(Vector3[] points,float[] areas,int index,out float depth,Vector3[]? chart=null,int[]? candidates=null)
     {
         const float radius=.035f;var centre=points[index];
         Span<double> system=stackalloc double[42];Span<double> basis=stackalloc double[6];
         system.Clear();double total=0;int count=0;
-        for(int j=0;j<points.Length;j++)
+        for(int n=0;n<(candidates?.Length??points.Length);n++)
         {
+            int j=candidates==null?n:candidates[n];
             var p=points[j];var reference=chart==null?p:chart[j];var root=chart==null?centre:chart[index];
             if(reference.Z>=-.010f||MathF.Abs(reference.Z-root.Z)>.045f)continue;
             float du=(reference.X-root.X)/radius,dv=(reference.Y-root.Y)/radius;

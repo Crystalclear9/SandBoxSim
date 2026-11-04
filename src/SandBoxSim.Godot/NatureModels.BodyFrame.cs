@@ -147,12 +147,12 @@ internal sealed partial class NatureModels
             // Carry the opening, its facing and placket through one shared
             // map. The attributed skin neck remains underneath the lowered arc.
             float frontNeck=Mathf.SmoothStep(.020f,.055f,-point.Z)*(1-Mathf.SmoothStep(.035f,.075f,MathF.Abs(point.X)));
-            result.Y-=.020f*frontNeck*Mathf.SmoothStep(1.24f,1.32f,point.Y);
+            result.Y-=.012f*frontNeck*Mathf.SmoothStep(1.24f,1.32f,point.Y);
             // A lower rounded opening reveals the existing continuous neck.
             // Carry the shirt edge, facing and placket through one map.
             float opening=(1-Mathf.SmoothStep(.065f,.100f,MathF.Abs(point.X)))
                 *Mathf.SmoothStep(1.21f,1.28f,point.Y);
-            result.Y-=.014f*opening*(1-.35f*Mathf.SmoothStep(0,.06f,point.Z));
+            result.Y-=.008f*opening*(1-.35f*Mathf.SmoothStep(0,.06f,point.Z));
             result.Z+=.006f*opening*frontNeck;
             result=SoftShoulderPoint(result);
         }
@@ -414,6 +414,29 @@ internal sealed partial class NatureModels
             if(!float.IsFinite(neckBase)||neckBase>openingY-.001f)
                 throw new InvalidOperationException($"Lowered female neckline exposes the source neck boundary: skin={neckBase}, opening={openingY}");
             GD.Print($"NECK_COVERAGE_PASS: actual central neck extends below rounded opening by {(openingY-neckBase)*1000:F2} mm");
+            float headShoulder=female.Head.Position.Y-female.Arms[0].Position.Y;
+            float jaw=float.PositiveInfinity;int jawSamples=0;
+            foreach(var point in headMesh.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
+                if(MathF.Abs(point.X)<.025f&&point.Z<-.060f&&point.Y>-.120f&&point.Y<-.065f)
+                {jaw=MathF.Min(jaw,(headSpace*point).Y);jawSamples++;}
+            float exposed=jaw-openingY;
+            if(headShoulder<.195f||headShoulder>.225f||jawSamples<3||exposed<.025f||exposed>.085f)
+                throw new InvalidOperationException($"Female cervical presentation loses its authored head/shoulder spacing or jaw clearance: head/shoulder={headShoulder}, jaw samples={jawSamples}, exposed={exposed}");
+            GD.Print($"CERVICAL_PRESENTATION_PASS: actual head/shoulder spacing={headShoulder*1000:F2} mm, jaw/opening clearance={exposed*1000:F2} mm, jaw samples={jawSamples}; source neck overlap and face Jacobian gates retained; art-direction bounds, not anthropometric standards");
+            var headRotation=female.Head.Rotation;float movingClearance=float.PositiveInfinity;
+            try
+            {
+                foreach(float pitch in new[]{-.08f,0,.08f})foreach(float yaw in new[]{-.35f,0,.35f})
+                {
+                    female.Head.Rotation=new(pitch,yaw,0);var pose=InTorso(headMesh,female.Torso);
+                    foreach(var point in headMesh.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
+                        if(MathF.Abs(point.X)<.025f&&point.Z<-.060f&&point.Y>-.120f&&point.Y<-.065f)
+                            movingClearance=MathF.Min(movingClearance,(pose*point).Y-openingY);
+                }
+            }
+            finally{female.Head.Rotation=headRotation;}
+            if(movingClearance<.012f)throw new InvalidOperationException("Settled head loses anterior jaw clearance during its nod/turn probe");
+            GD.Print($"CERVICAL_MOTION_PASS: nine actual nod/turn transforms retain {movingClearance*1000:F2} mm above the anterior opening plane; finite pose probe, not complete cloth collision validation");
             ValidateForearmSupport(male,0);ValidateForearmSupport(female,1);
             foreach(var rig in new[]{male,female})
             {

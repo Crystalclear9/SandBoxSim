@@ -6,7 +6,7 @@
 
 ## 当前配图
 
-`resident-arm-junctions.png`／GIF 来自公开 `visual-arm-articulation.json`，使用实际游戏的肩肘腕控制器和连接皮肤。两排为男性／女性外观，三列正面、侧面及背面；正交尺寸 1.04、目标 (0, 1.17, 0)，相机相对位置为 (0.03, 0.03, 4)、(-4, 0.03, 0.10)、(0.03, 0.03, -4)。PNG 取逻辑帧 270；GIF 为原生 1600×1000、160 个采样，逻辑帧 30–507 每三帧取样，20 fps、八秒，分五次固定配置回放编码。动作包含抬臂／屈肘、旋前／旋后和放下，读取 `forearmSkin=continuous-elbow-v9`、`forearmProfile=curvature-flow-v9`、`shoulderSkin=natural-silhouette-v18`、`upperArmFlex=stable-contour-v3` 与 `shoulderSurface=authored-bind-surface-v3`；没有重绘、插帧或局部缩放。
+`resident-arm-junctions.png`／GIF 来自公开 `visual-arm-articulation.json`，使用实际游戏的肩肘腕控制器和连接皮肤。两排为男性／女性外观，三列正面、侧面及背面；正交尺寸 1.04、目标 (0, 1.17, 0)，相机相对位置为 (0.03, 0.03, 4)、(-4, 0.03, 0.10)、(0.03, 0.03, -4)。PNG 取逻辑帧 270；GIF 为原生 1600×1000、160 个采样，逻辑帧 30–507 每三帧取样，20 fps、八秒，分五次固定配置回放编码。动作包含抬臂／屈肘、旋前／旋后和放下，读取 `forearmSkin=continuous-elbow-v9`、`forearmProfile=curvature-flow-v9`、`shoulderSkin=settled-neck-v19`、`upperArmFlex=stable-contour-v3` 与 `shoulderSurface=authored-bind-surface-v3`；没有重绘、插帧或局部缩放。
 
 `resident-captured-stretch.png` 与同名 GIF 使用 `visual-captured-stretch.json` 的实际游戏模型，读取 CMU 143_30 的上／前臂方向及手腕朝向。两排为两种成人外观，三列为正面、侧面和背面；正交尺寸 1.70、目标 (0, 1.10, 0)，相机相对位置为 (0.03, 0.03, 4)、(-4, 0.03, 0.10)、(0.03, 0.03, -4)。PNG 是逻辑帧 110、1600×1000；GIF 为同分辨率、203 个原生采样，逻辑帧 30–636 每三帧取样，20 fps、总长 10.15 秒，分七次等配置回放编码。来源记录为 120 Hz，播放周期包含 3.075 秒捕捉和两秒休息；不是原始演员视频，也没有用概念图或重绘替代模型。来源、条款和重建见[人物素材](../development/human-assets.md)。
 
@@ -32,7 +32,7 @@
 
 动物近景、头部和 `animal-motion.png` 为 2026-10-29 的 `articulated-paws-v12` 原生渲染。动作图来自公开 `visual-animal-motion.json` 第 180 帧，1600×1000；同一物种的全身与足部使用相同实际控制器，图册从静止进入行走再回到静止。单张图用于看清轮廓与接合，不能独自证明全程流畅。
 
-`resident-face-frames.png` 为男女成人外观的正面及三刻面，来自公开 `visual-face-frames` 第 90 帧，1600×1000。身份 17 与 55 使用相同衣色、肤色及布光；头宽独立于身体随机宽度，来源额部 RGB 参考及曝光在线性颜色空间校准，保留照片局部色差。`resident-work-effort.gif` 为同一手锤的男女外观、良好／疲劳状态四格对照，1280×1000、102 帧、6.8 秒，按 60 Hz 每四步采样一次；`resident-work-effort.png` 为公开场景第 180 帧，1600×1000。上述头脸和作业图保留各自采样时的成人轮廓、关节协调与携带姿态，当前整体身材以下述三视图为准。作业对照镜头为正交尺寸 1.15、目标 (0, 1.05, 0)，展示上身与握柄。两套公开场景均冻结模拟，动画照常推进；系数是表现参数，不能由图像推断真实力量。
+`resident-face-frames.png` 为男女成人外观的正面及三刻面，来自公开 `visual-face-frames` 第 90 帧，1600×1000。身份 17 与 55 使用相同衣色、肤色及布光；头宽独立于身体随机宽度，来源额部 RGB 参考及曝光在线性颜色空间校准，保留照片局部色差。`resident-work-effort.gif` 为同一手锤的男女外观、良好／疲劳状态四格对照，1280×1000、102 帧、6.8 秒，按 60 Hz 每四步采样一次；`resident-work-effort.png` 为公开场景第 180 帧，1600×1000。当前头脸使用新的颈部接续；作业图保留其采样时的成人轮廓、关节协调与携带姿态。当前整体身材以下述三视图为准。作业对照镜头为正交尺寸 1.15、目标 (0, 1.05, 0)，展示上身与握柄。两套公开场景均冻结模拟，动画照常推进；系数是表现参数，不能由图像推断真实力量。
 
 `resident-body-frames.png` 使用 `balanced-silhouette-physique-v30`，来自公开 `visual-body-frames.json` 第 90 帧、1600×1000。宽屏下为单排六列，依次配对两种成人外观的正面、侧面、背面；身份 17 与 55 使用相同上衣色、肤色与布光，女性裤装采用当前灰橄榄染色。当前身体按来源胸腰／骨盆截面拟合，身高整体等比变化；上衣保留外层活动松量，裤装使用来源包络、共同中性站姿和五骨蒙皮。正交尺寸 1.80，目标 (0, 0.82, 0)，相机相对位置为 (0.05, 0.04, 4)、(4, 0.04, 0.2)、(0.05, 0.04, −4)。
 
@@ -121,9 +121,9 @@
 
 `resident-wrist-motion.png` 取自 `visual-wrist-motion.json` 的第 90 帧；GIF 使用 120 个原生采样，逻辑帧 30–506 每四步采样，固定 60 Hz、零模拟步进，时长八秒，分四次等配置回放。展示实际连体蒙皮，观察镜头沿前臂坐标定位，主补光随观察方向旋转；可见层只隔离该手臂，避免躯干遮住反向视角，没有修改模型或对图像重绘。GIF 仅采用统一调色板编码。
 
-当前全身、三种衣装、胸廓及身体／上肢动态使用 `bodyPresentation=natural-silhouette-v21`、`garmentFit=natural-silhouette-v23`、`shoulderSkin=natural-silhouette-v18` 与 `upperArmFlex=stable-contour-v3`。来源身体仍为 `balanced-silhouette-physique-v30`，当前动态前臂为 `continuous-elbow-v9`／`curvature-flow-v9`；保留的静态前臂与头脸专题按各自原版本解释。相机、成人身份、肤色及布光保留各自配置。
+当前全身、三种衣装、胸廓及身体／上肢动态使用 `bodyPresentation=settled-neck-v22`、`garmentFit=settled-neck-v24`、`shoulderSkin=settled-neck-v19` 与 `upperArmFlex=stable-contour-v3`。来源身体仍为 `balanced-silhouette-physique-v30`，当前动态前臂为 `continuous-elbow-v9`／`curvature-flow-v9`；保留的静态前臂专题按其原版本解释。相机、成人身份、肤色及布光保留各自配置。
 
-两组头脸、静态前臂及 `resident-shoulder-elevation` PNG／GIF 保留上一组 `scapular-flow-v14`／`back-shoulder-v16`／`rest-detail-sleeve-v10` 的原采样；没有将旧画面改标成新的屈肘衣料。额前发根、脸部和原始身体配方保持各自定义。两组头脸分别来自 `visual-face-frames` 与 `visual-faces` 第 90 帧，均为 1600×1000。其他旧专题仍按本页各自记录的版本解释。
+静态前臂及 `resident-shoulder-elevation` PNG／GIF 保留上一组 `scapular-flow-v14`／`back-shoulder-v16`／`rest-detail-sleeve-v10` 的原采样；没有将旧画面改标成新的屈肘衣料。额前发根、脸部和原始身体配方保持各自定义。当前两组头脸分别来自 `visual-face-frames` 与 `visual-faces` 第 90 帧，均为 1600×1000，使用 `neckContour=source-root-compression-v1`；面部区域继续使用 `balanced-adult-v3`。其他旧专题仍按本页各自记录的版本解释。
 
 [resident-world-distance.png](resident-world-distance.png) 展示默认世界视距的成人静态衣面：`visual-landscape`／`field`、种子 839102、40 名居民、零模拟步进，覆盖参数为 `commands=[]`、暖场 60 帧、测量 120 帧、第 90 帧采样、1600×1000。相机保留默认俯角约 46°、距离约 41 米；当前批次零窗口恢复，成人静态衣装来自同一修整后的近景静止表面。
 
@@ -133,8 +133,8 @@
 
 `resident-upper-arm-flex.png`／GIF 来自公开 `visual-upper-arm-flex.json`。两排为两种成人外观，两列为前侧／侧面；正交尺寸 0.48，目标为首次姿势的实际上臂中点，按居民整体等比尺度和正面朝向变换，相机相对位置为 (0.15, 0.04, 4)／(−4, 0.04, 0.1)。直接给定无负载关节角，复用实际骨架与成品网格，未逐帧调用握持 IK；肩位为抬臂 0.55、平面 0.45 弧度；屈肘以八秒余弦循环覆盖 0.08–1.83 弧度，另叠加 ±0.7 弧度的纯前臂轴向旋转。PNG 为逻辑帧 270，GIF 为逻辑帧 30–507 每三帧采样，1600×1000、160 帧、20 fps、八秒，分五次回放编码。它使用当前居民的真实衣装与骨架，不含额外体积鼓包；实际游玩动作另看身体动态，不能将固定关节参考当作游戏握持控制器的回放。
 
-本组全身、胸廓、衣装、身体动态、上肢动态、上臂、肘部近景及默认世界视距于 2026-11-04 从二十四次通过核对的原生回放生成：九张 PNG 与完整采样逐字节一致，四段 GIF 共 600 个原生采样，仅作统一调色板编码，不插帧或重绘。每次成功运行均核对源码、构建身份和产物哈希，采用 1600×1000、固定 60 Hz、零模拟步进、零窗口恢复。保留的其他专题不属于这次重采。
+本组全身、头脸、胸廓、衣装、身体动态、上肢动态、上臂、肘部近景及默认世界视距于 2026-11-04 从二十六次通过核对的原生回放生成：十一张 PNG 与完整采样逐字节一致，四段 GIF 共 600 个原生采样，仅作统一调色板编码，不插帧或重绘。每次成功运行均核对源码、构建身份和产物哈希，采用 1600×1000、固定 60 Hz、零模拟步进、零窗口恢复。保留的其他专题不属于这次重采。
 
 `resident-elbow-joint.png`／GIF 使用公开 `visual-elbow-joint.json`，两排为两种成人外观，两列为前侧／侧面。正交尺寸 0.34 米，目标为实际肘节点，整体尺度和朝向与居民一致；肩位为抬臂 0.55、平面 0.45 弧度，屈肘循环 0.08–2.15 弧度、轴向旋转 ±0.7 弧度。PNG 为逻辑帧 270，GIF 为帧 30–507 每三步采样、160 帧、20 fps、八秒，分五次等配置回放。读取 `continuous-elbow-v9`／`curvature-flow-v9`，没有局部缩放、重绘或插帧；固定关节参考与正常游玩的控制方式分别说明。
 
-`resident-female-wardrobe.png` 来自 `visual-female-wardrobe.json` 的第 90 帧，1600×1000、固定 60 Hz、零模拟步进，身份 55 的实际三种职业剪裁；上排正面、下排背面，相机正交尺寸 0.88 米、目标 (0, 1.13, 0)、相对 (0.10, 0.035, 3)。与原男性 `wardrobe-detail.png` 分别采集，没有换肤、局部缩放或重绘。当前九张 PNG、四段 GIF 使用 v30 共同来源、按来源自然腰线拟合的三种衣装及 `natural-silhouette` 的静止／姿态曲面；旧面部、腕部等专题保留各自原配方。
+`resident-female-wardrobe.png` 来自 `visual-female-wardrobe.json` 的第 90 帧，1600×1000、固定 60 Hz、零模拟步进，身份 55 的实际三种职业剪裁；上排正面、下排背面，相机正交尺寸 0.88 米、目标 (0, 1.13, 0)、相对 (0.10, 0.035, 3)。与原男性 `wardrobe-detail.png` 分别采集，没有换肤、局部缩放或重绘。当前十一张 PNG、四段 GIF 使用 v30 共同来源、按来源自然腰线拟合的三种衣装及 `natural-silhouette` 的静止／姿态曲面；未重采的腕部等专题保留各自原配方。
