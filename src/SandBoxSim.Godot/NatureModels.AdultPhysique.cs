@@ -72,7 +72,7 @@ internal sealed partial class NatureModels
         {
             float angle=MathF.Atan2(point.Z,point.X);
             float front=MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),6),back=MathF.Pow(MathF.Max(0,MathF.Sin(angle)),6);
-            result-=(.012f*front+.006f*back)*(1-Mathf.SmoothStep(finished,finished+.10f,result));
+            result-=(.018f*front+.012f*back)*(1-Mathf.SmoothStep(finished,finished+.10f,result));
         }
         return result;
     }

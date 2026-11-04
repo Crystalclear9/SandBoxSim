@@ -25,7 +25,7 @@ internal sealed partial class NatureModels
         float waist=Mathf.SmoothStep(.91f,.96f,p.Y)*(1-Mathf.SmoothStep(1.025f,1.085f,p.Y));
         float front=Mathf.SmoothStep(.035f,.090f,-p.Z);
         float flank=Mathf.SmoothStep(.045f,.085f,MathF.Abs(p.X));
-        return p+new Vector3(MathF.Sign(p.X)*.0015f*waist*flank,0,.003f*waist*front);
+        return p+new Vector3(MathF.Sign(p.X)*.0015f*waist*flank,0,.0015f*waist*front);
     }
 
     // Continuous anterior volume on the existing adult thorax, not attached
@@ -67,7 +67,7 @@ internal sealed partial class NatureModels
         var fitted=FemaleThoraxSupport();
         float front=TrunkSample(source,1.00f,-MathF.PI/2)-TrunkSample(fitted,1.00f,-MathF.PI/2);
         float side=TrunkSample(fitted,1.00f,0)-TrunkSample(source,1.00f,0);
-        if(front<.0025f||front>.0031f||side<.001f||side>.0016f)
+        if(front<.001f||front>.0016f||side<.001f||side>.0016f)
             throw new InvalidOperationException("Final waist support loses the balanced depth/breadth transition");
         float minimum=1;
         for(int row=0;row<=20;row++)for(int col=-12;col<=12;col++)for(int depth=-8;depth<=8;depth++)

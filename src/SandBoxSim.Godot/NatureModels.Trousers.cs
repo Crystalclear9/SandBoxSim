@@ -12,7 +12,7 @@ internal sealed partial class NatureModels
         if(_meshes.TryGetValue(key,out var cached))return cached;
         string raw=FileAccess.GetFileAsString("res://assets/models/human/trousers-"+frame+".mesh.json").Replace("\r\n","\n",StringComparison.Ordinal);
         string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
-        if(hash!=(BodyFrame==1?"729d08e3f601eeed7c2ac208d195eb7f2e9c02aa694000b51c4c3216db5088e6":"01d0139696a0145a10265d0b129e5a554b1f5c05213120d139e2dc871db771d3"))
+        if(hash!=(BodyFrame==1?"57c02e01d66df525d23ba403248e92437282993acd24c3acb1600cf88fedc535":"626f7f799795116d892e2e8a3213bb8f22fdf33d6a36e8c8d2d481bf69e8febc"))
             throw new InvalidOperationException("Changed source trousers");
         using var doc=JsonDocument.Parse(raw);var data=doc.RootElement;
         float[] Floats(string field){var a=new float[data.GetProperty(field).GetArrayLength()];int i=0;foreach(var v in data.GetProperty(field).EnumerateArray())a[i++]=v.GetSingle();return a;}
@@ -43,7 +43,7 @@ internal sealed partial class NatureModels
         for(int i=0;i<count;i++)seam[i]=new(MathF.Atan2(points[i].Z,MathF.Abs(points[i].X)-.10f),points[i].Y);
         arrays[(int)Mesh.ArrayType.Vertex]=points;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.TexUV]=coords;arrays[(int)Mesh.ArrayType.TexUV2]=seam;
         arrays[(int)Mesh.ArrayType.Bones]=b;arrays[(int)Mesh.ArrayType.Weights]=w;arrays[(int)Mesh.ArrayType.Index]=ids;
-        var material=(ShaderMaterial)Fabric("#645e53");material.SetShaderParameter("trouser_details",true);
+        var material=(ShaderMaterial)Fabric(BodyFrame==1?"#747264":"#645e53");material.SetShaderParameter("trouser_details",true);
         var mesh=new ArrayMesh();mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);mesh.SurfaceSetMaterial(0,material);
         return _meshes[key]=WithScreenLods(mesh);
     }

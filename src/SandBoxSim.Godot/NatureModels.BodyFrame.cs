@@ -10,8 +10,8 @@ internal sealed partial class NatureModels
     private readonly float[][] _garmentFrameReference=new float[3][];
     private readonly float[][] _sewnFrameReference=new float[3][];
     private const int TrunkRows=113,TrunkColumns=128;
-    private const string MaleTrunkHash="49ea095322e37d3fb09fd028a8291ea02c762df04b449363b4f9e4dcd3915b2d";
-    private const string FemaleTrunkHash="1dc95acb1e330df500e4522b90cdf3bdab42d51d57d6cf1597dd77de09e42f47";
+    private const string MaleTrunkHash="f7f2423e9b6277e50e2f1efbd5e0d263b22b328fc710ae6cf9709a41444786eb";
+    private const string FemaleTrunkHash="2bbdd5fa89928ea8c90708ee3de229467098c2e29359d57fb8de8e878d160f2f";
     private const float TrunkLow=.74f,TrunkHigh=1.30f;
     private const float GarmentReferenceLow=.64f;
     private const int GarmentReferenceRows=133;
@@ -388,6 +388,7 @@ internal sealed partial class NatureModels
         ValidateMedialThorax();
         ValidateBalancedTorso();
         ValidateChestVolume();
+        ValidateNaturalWaistBelts();
         int previous=_faceVariant;
         var male=Resident(17,false,SandBoxSim.Core.Agents.JobType.Gatherer);
         var female=Resident(42,false,SandBoxSim.Core.Agents.JobType.Gatherer);
@@ -438,7 +439,7 @@ internal sealed partial class NatureModels
                 return y;
             }
             float hemRise=Hem(female.DetailedBodyMesh)-Hem(male.DetailedBodyMesh);
-            if(MathF.Abs(hemRise-.023f)>.003f||MathF.Abs(Hem(female.DetailedBodyMesh)-.848f)>.002f
+            if(MathF.Abs(hemRise-.017f)>.003f||MathF.Abs(Hem(female.DetailedBodyMesh)-.842f)>.002f
                 ||MathF.Abs(Hem(male.DetailedBodyMesh)-.825f)>.002f)
                 throw new InvalidOperationException("Tailored hem loses trouser coverage or retains the common long cut");
             GD.Print($"BODY_CUT_PASS: raised garment hem={hemRise:F4} m, preserved trouser overlap and separate lower-body geometry");

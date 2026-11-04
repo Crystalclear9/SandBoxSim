@@ -18,7 +18,7 @@ def soft_contour(point):
     lateral=smooth(.025,.145,abs(x))
     # Coordinate the large masses: retain a relaxed natural waist rather than
     # sharpening an hourglass. The pelvic breadth merges into the upper thigh.
-    dx=side*lateral*(.0030*bell(1.015,.085)+.007*bell(.810,.110))
+    dx=side*lateral*(.0045*bell(1.015,.100)+.007*bell(.810,.110))
     front=smooth(.015,.100,-z)
     # A differentiable even coordinate keeps the two sides tangent at the
     # sternum; abs(x) left a crease in both vertical and depth displacement.
@@ -26,14 +26,17 @@ def soft_contour(point):
     chest=math.exp(-((medial-.040)/.067)**2)
     # A broad upper slope and a softly returning lower pole share one source
     # surface. Distribute lift over the thorax instead of a narrow raised knot.
-    dy=.014*front*chest*bell(1.125,.078)*(1-smooth(1.20,1.25,y))
+    dy=.012*front*chest*bell(1.125,.078)*(1-smooth(1.20,1.25,y))
     dz=front*chest*(-.008*bell(1.145,.075)+.004*bell(1.080,.035))
+    # The lower abdomen remains softly convex instead of being pulled flat by
+    # the waist fit. This is broad volume, not an engraved muscle outline.
+    dz-=front*.0015*bell(.940,.080)
     # Lumbar-to-sacral continuity and posterior pelvis belong to the same
     # figure as the chest, not to an independently padded trouser shell.
-    back=smooth(.008,.085,z)
-    dz+=back*(.004*bell(1.015,.075)+.0045*bell(.800,.100))
-    thigh=bell(.665,.095)*smooth(.090,.135,abs(x))
-    dx-=side*.0010*thigh
+    back=smooth(.008,.110,z)
+    dz+=back*(.0015*bell(1.015,.095)+.007*bell(.790,.110))
+    thigh=bell(.650,.100)*smooth(.090,.135,abs(x))
+    dx-=side*.0020*thigh
     return x+dx,y+dy,z+dz
 
 
