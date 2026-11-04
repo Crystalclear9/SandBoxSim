@@ -187,7 +187,7 @@
 
 女性肩部使用已校验的 `trunk-feminine-cage.json` 中 `sourceShoulder.x × scale.x`，在当前模型局部坐标得到 0.16683 米的肩关节半宽；导出文件的通用 `shoulder` 字段只表示参考坐标。关节静止位置、逆绑定、连续袖片、卷袖口和远景上臂使用同一个宽度。工具、采集、交谈及进食起手的身体相对横向目标按实际肩宽适配；嘴部接近点和物资支持点继续读取实际对象坐标。垂臂外展余量根据肩宽、髋部间距及固定臂长计算，避免窄肩模型仍向较宽的共用目标外展。
 
-`shoulderSkin=flex-responsive-sleeve-v11` 的成人衣身使用二十六骨绑定：躯干、左右上臂、骨盆衣料、十个分段旋转支撑、十个袖管位置修正支撑及独立的左右肩胛带。袖子的六个旋转区间将摆动和轴向扭转分开处理：摆动从肩胛带逐渐过渡到实际上臂方向；轴向扭转在肩根暂缓，再沿上臂逐渐分配，不再从固定躯干朝向开始；各区间围绕显示肩点保持截面，每个顶点仍至多四个影响，袖口完整跟随上臂。
+`shoulderSkin=stable-sleeve-v12` 的成人衣身使用二十六骨绑定：躯干、左右上臂、骨盆衣料、十个分段旋转支撑、十个袖管位置修正支撑及独立的左右肩胛带。袖子的六个旋转区间将摆动和轴向扭转分开处理：摆动从肩胛带逐渐过渡到实际上臂方向；轴向扭转在肩根暂缓，再沿上臂逐渐分配，不再从固定躯干朝向开始；各区间围绕显示肩点保持截面，每个顶点仍至多四个影响，袖口完整跟随上臂。
 
 程序上肢、肘部偏好及肩袖姿态采样共用 `PreferredArmFrame`：从垂臂的中性朝向运输参考轴，随抬臂逐渐加入外旋。外旋设计幅度从侧抬的 30° 过渡到前伸的 5°，在 15°–130° 抬臂范围渐入；这些是项目表现参数，参考坐标与实验定义不同，未拟合个体数据。屈肘围绕该参考的屈曲轴，前臂旋前／旋后保持独立；程序抬臂不再通过把屈肘角加到抬臂角来构造姿势。普通到达目标动作使用同一参考产生低位肘向，前方伸手同时考虑重力支撑与躯干侧向间隙，工具腕角和精确握持继续由原求解器约束。肩带求解以显示上臂或显式肘目标初始化，再与双骨 IK 迭代，减少仅弯肘时由手腕位置引起的耸肩。
 
@@ -853,16 +853,12 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 
 实现参考 [Blender 修正平滑的静止形态与体积说明](https://docs.blender.org/manual/en/latest/modeling/modifiers/deform/corrective_smooth.html)及 [UAMS 上肢肌群起止点和作用表](https://medicine.uams.edu/neuroscience/education/medical-school-courses/human-structure-module/anatomy-tables/muscle-tables/muscles-of-the-upper-limb/)。实现使用 Godot 原生形态混合，不依赖运行时 Blender。
 
-### 随屈肘变化的上臂衣料
+### 稳定上臂轮廓与关节参考
 
-`upperArmFlex=hinge-cloth-v1` 与 `shoulderSkin=flex-responsive-sleeve-v11` 使用 122 组身体形态：120 组肩部方向样本，加左右各一组屈肘衣料修正。修正按实际成品上臂半径控制幅度，以连续轴向场将部分前侧轮廓从远端向近端重分配；它表现衣料下的形体响应，不是裸露肌肉或收缩力学模型。两种成人外观使用同一驱动规则，幅度跟随各自网格尺寸，不由性别推断力量。
+`upperArmFlex=stable-contour-v3`／`shoulderSkin=stable-sleeve-v12` 使用 120 组肩袖方向形态。成品不生成额外的屈肘鼓包目标，也不从瞬时 IK 肘角直接驱动上臂体积；肌腹与衣料轮廓来自已有来源支撑，肩袖沿原有骨架变形。女性侧腋衣面保留最多 1.5 毫米的静止圆顺，源头脸、腕口、握持节点及比例保持各自定义。这是稳定的穿衣外观基线，不是肌肉收缩仿真。
 
-上臂活动区沿袖片距离在 55–85 毫米间接入、195–225 毫米间退出。近端与远端场按实际肩高减去成品顶点高度定位，中心为 115／180 毫米，宽度 40 毫米；原始幅度取局部半径的 5.5%，不超过 3 毫米。按实际三角面积与外向法线扣除整体径向偏置，约束一阶体积通量的净变化，最终位移不超过 3.5 毫米。邻边位移差经 64 次投影限制在原边长的 10%，随后再次平衡一阶通量；若采样形态的有向面积比低于 0.85，整体等比回退修正。这是一阶有界近似，不是有限变形下的严格体积守恒。袖根、袖口、躯干与另一侧手臂固定，法线细节随成品曲面运输。原始来源文件及哈希不变。
+固定肩位 `upper-arm-flex` 使用 `StudyUpperArmReference` 直接给定无负载关节角，复用实际骨架、成品网格和蒙皮，不逐帧调用握持 IK 或插入待机求解。正常游玩的工具接触仍由原有 IK 和交互控制器完成。`StudyForearmRotation` 为中性参考单独保存连续相位；最终旋转以该参考加指定旋转量确定，避免主值角在 +π／−π 边界突然切换，也避免中间参考姿势累积额外整圈。
 
-权重读取实际上下臂骨段的夹角，在 0.10–1.90 弧度间平滑接入，不使用目标姿势的输入值或单个欧拉分量。肩骨同步及手部姿态更新都刷新权重，因此纯屈肘也会产生响应；远景使用原代理，切回近景强制恢复当前权重，暂停保持不动。`StudyForearmRotation` 提供骨段中心固定的纯轴向旋转对照，每次绝对参考重置前臂相位，防止间插参考姿势累积额外整圈；连续回放与重复应用均有回归检查，避免把带腕角限制的握持 IK 所引起的真实肘角变化误判为驱动串扰。
+`./tools/godot.ps1 -Mode test -UpperArmFlexOnly` 覆盖男女、双臂、三种衣装的完整 480 帧参考循环，检查相邻旋转与实际前臂顶点步进；还检查游玩网格没有体积鼓包目标、待机成品表面步进、五种实际动作及暂停。完整发行包自检继续验证原有握持与动作切换。几何检查不替代实机审美判断。
 
-女性腋下至侧腰衣面在保持袖缝、前胸与腰口的条件下作最多 1.5 毫米圆顺，由 `bodyPresentation=side-body-flow-v15`／`garmentFit=axillary-flow-v17` 标识。活动区为衣身横向 95–130 毫米接入、155–180 毫米退出，前后深度在 75–110 毫米间退出，高度 1.035–1.080 米接入、1.170–1.215 米退出；源头脸和骨骼比例不变。
-
-`./tools/godot.ps1 -Mode test -UpperArmFlexOnly` 检查两种成人外观、三种衣装、左右上臂的固定边界、有向面积、一阶通量、连续屈肘响应、纯旋转独立性、引擎混合、暂停与近远景恢复。参考计算用双精度累加形态位移；原生单精度混合按运算项绝对值的前向误差界比较，并设 20 微米绝对上限，几何位移、面积与握持限制独立检查。完整手部和发行包检查仍覆盖该功能。
-
-公开 `visual-upper-arm-flex.json` 以实际游戏网格对照男女成人外观的前侧与侧面；固定肩位、连续屈肘和纯轴向旋转，镜头对准当前上臂中段，没有改动身体局部缩放。参考 [Blender 驱动形态示例](https://docs.staging.blender.org/manual/en/latest/animation/drivers/workflow_examples.html)和 [UAMS 上肢肌群说明](https://medicine.uams.edu/neuroscience/education/medical-school-courses/human-structure-module/anatomy-tables/muscle-tables/muscles-of-the-upper-limb/)。
+原生回放为 `benchmarks/scenarios/visual-upper-arm-flex.json`。该固定关节参考与实际游玩动作应分别观察。调研参考 [Godot 对抖动原因的区分](https://docs.godotengine.org/en/latest/tutorials/rendering/jitter_stutter.html)与 [Blender 驱动形态示例](https://docs.staging.blender.org/manual/en/latest/animation/drivers/workflow_examples.html)；本项目的相位问题通过连续角与逐帧表面检查处理，没有用画面插帧掩盖网格跳变。
