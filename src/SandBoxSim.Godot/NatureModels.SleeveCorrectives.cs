@@ -15,10 +15,11 @@ internal sealed partial class NatureModels
         if(!_meshes.TryGetValue(key,out var corrected))
         {
             var result=new ArrayMesh {BlendShapeMode=Mesh.BlendShapeMode.Normalized};
-            for(int i=0;i<ResidentRig.SleevePoseCount;i++)result.AddBlendShape("SleevePose"+i);
+            for(int i=0;i<ResidentRig.BodyPoseCount;i++)result.AddBlendShape("SleevePose"+i);
             if(!_sleevePoseCache.TryGetValue((BodyFrame,_garmentCut),out var poses))
             {
                 poses=BakeSleevePoses(source.SurfaceGetArrays(0),rig);
+                AddUpperArmFlexShapes(poses,source.SurfaceGetArrays(0));
                 _sleevePoseCache[(BodyFrame,_garmentCut)]=poses;
             }
             for(int surface=0;surface<source.GetSurfaceCount();surface++)
@@ -28,7 +29,7 @@ internal sealed partial class NatureModels
                 if(surface!=0)
                 {
                     shapes=new();
-                    for(int i=0;i<ResidentRig.SleevePoseCount;i++)
+                    for(int i=0;i<ResidentRig.BodyPoseCount;i++)
                     {
                         var unchanged=new Godot.Collections.Array();unchanged.Resize((int)Mesh.ArrayType.Max);
                         unchanged[(int)Mesh.ArrayType.Vertex]=arrays[(int)Mesh.ArrayType.Vertex];

@@ -168,6 +168,7 @@ internal partial class ResidentRig
     private void CurlHand(int side,float curl)=>_handCurl[side]=curl;
     private void UpdateHandBones(int side)
     {
+        UpdateUpperArmFlex(side);
         float curl=_handCurl[side];
         if(_skinnedCurl[side]!=curl)
         {

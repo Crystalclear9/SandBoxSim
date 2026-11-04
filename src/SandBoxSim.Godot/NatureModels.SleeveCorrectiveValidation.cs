@@ -17,11 +17,18 @@ internal sealed partial class NatureModels
             for(int i=0;i<targets.Length;i++)targets[i]=shapes[i][(int)Mesh.ArrayType.Vertex].AsVector3Array();
             _validationSleeveShapes[mesh.GetInstanceId()]=targets;
         }
-        var result=(Vector3[])source.Clone();
-        for(int shape=0;shape<targets.Length;shape++)
+        var result=new Vector3[source.Length];var values=new float[targets.Length];
+        for(int k=0;k<values.Length;k++)values[k]=rig.BodySkin.GetBlendShapeValue(k);
+        for(int i=0;i<source.Length;i++)
         {
-            float weight=rig.BodySkin.GetBlendShapeValue(shape);if(weight==0)continue;
-            for(int i=0;i<result.Length;i++)result[i]+=(targets[shape][i]-source[i])*weight;
+            double x=source[i].X,y=source[i].Y,z=source[i].Z;
+            for(int k=0;k<targets.Length;k++)if(values[k]!=0)
+            {
+                x+=((double)targets[k][i].X-source[i].X)*values[k];
+                y+=((double)targets[k][i].Y-source[i].Y)*values[k];
+                z+=((double)targets[k][i].Z-source[i].Z)*values[k];
+            }
+            result[i]=new((float)x,(float)y,(float)z);
         }
         return result;
     }
@@ -40,7 +47,7 @@ internal sealed partial class NatureModels
                     if(neutral[i].DistanceTo(cage.Points[i])>.000003f||neutralTrunk[i].DistanceTo(cage.Points[i])>.000003f)
                         throw new InvalidOperationException("Authored A-pose and runtime shoulder bind disagree");
                 var mesh=(ArrayMesh)rig.DetailedBodyMesh;
-                if(mesh.GetBlendShapeCount()!=ResidentRig.SleevePoseCount||mesh.BlendShapeMode!=Mesh.BlendShapeMode.Normalized)
+                if(mesh.GetBlendShapeCount()!=ResidentRig.BodyPoseCount||mesh.BlendShapeMode!=Mesh.BlendShapeMode.Normalized)
                     throw new InvalidOperationException("Adult cloth lost its pose-space shapes or blend mode in LOD generation");
                 var arrays=mesh.SurfaceGetArrays(0);var source=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                 var uv=arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array();var shapes=mesh.SurfaceGetBlendShapeArrays(0);
@@ -68,7 +75,7 @@ internal sealed partial class NatureModels
                     var actual=baked.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                     for(int i=0;i<actual.Length;i++)if(actual[i].DistanceTo(expected[i])>.000003f)throw new InvalidOperationException("Engine morph mix differs from evaluated surface");
                 }
-                for(int shape=0;shape<ResidentRig.SleevePoseCount;shape++)rig.BodySkin.SetBlendShapeValue(shape,0);
+                for(int shape=0;shape<ResidentRig.BodyPoseCount;shape++)rig.BodySkin.SetBlendShapeValue(shape,0);
                 for(int frame=0;frame<150;frame++)rig.StudyArmElevation(1f/60,Mathf.DegToRad(100),Mathf.DegToRad(45));
                 var skin=new Transform3D[ResidentRig.SupportedBodyBones];
                 for(int b=0;b<skin.Length;b++)skin[b]=rig.ShoulderSkeleton.GetBonePose(b)*rig.DetailedBodySkin.GetBindPose(b);
@@ -92,7 +99,7 @@ internal sealed partial class NatureModels
                 float total=0;
                 for(int shape=ResidentRig.SleevePosesPerSide;shape<ResidentRig.SleevePoseCount;shape++)total+=rig.BodySkin.GetBlendShapeValue(shape);
                 if(total<.5f)throw new InvalidOperationException("LOD recovery lost the displayed sleeve corrective weights");
-                var frozen=new float[ResidentRig.SleevePoseCount];
+                var frozen=new float[ResidentRig.BodyPoseCount];
                 for(int i=0;i<frozen.Length;i++)frozen[i]=rig.BodySkin.GetBlendShapeValue(i);
                 rig.PoseAction(1,ActionKind.BuildHouse,ActionPhase.Executing,true,0);
                 for(int i=0;i<frozen.Length;i++)if(frozen[i]!=rig.BodySkin.GetBlendShapeValue(i))throw new InvalidOperationException("Paused corrective keeps moving");

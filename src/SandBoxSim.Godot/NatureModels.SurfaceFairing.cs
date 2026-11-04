@@ -137,6 +137,15 @@ internal sealed partial class NatureModels
                     *Mathf.SmoothStep(1.08f,1.13f,p.Y)*(1-Mathf.SmoothStep(1.22f,1.26f,p.Y))*(pattern[i].X<0?1:0);
             }
             FairRestSurface(points,indices,freedom,.0015f,roundRelief:true);
+            for(int i=0;i<points.Length;i++)
+            {
+                var p=points[i];
+                freedom[i]=(pattern[i].X<0?1:0)*Mathf.SmoothStep(.095f,.130f,MathF.Abs(p.X))
+                    *(1-Mathf.SmoothStep(.155f,.180f,MathF.Abs(p.X)))
+                    *(1-Mathf.SmoothStep(.075f,.110f,MathF.Abs(p.Z)))
+                    *Mathf.SmoothStep(1.035f,1.080f,p.Y)*(1-Mathf.SmoothStep(1.170f,1.215f,p.Y));
+            }
+            FairRestSurface(points,indices,freedom,.0015f,roundRelief:true);
             if(fitAnterior)
             {
                 // Shoulder fitting and relief smoothing must not push the front

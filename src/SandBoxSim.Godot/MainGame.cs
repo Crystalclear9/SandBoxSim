@@ -56,7 +56,7 @@ public partial class MainGame : Control
     private int _previewDays;
     private string _previewView = "";
     private string _previewPanel = "";
-    private bool IsModelGallery => _previewPanel is "architecture" or "characters" or "naturemodels" or "faces" or "equipment" or "actions" or "motion" or "grip" or "hands" or "model-details" or "ecology-details" or "animal-details" or "animal-motion" or "animal-heads" or "wardrobe" or "forearms" or "social" or "social-side" or "handedness" or "body-frames" or "body-motion" or "locomotion" or "arm-swing" or "forearm-frames" or "face-frames" or "thorax-frames" or "work-effort" or "shoulder-motion" or "handling-transitions" or "shoulder-elevation" or "captured-stretch" or "arm-articulation" or "wrist-motion";
+    private bool IsModelGallery => _previewPanel is "architecture" or "characters" or "naturemodels" or "faces" or "equipment" or "actions" or "motion" or "grip" or "hands" or "model-details" or "ecology-details" or "animal-details" or "animal-motion" or "animal-heads" or "wardrobe" or "forearms" or "social" or "social-side" or "handedness" or "body-frames" or "body-motion" or "locomotion" or "arm-swing" or "forearm-frames" or "face-frames" or "thorax-frames" or "work-effort" or "shoulder-motion" or "handling-transitions" or "shoulder-elevation" or "captured-stretch" or "arm-articulation" or "upper-arm-flex" or "wrist-motion";
     private double _benchmarkSeconds, _benchmarkElapsed, _benchmarkMeasuredSeconds;
     private long _benchmarkFrames;
     private double _benchmarkProcessTime,_benchmarkDrawCalls,_benchmarkPrimitives;
@@ -83,6 +83,13 @@ public partial class MainGame : Control
         {
             SetProcess(false);SetPhysicsProcess(false);SetProcessInput(false);
             try{new NatureModels().ValidateBodyFrames();GD.Print("BODY_FRAMES_TEST_PASS: final near/far clothing, anterior contour, source clearance and adult body frames");GetTree().Quit();}
+            catch(Exception exception){GD.PushError(exception.ToString());GetTree().Quit(1);}
+            return;
+        }
+        if(OS.GetCmdlineUserArgs().Contains("--test-upper-arm-flex"))
+        {
+            SetProcess(false);SetPhysicsProcess(false);SetProcessInput(false);
+            try{new NatureModels().ValidateUpperArmFlex();GD.Print("UPPER_ARM_TEST_PASS: combined body morphs, flex response, fixed boundaries and LOD");GetTree().Quit();}
             catch(Exception exception){GD.PushError(exception.ToString());GetTree().Quit(1);}
             return;
         }

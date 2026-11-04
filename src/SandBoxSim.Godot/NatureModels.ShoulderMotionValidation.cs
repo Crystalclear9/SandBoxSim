@@ -13,6 +13,7 @@ internal sealed partial class NatureModels
     {
         ValidateForearmTwist();
         ValidateForearmNormals();
+        ValidateUpperArmFlex();
         ValidateAnatomicalArmReference();
         ValidateElbowSwivelInertia();
         ValidateSleeveDetail();

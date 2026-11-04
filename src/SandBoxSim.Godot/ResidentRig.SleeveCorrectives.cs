@@ -6,7 +6,7 @@ namespace SandBoxSim.Client;
 internal partial class ResidentRig
 {
     internal const int SleevePlaneCount=4,SleeveHeightCount=3,SleeveRollCount=5,SleevePosesPerSide=SleevePlaneCount*SleeveHeightCount*SleeveRollCount,SleevePoseCount=2*SleevePosesPerSide;
-    private readonly float[] _sleevePoseWeights=new float[SleevePoseCount];
+    private readonly float[] _sleevePoseWeights=new float[BodyPoseCount];
     internal static int SleevePoseIndex(int side,int plane,int height,int roll)=>side*SleevePosesPerSide+plane*SleeveHeightCount*SleeveRollCount+height*SleeveRollCount+roll;
     internal static float SleeveNeutralRoll(Vector3 direction,int side)
     {
@@ -49,7 +49,7 @@ internal partial class ResidentRig
     }
     private void UpdateSleeveCorrectives(int side,bool force=false)
     {
-        if(BodySkin.Mesh is not ArrayMesh mesh||mesh.GetBlendShapeCount()!=SleevePoseCount)return;
+        if(BodySkin.Mesh is not ArrayMesh mesh||mesh.GetBlendShapeCount()!=BodyPoseCount)return;
         var arm=Arms[side].Basis;
         Span<float> weights=stackalloc float[SleevePosesPerSide];FillSleevePoseWeights(arm,side,weights);
         for(int plane=0;plane<SleevePlaneCount;plane++)for(int height=0;height<SleeveHeightCount;height++)for(int roll=0;roll<SleeveRollCount;roll++)
@@ -58,5 +58,6 @@ internal partial class ResidentRig
             if(force||MathF.Abs(weight-_sleevePoseWeights[index])>.00001f)
             {BodySkin.SetBlendShapeValue(index,weight);_sleevePoseWeights[index]=weight;}
         }
+        UpdateUpperArmFlex(side,force);
     }
 }

@@ -52,6 +52,7 @@
         "arm-swing",
         "forearm-frames",
         "face-frames",
+        "thorax-frames",
         "work-effort",
         "wardrobe",
         "faces",
@@ -66,7 +67,7 @@
         "social",
         "social-side",
         "shoulder-motion",
-        "handling-transitions", "shoulder-elevation", "captured-stretch", "arm-articulation", "wrist-motion"
+        "handling-transitions", "shoulder-elevation", "captured-stretch", "arm-articulation", "upper-arm-flex", "wrist-motion"
       ],
       "default": "field"
     },

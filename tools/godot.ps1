@@ -8,6 +8,7 @@ param(
     [switch]$ReimportTextures,
     [switch]$ResidentMotionOnly,
     [switch]$HandContinuityOnly,
+    [switch]$UpperArmFlexOnly,
     [switch]$BodyFramesOnly
 )
 Set-StrictMode -Version Latest
@@ -15,6 +16,7 @@ $ErrorActionPreference = 'Stop'
 if($ResidentMotionOnly -and $Mode -ne 'test'){throw 'ResidentMotionOnly requires -Mode test.'}
 if($HandContinuityOnly -and ($Mode -ne 'test' -or $ResidentMotionOnly)){throw 'HandContinuityOnly requires -Mode test without ResidentMotionOnly.'}
 if($BodyFramesOnly -and ($Mode -ne 'test' -or $ResidentMotionOnly -or $HandContinuityOnly)){throw 'BodyFramesOnly requires -Mode test without another focused test.'}
+if($UpperArmFlexOnly -and ($Mode -ne 'test' -or $ResidentMotionOnly -or $HandContinuityOnly -or $BodyFramesOnly)){throw 'UpperArmFlexOnly requires -Mode test without another focused test.'}
 if ($Mode -eq 'build' -and $ReimportTextures) { throw 'Use -Mode test, run or editor with -ReimportTextures.' }
 . (Join-Path $PSScriptRoot 'build-lib.ps1')
 $repositoryRoot = Split-Path $PSScriptRoot -Parent
@@ -50,7 +52,10 @@ if ($ReimportTextures) { Invoke-GodotTextureReimport -GodotPath $GodotPath -Game
 if ($Mode -eq 'editor') {
     & $GodotPath --log-file $engineLog --path $gameRoot --editor
 } elseif ($Mode -eq 'test') {
-    if($BodyFramesOnly){
+    if($UpperArmFlexOnly){
+        & $GodotPath --log-file $engineLog --headless --path $gameRoot -- --test-upper-arm-flex
+        if([IO.File]::ReadAllText($engineLog) -notmatch '(?m)^UPPER_ARM_TEST_PASS:'){throw 'Upper-arm flex tests did not complete.'}
+    } elseif($BodyFramesOnly){
         & $GodotPath --log-file $engineLog --headless --path $gameRoot -- --test-body-frames
         if([IO.File]::ReadAllText($engineLog) -notmatch '(?m)^BODY_FRAMES_TEST_PASS:'){throw 'Body frame tests did not complete.'}
     } elseif($HandContinuityOnly){
@@ -63,5 +68,5 @@ if ($Mode -eq 'editor') {
 } else {
     & $GodotPath --log-file $engineLog --path $gameRoot
 }
-Assert-GodotRunLog -ExitCode $LASTEXITCODE -Log ([IO.File]::ReadAllText($engineLog)) -SelfTest:($Mode -eq 'test' -and -not $ResidentMotionOnly -and -not $HandContinuityOnly -and -not $BodyFramesOnly)
+Assert-GodotRunLog -ExitCode $LASTEXITCODE -Log ([IO.File]::ReadAllText($engineLog)) -SelfTest:($Mode -eq 'test' -and -not $ResidentMotionOnly -and -not $HandContinuityOnly -and -not $BodyFramesOnly -and -not $UpperArmFlexOnly)
 } finally { Restore-GodotEnvironment -Snapshot $godotEnvironment }
