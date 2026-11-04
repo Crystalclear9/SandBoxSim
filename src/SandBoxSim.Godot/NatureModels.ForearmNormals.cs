@@ -57,6 +57,7 @@ internal sealed partial class NatureModels
         var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var n=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
         var ids=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();var bones=arrays[(int)Mesh.ArrayType.Bones].AsInt32Array();var weights=arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();
         var restNormals=SkinSurfaceNormals(p,ids,p);var axis=new Vector3(0,-.255f,-.010f).Normalized();var pivot=new Vector3(0,.255f,.010f);
+        var neighbours=ForearmNeighbours(p,ids);var smoothRest=SmoothForearm(p,p,neighbours);
         var shapes=new Godot.Collections.Array<Godot.Collections.Array>();
         for(int bend=0;bend<ResidentRig.ForearmNormalBends;bend++)for(int rollIndex=0;rollIndex<ResidentRig.ForearmNormalRolls;rollIndex++)
         {
@@ -72,7 +73,11 @@ internal sealed partial class NatureModels
                 for(int j=0;j<4;j++){var pose=palette[bones[i*4+j]];float w=weights[i*4+j];basis.X+=pose.Basis.X*w;basis.Y+=pose.Basis.Y*w;basis.Z+=pose.Basis.Z*w;origin+=pose.Origin*w;}
                 blends[i]=basis;posed[i]=basis*p[i]+origin;
             }
-            var actual=SkinSurfaceNormals(posed,ids,p);var corrected=(Vector3[])n.Clone();
+            var correctedPoints=CorrectForearmShape(p,posed,blends,ids,neighbours,smoothRest);
+            var shapePoints=(Vector3[])p.Clone();
+            for(int i=0;i<p.Length;i++)if(ForearmShapeFreedom(p[i])>0)
+                shapePoints[i]+=blends[i].Inverse()*(correctedPoints[i]-posed[i]);
+            var actual=SkinSurfaceNormals(correctedPoints,ids,p);var corrected=(Vector3[])n.Clone();
             for(int i=0;i<p.Length;i++)
             {
                 float free=ForearmNormalFreedom(p[i]);if(free<=0||restNormals[i].LengthSquared()<.5f||actual[i].LengthSquared()<.5f)continue;
@@ -83,7 +88,7 @@ internal sealed partial class NatureModels
                 if(!corrected[i].IsFinite())throw new InvalidOperationException("Nonfinite forearm normal corrective");
             }
             var shape=new Godot.Collections.Array();shape.Resize((int)Mesh.ArrayType.Max);
-            shape[(int)Mesh.ArrayType.Vertex]=p;shape[(int)Mesh.ArrayType.Normal]=corrected;shapes.Add(shape);
+            shape[(int)Mesh.ArrayType.Vertex]=shapePoints;shape[(int)Mesh.ArrayType.Normal]=corrected;shapes.Add(shape);
         }
         return shapes;
     }

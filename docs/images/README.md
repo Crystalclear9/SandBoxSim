@@ -6,7 +6,7 @@
 
 ## 当前配图
 
-`resident-arm-junctions.png`／GIF 来自公开 `visual-arm-articulation.json`，使用实际游戏的肩肘腕控制器和连接皮肤。两排为男性／女性外观，三列正面、侧面及背面；正交尺寸 1.04、目标 (0, 1.17, 0)，相机相对位置为 (0.03, 0.03, 4)、(-4, 0.03, 0.10)、(0.03, 0.03, -4)。PNG 取逻辑帧 270；GIF 为原生 1600×1000、160 个采样，逻辑帧 30–507 每三帧取样，20 fps、八秒，分五次固定配置回放编码。动作包含抬臂／屈肘、旋前／旋后和放下，读取 `forearmSkin=pose-normal-v4`、`forearmProfile=welded-volume-v5`、`shoulderSkin=rest-detail-sleeve-v10` 与 `shoulderSurface=authored-bind-surface-v3`；没有重绘、插帧或局部缩放。
+`resident-arm-junctions.png`／GIF 来自公开 `visual-arm-articulation.json`，使用实际游戏的肩肘腕控制器和连接皮肤。两排为男性／女性外观，三列正面、侧面及背面；正交尺寸 1.04、目标 (0, 1.17, 0)，相机相对位置为 (0.03, 0.03, 4)、(-4, 0.03, 0.10)、(0.03, 0.03, -4)。PNG 取逻辑帧 270；GIF 为原生 1600×1000、160 个采样，逻辑帧 30–507 每三帧取样，20 fps、八秒，分五次固定配置回放编码。动作包含抬臂／屈肘、旋前／旋后和放下，读取 `forearmSkin=rest-detail-shape-v5`、`forearmProfile=rest-detail-surface-v6`、`shoulderSkin=rest-detail-sleeve-v10` 与 `shoulderSurface=authored-bind-surface-v3`；没有重绘、插帧或局部缩放。
 
 
 `resident-captured-stretch.png` 与同名 GIF 使用 `visual-captured-stretch.json` 的实际游戏模型，读取 CMU 143_30 的上／前臂方向及手腕朝向。两排为两种成人外观，三列为正面、侧面和背面；正交尺寸 1.70、目标 (0, 1.10, 0)，相机相对位置为 (0.03, 0.03, 4)、(-4, 0.03, 0.10)、(0.03, 0.03, -4)。PNG 是逻辑帧 110、1600×1000；GIF 为同分辨率、203 个原生采样，逻辑帧 30–636 每三帧取样，20 fps、总长 10.15 秒，分七次等配置回放编码。来源记录为 120 Hz，播放周期包含 3.075 秒捕捉和两秒休息；不是原始演员视频，也没有用概念图或重绘替代模型。来源、条款和重建见[人物素材](../development/human-assets.md)。
@@ -129,18 +129,18 @@
 
 当前身体动态与抬臂图使用 `shoulderMotion=source-clavicle-v11`，锁骨内端与肩点均来自当前转移体型；旧的专项肩袖图仍保留其原采样版本。
 
-当前身体、衣装、前臂及抬臂配图保留 `bodyFrame=lifted-thorax-physique-v27`，腕臂使用 `wristContour=continuous-source-v2`、`forearmProfile=welded-volume-v5`、`forearmSkin=pose-normal-v4`。腕部连接为 30 毫米切线约束表面，宽深与中心线按各自身体来源拟合。较早的手部、工具和捕捉专项配图仍保留其各自采样版本。
+当前身体、衣装、前臂及抬臂配图保留 `bodyFrame=lifted-thorax-physique-v27`，腕臂使用 `wristContour=continuous-source-v2`、`forearmProfile=rest-detail-surface-v6`、`forearmSkin=rest-detail-shape-v5`。腕部连接为 30 毫米切线约束表面，宽深与中心线按各自身体来源拟合。较早的手部、工具和捕捉专项配图仍保留其各自采样版本。
 
 `resident-wrist-motion.png` 取自 `visual-wrist-motion.json` 的第 90 帧；GIF 使用 120 个原生采样，逻辑帧 30–506 每四步采样，固定 60 Hz、零模拟步进，时长八秒，分四次等配置回放。展示实际连体蒙皮，观察镜头沿前臂坐标定位，主补光随观察方向旋转；可见层只隔离该手臂，避免躯干遮住反向视角，没有修改模型或对图像重绘。GIF 仅采用统一调色板编码。
 
-当前身体、衣装、连续抬臂及两组头脸配图使用 `garmentFit=anatomical-sleeve-v15`、`forearmProfile=welded-volume-v5`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2`。来源身体配方为 v27，女性参考权重为 0.75、男性为 1.0；衣料使用纵横向拟合，五类来源支撑共享 v27 配方。较早人物观察窗和动作专题保留其原采样版本。`resident-face-frames.png` 与 `resident-face-detail.png` 分别来自公开 `visual-face-frames` 与 `visual-faces` 第 90 帧，本次均为 1600×1000；额前发根与静止眼睑属于实际运行形体及材质参数，没有重绘或局部图像修饰。
+当前身体、衣装、连续抬臂及两组头脸配图使用 `garmentFit=back-shoulder-v16`、`forearmProfile=rest-detail-surface-v6`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2`。来源身体配方为 v27，女性参考权重为 0.75、男性为 1.0；衣料使用纵横向拟合，五类来源支撑共享 v27 配方。较早人物观察窗和动作专题保留其原采样版本。`resident-face-frames.png` 与 `resident-face-detail.png` 分别来自公开 `visual-face-frames` 与 `visual-faces` 第 90 帧，本次均为 1600×1000；额前发根与静止眼睑属于实际运行形体及材质参数，没有重绘或局部图像修饰。
 
-当前身体、头脸、三种衣装、胸廓、前臂及身体／抬臂／上肢动态图使用 `bodyPresentation=contour-flow-v13`、`garmentFit=anatomical-sleeve-v15`、`forearmSkin=pose-normal-v4` 与 `forearmProfile=welded-volume-v5`。这些专题反映浅色内衫、绿灰外衣与弧形短下摆、女性腰胯圆顺和男女前臂的姿态法线；相机、成人身份、肤色、材质染色及布光保留原配置。
+当前身体、头脸、三种衣装、胸廓、前臂及身体／抬臂／上肢动态图使用 `bodyPresentation=scapular-flow-v14`、`garmentFit=back-shoulder-v16`、`forearmSkin=rest-detail-shape-v5` 与 `forearmProfile=rest-detail-surface-v6`。这些专题反映浅色内衫、绿灰外衣与弧形短下摆、女性肩背／腰胯圆顺和男女前臂的姿态曲面／法线；相机、成人身份、肤色、材质染色及布光保留原配置。
 
 [resident-world-distance.png](resident-world-distance.png) 展示默认世界视距的角色分层配色：`field` 面板、种子 839102、40 名居民、零模拟步进、第 90 帧、1600×1000，俯角约 46°、距离约 41 米。它保留 `layered-figure-v2` 的原采样，记录了一次窗口恢复，与当前零窗口恢复的角色动态批次分别记录。
 
 [resident-thorax-detail.png](resident-thorax-detail.png) 来自 `visual-thorax-frames.json` 第 90 帧，1600×1000、固定 60 Hz、零模拟步进，正面／三刻面／侧面展示同一成年女性衣装。相机正交尺寸 0.56 米、目标 (0, 1.13, 0)，没有局部重绘。旧腕部、捕捉动作、作业与其他未重采专题保留各自采样版本，不能用当前标签重新解释旧图。
 
-当前上肢动作、静态前臂、身体／衣装／头肩及身体和抬臂动态使用 `forearmSkin=pose-normal-v4`、`forearmProfile=welded-volume-v5`、`bodyPresentation=contour-flow-v13`，反映男女近肘隐藏连接、延续的体型拟合与分别缓存的圆顺表面。`resident-arm-junctions.png` 仍为第 270 帧，GIF 仍为五次回放的 160 帧、20 fps、八秒原生采样，保持原镜头；静态前臂来自公开场景第 90 帧，1600×1000。较早 `resident-wrist-motion` PNG／GIF 保留 `forearmSkin=distributed-wrist-v2` 与 `forearmProfile=fair-source-volume-v3` 的原采样，其他未重采专题继续保留各自版本，不能只更换标签解释旧图。
+当前上肢动作、静态前臂、身体／衣装／头肩及身体和抬臂动态使用 `forearmSkin=rest-detail-shape-v5`、`forearmProfile=rest-detail-surface-v6`、`bodyPresentation=scapular-flow-v14`，反映男女近肘隐藏连接、延续的体型拟合、静止细节保留与姿态曲面修整。`resident-arm-junctions.png` 仍为第 270 帧，GIF 仍为五次回放的 160 帧、20 fps、八秒原生采样，保持原镜头；静态前臂来自公开场景第 90 帧，1600×1000。较早 `resident-wrist-motion` PNG／GIF 保留 `forearmSkin=distributed-wrist-v2` 与 `forearmProfile=fair-source-volume-v3` 的原采样，其他未重采专题继续保留各自版本，不能只更换标签解释旧图。
 
 本组当前配图于 2026-11-04 从二十一次成功的原生回放生成：九张 PNG 与对应完整采样逐字节一致，三段 GIF 共 460 个原生采样，仅作统一调色板编码，不插帧或重绘。每次成功运行均核对源码、构建身份和产物哈希，采用 1600×1000、固定 60 Hz、零模拟步进，窗口恢复计数为零。观察图用于判断实际可见的轮廓与接合，不保证任意体型、视角或动作已达到同等质量。

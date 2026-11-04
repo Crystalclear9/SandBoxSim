@@ -127,6 +127,16 @@ internal sealed partial class NatureModels
                     *(1-Mathf.SmoothStep(.17f,.23f,MathF.Max(0,pattern[i].X)));
             }
             FairRestSurface(points,indices,freedom,.008f,roundRelief:true);
+            // A separate broad scapular transition: keep the neck, sleeve seam
+            // and waist pinned rather than rounding the whole female torso.
+            for(int i=0;i<points.Length;i++)
+            {
+                var p=points[i];
+                freedom[i]=Mathf.SmoothStep(.025f,.055f,p.Z)
+                    *Mathf.SmoothStep(.035f,.070f,MathF.Abs(p.X))*(1-Mathf.SmoothStep(.130f,.165f,MathF.Abs(p.X)))
+                    *Mathf.SmoothStep(1.08f,1.13f,p.Y)*(1-Mathf.SmoothStep(1.22f,1.26f,p.Y))*(pattern[i].X<0?1:0);
+            }
+            FairRestSurface(points,indices,freedom,.0015f,roundRelief:true);
             if(fitAnterior)
             {
                 // Shoulder fitting and relief smoothing must not push the front

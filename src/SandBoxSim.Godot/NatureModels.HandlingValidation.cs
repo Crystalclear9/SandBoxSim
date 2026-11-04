@@ -250,7 +250,8 @@ internal sealed partial class NatureModels
                     for(int hand=action==ActionKind.BuildHouse?1:0;hand<2;hand++)
                     {
                         var mesh=rig.HandSkins[hand].Mesh.SurfaceGetArrays(0);
-                        var points=mesh[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                        var restPoints=mesh[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                        var points=CorrectedForearmSource(rig,hand,restPoints);
                         var bones=mesh[(int)Mesh.ArrayType.Bones].AsInt32Array();
                         var skinWeights=mesh[(int)Mesh.ArrayType.Weights].AsFloat32Array();
                         // Synchronous out-of-tree rigs do not run Skeleton3D's
@@ -278,7 +279,7 @@ internal sealed partial class NatureModels
                                 // The proximal skin bridges the elbow hinge. Measure
                                 // distortion in its continuous anatomical frame,
                                 // not against the old rigid straight forearm.
-                                var framePose=rig.ForearmSectionPose(hand,ResidentRig.ForearmSkinFraction(points[v].Y));
+                                var framePose=rig.ForearmSectionPose(hand,ResidentRig.ForearmSkinFraction(restPoints[v].Y));
                                 var unposed=framePose.AffineInverse()*(rig.Hands[hand].Basis.Inverse()*(forearm-rig.Hands[hand].Position))+rig.Hands[hand].Position;
                                 Vector3 bx=Vector3.Zero,by=bx,bz=bx;
                                 for(int b=0;b<4;b++)

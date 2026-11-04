@@ -67,7 +67,7 @@ internal sealed partial class NatureModels
             int r=Math.Min(23,(int)row),c=(int)column%64;float u=column-MathF.Floor(column),v=row-r;
             float At(int at)=>Mathf.Lerp(radii[at*64+c],radii[at*64+(c+1)%64],u);
             float anatomical=Mathf.Lerp(At(r),At(r+1),v);
-            // Cloth bridges the anatomical envelope with 7 mm ease. Preserve
+            // Cloth bridges the source with 5 mm female / 7 mm male ease. Keep
             // the shared seam, rolled cuff and source's small-scale drape.
             float weight=Mathf.SmoothStep(.012f,.080f,distance[i])*(1-Mathf.SmoothStep(.215f,.263f,pattern[i].X));
             float change=Math.Clamp(anatomical+(frame==1?.005f:.007f)-radius,-.012f,.012f)*weight;
