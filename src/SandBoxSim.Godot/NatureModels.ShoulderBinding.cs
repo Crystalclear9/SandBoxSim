@@ -24,7 +24,9 @@ internal sealed partial class NatureModels
             for(int t=0;t<cage.Triangles.Length;t+=3)
             {
                 var a=cage.Points[cage.Triangles[t]];var b=cage.Points[cage.Triangles[t+1]];var c=cage.Points[cage.Triangles[t+2]];
-                if((c-a).Cross(b-a).Normalized().Dot(normal)<.1f)continue;
+                var area=(c-a).Cross(b-a);
+                float longest=MathF.Max((b-a).LengthSquared(),MathF.Max((c-a).LengthSquared(),(c-b).LengthSquared()));
+                if(area.LengthSquared()<1e-12f||area.Length()/MathF.Max(longest,1e-12f)<.05f||area.Normalized().Dot(normal)<.1f)continue;
                 var q=ClosestShoulderPoint(p,a,b,c);float distance=q.DistanceSquaredTo(p);
                 if(distance<nearest){nearest=distance;face=t;hit=q;}
             }

@@ -10,6 +10,7 @@ internal sealed partial class NatureModels
 
     private static void ValidateWristContour()
     {
+        ValidateForearmProfileContinuity();
         int samples=0;
         for(int frame=0;frame<2;frame++)
         {

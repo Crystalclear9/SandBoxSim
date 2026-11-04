@@ -6,7 +6,7 @@
 
 ## 当前配图
 
-`resident-arm-junctions.png`／GIF 来自公开 `visual-arm-articulation.json`，使用实际游戏的肩肘腕控制器和连接皮肤。两排为男性／女性外观，三列正面、侧面及背面；正交尺寸 1.04、目标 (0, 1.17, 0)，相机相对位置为 (0.03, 0.03, 4)、(-4, 0.03, 0.10)、(0.03, 0.03, -4)。PNG 取逻辑帧 270；GIF 为原生 1600×1000、160 个采样，逻辑帧 30–507 每三帧取样，20 fps、八秒，分五次固定配置回放编码。动作包含抬臂／屈肘、旋前／旋后和放下，读取 `forearmSkin=transported-elbow-v7`、`forearmProfile=transported-rest-v8`、`shoulderSkin=patch-frame-v13`、`upperArmFlex=stable-contour-v3` 与 `shoulderSurface=authored-bind-surface-v3`；没有重绘、插帧或局部缩放。
+`resident-arm-junctions.png`／GIF 来自公开 `visual-arm-articulation.json`，使用实际游戏的肩肘腕控制器和连接皮肤。两排为男性／女性外观，三列正面、侧面及背面；正交尺寸 1.04、目标 (0, 1.17, 0)，相机相对位置为 (0.03, 0.03, 4)、(-4, 0.03, 0.10)、(0.03, 0.03, -4)。PNG 取逻辑帧 270；GIF 为原生 1600×1000、160 个采样，逻辑帧 30–507 每三帧取样，20 fps、八秒，分五次固定配置回放编码。动作包含抬臂／屈肘、旋前／旋后和放下，读取 `forearmSkin=curvature-elbow-v8`、`forearmProfile=curvature-flow-v9`、`shoulderSkin=anatomical-cap-v14`、`upperArmFlex=stable-contour-v3` 与 `shoulderSurface=authored-bind-surface-v3`；没有重绘、插帧或局部缩放。
 
 
 `resident-captured-stretch.png` 与同名 GIF 使用 `visual-captured-stretch.json` 的实际游戏模型，读取 CMU 143_30 的上／前臂方向及手腕朝向。两排为两种成人外观，三列为正面、侧面和背面；正交尺寸 1.70、目标 (0, 1.10, 0)，相机相对位置为 (0.03, 0.03, 4)、(-4, 0.03, 0.10)、(0.03, 0.03, -4)。PNG 是逻辑帧 110、1600×1000；GIF 为同分辨率、203 个原生采样，逻辑帧 30–636 每三帧取样，20 fps、总长 10.15 秒，分七次等配置回放编码。来源记录为 120 Hz，播放周期包含 3.075 秒捕捉和两秒休息；不是原始演员视频，也没有用概念图或重绘替代模型。来源、条款和重建见[人物素材](../development/human-assets.md)。
@@ -135,11 +135,11 @@
 
 `resident-wrist-motion.png` 取自 `visual-wrist-motion.json` 的第 90 帧；GIF 使用 120 个原生采样，逻辑帧 30–506 每四步采样，固定 60 Hz、零模拟步进，时长八秒，分四次等配置回放。展示实际连体蒙皮，观察镜头沿前臂坐标定位，主补光随观察方向旋转；可见层只隔离该手臂，避免躯干遮住反向视角，没有修改模型或对图像重绘。GIF 仅采用统一调色板编码。
 
-当前全身、三种衣装、胸廓及身体／上肢动态使用 `bodyPresentation=surface-flow-v16`、`garmentFit=patch-frame-v18`、`shoulderSkin=patch-frame-v13` 与 `upperArmFlex=stable-contour-v3`。来源身体仍为 `lifted-thorax-physique-v27`，当前动态前臂为 `transported-elbow-v7`／`transported-rest-v8`；保留的静态前臂与头脸专题按各自原版本解释。相机、成人身份、肤色及布光保留各自配置。
+当前全身、三种衣装、胸廓及身体／上肢动态使用 `bodyPresentation=anatomical-cap-v17`、`garmentFit=anatomical-cap-v19`、`shoulderSkin=anatomical-cap-v14` 与 `upperArmFlex=stable-contour-v3`。来源身体仍为 `lifted-thorax-physique-v27`，当前动态前臂为 `curvature-elbow-v8`／`curvature-flow-v9`；保留的静态前臂与头脸专题按各自原版本解释。相机、成人身份、肤色及布光保留各自配置。
 
 两组头脸、静态前臂及 `resident-shoulder-elevation` PNG／GIF 保留上一组 `scapular-flow-v14`／`back-shoulder-v16`／`rest-detail-sleeve-v10` 的原采样；没有将旧画面改标成新的屈肘衣料。额前发根、脸部和原始身体配方保持各自定义。两组头脸分别来自 `visual-face-frames` 与 `visual-faces` 第 90 帧，均为 1600×1000。其他旧专题仍按本页各自记录的版本解释。
 
-[resident-world-distance.png](resident-world-distance.png) 展示默认世界视距的角色分层配色：`field` 面板、种子 839102、40 名居民、零模拟步进、第 90 帧、1600×1000，俯角约 46°、距离约 41 米。它保留 `layered-figure-v2` 的原采样，记录了一次窗口恢复，与当前零窗口恢复的角色动态批次分别记录。
+[resident-world-distance.png](resident-world-distance.png) 展示默认世界视距的成人静态衣面：`visual-landscape`／`field`、种子 839102、40 名居民、零模拟步进，覆盖参数为 `commands=[]`、暖场 60 帧、测量 120 帧、第 90 帧采样、1600×1000。相机保留默认俯角约 46°、距离约 41 米；当前批次零窗口恢复，成人静态衣装来自同一修整后的近景静止表面。
 
 [resident-thorax-detail.png](resident-thorax-detail.png) 来自 `visual-thorax-frames.json` 第 90 帧，1600×1000、固定 60 Hz、零模拟步进，正面／三刻面／侧面展示同一成年女性衣装。相机正交尺寸 0.56 米、目标 (0, 1.13, 0)，没有局部重绘。旧腕部、捕捉动作、作业与其他未重采专题保留各自采样版本，不能用当前标签重新解释旧图。
 
@@ -147,8 +147,10 @@
 
 `resident-upper-arm-flex.png`／GIF 来自公开 `visual-upper-arm-flex.json`。两排为两种成人外观，两列为前侧／侧面；正交尺寸 0.48，目标为首次姿势的实际上臂中点，按居民整体等比尺度和正面朝向变换，相机相对位置为 (0.15, 0.04, 4)／(−4, 0.04, 0.1)。直接给定无负载关节角，复用实际骨架与成品网格，未逐帧调用握持 IK；肩位为抬臂 0.55、平面 0.45 弧度；屈肘以八秒余弦循环覆盖 0.08–1.83 弧度，另叠加 ±0.7 弧度的纯前臂轴向旋转。PNG 为逻辑帧 270，GIF 为逻辑帧 30–507 每三帧采样，1600×1000、160 帧、20 fps、八秒，分五次回放编码。它使用当前居民的真实衣装与骨架，不含额外体积鼓包；实际游玩动作另看身体动态，不能将固定关节参考当作游戏握持控制器的回放。
 
-本组全身、胸廓、衣装、身体动态、上肢动态、上臂及肘部近景于 2026-11-04 从二十二次通过核对的原生回放生成：七张 PNG 与完整采样逐字节一致，四段 GIF 共 600 个原生采样，仅作统一调色板编码，不插帧或重绘。每次成功运行均核对源码、构建身份和产物哈希，采用 1600×1000、固定 60 Hz、零模拟步进、零窗口恢复。保留的其他专题不属于这次重采。
+本组全身、胸廓、衣装、身体动态、上肢动态、上臂、肘部近景及默认世界视距于 2026-11-04 从二十三次通过核对的原生回放生成：八张 PNG 与完整采样逐字节一致，四段 GIF 共 600 个原生采样，仅作统一调色板编码，不插帧或重绘。每次成功运行均核对源码、构建身份和产物哈希，采用 1600×1000、固定 60 Hz、零模拟步进、零窗口恢复。保留的其他专题不属于这次重采。
 
-`resident-elbow-joint.png`／GIF 使用公开 `visual-elbow-joint.json`，两排为两种成人外观，两列为前侧／侧面。正交尺寸 0.34 米，目标为实际肘节点，整体尺度和朝向与居民一致；肩位为抬臂 0.55、平面 0.45 弧度，屈肘循环 0.08–2.15 弧度、轴向旋转 ±0.7 弧度。PNG 为逻辑帧 270，GIF 为帧 30–507 每三步采样、160 帧、20 fps、八秒，分五次等配置回放。读取 `transported-elbow-v7`／`transported-rest-v8`，没有局部缩放、重绘或插帧；固定关节参考与正常游玩的控制方式分别说明。
+`resident-elbow-joint.png`／GIF 使用公开 `visual-elbow-joint.json`，两排为两种成人外观，两列为前侧／侧面。正交尺寸 0.34 米，目标为实际肘节点，整体尺度和朝向与居民一致；肩位为抬臂 0.55、平面 0.45 弧度，屈肘循环 0.08–2.15 弧度、轴向旋转 ±0.7 弧度。PNG 为逻辑帧 270，GIF 为帧 30–507 每三步采样、160 帧、20 fps、八秒，分五次等配置回放。读取 `curvature-elbow-v8`／`curvature-flow-v9`，没有局部缩放、重绘或插帧；固定关节参考与正常游玩的控制方式分别说明。
 
 本组当前身体、衣装、胸廓与手臂动态使用独立静止衣片颜色坐标、邻域肩袖细节框架和作者法线运输。原始体型及资产配方保持各自版本；保留的头脸、静态前臂、旧肩袖与腕部专题不属于本组重采。
+
+当前成人身体、衣装、上臂与肘部专题使用来源支撑约束的肩袖几何重整及连续曲率前臂；默认世界视距同时更新成人静态衣面。原生画面仍采用各自配对的身份、镜头和布光，未作局部重绘或插帧。

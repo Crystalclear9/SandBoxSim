@@ -42,8 +42,12 @@ internal sealed partial class NatureModels
             return a*b<=0?0:2*a*b/(a+b);
         }
         float a=data[i],b=data[i+1],m=Slope(i),n=Slope(i+1);
-        float value=(2*t*t*t-3*t*t+1)*a+(t*t*t-2*t*t+t)*m+(-2*t*t*t+3*t*t)*b+(t*t*t-t*t)*n;
-        float derivative=((6*t*t-6*t)*a+(3*t*t-4*t+1)*m+(-6*t*t+6*t)*b+(3*t*t-2*t)*n)/.005f;
+        // Interpolate source rows with matching value, slope and zero
+        // curvature at both ends. The former cubic was only C1: every 5 mm
+        // station could change surface curvature abruptly during rotation.
+        float c3=10*(b-a)-6*m-4*n,c4=-15*(b-a)+8*m+7*n,c5=6*(b-a)-3*m-3*n;
+        float value=a+m*t+c3*t*t*t+c4*t*t*t*t+c5*t*t*t*t*t;
+        float derivative=(m+3*c3*t*t+4*c4*t*t*t+5*c5*t*t*t*t)/.005f;
         return(value,derivative);
     }
     private static (Vector3 Point,Vector3 Normal) FitForearmSupport(Vector3 point,Vector3 normal,int frame)
@@ -64,6 +68,36 @@ internal sealed partial class NatureModels
         float tx=ox.Value*w,tz=oz.Value*w,dtx=ox.Derivative*w+ox.Value*dw,dtz=oz.Derivative*w+oz.Value*dw;
         return(new(point.X*sx+tx,point.Y,point.Z*sz+tz),
             new Vector3(normal.X/sx,normal.Y-normal.X*(point.X*dx+dtx)/sx-normal.Z*(point.Z*dz+dtz)/sz,normal.Z/sz).Normalized());
+    }
+    private static void ValidateForearmProfileContinuity()
+    {
+        int samples=0;float maximumCurvatureJump=0;
+        for(int frame=0;frame<2;frame++)
+        {
+            var fit=ForearmSupport(frame);
+            foreach(var values in new[]{fit.X,fit.Z,fit.OffsetX,fit.OffsetZ})
+            {
+                for(int row=0;row<48;row++)for(int step=0;step<=32;step++)
+                {
+                    float y=.005f+(row+step/32f)*.005f;var sample=ForearmProfileSample(values,y);
+                    if(!float.IsFinite(sample.Value)||!float.IsFinite(sample.Derivative)
+                        ||sample.Value<MathF.Min(values[row],values[row+1])-.00001f
+                        ||sample.Value>MathF.Max(values[row],values[row+1])+.00001f)
+                        throw new InvalidOperationException("Forearm interpolation overshoots its source section or is nonfinite");
+                    samples++;
+                }
+                for(int row=1;row<48;row++)
+                {
+                    float y=.005f+row*.005f,range=MathF.Max(MathF.Abs(values[row]-values[row-1]),MathF.Abs(values[row+1]-values[row]));
+                    if(range<.000001f)continue;const float epsilon=.000001f;
+                    float left=ForearmProfileSample(values,y-epsilon).Derivative,mid=ForearmProfileSample(values,y).Derivative,right=ForearmProfileSample(values,y+epsilon).Derivative;
+                    float jump=MathF.Abs(left+right-2*mid)*(.005f*.005f/epsilon)/range;
+                    maximumCurvatureJump=MathF.Max(maximumCurvatureJump,jump);
+                }
+            }
+        }
+        if(maximumCurvatureJump>.20f)throw new InvalidOperationException($"Forearm source sections have a curvature break: {maximumCurvatureJump}");
+        GD.Print($"FOREARM_PROFILE_FLOW_PASS: {samples} source-profile samples, no overshoot, normalized curvature-limit residual={maximumCurvatureJump:F5}");
     }
     private static void ValidateForearmSupport(ResidentRig rig,int frame)
     {

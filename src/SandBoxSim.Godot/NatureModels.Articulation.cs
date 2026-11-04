@@ -29,7 +29,9 @@ internal sealed partial class NatureModels
         }
         rig.ShoulderGeometry=JoinedShoulders();
         RemoveSeparateSleeves(rig,cloth);
-        rig.DistantBodyMesh=DistantBody(rig.BodySkin.Mesh);rig.DetailedBodyMesh=SkinnedBody(rig.BodySkin.Mesh,material);rig.DetailedBodySkin=_shoulderSkin;
+        rig.DetailedBodyMesh=SkinnedBody(rig.BodySkin.Mesh,material);
+        rig.DistantBodyMesh=rig.IsChild?DistantBody(rig.BodySkin.Mesh):rig.DetailedBodyMesh;
+        rig.DetailedBodySkin=_shoulderSkin;
         rig.BodySkin.Mesh=rig.DetailedBodyMesh;rig.BodySkin.Skin=_shoulderSkin;rig.BodySkin.Skeleton=new NodePath("../ShoulderSkeleton");rig.ShoulderBridge=rig.BodySkin;
     }
     private Mesh DistantBody(Mesh body)

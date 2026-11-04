@@ -9,7 +9,7 @@ internal sealed partial class NatureModels
     public void ValidateUpperArmFlex()
     {
         ValidateElbowSurface();
-        float maxRollStep=0,maxVertexStep=0,maxIdleStep=0;int samples=0,gameplaySamples=0,gameplayFolds=0;float gameplayMinimum=1;
+        float maxRollStep=0,maxVertexStep=0,maxIdleStep=0;int samples=0,gameplaySamples=0,gameplayFolds=0;float gameplayMinimum=1,maxArmholeCrease=0;int armholeEdges=0;
         foreach(int identity in new[]{17,55})foreach(var job in new[]{JobType.Farmer,JobType.Gatherer,JobType.Trader})
         {
             var rig=Resident(identity,false,job);rig.AmbientMotionEnabled=false;
@@ -17,6 +17,13 @@ internal sealed partial class NatureModels
             {
                 var mesh=(ArrayMesh)rig.DetailedBodyMesh;
                 if(mesh.GetBlendShapeCount()!=ResidentRig.SleevePoseCount)throw new InvalidOperationException("Experimental muscle-volume shapes remain in the gameplay mesh");
+                foreach(int studySide in new[]{0,1})foreach(int degrees in new[]{0,45,90,135})
+                {
+                    for(int frame=0;frame<180;frame++)rig.StudyArmElevation(1f/60,Mathf.DegToRad(degrees),Mathf.DegToRad(30),studySide);
+                    var check=ArmholePoseCreases(rig);armholeEdges+=check.Edges;
+                    float fraction=check.Sharp/(float)check.Edges;maxArmholeCrease=MathF.Max(maxArmholeCrease,fraction);
+                    if(fraction>.015f)throw new InvalidOperationException($"Folded posed armhole: identity={identity}, job={job}, side={studySide}, elevation={degrees}, sharp={check.Sharp}/{check.Edges}");
+                }
                 for(int side=0;side<2;side++)
                 {
                     float prior=float.NaN,first=0;
@@ -74,6 +81,7 @@ internal sealed partial class NatureModels
             finally{rig.Free();}
         }
         if(gameplaySamples<1000||gameplayFolds!=0||gameplayMinimum<=0)throw new InvalidOperationException($"Gameplay elbow folds: samples={gameplaySamples}, folds={gameplayFolds}, minimum={gameplayMinimum}");
+        GD.Print($"ARMHOLE_MOTION_FLOW_PASS: {armholeEdges} actual posed edge samples, adults/three cuts/both arms, 0/45/90/135 degrees in the 30-degree plane, maximum >100-degree crease fraction={maxArmholeCrease:F5}");
         GD.Print($"GAMEPLAY_ELBOW_PASS: samples={gameplaySamples}, adults/both arms/three garment cuts/five action families, nonpositive={gameplayFolds}, minimum signed area={gameplayMinimum:F4}");
         if(samples<1000||maxVertexStep>.008f||maxIdleStep>.0005f)throw new InvalidOperationException($"Displayed forearm has a temporal discontinuity: samples={samples}, step={maxVertexStep}, idleStep={maxIdleStep}");
         GD.Print($"UPPER_ARM_FLEX_PASS: samples={samples}, adults/both arms/three cuts, 480-frame continuous reference, maximum roll/vertex step={maxRollStep:F5} rad/{maxVertexStep:F6} m, gameplay idle surface step={maxIdleStep:F7} m; gameplay uses 120 shoulder shapes without muscle-volume targets, five action families and pause");

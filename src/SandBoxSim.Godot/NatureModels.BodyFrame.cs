@@ -195,6 +195,7 @@ internal sealed partial class NatureModels
                 FitUpperArmSupport(points,pattern,sleeveDistance);
                 FitShoulderSurface(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern,sleeveDistance);
                 FairGarmentRest(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern,source.SurfaceGetMaterial(s)?.HasMeta("FittedBodice")==true);
+                RelaxArmholeSurface(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
                 sleeveDistance=SleeveDistances(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
             }
             var girdle=tailored&&sleeveDistance.Length==points.Length
@@ -335,8 +336,10 @@ internal sealed partial class NatureModels
         }
         Walk(rig,Transform3D.Identity);
         rig.DetailedBodyMesh=rig.BodySkin.Mesh;
-        rig.DistantBodyMesh=FrameMesh(rig.DistantBodyMesh,Transform3D.Identity,true);
-        if(FittedFigure)rig.DistantBodyMesh=MatchDistantFrontPanel(rig.DistantBodyMesh,rig.DetailedBodyMesh);
+        // Derive the static proxy from the fitted exterior. The old distant
+        // template retained a separate torso and primitive shoulder caps.
+        rig.DistantBodyMesh=DistantColors(rig.DetailedBodyMesh);
+        rig.DistantBodyMesh.SetMeta("BodyFrameFit",true);
         rig.HipHalfWidth=ResidentRig.NeutralHipHalfWidth;
         rig.ArmRestClearance=0;
         for(int side=0;side<2;side++)rig.Legs[side].Position=new(side==0?-rig.HipHalfWidth:rig.HipHalfWidth,ResidentRig.HipHeight,0);
@@ -388,6 +391,13 @@ internal sealed partial class NatureModels
         try
         {
             ValidateAdultContourSections(male,female);
+            foreach(var rig in new[]{male,female})
+            {
+                var far=new System.Collections.Generic.HashSet<Vector3>(rig.DistantBodyMesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array());
+                foreach(var point in rig.DetailedBodyMesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
+                    if(!far.Contains(point))throw new InvalidOperationException("Distant adult clothing loses the repaired near surface");
+            }
+            GD.Print("BODY_LOD_SURFACE_PASS: both adult frames, static distant cloth shares the repaired near rest positions");
             var headMesh=female.Head.GetChild<MeshInstance3D>(0);
             var headSpace=InTorso(headMesh,female.Torso);
             float neckBase=float.PositiveInfinity;
