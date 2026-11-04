@@ -7,7 +7,8 @@ namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
     private readonly Dictionary<(int Frame,int Side),Godot.Collections.Array<Godot.Collections.Array>> _forearmNormalPoses=new();
-    private static float ForearmNormalFreedom(Vector3 p)=>Mathf.SmoothStep(.055f,.085f,p.Y)*(1-Mathf.SmoothStep(.235f,.260f,p.Y));
+    private static float ForearmNormalFreedom(Vector3 p)=>Mathf.SmoothStep(.055f,.085f,p.Y)*(1-Mathf.SmoothStep(.265f,.275f,p.Y));
+    private static float ForearmPoseFreedom(Vector3 p)=>MathF.Max(ForearmShapeFreedom(p),p.Y>.170f&&p.Y<.273f?1:0);
     private static Vector3[] SkinSurfaceNormals(Vector3[] points,int[] triangles,Vector3[] rest)
     {
         var area=new Vector3[points.Length];
@@ -61,7 +62,7 @@ internal sealed partial class NatureModels
         var shapes=new Godot.Collections.Array<Godot.Collections.Array>();
         for(int bend=0;bend<ResidentRig.ForearmNormalBends;bend++)for(int rollIndex=0;rollIndex<ResidentRig.ForearmNormalRolls;rollIndex++)
         {
-            float flex=bend*MathF.PI/4,roll=(rollIndex-1)*MathF.PI/2;
+            float flex=bend*ResidentRig.ForearmBendStep,roll=(rollIndex-1)*MathF.PI/2;
             var palette=new Transform3D[ResidentRig.HandBoneCount];Array.Fill(palette,Transform3D.Identity);
             var unhinge=new Basis(Vector3.Right,-flex).GetRotationQuaternion();
             for(int station=0;station<=ResidentRig.ForearmIntervals;station++)
@@ -74,8 +75,13 @@ internal sealed partial class NatureModels
                 blends[i]=basis;posed[i]=basis*p[i]+origin;
             }
             var correctedPoints=CorrectForearmShape(p,posed,blends,ids,neighbours,smoothRest);
+            correctedPoints=RepairElbowSurface(p,correctedPoints,roll,unhinge);
+            // Packed influence totals can differ from one by a few ulps. The
+            // neutral shape must retain the source exactly, not compensate that
+            // encoding error with a tiny permanent edit to the joint.
+            if(bend==0&&rollIndex==1)correctedPoints=posed;
             var shapePoints=(Vector3[])p.Clone();
-            for(int i=0;i<p.Length;i++)if(ForearmShapeFreedom(p[i])>0)
+            for(int i=0;i<p.Length;i++)if(ForearmPoseFreedom(p[i])>0)
                 shapePoints[i]+=blends[i].Inverse()*(correctedPoints[i]-posed[i]);
             var actual=SkinSurfaceNormals(correctedPoints,ids,p);var corrected=(Vector3[])n.Clone();
             for(int i=0;i<p.Length;i++)

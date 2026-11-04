@@ -140,7 +140,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `reachMotion=palm-trajectory-v2` 记录手掌轨迹过渡、朝向插值、错开的社交手势与循环进食表现。动作轨迹改变需要重采相同场景的视觉及耗时基线，不能与旧动作混作效率对照。
 
-`bodyFrame=lifted-thorax-physique-v27`、`faceContour=balanced-adult-v3` 和 `forearmProfile=rest-detail-surface-v6` 记录完整来源躯干、头脸区域与小臂体积拟合。它们改变轮廓和模型构建成本，视觉及性能对照须使用同一版本、居民身份与近远景条件。
+`bodyFrame=lifted-thorax-physique-v27`、`faceContour=balanced-adult-v3` 和 `forearmProfile=angular-junction-v7` 记录完整来源躯干、头脸区域与小臂体积拟合。它们改变轮廓和模型构建成本，视觉及性能对照须使用同一版本、居民身份与近远景条件。
 
 无窗口自检的花株接地检查使用 CPU 保存的实例位置；图形模式额外核对 GPU 实例变换。渲染服务器的占位读回不作为几何证据。快捷操作检查覆盖居民、鹿狼和土地的真实目标位置、失效实体身份拒绝、靠近的实际相机距离、人物观察窗／土地手记及观察纯度。
 
@@ -213,7 +213,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `visual-arm-articulation.json` / `panel=arm-articulation` 提供实际上肢近景：暖场 30 帧、测量 480 帧，固定 60 Hz、零模拟推进，默认每 16 帧取样。八秒循环依次抬臂／屈肘、翻掌、放下；三列为正侧背面，两排为两种成人外观。完整动图每三帧采样，原生 1600×1000、160 个采样和八秒，分五次回放。
 
-`renderQuality.forearmSkin=rest-detail-shape-v5` 标记每手 56 骨的分段旋转表面与姿态法线，`shoulderSurface=authored-bind-surface-v3` 标记来源 A 姿势直接求解、绑定变换组合及固定三角面对应的双四元数人体支撑。二者改变了缓存生成和近景骨骼开销，须冻结同一版本再比较效率；动作端点、边长和表面距离只用于几何回归，不能作为写实度或 RSI 能力分数。
+`renderQuality.forearmSkin=angular-elbow-v6` 标记每手 56 骨的分段旋转表面与姿态法线，`shoulderSurface=authored-bind-surface-v3` 标记来源 A 姿势直接求解、绑定变换组合及固定三角面对应的双四元数人体支撑。二者改变了缓存生成和近景骨骼开销，须冻结同一版本再比较效率；动作端点、边长和表面距离只用于几何回归，不能作为写实度或 RSI 能力分数。
 
 人体支撑 v2 的贴合残差以固定三角面对应和衣片参与规则为参考，与 v1 的逐姿态最近面查询不同；两者不能直接作为同一质量指标比较。完整 sourceFiles、骨骼／网格版本、构图和照明须一并冻结。
 
@@ -235,9 +235,9 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 成人锁骨内端取自转移后体型的 `joint-l-clavicle`，再镜像到另一侧；`source-clavicle-v11` 将这一来源支点用于肩带弧线，避免较窄肩点继续绕固定旧支点旋转。肩胛旋转、腕部接触和衣袖边长约束继续独立验证。
 
-`wristContour=continuous-source-v2`、`forearmProfile=rest-detail-surface-v6` 与 `forearmSkin=rest-detail-shape-v5` 分别标记连续腕臂截面、中心线拟合与腕部渐进蒙皮。新增公开 `wrist-motion` 面板及 `visual-wrist-motion.json`，在冻结模拟、固定 60 Hz 下，对照两种成人外观的手背、掌侧和侧面，循环观察屈伸、侧偏、前臂旋转和握拳。它使用真实居民网格与骨架，不测量人体医学能力，也不作为 RSI 分数。新的连接拓扑、56 骨近手与腕部支撑会改变构建和动画成本，效率对照必须冻结同一素材、渲染版本、输入及源码。
+`wristContour=continuous-source-v2`、`forearmProfile=angular-junction-v7` 与 `forearmSkin=angular-elbow-v6` 分别标记连续腕臂截面、中心线拟合与腕部渐进蒙皮。新增公开 `wrist-motion` 面板及 `visual-wrist-motion.json`，在冻结模拟、固定 60 Hz 下，对照两种成人外观的手背、掌侧和侧面，循环观察屈伸、侧偏、前臂旋转和握拳。它使用真实居民网格与骨架，不测量人体医学能力，也不作为 RSI 分数。新的连接拓扑、56 骨近手与腕部支撑会改变构建和动画成本，效率对照必须冻结同一素材、渲染版本、输入及源码。
 
-`garmentFit=axillary-flow-v17`、`forearmProfile=rest-detail-surface-v6`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2` 区分衣片纵向弯曲／表面松弛、女性前臂表面、成人脸部比例、额前发根和静止眼睑。它们改变实际网格、缓存创建成本及显示像素；视觉／效率比较须同时冻结这些标识、输入和源码。身体配方为 `lifted-thorax-physique-v27`：女性参考混合为 0.75，男性为 1.0；五类身体支撑共享同一配方哈希。不能仅凭头脸或动作版本判断身体呈现相同。几何固定点、体积、截面与三角形检查用于回归，不是 RSI 得分。
+`garmentFit=axillary-flow-v17`、`forearmProfile=angular-junction-v7`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2` 区分衣片纵向弯曲／表面松弛、女性前臂表面、成人脸部比例、额前发根和静止眼睑。它们改变实际网格、缓存创建成本及显示像素；视觉／效率比较须同时冻结这些标识、输入和源码。身体配方为 `lifted-thorax-physique-v27`：女性参考混合为 0.75，男性为 1.0；五类身体支撑共享同一配方哈希。不能仅凭头脸或动作版本判断身体呈现相同。几何固定点、体积、截面与三角形检查用于回归，不是 RSI 得分。
 
 `bodyPresentation=side-body-flow-v15` 标识成人女性前领、小腿及鞋部的运行时成品拟合。它改变像素与网格构建成本；比较时须与 `bodyFrame=lifted-thorax-physique-v27`、`garmentFit=axillary-flow-v17` 及源码哈希一并冻结。
 
@@ -265,10 +265,12 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `side-body-flow-v15`／`axillary-flow-v17` 改变胸廓缓存中的前侧截面圆顺和衣料收束函数。`CHEST_CURVE_PASS` 是实际衣面等间距截线的二阶深度差回归，补充体积／宽度检查，不表示审美质量、医学曲率或 RSI 能力。视觉和效率比较仍需固定运行时标记、完整源码、资产及采样条件。
 
-`rest-detail-shape-v5`／`rest-detail-surface-v6`／`side-body-flow-v15` 分别标识肘部过渡、男女前臂表面与隐藏肘口拟合，以及肩袖／腰胯圆顺。近景每手从 25 骨增加到 56 骨，公共变换按每只手复用；远景维持静态代理策略。效率比较必须固定实际 LOD、近景人数、动作和缓存状态，不能将形体更新计为加速收益。`ELBOW_SKIN_PASS` 测量实际顶点连接和混合行列式，不是医学肌肉能力或 RSI 评分。
+`angular-elbow-v6`／`angular-junction-v7`／`side-body-flow-v15` 分别标识肘部过渡、男女前臂表面与隐藏肘口拟合，以及肩袖／腰胯圆顺。近景每手从 25 骨增加到 56 骨，公共变换按每只手复用；远景维持静态代理策略。效率比较必须固定实际 LOD、近景人数、动作和缓存状态，不能将形体更新计为加速收益。`ELBOW_SKIN_PASS` 测量实际顶点连接和混合行列式，不是医学肌肉能力或 RSI 评分。
 
-`rest-detail-shape-v5` 在近手增加十二组位置／法线形态样本，`rest-detail-surface-v6` 合并重合位置的法线贡献；`axillary-flow-v17` 与 `side-body-flow-v15` 同时标记女性上臂衣料松量、肩背和腰胯圆顺。缓存按体型／左右手生成，近景增加存储及 GPU 形态混合，远景沿用静态代理。效率实验必须固定近景人数、细节等级、动作、冷／热缓存与源码，重新采样，不把更换形体表示算作程序加速。`FOREARM_NORMAL_PASS` 的角误差只测指定三角面及姿态，既不是医学肌肉验证，也不是 RSI 或审美评分；原始资产哈希未变仍不足以判定视觉输入相同。
+`angular-elbow-v6` 在近手缓存 24 组位置／法线形态样本，`angular-junction-v7` 合并重合位置的法线贡献；`axillary-flow-v17` 与 `side-body-flow-v15` 同时标记女性上臂衣料松量、肩背和腰胯圆顺。缓存按体型／左右手生成，近景增加存储及 GPU 形态混合，远景沿用静态代理。效率实验必须固定近景人数、细节等级、动作、冷／热缓存与源码，重新采样，不把更换形体表示算作程序加速。`FOREARM_NORMAL_PASS` 的角误差只测指定三角面及姿态，既不是医学肌肉验证，也不是 RSI 或审美评分；原始资产哈希未变仍不足以判定视觉输入相同。
 
-`FOREARM_SHAPE_PASS` 测量实际形态混合后曲面的局部变形残差、有向面积及位移；静止细节与固定握持区另有约束。位置修正也会改变像素覆盖和近景混合成本，即使仍为十二组样本，也不能沿用仅法线版本的效率基线。这些几何数据不是 RSI 能力或肌肉力量指标。
+`FOREARM_SHAPE_PASS` 测量实际形态混合后曲面的局部变形残差、有向面积及位移；静止细节与固定握持区另有约束。位置修正也会改变像素覆盖和近景混合成本，样本数与变形域改变后，不能沿用旧版效率基线。这些几何数据不是 RSI 能力或肌肉力量指标。
 
 `upperArmFlex=stable-contour-v3`／`shoulderSkin=stable-sleeve-v12` 标识不含附加体积鼓包的 120 组肩袖基线。`upper-arm-flex` 是直接给定无负载关节角的固定肩位参考，不是握持 IK 或肌肉力学测试；实际游玩动作另由身体动态和工具交互回放验证。相位连续性、相邻顶点步进和游玩待机表面步进属于时序几何回归，不是 RSI 或审美分数。减少形态数量也会改变开销，效率实验须重新冻结源码、缓存及渲染条件。
+
+`angular-elbow-v6`／`angular-junction-v7` 标识可见肘域的角度参数蒙皮及 24 组姿态形态，替代窄轴向坡产生的折叠。`elbow-joint`／`visual-elbow-joint.json` 为公开近景。`ELBOW_SURFACE_METRICS` 同时核对真实索引三角面、有限差分 Jacobian、径向误差及开口连接；`GAMEPLAY_ELBOW_PASS` 另在实际 IK 动作过渡中检查肘域三角面朝向；这些是时序几何输入的有效性条件，不是 RSI 或审美分数。近景缓存和混合成本变化，需要重采相同条件的性能基线，不能把表示方式变化算作程序加速。

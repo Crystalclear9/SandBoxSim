@@ -39,7 +39,7 @@ internal partial class ModelGallery : PanelContainer
         var models=new NatureModels();
         if(Collection=="wrist-motion")BuildWristStudy(models,grid,body.GetChild<Label>(0));
         else if(Collection=="arm-articulation")BuildArmArticulation(models,grid,body.GetChild<Label>(0));
-        else if(Collection=="upper-arm-flex")BuildUpperArmFlex(models,grid,body.GetChild<Label>(0));
+        else if(Collection is "upper-arm-flex" or "elbow-joint")BuildUpperArmFlex(models,grid,body.GetChild<Label>(0));
         else if(Collection=="captured-stretch")BuildCapturedStudy(models,grid,body.GetChild<Label>(0));
         else if(Collection=="shoulder-elevation")BuildElevationStudy(models,grid,body.GetChild<Label>(0));
         else if(Collection=="handling-transitions")BuildInteractionFlow(models,grid,body.GetChild<Label>(0));
@@ -304,7 +304,7 @@ internal partial class ModelGallery : PanelContainer
         if(Collection=="shoulder-elevation")AdvanceElevationStudy((float)delta);
         if(Collection=="captured-stretch")AdvanceCapturedStudy((float)delta);
         if(Collection=="arm-articulation")AdvanceArmArticulation((float)delta);
-        if(Collection=="upper-arm-flex")AdvanceUpperArmFlex((float)delta);
+        if(Collection is "upper-arm-flex" or "elbow-joint")AdvanceUpperArmFlex((float)delta);
         if(Collection=="wrist-motion")AdvanceWristStudy((float)delta);
         foreach(var (rig,camera) in _handViews)
         {

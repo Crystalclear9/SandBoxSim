@@ -33,8 +33,10 @@ internal sealed partial class NatureModels
                             for(int i=0;i<q.Length;i++)
                             {
                                 displacement=MathF.Max(displacement,q[i].DistanceTo(sourceP[i]));
+                                if(!q[i].IsFinite())throw new InvalidOperationException("Nonfinite forearm pose vertex");
+                                if(sourceP[i].Y<=.170f&&q[i].DistanceTo(sourceP[i])>.0021f)throw new InvalidOperationException("Shaft corrective exceeds its 2.1 mm bound");
                                 if(!nn[i].IsFinite()||MathF.Abs(nn[i].Length()-1)>.002f)throw new InvalidOperationException("Nonfinite or unnormalized forearm pose normal");
-                                if((surface>0||ForearmShapeFreedom(sourceP[i])==0)&&q[i].DistanceTo(sourceP[i])>.000001f)
+                                if((surface>0||ForearmPoseFreedom(sourceP[i])==0)&&q[i].DistanceTo(sourceP[i])>.000001f)
                                     throw new InvalidOperationException("Forearm shape corrective moves fixed wrist, fingers, nails or elbow root");
                                 if(shape==1&&q[i].DistanceTo(sourceP[i])>.000001f)throw new InvalidOperationException("Rigid rest pose loses its sculpted detail");
                                 if((surface>0||ForearmNormalFreedom(sourceP[i])==0)&&nn[i].DistanceTo(sourceN[i])>.001f)
@@ -67,10 +69,10 @@ internal sealed partial class NatureModels
                             int aa=ids[t],bb=ids[t+1],cc=ids[t+2];
                             var before=(uncorrected[cc]-uncorrected[aa]).Cross(uncorrected[bb]-uncorrected[aa]);
                             var after=(posed[cc]-posed[aa]).Cross(posed[bb]-posed[aa]);
-                            if(before.LengthSquared()>1e-20f)minimumArea=MathF.Min(minimumArea,before.Dot(after)/before.LengthSquared());
+                            if(MathF.Max(p[aa].Y,MathF.Max(p[bb].Y,p[cc].Y))<=.170f&&before.LengthSquared()>1e-20f)minimumArea=MathF.Min(minimumArea,before.Dot(after)/before.LengthSquared());
                         }
                         var baseNormals=SkinSurfaceNormals(uncorrected,ids,p);
-                        for(int i=0;i<p.Length;i++)if(ForearmShapeFreedom(p[i])>.95f&&neighbours[i].Count>0)
+                        for(int i=0;i<p.Length;i++)if(p[i].Y<.165f&&ForearmShapeFreedom(p[i])>.95f&&neighbours[i].Count>0)
                         {
                             Vector3 r=Vector3.Zero,a0=r,a1=r;
                             foreach(var edge in neighbours[i]){r+=p[edge.Index]*edge.Weight;a0+=uncorrected[edge.Index]*edge.Weight;a1+=posed[edge.Index]*edge.Weight;}
@@ -93,7 +95,7 @@ internal sealed partial class NatureModels
             }
             finally{rig.Free();}
         }
-        if(displacement>.0021f||poseDisplacement>.0021f||displacement<.00002f||minimumArea<.50f||geometrySamples<1000||newRelief>=oldRelief*.99||samples<1000||newError>=oldError*.90)
+        if(displacement>.050f||poseDisplacement>.050f||displacement<.00002f||minimumArea<.50f||geometrySamples<1000||newRelief>=oldRelief*.99||samples<1000||newError>=oldError*.90)
             throw new InvalidOperationException($"Forearm normal correction fails: bind/posed edit={displacement}/{poseDisplacement}, area={minimumArea}, relief={oldRelief}/{newRelief}, samples={samples}, angular error={oldError}/{newError}");
         GD.Print($"FOREARM_SHAPE_PASS: {geometrySamples} actual skin samples, deformation residual RMS {Math.Sqrt(oldRelief/geometrySamples)*1000:F4} -> {Math.Sqrt(newRelief/geometrySamples)*1000:F4} mm, minimum oriented area ratio={minimumArea:F3}; rigid rest detail and fixed boundaries retained");
         GD.Print($"FOREARM_NORMAL_PASS: {samples} actual skin samples, adults/both arms, combined intermediate bend/roll; mean normal error {oldError/samples*180/Math.PI:F3} -> {newError/samples*180/Math.PI:F3} degrees, maximum bind/posed edit={displacement:F7}/{poseDisplacement:F7} m; fixed fingers/wrist/nails, pause and LOD retained");

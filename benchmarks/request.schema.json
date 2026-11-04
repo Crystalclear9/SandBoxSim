@@ -67,7 +67,7 @@
         "social",
         "social-side",
         "shoulder-motion",
-        "handling-transitions", "shoulder-elevation", "captured-stretch", "arm-articulation", "upper-arm-flex", "wrist-motion"
+        "handling-transitions", "shoulder-elevation", "captured-stretch", "arm-articulation", "upper-arm-flex", "elbow-joint", "wrist-motion"
       ],
       "default": "field"
     },

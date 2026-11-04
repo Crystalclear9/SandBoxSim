@@ -127,7 +127,7 @@ internal sealed partial class NatureModels
                                 if(MathF.Abs(points[i].X)>support.Width[^1]*.65f||MathF.Abs(points[i].Z)>support.Depth[^1]*.80f)
                                     throw new InvalidOperationException("Proximal forearm returns to the oversized generic sculpt");
                             }
-                            if(points[i].Y>=.255f)
+                            if(points[i].Y>=.273f)
                             {
                                 var actual=rig.Elbows[side].Basis*(rig.Hands[side].Position+rig.Hands[side].Basis*q);
                                 maxRoot=MathF.Max(maxRoot,actual.DistanceTo(points[i]+rig.Hands[side].Position));samples++;
