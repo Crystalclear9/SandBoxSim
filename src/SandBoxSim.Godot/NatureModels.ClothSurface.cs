@@ -15,9 +15,9 @@ uniform sampler2D fibre_map:filter_linear_mipmap_anisotropic,repeat_enable;
 uniform bool sleeve_details=false;
 uniform bool trouser_details=false;
 uniform bool fitted_bodice=false;
-varying vec3 cloth_position;varying vec3 cloth_normal;
+varying vec3 cloth_position;varying vec3 cloth_normal;varying float torso_weight;
 varying vec3 cloth_axis_x;varying vec3 cloth_axis_y;varying vec3 cloth_axis_z;
-void vertex(){ cloth_position = VERTEX;cloth_normal=NORMAL;
+void vertex(){ torso_weight=UV2.x < -1.1 ? 1.0 : 0.0;cloth_position = VERTEX;cloth_normal=NORMAL;
 cloth_axis_x=MODELVIEW_NORMAL_MATRIX[0];cloth_axis_y=MODELVIEW_NORMAL_MATRIX[1];cloth_axis_z=MODELVIEW_NORMAL_MATRIX[2]; }
 void fragment(){
 vec2 weave=vec2(cloth_position.x+cloth_position.z,cloth_position.y)*920.0;
@@ -35,7 +35,7 @@ float thread=dot(cx*w.x+cy*w.y+cz*w.z,vec3(.2126,.7152,.0722));
 // The pinned linen map has mean linear luminance .3962. Normalize in the
 // same colour space as texture sampling, retaining its photographed weave.
 float textile=clamp(1.0+(thread-.3962)*2.0/.3962,.65,1.25);
-ALBEDO=figure_colour(dye.rgb,UV2,fitted_bodice)*.68*(textile+yarn*.018+twill*.008+slub+dye_variation);
+ALBEDO=figure_colour(dye.rgb,UV,fitted_bodice,torso_weight)*.68*(textile+yarn*.018+twill*.008+slub+dye_variation);
 // On the actual sewn sleeve UV2 stores rest-space metric distances. These
 // subdued stitch lines follow skinning, rather than floating above the cloth.
 // Filter in metric space so they disappear cleanly at world-camera distances.

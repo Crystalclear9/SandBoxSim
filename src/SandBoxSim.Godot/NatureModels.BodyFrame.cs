@@ -293,6 +293,14 @@ internal sealed partial class NatureModels
                 for(int i=0;i<points.Length;i++)if(pattern[i].X<0)
                     pattern[i]=new(-2-MathF.Atan2(points[i].Z,points[i].X)/Mathf.Tau,points[i].Y);
                 arrays[(int)Mesh.ArrayType.TexUV2]=pattern;
+                // The geometric pattern's negative torso sentinel is not a
+                // continuous texture coordinate across an armhole triangle.
+                // Keep rig coordinates in UV2; a separate rest chart in UV
+                // supplies continuous torso colour coordinates on both panels.
+                var colourChart=new Vector2[points.Length];
+                for(int i=0;i<points.Length;i++)colourChart[i]=new(-2-MathF.Atan2(points[i].Z,points[i].X)/Mathf.Tau,points[i].Y);
+                if(source.SurfaceGetMaterial(s)!=_fittedDistantMaterial&&source.SurfaceGetMaterial(s)!=_distantColorMaterial)
+                    arrays[(int)Mesh.ArrayType.TexUV]=colourChart;
             }
             arrays[(int)Mesh.ArrayType.Vertex]=points;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.Tangent]=default(Variant);
             result.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);result.SurfaceSetMaterial(s,source.SurfaceGetMaterial(s));

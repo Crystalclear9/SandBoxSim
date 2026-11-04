@@ -119,6 +119,7 @@ internal sealed partial class NatureModels
                 throw new InvalidOperationException("Skinned garment lost sleeve seam material");
             var finalArrays=resident.BodySkin.Mesh.SurfaceGetArrays(0);
             var finalDetails=finalArrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
+            var colourChart=finalArrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();
             var sourceDetails=ContinuousGarment().SurfaceGetArrays(0)[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
             var coordinates=new HashSet<Vector2>(sourceDetails);
             int detailed=0;
@@ -126,6 +127,10 @@ internal sealed partial class NatureModels
             for(int i=0;i<finalDetails.Length;i++)
             {
                 var value=finalDetails[i];
+                if(colourChart.Length!=finalPoints.Length||!colourChart[i].IsFinite()
+                    ||MathF.Abs(colourChart[i].Y-finalPoints[i].Y)>.00001f
+                    ||MathF.Abs(Mathf.Wrap((-colourChart[i].X-2)*Mathf.Tau-MathF.Atan2(finalPoints[i].Z,finalPoints[i].X),-MathF.PI,MathF.PI))>.0001f)
+                    throw new InvalidOperationException("Rendered cloth loses its independent continuous colour chart");
                 if(!value.IsFinite()||(value.X>=0&&!coordinates.Contains(value)))throw new InvalidOperationException("Merged garment alters metric sleeve seam coordinates");
                 if(value.X<0&&(value.X< -2.501f||value.X> -1.499f||value.Y<.70f||value.Y>1.40f))
                     throw new InvalidOperationException("Fitted garment loses its metric torso seam chart");

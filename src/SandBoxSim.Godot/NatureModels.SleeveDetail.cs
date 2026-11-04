@@ -6,7 +6,7 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
-    private sealed record SleeveDetail(Vector3[] Detail,int[] Anchors);
+    private sealed record SleeveDetail(Vector3[] Detail,Vector3[] Rest,Basis[] Frames);
 
     // Rest-detail deformation smoothing, baked into pose shapes. Unlike a
     // normal-only ridge filter, this transports the original sewn detail in
@@ -39,7 +39,7 @@ internal sealed partial class NatureModels
     private static SleeveDetail BindSleeveDetail(Vector3[] source,int[] triangles,(int Index,float Weight)[][] patches,float[] free)
     {
         var rest=RelaxSleeve(source,patches,free);var normals=ClothSurfaceNormals(rest,triangles);
-        var detail=new Vector3[source.Length];var anchors=new int[source.Length];
+        var detail=new Vector3[source.Length];var frames=new Basis[source.Length];
         for(int i=0;i<source.Length;i++)
         {
             int anchor=i;float longest=0;
@@ -48,10 +48,10 @@ internal sealed partial class NatureModels
                 var edge=rest[j]-rest[i];float length=(edge-normals[i]*edge.Dot(normals[i])).LengthSquared();
                 if(length>longest){longest=length;anchor=j;}
             }
-            anchors[i]=anchor;var frame=SleeveDetailFrame(normals[i],rest[anchor]-rest[i]);
-            detail[i]=frame.Inverse()*(source[i]-rest[i]);
+            var frame=SleeveDetailFrame(normals[i],rest[anchor]-rest[i]);
+            frames[i]=frame;detail[i]=frame.Transposed()*(source[i]-rest[i]);
         }
-        return new(detail,anchors);
+        return new(detail,rest,frames);
     }
     private static Vector3[] RestoreSleeveDetail(Vector3[] posed,int[] triangles,(int Index,float Weight)[][] patches,float[] free,SleeveDetail binding)
     {
@@ -59,7 +59,18 @@ internal sealed partial class NatureModels
         var result=(Vector3[])posed.Clone();
         for(int i=0;i<posed.Length;i++)if(free[i]>0)
         {
-            var frame=SleeveDetailFrame(normals[i],smooth[binding.Anchors[i]]-smooth[i]);
+            // Fit the tangent frame to the whole geodesic patch. One selected
+            // edge can become almost normal to the surface during a twist;
+            // normalizing that projection amplifies noise or flips its sign.
+            var u=Vector3.Zero;var v=Vector3.Zero;var restFrame=binding.Frames[i];
+            foreach(var (j,w) in patches[i])
+            {
+                var restEdge=binding.Rest[j]-binding.Rest[i];var posedEdge=smooth[j]-smooth[i];
+                u+=posedEdge*(restEdge.Dot(restFrame.X)*w);v+=posedEdge*(restEdge.Dot(restFrame.Y)*w);
+            }
+            var tangent=u+v.Cross(normals[i]);tangent-=normals[i]*tangent.Dot(normals[i]);
+            if(tangent.LengthSquared()<1e-20f)continue; // A collapsed patch has no reliable detail frame.
+            var frame=SleeveDetailFrame(normals[i],tangent);
             var candidate=smooth[i]+frame*binding.Detail[i];var change=candidate-posed[i];
             // A smoothing pass must not replace the body fit or pull the
             // armhole away from its anatomical support. Existing bind/edge

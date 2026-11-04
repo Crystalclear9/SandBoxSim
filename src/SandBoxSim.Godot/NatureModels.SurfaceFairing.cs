@@ -49,10 +49,10 @@ internal sealed partial class NatureModels
         }
         if(roundRelief)
         {
-            // Backtrack the whole edit if a tiny sewn triangle loses a usable
-            // area-weighted vertex normal. Keep the original normal threshold;
-            // independently repairing faces can still leave a near-zero sum.
-            for(int attempt=0;attempt<16;attempt++)
+            // Tiny cap triangles can cancel a vertex's area normal. Limit
+            // only their connected one-ring, not the complete garment: one
+            // ill-conditioned seam used to undo the broad shoulder fairing.
+            for(int attempt=0;attempt<48;attempt++)
             {
                 var area=new Vector3[points.Length];
                 for(int t=0;t<triangles.Length;t+=3)
@@ -60,10 +60,21 @@ internal sealed partial class NatureModels
                     int a=triangles[t],b=triangles[t+1],c=triangles[t+2];
                     var n=(points[c]-points[a]).Cross(points[b]-points[a]);area[a]+=n;area[b]+=n;area[c]+=n;
                 }
-                bool valid=true;for(int i=0;i<area.Length;i++)if(neighbours[i].Count>0&&area[i].LengthSquared()<1e-16f){valid=false;break;}
-                if(valid)break;
-                if(attempt==15)throw new InvalidOperationException("Rounded cloth loses its source normal area");
-                for(int i=0;i<points.Length;i++)points[i]=rest[i].Lerp(points[i],.5f);
+                var affected=new HashSet<int>();
+                for(int i=0;i<area.Length;i++)if(neighbours[i].Count>0&&area[i].LengthSquared()<1e-16f)
+                {
+                    affected.Add(i);foreach(int j in neighbours[i])affected.Add(j);
+                }
+                // Local backtracking must retain orientation on its boundary.
+                for(int t=0;t<triangles.Length;t+=3)
+                {
+                    int a=triangles[t],b=triangles[t+1],c=triangles[t+2];
+                    var before=(rest[c]-rest[a]).Cross(rest[b]-rest[a]);var after=(points[c]-points[a]).Cross(points[b]-points[a]);
+                    if(before.LengthSquared()>1e-20f&&before.Dot(after)<=0){affected.Add(a);affected.Add(b);affected.Add(c);}
+                }
+                if(affected.Count==0)break;
+                if(attempt==47)throw new InvalidOperationException("Rounded cloth loses its source normal area or face orientation");
+                foreach(int i in affected)points[i]=rest[i].Lerp(points[i],.5f);
             }
         }
         for(int i=0;i<points.Length;i++)
@@ -231,12 +242,21 @@ internal sealed partial class NatureModels
         {
             Array.Copy(cached.Points,points,points.Length);Array.Copy(cached.Normals,normals,normals.Length);return;
         }
-        var freedom=new float[points.Length];
+        var rest=(Vector3[])points.Clone();var freedom=new float[points.Length];
         for(int i=0;i<points.Length;i++)freedom[i]=Mathf.SmoothStep(.055f,.095f,points[i].Y)*(1-Mathf.SmoothStep(.225f,.250f,points[i].Y));
         FairRestSurface(points,indices,freedom,frame==1?.0008f:.00065f);
-        var updated=SkinSurfaceNormals(points,indices,points);
-        for(int i=0;i<points.Length;i++)if(freedom[i]>0)normals[i]=updated[i];
+        TransportFairingNormals(rest,points,normals,indices,freedom);
         _forearmFairings[source]=((Vector3[])points.Clone(),(Vector3[])normals.Clone());
+    }
+    private static void TransportFairingNormals(Vector3[] rest,Vector3[] points,Vector3[] normals,int[] indices,float[] freedom)
+    {
+        var before=SkinSurfaceNormals(rest,indices,rest);var after=SkinSurfaceNormals(points,indices,rest);
+        for(int i=0;i<points.Length;i++)if(freedom[i]>0&&before[i].LengthSquared()>.5f&&after[i].LengthSquared()>.5f)
+        {
+            var transported=new Quaternion(before[i],after[i])*normals[i];
+            normals[i]=normals[i].Slerp(transported,freedom[i]).Normalized();
+            if(!normals[i].IsFinite())throw new InvalidOperationException("Nonfinite transported rest normal");
+        }
     }
     private static Vector3[] FairingNormals(Vector3[] points,int[] triangles,float[] active)
     {
@@ -269,6 +289,27 @@ internal sealed partial class NatureModels
         for(int y=2;y<width-2;y++)for(int x=2;x<width-2;x++){float z=points[y*width+x].Z;low=MathF.Min(low,z);high=MathF.Max(high,z);}
         for(int i=0;i<points.Length;i++)if(freedom[i]==0&&points[i]!=rest[i])throw new InvalidOperationException("Cloth fairing moves a sewn border");
         if(high-low>=.0032f)throw new InvalidOperationException("Cloth fairing retains the source corrugation");
+        // Authored normal detail must survive the rest operation; a binary
+        // replacement creates a shading ring at the fairing mask boundary.
+        var flat=new Vector3[width*width];var artist=new Vector3[flat.Length];var mask=new float[flat.Length];
+        var rotate=new Basis(Vector3.Right,.35f);var rotated=new Vector3[flat.Length];
+        var authored=new Vector3(.15f,.10f,1).Normalized();
+        for(int y=0;y<width;y++)for(int x=0;x<width;x++)
+        {
+            int i=y*width+x;flat[i]=new(x*.006f,y*.006f,0);rotated[i]=rotate*flat[i];artist[i]=authored;mask[i]=x/(float)(width-1);
+        }
+        // The fixture winding above faces -Z, so both geometric normals
+        // rotate consistently; retain the independent artist-normal offset.
+        TransportFairingNormals(flat,rotated,artist,triangles.ToArray(),mask);
+        float normalError=0;
+        for(int i=0;i<artist.Length;i++)
+        {
+            var expected=authored.Slerp(rotate*authored,mask[i]).Normalized();
+            normalError=MathF.Max(normalError,artist[i].DistanceTo(expected));
+            if(!artist[i].IsFinite()||MathF.Abs(artist[i].Length()-1)>.0001f)throw new InvalidOperationException("Invalid transported artist normal");
+        }
+        if(normalError>.0001f)throw new InvalidOperationException("Rest fairing loses authored normal detail or the continuous mask");
+        GD.Print($"REST_NORMAL_FLOW_PASS: authored relief retained, continuous mask and pinned normals, maximum fixture error={normalError:F7}");
         GD.Print($"REST_SURFACE_PASS: constrained cloth fixture, relief range=.00400 -> {high-low:F5} m, exact borders, bounded displacement and outward triangles");
         _restFairingValidated=true;
     }
