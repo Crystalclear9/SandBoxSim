@@ -43,12 +43,16 @@ internal sealed partial class NatureModels
         new Vector3(.045f,-.270f,.043f),new(.048f,-.266f,.046f),new(.049f,-.260f,.047f),
         new(.047f,-.254f,.045f),new(.048f,-.248f,.046f),new(.047f,-.241f,.045f),
         new(.0435f,-.242f,.0415f),new(.0435f,-.266f,.0415f)});
-    private Mesh TurnedBootRim()=>FabricFacing("turned-boot-rim",new[]{
-        new Vector3(.050f,-.047f,.047f),new(.053f,-.039f,.050f),new(.051f,-.028f,.048f),
-        new(.047f,-.024f,.044f),new(.045f,-.028f,.042f),new(.046f,-.042f,.043f)});
+    private Mesh TurnedBootRim()
+    {
+        float drop=FittedFigure?.016f:0;
+        return FabricFacing("turned-boot-rim:"+FittedFigure,new[]{
+            new Vector3(.050f,-.047f-drop,.047f),new(.053f,-.039f-drop,.050f),new(.051f,-.028f-drop,.048f),
+            new(.047f,-.024f-drop,.044f),new(.045f,-.028f-drop,.042f),new(.046f,-.042f-drop,.043f)});
+    }
     private Mesh TurnedNeckline()
     {
-        string key="sewn-neck-binding:"+_garmentCut;
+        string key="sewn-neck-binding:"+_garmentCut+":"+FittedFigure;
         if(_meshes.TryGetValue(key,out var cached))return cached;
         // A narrow folded facing follows the actual shirt opening. The old
         // independently sized elliptical ring overhung the front and sides.
@@ -63,7 +67,7 @@ internal sealed partial class NatureModels
             float angle=-MathF.PI/2+.045f+(MathF.Tau-.090f)*column/sides;
             var seam=GarmentPoint(1,angle);var radial=new Vector3(MathF.Cos(angle),0,MathF.Sin(angle));
             var profile=section[row%section.Length];
-            if(FittedFigure)profile*=.72f;
+            if(FittedFigure)profile*=new Vector2(1.25f,.53f);
             return seam+radial*profile.X+Vector3.Up*profile.Y;
         }
         for(int row=0;row<section.Length;row++)for(int col=0;col<sides;col++)

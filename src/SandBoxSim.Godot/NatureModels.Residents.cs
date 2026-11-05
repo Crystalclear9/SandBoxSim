@@ -246,7 +246,7 @@ internal sealed partial class NatureModels
             var leg = rig.Legs[i] = new Node3D { Name = i == 0 ? "LeftLeg" : "RightLeg", Position = new Vector3(side * .10f, .67f, 0) }; rig.AddChild(leg);
             if(child)Sculpt(leg,Loft("resident-trouser:"+BodyFrame,TrouserProfile()),Vector3.Zero,ResidentMaterial("#645e53"),new(MathF.PI/2,0,0));
             var knee = rig.Knees[i] = new Node3D { Name = "Knee", Position = new Vector3(0, -.31f, 0) }; leg.AddChild(knee);
-            Sculpt(knee,Loft("resident-boot",new[]{new Vector4(0,0,.047f,.044f),new(.035f,0,.052f,.048f),new(.085f,-.002f,.057f,.052f),new(.15f,-.005f,.052f,.048f),new(.21f,-.010f,.045f,.045f),new(.25f,-.015f,.043f,.044f),new(.28f,-.012f,.047f,.048f)}),Vector3.Zero,LeatherSurface("#514237"),new(MathF.PI/2,0,0));
+            Sculpt(knee,ResidentBootShaft(),Vector3.Zero,LeatherSurface("#514237"),new(MathF.PI/2,0,0));
             Sculpt(knee,TurnedBootRim(),Vector3.Zero,LeatherSurface("#514237"));
             var foot=rig.Feet[i]=new Node3D {Name="Foot",Position=new(0,-.295f,-.04f)};knee.AddChild(foot);
             Sculpt(foot,BootLast(false),Vector3.Zero,LeatherSurface("#423a32"));

@@ -177,6 +177,8 @@
 
 女性头部挂点下移 26 毫米，颈根抵消旧附加延展，并向上连续回收最多 2 毫米，颈根覆盖保持连续。前领中央修形项上限为 12 毫米，领缘、门襟和衣身共用映射，不增加独立颈柱。`NECK_COVERAGE_PASS` 按实际头部尺度核对覆盖，面部与儿童的原有区域定义独立保留。
 
+女性折领按体型与款式分别缓存。前领开口向颈部收拢，两侧略放宽，后领放低，锁骨到肩头的鞍形过渡同时用于静止支撑面和抬臂修正。衣摆与裤腰之间使用平滑的外层包络，取裤腰顶部附近的有效截面向上渐隐，降低两层支撑交接处的硬折。[Blender Studio 衣装姿态设计](https://studio.blender.org/training/realistic-human-research/clothing-shapes/) · [TailorNet 的形体与服装版型研究](https://openaccess.thecvf.com/content_CVPR_2020/html/Patel_TailorNet_Predicting_Clothing_in_3D_as_a_Function_of_Human_CVPR_2020_paper.html)
+
 [女性三款衣装实机配图](../images/resident-female-wardrobe.png)展示相同身份的正面与背面。女性三款衣装可通过 [公开衣装场景](../../benchmarks/scenarios/visual-female-wardrobe.json) 复现，同镜头比较正面与背面，完整身体仍看 `visual-body-frames`／`visual-body-motion`。结构调研参考 [Proko 的前胸形体常见错误](https://www.proko.com/course-lesson/common-mistakes-of-drawing-breasts)和 [Blender Studio 角色制作流程](https://studio.blender.org/training/realistic-human-research/)；当前是穿衣曲面与有限姿态修正，不是新的裸身扫描或软组织仿真。
 
 腰侧和骨盆的结构还参考 [Proko 腰侧形体](https://www.proko.com/course-lesson/how-to-draw-obliques-form)与[骨盆结构](https://www.proko.com/course-lesson/anatomy-of-the-pelvis)：区分骨性边界和柔和表面，先检查正侧背面的连续体积。角色采用自然匀称的美术方向，不用固定腰臀比或局部尺寸定义吸引力。
@@ -799,7 +801,7 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 
 `FRAME_READABILITY_PASS` 测量当前两套成人设计穿衣后的正面骨盆宽度差（至少 14 毫米）与穿衣后的胸廓峰值（高度至少 1.145 米、相对腰部投影至少 8 毫米），同时保留来源间隙、近远景和三款衣装的原有检查。阈值仅用于当前角色轮廓回归，防止衣装拟合抹去设计差异，不作为人体分类或审美分数。实际游戏画面的辨识仍结合正常视距、光照与动作观察。
 
-`bodyPresentation=continuous-drape-v29` 将女性成人的小腿靴筒与鞋面配合整体体态处理：膝下 45 毫米内保留裤靴接口，向下渐变至横向 92%、深度 95%；整套鞋面、鞋底、鞋舌、缝线与鞋带共同收至原宽度的 90%，脚长和脚底高度保持。关节节点及踝部偏移不缩放。位置与法线使用同一映射，按来源网格和空间变换缓存，近远景在合并前共用成品。
+成年女性的靴筒采用独立版型，靴口降低约 23 毫米，脚踝相对上段小腿逐渐收窄。鞋面、鞋底、鞋舌、缝线和鞋带共用同一鞋楦映射，前掌缩短 14 毫米，保留鞋跟与鞋底高度。步态使用同一映射后的鞋底接触曲线。`FEMALE_BOOT_FIT_PASS` 核对实际两只靴底的接触点和靴口与裤腿的重叠。位置与法线使用同一映射，近远景在合并前共用成品。
 
 `garmentFit=continuous-drape-v31` 将女性前领中央的修形项最多下移 12 毫米，领缘、门襟与衣身通过共同 `FramePoint` 映射贴合；肩袖、身体来源及头脸颈部保持各自原有来源。前领中央向两侧和上胸连续退出修形，避免独立移动领圈。儿童不应用成人小腿与鞋部修形。
 

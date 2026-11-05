@@ -118,7 +118,19 @@ internal sealed partial class NatureModels
             target+=GarmentDrapeDetail(panelHeight,angle);
             // The shirt is outside the actual finished trousers, not only
             // outside the unclothed source. This includes a coat's lower skirt.
-            if(panelHeight<.94f)target=MathF.Max(target,TrouserLayerRadius(panelHeight,angle));
+            if(feminine&&panelHeight<.969f)
+            {
+                // The top of the trousers ends below the natural waist.
+                // Carry that last fitted contour into the shirt and taper
+                // its support above the waistband over a finite distance.
+                float trousers=TrouserLayerRadius(MathF.Min(panelHeight,.935f),angle);
+                target=Mathf.Lerp(BlendOuterLayer(target,trousers),target,Mathf.SmoothStep(.94f,.969f,panelHeight));
+            }
+            else if(panelHeight<.94f)
+            {
+                float trousers=TrouserLayerRadius(panelHeight,angle);
+                target=MathF.Max(target,trousers);
+            }
             // Clothing, belts and mounts must share the actual sewn reference.
             // Mixing it with the analytic construction cage buries accessories
             // when the torso's retopology changes its radial section.
@@ -157,9 +169,33 @@ internal sealed partial class NatureModels
                 *Mathf.SmoothStep(1.21f,1.28f,point.Y);
             result.Y-=.014f*opening*(1-.35f*Mathf.SmoothStep(0,.06f,point.Z));
             result.Z+=.006f*opening*frontNeck;
+            result=FemaleCollarEase(result,point);
             result=SoftShoulderPoint(result);
         }
         return result;
+    }
+
+    private static float BlendOuterLayer(float cloth,float trousers)
+    {
+        // Follow the outer support with a shared tangent at the hip. The
+        // blend adds at most 2 mm, only where the supports nearly coincide.
+        float overlap=MathF.Max(0,.008f-MathF.Abs(cloth-trousers));
+        return MathF.Max(cloth,trousers)+overlap*overlap/.032f;
+    }
+
+    private static Vector3 FemaleCollarEase(Vector3 fitted,Vector3 construction)
+    {
+        float x=MathF.Abs(construction.X);
+        float opening=Mathf.SmoothStep(1.270f,1.335f,construction.Y)*(1-Mathf.SmoothStep(.080f,.128f,x));
+        float rear=Mathf.SmoothStep(-.045f,.045f,construction.Z);
+        float side=Mathf.SmoothStep(.012f,.060f,x);
+        float front=1-Mathf.SmoothStep(-.076f,-.032f,construction.Z);
+        fitted.X+=MathF.Sign(construction.X)*.007f*opening*side;
+        fitted.Y-=opening*(.004f+.009f*rear+.004f*side);
+        // Close the forward flare of the old stand collar. The broad fade
+        // leaves room for the throat and keeps the placket tangent continuous.
+        fitted.Z+=.020f*opening*front*(1-Mathf.SmoothStep(.032f,.075f,x));
+        return fitted;
     }
     private Mesh FrameMesh(Mesh source,Transform3D space,bool tailored=false)
     {
@@ -395,9 +431,12 @@ internal sealed partial class NatureModels
         ValidateNaturalWaistBelts();
         int previous=_faceVariant;
         var male=Resident(17,false,SandBoxSim.Core.Agents.JobType.Gatherer);
+        var maleBinding=TurnedNeckline();
         var female=Resident(42,false,SandBoxSim.Core.Agents.JobType.Gatherer);
         try
         {
+            if(maleBinding==TurnedNeckline())throw new InvalidOperationException("Female folded collar reuses the male binding mesh");
+            ValidateFemaleBootFit(male,female);
             ValidateAdultContourSections(male,female);
             foreach(var rig in new[]{male,female})
             {
