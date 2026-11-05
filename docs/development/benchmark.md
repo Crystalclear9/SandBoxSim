@@ -176,6 +176,8 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `residentLocomotion=captured-gait-weight-transfer-v8` 与 `animalLocomotion=ground-distance-v1` 记录居民启停和持工具步行、鹿狼的距离驱动步态。动画时序和画面发生变化，相关视觉评测需采集新基线。
 
+`taskReference=cmu-turn-and-dig-v1` 与 `toolContacts=furrow-edge-and-work-stance-v1` 记录捕捉转身、耕作重心和工具姿态。`CULTIVATION_PASS` 使用实际锄刃坐标检查平面与斜面上的拉土、抬刃和胸廓幅度。`WORLD_CULTIVATION_PASS` 在实际地形上通过世界更新检查锄刃贴地距离与显示层的状态纯度。
+
 `RESIDENT_STATIONS_PASS` 在同一逻辑格放入三位居民，检查显示间距、邻居离开后的站位稳定性与模拟状态摘要。
 
 `bodyFrame=reference-contour-physique-v31` 标识胸廓、短上衣、实际骨盆／臀腿裤装及衣袖排除区的当前造型；`visual-body-frames` 的正／侧／背对照与 `visual-body-motion` 的动作对照使用实际居民网格。髋部截面取上衣及裤装的可见外包络，不能把衣摆宽度当作人体围度，也不是性别分类或 RSI 分数。

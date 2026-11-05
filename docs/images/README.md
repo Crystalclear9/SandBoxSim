@@ -44,7 +44,7 @@
 
 `resident-forearm-frames.png` 为公开 `visual-forearm-frames.json` 第 90 帧的小臂对照，正交尺寸 0.46，1600×1000，使用实际分离观察网格，不代表游戏中存在开放切口。该图于 2026-11-04 使用 `lifted-thorax-physique-v27` 重采，保留原雕刻与腕口，按同配方的肘腕截面约束肌腹；头脸采用 `balanced-adult-v3`，原始来源拓扑独立保留。旧 `resident-forearm-detail.png` 仅保留来源拓扑专题，不表示当前肌腹截面；身体轮廓以本次全身与前臂配对图为准。
 
-除本节开头说明的当前肩袖与生活侧面专题外，工具／作业／生活的既有动作演示保留 `limbCoordination=hinge-carry-v4` 和 `shoulderMotion=source-fitted-reach-v3`，保留工具握柄的实际绑定方向，协调上臂屈伸轴与肘部平面；生活动作另使用 `socialMotion=mouth-facing-v4`，按实际食指三段骨骼末端估计指腹位置，控制靠近嘴部与返回的轨迹，不表示已经实现食物、杯具或嘴唇接触物理。`resident-tool-motion.gif` 为单人手锤取出、作业与返回低位携带；`resident-work-effort.gif` 为同工具、不同成人外观及疲劳状态的四格对照；`resident-social-motion.gif` 展示交谈、递交与进食，`resident-social-side-motion.gif` 为同组生活动作的侧面。旧工具与生活正面两段为 1280×800，当前生活侧面与作业状态对照为 1280×1000，均为原生客户端的 102 帧，固定 60 Hz、冻结模拟，在逻辑帧 30–434 每四步采样；受单次最多 32 张采样限制，每段分为四次等配置回放后按逻辑帧拼接，总时长 6.8 秒，没有重绘或插帧，不是帧率测试或人体实测。侧面相机相对 (0, 1, 0) 为 (4, 0.06, 1)，交谈正面为 (0.12, 0.06, 4)，两段交谈图正交尺寸均为 1.6。手锤全身演示使用正交尺寸 1.85、目标 (0, 0.83, 0)、相对位置 (0, 0.07, 4)。`resident-social.png` 为生活动作逻辑帧 150。公开复现配置为 `visual-motion.json`、`visual-work-effort.json`、`visual-social.json` 与 `visual-social-side.json`；完整 102 帧演示采用上述分批采样。
+除本节开头说明的当前肩袖与生活侧面专题外，工具／作业／生活的既有动作演示保留 `limbCoordination=hinge-carry-v4` 和 `shoulderMotion=source-fitted-reach-v3`，保留工具握柄的实际绑定方向，协调上臂屈伸轴与肘部平面；生活动作另使用 `socialMotion=mouth-facing-v4`，按实际食指三段骨骼末端估计指腹位置，控制靠近嘴部与返回的轨迹，不表示已经实现食物、杯具或嘴唇接触物理。`resident-work-effort.gif` 为同工具、不同成人外观及疲劳状态的四格对照；`resident-social-motion.gif` 展示交谈、递交与进食，`resident-social-side-motion.gif` 为同组生活动作的侧面。旧生活正面演示为 1280×800，当前生活侧面与作业状态对照为 1280×1000，均为原生客户端的 102 帧，固定 60 Hz、冻结模拟，在逻辑帧 30–434 每四步采样；受单次最多 32 张采样限制，每段分为四次等配置回放后按逻辑帧拼接，总时长 6.8 秒，没有重绘或插帧，不是帧率测试或人体实测。侧面相机相对 (0, 1, 0) 为 (4, 0.06, 1)，交谈正面为 (0.12, 0.06, 4)，两段交谈图正交尺寸均为 1.6。`resident-social.png` 为生活动作逻辑帧 150。公开复现配置为 `visual-work-effort.json`、`visual-social.json` 与 `visual-social-side.json`；完整 102 帧演示采用上述分批采样。
 
 人物观察窗与配件专题保留 `relaxed-yoke-v7` 采样：胸腹松量连续衔接，后肩拼接线由贴面短针脚表示；头部整体上移 18 毫米。既有衣装、全身体型与较早动作图保留 `faired-panel-linen-v15` 和 `adult-proportions-v13`。动物、建筑与环境专题保留各自采样。
 
@@ -86,7 +86,7 @@
 | `ecology-detail.png` | 扫描树木、蕨类、岩石与程序草本、灌木；`ecology-details` |
 | `bramble-detail.png` | 同一野果灌丛的叶片、连枝果梗与聚合果实；原生独立视口近景 |
 | `model-surface-detail.png` | 衣料、靴子、动物与建筑近景；`model-details` |
-| `resident-tool-motion.gif` | 当前手锤取出、作业与返回携带动作；`motion` 的 102 帧原生采样，覆盖 6.8 秒循环 |
+| `resident-tool-motion.gif` | 锄地与锤击的准备换脚、作业及收势。来自 `actions` 的耕作与施工两格，从侧前方采样，固定 60 Hz 后每三帧取一帧。136 张原生画面以 840×350、20 帧/秒并排编码 |
 | `resident-social-motion.gif` | 交谈、递交与进食；`social` 的 102 帧原生采样，覆盖 6.8 秒循环 |
 | `resident-social-side-motion.gif` | 同一组生活动作的侧面，便于观察肘部前后深度；镜头参数见本节开头 |
 | `terrain-modern.png`、`terrain-closeup.png` | 普通世界与 `--view=near` 的地形、植被和水岸 |

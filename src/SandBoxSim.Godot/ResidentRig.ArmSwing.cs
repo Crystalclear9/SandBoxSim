@@ -8,7 +8,7 @@ internal partial class ResidentRig
     private readonly Vector3[] _freeShoulder=new Vector3[2],_freeShoulderVelocity=new Vector3[2];
     private readonly Vector3[] _freeForearm=new Vector3[2],_freeForearmVelocity=new Vector3[2];
 
-    private void PoseFreeArm(int side,float dt,float identityPhase,float idleWeight,float hipShift)
+    private void PoseFreeArm(int side,float dt,float identityPhase,float idleWeight,float hipShift,float turnSwing)
     {
         float mirror=side==0?1:-1;
         // Opposite arm and leg, with a small forearm lag. Elbow flexion grows
@@ -28,7 +28,7 @@ internal partial class ResidentRig
         var forearmTarget=new Vector3(.17f+.057f*Flow+follow*_activity*speedScale,
             mirror*(1.40f+(.037f+.032f*Flow)*lag*_activity),0);
         float drift=MathF.Sin(_phase*.37f+identityPhase+side*1.24f)*idleWeight;
-        shoulderTarget.X+=.034f*drift;
+        shoulderTarget.X+=.034f*drift+turnSwing;
         shoulderTarget.Z-=.82f*hipShift*idleWeight;
         forearmTarget.X+=.027f*drift;
         // Filter free-motion targets independently of solved interaction joints.

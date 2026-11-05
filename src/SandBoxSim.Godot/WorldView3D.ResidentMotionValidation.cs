@@ -84,7 +84,32 @@ public partial class WorldView3D
         if(preparationFrames<6||departureTransfer<.015f||departureRootDrift>.001f||departureFootDrift>.010f)
             throw new InvalidOperationException($"Resident first step: frames={preparationFrames}, pelvis={departureTransfer}, root drift={departureRootDrift}, foot drift={departureFootDrift}");
         GD.Print($"RESIDENT_DEPARTURE_PASS: preparation={preparationFrames} frames, lateral pelvis transfer={departureTransfer:F3} m, root/feet drift={departureRootDrift:F4}/{departureFootDrift:F4} m before the first step");
+        ValidateWorldCultivation(rig,slot,tiles.Goal,delta);
         ValidateResidentStations(tiles.Goal,tiles.Corner,delta);
+    }
+
+    private void ValidateWorldCultivation(ResidentRig rig,int slot,Vector2I tile,float delta)
+    {
+        var sim=Game.Sim;
+        sim.Agents.SetPosition(slot,tile.X,tile.Y);
+        sim.Agents.SetTarget(slot,tile.X,tile.Y);
+        sim.Agents.SetAction(slot,ActionKind.Farm,ActionPhase.Executing);
+        string before=sim.StateDigestString();
+        int contacts=0;
+        float first=float.PositiveInfinity,last=float.NegativeInfinity;
+        for(int frame=0;frame<420;frame++)
+        {
+            AnimateActors(delta);
+            if(frame<160||!rig.GestureEngaged(ActionKind.Farm))continue;
+            var edge=rig.ToolMesh.GlobalTransform*ResidentRig.HoeCuttingEdge;
+            if(MathF.Abs(edge.Y-GroundHeight(edge.X,edge.Z))>.035f)continue;
+            contacts++;
+            float depth=(rig.Transform.AffineInverse()*edge).Z;
+            first=MathF.Min(first,depth);last=MathF.Max(last,depth);
+        }
+        if(contacts<15||last-first<.14f||sim.StateDigestString()!=before)
+            throw new InvalidOperationException($"World cultivation lacks supported soil contact: frames={contacts}, path={last-first}");
+        GD.Print($"WORLD_CULTIVATION_PASS: {contacts} frames near the actual terrain, {last-first:F3} m visible pull, unchanged simulation");
     }
 
     private void ValidateResidentStations(Vector2I tile,Vector2I departure,float delta)

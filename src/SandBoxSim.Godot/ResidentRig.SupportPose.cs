@@ -6,8 +6,27 @@ namespace SandBoxSim.Client;
 internal partial class ResidentRig
 {
     private Vector3 _supportAngle,_supportVelocity;
+    private float _workStance;
+    internal bool WorkStanceSettled=>_workStance>=1;
+    private bool UsesStagedStance=>CurrentTool is ResidentTool.Hammer or ResidentTool.Hoe;
     internal const float NeutralHipHalfWidth=.085f;
     internal float HipHalfWidth=NeutralHipHalfWidth,ArmRestClearance;
+    private void AdvanceWorkStance(float delta,bool wanted)
+        =>_workStance=Mathf.MoveToward(_workStance,wanted?1:0,delta/(wanted?.43f:.32f));
+
+    private void PoseWorkFoot(int side,float walking)
+    {
+        if(_workStance<=0||walking>=.999f)return;
+        float phase=Math.Clamp((_workStance-(side==0?0:.51f))/(side==0?.51f:.49f),0,1);
+        float shift=ReachEase(phase);
+        float rise=MathF.Sin(phase*MathF.PI);
+        float mirror=side==0?-1:1;
+        var target=RestFootCenter(side)+new Vector3(mirror*.028f*shift,.032f*rise*rise,
+            (side==0?-.126f:.058f)*shift);
+        var foot=DisplayedFoot(side);
+        var sole=new Basis(Vector3.Up,mirror*.14f*shift);
+        SolveLegTo(side,foot.Origin.Lerp(target,1-walking),new Basis(foot.Basis.GetRotationQuaternion().Slerp(sole.GetRotationQuaternion(),1-walking)));
+    }
     private Vector3 WorkSupport(float delta,bool active,float weight)
     {
         // Integrate only this cheap support filter at close-up cadence when a
@@ -29,6 +48,7 @@ internal partial class ResidentRig
         float reach=ThighLength+ShinLength;
         float vertical=ThighLength*MathF.Cos(thigh)+lower*MathF.Cos(shinAngle);
         float plantedReach=MathF.Sqrt(MathF.Max(0,reach*reach-hipX*hipX-hipZ*hipZ));
-        return new(hipX,MathF.Min(vertical,plantedReach)-reach,hipZ);
+        float stanceDrop=(.032f-.008f*Flow)*ReachEase(_workStance)*weight;
+        return new(hipX,MathF.Min(vertical,plantedReach)-reach-stanceDrop,hipZ);
     }
 }

@@ -16,7 +16,7 @@ internal partial class ResidentRig
     internal float RelativeWorkLoad=>Math.Clamp((CurrentTool switch
     {ResidentTool.Pick=>1.25f,ResidentTool.Axe=>1.10f,ResidentTool.Hoe=>.90f,ResidentTool.Spear=>.85f,_=>.75f})/
         MathF.Max(.65f,WorkCapacity)*(1+.20f*_workFatigue+.15f*(1-_workHealth)),.60f,1.70f);
-    private float WorkPeriod=>(CurrentTool==ResidentTool.Hoe?1.55f:CurrentTool==ResidentTool.Pick?1.35f:CurrentTool==ResidentTool.Axe?1.25f:1.05f)*
+    private float WorkPeriod=>(CurrentTool==ResidentTool.Hoe?2.05f:CurrentTool==ResidentTool.Pick?1.35f:CurrentTool==ResidentTool.Axe?1.25f:1.05f)*
         (1+.18f*(RelativeWorkLoad-1)+.20f*_workFatigue);
     internal float WorkLift(float phase)
     {

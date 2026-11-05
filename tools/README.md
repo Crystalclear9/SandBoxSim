@@ -77,3 +77,5 @@ SDK 与 Godot 工具链由参数或环境变量覆盖，不提交本机绝对路
 修改工具时同步对应协议、样例、文档和检查。文档整理不要求重跑耗时模拟或改动判分器；源码与测量范围改变后须执行实际回归和重新采样。
 
 人物来源重建另包括 [export_shoulder_surface.py](export_shoulder_surface.py)（来源人体四边网格、原权重和 A 姿势的三维肩部表面）与 [export_cmu_arm_motion.py](export_cmu_arm_motion.py)（CMU 143_30 的身体相对臂部方向、手腕和胸廓）；两者只用标准库，固定检查输入哈希，普通构建使用已提交导出数据。`python -B -m unittest discover -s tools -p test_motion_sources.py` 检查格式、来源重建和运行数据契约。来源、许可及完整重建参数见[人物素材](../docs/development/human-assets.md)。
+
+[export_cmu_task_motion.py](export_cmu_task_motion.py) 从原始 47_01 与 80_05 导出折返和挖掘时序，复用相同的 ASF/AMC 解析与输入哈希检查。

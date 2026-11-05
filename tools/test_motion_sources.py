@@ -7,12 +7,14 @@ import unittest
 from export_cmu_arm_motion import export,parse_asf,parse_amc,forward
 from export_cmu_actions import export as export_actions
 from export_cmu_gait import export as export_gait
+from export_cmu_task_motion import export as export_tasks
 from export_shoulder_surface import export as export_shoulder,bind_shoulder
 
 ROOT=Path(__file__).resolve().parents[1]
 MOTION=ROOT/'src/SandBoxSim.Godot/assets/motions/cmu-143-30-stretch.json'
 GAIT=MOTION.with_name('cmu-walk-cycles.json')
 ACTIONS=MOTION.with_name('cmu-action-phrases.json')
+TASKS=MOTION.with_name('cmu-task-phrases.json')
 HUMAN=ROOT/'src/SandBoxSim.Godot/assets/models/human'
 
 
@@ -82,6 +84,12 @@ class MotionSourceTests(unittest.TestCase):
     def test_action_reexport_matches(self):
         data=export_actions(ROOT/'.tools/sources/mocap')
         self.assertEqual(json.dumps(data,separators=(',',':'))+'\n',ACTIONS.read_text(encoding='utf-8'))
+
+    @unittest.skipUnless(all((ROOT/f'.tools/sources/mocap/cmu-{trial[:2]}/{trial}.amc').exists() for trial in ('47_01','80_05')),
+                         'Optional original turn and digging captures')
+    def test_task_reexport_matches(self):
+        data=export_tasks(ROOT/'.tools/sources/mocap')
+        self.assertEqual(json.dumps(data,separators=(',',':'))+'\n',TASKS.read_text(encoding='utf-8'))
 
     def test_shoulder_surface_is_weighted_anatomy_with_valid_topology(self):
         for sex in ('male','female'):

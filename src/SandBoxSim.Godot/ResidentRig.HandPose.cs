@@ -147,20 +147,16 @@ internal partial class ResidentRig
     {
         float lift=WorkLift(phase);
         var recovery=StrokeFollowThrough(phase);
-        if(kind==ResidentTool.Hoe)return (new Vector3(.10f,.84f+lift*.16f,-.27f+lift*.06f)+recovery*.5f,Basis.FromEuler(new Vector3(.25f+lift*.55f,0,.50f)));
         if(kind==ResidentTool.Spear)return (new(.10f,.99f,-.24f-lift*.12f),Basis.FromEuler(new Vector3(-1.1f,0,.45f)));
         float prepare=WorkPreparation;
         float arc=phase<prepare?MathF.Sin(MathF.PI*ReachEase(phase/prepare)):0;
-        // Tool X becomes the hand's long axis through the quarter-turn grip.
-        // Put that axis in the forward stroke plane, rather than demanding a
-        // sideways forearm and forcing the elbow out to accommodate the shaft.
+        // Tool X is the hand's long axis through the quarter-turn grip.
+        // Keep the wrist oriented with the forearm throughout the stroke.
         var rotation=kind==ResidentTool.Hammer
             ?new Basis(Vector3.Right,.15f+lift*.90f)*new Basis(Vector3.Up,-1.35f)*new Basis(Vector3.Right,MathF.PI)
             :Basis.FromEuler(new Vector3(.55f+lift*1.05f,arc*.08f,.45f));
-        // The hammer head points back toward the character at the apex.
-        // Keep its hand path in front of the chest instead of drawing the
-        // head inward toward the cheek while lifting it.
-        float depth=-.30f+lift*(kind==ResidentTool.Hammer?-.10f:.10f);
+        // Leave room for the head of the hammer ahead of the cheek at the apex.
+        float depth=kind==ResidentTool.Hammer?-.30f-.13f*lift:-.30f+.10f*lift;
         // A hammer preparation raises the whole arm into a working arc.
         // Keeping the wrist below shoulder height throughout instead made
         // this a forearm-only motion, with the head passing by the cheek.

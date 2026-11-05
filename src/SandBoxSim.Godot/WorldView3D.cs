@@ -461,6 +461,8 @@ public partial class WorldView3D : MapView
             ["architecture"]="inset-joinery-v13",["garmentMaterial"]="quiet-linen-v17",["upperArmFlex"]="stable-contour-v3",["shoulderSkin"]="reference-figure-v25",["shoulderMotion"]="source-clavicle-v11",["motionReference"]="cmu-143-30-v1",["shoulderSurface"]="authored-bind-surface-v3",["forearmSkin"]="continuous-elbow-v9",["sleeveFairing"]="rest-detail-v2",["workPose"]="raised-hammer-v1",["reachMotion"]="palm-trajectory-v2",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
             ["animalPresentation"]="articulated-paws-v12",["animalLocomotion"]="ground-distance-v1",["residentSurface"]="linear-skin-v9",["workEffort"]="overlapping-weight-transfer-v7",["toolMotion"]="socket-relative-stow-v5",["bodySupport"]="planted-spatial-v3",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="captured-reach-recovery-v10",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="captured-conversation-v10",["waterSurface"]="shore-activity-v7",["wristContour"]="continuous-source-v2",
             ["hairline"]="framed-source-root-v2",["garmentFit"]="continuous-drape-v31",["reedPanicle"]="connected-axis-v1",["bodyPresentation"]="continuous-drape-v29",["bodyFrame"]="reference-contour-physique-v31",["neckContour"]="relaxed-neckline-v5",["faceContour"]="balanced-adult-v3",["forearmProfile"]="curvature-flow-v9",["residentLocomotion"]="captured-gait-weight-transfer-v8",["gaitReference"]=ResidentGaitCapture.Version,["actionReference"]=ResidentActionCapture.Version,["armSwing"]="captured-arm-timing-v7",["motionStyle"]="captured-standing-and-stride-v7",["limbCoordination"]="hinge-carry-v4" };
+        quality["taskReference"]=ResidentActionCapture.TaskVersion;
+        quality["toolContacts"]="furrow-edge-and-work-stance-v1";
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
         return quality;
@@ -958,6 +960,13 @@ public partial class WorldView3D : MapView
             node.ShowCargo(cargoAmount>.01f,cargoKind);
             var attention=hasInterest?interestPoint-rendered:Vector3.Zero;
             node.Attend(node.Basis.Inverse()*attention);
+            if(!paused&&action==ActionKind.Farm)
+            {
+                var far=node.Transform*new Vector3(-.045f,0,ResidentRig.FurrowStart);
+                var near=node.Transform*new Vector3(0,0,ResidentRig.FurrowEnd);
+                node.SetFurrowSurface((GroundHeight(far.X,far.Z)-rendered.Y)/node.Scale.Y,
+                    (GroundHeight(near.X,near.Z)-rendered.Y)/node.Scale.Y);
+            }
             node.SetWorkCondition(sim.Agents.FatigueOf(slot),sim.Agents.HealthOf(slot));
             node.PresentAction(_poseSchedule.Consume(pair.Key),action,phase,paused,slot);
             if(distanceSquared<18*18)

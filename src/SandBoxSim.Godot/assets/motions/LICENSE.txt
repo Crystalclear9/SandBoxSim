@@ -28,3 +28,10 @@ Sources: https://mocap.cs.cmu.edu/search.php?subjectnumber=2
 The same terms apply to cmu-action-phrases.json, which contains selected,
 normalized bend, recovery, gesture and drinking channels. The game drives
 character translation, fingertip contact and tool/prop ownership separately.
+
+CMU Graphics Lab Motion Capture Database — motions 47_01 and 80_05
+Sources: https://mocap.cs.cmu.edu/search.php?subjectnumber=47
+         https://mocap.cs.cmu.edu/search.php?subjectnumber=80
+The same terms apply to cmu-task-phrases.json. It contains head, torso, arm
+and weight-transfer timing derived from a walk-turn and two digging phrases.
+SandBoxSim supplies foot placement, tool paths and contact with the terrain.

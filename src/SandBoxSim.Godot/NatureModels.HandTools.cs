@@ -147,14 +147,14 @@ ROUGHNESS=.64;SPECULAR=.24;
         string key="hand-tool:"+kind;
         if(_meshes.TryGetValue(key,out var mesh))return mesh;
         var root=new Node3D();
-        float length=kind==ResidentTool.Hoe?.61f:kind==ResidentTool.Spear?1.38f:.39f;
-        float center=kind==ResidentTool.Spear?.28f:-.11f;
+        float length=kind==ResidentTool.Hoe?.99f:kind==ResidentTool.Spear?1.38f:.39f;
+        float center=kind==ResidentTool.Spear?.28f:kind==ResidentTool.Hoe?-.31f:-.11f;
         // Taper outside the grip while keeping its 24 mm contact diameter.
         Sculpt(root,Loft("tool-handle:"+kind,new[]{
             new Vector4(-length/2,0,.010f,.010f),new(-length*.36f,0,.012f,.012f),
             new(length*.20f,0,.012f,.012f),new(length/2,0,.0105f,.0105f)},24),
             new(0,center,0),HandleMaterial(),new(-MathF.PI/2,0,0));
-        float socket=kind==ResidentTool.Spear?.97f:kind==ResidentTool.Hoe?-.385f:-.27f;
+        float socket=kind==ResidentTool.Spear?.97f:kind==ResidentTool.Hoe?-.775f:-.27f;
         var ferrule=Detail(root,"cylinder",new(0,socket,0),new(.031f,.045f,.031f),"#68716f");ferrule.MaterialOverride=Material(11);
         foreach(float side in new[]{-1f,1f})Detail(root,"sphere",new(side*.016f,socket,0),new(.004f,.006f,.006f),"#98968a");
         if(kind==ResidentTool.Hammer)
@@ -175,7 +175,7 @@ ROUGHNESS=.64;SPECULAR=.24;
             Sculpt(root,Loft("axe-blade",new[]{new Vector4(-.055f,0,.022f,.025f),new(0,0,.020f,.030f),new(.07f,-.010f,.010f,.065f),new(.10f,-.010f,.003f,.071f)}),new(0,-.27f,0),ResidentMaterial("#68716f"),new(0,MathF.PI/2,0));
         }
         else if(kind==ResidentTool.Hoe)
-            Sculpt(root,HoeBlade(),new(0,-.415f,-.045f),ResidentMaterial("#68716f"),new(.25f,0,0));
+            Sculpt(root,HoeBlade(),ResidentRig.HoeBladeMount,ResidentMaterial("#68716f"),new(.25f,0,0));
         else Detail(root,"cone",new(0,1.035f,0),new(.046f,.15f,.029f),"#7d8581");
         MergeResidentParts(root,key);
         mesh=root.GetChild<MeshInstance3D>(0).Mesh;_meshes[key]=mesh;root.Free();return mesh;

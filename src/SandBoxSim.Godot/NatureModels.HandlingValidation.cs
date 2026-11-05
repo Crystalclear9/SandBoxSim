@@ -165,7 +165,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateHandling()
     {
-        ValidateForearmSurfaces();ValidateHandLaterality();ValidateSocialGesture();ValidatePresentationCadence();ValidateLocomotion();ValidateWalkingArms();ValidateReachTrajectories();ValidateEffortPresentation();ValidateMotionContinuity();ValidateWorkSupport();ValidateCarrying();ValidateAnimalContacts();ValidateBareTransitions();
+        ValidateCultivation();ValidateForearmSurfaces();ValidateHandLaterality();ValidateSocialGesture();ValidatePresentationCadence();ValidateLocomotion();ValidateWalkingArms();ValidateReachTrajectories();ValidateEffortPresentation();ValidateMotionContinuity();ValidateWorkSupport();ValidateCarrying();ValidateAnimalContacts();ValidateBareTransitions();
         foreach(var action in new[]{ActionKind.GatherWood,ActionKind.GatherIron,ActionKind.Farm,ActionKind.BuildHouse})
         {
             var rig=Resident(17,false,JobType.Gatherer);
@@ -242,7 +242,7 @@ internal sealed partial class NatureModels
                     var tool=InTorso(rig.ToolMesh,rig.Torso);
                     var contact=left*new Vector3(0,-.035f,-.0286f);
                     var target=tool*new Vector3(0,action==ActionKind.Farm?.15f:.065f,0);
-                    if(contact.DistanceTo(target)>.012f)throw new InvalidOperationException("Support hand misses moving shaft: "+action+" "+contact.DistanceTo(target));
+                    if(contact.DistanceTo(target)>.012f)throw new InvalidOperationException($"Support hand misses moving shaft: {action}/{frame}, gap={contact.DistanceTo(target)}, wrist={Mathf.RadToDeg(rig.Hands[0].Basis.Y.AngleTo(Vector3.Up))}");
                     if(rig.Hands[0].Basis.Y.AngleTo(Vector3.Up)>Mathf.DegToRad(48))throw new InvalidOperationException("Support wrist folds: "+action+" "+Mathf.RadToDeg(rig.Hands[0].Basis.Y.AngleTo(Vector3.Up)));
                 }
                 if(rig.ToolHeld&&frame is 90 or 120 or 150)

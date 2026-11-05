@@ -5,9 +5,8 @@ namespace SandBoxSim.Client;
 
 internal partial class ResidentRig
 {
-    private const float PivotDuration=.48f;
     private readonly Transform3D[] _pivotFeet=new Transform3D[2];
-    private float _pivotProgress,_pivotWeight,_pivotStartYaw,_pivotGoalYaw;
+    private float _pivotProgress,_pivotWeight,_pivotStartYaw,_pivotGoalYaw,_pivotDuration;
     private int _pivotLead;
     internal bool IsPivoting=>_pivotWeight>.001f;
 
@@ -22,7 +21,8 @@ internal partial class ResidentRig
                 return yaw+Math.Clamp(turn,-delta*1.5f,delta*1.5f);
             }
             _pivotStartYaw=yaw;
-            _pivotGoalYaw=yaw+Math.Clamp(turn,-.86f,.86f);
+            _pivotGoalYaw=yaw+Math.Clamp(turn,-1.19f,1.19f);
+            _pivotDuration=.43f+.16f*MathF.Abs(_pivotGoalYaw-yaw)/1.19f;
             _pivotLead=turn>0?0:1;
             _pivotWeight=1;
             _pivotProgress=0;
@@ -35,24 +35,28 @@ internal partial class ResidentRig
             }
             ResetGroundContacts();
         }
-        _pivotProgress=Mathf.MoveToward(_pivotProgress,1,delta/PivotDuration);
-        return Mathf.Lerp(_pivotStartYaw,_pivotGoalYaw,ReachEase(_pivotProgress/.55f));
+        _pivotProgress=Mathf.MoveToward(_pivotProgress,1,delta/_pivotDuration);
+        return Mathf.Lerp(_pivotStartYaw,_pivotGoalYaw,ReachEase((_pivotProgress-.08f)/.72f));
     }
 
     internal void CancelPivot()=>_pivotWeight=0;
     internal void FadePivot(float delta)=>_pivotWeight=Mathf.MoveToward(_pivotWeight,0,delta/.16f);
 
+    private float PivotAmplitude=>Math.Clamp((_pivotGoalYaw-_pivotStartYaw)/.92f,-1,1)*_pivotWeight;
+
+    private ResidentActionCapture.TurnPose PivotPhrase()=>IsPivoting?ResidentActionCapture.Shared.Turn(_pivotProgress):default;
+
     private Vector3 PivotSupport()
     {
-        float load=MathF.Max(0,MathF.Sin(MathF.PI*_pivotProgress))*_pivotWeight;
+        float load=ReachEase(_pivotProgress/.21f)*(1-ReachEase((_pivotProgress-.68f)/.32f))*_pivotWeight;
         float side=_pivotLead==0?1:-1;
-        return new(side*.028f*load*MathF.Cos(MathF.PI*_pivotProgress),-.024f*load,0);
+        return new(side*.037f*load*(1-1.8f*ReachEase((_pivotProgress-.36f)/.32f)),-.026f*load,-.014f*load);
     }
 
     private void PosePivotLeg(int side)
     {
         if(!IsPivoting)return;
-        float step=side==_pivotLead?_pivotProgress/.55f:(_pivotProgress-.55f)/.45f;
+        float step=side==_pivotLead?(_pivotProgress-.09f)/.49f:(_pivotProgress-.58f)/.42f;
         step=Math.Clamp(step,0,1);
         float progress=ReachEase(step);
         var target=new Basis(Vector3.Up,_pivotGoalYaw);

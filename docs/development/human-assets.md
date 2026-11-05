@@ -237,6 +237,12 @@ python -B tools/export_cmu_gait.py --source .tools/sources/mocap --output src/Sa
 
 [cmu-action-phrases.json](../../src/SandBoxSim.Godot/assets/motions/cmu-action-phrases.json) 采用 CMU 的 [02_06 弯身与起身](https://mocap.cs.cmu.edu/search.php?subjectnumber=2)、[18_08 交谈](https://mocap.cs.cmu.edu/search.php?subjectnumber=18) 与 [13_09 饮水](https://mocap.cs.cmu.edu/search.php?subjectnumber=13)，使用上述同一许可。每条片段保留 65 个时间采样及原始 120 Hz 帧段。拾取截取两次下探、取物及起身，交谈截取单手和双手各一段，饮水重定时保留接近、抬头及放下顺序。导出保留各部位时序与相对行程，并对首尾姿态去漂移。文件记录原始哈希，身体位移、握持与目标接触由游戏解算。
 
+[cmu-task-phrases.json](../../src/SandBoxSim.Godot/assets/motions/cmu-task-phrases.json) 使用 CMU 的 47_01 步行折返（120 Hz）和 80_05 挖掘（60 Hz）。转身片段保留头胸相对朝向和双臂在胸廓坐标中的相对位移。两段挖掘分别对齐下探、拉回和提起的关键帧，将胸廓、头部与重心运动重定时到游戏的锄地周期。各源文件的 SHA-256、帧段及原始采样率随成品记录，适用同一 [CMU 许可](../../src/SandBoxSim.Godot/assets/motions/LICENSE.txt)。[47_01](https://mocap.cs.cmu.edu/search.php?subjectnumber=47) · [80_05](https://mocap.cs.cmu.edu/search.php?subjectnumber=80)
+
+```powershell
+python -B tools/export_cmu_task_motion.py --source .tools/sources/mocap --output src/SandBoxSim.Godot/assets/motions/cmu-task-phrases.json
+```
+
 原始 ASF/AMC 可放在 `.tools/sources/mocap/cmu-02`、`cmu-18` 和 `cmu-13`。用 [export_cmu_actions.py](../../tools/export_cmu_actions.py) 重建。
 
 ```powershell
