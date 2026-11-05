@@ -143,7 +143,7 @@
 
 `resident-female-neck.png`／`resident-female-inspector.png` 来自公开 `visual-female-portrait.json` 的第 90／130 帧：1600×1000、固定 60 Hz、零模拟步进、8 名居民，使用稳定身份 4294967299 的实际成年女性，复用人物名录选择，再展开观察窗并切换面部／全身。它展示当前世界人物和真实界面，非图册替身；生成结果与命令轨迹同时核对实际身份及观察纯度。
 
-`resident-style-walk.png`／GIF 来自 `overlapping-motion-phrases-v5` 的 `visual-locomotion`。上排为男性外观，下排为女性外观，三列分别为同速步行与转身、负重、持锤。静态图取第 180 帧。GIF 每四帧采样一次，记录逻辑帧 24–380，覆盖起步、稳定步态、转身和停步。
+`resident-style-walk.png`／GIF 来自 `captured-stride-and-overlap-v6` 和 `gaitReference=cmu-contact-curves-v1` 的 `visual-locomotion`。上排为男性外观，下排为女性外观，三列分别为同速步行与转身、负重、持锤。静态图取第 180 帧。GIF 每四帧采样一次，记录逻辑帧 24–380，覆盖起步、稳定步态、转身和停步。
 
 `resident-style-social.png`／GIF 来自 `overlapping-motion-phrases-v5` 的 `visual-social`。上排对照胸廓先行的单手强调与双手成组表达，下排展示分享和进食。`resident-style-work.png`／GIF 保留 `staged-motion-phrases-v4` 的 `visual-work-effort`，从侧前方展示正常与疲劳状态下的外侧蓄力和身前提锤。两组均采样逻辑帧 120–297，每三帧取一帧。
 

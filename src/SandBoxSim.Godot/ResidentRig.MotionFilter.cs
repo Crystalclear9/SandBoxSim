@@ -8,11 +8,13 @@ internal partial class ResidentRig
     private Vector3 _toolPosition,_toolVelocity,_toolAngularVelocity,_torsoVelocity,_headVelocity;
     private Quaternion _toolRotation=Quaternion.Identity;
     private bool _toolFilterReady;
+    private bool _toolFollowingSocket;
+    private Transform3D _toolSocket,_toolSocketMotion;
     private void FeedbackConstrainedTool()
     {
         if(!_toolFilterReady||_poseStep<=0)return;
         var actual=Arms[1].Transform*Elbows[1].Transform*Hands[1].Transform*Grip!.Transform;
-        var previous=_previousHands[1]*Grip.Transform;
+        var previous=_toolSocketMotion*(_previousHands[1]*Grip.Transform);
         _toolPosition=actual.Origin;_toolRotation=actual.Basis.GetRotationQuaternion();
         _toolVelocity=(actual.Origin-previous.Origin)/_poseStep;
         _toolAngularVelocity=RotationVelocity(previous.Basis,actual.Basis,_poseStep);
@@ -39,7 +41,22 @@ internal partial class ResidentRig
             var displayed=_previousHands[1]*Grip!.Transform;
             _toolPosition=displayed.Origin;_toolRotation=displayed.Basis.GetRotationQuaternion();
             _toolVelocity=_toolAngularVelocity=Vector3.Zero;_toolFilterReady=true;
+            _toolFollowingSocket=false;
         }
+        // Once the return reaches the belt, measure convergence relative to
+        // that moving socket. The pelvis can keep walking while the hand
+        // releases the tool, without chasing yesterday's holster position.
+        bool followSocket=_returning&&_draw==0;
+        var socket=Holster.Transform;
+        _toolSocketMotion=followSocket&&_toolFollowingSocket?socket*_toolSocket.Inverse():Transform3D.Identity;
+        if(followSocket&&_toolFollowingSocket)
+        {
+            _toolPosition=_toolSocketMotion*_toolPosition;
+            _toolRotation=(_toolSocketMotion.Basis.GetRotationQuaternion()*_toolRotation).Normalized();
+            _toolVelocity=_toolSocketMotion.Basis*_toolVelocity;
+            _toolAngularVelocity=_toolSocketMotion.Basis*_toolAngularVelocity;
+        }
+        _toolSocket=socket;_toolFollowingSocket=followSocket;
         DampMotion(ref _toolPosition,ref _toolVelocity,target,.040f,_poseStep);
         var previous=_toolRotation;
         _toolRotation=DampRotation(previous,ref _toolAngularVelocity,basis.GetRotationQuaternion(),_returning?.020f:.060f,_poseStep);

@@ -99,7 +99,7 @@ internal partial class ModelGallery : PanelContainer
         }
         else if(Collection=="locomotion")
         {
-            grid.Columns=3;body.GetChild<Label>(0).Text="同速 1.05 米/秒 · 肩髋配合与落脚";
+            grid.Columns=3;body.GetChild<Label>(0).Text="同速 1.05 米/秒 · 真人捕捉步态与停步";
             for(int frame=0;frame<2;frame++)for(int state=0;state<3;state++)
             {
                 var rig=models.Resident(frame==0?17:55,false,state==2?JobType.Builder:JobType.None);

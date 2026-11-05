@@ -10,10 +10,18 @@ internal partial class ResidentRig
     internal float GaitPelvisYaw=.030f,GaitPelvisRoll=.012f,GaitArmSwing=.26f,GaitIndividual;
     internal Vector3[] BootSoleCurve=Array.Empty<Vector3>();
     private float _gaitCycle,_gaitSpeed,_locomotionSpeed=1.05f,_turnDemand,_gaitTurn,_sampleDistance,_sampleTime;
-    private bool _worldLocomotion;
+    private bool _worldLocomotion,_groundContactSpeed;
     private float _approachDistance;
-    internal bool InteractionSettled=>!_worldLocomotion||(_approachDistance<.035f&&_gaitSpeed<.15f);
+    internal bool InteractionSettled=>!_worldLocomotion||(_approachDistance<.035f&&_gaitSpeed<.15f&&!_finishingStep);
     private Vector3 _gaitOffset;
+    private Vector3 _capturedChest,_capturedPelvis;
+    private readonly Transform3D[] _arrivalFeet=new Transform3D[2];
+    private readonly Vector3[] _groundContact=new Vector3[2];
+    private readonly bool[] _groundContactValid=new bool[2];
+    private bool _finishingStep,_arrivalArmed;
+    private int _landingFirst;
+    private float _arrivalTime,_arrivalWeight;
+    private const float LandingDuration=.22f;
     internal Basis GaitPelvisBasis=Basis.Identity;
     internal float GaitCycle=>_gaitCycle;
     internal float GaitSpeed=>_gaitSpeed;
@@ -36,6 +44,12 @@ internal partial class ResidentRig
         // high instantaneous speed. Only reject a large spatial jump, or its
         // first frames would incorrectly suppress the starting step.
         float sample=float.IsFinite(speed)&&distance<1.25f?Math.Clamp(speed,0,MaximumGaitSpeed):0;
+        _groundContactSpeed=float.IsFinite(speed)&&speed<=MaximumGaitSpeed+.08f;
+        if(distance>=1.25f)
+        {
+            _arrivalArmed=_finishingStep=false;_arrivalWeight=0;
+            ResetGroundContacts();
+        }
         _sampleDistance+=sample*delta;_sampleTime+=delta;
         _approachDistance=float.IsFinite(remainingDistance)?MathF.Max(0,remainingDistance):0;
         _turnDemand=float.IsFinite(headingError)?Math.Clamp(headingError,-.65f,.65f):0;
@@ -48,7 +62,7 @@ internal partial class ResidentRig
         _sampleDistance=_sampleTime=0;
     }
 
-    private void AdvanceLocomotion(float dt,bool moving)
+    private void AdvanceLocomotion(float dt,bool moving,bool canFinishStep)
     {
         // The rendered root can still approach its tile after the simulation
         // enters Executing. Keep stepping until that actual movement settles.
@@ -57,6 +71,7 @@ internal partial class ResidentRig
         // exact exponential integral so accumulated distant updates keep time.
         float rate=wanted>_gaitSpeed?5:9,decay=MathF.Exp(-rate*dt),before=_gaitSpeed;
         _gaitSpeed=wanted+(before-wanted)*decay;
+        AdvanceArrival(dt,wanted,canFinishStep);
         float travel=wanted*dt+(before-wanted)*(1-decay)/rate;
         // At cruising speed, use the observed root travel for contact timing.
         // The filtered speed still eases the first step and the final settle.
@@ -67,13 +82,22 @@ internal partial class ResidentRig
         if(!moving&&_gaitSpeed<.00001f){_gaitSpeed=0;_activity=0;}
         _gaitTurn=Mathf.Lerp(_gaitTurn,moving?_turnDemand:0,1-MathF.Exp(-dt*7));
         float a=_gaitCycle*MathF.Tau,load=_hasCargo?.72f:1;
+        if(_activity<=0)
+        {
+            _gaitOffset=_capturedChest=_capturedPelvis=Vector3.Zero;
+            GaitPelvisBasis=Basis.Identity;
+            return;
+        }
+        (_capturedPelvis,_capturedChest)=ResidentGaitCapture.Shared.Body(_gaitCycle,Flow);
         // The body moves towards the supporting leg just after the weight
         // handoff. The flowing stride carries more motion in the pelvis.
         float support=MathF.Sin(a-(GaitSupport-.5f)*MathF.PI);
         _gaitOffset=new(-support*(.019f+.012f*Flow)*_activity*load,
             WalkingHipHeight()*_activity,0);
-        GaitPelvisBasis=Basis.FromEuler(new(0,-MathF.Cos(a-.18f*Flow)*GaitPelvisYaw*(.76f+.76f*Flow)*_activity*load,
-            -support*GaitPelvisRoll*(.78f+1.08f*Flow)*_activity));
+        float yaw=Mathf.Lerp(-MathF.Cos(a-.18f*Flow),_capturedPelvis.X,.67f);
+        float roll=Mathf.Lerp(-support,_capturedPelvis.Y,.62f);
+        GaitPelvisBasis=Basis.FromEuler(new(0,yaw*GaitPelvisYaw*(.76f+.76f*Flow)*_activity*load,
+            roll*GaitPelvisRoll*(.78f+1.25f*Flow)*_activity));
     }
 
     private (float Z,float Lift,float Pitch) WalkingFootPath(int side)
@@ -100,7 +124,8 @@ internal partial class ResidentRig
             progress/=1-edge;
             if(u>.5f)progress=1-progress;
             z=span+2*span/support*((1-support)*u-progress);
-            lift=(.079f+.025f*Flow)*arc*arc*(1+(.18f-.40f*Flow)*MathF.Cos(MathF.PI*u));
+            float capture=ResidentGaitCapture.Shared.Lift(side,u,Flow)*ReachEase(u/.15f)*ReachEase((1-u)/.13f);
+            lift=(.079f+.025f*Flow)*Mathf.Lerp(arc*arc,capture,.64f);
             pitch=Mathf.Lerp(-(.22f+.075f*Flow),.16f-.045f*Flow,ReachEase(u));
         }
         return (z,lift,pitch);
@@ -125,7 +150,8 @@ internal partial class ResidentRig
         }
         // A quiet double-support arc avoids transmitting the swing foot's
         // rapid clearance lift into the whole torso. Reach remains a ceiling.
-        float arc=-.030f-(.030f-.009f*Flow)*MathF.Cos(_gaitCycle*MathF.Tau*2);
+        float rise=Mathf.Lerp(-MathF.Cos(_gaitCycle*MathF.Tau*2),_capturedPelvis.Z,.42f);
+        float arc=-.030f+(.026f-.008f*Flow)*rise;
         return BlendReachCeiling(arc,height-HipHeight-.002f);
     }
 
@@ -150,7 +176,11 @@ internal partial class ResidentRig
     {
         if(weight<=.000001f)return;
         var (z,lift,pitch)=WalkingFootPath(side);
-        float x=(side==0?-1:1)*GaitFootHalfWidth;
+        float sign=side==0?-1:1;
+        float phase=Mathf.PosMod(_gaitCycle+side*.5f,1),support=GaitSupport;
+        float steering=phase<support?1-Smooth(phase/support):Smooth((phase-support)/(1-support));
+        float stepTurn=_gaitTurn*steering*weight;
+        float x=sign*MathF.Max(.038f,GaitFootHalfWidth+sign*stepTurn*.085f);
         // Rotate about the actual boot sole's contact, not the ankle in air.
         pitch*=weight;
         float ankleHeight=.065f,sin=MathF.Sin(pitch),cos=MathF.Cos(pitch);
@@ -160,7 +190,77 @@ internal partial class ResidentRig
         ankle.Y=MathF.Max(ankle.Y,ankleHeight+lift*weight);
         // Blend the target before IK. Blending solved knee angles instead
         // shortens the chain's vertical reach and pushes slow feet underground.
-        SolveLegTo(side,ankle,new Basis(Vector3.Right,pitch));
+        SolveLegTo(side,ankle,new Basis(Vector3.Up,stepTurn*.44f)*new Basis(Vector3.Right,pitch));
+    }
+
+    private Transform3D DisplayedFoot(int side)=>Legs[side].Transform*Knees[side].Transform*Feet[side].Transform;
+
+    private void AdvanceArrival(float delta,float wanted,bool canFinishStep)
+    {
+        if(!_worldLocomotion)return;
+        if(wanted>.35f)_arrivalArmed=true;
+        if(!canFinishStep||wanted>.22f||_approachDistance>.07f)
+        {
+            _finishingStep=false;
+            _arrivalWeight=Mathf.MoveToward(_arrivalWeight,0,delta/.14f);
+            return;
+        }
+        if(_arrivalArmed&&!_finishingStep&&wanted<.135f)
+        {
+            _arrivalArmed=false;
+            _arrivalFeet[0]=DisplayedFoot(0);
+            _arrivalFeet[1]=DisplayedFoot(1);
+            _landingFirst=_arrivalFeet[0].Origin.Y>=_arrivalFeet[1].Origin.Y?0:1;
+            _arrivalWeight=1;_arrivalTime=0;_finishingStep=true;
+        }
+        if(!_finishingStep)return;
+        _arrivalTime=MathF.Min(2*LandingDuration,_arrivalTime+delta);
+        if(_arrivalTime>=2*LandingDuration)
+        {
+            _finishingStep=false;
+            _arrivalWeight=0;
+        }
+    }
+
+    private void PoseArrivalLeg(int side)
+    {
+        if(_arrivalWeight<=0)return;
+        float u=Math.Clamp(_arrivalTime/LandingDuration-(side==_landingFirst?0:1),0,1);
+        var rest=RestFootCenter(side);
+        var from=_arrivalFeet[side];
+        float clearance=Math.Clamp((rest-from.Origin).Length()*.40f,0,.045f);
+        float arc=MathF.Sin(MathF.PI*u);
+        float progress=ReachEase(u);
+        var step=from.Origin.Lerp(rest,progress)+Vector3.Up*(clearance*arc*arc);
+        var foot=DisplayedFoot(side);
+        var rotation=from.Basis.GetRotationQuaternion().Slerp(Quaternion.Identity,progress);
+        var basis=new Basis(foot.Basis.GetRotationQuaternion().Slerp(rotation,_arrivalWeight));
+        SolveLegTo(side,foot.Origin.Lerp(step,_arrivalWeight),basis);
+    }
+
+    internal void ResetGroundContacts()=>Array.Clear(_groundContactValid);
+
+    internal Vector3 GroundedFootPoint(int side,Vector3 position)
+    {
+        float phase=Mathf.PosMod(_gaitCycle+side*.5f,1),support=GaitSupport;
+        if(!_groundContactSpeed||_activity<.58f||_arrivalWeight>0||phase>=support)
+        {
+            _groundContactValid[side]=false;
+            return position;
+        }
+        if(!_groundContactValid[side])
+        {
+            _groundContactValid[side]=true;
+            _groundContact[side]=position;
+        }
+        var pull=_groundContact[side]-position;
+        pull.Y=0;
+        float distance=pull.Length();
+        // Retain a planted contact across a small steering correction. Large
+        // errors are released progressively so the leg never chases a stale pin.
+        float weight=ReachEase(phase/.14f)*ReachEase((support-phase)/.16f)*
+            (1-Mathf.SmoothStep(.045f,.13f,distance));
+        return position+pull*weight;
     }
 
     private void SolveLegTo(int side,Vector3 footCenter,Basis soleBasis)

@@ -15,21 +15,23 @@ internal partial class ResidentRig
         // during the forward arm excursion, not while the arm is behind us.
         float phase=_gaitCycle*MathF.Tau+side*MathF.PI;
         float forward=-MathF.Cos(phase-(.03f+.22f*Flow)),lag=-MathF.Cos(phase-(.23f+.36f*Flow));
+        var capture=_activity>0?ResidentGaitCapture.Shared.Arm(side,Mathf.PosMod(_gaitCycle+side*.5f,1),GaitSupport,Flow):Vector2.Zero;
         float speedScale=.74f+.24f*MathF.Min(_gaitSpeed,1.7f);
         float amplitude=(GaitArmSwing*(1.10f-.35f*Flow)+GaitIndividual*.012f)*(1-.12f*_workFatigue)*speedScale;
         float outside=.040f+ArmRestClearance*.50f+.010f*_activity;
         // A wider direct stroke and a narrower oval are separate spatial
         // paths, not just playback rates of one sagittal arm animation.
         outside+=(.052f*(1-Flow)+.025f*Flow*(.5f+.5f*MathF.Sin(phase-.46f)))*_activity;
-        float sweep=forward*amplitude+(.027f-.015f*Flow)*MathF.Cos(2*phase-.24f);
+        float sweep=Mathf.Lerp(forward,capture.X,.76f)*amplitude+(.027f-.015f*Flow)*MathF.Cos(2*phase-.24f);
         var shoulderTarget=new Vector3(-.025f+sweep*_activity,-mirror*.055f,-mirror*outside);
-        float follow=.045f+(.065f+.080f*Flow)*lag+.014f*MathF.Cos(phase*2-.80f);
+        float follow=.045f+(.065f+.080f*Flow)*Mathf.Lerp(lag,capture.Y,.70f)+.014f*MathF.Cos(phase*2-.80f);
         var forearmTarget=new Vector3(.17f+.057f*Flow+follow*_activity*speedScale,
             mirror*(1.40f+(.037f+.032f*Flow)*lag*_activity),0);
         // Filter free-motion targets independently of solved interaction joints.
         // This retains momentum without pulling an attached tool off its grip.
-        DampMotion(ref _freeShoulder[side],ref _freeShoulderVelocity[side],shoulderTarget,ArmFollowTime,dt);
-        DampMotion(ref _freeForearm[side],ref _freeForearmVelocity[side],forearmTarget,ArmFollowTime+.010f,dt);
+        float response=Mathf.Lerp(ArmFollowTime,.027f+.008f*Flow,_activity);
+        DampMotion(ref _freeShoulder[side],ref _freeShoulderVelocity[side],shoulderTarget,response,dt);
+        DampMotion(ref _freeForearm[side],ref _freeForearmVelocity[side],forearmTarget,response+.010f,dt);
         Arms[side].Rotation=_freeShoulder[side];
         // Axial roll belongs to the forearm. Rotating only the wrist produces
         // an artificial twist through the hand/forearm connection. This axis

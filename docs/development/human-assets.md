@@ -221,9 +221,19 @@ python -m unittest discover -s tools -p test_resident_trousers.py
 
 重建使用 [export_shoulder_surface.py](../../tools/export_shoulder_surface.py)：`python -B tools/export_shoulder_surface.py --source .tools/sources/makehuman --output src/SandBoxSim.Godot/assets/models/human`，原始两份骨架文件存于该来源目录的 `rig/`。工具只依赖 Python 标准库，运行与普通构建不需要 Blender。
 
+### 动作捕捉
+
 [cmu-143-30-stretch.json](../../src/SandBoxSim.Godot/assets/motions/cmu-143-30-stretch.json) 来自 [CMU 143_30 / Stretch And Yawn](http://mocap.cs.cmu.edu/search.php?subjectnumber=143)，原始 `143.asf` 与 `143_30.amc` 的 SHA-256 分别为 `6d7207da3bb9eceeaa32f23fb641b69f5836d11242b00c052e7d64f0cbe20a35`、`ffd7b2b3344cf41eef16a3b9b2910424dc27c24ac1f4d6c3b68b6c719e7b22e3`。数据可用于研究及商业产品，但不得直接转售原始或转换后的数据；它不属于 CC0，必须保留[CMU 来源与许可说明](../../src/SandBoxSim.Godot/assets/motions/LICENSE.txt)。The data used in this project was obtained from mocap.cs.cmu.edu. The database was created with funding from NSF EIA-0196217.
 
 重建命令为 `python -B tools/export_cmu_arm_motion.py --source .tools/sources/mocap/cmu-143 --output src/SandBoxSim.Godot/assets/motions/cmu-143-30-stretch.json`。工具遵循 [ASF/AMC 格式](https://research.cs.wisc.edu/graphics/Courses/cs-838-1999/Jeff/ASF-AMC.html)，排除根位移和未捕捉的指／拇指通道；运行器固定校验导出哈希。导出、来源重建及数据契约由 `tools/test_motion_sources.py` 检查。
+
+[cmu-walk-cycles.json](../../src/SandBoxSim.Godot/assets/motions/cmu-walk-cycles.json) 来自 [CMU 07_01](https://mocap.cs.cmu.edu/search.php?subjectnumber=7) 和 [08_01](https://mocap.cs.cmu.edu/search.php?subjectnumber=8) 的 120 Hz 步行试次，使用相同的来源许可。导出器按前向运动学标注的脚跟触地、脚尖离地和下一次触地选段，保留左右肢体各自的摆动时序。48 个循环采样包含归一化的胸廓和骨盆运动、摆臂和屈肘。每脚另有 21 个摆动高度采样。导出排除水平根位移，记录原文件哈希，并对周期首尾去漂移。游戏独立计算位移、脚底支撑和握持。
+
+把两组 ASF/AMC 分别放进 `.tools/sources/mocap/cmu-07` 和 `.tools/sources/mocap/cmu-08`。使用 [export_cmu_gait.py](../../tools/export_cmu_gait.py) 重建。
+
+```powershell
+python -B tools/export_cmu_gait.py --source .tools/sources/mocap --output src/SandBoxSim.Godot/assets/motions/cmu-walk-cycles.json
+```
 
 当前裤装在细分表面加入腰下／膝上压褶和侧缝形体，并对中线裤裆的极窄翻折接缝作局部表面松弛，保留原始索引与面数；不改变裤腰及两只靴口的开放边界。`tools/resident_clothing.py` 提供独立于 Blender 的米制褶皱配方，导出时约束在来源骨盆与靴口之间。运行时上衣的近景拟合取实际缝合网格截面，成衣下摆按三套款式区分；详细参数见[模型系统](models.md)。
 

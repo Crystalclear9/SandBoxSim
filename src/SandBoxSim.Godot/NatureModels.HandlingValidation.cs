@@ -475,7 +475,8 @@ internal sealed partial class NatureModels
             }
             rig.ShowCargo(true,ResourceKind.Wood);
             for(int frame=0;frame<120;frame++)rig.PoseAction(1f/60,ActionKind.Wander,ActionPhase.Moving,false,0);
-            if(rig.ToolHeld||!rig.CargoMesh.Visible)throw new InvalidOperationException("Idle carry overrides two-handed cargo");
+            if(rig.ToolHeld||!rig.CargoMesh.Visible)
+                throw new InvalidOperationException($"Idle carry overrides two-handed cargo: {job}, held={rig.ToolHeld}, handling={rig.Handling}");
             rig.ShowCargo(false,ResourceKind.Wood);
             for(int frame=0;frame<120;frame++)rig.PoseAction(1f/60,ActionKind.None,ActionPhase.Idle,false,0);
             if(!rig.ToolHeld)throw new InvalidOperationException("Resident does not retrieve tool after cargo");

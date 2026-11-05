@@ -27,9 +27,10 @@ internal partial class ResidentRig
     {
         // Keep the head and thorax legible against the alternating pelvis.
         // The flow end carries the rotation through the torso with less side lean.
-        float counterTurn=MathF.Cos(phase-(.18f+.49f*Flow))*GaitPelvisYaw*(1.30f-.30f*Flow);
-        float pitch=-(.033f-.019f*Flow)*MathF.Cos(phase*2-.48f);
-        return new Vector3(pitch,counterTurn,MathF.Sin(phase-.28f)*ThoraxSway);
+        float counterTurn=Mathf.Lerp(MathF.Cos(phase-(.18f+.49f*Flow)),_capturedChest.Y,.62f);
+        float pitch=Mathf.Lerp(-MathF.Cos(phase*2-.48f),_capturedChest.X,.66f);
+        float roll=Mathf.Lerp(MathF.Sin(phase-.28f),_capturedChest.Z,.65f);
+        return new Vector3(pitch*(.033f-.019f*Flow),counterTurn*GaitPelvisYaw*(1.30f-.30f*Flow),roll*ThoraxSway);
     }
 
     private Vector3 WorkingChest(float phase,float blend)

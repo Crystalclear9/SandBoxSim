@@ -52,7 +52,53 @@ internal sealed partial class NatureModels
         ValidateLocomotionLoads();
         ValidateSupportCoordination();
         ValidateLocomotionSampling();
+        ValidateGroundedArrival();
         GD.Print($"LOCOMOTION_PASS: paired frames, 3 speeds, start/stop/turn/pickup, {samples} ankle samples and actual sole curves, fixed limb lengths; max step={maxStep:F4} m, minimum ankle/sole={minAnkle:F4}/{minSole:F4} m, clearance={maxClearance:F4} m, turn anticipation={maxSeparation:F3} rad, pause");
+    }
+
+    private void ValidateGroundedArrival()
+    {
+        var rig=Resident(17,false,JobType.None);
+        const float delta=1f/60,speed=.93f;
+        float maxPin=0,maxStep=0,firstSettle=0;
+        int settleFrames=0;
+        var previous=new Vector3[2];
+        try
+        {
+            for(int frame=0;frame<240;frame++)
+            {
+                bool walking=frame<180;
+                float yaw=.62f*Mathf.SmoothStep(55,125,frame);
+                var basis=new Basis(Vector3.Up,yaw);
+                rig.ObserveLocomotion(walking?Vector3.Forward*(speed*delta):Vector3.Zero,delta,walking?.24f:0,false);
+                rig.PresentAction(delta,ActionKind.Wander,walking?ActionPhase.Moving:ActionPhase.Idle,false,0);
+                for(int side=0;side<2;side++)
+                {
+                    var local=InTorso(rig.Feet[side],rig).Origin;
+                    if(walking)
+                    {
+                        var world=basis*local+Vector3.Forward*(speed*delta*frame);
+                        maxPin=MathF.Max(maxPin,world.DistanceTo(rig.GroundedFootPoint(side,world)));
+                    }
+                    else
+                    {
+                        maxStep=MathF.Max(maxStep,local.DistanceTo(previous[side]));
+                        if(frame>=205)firstSettle=MathF.Max(firstSettle,local.DistanceTo(previous[side]));
+                    }
+                    previous[side]=local;
+                }
+                if(!walking&&!rig.InteractionSettled)settleFrames++;
+            }
+            if(maxPin<.015f||maxPin>.090f||settleFrames<20||settleFrames>34||maxStep>.055f||firstSettle>.012f)
+                throw new InvalidOperationException($"Contact and final step regression: pin={maxPin}, stop step={maxStep}, tail={firstSettle}, wait={settleFrames}");
+            if(!rig.InteractionSettled)throw new InvalidOperationException("Final step never releases interaction");
+        }
+        finally{rig.Free();}
+        var capture=ResidentGaitCapture.Shared;
+        var left=capture.Arm(0,.23f,.60f,0);var right=capture.Arm(1,.23f,.60f,0);
+        if(left.DistanceTo(right)<.04f||capture.Arm(0,0,.60f,1).DistanceTo(capture.Arm(0,1,.60f,1))>.00001f)
+            throw new InvalidOperationException("Capture lost its independent limbs or continuous seam");
+        GD.Print($"GROUNDED_ARRIVAL_PASS: bounded world-foot correction={maxPin:F4} m, final foot placement={settleFrames} frames, maximum ankle step={maxStep:F4} m; captured arms retain independent timing and periodic seam");
     }
 
     private void ValidateLocomotionSampling()

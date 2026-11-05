@@ -5,10 +5,12 @@ from pathlib import Path
 import unittest
 
 from export_cmu_arm_motion import export,parse_asf,parse_amc,forward
+from export_cmu_gait import export as export_gait
 from export_shoulder_surface import export as export_shoulder,bind_shoulder
 
 ROOT=Path(__file__).resolve().parents[1]
 MOTION=ROOT/'src/SandBoxSim.Godot/assets/motions/cmu-143-30-stretch.json'
+GAIT=MOTION.with_name('cmu-walk-cycles.json')
 HUMAN=ROOT/'src/SandBoxSim.Godot/assets/models/human'
 
 
@@ -36,6 +38,27 @@ class MotionSourceTests(unittest.TestCase):
             for lower,palm_y in ((3,24),(9,33)):self.assertAlmostEqual(-sum(v[lower+i]*v[palm_y+i] for i in range(3)),1,places=5)
         self.assertTrue(any(abs(v[0]+v[6])>.1 for v in samples))
         self.assertGreater(max(v[1] for v in samples),.05)
+
+    def test_gait_contact_channels(self):
+        data=json.loads(GAIT.read_text(encoding='utf-8'))
+        self.assertEqual((data['cycleSamples'],data['supportSamples'],len(data['clips'])),(48,28,2))
+        self.assertEqual(data['license'],'LicenseRef-CMU-Mocap')
+        for clip in data['clips']:
+            self.assertEqual(clip['fps'],120)
+            self.assertTrue(all(a<b<c for a,b,c in clip['contacts']))
+            self.assertEqual(len(clip['body']),48)
+            self.assertTrue(all(len(row)==6 and all(-1<=v<=1 for v in row) for row in clip['body']))
+            self.assertNotEqual(*clip['arms'])
+            for arm, foot in zip(clip['arms'],clip['swingHeight']):
+                self.assertEqual((len(arm),len(foot)),(48,21))
+                self.assertTrue(all(len(row)==2 and all(-1<=v<=1 for v in row) for row in arm))
+                self.assertEqual((foot[0],max(foot),foot[-1]),(0,1,0))
+
+    @unittest.skipUnless(all((ROOT/f'.tools/sources/mocap/cmu-{subject}/{subject}_01.amc').exists() for subject in ('07','08')),
+                         'Optional original gait captures')
+    def test_gait_reexport_matches(self):
+        data=export_gait(ROOT/'.tools/sources/mocap')
+        self.assertEqual(json.dumps(data,separators=(',',':'))+'\n',GAIT.read_text(encoding='utf-8'))
 
     def test_shoulder_surface_is_weighted_anatomy_with_valid_topology(self):
         for sex in ('male','female'):

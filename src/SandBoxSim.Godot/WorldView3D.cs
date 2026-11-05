@@ -454,8 +454,8 @@ public partial class WorldView3D : MapView
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="wet-bank-mosaic-v7",["sceneryContact"]="solid-scenery-corridors-v3",["habitatDetail"]="responsive-understory-v12",["vegetationSurface"]="engine-faced-v2",
             ["architecture"]="inset-joinery-v13",["garmentMaterial"]="quiet-linen-v17",["upperArmFlex"]="stable-contour-v3",["shoulderSkin"]="reference-figure-v25",["shoulderMotion"]="source-clavicle-v11",["motionReference"]="cmu-143-30-v1",["shoulderSurface"]="authored-bind-surface-v3",["forearmSkin"]="continuous-elbow-v9",["sleeveFairing"]="rest-detail-v2",["workPose"]="raised-hammer-v1",["reachMotion"]="palm-trajectory-v2",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
-            ["animalPresentation"]="articulated-paws-v12",["residentSurface"]="linear-skin-v9",["workEffort"]="planted-weight-transfer-v6",["toolMotion"]="constraint-feedback-v4",["bodySupport"]="planted-spatial-v2",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="wholebody-motion-v9",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="overlapping-body-gesture-v9",["waterSurface"]="shore-activity-v7",["wristContour"]="continuous-source-v2",
-            ["hairline"]="framed-source-root-v2",["garmentFit"]="continuous-drape-v31",["reedPanicle"]="connected-axis-v1",["bodyPresentation"]="continuous-drape-v29",["bodyFrame"]="reference-contour-physique-v31",["neckContour"]="relaxed-neckline-v5",["faceContour"]="balanced-adult-v3",["forearmProfile"]="curvature-flow-v9",["residentLocomotion"]="continuous-footfall-v6",["armSwing"]="staggered-arm-swing-v6",["motionStyle"]="overlapping-motion-phrases-v5",["limbCoordination"]="hinge-carry-v4" };
+            ["animalPresentation"]="articulated-paws-v12",["residentSurface"]="linear-skin-v9",["workEffort"]="planted-weight-transfer-v6",["toolMotion"]="socket-relative-stow-v5",["bodySupport"]="planted-spatial-v2",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="wholebody-motion-v9",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="overlapping-body-gesture-v9",["waterSurface"]="shore-activity-v7",["wristContour"]="continuous-source-v2",
+            ["hairline"]="framed-source-root-v2",["garmentFit"]="continuous-drape-v31",["reedPanicle"]="connected-axis-v1",["bodyPresentation"]="continuous-drape-v29",["bodyFrame"]="reference-contour-physique-v31",["neckContour"]="relaxed-neckline-v5",["faceContour"]="balanced-adult-v3",["forearmProfile"]="curvature-flow-v9",["residentLocomotion"]="captured-gait-grounded-arrival-v7",["gaitReference"]=ResidentGaitCapture.Version,["armSwing"]="captured-arm-timing-v7",["motionStyle"]="captured-stride-and-overlap-v6",["limbCoordination"]="hinge-carry-v4" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
         return quality;
@@ -861,7 +861,7 @@ public partial class WorldView3D : MapView
             bool visible=ActorInView(rendered+Vector3.Up*.9f,frustum);
             if(node.Visible!=visible)node.Visible=visible;
             _poseSchedule.Accumulate(pair.Key,delta,visible&&!Game.VisualPaused);
-            if(!visible)continue;
+            if(!visible){((ResidentRig)node).ResetGroundContacts();continue;}
             bool hasInterest=(hasTarget||gathering)&&sim.World.IsInBounds(interest);
             var interestPoint=hasInterest?SceneResourceFocus(interest.X,interest.Y,action):target;
             if(sim.Actions.TryGetInteractionPartner(slot,out int partner))
@@ -895,7 +895,11 @@ public partial class WorldView3D : MapView
             rig.Attend(node.Basis.Inverse()*attention);
             rig.SetWorkCondition(sim.Agents.FatigueOf(slot),sim.Agents.HealthOf(slot));
             rig.PresentAction(_poseSchedule.Consume(pair.Key),action,phase,Game.VisualPaused,slot);
-            if(distanceSquared<18*18&&!Game.VisualPaused)ConformFeet(rig);
+            if(distanceSquared<18*18)
+            {
+                if(!Game.VisualPaused)ConformFeet(rig);
+            }
+            else rig.ResetGroundContacts();
         }
         foreach (var pair in _deer)
         { int slot = (int)(pair.Key & uint.MaxValue); if (sim.Wildlife.IsAlive(slot)) { MoveAnimal(pair.Value, PositionAt(sim.Wildlife.XOf(slot), sim.Wildlife.YOf(slot)), delta,sim.Wildlife.ActionOf(slot)); } }

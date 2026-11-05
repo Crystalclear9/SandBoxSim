@@ -215,7 +215,7 @@ internal partial class ResidentRig : Node3D
         bool usingTool=wanted!=ResidentTool.None;
         _takingTool=usingTool&&!ToolHeld;
         _phase+=delta*(moving?7.5f:1.8f);_workTime+=delta;
-        AdvanceLocomotion(delta,moving);
+        AdvanceLocomotion(delta,moving,phase!=ActionPhase.Moving);
         AdvanceMotionReference(delta,action,phase,identityPhase);
         float gaitPhase=_gaitCycle*Mathf.Tau;
         float wave=MathF.Cos(gaitPhase),breath=MathF.Sin(_phase*.5f+identityPhase);
@@ -227,7 +227,7 @@ internal partial class ResidentRig : Node3D
         float pickupLoad=pickupWeight>0?ReachPulse(Mathf.PosMod(_bareTime/1.8f+.09f,1)):0;
         float pickupDrop=Mathf.Lerp(.074f+.012f*Flow,.094f,pickupLoad)*pickupWeight;
         float vertical=resting?-.09f:breath*.003f*(1-_activity)*(1-pickupWeight)-pickupDrop;
-        float gaitWeight=_activity*(1-pickupWeight)*(resting?0:1);
+        float gaitWeight=_activity*(1-pickupWeight)*(resting?0:1)*(1-.65f*_arrivalWeight*ReachEase(_arrivalTime/(2*LandingDuration)));
         if(executing&&usingTool&&ToolHeld&&wanted==CurrentTool&&_draw>=.99f)_strokePhase=Mathf.PosMod(_strokePhase+delta/WorkPeriod,1);
         var stance=WorkSupport(delta,executing&&usingTool&&ToolHeld&&wanted==CurrentTool&&!_carrying,
             (1-_activity)*(1-pickupWeight));
@@ -280,6 +280,7 @@ internal partial class ResidentRig : Node3D
             if(_restSupport>.00001f)PlantRestLeg(i);
             PlantPickupLeg(i,pickupWeight);
             PoseWalkingLeg(i,gaitWeight);
+            PoseArrivalLeg(i);
             PoseFreeArm(i,delta,identityPhase);
         }
         SyncTrousers();

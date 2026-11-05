@@ -13,3 +13,10 @@ This asset contains body-relative upper/lower arm directions, wrist bases and a
 chest frame derived from the ASF/AMC capture. Root travel and finger/thumb channels
 are excluded. Game limb sizes, hand articulation, grip constraints and entry/
 exit handling are provided by SandBoxSim's own presentation controller.
+
+CMU Graphics Lab Motion Capture Database — motions 07_01 and 08_01 (Walk)
+Sources: https://mocap.cs.cmu.edu/search.php?subjectnumber=7
+         https://mocap.cs.cmu.edu/search.php?subjectnumber=8
+The same database terms and acknowledgment above apply to cmu-walk-cycles.json.
+The derived curves contain torso and pelvis coordination, arm swing and elbow
+flexion, and swing-foot clearance. They exclude the performers' root travel.
