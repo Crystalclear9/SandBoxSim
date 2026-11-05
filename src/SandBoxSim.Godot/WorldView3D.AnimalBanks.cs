@@ -21,9 +21,10 @@ public partial class WorldView3D
     private Vector3 AnimalShoreTarget(AnimalRig rig,Vector3 logical)
     {
         long ground=_terrainSignature^_wearSignature;
-        if(rig.BankPlacement is { } cached&&cached.Logical==logical&&cached.Ground==ground)return cached.Point;
+        if(rig.BankPlacement is { } cached&&cached.Logical==logical&&cached.Ground==ground
+            &&cached.Scenery==_sceneryPlacementRevision)return cached.Point;
         var target=ResolveAnimalShoreTarget(logical,rig.BankSupportRadius);
-        rig.BankPlacement=(logical,ground,target);return target;
+        rig.BankPlacement=(logical,ground,_sceneryPlacementRevision,target);return target;
     }
     private Vector3 ResolveAnimalShoreTarget(Vector3 logical,float radius)
     {
@@ -37,7 +38,7 @@ public partial class WorldView3D
             var point=logical+new Vector3(MathF.Cos(angle),0,MathF.Sin(angle))*(ring*.20f);
             if((int)MathF.Floor(point.X*.5f)!=tx||(int)MathF.Floor(point.Z*.5f)!=ty)continue;
             point.Y=GroundHeight(point.X,point.Z);
-            if(AnimalBankSupport(point,radius))return point;
+            if(SceneryPointClear(point,SceneryClearance)&&AnimalBankSupport(point,radius))return point;
         }
         // Narrow banks may genuinely lack enough room. Never move into an
         // unrelated tile or falsify the simulator's location to hide that case.
@@ -77,7 +78,7 @@ public partial class WorldView3D
                     }
                 }
                 var plain=new Vector3(1,0,1);
-                rig.BankPlacement=(plain,long.MinValue,new(100,0,100));
+                rig.BankPlacement=(plain,long.MinValue,_sceneryPlacementRevision,new(100,0,100));
                 if(AnimalShoreTarget(rig,plain)==new Vector3(100,0,100))throw new InvalidOperationException("Animal bank placement survives ground-version change");
             }
             finally{rig.Free();}

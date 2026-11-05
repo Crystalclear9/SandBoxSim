@@ -7,7 +7,7 @@
   "panel": "field",
   "warmupFrames": 60,
   "measuredFrames": 120,
-  "ticksPerFrame": 0,
+  "ticksPerFrame": 1,
   "minimumFps": 0,
   "captureFrames": [90],
   "commands": [

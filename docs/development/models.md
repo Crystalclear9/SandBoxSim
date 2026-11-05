@@ -985,4 +985,4 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 
 场景地表使用 `habitatDetail=responsive-understory-v12`：共享草丛网格包含 20 片较高弯叶与 4 片矮阔叶，336 个三角形；每个适宜格最多四个候选，外围根部核对相邻地类与占用。人物与鹿狼的近景草叶接触场、占用缓存失效、接地和寻路的职责边界见[地形与场景接触](../guides/terrain-and-traces.md)。即时草叶反应是只读显示；长期压实继续来自内核。
 
-`sceneryContact=supported-shore-activity-v2` 保留实际树干底部校正来源网格的水平挂点，普通山石／碎石按底部周向支撑嵌入坡地，主要山石周边复用两枚碎片组织尺度层次；带类型的资源显示锚点参与人物采集朝向。河岸另外使用沿实际岸线散布的渐变碎砾、湿润沉积和饮水活动涟漪。动物水平移动与水岸朝向分别计算，到达后再进入低头混合。来源变换和几何边界见[环境素材](environment-assets.md)，交互语义与物理范围见[地形与场景接触](../guides/terrain-and-traces.md)。
+`sceneryContact=solid-scenery-corridors-v3` 将实测树干和山石包络布置于格角，留出正交通路。山石和坡向碎石带使用底部支撑点嵌入地表。居民与鹿狼根据显示步的净空选择局部绕行，采集居民则在作业格内靠近有效资源。河岸另用渐变碎砾、湿润沉积和饮水活动涟漪。来源变换和几何边界见[环境素材](environment-assets.md)，交互范围见[地形与场景接触](../guides/terrain-and-traces.md)。

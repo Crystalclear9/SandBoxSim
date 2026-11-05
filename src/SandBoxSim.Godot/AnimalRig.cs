@@ -35,7 +35,7 @@ internal partial class AnimalRig : Node3D
     public Skeleton3D? FurSkeleton;
     public MeshInstance3D? FurSkin;
     private float _phase, _stride,_graze,_bodyBob;
-    internal (Vector3 Logical,long Ground,Vector3 Point)? BankPlacement;
+    internal (Vector3 Logical,long Ground,int Scenery,Vector3 Point)? BankPlacement;
     private float _bankSupportRadius;
     internal float BankSupportRadius
     {

@@ -52,7 +52,7 @@ public partial class WorldView3D
             }
             if(MathF.Abs(closest+item.Embed)>.0002f)throw new InvalidOperationException("Stone placement loses its measured surface contact");
         }
-        int resources=0;
+        int resources=0,workStances=0;
         foreach(var item in _sceneResourceAnchors)
         {
             int x=item.Key%Game.Sim.World.Width,y=item.Key/Game.Sim.World.Width;
@@ -61,16 +61,30 @@ public partial class WorldView3D
             if(Game.Sim.World.Tiles[item.Key].Resource.Amount<=0)continue;
             if(SceneResourceFocus(x,y,action)!=item.Value.Point||SceneResourceFocus(x,y,ActionKind.Drink)!=PositionAt(x,y))
                 throw new InvalidOperationException("Scene focus loses its resource type or redirects unrelated actions");
+            var logical=PositionAt(x,y);
+            if(action is ActionKind.GatherWood or ActionKind.GatherStone or ActionKind.GatherIron)
+            {
+                var stand=SceneryWorkPosition(x,y,logical,action);
+                if(stand!=logical)
+                {
+                    if(!SceneryPointClear(stand,SceneryClearance)||!SceneryLegSupported(logical,stand)
+                        ||(int)MathF.Floor(stand.X*.5f)!=x||(int)MathF.Floor(stand.Z*.5f)!=y
+                        ||Horizontal(stand-item.Value.Point).LengthSquared()>=Horizontal(logical-item.Value.Point).LengthSquared())
+                        throw new InvalidOperationException("Resource approach loses its tile, support or clearance");
+                    workStances++;
+                }
+            }
             var original=Game.Sim.World.Tiles[item.Key];
             try
             {
                 Game.Sim.World.Tiles[item.Key].Resource.Amount=0;
-                if(SceneResourceFocus(x,y,action)!=PositionAt(x,y))throw new InvalidOperationException("Depleted scenery retains an active resource focus");
+                if(SceneResourceFocus(x,y,action)!=logical||SceneryWorkPosition(x,y,logical,action)!=logical)
+                    throw new InvalidOperationException("Depleted scenery retains an active resource focus or approach");
             }
             finally{Game.Sim.World.Tiles[item.Key]=original;}
             resources++;
         }
-        if(contacts==0||resources==0||StateHash.ComputeDigest(Game.Sim)!=digest)
+        if(contacts==0||resources==0||workStances==0||StateHash.ComputeDigest(Game.Sim)!=digest)
             throw new InvalidOperationException("Scenery checks have no actual contacts or change simulation");
         var vertical=_models.Resident(17,false,JobType.None);var neutral=_models.Resident(17,false,JobType.None);
         try
@@ -84,6 +98,6 @@ public partial class WorldView3D
             if(vertical.Head.Transform!=neutral.Head.Transform)throw new InvalidOperationException("Pure vertical scenery focus invents a horizontal head turn");
         }
         finally{vertical.Free();neutral.Free();}
-        GD.Print($"SCENERY_SUPPORT_PASS: {contacts} actual base probes, terrain embed, {resources} typed resource anchors, depletion/fallback and unchanged simulation");
+        GD.Print($"SCENERY_SUPPORT_PASS: {contacts} actual base probes, {resources} typed resource anchors, {workStances} supported same-tile work stances, depletion/fallback and unchanged simulation");
     }
 }
