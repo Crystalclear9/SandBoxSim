@@ -6,12 +6,13 @@ namespace SandBoxSim.Client;
 
 internal sealed class ResidentGaitCapture
 {
-    private const int Samples=48, SupportSamples=28;
-    internal const string Version="cmu-contact-curves-v1";
-    private const string Digest="39ee450b9533359b5ea8d48c460f48157b26cd8ad142741d178fa1d2376b4a5e";
+    private const int Samples=48,SupportSamples=28,SwingSamples=Samples-SupportSamples+1;
+    internal const string Version="cmu-contact-curves-v2";
+    private const string Digest="23081d908777f9f69dd8fde5d0e85ec6f763b148f20ffd7dee36df5230271698";
     internal static readonly ResidentGaitCapture Shared=new();
 
-    private sealed record Clip(Vector3[] Pelvis,Vector3[] Chest,Vector2[][] Arms,float[][] Lift);
+    private sealed record Clip(Vector3[] Pelvis,Vector3[] Chest,Vector3[] WeightShift,Vector3[][] Arms,
+        Vector3[][] Swing,float[][] SolePitch);
     private readonly Clip[] _clips=new Clip[2];
 
     private ResidentGaitCapture()
@@ -22,63 +23,81 @@ internal sealed class ResidentGaitCapture
         using var document=JsonDocument.Parse(raw);
         var asset=document.RootElement;
         var clips=asset.GetProperty("clips");
-        if(asset.GetProperty("schemaVersion").GetInt32()!=1||asset.GetProperty("cycleSamples").GetInt32()!=Samples||
+        if(asset.GetProperty("schemaVersion").GetInt32()!=2||asset.GetProperty("cycleSamples").GetInt32()!=Samples||
             asset.GetProperty("supportSamples").GetInt32()!=SupportSamples||clips.GetArrayLength()!=2)
             throw new InvalidOperationException("Invalid CMU gait contract");
         for(int style=0;style<_clips.Length;style++)
         {
             var source=clips[style];
             var pelvis=new Vector3[Samples];var chest=new Vector3[Samples];
-            var arms=new[]{new Vector2[Samples],new Vector2[Samples]};
-            var lift=new[]{new float[Samples-SupportSamples+1],new float[Samples-SupportSamples+1]};
-            var body=source.GetProperty("body");var arm=source.GetProperty("arms");var swing=source.GetProperty("swingHeight");
+            var shift=new Vector3[Samples];
+            var arms=new[]{new Vector3[Samples],new Vector3[Samples]};
+            var swing=new[]{new Vector3[SwingSamples],new Vector3[SwingSamples]};
+            var pitch=new[]{new float[Samples],new float[Samples]};
+            var body=source.GetProperty("body");var arm=source.GetProperty("arms");
+            var height=source.GetProperty("swingHeight");var path=source.GetProperty("swingPath");
+            var rocker=source.GetProperty("solePitch");
             for(int i=0;i<Samples;i++)
             {
                 var row=body[i];
                 pelvis[i]=new(row[0].GetSingle(),row[1].GetSingle(),row[2].GetSingle());
                 chest[i]=new(row[3].GetSingle(),row[4].GetSingle(),row[5].GetSingle());
-                for(int side=0;side<2;side++)arms[side][i]=new(arm[side][i][0].GetSingle(),arm[side][i][1].GetSingle());
+                shift[i]=new(row[6].GetSingle(),row[7].GetSingle(),row[8].GetSingle());
+                for(int side=0;side<2;side++)
+                {
+                    var channel=arm[side][i];
+                    arms[side][i]=new(channel[0].GetSingle(),channel[1].GetSingle(),channel[2].GetSingle());
+                    pitch[side][i]=rocker[side][i].GetSingle();
+                }
             }
             for(int side=0;side<2;side++)
-                for(int i=0;i<lift[side].Length;i++)lift[side][i]=swing[side][i].GetSingle();
-            _clips[style]=new(pelvis,chest,arms,lift);
+                for(int i=0;i<SwingSamples;i++)
+                    swing[side][i]=new(path[side][i][0].GetSingle(),height[side][i].GetSingle(),path[side][i][1].GetSingle());
+            _clips[style]=new(pelvis,chest,shift,arms,swing,pitch);
         }
     }
 
-    internal (Vector3 Pelvis,Vector3 Chest) Body(float phase,float style)
+    internal (Vector3 Pelvis,Vector3 Chest,Vector3 Shift) Body(float phase,float style)
     {
         var (i,weight)=Cycle(phase);
         return (Curve(_clips[0].Pelvis,i,weight).Lerp(Curve(_clips[1].Pelvis,i,weight),style),
-            Curve(_clips[0].Chest,i,weight).Lerp(Curve(_clips[1].Chest,i,weight),style));
+            Curve(_clips[0].Chest,i,weight).Lerp(Curve(_clips[1].Chest,i,weight),style),
+            Curve(_clips[0].WeightShift,i,weight).Lerp(Curve(_clips[1].WeightShift,i,weight),style));
     }
 
-    internal Vector2 Arm(int side,float phase,float support,float style)
+    internal Vector3 Arm(int side,float phase,float support,float style)
+    {
+        var (i,weight)=ContactPhase(phase,support);
+        return Curve(_clips[0].Arms[side],i,weight).Lerp(Curve(_clips[1].Arms[side],i,weight),style);
+    }
+
+    internal float SolePitch(int side,float phase,float support,float style)
+    {
+        var (i,weight)=ContactPhase(phase,support);
+        return Mathf.Lerp(Curve(_clips[0].SolePitch[side],i,weight),Curve(_clips[1].SolePitch[side],i,weight),style);
+    }
+
+    private static (int Index,float Weight) ContactPhase(float phase,float support)
     {
         float split=SupportSamples/(float)Samples;
-        // Move the toe-off sample to the actual support boundary without
-        // changing the phase velocity abruptly at either contact.
+        // Keep the heel-strike and toe-off samples in sync without a sharp
+        // change in time derivative at the boundary.
         float shape=MathF.Sin(phase*MathF.PI)/MathF.Sin(support*MathF.PI);
-        float time=phase+(split-support)*shape*shape;
-        var (i,weight)=Cycle(time);
-        Vector2 At(Clip clip)
-        {
-            var a=clip.Arms[side];
-            return a[i].CubicInterpolate(a[(i+1)%Samples],a[(i+Samples-1)%Samples],a[(i+2)%Samples],weight);
-        }
-        return At(_clips[0]).Lerp(At(_clips[1]),style);
+        return Cycle(phase+(split-support)*shape*shape);
     }
 
-    internal float Lift(int side,float phase,float style)
+    // X is forward progress, Y is normalized lift, Z is lateral residual.
+    internal Vector3 Swing(int side,float phase,float style)
     {
-        float frame=phase*(Samples-SupportSamples);
-        int index=Math.Min(Samples-SupportSamples-1,(int)frame);
+        float frame=Math.Clamp(phase,0,1)*(SwingSamples-1);
+        int index=Math.Min(SwingSamples-2,(int)frame);
         float weight=frame-index;
-        float At(Clip clip)
+        Vector3 At(Clip clip)
         {
-            var a=clip.Lift[side];
-            return Mathf.CubicInterpolate(a[index],a[index+1],a[Math.Max(0,index-1)],a[Math.Min(a.Length-1,index+2)],weight);
+            var a=clip.Swing[side];
+            return a[index].CubicInterpolate(a[index+1],a[Math.Max(0,index-1)],a[Math.Min(a.Length-1,index+2)],weight);
         }
-        return Math.Clamp(Mathf.Lerp(At(_clips[0]),At(_clips[1]),style),0,1);
+        return At(_clips[0]).Lerp(At(_clips[1]),style);
     }
 
     private static (int Index,float Weight) Cycle(float phase)
@@ -89,5 +108,8 @@ internal sealed class ResidentGaitCapture
     }
 
     private static Vector3 Curve(Vector3[] values,int i,float weight)=>values[i].CubicInterpolate(
+        values[(i+1)%Samples],values[(i+Samples-1)%Samples],values[(i+2)%Samples],weight);
+
+    private static float Curve(float[] values,int i,float weight)=>Mathf.CubicInterpolate(values[i],
         values[(i+1)%Samples],values[(i+Samples-1)%Samples],values[(i+2)%Samples],weight);
 }

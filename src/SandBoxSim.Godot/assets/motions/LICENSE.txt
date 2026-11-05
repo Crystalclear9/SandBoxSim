@@ -19,7 +19,9 @@ Sources: https://mocap.cs.cmu.edu/search.php?subjectnumber=7
          https://mocap.cs.cmu.edu/search.php?subjectnumber=8
 The same database terms and acknowledgment above apply to cmu-walk-cycles.json.
 The derived curves contain torso and pelvis coordination, arm swing and elbow
-flexion, and swing-foot clearance. They exclude the performers' root travel.
+flexion, and the swing foot's progression, clearance and lateral excursion.
+They also contain stance-to-swing shoe pitch relative to a flat reference,
+and bounded pelvis motion after removing the performers' overall travel.
 
 CMU Graphics Lab Motion Capture Database — motions 02_06, 18_08 and 13_09
 Sources: https://mocap.cs.cmu.edu/search.php?subjectnumber=2

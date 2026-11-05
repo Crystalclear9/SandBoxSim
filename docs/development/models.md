@@ -209,7 +209,7 @@
 
 `--panel=locomotion` 提供同速度男女外观的启停转身、负重行走及持锤行走—工作六格演示；公开场景为 `visual-locomotion.json`。`LOCOMOTION_PASS` 检查真实关节的启停、不同速度、转向、拾取、固定肢长、实际鞋底截面、步间连续和暂停；`LOCOMOTION_LOAD_PASS` 检查搬运／持锤行走到工作中的掌柄接触、手掌连续、坡面髋部锚点和裤装绑定；`LOCOMOTION_SAMPLING_PASS` 核对逐帧变速输入与间隔八帧消费的相位／速度差，并检查儿童髋部随运动骨盆保持连接。原有远近景节奏、衣装蒙皮和握持检查继续执行。世界根节点仍按模拟格点插值，在高倍速或位置重新同步时不能保证每只脚在世界坐标完全锁定；画廊与截图也不能单独证明动作写实程度。
 
-![两种成人外观的持锤行走与开工衔接](../images/resident-locomotion.gif)
+![实际地形上的居民起步、直行、转弯与停步](../images/resident-locomotion.webp)
 
 ![人物移动与动作衔接](../images/resident-locomotion.png)
 
@@ -990,6 +990,8 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 | 交谈与饮水 | 主手强调与头部回应，另一只手多处于低位。饮水中段路径偏外侧 | 双手展开后先后收回，掌面随弧线翻转。饮水中段路径偏向上方 |
 
 每米的步态周期数由步幅决定。进入稳定行走后，周期消耗按根节点位移更新。捕捉曲线在脚跟触地与脚尖离地处对齐，左右侧保留各自的抬脚高度与屈肘节奏。摆动脚向转弯方向迈出，近景承重脚在世界空间保留有限的水平锚点；地形高度与足底朝向仍由地面采样确定。锚点在离地或误差过大时释放。
+
+`gaitReference=cmu-contact-curves-v2` 从两段步行记录读取摆脚的前进比例、侧向弧线、鞋底俯仰、骨盆前后位移和上臂外摆。摆脚曲线在离地与落地时渐入渐出，承重中段让鞋底放平。脚跟或前掌着地时，脚踝随鞋底角度补偿水平位移，膝的弯曲平面随落脚朝向调整。髋部前后移动仍受腿长与脚底净空限制。参考[人类行走的足部滚动实验](https://pubmed.ncbi.nlm.nih.gov/15109762/)和[动捕编辑中的脚底支撑约束](https://pages.cs.wisc.edu/~kovar/footskateCleanup.pdf)。
 
 短距离到站时，较高的一只脚先落稳，另一只脚再收回，约 0.44 秒后释放到站门槛。若旅程继续，剩余收脚姿态会淡回步态。此机制参考 [真人停步末次落脚实验](https://pmc.ncbi.nlm.nih.gov/articles/PMC2279001/)与 [转弯中的足点和重心实验](https://pmc.ncbi.nlm.nih.gov/articles/PMC10864096/)，脚底锚点的有限修正参考 [Ubisoft 足部 IK 演讲](https://gdcvault.com/play/1023009/Fitting-the-World-A-Biomechanical)。高倍速跨格重新同步时会释放锚点。
 

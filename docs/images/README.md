@@ -30,7 +30,7 @@
 
 `resident-arm-swing.png` 来自公开 `visual-arm-swing.json` 第 120 帧，请求 1600×1600、实际 1600×1410，版本 `armSwing=relaxed-countermotion-v2`。六格配对展示正面、侧面和掌腕取向。`resident-arm-swing.gif` 将同一运行第 90–138 帧、每两帧采样的 25 组正面及侧面原生视口，各取中央 300×338 像素、不缩放，排列成 612×688 的两行画面，约 0.83 秒；未重绘人物或插帧。新摆臂下的身体动态及移动演示同步采样，其他专题保留各自版本。
 
-`resident-locomotion.png` 来自公开 `visual-locomotion.json` 第 240 帧，实际窗口为 1600×1410，版本 `residentLocomotion=support-reach-v2`、`bodyFrame=adult-proportions-v13`，展示两种成人外观的启停转向、双手搬运与持锤行走。`resident-locomotion.gif` 来自 `captured-gait-weight-transfer-v8` 的 `locomotion` 图册。动画按 60 Hz 推进，从第 18 至 510 帧每两帧取一帧，将两种外观的持锤画面裁切并排，编码为 760×350 的 30 帧/秒片段。可依次观察持锤起步、摆臂、停步与开工；图册中的根节点在原位，实景起步与足底支撑另有世界回放验证。
+`resident-locomotion.png` 来自公开 `visual-locomotion.json` 第 240 帧，实际窗口为 1600×1410，版本 `residentLocomotion=support-reach-v2`、`bodyFrame=adult-proportions-v13`，展示两种成人外观的启停转向、双手搬运与持锤行走。`resident-locomotion.webp` 使用 `captured-boot-rockers-v9` 的游戏世界与确定性回放路线，在同一草地依次经过四个相邻格。摄像机跟随角色，能观察起步、直行、转弯与停步。原生画面按 60 Hz 推进，每三帧采样一次，163 帧裁切编码为 480×348 的 20 帧/秒动画。
 
 动物近景、头部和 `animal-motion.png` 为 2026-10-29 的 `articulated-paws-v12` 原生渲染。动作图来自公开 `visual-animal-motion.json` 第 180 帧，1600×1000；同一物种的全身与足部使用相同实际控制器，图册从静止进入行走再回到静止。单张图用于看清轮廓与接合，不能独自证明全程流畅。
 

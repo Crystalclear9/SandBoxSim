@@ -256,7 +256,7 @@ internal partial class ResidentRig : Node3D
         float idleWeight=relaxed?_restSupport*(1-Smooth(_bareBlend))*(1-socialWeight):0;
         float effort=executing&&usingTool?(.5f-WorkLift(_strokePhase+WorkTorsoLead))*.067f*StrokeAccent*RelativeWorkLoad*workBlend:0;
         float toolLean=-.035f-(.097f-.041f*Flow)*workBlend-effort;
-        float freeLean=-.025f*_activity+.007f*MathF.Sin(_phase*.53f+identityPhase)*(1-_activity);
+        float freeLean=-(.033f+.018f*_gaitSpeed)*_activity+.007f*MathF.Sin(_phase*.53f+identityPhase)*(1-_activity);
         float pickupLean=(-.61f+.055f*Flow)*gatherPose.Bend;
         float desiredLean=resting?-.16f:Mathf.Lerp(usingTool?toolLean:freeLean,pickupLean,pickupWeight);
         float bareParticipation=Smooth(_bareBlend)*(1-pickupWeight);

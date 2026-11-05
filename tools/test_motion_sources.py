@@ -45,18 +45,23 @@ class MotionSourceTests(unittest.TestCase):
 
     def test_gait_contact_channels(self):
         data=json.loads(GAIT.read_text(encoding='utf-8'))
-        self.assertEqual((data['cycleSamples'],data['supportSamples'],len(data['clips'])),(48,28,2))
+        self.assertEqual((data['schemaVersion'],data['cycleSamples'],data['supportSamples'],len(data['clips'])),(2,48,28,2))
         self.assertEqual(data['license'],'LicenseRef-CMU-Mocap')
         for clip in data['clips']:
             self.assertEqual(clip['fps'],120)
             self.assertTrue(all(a<b<c for a,b,c in clip['contacts']))
             self.assertEqual(len(clip['body']),48)
-            self.assertTrue(all(len(row)==6 and all(-1<=v<=1 for v in row) for row in clip['body']))
+            self.assertTrue(all(len(row)==9 and all(-1<=v<=1 for v in row) for row in clip['body']))
             self.assertNotEqual(*clip['arms'])
-            for arm, foot in zip(clip['arms'],clip['swingHeight']):
+            for arm, foot, path, pitch in zip(clip['arms'],clip['swingHeight'],clip['swingPath'],clip['solePitch']):
                 self.assertEqual((len(arm),len(foot)),(48,21))
-                self.assertTrue(all(len(row)==2 and all(-1<=v<=1 for v in row) for row in arm))
+                self.assertTrue(all(len(row)==3 and all(-1<=v<=1 for v in row) for row in arm))
                 self.assertEqual((foot[0],max(foot),foot[-1]),(0,1,0))
+                self.assertEqual((len(path),path[0],path[-1]),(21,[0,0],[1,0]))
+                self.assertGreater(max(abs(row[1]) for row in path),.004)
+                self.assertEqual(len(pitch),48)
+                self.assertGreater(pitch[0],.20)
+                self.assertLess(pitch[28],-.80)
 
     @unittest.skipUnless(all((ROOT/f'.tools/sources/mocap/cmu-{subject}/{subject}_01.amc').exists() for subject in ('07','08')),
                          'Optional original gait captures')

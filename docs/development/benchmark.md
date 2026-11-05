@@ -170,11 +170,11 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `animalPresentation=articulated-paws-v12` 包含鹿 18／狼 21 关节、足区权重转接、来源三角面上的趾爪／副蹄、分段狼尾及物种分开的步态轨迹。`visual-animal-motion.json` 使用 `animal-motion` 四格图册，固定 60 Hz、无模拟 tick，采样第 90／180／330 帧；动物区域标签从实际模型物种生成，分别为 `deer`、`wolf`。它检查模型与动作表现，不构成 RSI 能力分数。
 
-`residentLocomotion=captured-gait-grounded-arrival-v7` 标识捕捉时序、近景承重脚锚点和到站收脚。`gaitReference=cmu-contact-curves-v1` 标识两段 CMU 步行曲线。`armSwing=captured-arm-timing-v7` 标识捕捉的双侧上臂与屈肘时序。`visual-locomotion` 使用同速度成人外观、双手搬运及持锤行走到作业的对照，冻结模拟并推进动画。
+`residentLocomotion=captured-boot-rockers-v9` 和 `gaitReference=cmu-contact-curves-v2` 标识摆脚、鞋底俯仰和骨盆重心轨迹。`armSwing=captured-spatial-swing-v8` 加入双侧上臂的外摆采样。`visual-locomotion` 使用同速度成人外观、双手搬运及持锤行走到作业的对照，冻结模拟并推进动画。`BOOT_ROCKER_PASS` 在两种体型的稳定步行中比较实际鞋底承重点与去除补偿后的纵向滑移。
 
 `residentTravel=paced-resident-route-v2` 标识世界中的有限路线缓存、起步重心转移与近景换脚转身。`pacedResidentTravel` 记录当前是否启用实景路径；评测配置固定 `ticksPerFrame` 大于零时仍按该配置推进。`RESIDENT_WORLD_MOTION_PASS` 在真实地形和居民节点上通过正常世界更新重放相邻格转角，测量根节点速度、足部支撑、转身和到站拾取，并检查渲染未改变模拟状态。`RESIDENT_DEPARTURE_PASS` 同时检查双足与根节点在起步准备期的位置，以及骨盆的侧移。
 
-`residentLocomotion=captured-gait-weight-transfer-v8` 与 `animalLocomotion=ground-distance-v1` 记录居民启停和持工具步行、鹿狼的距离驱动步态。动画时序和画面发生变化，相关视觉评测需采集新基线。
+`animalLocomotion=ground-distance-v1` 记录鹿狼的距离驱动步态。居民动画时序和画面更新后，相关视觉评测需采集新基线。
 
 `taskReference=cmu-turn-and-dig-v1` 与 `toolContacts=furrow-edge-and-work-stance-v1` 记录捕捉转身、耕作重心和工具姿态。`CULTIVATION_PASS` 使用实际锄刃坐标检查平面与斜面上的拉土、抬刃和胸廓幅度。`WORLD_CULTIVATION_PASS` 在实际地形上通过世界更新检查锄刃贴地距离与显示层的状态纯度。
 

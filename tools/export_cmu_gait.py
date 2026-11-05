@@ -46,32 +46,53 @@ def normalized(values, amplitude=None):
     return [round(v / scale, 6) for v in values]
 
 
+def travel_frame(poses, start, end):
+    dx, _, dz = sub(poses[end][1]['root'], poses[start][1]['root'])
+    length = math.hypot(dx, dz)
+    return dx / length, dz / length, length
+
+
 def limb_channels(poses, side, contacts):
     start, toe, end = contacts
     times = [start + (toe - start) * i / SUPPORT_SAMPLES for i in range(SUPPORT_SAMPLES)]
     times += [toe + (end - toe) * i / (SAMPLES - SUPPORT_SAMPLES) for i in range(SAMPLES - SUPPORT_SAMPLES + 1)]
-    swing, pitch, flex, lift = [], [], [], []
+    fx, fz, stride = travel_frame(poses, start, end)
+    swing, pitch, flex, spread, lift, sole, ankles = [], [], [], [], [], [], []
     for rotation, point in poses:
         thorax = tr(rotation['thorax'])
         upper = mv(thorax, unit(sub(point[side + 'humerus'], point[side + 'clavicle'])))
         lower = mv(thorax, unit(sub(point[side + 'radius'], point[side + 'humerus'])))
         pitch.append(math.atan2(upper[2], -upper[1]))
         flex.append(math.acos(max(-1, min(1, sum(x * y for x, y in zip(upper, lower))))))
-        lift.append(point[side + 'tibia'][1])
+        spread.append(upper[0])
+        ankle = point[side + 'tibia']
+        x, y, z = sub(point[side + 'foot'], ankle)
+        sole.append(math.atan2(y, fx * x + fz * z))
+        ankles.append((fx * ankle[0] + fz * ankle[2], -fz * ankle[0] + fx * ankle[2]))
+        lift.append(ankle[1])
     first, last = lift[toe], lift[end]
+    path = []
+    longitudinal, lateral = zip(*ankles)
+    advance = longitudinal[end] - longitudinal[toe]
     for i in range(SAMPLES - SUPPORT_SAMPLES + 1):
         u = i / (SAMPLES - SUPPORT_SAMPLES)
-        height = sample(lift, toe + (end - toe) * u) - (first * (1 - u) + last * u)
+        frame = toe + (end - toe) * u
+        height = sample(lift, frame) - (first * (1 - u) + last * u)
         swing.append(max(0, height))
-    return wrap_channel(pitch, times), wrap_channel(flex, times), normalized(swing)
+        forward = (sample(longitudinal, frame) - longitudinal[toe]) / advance
+        sideways = (sample(lateral, frame) - lateral[toe] * (1 - u) - lateral[end] * u) / stride
+        path.append((round(forward, 6), round(sideways, 6)))
+    # The skeleton's foot bone is tilted even when the shoe is flat. Keep
+    # the measured relative ankle motion and remove that reference tilt.
+    neutral = sum(sole[start + int((toe - start) * t)] for t in (.31, .40, .49)) / 3
+    drift = sole[end] - sole[start]
+    rocker = [round(sample(sole, t) - neutral - drift * (t - start) / (end - start), 6) for t in times[:-1]]
+    return (wrap_channel(pitch, times), wrap_channel(flex, times), normalized(swing),
+            wrap_channel(spread, times), path, rocker)
 
 
 def body_channels(poses, start, end):
-    _, first = poses[start]
-    _, last = poses[end]
-    dx, _, dz = sub(last['root'], first['root'])
-    heading = math.atan2(dx, dz)
-    c, s = math.cos(heading), math.sin(heading)
+    s, c, _ = travel_frame(poses, start, end)
     travel = [[c, 0, -s], [0, 1, 0], [s, 0, c]]
     rows = []
     for rotation, point in poses:
@@ -79,9 +100,10 @@ def body_channels(poses, start, end):
             m = mm(travel, rotation[name])
             # Re-express the source in the game's -Z-forward convention.
             return math.asin(max(-1, min(1, m[1][2]))), math.atan2(m[0][2], m[2][2]), math.atan2(-m[1][0], m[1][1])
-        _, yaw, roll = yxz('root')
+        pelvis_pitch, yaw, roll = yxz('root')
         chest = yxz('thorax')
-        rows.append((yaw, roll, point['root'][1], *chest))
+        x, y, z = mv(travel, point['root'])
+        rows.append((yaw, roll, y, *chest, -x, -z, pelvis_pitch))
     times = [start + (end - start) * i / SAMPLES for i in range(SAMPLES + 1)]
     return [normalized(wrap_channel(channel, times)) for channel in zip(*rows)]
 
@@ -98,19 +120,23 @@ def export(source):
         frames = parse_amc((folder / f'{subject}_01.amc').read_text(encoding='utf-8'))
         poses = [forward(bones, tree, frame) for frame in frames]
         limbs = [limb_channels(poses, side, contact) for side, contact in zip('lr', (left, right))]
-        pitch_scale = max(abs(v) for pitch, _, _ in limbs for v in pitch)
-        flex_scale = max(abs(v) for _, flex, _ in limbs for v in flex)
+        pitch_scale = max(abs(v) for pitch, *_ in limbs for v in pitch)
+        flex_scale = max(abs(v) for _, flex, *_ in limbs for v in flex)
         clips.append({
             'source': f'CMU Graphics Lab {subject}_01, Walk',
             'sourceUrl': f'https://mocap.cs.cmu.edu/search.php?subjectnumber={int(subject)}',
             'sourceSha256': hashes, 'fps': 120, 'contacts': [left, right],
             'body': list(zip(*body_channels(poses, left[0], left[-1]))),
-            'arms': [list(zip(normalized(pitch, pitch_scale), normalized(flex, flex_scale))) for pitch, flex, _ in limbs],
-            'swingHeight': [swing for _, _, swing in limbs],
+            'arms': [list(zip(normalized(pitch, pitch_scale), normalized(flex, flex_scale), normalized(spread)))
+                     for pitch, flex, _, spread, _, _ in limbs],
+            'swingHeight': [limb[2] for limb in limbs],
+            'swingPath': [limb[4] for limb in limbs],
+            'solePitch': [limb[5] for limb in limbs],
         })
-    return {'schemaVersion': 1, 'license': 'LicenseRef-CMU-Mocap',
-            'bodyLayout': 'pelvisYaw,pelvisRoll,hipHeight,chestPitch,chestYaw,chestRoll',
-            'armLayout': 'upperPitch,elbowFlex',
+    return {'schemaVersion': 2, 'license': 'LicenseRef-CMU-Mocap',
+            'bodyLayout': 'pelvisYaw,pelvisRoll,hipHeight,chestPitch,chestYaw,chestRoll,lateralHip,foreAftHip,pelvisPitch',
+            'armLayout': 'upperPitch,elbowFlex,upperLateral',
+            'swingPathLayout': 'progress,sideOffsetInStrideLengths', 'solePitchUnit': 'rad',
             'cycleSamples': SAMPLES, 'supportSamples': SUPPORT_SAMPLES, 'clips': clips}
 
 

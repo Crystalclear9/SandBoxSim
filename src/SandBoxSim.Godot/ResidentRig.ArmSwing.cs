@@ -15,7 +15,7 @@ internal partial class ResidentRig
         // during the forward arm excursion, not while the arm is behind us.
         float phase=_gaitCycle*MathF.Tau+side*MathF.PI;
         float forward=-MathF.Cos(phase-(.03f+.22f*Flow)),lag=-MathF.Cos(phase-(.23f+.36f*Flow));
-        var capture=_activity>0?ResidentGaitCapture.Shared.Arm(side,Mathf.PosMod(_gaitCycle+side*.5f,1),GaitSupport,Flow):Vector2.Zero;
+        var capture=_activity>0?ResidentGaitCapture.Shared.Arm(side,Mathf.PosMod(_gaitCycle+side*.5f,1),GaitSupport,Flow):Vector3.Zero;
         float speedScale=.74f+.24f*MathF.Min(_gaitSpeed,1.7f);
         float amplitude=(GaitArmSwing*(1.10f-.35f*Flow)+GaitIndividual*.012f)*(1-.12f*_workFatigue)*speedScale;
         float outside=.040f+ArmRestClearance*.50f+.010f*_activity;
@@ -23,7 +23,7 @@ internal partial class ResidentRig
         // paths, not just playback rates of one sagittal arm animation.
         outside+=(.052f*(1-Flow)+.025f*Flow*(.5f+.5f*MathF.Sin(phase-.46f)))*_activity;
         float sweep=Mathf.Lerp(forward,capture.X,.76f)*amplitude+(.027f-.015f*Flow)*MathF.Cos(2*phase-.24f);
-        var shoulderTarget=new Vector3(-.025f+sweep*_activity,-mirror*.055f,-mirror*outside);
+        var shoulderTarget=new Vector3(-.025f+sweep*_activity,-mirror*.055f,-mirror*outside+capture.Z*.032f*_activity);
         float follow=.045f+(.065f+.080f*Flow)*Mathf.Lerp(lag,capture.Y,.70f)+.014f*MathF.Cos(phase*2-.80f);
         var forearmTarget=new Vector3(.17f+.057f*Flow+follow*_activity*speedScale,
             mirror*(1.40f+(.037f+.032f*Flow)*lag*_activity),0);

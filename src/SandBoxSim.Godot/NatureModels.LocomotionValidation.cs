@@ -25,10 +25,11 @@ internal sealed partial class NatureModels
                     for(int side=0;side<2;side++)
                     {
                         var ankle=InTorso(rig.Feet[side],rig).Origin;
-                        float jump=ankle.DistanceTo(previous[side]);maxStep=MathF.Max(maxStep,jump);previous[side]=ankle;
+                        var step=ankle-previous[side];
+                        float jump=step.Length();maxStep=MathF.Max(maxStep,jump);previous[side]=ankle;
                         if(!ankle.IsFinite()||jump>.060f||MathF.Abs(rig.Knees[side].Position.Length()-ResidentRig.ThighLength)>1e-6f||
                             (rig.Feet[side].Position-rig.Feet[side].Basis*ResidentRig.FootCenterOffset-Vector3.Down*ResidentRig.ShinLength).Length()>1e-6f)
-                            throw new InvalidOperationException($"Locomotion limb discontinuity: {frame}/{side}, step={jump}");
+                            throw new InvalidOperationException($"Locomotion limb discontinuity: {frame}/{side}, step={jump}, offset={step}, phase={rig.GaitCycle}");
                         if(frame>=180&&frame<600)
                         {
                             minAnkle=MathF.Min(minAnkle,ankle.Y);maxClearance=MathF.Max(maxClearance,ankle.Y-.065f);samples++;
@@ -53,7 +54,54 @@ internal sealed partial class NatureModels
         ValidateSupportCoordination();
         ValidateLocomotionSampling();
         ValidateGroundedArrival();
+        ValidateWalkingRockers();
         GD.Print($"LOCOMOTION_PASS: paired frames, 3 speeds, start/stop/turn/pickup, {samples} ankle samples and actual sole curves, fixed limb lengths; max step={maxStep:F4} m, minimum ankle/sole={minAnkle:F4}/{minSole:F4} m, clearance={maxClearance:F4} m, turn anticipation={maxSeparation:F3} rad, pause");
+    }
+
+    private void ValidateWalkingRockers()
+    {
+        const float dt=1f/60,speed=1.05f;
+        float drift=0,uncorrected=0;
+        int samples=0,heels=0,toes=0;
+        foreach(int identity in new[]{17,55})
+        {
+            var rig=Resident(identity,false,JobType.None);
+            try
+            {
+                var previous=new (Vector3 Point,float Planted,float Uncorrected,bool Contact)[2];
+                for(int frame=0;frame<390;frame++)
+                {
+                    rig.ObserveLocomotion(Vector3.Forward*(speed*dt),dt,0,false);
+                    rig.PoseAction(dt,ActionKind.Wander,ActionPhase.Moving,false,0);
+                    if(frame<120)continue;
+                    for(int side=0;side<2;side++)
+                    {
+                        var boot=InTorso(rig.Feet[side],rig);
+                        float pitch=MathF.Asin(Math.Clamp(-boot.Basis.Z.Y,-1,1));
+                        float phase=Mathf.PosMod(rig.GaitCycle+side*.5f,1);
+                        bool contact=phase<rig.GaitSupport&&MathF.Abs(pitch)>.08f;
+                        var point=rig.SoleContact(pitch);
+                        float planted=(boot*point).Z-frame*speed*dt;
+                        float yawCos=boot.Basis.Z.Z/MathF.Cos(pitch);
+                        float correction=(point.Z-(new Basis(Vector3.Right,pitch)*point).Z)*yawCos;
+                        float without=planted-correction;
+                        var last=previous[side];
+                        if(contact&&last.Contact&&last.Point==point)
+                        {
+                            float step=planted-last.Planted,naive=without-last.Uncorrected;
+                            drift+=step*step;uncorrected+=naive*naive;samples++;
+                            if(point.Z>.030f)heels++;
+                            if(point.Z<-.075f)toes++;
+                        }
+                        previous[side]=(point,planted,without,contact);
+                    }
+                }
+            }
+            finally{rig.Free();}
+        }
+        if(heels<8||toes<8||uncorrected<=0||drift>uncorrected*.33f)
+            throw new InvalidOperationException($"Walking contact rolls on the wrong point: heels={heels}, toes={toes}, slip={drift}/{uncorrected}");
+        GD.Print($"BOOT_ROCKER_PASS: {heels} heel and {toes} forefoot pairs, longitudinal support drift RMS={MathF.Sqrt(drift/samples):F5} m/frame vs {MathF.Sqrt(uncorrected/samples):F5} m/frame without rocker correction");
     }
 
     private void ValidateGroundedArrival()

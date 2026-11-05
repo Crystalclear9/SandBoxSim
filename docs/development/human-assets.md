@@ -227,7 +227,7 @@ python -m unittest discover -s tools -p test_resident_trousers.py
 
 重建命令为 `python -B tools/export_cmu_arm_motion.py --source .tools/sources/mocap/cmu-143 --output src/SandBoxSim.Godot/assets/motions/cmu-143-30-stretch.json`。工具遵循 [ASF/AMC 格式](https://research.cs.wisc.edu/graphics/Courses/cs-838-1999/Jeff/ASF-AMC.html)，排除根位移和未捕捉的指／拇指通道；运行器固定校验导出哈希。导出、来源重建及数据契约由 `tools/test_motion_sources.py` 检查。
 
-[cmu-walk-cycles.json](../../src/SandBoxSim.Godot/assets/motions/cmu-walk-cycles.json) 来自 [CMU 07_01](https://mocap.cs.cmu.edu/search.php?subjectnumber=7) 和 [08_01](https://mocap.cs.cmu.edu/search.php?subjectnumber=8) 的 120 Hz 步行试次，使用相同的来源许可。导出器按前向运动学标注的脚跟触地、脚尖离地和下一次触地选段，保留左右肢体各自的摆动时序。48 个循环采样包含归一化的胸廓和骨盆运动、摆臂和屈肘。每脚另有 21 个摆动高度采样。导出排除水平根位移，记录原文件哈希，并对周期首尾去漂移。游戏独立计算位移、脚底支撑和握持。
+[cmu-walk-cycles.json](../../src/SandBoxSim.Godot/assets/motions/cmu-walk-cycles.json) 来自 [CMU 07_01](https://mocap.cs.cmu.edu/search.php?subjectnumber=7) 和 [08_01](https://mocap.cs.cmu.edu/search.php?subjectnumber=8) 的 120 Hz 步行试次，使用相同的来源许可。导出器按前向运动学标注的脚跟触地、脚尖离地和下一次触地选段。48 个循环采样包含胸廓、骨盆俯仰和前后／侧向位移、上臂前后／侧向摆动、屈肘及各脚的鞋底俯仰。每脚另有 21 个摆动采样，记录高度、前进比例和侧向弧线。鞋底俯仰以来源足骨的平足阶段为零位。周期首尾去漂移并排除总体根位移，游戏独立计算行进距离、脚底支撑和握持。
 
 把两组 ASF/AMC 分别放进 `.tools/sources/mocap/cmu-07` 和 `.tools/sources/mocap/cmu-08`。使用 [export_cmu_gait.py](../../tools/export_cmu_gait.py) 重建。
 
