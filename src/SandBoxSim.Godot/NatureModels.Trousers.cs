@@ -12,7 +12,7 @@ internal sealed partial class NatureModels
         if(_meshes.TryGetValue(key,out var cached))return cached;
         string raw=FileAccess.GetFileAsString("res://assets/models/human/trousers-"+frame+".mesh.json").Replace("\r\n","\n",StringComparison.Ordinal);
         string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
-        if(hash!=(BodyFrame==1?"57c02e01d66df525d23ba403248e92437282993acd24c3acb1600cf88fedc535":"626f7f799795116d892e2e8a3213bb8f22fdf33d6a36e8c8d2d481bf69e8febc"))
+        if(hash!=(BodyFrame==1?"bbabb70f70ca50b4b450cb3b9ef7454decdee8f640c4751b0adc453418956e9e":"83ec98514683b7361dbc59dcdabfa61990c76ff13eb12481cec0e65dde81d62c"))
             throw new InvalidOperationException("Changed source trousers");
         using var doc=JsonDocument.Parse(raw);var data=doc.RootElement;
         float[] Floats(string field){var a=new float[data.GetProperty(field).GetArrayLength()];int i=0;foreach(var v in data.GetProperty(field).EnumerateArray())a[i++]=v.GetSingle();return a;}
@@ -35,7 +35,10 @@ internal sealed partial class NatureModels
             for(int i=0;i<points.Length;i++)
                 freedom[i]=Mathf.SmoothStep(.58f,.64f,points[i].Y)*(1-Mathf.SmoothStep(.80f,.87f,points[i].Y))
                     *Mathf.SmoothStep(.07f,.11f,MathF.Abs(points[i].X));
-            FairRestSurface(points,ids,freedom,.002f,roundRelief:true);
+            // Paired positive/negative passes retain the source hip volume.
+            // Positive-only rounding narrowed both outer sides, erasing the
+            // already source-authored pelvic contrast after clothing.
+            FairRestSurface(points,ids,freedom,.002f);
             TransportFairingNormals(rest,points,normals,ids,freedom);
         }
         var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);

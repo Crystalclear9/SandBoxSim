@@ -15,7 +15,7 @@ internal sealed partial class NatureModels
         string name=frame==1?"female":"male";
         string raw=FileAccess.GetFileAsString("res://assets/models/human/forearm-fit-"+name+".json").Replace("\r\n","\n",StringComparison.Ordinal);
         string hash=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
-        if(hash!=(frame==1?"a971479e6300906613f9404f455add621cdc61c43aecb943984c584a472fe3a4":"645a9aeaf07cdd5b80fb9875f16bbad61d2b7f41fdd758285434b496b6a1776d"))throw new InvalidOperationException("Changed forearm support profile");
+        if(hash!=(frame==1?"b1fdb320bc777f36fb34fbd0ea14c4018593e3b67b9edd55f59095fbed78c2cb":"ab04d2760b389d4219f27ab9910af48772fbfa321402f106294f66c97cae2004"))throw new InvalidOperationException("Changed forearm support profile");
         using var doc=JsonDocument.Parse(raw);var root=doc.RootElement;
         if(root.GetProperty("rows").GetInt32()!=49||root.GetProperty("low").GetSingle()!=.005f||root.GetProperty("high").GetSingle()!=.245f||root.GetProperty("profile").GetString()!="continuous-wrist-source-v2"||root.GetProperty("license").GetString()!="CC0-1.0 AND CC-BY-4.0")
             throw new InvalidOperationException("Invalid forearm support contract");

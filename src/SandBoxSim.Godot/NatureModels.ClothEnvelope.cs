@@ -221,17 +221,24 @@ internal sealed partial class NatureModels
     private static Vector3[] ClothSurfaceNormals(Vector3[] points,int[] indices)
     {
         var normals=new Vector3[points.Length];
+        var incidentArea=new float[points.Length];
         for(int i=0;i<indices.Length;i+=3)
         {
             int a=indices[i],b=indices[i+1],c=indices[i+2];
             // Godot's front faces use clockwise winding.
             var n=(points[c]-points[a]).Cross(points[b]-points[a]);
             normals[a]+=n;normals[b]+=n;normals[c]+=n;
+            float area=n.Length();
+            incidentArea[a]+=area;incidentArea[b]+=area;incidentArea[c]+=area;
         }
         for(int i=0;i<normals.Length;i++)
         {
-            if(!normals[i].IsFinite()||normals[i].LengthSquared()<1e-16f)
-                throw new InvalidOperationException("Degenerate fitted cloth normal");
+            // Area-weighted shading must be invariant under mesh scale. A
+            // tiny valid cap is not a degenerate vertex: reject missing area
+            // and opposing faces that cancel, relative to their incident area.
+            if(!normals[i].IsFinite()||!float.IsFinite(incidentArea[i])||incidentArea[i]<=0
+                ||normals[i].Length()<=incidentArea[i]*.000001f)
+                throw new InvalidOperationException($"Degenerate fitted cloth normal at vertex {i}");
             normals[i]=normals[i].Normalized();
         }
         return normals;

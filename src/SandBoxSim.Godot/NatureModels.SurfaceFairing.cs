@@ -49,6 +49,12 @@ internal sealed partial class NatureModels
         }
         if(roundRelief)
         {
+            var originalArea=new Vector3[rest.Length];
+            for(int t=0;t<triangles.Length;t+=3)
+            {
+                int a=triangles[t],b=triangles[t+1],c=triangles[t+2];
+                var n=(rest[c]-rest[a]).Cross(rest[b]-rest[a]);originalArea[a]+=n;originalArea[b]+=n;originalArea[c]+=n;
+            }
             // Tiny cap triangles can cancel a vertex's area normal. Limit
             // only their connected one-ring, not the complete garment: one
             // ill-conditioned seam used to undo the broad shoulder fairing.
@@ -61,7 +67,11 @@ internal sealed partial class NatureModels
                     var n=(points[c]-points[a]).Cross(points[b]-points[a]);area[a]+=n;area[b]+=n;area[c]+=n;
                 }
                 var affected=new HashSet<int>();
-                for(int i=0;i<area.Length;i++)if(neighbours[i].Count>0&&area[i].LengthSquared()<1e-16f)
+                // Small but valid source triangles must remain usable at any
+                // metric scale. An absolute threshold above the input area
+                // cannot be satisfied by backtracking to that same input.
+                for(int i=0;i<area.Length;i++)if(neighbours[i].Count>0
+                    &&area[i].LengthSquared()<MathF.Min(1e-16f,originalArea[i].LengthSquared()*.25f))
                 {
                     affected.Add(i);foreach(int j in neighbours[i])affected.Add(j);
                 }
@@ -278,6 +288,28 @@ internal sealed partial class NatureModels
     private void ValidateRestFairing()
     {
         if(_restFairingValidated)return;
+        foreach(float scale in new[]{1f,.001f,.00005f})
+        {
+            var triangle=new[]{Vector3.Zero,new Vector3(scale,0,0),new Vector3(0,scale,0)};
+            foreach(var normal in ClothSurfaceNormals(triangle,new[]{0,1,2}))
+                if(normal.DistanceTo(Vector3.Forward)>.000001f)
+                    throw new InvalidOperationException("Cloth normal changes with source scale");
+            bool rejected=false;
+            try{ClothSurfaceNormals(triangle,new[]{0,1,2,0,2,1});}
+            catch(InvalidOperationException){rejected=true;}
+            if(!rejected)throw new InvalidOperationException("Cloth normals accept cancelling faces");
+        }
+        bool zeroRejected=false;
+        try{ClothSurfaceNormals(new[]{Vector3.Zero,Vector3.Zero,Vector3.Zero},new[]{0,1,2});}
+        catch(InvalidOperationException){zeroRejected=true;}
+        if(!zeroRejected)throw new InvalidOperationException("Cloth normals accept zero-area geometry");
+        GD.Print("CLOTH_NORMAL_SCALE_PASS: consistent clockwise normals across three scales; cancelling and zero-area faces rejected");
+        var tiny=new[]{Vector3.Zero,new Vector3(.00005f,0,0),new Vector3(0,.00005f,0)};
+        var tinyRest=(Vector3[])tiny.Clone();
+        FairRestSurface(tiny,new[]{0,1,2},new[]{1f,1f,1f},.002f,roundRelief:true);
+        for(int i=0;i<tiny.Length;i++)if(tiny[i]!=tinyRest[i])
+            throw new InvalidOperationException("Fairing changes a planar small-area source triangle");
+        GD.Print("REST_SMALL_TRIANGLE_PASS: valid planar source below the absolute normal-area threshold remains unchanged");
         const int width=13;var points=new Vector3[width*width];var freedom=new float[points.Length];var triangles=new List<int>();
         for(int y=0;y<width;y++)for(int x=0;x<width;x++)
         {

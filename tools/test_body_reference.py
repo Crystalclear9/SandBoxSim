@@ -65,7 +65,7 @@ class BodyReferenceTests(unittest.TestCase):
         self.assertEqual(manifest['source']['sha256'],'3c121505651140ceb4d69fd1d8923f7788ffadd81672f5be14845a5f2c75c137')
         for sex,geometry in [('male','4b09cfc4e2989072c7d4c525998bfeca248eafad4c51a9f4f5a445bc3207bcaa'),('female','b6290d86a6c4e6a704bf04342958270bc37507b57b5cf50fe527462b75e05566')]:
             name=f'reference-shape-{sex}.json';raw=(ASSETS/name).read_bytes();d=json.loads(raw)
-            self.assertEqual(profile['frames'][sex]['targets'],{name:.75 if sex=='female' else 1.0})
+            self.assertEqual(profile['frames'][sex]['targets'],{name:1.0})
             self.assertEqual((len(raw),hashlib.sha256(raw).hexdigest()),(manifest['files'][name]['bytes'],manifest['files'][name]['sha256']))
             self.assertEqual(d['sourceGeometrySha256'],geometry)
             self.assertEqual(d['sourceBundleSha256'],manifest['source']['sha256'])
