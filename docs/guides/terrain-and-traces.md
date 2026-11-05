@@ -66,7 +66,7 @@
 
 世界方向光深度偏移为 2.4，用于抑制连续坡地自遮挡条纹；保留四级联、原来的动态阴影距离与法线偏移。视觉评测同时记录这些实际参数，改动后应重新建立画质与耗时基线。
 
-视觉评测记录 `landscapeSurface=coverage-mosaic-v6`、`habitatDetail=responsive-understory-v12` 和 `waterSurface=constrained-bank-v6`。覆盖率、草丛比例与水陆支撑已改变显示内容，比较性能时应重新建立同场景基线，不能把不同画面负载直接当成内核加速。
+视觉评测记录 `landscapeSurface=wet-bank-mosaic-v7`、`habitatDetail=responsive-understory-v12` 和 `waterSurface=shore-activity-v7`。覆盖率、草丛比例与水陆支撑已改变显示内容，比较性能时应重新建立同场景基线，不能把不同画面负载直接当成内核加速。
 
 ![当前河岸、草丛与居民近景](../images/terrain-closeup.png)
 
@@ -106,6 +106,22 @@
 `TREE_ROOT_ANCHOR_PASS` 检查实际渲染树根中心；`SCENERY_SUPPORT_PASS` 检查实际放置的底部探针、嵌入余量、资源类型／耗尽回退、纯高度注意方向和模拟摘要不变。公开场景 [world-scenery-contacts.json](../../benchmarks/scenarios/world-scenery-contacts.json) 预运行两日，观察已有活动、显示自然物及居民位置。
 
 ![实际聚落与资源场景](../images/scene-resource-contacts.png)
+
+## 水岸细节与饮水活动
+
+岸边碎砾以真实显示水岸为基准散布，不沿逻辑水格画方形边框。落点限制在地面高度 −0.04 至 0.27 米、向上法线分量至少 0.85 的窄带，排除建筑、道路、熔岩和烧毁占地；每处稳定斑块最多九颗，尺度由临水向干岸逐渐变化。它们沿用实际底部探针接地，以 24 米分块、28 米裁剪且不投影；湿石逐渐变深、降低粗糙度。地面材质同时按实际显示高度与水域邻近程度混合湿润沉积，减少草皮直接切到水面的突兀边缘。
+
+`WorldView3D.ShoreInteractions.cs` 在相邻实际水格方向二分搜索同一地形曲面的浅水位置，要求站立位置可通行、九点脚底支撑均高于水面，且站立高度不超过 0.65 米。水侧落点的河床不高于 0.015 米，目标水面高度为 0.02 米；优先选择距格中心 1.65 米内最近的候选，实际显示位置另有 1.8 米距离限制。高岸、无可接近浅水或脚底失去支撑时沿用原朝向，不虚构水源。缓存随自然物重建清空，使用前重新核对支撑与水侧高度。
+
+居民仅在实际饮水执行阶段并已接近逻辑位置时朝向该水岸。鹿使用相同水岸查询，停稳后面向水源并复用低头混合；移动中的鹿继续行走，不同时低头。动物移动／到达只比较水平距离，身体高度变化不会被误算为行走，静止饮水朝向也不会触发步态。内核的饮水可用性、解渴量与动作持续时间继续由现有系统决定；湿地饮水在没有可见水面的情况下不会显示水面反馈。
+
+鹿狼在岸边停留还会使用自身足部跨度选站位。`AnimalRig.BankSupportRadius` 从来源模型四个静止足底推导水平半径，加入现有 0.14 米步幅及足垫余量；`WorldView3D.AnimalBanks.cs` 检查中心、24 个外围点与八个中圈点。格中心不够宽时，按最小位移顺序尝试同一逻辑格内 0.2–0.8 米的候选偏移，找到支撑位置后平滑接近；位置按逻辑目标与地面／压实身份缓存，避免每帧搜索。仍然过窄时保留原逻辑位置，不移动到其他格伪造可达性。因此这改善的是岸边显示站位，不能保证所有狭岸或移动路径上始终没有悬足。
+
+水面最多保存八个饮水活动脉冲，同一小范围至少间隔 0.85 秒产生一次，2.6 秒内消退，离开后不继续产生；34 米以外不新增。暂停冻结事件年龄及新增事件，换世界清空。径向波的解析斜率进入水面法线，水岸和远景进行衰减；不增加场景节点、网格细分或流体计算。涟漪表达饮水活动，**不声称逐帧检测了嘴、手与水面的物理接触**，也不改变水量、河床或寻路。
+
+`SHORE_INTERACTION_PASS` 检查实际支撑岸线、水侧落点、可接近距离、暂停／到期、着色器数组上传及水平到达判断；`ANIMAL_BANK_PASS` 检查鹿狼实际四足、24 个朝向与前后步幅的水陆支撑，同格偏移、缓存与地面身份失效，分别记录修正和无法容纳的窄岸数量。两者核对模拟摘要不变。画质身份为 `sceneryContact=supported-shore-activity-v2`、`landscapeSurface=wet-bank-mosaic-v7`、`waterSurface=shore-activity-v7`。场景仍不包含所有树石的连续碰撞避让。
+
+水面法线设计参考 [NVIDIA GPU Gems 的水面波形与法线说明](https://developer.nvidia.com/gpugems/gpugems/part-i-natural-effects/chapter-1-effective-water-simulation-physical-models)和[Godot 空间着色器坐标约定](https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/spatial_shader.html)。[Godot 障碍物说明](https://docs.godotengine.org/en/stable/tutorials/navigation/navigation_using_navigationobstacles.html)区分路径数据与避让；本项目没有将显示反馈等同于接入新的导航系统。
 
 ---
 

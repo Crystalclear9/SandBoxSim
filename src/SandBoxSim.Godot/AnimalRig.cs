@@ -35,6 +35,23 @@ internal partial class AnimalRig : Node3D
     public Skeleton3D? FurSkeleton;
     public MeshInstance3D? FurSkin;
     private float _phase, _stride,_graze,_bodyBob;
+    internal (Vector3 Logical,long Ground,Vector3 Point)? BankPlacement;
+    private float _bankSupportRadius;
+    internal float BankSupportRadius
+    {
+        get
+        {
+            if(_bankSupportRadius>0)return _bankSupportRadius;
+            float radius=.28f;
+            for(int i=0;i<4;i++)
+            {
+                var sole=Legs[i].Position+Knees[i].Position+(RestSoles?[i]??new Vector3(0,-.4f,0));
+                radius=MathF.Max(radius,new Vector2(sole.X,sole.Z).Length());
+            }
+            // Include the existing 14 cm gait excursion plus a small hoof pad.
+            return _bankSupportRadius=radius+.18f;
+        }
+    }
     // Solve the four contact chains against the rendered surface. The body and
     // the fur skeleton use the same rotations; moving only the paw mesh would
     // tear it away from the continuous skin.

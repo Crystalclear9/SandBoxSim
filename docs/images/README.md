@@ -148,4 +148,4 @@
 
 2026-11-05 的 `terrain-modern.png`／`terrain-closeup.png` 来自当前公开 `visual-landscape` 第 40／80 帧，`living-paths.png` 来自 `world-living-paths` 第 90 帧（80 名初始居民、预运行 14 日）。三张均为原生 1600×1000 直接复制，使用 `habitatDetail=responsive-understory-v12`，核对构建、源码、产物哈希、固定视觉步长和零窗口恢复；其他专题保留各自采样。近景图展示四候选混合草叶与实际人物、鹿狼；即时草叶弯折属于显示，长期小径仍来自真实模拟。
 
-当前 `terrain-modern.png`／`terrain-closeup.png` 使用 `visual-landscape` 第 40／80 帧，`ecology-detail.png` 使用 `visual-ecology-details` 第 90 帧；`scene-resource-contacts.png` 使用 `world-scenery-contacts` 第 90 帧（40 名初始居民、预运行两日）。四张均为原生 1600×1000 直接复制，使用 `sceneryContact=rooted-resource-anchors-v1`，核对源码／构建身份、产物哈希与零窗口恢复；较早的长期小径图保留其原采样。树木图册反映实际根部挂点，坡地接地与资源朝向仍按正文说明解释。
+当前 `terrain-modern.png`／`terrain-closeup.png` 使用 `visual-landscape` 第 40／80 帧，`scene-resource-contacts.png` 使用 `world-scenery-contacts` 第 90 帧（40 名初始居民、预运行两日）。三张均为原生 1600×1000 直接复制，使用 `sceneryContact=supported-shore-activity-v2`、`landscapeSurface=wet-bank-mosaic-v7`、`waterSurface=shore-activity-v7`，核对源码／构建身份、产物哈希、固定视觉步长与零窗口恢复。画面反映岸边碎砾、湿润过渡与实际人物动物；单帧图不证明嘴／手的物理接触。`ecology-detail.png` 保留上一版 `rooted-resource-anchors-v1` 的共享环境模型图册，`living-paths.png` 保留其较早的长期踩踏采样。

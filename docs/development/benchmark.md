@@ -291,3 +291,5 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 `habitatDetail=responsive-understory-v12` 增加四候选的林下层、矮阔叶及最近八角色的草叶接触场，改变顶点着色负载与自然物放置缓存身份。`VEGETATION_CONTACT_PASS` 验证接触选择、上传、清除与模拟观察纯度；放置检查验证实际根部占用及缓存恢复。视觉／效率比较须冻结草丛数量、镜头、角色分布、源码与冷／热缓存条件，不能将植被负载变化解释为内核加速或 RSI 改进。
 
 `sceneryContact=rooted-resource-anchors-v1` 改变树的水平挂点、坡地岩石放置、资源朝向与近景碎片数量，输入源码、像素和自然物冷构建成本均改变。`world-scenery-contacts` 提供两日预运行的实际场景；`TREE_ROOT_ANCHOR_PASS`／`SCENERY_SUPPORT_PASS` 是来源、接地、类型／耗尽回退及观察纯度检查，不是完整物理碰撞或 RSI 得分。比较效率须冻结场景、实例数量与冷／热缓存，不能直接沿用旧画面性能数字。
+
+`sceneryContact=supported-shore-activity-v2`、`landscapeSurface=wet-bank-mosaic-v7`、`waterSurface=shore-activity-v7` 增加实际岸线碎砾、湿润沉积、水岸朝向与最多八个有限寿命的饮水活动脉冲。动物的水平到达判定也改变低头时机，岸边显示站位依实际足部跨度在同格内调整；无法容纳的窄岸另行记录。`SHORE_INTERACTION_PASS`／`ANIMAL_BANK_PASS` 属于显示与模拟观察纯度回归，不是物理接触、审美或 RSI 得分；比较效率需冻结岸线、碎砾数量、饮水状态、镜头、完整源码和冷／热缓存条件。

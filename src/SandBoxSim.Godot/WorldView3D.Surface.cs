@@ -16,6 +16,8 @@ public partial class WorldView3D
 uniform sampler2D material_map:filter_nearest,repeat_disable;
 uniform sampler2D bed_height:filter_linear,repeat_disable;
 uniform vec2 map_size;
+uniform vec4 contact_rings[8];
+uniform int contact_ring_count=0;
 varying vec3 p;
 float bed_vertex(ivec2 vertex){
     vec2 uv=clamp(vec2(vertex)/4.0/map_size,vec2(0),vec2(1));
@@ -37,6 +39,22 @@ vec3 ripple(vec2 xz){
     vec2 gradient=cos(a)*.006*k1-sin(b)*.004*k2+cos(c)*.0009*k3;
     return vec3(gradient.x,sin(a)*.006+cos(b)*.004+sin(c)*.0009,gradient.y);
 }
+vec2 contact_gradient(vec2 xz,float footprint){
+    vec2 slope=vec2(0);
+    for(int i=0;i<8;i++){
+        if(i>=contact_ring_count)break;
+        vec4 ring=contact_rings[i];vec2 offset=xz-ring.xy;
+        float d2=dot(offset,offset),radius=.10+ring.z*.60;
+        if(d2>(radius+.40)*(radius+.40))continue;
+        float d=sqrt(d2+.0004),q=d-radius;
+        float fade=smoothstep(0.0,.18,ring.z)*(1.0-smoothstep(1.4,2.6,ring.z));
+        float envelope=exp(-q*q/0.0256)*fade*ring.w;
+        // Analytic radial derivative; the regularised centre stays finite.
+        float derivative=.005*envelope*(cos(q*24.0)*24.0-sin(q*24.0)*q*78.125);
+        slope+=offset/d*derivative/(1.0+pow(footprint*32.0,2.0));
+    }
+    return clamp(slope,vec2(-.20),vec2(.20));
+}
 void vertex(){
     p=VERTEX;
     float depth=max(0.0,.02-actual_bed(p.xz));
@@ -53,7 +71,8 @@ void fragment(){
     float detail_fade=1.0/(1.0+pow(footprint*60.0,2.0));
     vec2 k4=vec2(43.0,27.0),k5=vec2(-19.0,61.0);
     vec2 small=(cos(dot(p.xz,k4)-TIME*2.3)*.0007*k4+cos(dot(p.xz,k5)+TIME*1.7)*.00045*k5)*detail_fade;
-    vec3 n=normalize(vec3(-(waves.x+small.x)*shore_fade,1,-(waves.z+small.y)*shore_fade));
+    vec2 activity=contact_gradient(p.xz,footprint)*smoothstep(.002,.025,depth);
+    vec3 n=normalize(vec3(-(waves.x+small.x)*shore_fade-activity.x,1,-(waves.z+small.y)*shore_fade-activity.y));
     NORMAL=normalize(mat3(VIEW_MATRIX)*n);
     float fresnel=.02+.98*pow(1.0-clamp(dot(NORMAL,normalize(VIEW)),0.0,1.0),5.0);
     float bed_detail=sin(p.x*17.0+sin(p.z*7.0))*sin(p.z*21.0+p.x*3.0)*.012;
@@ -66,6 +85,7 @@ void fragment(){
 }"};
         var material=new ShaderMaterial {Shader=shader};material.SetShaderParameter("material_map",_groundMapTexture!);
         material.SetShaderParameter("bed_height",_waterBed!);material.SetShaderParameter("map_size",new Vector2(width,height));
+        _interactiveWater=material;EndWaterContacts();
         return material;
     }
     private ShaderMaterial CreateGroundMaterial()
@@ -165,9 +185,11 @@ void fragment(){
     vec4 habitat=texture(tint_map,map_uv);
     float damp=texture(hydrology_map,map_uv).b,moisture=texture(hydrology_map,map_uv).a;
     float shore=smoothstep(.12,.42,damp)*(1.0-smoothstep(.60,.86,damp));
+    float wet_bank=(1.0-smoothstep(.045,.30,world_position.y))
+        *smoothstep(.10,.30,damp)*(1.0-special.z)*(1.0-special.y);
     float exposed=smoothstep(.08,.32,slope)*.9;
     weights=mix(weights,vec4(0,0,1,0),exposed);
-    float sediment=shore*(.55+noise2(world_position.xz*.83)*.45);
+    float sediment=max(shore,wet_bank)*(.55+noise2(world_position.xz*.83)*.45);
     weights=mix(weights,vec4(0,0,0,1),sediment*.88);
     float wear=clamp(trail(grid)*.9+texture(material_map,map_uv).g*.12,0.0,.95);
     weights=mix(weights,vec4(0,0,0,1),wear);
@@ -207,6 +229,7 @@ void fragment(){
     float snow=special.y*(1.0-smoothstep(.10,.33,slope));
     colour=mix(colour,vec3(.75,.79,.80)*(0.95+noise2(world_position.xz*2.0)*.05),snow);
     colour*=mix(1.0,.68,shore*.72+moisture*.18);
+    colour*=1.0-wet_bank*.22;
     float silt=shore*(1.0-smoothstep(.02,.18,world_position.y))*(.7+noise2(world_position.xz*2.4)*.3);
     colour=mix(colour,earth*vec3(.68,.73,.66),silt*.38);
     colour*=.94+noise2(world_position.xz*.043)*.10;
@@ -221,7 +244,7 @@ void fragment(){
     vec3 rdz=texture(rock_nr,vec2(rock_uv.x,-rock_uv.y*side.z)).rgb;
     vec3 earth_data=texture(earth_nr,earth_uv).rgb,rock_data=rdx*projection.x+rdy*projection.y+rdz*projection.z;
     float rough=grass_data.b*weights.x+forest_data.b*weights.y+rock_data.b*weights.z+earth_data.b*weights.w;
-    ROUGHNESS=clamp(rough-shore*.10,.64,.98);SPECULAR=.16;
+    ROUGHNESS=clamp(rough-shore*.10-wet_bank*.18,.46,.98);SPECULAR=.16+wet_bank*.10;
     vec3 gn=decode_normal(grass_data);gn.xy=mat2(vec2(.819,-.574),vec2(.574,.819))*gn.xy;
     vec3 grain=gn*weights.x+decode_normal(forest_data)*weights.y+decode_normal(earth_data)*weights.w;
     // Decode each projection in its own tangent frame; packed RGB cannot
