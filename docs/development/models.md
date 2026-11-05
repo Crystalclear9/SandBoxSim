@@ -984,3 +984,5 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 空间与接续设计另参考[饮水动作中的关节及末端运动研究](https://pubmed.ncbi.nlm.nih.gov/38144196/)和[手臂运动平滑性的实验研究](https://elifesciences.org/articles/68013)。饮水研究观察到的差异随动作阶段变化，女性组的回手阶段并非更慢；项目采用任务相关的协调与有界美术弧线，未导入论文数据，也没有用同一速度倍率代表全部性别差异。
 
 场景地表使用 `habitatDetail=responsive-understory-v12`：共享草丛网格包含 20 片较高弯叶与 4 片矮阔叶，336 个三角形；每个适宜格最多四个候选，外围根部核对相邻地类与占用。人物与鹿狼的近景草叶接触场、占用缓存失效、接地和寻路的职责边界见[地形与场景接触](../guides/terrain-and-traces.md)。即时草叶反应是只读显示；长期压实继续来自内核。
+
+`sceneryContact=rooted-resource-anchors-v1` 以实际树干底部校正来源网格的水平挂点，普通山石／碎石按底部周向支撑嵌入坡地，主要山石周边复用两枚碎片组织尺度层次；带类型的资源显示锚点参与人物采集朝向。来源变换和几何边界见[环境素材](environment-assets.md)，交互语义见[地形与场景接触](../guides/terrain-and-traces.md)。

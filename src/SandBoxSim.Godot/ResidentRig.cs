@@ -49,7 +49,7 @@ internal partial class ResidentRig : Node3D
     private Vector2 _gaze;
     private float _socialBlend,_socialTime,_attentionYaw;
     private float _wantedAttention;
-    public void Attend(Vector3 localDirection) => _wantedAttention=localDirection.LengthSquared()>.001f?Math.Clamp(MathF.Atan2(-localDirection.X,-localDirection.Z),-.40f,.40f):0;
+    public void Attend(Vector3 localDirection) => _wantedAttention=localDirection.X*localDirection.X+localDirection.Z*localDirection.Z>.001f?Math.Clamp(MathF.Atan2(-localDirection.X,-localDirection.Z),-.40f,.40f):0;
     private Vector3 _returnPosition,_heldPosition;
     private Basis _returnBasis,_heldBasis;
     public void SetHeadDetail(bool detailed)

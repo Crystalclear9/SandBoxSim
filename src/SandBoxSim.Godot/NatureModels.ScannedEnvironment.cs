@@ -18,6 +18,7 @@ internal sealed partial class NatureModels
     };
     private Shader? _sourceVegetationShader;
     private readonly Dictionary<string,ShaderMaterial> _sourceVegetationMaterials=new();
+    private readonly Dictionary<string,int> _environmentRootSurfaces=new();
     private ShaderMaterial SourceVegetationMaterial(string asset,string name,float height)
     {
         string key=asset+":"+name;if(_sourceVegetationMaterials.TryGetValue(key,out var cached))return cached;
@@ -93,6 +94,24 @@ ALPHA=cutout?texture(alpha_map,tex_uv).r:1.0;ALPHA_SCISSOR_THRESHOLD=mix(.45,.18
         using var doc=JsonDocument.Parse(raw);var root=doc.RootElement;
         if(root.GetProperty("schemaVersion").GetInt32()!=1||root.GetProperty("source").GetProperty("license").GetString()!="CC0-1.0")throw new InvalidOperationException("Invalid environment source record");
         float[] Floats(JsonElement e){var a=new float[e.GetArrayLength()];int i=0;foreach(var v in e.EnumerateArray())a[i++]=v.GetSingle();return a;}
+        var origin=Vector3.Zero;
+        if(asset is "tree_small_02" or "fir_sapling")
+        {
+            int surfaceIndex=0;
+            foreach(var surface in root.GetProperty("surfaces").EnumerateArray())
+            {
+                string name=surface.GetProperty("material").GetString()!;
+                if(name.EndsWith(asset=="tree_small_02"?"_trunk":"_branches",StringComparison.Ordinal))
+                {
+                    var positions=Floats(surface.GetProperty("positions"));int bases=0;
+                    for(int i=0;i<positions.Length;i+=3)if(positions[i+1]<.15f)
+                    {origin+=new Vector3(positions[i],0,positions[i+2]);bases++;}
+                    if(bases<3)throw new InvalidOperationException("Missing authored tree base");
+                    origin/=bases;_environmentRootSurfaces[asset]=surfaceIndex;break;
+                }
+                surfaceIndex++;
+            }
+        }
         var result=new ArrayMesh();
         foreach(var surface in root.GetProperty("surfaces").EnumerateArray())
         {
@@ -104,7 +123,7 @@ ALPHA=cutout?texture(alpha_map,tex_uv).r:1.0;ALPHA_SCISSOR_THRESHOLD=mix(.45,.18
             foreach(var item in index.EnumerateArray())
             {
                 int v=item.GetInt32();if(v<0||v>=p.Length/3)throw new InvalidOperationException("Environment index out of range");
-                var point=new Vector3(p[v*3],p[v*3+1],p[v*3+2]);var normal=new Vector3(n[v*3],n[v*3+1],n[v*3+2]);
+                var point=new Vector3(p[v*3],p[v*3+1],p[v*3+2])-origin;var normal=new Vector3(n[v*3],n[v*3+1],n[v*3+2]);
                 if(!point.IsFinite()||!normal.IsFinite()||normal.LengthSquared()<.8f)throw new InvalidOperationException("Invalid environment geometry");
                 tool.SetNormal(normal.Normalized());tool.SetUV(new(t[v*2],t[v*2+1]));tool.AddVertex(point);
             }
@@ -130,6 +149,14 @@ ALPHA=cutout?texture(alpha_map,tex_uv).r:1.0;ALPHA_SCISSOR_THRESHOLD=mix(.45,.18
             }
             int vertexBudget=asset=="tree_small_02"?220000:asset=="fir_sapling"?190000:150000;
             if(count>vertexBudget||count<30)throw new InvalidOperationException("Source environment mesh is outside budget");
+            if(_environmentRootSurfaces.TryGetValue(asset,out int rootSurface))
+            {
+                var p=mesh.SurfaceGetArrays(rootSurface)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                var centre=Vector3.Zero;int bases=0;
+                foreach(var v in p)if(v.Y<.15f){centre+=new Vector3(v.X,0,v.Z);bases++;}
+                if(bases<3||(centre/bases).Length()>.025f)throw new InvalidOperationException("Authored tree base is not centred on its scene anchor");
+                GD.Print($"TREE_ROOT_ANCHOR_PASS: {asset}, actual basal centre={(centre/bases).Length():F5} m; source topology, UV and normals retained");
+            }
         }
         GD.Print("ENVIRONMENT_SOURCES_PASS: six licensed meshes, source hashes, PBR/alpha resources, finite attributes, material/cache preservation and budgets");
     }

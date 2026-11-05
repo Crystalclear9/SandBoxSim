@@ -74,9 +74,7 @@
 
 `FootTraffic` 是连续模拟值，贴图按 1/255 的显示精度更新；共享显示顶点与河岸插值不会增加模拟格子或改变通行规则。相同地表状态在不同 GPU 上可以有像素差异，核心摘要与存档状态仍按同版本规则比较。外部读取字段见 [在线接口](../development/online-efficiency.md)。
 
----
 
-[文档导航](../README.md) · [项目首页](../../README.md)
 
 ## 场景与角色的接触
 
@@ -98,3 +96,17 @@
 回归检查覆盖实际草丛外围根接地、建筑占用后的缓存失效与恢复、最近八个接触的选择、材质位置上传、失效接触清除，以及观察前后的模拟摘要一致。运行包自检同时检查人物和动物接地、岸线通路、建筑地基、存档与界面操作；这些检查不构成所有模型碰撞的物理保证。
 
 实现划分参考 [Godot 的导航网格说明](https://docs.godotengine.org/en/stable/tutorials/navigation/navigation_using_navigationmeshes.html)，其中明确区分导航数据与视觉／物理几何；地表层次参考 [Epic 的地形材质分层说明](https://dev.epicgames.com/documentation/en-us/unreal-engine/landscape-quick-start-guide-in-unreal-engine)。项目继续采用自己的格子模拟、Godot 渲染和已有授权扫描材质，没有引入 Unreal 运行时或新增素材下载。
+
+## 资源显示位置与采集朝向
+
+树干、矿石和食物灌丛按实际实例落点登记带资源类型的显示锚点。居民执行对应采集动作时，以该锚点调整身体朝向与注意方向；寻路目的地、采集量、库存和时间仍由内核格子与实体决定。资源耗尽、类型不符、显示物不存在，或动作不是对应采集动作时，回退到原逻辑格位置。自然物刷新与世界载入会重建登记表，避免沿用旧显示位置。
+
+朝向解算只使用水平距离。目标只有高度差时保持水平注意中性，避免对正上方／下方目标调用未定义的水平朝向而扭头。显示锚点用于观察与面向资源，不提供新的工具碰撞、伤害命中或所有树石的连续避让；原有角色与动物仍遵循内核通路和接地约束。
+
+`TREE_ROOT_ANCHOR_PASS` 检查实际渲染树根中心；`SCENERY_SUPPORT_PASS` 检查实际放置的底部探针、嵌入余量、资源类型／耗尽回退、纯高度注意方向和模拟摘要不变。公开场景 [world-scenery-contacts.json](../../benchmarks/scenarios/world-scenery-contacts.json) 预运行两日，观察已有活动、显示自然物及居民位置。
+
+![实际聚落与资源场景](../images/scene-resource-contacts.png)
+
+---
+
+[文档导航](../README.md) · [项目首页](../../README.md)

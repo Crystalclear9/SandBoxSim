@@ -450,7 +450,7 @@ public partial class WorldView3D : MapView
         var quality=new Dictionary<string,object> { ["worldPresentationEnabled"]=WorldPresentationEnabled,["shadowMode"]=_sunlight.DirectionalShadowMode.ToString(),
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
-            ["landscapeSurface"]="coverage-mosaic-v6",["habitatDetail"]="responsive-understory-v12",["vegetationSurface"]="engine-faced-v2",
+            ["landscapeSurface"]="coverage-mosaic-v6",["sceneryContact"]="rooted-resource-anchors-v1",["habitatDetail"]="responsive-understory-v12",["vegetationSurface"]="engine-faced-v2",
             ["architecture"]="inset-joinery-v13",["garmentMaterial"]="quiet-linen-v17",["upperArmFlex"]="stable-contour-v3",["shoulderSkin"]="reference-figure-v25",["shoulderMotion"]="source-clavicle-v11",["motionReference"]="cmu-143-30-v1",["shoulderSurface"]="authored-bind-surface-v3",["forearmSkin"]="continuous-elbow-v9",["sleeveFairing"]="rest-detail-v2",["workPose"]="raised-hammer-v1",["reachMotion"]="palm-trajectory-v2",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
             ["animalPresentation"]="articulated-paws-v12",["residentSurface"]="linear-skin-v9",["workEffort"]="arc-recovery-v4",["toolMotion"]="constraint-feedback-v4",["bodySupport"]="planted-sagittal-v1",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="wholebody-motion-v7",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="spatial-gesture-v6",["waterSurface"]="constrained-bank-v6",["wristContour"]="continuous-source-v2",
             ["hairline"]="framed-source-root-v2",["garmentFit"]="continuous-drape-v31",["reedPanicle"]="connected-axis-v1",["bodyPresentation"]="continuous-drape-v29",["bodyFrame"]="reference-contour-physique-v31",["neckContour"]="relaxed-neckline-v5",["faceContour"]="balanced-adult-v3",["forearmProfile"]="curvature-flow-v9",["residentLocomotion"]="ankle-offset-v4",["armSwing"]="elliptic-countermotion-v4",["motionStyle"]="spatial-power-flow-v2",["limbCoordination"]="hinge-carry-v4" };
@@ -498,7 +498,7 @@ public partial class WorldView3D : MapView
         }
         finally {world.Tiles[index]=original;CheckTerrain();}
         if(StateHash.ComputeDigest(Game.Sim)!=digest)throw new InvalidOperationException("Ground presentation validation changed simulation");
-        ValidateMeadowPresentation();ValidateVegetationContacts();
+        ValidateMeadowPresentation();ValidateVegetationContacts();ValidateScenerySupport();
         ValidateLogicalShoreline();
         GD.Print("GROUND_PRESENTATION_PASS: texture-only overlays, byte-precision wear and unchanged simulation");
     }
@@ -685,6 +685,7 @@ public partial class WorldView3D : MapView
     private void BuildNature()
     {
         _flowerBatches.Clear();
+        _groundedStones.Clear();_sceneResourceAnchors.Clear();
         using var profile=RenderProfile.Measure("BuildNature");
         var leaves = new List<Transform3D>(); var pines = new List<Transform3D>();
         var grass = new List<Transform3D>(); var ferns = new List<Transform3D>(); var rocks = new List<Transform3D>(); var ores = new List<Transform3D>(); var bushes = new List<Transform3D>(); var pebbles=new List<Transform3D>();var reeds=new List<Transform3D>();
@@ -702,7 +703,7 @@ public partial class WorldView3D : MapView
                 {
                     float px=p.X+MathF.Sin(h%791+i*2.41f)*.68f,pz=p.Z+MathF.Cos(h%613+i*1.87f)*.68f;
                     float scale=.10f+((h>>(i*3))%7)*.024f;
-                    pebbles.Add(NatureModels.Transform(new(px,GroundHeight(px,pz)+scale*.18f,pz),new(scale,scale*.65f,scale*1.3f),new(.1f,i*1.7f+h%13,.12f)));
+                    pebbles.Add(GroundedStone("pebble",new(px,0,pz),new(scale,scale*.65f,scale*1.3f),new(.1f,i*1.7f+h%13,.12f),.035f));
                 }
             }
             bool living=tile.BuildingId==0&&tile.Fire!=FireState.Burnt;
@@ -746,11 +747,18 @@ public partial class WorldView3D : MapView
                 float px=p.X+((h>>7)%101/100f-.5f)*1.35f,pz=p.Z+((h>>17)%101/100f-.5f)*1.35f;
                 var tree=NatureModels.Transform(new(px,GroundHeight(px,pz)-.045f,pz),Vector3.One*(.76f+(h%17)*.035f),new Vector3(0,h%17,0));
                 if(h%3==0)pines.Add(tree);else leaves.Add(tree);
+                RegisterSceneResource(x,y,ResourceKind.Wood,tree.Origin+Vector3.Up*(.85f*tree.Basis.Y.Length()));
             }
             if (tile.BuildingId==0&&tile.Terrain == TerrainKind.Mountain && h % 9 == 0)
-            { var t = NatureModels.Transform(p-Vector3.Up*.08f, new Vector3(1.6f, 1.2f, 1.7f) * size, new Vector3(0,h%7,0)); if (tile.Resource.Kind == ResourceKind.Iron) ores.Add(t); else rocks.Add(t); }
+            {
+                var t=GroundedStone("boulder",p,new Vector3(1.6f,1.2f,1.7f)*size,new(0,h%7,0),.045f);
+                if(tile.Resource.Kind==ResourceKind.Iron)ores.Add(t);else rocks.Add(t);
+                RegisterSceneResource(x,y,tile.Resource.Kind,t.Origin+Vector3.Up*.55f);
+                for(int fragment=0;fragment<2;fragment++){float a=h%31+fragment*2.4f;var q=p+new Vector3(MathF.Cos(a),0,MathF.Sin(a))*.85f;float r=.17f+fragment*.09f;
+                    pebbles.Add(GroundedStone("pebble",q,new(r,r*.7f,r*1.2f),new(.1f,a,.12f),.04f));}
+            }
             if (tile.BuildingId==0&&tile.Resource.Kind == ResourceKind.Food && tile.Resource.Amount > 5 && h % 17 == 0)
-                { bushes.Add(RootedPlant(p, new Vector3(.9f, .7f, .9f) * size,h%31)); }
+                { bushes.Add(RootedPlant(p, new Vector3(.9f, .7f, .9f) * size,h%31));RegisterSceneResource(x,y,ResourceKind.Food,p+Vector3.Up*.45f); }
         }
         if(_groundMapTexture!=null)_models.BindEnvironmentGround(_groundMapTexture,new Vector2(Game.Sim.World.Width,Game.Sim.World.Height));
         _models.Batch(_props,"pebble",6,pebbles,_models.RockSurface(false),28);
@@ -848,7 +856,7 @@ public partial class WorldView3D : MapView
             if(!visible)continue;
             Vector3 interestPoint=target;bool hasInterest=false;
             if(sim.Agents.HasTarget(slot)&&sim.World.IsInBounds(sim.Agents.TargetOf(slot)))
-            {var interest=sim.Agents.TargetOf(slot);interestPoint=PositionAt(interest.X,interest.Y);hasInterest=true;}
+            {var interest=sim.Agents.TargetOf(slot);interestPoint=SceneResourceFocus(interest.X,interest.Y,sim.Agents.ActionOf(slot));hasInterest=true;}
             if(sim.Actions.TryGetInteractionPartner(slot,out int partner))
             {
                 long identity=sim.Society.Identity(partner);
@@ -858,7 +866,7 @@ public partial class WorldView3D : MapView
             if(!Game.VisualPaused&&hasInterest&&new Vector2(direction.X,direction.Z).Length()<.035f&&sim.Agents.PhaseOf(slot)==ActionPhase.Executing)
             {
                 var facing=hasInterest?interestPoint-rendered:Vector3.Zero;
-                if(facing.LengthSquared()>.02f) node.Rotation=new(0,Mathf.LerpAngle(node.Rotation.Y,MathF.Atan2(facing.X,facing.Z)+MathF.PI,1-MathF.Exp(-delta*7)),0);
+                if(facing.X*facing.X+facing.Z*facing.Z>.002f) node.Rotation=new(0,Mathf.LerpAngle(node.Rotation.Y,MathF.Atan2(facing.X,facing.Z)+MathF.PI,1-MathF.Exp(-delta*7)),0);
             }
             float distanceSquared=cameraPosition.DistanceSquaredTo(rendered);
             // Keep position interpolation every frame; distant joint poses need fewer updates.

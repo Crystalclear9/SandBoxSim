@@ -68,6 +68,10 @@ UI 使用炭灰、低饱和青灰绿和暖铜色强调，顶部世界、资源�
 
 顶部食物、木材与石料表示已采集储备，包括居民背包、地面物资堆和仓库。地表节点仍需要采集；库存总量也不保证每位居民都能到达物资。
 
+地表包含交错的矮阔叶与长弯叶草丛，附近人物和鹿狼会使草叶弯折、压低；实际草根检查相邻道路、建筑和火烧占用。长期小径仍由真实行走／作业压实缓慢形成。接触范围、性能预算与场景／寻路边界见[地形与场景接触](docs/guides/terrain-and-traces.md)。
+
+树木按实际树干底部对齐场景挂点，山石和碎石按真实底面贴合坡地；采集朝向读取对应资源的显示落点，并在资源耗尽或类型不符时回退。当前放置与交互范围见[环境素材及场景放置](docs/development/environment-assets.md)。
+
 ## 实验与 benchmark 接口
 
 可通过独立评测模式运行固定场景，采集墙钟帧耗时与状态摘要，生成无标题的模型图像、视觉问题及答案，并回放人物界面操作。正常游戏仍为自由探索。运行方法、JSON 协议、模型预测格式和研究边界见 [评测接口与实验运行](docs/development/benchmark.md)，公开样例见 [评测场景](benchmarks/README.md)。代理实验提供有界策略选择、实际 Python 候选代码和 HTTP 程序优化三种后端，均保留迁移、失败与控制证据。这些接口用于可复现的开发实验，不代表已经验证 RSI 能力。重复采样与渲染缓存说明见 [性能维护](docs/development/performance.md)。[连续世界实验](docs/development/stateful-rsi.md) 进一步检验库存变化、道路变更、实体世代与旧能力保留，并输出可展开的因果证据报告。[改进器效率研究](docs/development/rsi-efficiency.md) 比较实际时间预算、后代增量收益率与部署成本回收，明确拒绝无法确认的收益。
@@ -117,8 +121,6 @@ SandBoxSim/
 └─ runs/                日志、模拟数据和临时截图，忽略提交
 ```
 
-游戏资源位于 `src/SandBoxSim.Godot/assets/`：`models/` 保存衍生网格与对应贴图，`materials/scanned/` 保存扫描表面及来源清单，`textures/` 保存仍需保留的材质与地图图集。旧插画、配方目录已移除。开发期间的临时截图放在 `runs/screenshots/`；清理时保留正式文档配图、游戏素材和存档。详细约定见 [文件管理](docs/development/repository-layout.md)。
+游戏资源位于 `src/SandBoxSim.Godot/assets/`：`models/` 保存衍生网格与对应贴图，`materials/scanned/` 保存扫描表面及来源清单，`textures/` 保存仍需保留的材质与地图图集。旧插画、配方目录已移除。开发期间的临时截图和脚本放在 `.tools/tmp/<主题>/`；清理时保留正式文档配图、游戏素材和存档。详细约定见 [文件管理](docs/development/repository-layout.md)。
 
 贡献约定见 [CONTRIBUTING.md](CONTRIBUTING.md)，代码授权见 [LICENSE](LICENSE)。
-
-地表包含交错的矮阔叶与长弯叶草丛，附近人物和鹿狼会使草叶弯折、压低；实际草根检查相邻道路、建筑和火烧占用。长期小径仍由真实行走／作业压实缓慢形成。接触范围、性能预算与场景／寻路边界见[地形与场景接触](docs/guides/terrain-and-traces.md)。

@@ -289,3 +289,5 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 `motionStyle=spatial-power-flow-v2`、`armSwing=elliptic-countermotion-v4`、`workEffort=arc-recovery-v4` 标识成人动作风格的肩肘跟随、躯干侧摆、手势回收及作业相位分配。风格不改变模拟生产效率，但会改变姿态、图像和每帧计算；比较视觉／效率结果须冻结这些标记、完整源码、身体与工具、状态、镜头及冷／热缓存条件。`MOTION_STYLE_PASS` 是相同身体和能力条件下的实际轨迹回归，不是 RSI 或审美评分。
 
 `habitatDetail=responsive-understory-v12` 增加四候选的林下层、矮阔叶及最近八角色的草叶接触场，改变顶点着色负载与自然物放置缓存身份。`VEGETATION_CONTACT_PASS` 验证接触选择、上传、清除与模拟观察纯度；放置检查验证实际根部占用及缓存恢复。视觉／效率比较须冻结草丛数量、镜头、角色分布、源码与冷／热缓存条件，不能将植被负载变化解释为内核加速或 RSI 改进。
+
+`sceneryContact=rooted-resource-anchors-v1` 改变树的水平挂点、坡地岩石放置、资源朝向与近景碎片数量，输入源码、像素和自然物冷构建成本均改变。`world-scenery-contacts` 提供两日预运行的实际场景；`TREE_ROOT_ANCHOR_PASS`／`SCENERY_SUPPORT_PASS` 是来源、接地、类型／耗尽回退及观察纯度检查，不是完整物理碰撞或 RSI 得分。比较效率须冻结场景、实例数量与冷／热缓存，不能直接沿用旧画面性能数字。

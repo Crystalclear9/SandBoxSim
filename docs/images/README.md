@@ -147,3 +147,5 @@
 `resident-style-social.png`／GIF 来自当前 `visual-social`：上排为男女交谈，下排保留分享与进食，使用 `socialMotion=spatial-gesture-v6`。采样与上述动作演示一致：两次固定回放，逻辑帧 120–297 每三帧取样，1600×1000、60 个原生帧、20 fps、三秒；PNG 直接复制第 180 帧。当前步行、作业与交谈三组共六次回放，均核对来源、产物哈希、零窗口恢复和固定视觉步长。
 
 2026-11-05 的 `terrain-modern.png`／`terrain-closeup.png` 来自当前公开 `visual-landscape` 第 40／80 帧，`living-paths.png` 来自 `world-living-paths` 第 90 帧（80 名初始居民、预运行 14 日）。三张均为原生 1600×1000 直接复制，使用 `habitatDetail=responsive-understory-v12`，核对构建、源码、产物哈希、固定视觉步长和零窗口恢复；其他专题保留各自采样。近景图展示四候选混合草叶与实际人物、鹿狼；即时草叶弯折属于显示，长期小径仍来自真实模拟。
+
+当前 `terrain-modern.png`／`terrain-closeup.png` 使用 `visual-landscape` 第 40／80 帧，`ecology-detail.png` 使用 `visual-ecology-details` 第 90 帧；`scene-resource-contacts.png` 使用 `world-scenery-contacts` 第 90 帧（40 名初始居民、预运行两日）。四张均为原生 1600×1000 直接复制，使用 `sceneryContact=rooted-resource-anchors-v1`，核对源码／构建身份、产物哈希与零窗口恢复；较早的长期小径图保留其原采样。树木图册反映实际根部挂点，坡地接地与资源朝向仍按正文说明解释。
