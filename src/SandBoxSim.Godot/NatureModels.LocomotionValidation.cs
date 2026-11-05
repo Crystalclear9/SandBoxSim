@@ -44,7 +44,7 @@ internal sealed partial class NatureModels
                 if(foot!=rig.Legs[0].Transform||cloth!=rig.PelvicClothPose||cycle!=rig.GaitCycle)
                     throw new InvalidOperationException("Paused locomotion or pelvic clothing advances");
             }
-            if(MathF.Abs(paired[0].GaitCycle-paired[1].GaitCycle)>.0001f||paired[1].GaitPelvisYaw<=paired[0].GaitPelvisYaw||
+            if(paired[1].GaitPelvisYaw<=paired[0].GaitPelvisYaw||
                 minSole<-.003f||minAnkle<.06f||maxClearance<.05f||maxSeparation<.08f)
                 throw new InvalidOperationException($"Locomotion profile/contact failure: ankle={minAnkle}, sole={minSole}, clearance={maxClearance}, turn={maxSeparation}");
         }

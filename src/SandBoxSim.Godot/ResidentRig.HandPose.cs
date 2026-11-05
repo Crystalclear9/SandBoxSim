@@ -156,12 +156,16 @@ internal partial class ResidentRig
         // The hammer head points back toward the character at the apex.
         // Keep its hand path in front of the chest instead of drawing the
         // head inward toward the cheek while lifting it.
-        float depth=-.30f+lift*(kind==ResidentTool.Hammer?-.10f:.10f)+arc*.028f;
+        float depth=-.30f+lift*(kind==ResidentTool.Hammer?-.10f:.10f)+arc*(.018f+.025f*Flow);
         // A hammer preparation raises the whole arm into a working arc.
         // Keeping the wrist below shoulder height throughout instead made
         // this a forearm-only motion, with the head passing by the cheek.
         float height=.92f+lift*(kind==ResidentTool.Hammer?.46f:.26f);
-        return (new Vector3((kind==ResidentTool.Hammer?.26f:.10f)+arc*(.035f-.020f*Flow),height,depth)+recovery,rotation);
+        // Open the preparation around the shoulder in the drive profile.
+        // The tighter profile carries its arc in depth instead. Strike and
+        // carry targets are shared at the boundaries where the arc is zero.
+        float lateral=(kind==ResidentTool.Hammer?.26f:.10f)+arc*(.065f-.052f*Flow);
+        return (new Vector3(lateral,height,depth)+recovery,rotation);
     }
     // Zero velocity and acceleration at both ends of an intentional reach.
     internal static float ReachEase(float t){t=Math.Clamp(t,0,1);return t*t*t*(10+t*(-15+6*t));}

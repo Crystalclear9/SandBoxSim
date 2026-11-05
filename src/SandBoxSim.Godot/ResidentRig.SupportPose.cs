@@ -18,7 +18,8 @@ internal partial class ResidentRig
         for(int i=0;i<steps;i++)
         {
             float phase=Mathf.PosMod(_strokePhase-(_draw>=.99f?(delta-(i+1)*step)/WorkPeriod:0),1);
-            float target=active?Math.Clamp((.075f+.10f*(1-WorkLift(phase)))*RelativeWorkLoad,.06f,.24f):0;
+            float flex=.073f+.030f*(1-Flow)+(.078f+.062f*(1-Flow))*(1-WorkLift(phase));
+            float target=active?Math.Clamp(flex*RelativeWorkLoad,.06f,.24f):0;
             DampMotion(ref _supportAngle,ref _supportVelocity,new(target,0,0),.085f,step);
         }
         float thigh=Math.Clamp(_supportAngle.X,0,.26f)*weight;

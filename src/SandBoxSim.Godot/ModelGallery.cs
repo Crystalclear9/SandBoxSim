@@ -56,7 +56,7 @@ internal partial class ModelGallery : PanelContainer
         }
         else if(Collection=="work-effort")
         {
-            grid.Columns=2;body.GetChild<Label>(0).Text="同一手锤 · 体格与疲劳下的蓄力、挥击和回收";
+            grid.Columns=2;body.GetChild<Label>(0).Text="同一手锤 · 从脚下支撑到肩肘回收";
             for(int condition=0;condition<2;condition++)for(int frame=0;frame<2;frame++)
             {
                 var rig=models.Resident(frame==0?17:55,false,JobType.Builder);
@@ -99,12 +99,12 @@ internal partial class ModelGallery : PanelContainer
         }
         else if(Collection=="locomotion")
         {
-            grid.Columns=2;body.GetChild<Label>(0).Text="步态与动作衔接 · 同速度的两种成人外观";
-            for(int state=0;state<3;state++)for(int frame=0;frame<2;frame++)
+            grid.Columns=3;body.GetChild<Label>(0).Text="同速 1.05 米/秒 · 步幅、摆臂与转身";
+            for(int frame=0;frame<2;frame++)for(int state=0;state<3;state++)
             {
                 var rig=models.Resident(frame==0?17:55,false,state==2?JobType.Builder:JobType.None);
                 if(state==1)rig.ShowCargo(true,ResourceKind.Wood);
-                Closeup(grid,(frame==0?"男性外观":"女性外观")+(state==0?" · 启停与转身":state==1?" · 负重行走":" · 持锤行走与工作"),rig,2.15f,new(0,.82f,0),new(1.5f,.04f,4),true);
+                Closeup(grid,(frame==0?"男性外观":"女性外观")+(state==0?" · 启停与转身":state==1?" · 负重行走":" · 持锤行走与工作"),rig,2.15f,new(0,.82f,0),new(2.65f,.10f,4),true);
                 Animate(rig,state==2?ActionKind.BuildHouse:ActionKind.Wander);
             }
         }
@@ -321,8 +321,13 @@ internal partial class ModelGallery : PanelContainer
         var view=grid.GetChild<VBoxContainer>(grid.GetChildCount()-1).GetChild<SubViewportContainer>(0).GetChild<SubViewport>(0);
         view.RenderTargetUpdateMode=SubViewport.UpdateMode.WhenVisible;
         var stage=view.GetChild<Node3D>(0);var camera=stage.GetChild<Camera3D>(stage.GetChildCount()-1);
-        var target=new Vector3(0,Collection=="work-effort"?1.05f:.92f,0);camera.Position=target+new Vector3(.03f,.08f,4);camera.LookAt(target);
-        if(Collection=="work-effort")camera.Size=1.15f;
+        var target=new Vector3(0,.92f,0);camera.Position=target+new Vector3(.03f,.08f,4);camera.LookAt(target);
+        if(Collection=="work-effort")
+        {
+            camera.Size=2.35f;
+            camera.Position=target+new Vector3(1.15f,.12f,4);
+            camera.LookAt(target);
+        }
         if(Collection is "social" or "social-side")
         {
             target=new Vector3(0,1,0);camera.Size=1.6f;

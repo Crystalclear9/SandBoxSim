@@ -143,11 +143,14 @@ internal sealed partial class NatureModels
     }
     private void ValidateMotionStyles()
     {
-        // Identical geometry, capacity and gait amplitudes isolate timing and
-        // coordination from body shape. Observe the actual solved joints.
+        // Identical geometry, capacity and displacement isolate the style.
+        // Observe solved feet and knees as well as the hand and tool paths.
         var a=Resident(17,false,JobType.Builder);var b=Resident(17,false,JobType.Builder);
         a.MotionFlow=0;b.MotionFlow=1;
         double walk=0,work=0;int walking=0,working=0;
+        float[] cycles=new float[2],lowestFoot={float.PositiveInfinity,float.PositiveInfinity};
+        float[] highestFoot={float.NegativeInfinity,float.NegativeInfinity},kneeBend=new float[2];
+        var styles=new[]{a,b};
         try
         {
             foreach(var rig in new[]{a,b})
@@ -170,18 +173,30 @@ internal sealed partial class NatureModels
             for(int frame=0;frame<600;frame++)
             {
                 bool moving=frame>=300;
-                foreach(var rig in new[]{a,b})
+                for(int index=0;index<styles.Length;index++)
                 {
+                    var rig=styles[index];
+                    float phase=rig.GaitCycle;
                     rig.ObserveLocomotion(moving?new(0,0,-1.05f/60):Vector3.Zero,1f/60,0,false);
                     rig.PoseAction(1f/60,moving?ActionKind.Wander:ActionKind.BuildHouse,
                         moving?ActionPhase.Moving:ActionPhase.Executing,false,0);
+                    if(frame>=150&&frame<300)kneeBend[index]=MathF.Max(kneeBend[index],MathF.Abs(rig.Knees[0].Rotation.X));
+                    if(frame<420)continue;
+                    cycles[index]+=Mathf.PosMod(rig.GaitCycle-phase,1);
+                    float foot=InTorso(rig.Feet[0],rig).Origin.Z;
+                    lowestFoot[index]=MathF.Min(lowestFoot[index],foot);
+                    highestFoot[index]=MathF.Max(highestFoot[index],foot);
                 }
                 if(frame>=150&&frame<300){work+=Math.Pow(InTorso(a.ToolMesh,a.Torso).Origin.DistanceTo(InTorso(b.ToolMesh,b.Torso).Origin),2);working++;}
                 if(frame>=420){walk+=Math.Pow(InTorso(a.Hands[0],a).Origin.DistanceTo(InTorso(b.Hands[0],b).Origin),2);walking++;}
             }
             double walkRms=Math.Sqrt(walk/walking),workRms=Math.Sqrt(work/working);
-            if(!double.IsFinite(walkRms)||!double.IsFinite(workRms)||walkRms<.001||workRms<.005)
+            if(!double.IsFinite(walkRms)||!double.IsFinite(workRms)||walkRms<.025||workRms<.015)
                 throw new InvalidOperationException($"Motion profiles remain visually identical: walk={walkRms}, work={workRms}");
+            float strideA=highestFoot[0]-lowestFoot[0],strideB=highestFoot[1]-lowestFoot[1];
+            if(cycles[0]<=0||cycles[1]/cycles[0]<1.18f||MathF.Abs(a.GaitSpeed-b.GaitSpeed)>.00001f
+                ||strideA-strideB<.055f||kneeBend[0]-kneeBend[1]<.06f)
+                throw new InvalidOperationException($"Motion style does not reach the lower body: cycles={cycles[0]}/{cycles[1]}, feet={strideA}/{strideB}, knees={kneeBend[0]}/{kneeBend[1]}");
             double social=0;int socialSamples=0;
             for(int frame=0;frame<420;frame++)
             {
@@ -195,10 +210,11 @@ internal sealed partial class NatureModels
                 }
             }
             double socialRms=Math.Sqrt(social/socialSamples);
-            if(socialRms<.003||a.StrokeFollowThrough(.8f).DistanceTo(b.StrokeFollowThrough(.8f))<.003f)
+            if(socialRms<.012||a.StrokeFollowThrough(.8f).DistanceTo(b.StrokeFollowThrough(.8f))<.003f)
                 throw new InvalidOperationException("Style changes timing without distinct gesture/recovery paths");
             GD.Print($"SPATIAL_MOTION_STYLE_PASS: identical body, bilateral social wrist RMS={socialRms:F4} m; distinct bounded recovery arcs, fixed endpoints and continuous wrap");
             GD.Print($"MOTION_STYLE_PASS: identical body/capacity/speed, solved wrist/tool RMS separation={walkRms:F4}/{workRms:F4} m; periodic stroke continuity; art direction, not sex classification");
+            GD.Print($"MOTION_STYLE_LOWER_BODY_PASS: same 1.05 m/s, cadence ratio={cycles[1]/cycles[0]:F3}, solved foot travel={strideA:F3}/{strideB:F3} m, work knee peaks={kneeBend[0]:F3}/{kneeBend[1]:F3} rad");
         }
         finally{a.Free();b.Free();}
     }

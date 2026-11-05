@@ -17,8 +17,12 @@ internal partial class ResidentRig
     internal Basis GaitPelvisBasis=Basis.Identity;
     internal float GaitCycle=>_gaitCycle;
     internal float GaitSpeed=>_gaitSpeed;
-    private float GaitSupport=>.60f+.02f*_workFatigue+(_hasCargo?.025f:0);
-    private float GaitCycleLength(float speed)=>(.76f+.10f*MathF.Min(1.7f,speed))*(1-.10f*_workFatigue)*(_hasCargo?.93f:1);
+    private float GaitSupport=>.622f-.038f*Flow+.02f*_workFatigue+(_hasCargo?.025f:0);
+    private float GaitFootHalfWidth=>MathF.Max(.05f,HipHalfWidth+.014f-.044f*Flow);
+    // Phase is distance driven. Scale the foot's stance travel by the very
+    // same cycle length so a quicker cadence does not increase ground speed.
+    private float GaitCycleLength(float speed)=>(.76f+.10f*MathF.Min(1.7f,speed))*(1.11f-.22f*Flow)
+        *(1-.10f*_workFatigue)*(_hasCargo?.93f:1);
 
     // Called every rendered world frame, before the distance pose scheduler.
     // Discontinuous tile resynchronisation is not interpreted as a sprint.
@@ -58,10 +62,10 @@ internal partial class ResidentRig
         if(!moving&&_gaitSpeed<.00001f){_gaitSpeed=0;_activity=0;}
         _gaitTurn=Mathf.Lerp(_gaitTurn,moving?_turnDemand:0,1-MathF.Exp(-dt*7));
         float a=_gaitCycle*MathF.Tau,load=_hasCargo?.72f:1;
-        _gaitOffset=new(-MathF.Sin(a)*(.014f-.004f*Flow)*_activity,
+        _gaitOffset=new(-MathF.Sin(a)*(.021f-.011f*Flow)*_activity,
             WalkingHipHeight()*_activity,0);
-        GaitPelvisBasis=Basis.FromEuler(new(0,-MathF.Cos(a)*GaitPelvisYaw*_activity*load,
-            -MathF.Sin(a)*GaitPelvisRoll*_activity));
+        GaitPelvisBasis=Basis.FromEuler(new(0,-MathF.Cos(a)*GaitPelvisYaw*(.82f+.50f*Flow)*_activity*load,
+            -MathF.Sin(a)*GaitPelvisRoll*(.80f+.65f*Flow)*_activity));
     }
 
     private (float Z,float Lift,float Pitch) WalkingFootPath(int side)
@@ -78,7 +82,7 @@ internal partial class ResidentRig
         else
         {
             float u=(t-support)/(1-support),arc=MathF.Sin(MathF.PI*u);
-            z=Mathf.Lerp(span,-span,Smooth(u));lift=.082f*arc*arc;
+            z=Mathf.Lerp(span,-span,Smooth(u));lift=(.077f+.018f*Flow)*arc*arc;
             pitch=Mathf.Lerp(-.24f,.13f,Smooth(u));
         }
         return (z,lift,pitch);
@@ -90,6 +94,7 @@ internal partial class ResidentRig
         // downward sine offset made every step look like a crouched march.
         float height=HipHeight;
         float reach=ThighLength+ShinLength-.004f;
+        float width=GaitFootHalfWidth-HipHalfWidth;
         for(int side=0;side<2;side++)
         {
             var foot=WalkingFootPath(side);var offset=new Basis(Vector3.Right,foot.Pitch)*FootCenterOffset;
@@ -98,11 +103,11 @@ internal partial class ResidentRig
             foreach(var p in BootSoleCurve)sole=MathF.Max(sole,-p.Y*MathF.Cos(foot.Pitch)+p.Z*MathF.Sin(foot.Pitch));
             // The approaching swing foot also constrains reach. Waiting for
             // its contact flag caused an abrupt pelvis drop at heel strike.
-            height=MathF.Min(height,sole+foot.Lift-offset.Y+MathF.Sqrt(MathF.Max(.05f,reach*reach-z*z-.000144f)));
+            height=MathF.Min(height,sole+foot.Lift-offset.Y+MathF.Sqrt(MathF.Max(.05f,reach*reach-z*z-width*width)));
         }
         // A quiet double-support arc avoids transmitting the swing foot's
         // rapid clearance lift into the whole torso. Reach remains a ceiling.
-        float arc=-.030f-.027f*MathF.Cos(_gaitCycle*MathF.Tau*2);
+        float arc=-.030f-(.030f-.009f*Flow)*MathF.Cos(_gaitCycle*MathF.Tau*2);
         return MathF.Min(arc,height-HipHeight-.002f);
     }
 
@@ -118,7 +123,7 @@ internal partial class ResidentRig
     {
         if(weight<=.000001f)return;
         var (z,lift,pitch)=WalkingFootPath(side);
-        float x=(side==0?-1:1)*(HipHalfWidth-.012f);
+        float x=(side==0?-1:1)*GaitFootHalfWidth;
         // Rotate about the actual boot sole's contact, not the ankle in air.
         pitch*=weight;
         float ankleHeight=.065f,sin=MathF.Sin(pitch),cos=MathF.Cos(pitch);
