@@ -7,24 +7,29 @@ internal sealed partial class NatureModels
 {
     private float[]? _feminineThoraxSupport;
 
+    // C2 joins keep the curvature continuous where a regional body edit
+    // returns to the rib cage. Sharing this ramp also keeps skin supports
+    // and their fitted clothing on the same smooth anatomical envelope.
+    private static float TorsoRamp(float low,float high,float value)=>ResidentRig.ReachEase((value-low)/(high-low));
+
     // An adult character-design adjustment in canonical metres. Move the
     // anterior mass medially, not the rib cage, arm roots or whole actor.
     private static Vector3 MedialThoraxPoint(Vector3 p)
     {
         float lateral=MathF.Abs(p.X);
-        float active=Mathf.SmoothStep(1.07f,1.11f,p.Y)*(1-Mathf.SmoothStep(1.18f,1.23f,p.Y))
-            *Mathf.SmoothStep(.035f,.090f,-p.Z);
-        float shift=.010f*Mathf.SmoothStep(.005f,.075f,lateral)*(1-Mathf.SmoothStep(.130f,.170f,lateral))*active;
-        return p+new Vector3(-MathF.Sign(p.X)*shift,0,.0025f*active*Mathf.SmoothStep(.045f,.090f,lateral));
+        float active=TorsoRamp(1.07f,1.11f,p.Y)*(1-TorsoRamp(1.18f,1.23f,p.Y))
+            *TorsoRamp(.035f,.090f,-p.Z);
+        float shift=.010f*TorsoRamp(.005f,.075f,lateral)*(1-TorsoRamp(.130f,.170f,lateral))*active;
+        return p+new Vector3(-MathF.Sign(p.X)*shift,0,.0025f*active*TorsoRamp(.045f,.090f,lateral));
     }
 
     // A broad abdominal/side-waist transition, independent of breast mass.
     // Keep the pelvis and posterior depth fixed; avoid a pinched hourglass.
     private static Vector3 BalancedTorsoPoint(Vector3 p)
     {
-        float waist=Mathf.SmoothStep(.91f,.96f,p.Y)*(1-Mathf.SmoothStep(1.025f,1.085f,p.Y));
-        float front=Mathf.SmoothStep(.035f,.090f,-p.Z);
-        float flank=Mathf.SmoothStep(.045f,.085f,MathF.Abs(p.X));
+        float waist=TorsoRamp(.91f,.96f,p.Y)*(1-TorsoRamp(1.025f,1.085f,p.Y));
+        float front=TorsoRamp(.035f,.090f,-p.Z);
+        float flank=TorsoRamp(.045f,.085f,MathF.Abs(p.X));
         return p+new Vector3(MathF.Sign(p.X)*.0015f*waist*flank,0,.0015f*waist*front);
     }
 
@@ -33,11 +38,11 @@ internal sealed partial class NatureModels
     private static Vector3 ChestVolumePoint(Vector3 p)
     {
         float x=MathF.Abs(p.X);
-        float height=Mathf.SmoothStep(1.075f,1.105f,p.Y)*(1-Mathf.SmoothStep(1.195f,1.235f,p.Y));
-        float root=Mathf.SmoothStep(.008f,.028f,x)*(1-Mathf.SmoothStep(.085f,.115f,x));
-        float vertical=Mathf.Lerp(.060f,.090f,Mathf.SmoothStep(1.11f,1.17f,p.Y));
+        float height=TorsoRamp(1.075f,1.105f,p.Y)*(1-TorsoRamp(1.195f,1.235f,p.Y));
+        float root=TorsoRamp(.008f,.028f,x)*(1-TorsoRamp(.085f,.115f,x));
+        float vertical=Mathf.Lerp(.060f,.090f,TorsoRamp(1.11f,1.17f,p.Y));
         float oval=MathF.Exp(-MathF.Pow((x-.045f)/.050f,2)-MathF.Pow((p.Y-1.135f)/vertical,2));
-        float front=Mathf.SmoothStep(.040f,.100f,-p.Z);
+        float front=TorsoRamp(.040f,.100f,-p.Z);
         return p-new Vector3(0,0,.0035f*height*root*oval*front);
     }
 

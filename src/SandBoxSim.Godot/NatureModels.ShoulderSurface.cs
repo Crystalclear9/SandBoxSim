@@ -16,10 +16,10 @@ internal sealed partial class NatureModels
         // Zero curvature at each boundary avoids a visible ridge where the
         // edited saddle rejoins the unmodified neck, scapula and shoulder.
         static float Ramp(float low,float high,float v)=>ResidentRig.ReachEase((v-low)/(high-low));
-        float mask=Ramp(.043f,.065f,MathF.Abs(p.X))
-            *(1-Ramp(.095f,.120f,MathF.Abs(p.X)))
+        float mask=Ramp(.043f,.075f,MathF.Abs(p.X))
+            *(1-Ramp(.105f,.145f,MathF.Abs(p.X)))
             *Ramp(1.18f,1.23f,p.Y)*(1-Ramp(1.29f,1.34f,p.Y))
-            *Ramp(-.060f,.015f,p.Z);
+            *Ramp(-.095f,-.005f,p.Z);
         return p-new Vector3(0,.008f*mask,.003f*mask*Ramp(0,.060f,p.Z));
     }
     private static void ValidateSoftShoulderField()
@@ -36,7 +36,7 @@ internal sealed partial class NatureModels
                 throw new InvalidOperationException("Soft shoulder field folds or exceeds its design bound");
             var mirror=SoftShoulderPoint(new(-p.X,p.Y,p.Z));
             if(!mirror.IsEqualApprox(new Vector3(-q.X,q.Y,q.Z))
-                ||((p.X<=.043f||p.X>=.120f||p.Z<=-.060f)&&q!=p))
+                ||((p.X<=.043f||p.X>=.145f||p.Z<=-.095f)&&q!=p))
                 throw new InvalidOperationException("Soft shoulder field moves its neck/pivot/front boundary or loses symmetry");
         }
         if(maximum<.007f)throw new InvalidOperationException("Missing soft shoulder surface refinement");

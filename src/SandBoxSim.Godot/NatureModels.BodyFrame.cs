@@ -423,18 +423,24 @@ internal sealed partial class NatureModels
             if(headShoulder<.195f||headShoulder>.225f||jawSamples<3||exposed<.025f||exposed>.085f)
                 throw new InvalidOperationException($"Female cervical presentation loses its authored head/shoulder spacing or jaw clearance: head/shoulder={headShoulder}, jaw samples={jawSamples}, exposed={exposed}");
             GD.Print($"CERVICAL_PRESENTATION_PASS: actual head/shoulder spacing={headShoulder*1000:F2} mm, jaw/opening clearance={exposed*1000:F2} mm, jaw samples={jawSamples}; source neck overlap and face Jacobian gates retained; art-direction bounds, not anthropometric standards");
-            var headRotation=female.Head.Rotation;float movingClearance=float.PositiveInfinity;
+            var headTransform=female.Head.Transform;float movingClearance=float.PositiveInfinity;
+            var neckPivot=new Vector3(0,ResidentRig.NeckPivotY*female.Head.Scale.Y,0);
             try
             {
                 foreach(float pitch in new[]{-.08f,0,.08f})foreach(float yaw in new[]{-.35f,0,.35f})
                 {
-                    female.Head.Rotation=new(pitch,yaw,0);var pose=InTorso(headMesh,female.Torso);
+                    female.Head.Rotation=new(pitch,yaw,0);
+                    // Match the runtime neck pivot, including its compensating
+                    // translation. Rotating about the head origin tested a
+                    // different jaw arc from the one seen by the player.
+                    female.Head.Position=female.HeadRest+neckPivot-Basis.FromEuler(female.Head.Rotation)*neckPivot;
+                    var pose=InTorso(headMesh,female.Torso);
                     foreach(var point in headMesh.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
                         if(MathF.Abs(point.X)<.025f&&point.Z<-.060f&&point.Y>-.120f&&point.Y<-.065f)
                             movingClearance=MathF.Min(movingClearance,(pose*point).Y-openingY);
                 }
             }
-            finally{female.Head.Rotation=headRotation;}
+            finally{female.Head.Transform=headTransform;}
             if(movingClearance<.012f)throw new InvalidOperationException("Settled head loses anterior jaw clearance during its nod/turn probe");
             GD.Print($"CERVICAL_MOTION_PASS: nine actual nod/turn transforms retain {movingClearance*1000:F2} mm above the anterior opening plane; finite pose probe, not complete cloth collision validation");
             ValidateForearmSupport(male,0);ValidateForearmSupport(female,1);
