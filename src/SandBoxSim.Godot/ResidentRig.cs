@@ -49,7 +49,7 @@ internal partial class ResidentRig : Node3D
     private Vector2 _gaze;
     private float _socialBlend,_socialTime,_attentionYaw;
     private float _wantedAttention;
-    public void Attend(Vector3 localDirection) => _wantedAttention=localDirection.X*localDirection.X+localDirection.Z*localDirection.Z>.001f?Math.Clamp(MathF.Atan2(-localDirection.X,-localDirection.Z),-.40f,.40f):0;
+    public void Attend(Vector3 localDirection,float weight=1) => _wantedAttention=localDirection.X*localDirection.X+localDirection.Z*localDirection.Z>.001f?Math.Clamp(MathF.Atan2(-localDirection.X,-localDirection.Z),-.40f,.40f)*weight:0;
     private Vector3 _returnPosition,_heldPosition;
     private Basis _returnBasis,_heldBasis;
     public void SetHeadDetail(bool detailed)
@@ -130,6 +130,7 @@ internal partial class ResidentRig : Node3D
     private ActionKind _lastAction;
     private ActionPhase _lastPhase;
     private float _phase,_activity,_reach,_draw,_workTime,_graspTime,_releaseTime,_workBlend;
+    private Vector3 _restPose,_restPoseVelocity;
     private bool _carrying,_takingTool;
     public bool ToolHeld {get;private set;}
     public string Handling => !InteractionSettled&&_lastPhase==ActionPhase.Executing?"接近目的地 / 停稳":ToolHeld ? _returning?"收回工具":_draw<.99f?"取出 / 抬手":_carrying?"手持携带":"使用工具" : _releaseTime>0?"松开手指":_reach>.01f?(_takingTool?(_reach==1?"合拢握柄":"伸手拿取"):"收回手臂"):CargoMesh.Visible?(_bareBlend>.01f&&CompatibleBareActions(_bareAction,ActionKind.Deposit)?"双手交接":"双手搬运"):_bareBlend>.01f?_bareAction switch {ActionKind.Eat=>"进食 / 收手",ActionKind.Drink=>"饮水 / 收手",ActionKind.Take or ActionKind.GatherFood=>"弯身取物",_=>"徒手交互"}:_cargoBlend>.01f?(_hasCargo?"托起物资":"放下 / 收手"):"双手放松";
@@ -196,6 +197,8 @@ internal partial class ResidentRig : Node3D
         bool moving=phase==ActionPhase.Moving||_worldLocomotion&&_locomotionSpeed>.04f;
         bool executing=phase==ActionPhase.Executing&&InteractionSettled;
         bool resting=executing&&action==ActionKind.Sleep;
+        DampMotion(ref _restPose,ref _restPoseVelocity,resting?Vector3.Right:Vector3.Zero,.17f,delta);
+        float restWeight=Math.Clamp(_restPose.X,0,1);
         if((_lastAction!=action||_lastPhase!=phase)&&executing)
         {
             _workTime=0;
@@ -218,7 +221,8 @@ internal partial class ResidentRig : Node3D
         _workBlend=Mathf.MoveToward(_workBlend,executing&&ToolHeld&&CurrentTool==wanted&&_draw>=.25f&&ToolFor(action)!=ResidentTool.None?1:0,delta/.40f);
         bool usingTool=wanted!=ResidentTool.None;
         _takingTool=usingTool&&!ToolHeld;
-        _phase+=delta*(moving?7.5f:1.8f);_workTime+=delta;
+        _phase+=delta*Mathf.Lerp(1.8f,7.5f,_activity);_workTime+=delta;
+        SampleFootMomentum(delta);
         AdvanceLocomotion(delta,moving,phase!=ActionPhase.Moving||Travel.Projecting);
         AdvanceMotionReference(delta,action,phase,identityPhase);
         float gaitPhase=_gaitCycle*Mathf.Tau;
@@ -234,8 +238,8 @@ internal partial class ResidentRig : Node3D
         var gatherPose=pickupWeight>0?ResidentActionCapture.Shared.Pickup(Mathf.PosMod(_pickupTime/(2.14f-.16f*Flow),1),Flow):default;
         float transfer=Mathf.SmoothStep(0,.16f,gatherPose.Drop);
         var pickupShift=new Vector3(gatherPose.Shift*.019f*transfer,-gatherPose.Drop*(.086f+.010f*Flow),gatherPose.Drop*.019f)*pickupWeight;
-        float vertical=resting?-.09f:breath*.003f*(1-_activity)*(1-pickupWeight);
-        float gaitWeight=_activity*(1-pickupWeight)*(resting?0:1)*(1-.65f*_arrivalWeight*ReachEase(_arrivalTime/(2*LandingDuration)));
+        float vertical=breath*.003f*(1-_activity)*(1-pickupWeight)*(1-restWeight);
+        float gaitWeight=_activity*(1-pickupWeight)*(1-restWeight)*(1-.65f*_arrivalWeight*ReachEase(_arrivalTime/(2*LandingDuration)));
         bool working=executing&&usingTool&&ToolHeld&&wanted==CurrentTool&&!_carrying;
         AdvanceWorkStance(delta,working&&UsesStagedStance&&_draw>=.25f);
         if(working&&_draw>=.99f&&(!UsesStagedStance||WorkStanceSettled))_strokePhase=Mathf.PosMod(_strokePhase+delta/WorkPeriod,1);
@@ -259,7 +263,7 @@ internal partial class ResidentRig : Node3D
         float toolLean=-.035f-(.097f-.041f*Flow)*workBlend-effort;
         float freeLean=-(.033f+.018f*_gaitSpeed)*_activity+.007f*MathF.Sin(_phase*.53f+identityPhase)*(1-_activity);
         float pickupLean=(-.61f+.055f*Flow)*gatherPose.Bend;
-        float desiredLean=resting?-.16f:Mathf.Lerp(usingTool?toolLean:freeLean,pickupLean,pickupWeight);
+        float desiredLean=Mathf.Lerp(Mathf.Lerp(usingTool?toolLean:freeLean,pickupLean,pickupWeight),-.16f,restWeight);
         float bareParticipation=Smooth(_bareBlend)*(1-pickupWeight);
         float reachLean=-Math.Clamp(-_previousHands[1].Origin.Z-.12f,0,.26f)*.12f*bareParticipation;
         float reachTurn=Math.Clamp(_previousHands[1].Origin.X,-.22f,.22f)*.09f*bareParticipation;
@@ -269,6 +273,7 @@ internal partial class ResidentRig : Node3D
         bool cultivating=ToolHeld&&CurrentTool==ResidentTool.Hoe&&workBlend>0;
         var dig=cultivating?ResidentActionCapture.Shared.Dig(_strokePhase,Flow):default;
         var pivot=PivotPhrase();float pivotAmount=PivotAmplitude;
+        var arrival=ArrivalTransfer();
         if(cultivating)
         {
             workingChest=new Vector3(-.20f+dig.Bend*.22f,dig.Turn*.085f,-.025f)*workBlend;
@@ -276,17 +281,18 @@ internal partial class ResidentRig : Node3D
         }
         var socialChest=SocialChest(socialPose)*socialWeight;
         var idleChest=new Vector3(.011f*breath,.013f*MathF.Sin(_phase*.31f+identityPhase+.8f),-1.25f*restSupport.X)*idleWeight;
-        var travelShift=_travelWeightShift*(1-pickupWeight)*(resting?0:1);
+        var travelShift=_travelWeightShift*(1-pickupWeight)*(1-restWeight);
         var chestTarget=new Vector3(desiredLean+reachLean+sip.Y*.028f+_travelPitch*(1-pickupWeight),
             reachTurn+_gaitTurn*TurnChestShare*gaitWeight+.053f*gatherPose.Turn*pickupWeight,0);
-        var turningChest=new Vector3(-.018f*MathF.Abs(pivotAmount),.085f*pivot.Chest*pivotAmount,.065f*pivot.Roll*pivotAmount);
+        var turningChest=new Vector3(-.018f*MathF.Abs(pivotAmount),.085f*pivot.Chest*pivotAmount+.115f*arrival.Look,
+            .065f*pivot.Roll*pivotAmount-.57f*arrival.Shift.X);
         DampMotion(ref torsoAngles,ref _torsoVelocity,chestTarget+walkingChest+workingChest+socialChest+idleChest+turningChest+_referenceChest,TorsoFollowTime,delta);
         var torsoBasis=Basis.FromEuler(torsoAngles);
-        var gaitOffset=_gaitOffset*(1-pickupWeight)*(resting?0:1);
-        var lowerShift=stance+restSupport+gaitOffset+travelShift+pickupShift+(IsPivoting?PivotSupport():Vector3.Zero);
+        var gaitOffset=_gaitOffset*(1-pickupWeight)*(1-restWeight);
+        var lowerShift=stance+restSupport+gaitOffset+travelShift+pickupShift+arrival.Shift+(IsPivoting?PivotSupport():Vector3.Zero)+Vector3.Down*(.09f*restWeight);
         var translation=lowerShift+Vector3.Up*vertical;
         var hip=new Vector3(0,HipHeight,0);Torso.Transform=new(torsoBasis,hip-torsoBasis*hip+translation);
-        UpdateBodyBend(lowerShift,new Basis(Quaternion.Identity.Slerp(GaitPelvisBasis.GetRotationQuaternion(),(1-pickupWeight)*(resting?0:1))));
+        UpdateBodyBend(lowerShift,new Basis(Quaternion.Identity.Slerp(GaitPelvisBasis.GetRotationQuaternion(),(1-pickupWeight)*(1-restWeight))));
         _attentionYaw=Mathf.Lerp(_attentionYaw,_wantedAttention,1-MathF.Exp(-delta*6));
         float phraseEmphasis=action==ActionKind.Socialize
             ?Math.Clamp(MathF.Max(socialPose.Left.Y,socialPose.Right.Y),0,1)
@@ -294,7 +300,7 @@ internal partial class ResidentRig : Node3D
         var headTarget=new Vector3(
             Mathf.Lerp(usingTool?-.045f-effort*.4f+(.105f*dig.Head+.12f)*workBlend*(cultivating?1:0):breath*.018f+socialPose.Head*.087f*socialWeight+sip.X*.19f,
                 .14f+.095f*gatherPose.Head,gatherPose.Bend*pickupWeight),
-            MathF.Sin(_phase*.32f+identityPhase)*.045f*(1-_activity)+Math.Clamp(_attentionYaw+.24f*pivot.Look*pivotAmount,-.59f,.59f)+_gaitTurn*TurnHeadShare*gaitWeight-walkingChest.Y*.55f,
+            MathF.Sin(_phase*.32f+identityPhase)*.045f*(1-_activity)+Math.Clamp(_attentionYaw+.24f*pivot.Look*pivotAmount+.22f*arrival.Look,-.59f,.59f)+_gaitTurn*TurnHeadShare*gaitWeight-walkingChest.Y*.55f,
             -.36f*socialChest.Z-walkingChest.Z*.55f+restSupport.X*.6f*idleWeight);
         Head.Quaternion=DampRotation(Head.Quaternion,ref _headVelocity,Basis.FromEuler(headTarget).GetRotationQuaternion(),.075f,delta);
         var neckPivot=new Vector3(0,NeckPivotY*Head.Scale.Y,0);
@@ -306,14 +312,14 @@ internal partial class ResidentRig : Node3D
             Legs[i].Position=pelvis*new Vector3(i==0?-HipHalfWidth:HipHalfWidth,HipHeight,0);
             Legs[i].Rotation=Knees[i].Rotation=Vector3.Zero;
             SetFootOrientation(i,(Legs[i].Basis*Knees[i].Basis).Inverse());
-            if(stance.LengthSquared()+travelShift.LengthSquared()>1e-10f)SolveLegTo(i,RestFootCenter(i),Basis.Identity);
+            if(stance.LengthSquared()+travelShift.LengthSquared()>1e-10f||restWeight>.00001f)SolveLegTo(i,RestFootCenter(i),Basis.Identity);
             if(_restSupport>.00001f)PlantRestLeg(i);
             if(pickupWeight>0)SolveLegTo(i,RestFootCenter(i),Basis.Identity);
             PoseWorkFoot(i,gaitWeight);
             PoseWalkingLeg(i,gaitWeight);
             PoseArrivalLeg(i);
             PosePivotLeg(i);
-            float turnSwing=((i==0)==(pivotAmount>=0)?pivot.Left:pivot.Right)*.10f*MathF.Abs(pivotAmount);
+            float turnSwing=((i==0)==(pivotAmount>=0)?pivot.Left:pivot.Right)*.10f*MathF.Abs(pivotAmount)+(i==0?-1:1)*.11f*arrival.Look;
             if(i==0&&CurrentTool==ResidentTool.Hammer&&ToolHeld)
                 turnSwing+=(.07f-.16f*WorkLift(_strokePhase+WorkTorsoLead))*workBlend;
             PoseFreeArm(i,delta,identityPhase,idleWeight,restSupport.X,turnSwing);

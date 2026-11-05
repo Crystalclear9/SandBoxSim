@@ -940,7 +940,16 @@ public partial class WorldView3D : MapView
             {
                 var facing=Horizontal(interestPoint-rendered);
                 bool faceInterest=hasInterest&&settled&&phase==ActionPhase.Executing&&facing.LengthSquared()>.002f;
-                if(followsMovement)
+                bool prepareFacing=paced&&distanceSquared<18*18&&phase==ActionPhase.Executing&&remaining<.09f
+                    &&hasInterest&&facing.LengthSquared()>.0225f;
+                node.PlanArrival(target,prepareFacing?HeadingYaw(facing):null);
+                if(paced&&distanceSquared<18*18&&remaining<.09f&&Horizontal(direction).LengthSquared()<.20f*.20f*delta*delta
+                    &&node.TryGetArrivalFacing(out float landingYaw))
+                {
+                    yaw=landingYaw;
+                    node.FadePivot(delta);
+                }
+                else if(followsMovement)
                 {
                     float goal=HeadingYaw(heading);
                     yaw=paced?TurnResident(yaw,goal,delta,3.2f):Mathf.LerpAngle(yaw,goal,1-MathF.Exp(-delta*12));
@@ -975,8 +984,11 @@ public partial class WorldView3D : MapView
             foreach(var resource in ResidentRig.CargoKinds)
             {float amount=sim.Agents.InventoryOf(slot,resource);if(amount>cargoAmount){cargoAmount=amount;cargoKind=resource;}}
             node.ShowCargo(cargoAmount>.01f,cargoKind);
-            var attention=hasInterest&&!node.Travel.Projecting?interestPoint-rendered:Vector3.Zero;
-            node.Attend(node.Basis.Inverse()*attention);
+            var attention=hasInterest?interestPoint-rendered:Vector3.Zero;
+            float anticipation=node.Travel.Projecting
+                ?(action==ActionKind.Wander?0:1-Mathf.SmoothStep(.24f,.85f,remaining))
+                :1;
+            node.Attend(node.Basis.Inverse()*attention,anticipation);
             if(!paused&&action==ActionKind.Farm)
             {
                 var far=node.Transform*new Vector3(-.045f,0,ResidentRig.FurrowStart);

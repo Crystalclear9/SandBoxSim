@@ -176,6 +176,8 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `WORLD_OUTSOLE_PASS` 在近景跟随距离测量同一条多格路线的起步加速度、承重中段每帧平面漂移、鞋底对地的最低间隙，以及摆动期离地高度。采样点来自成品鞋底轮廓，地形高度与世界角色共用。相邻帧须同处同一只脚的承重中段才计入漂移。
 
+`ARRIVAL_TURN_PASS` 测量最后两步的转角和骨盆侧向位移，并与到站拾取、额外换脚转向及支撑脚漂移一起检查。`WORK_SUPPORT_PASS` 包含持锤和持锄开工时的左右重心转移。`REST_TRANSFER_PASS` 测量两套成人外观的休息姿态下降、起身与脚底漂移。
+
 `animalLocomotion=ground-distance-v1` 记录鹿狼的距离驱动步态。居民动画时序和画面更新后，相关视觉评测需采集新基线。
 
 `taskReference=cmu-turn-and-dig-v1` 与 `toolContacts=furrow-edge-and-work-stance-v1` 记录捕捉转身、耕作重心和工具姿态。`CULTIVATION_PASS` 使用实际锄刃坐标检查平面与斜面上的拉土、抬刃和胸廓幅度。`WORLD_CULTIVATION_PASS` 在实际地形上通过世界更新检查锄刃贴地距离与显示层的状态纯度。

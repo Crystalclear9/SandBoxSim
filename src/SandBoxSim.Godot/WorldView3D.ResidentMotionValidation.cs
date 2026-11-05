@@ -30,7 +30,7 @@ public partial class WorldView3D
         const float delta=1f/60;
         AnimateActors(delta);
 
-        float peak=0,nearestCorner=float.PositiveInfinity,stepLift=0,plantDrift=0;
+        float peak=0,nearestCorner=float.PositiveInfinity,stepLift=0,plantDrift=0,landingTurn=0,landingTransfer=0;
         int pivotFrames=0,preparationFrames=0;
         float departureTransfer=0,departureRootDrift=0,departureFootDrift=0;
         bool retained=false,startedWork=false;
@@ -41,12 +41,18 @@ public partial class WorldView3D
             for(int frame=0;frame<frames;frame++)
             {
                 var previous=rig.Position;
+                float previousYaw=rig.Rotation.Y;
                 AnimateActors(delta);
                 peak=MathF.Max(peak,Horizontal(rig.Position-previous).Length()/delta);
                 nearestCorner=MathF.Min(nearestCorner,Horizontal(rig.Position-corner).Length());
                 retained|=rig.Travel.Queued;
                 if(!ScenerySegmentClear(previous,rig.Position))throw new InvalidOperationException("Resident crosses a scenery solid");
                 var left=rig.Feet[0].GlobalPosition;var right=rig.Feet[1].GlobalPosition;
+                if(rig.TryGetArrivalFacing(out _))
+                {
+                    landingTurn+=MathF.Abs(Mathf.AngleDifference(previousYaw,rig.Rotation.Y));
+                    landingTransfer=MathF.Max(landingTransfer,MathF.Abs((rig.LowerGarmentFrame*(Vector3.Up*ResidentRig.HipHeight)).X));
+                }
                 if(rig.Travel.Preparation>0&&sim.Agents.PhaseOf(slot)==ActionPhase.Moving)
                 {
                     preparationFrames++;
@@ -79,9 +85,10 @@ public partial class WorldView3D
 
         float oldPeak=Horizontal(SceneryActorPosition(start,corner,delta,10,false)-start).Length()/delta;
         if(!retained||nearestCorner>.026f||peak>ResidentRig.MaximumGaitSpeed||peak<.9f||oldPeak<5
-            ||pivotFrames<20||stepLift<.017f||plantDrift>.020f||!startedWork)
-            throw new InvalidOperationException($"Resident world route: peak={peak}, corner={nearestCorner}, queue={retained}, pivots={pivotFrames}, lift={stepLift}, drift={plantDrift}, action={startedWork}");
+            ||landingTurn<.60f||landingTransfer<.018f||pivotFrames<20||stepLift<.017f||plantDrift>.020f||!startedWork)
+            throw new InvalidOperationException($"Resident world route: peak={peak}, corner={nearestCorner}, queue={retained}, landing turn={landingTurn}, pivots={pivotFrames}, lift={stepLift}, drift={plantDrift}, action={startedWork}");
         GD.Print($"RESIDENT_WORLD_MOTION_PASS: actual world actor, original root peak={oldPeak:F2} m/s, paced={peak:F2} m/s, recorded corner retained, pivot frames={pivotFrames}, foot lift={stepLift:F3} m, planted frame drift={plantDrift:F4} m, arrival then pickup, unchanged simulation");
+        GD.Print($"ARRIVAL_TURN_PASS: {Mathf.RadToDeg(landingTurn):F1} degrees and {landingTransfer:F3} m lateral weight transfer during the two landing steps before any additional pivot and pickup");
         if(preparationFrames<6||departureTransfer<.015f||departureRootDrift>.001f||departureFootDrift>.010f)
             throw new InvalidOperationException($"Resident first step: frames={preparationFrames}, pelvis={departureTransfer}, root drift={departureRootDrift}, foot drift={departureFootDrift}");
         GD.Print($"RESIDENT_DEPARTURE_PASS: preparation={preparationFrames} frames, lateral pelvis transfer={departureTransfer:F3} m, root/feet drift={departureRootDrift:F4}/{departureFootDrift:F4} m before the first step");

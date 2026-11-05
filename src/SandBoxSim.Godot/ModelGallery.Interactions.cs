@@ -11,11 +11,11 @@ internal partial class ModelGallery
     private readonly List<(ResidentRig Rig,int Sequence,Label Readout,string Title)> _interactionFlow=new();
     private void BuildInteractionFlow(NatureModels models,GridContainer grid,Label heading)
     {
-        heading.Text="交互衔接 · 到站、换工具与双手搬运";grid.Columns=3;
+        heading.Text="交互衔接 · 转向落脚、换工具与双手搬运";grid.Columns=3;
         for(int frame=0;frame<2;frame++)for(int sequence=0;sequence<3;sequence++)
         {
             var rig=models.Resident(frame==0?17:55,false,sequence==1?JobType.Builder:JobType.None);
-            string title=(frame==0?"男性外观":"女性外观")+" · "+new[]{"靠近与拾取","作业与生活","搬运与交接"}[sequence];
+            string title=(frame==0?"男性外观":"女性外观")+" · "+new[]{"走近、转向与拾取","作业与生活","搬运与交接"}[sequence];
             Closeup(grid,title,rig,2.10f,new(0,.82f,0),new(1.3f,.06f,4),true);
             var readout=grid.GetChild<VBoxContainer>(grid.GetChildCount()-1).GetChild<Label>(1);
             _interactionFlow.Add((rig,sequence,readout,title));
@@ -29,13 +29,24 @@ internal partial class ModelGallery
             ActionKind action;ActionPhase phase;
             if(sequence==0)
             {
-                // A real local root trajectory with its residual arrival
-                // distance, using the same observation path as the world.
-                float travel=t<1.8f?.7f*t/1.8f:.82f-.12f*MathF.Exp(-8*(t-1.8f));
+                // Take a real return walk so the loop never snaps the root.
+                bool outbound=t<1.85f,returning=t>=7.25f&&t<9.20f;
+                bool pickup=t>=1.85f&&t<5.30f;
+                float travel=.82f*(ResidentRig.ReachEase(t/1.85f)-ResidentRig.ReachEase((t-7.25f)/1.95f));
                 var previous=rig.Position;rig.Position=new(0,0,travel-.82f);
-                rig.ObserveLocomotion(rig.Position-previous,dt,0,false,.82f-travel);
-                action=t<1.8f?ActionKind.Wander:t<5.4f?ActionKind.Take:ActionKind.None;
-                phase=t<1.8f?ActionPhase.Moving:t<5.4f?ActionPhase.Executing:ActionPhase.Idle;
+                float remaining=t<7.25f?.82f-travel:travel;
+                float yaw=rig.Rotation.Y;
+                rig.PlanArrival(Vector3.Zero,pickup?MathF.PI+.62f:null);
+                if(pickup&&rig.TryGetArrivalFacing(out float facing))yaw=facing;
+                else if(t>=5.30f&&t<7.25f||t>=9.20f)
+                {
+                    if(rig.IsPivoting||rig.InteractionSettled)yaw=rig.AdvancePivot(yaw,t<7.25f?0:MathF.PI,dt);
+                }
+                else rig.FadePivot(dt);
+                rig.Rotation=new(0,yaw,0);
+                rig.ObserveLocomotion(rig.Position-previous,dt,0,false,remaining);
+                action=outbound||returning?ActionKind.Wander:pickup?ActionKind.Take:ActionKind.None;
+                phase=outbound||returning?ActionPhase.Moving:pickup?ActionPhase.Executing:ActionPhase.Idle;
             }
             else if(sequence==1)
             {

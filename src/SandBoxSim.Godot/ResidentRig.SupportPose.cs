@@ -41,7 +41,9 @@ internal partial class ResidentRig
             DampMotion(ref _supportAngle,ref _supportVelocity,new(target,shift.X,shift.Y),.085f,step);
         }
         float thigh=Math.Clamp(_supportAngle.X,0,.26f)*weight;
-        float hipX=_supportAngle.Y*weight;
+        // Prepare the shift to the planted leg before each new work footfall.
+        float transfer=ReachPulse(_workStance/.51f)-ReachPulse((_workStance-.51f)/.49f);
+        float hipX=(_supportAngle.Y+(.034f-.007f*Flow)*transfer)*weight;
         float hipZ=-.035f*thigh+_supportAngle.Z*weight;
         float lower=ShinLength;
         float shinAngle=MathF.Asin(Math.Clamp((hipZ-ThighLength*MathF.Sin(thigh))/lower,-1,1));

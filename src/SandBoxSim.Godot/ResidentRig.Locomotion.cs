@@ -23,13 +23,20 @@ internal partial class ResidentRig
     private readonly WalkFoot[] _walkFeet=new WalkFoot[2];
     private readonly record struct WalkFoot(float Side,float Depth,float Lift,float Pitch,float RockerWeight);
     private readonly Transform3D[] _arrivalFeet=new Transform3D[2];
-    private Transform3D _arrivalRoot;
+    private readonly Transform3D[] _footWorldPose=new Transform3D[2];
+    private readonly Vector3[] _arrivalVelocity=new Vector3[2],_footWorldVelocity=new Vector3[2];
+    private Transform3D _displayedFootRoot;
+    private float _footHistoryStep;
+    private Vector3 _arrivalDestination,_wantedArrivalDestination;
+    private float? _wantedArrivalFacing;
+    private float _arrivalStartYaw,_arrivalTurn;
     private readonly Vector3[] _groundContact=new Vector3[2];
     private readonly bool[] _groundContactValid=new bool[2];
     private bool _finishingStep,_arrivalArmed;
     private int _landingFirst;
     private float _arrivalTime,_arrivalWeight;
     private const float LandingDuration=.22f;
+    private const float LandingTurnLimit=.88f;
     internal Basis GaitPelvisBasis=Basis.Identity;
     internal float GaitCycle=>_gaitCycle;
     internal float GaitSpeed=>_gaitSpeed;
@@ -69,6 +76,7 @@ internal partial class ResidentRig
         if(distance>=1.25f)
         {
             _arrivalArmed=_finishingStep=false;_arrivalWeight=0;
+            _footHistoryStep=0;
             ResetGroundContacts();
         }
         _sampleDistance+=sample*delta;_sampleTime+=delta;
@@ -274,6 +282,49 @@ internal partial class ResidentRig
 
     private Transform3D DisplayedFoot(int side)=>Legs[side].Transform*Knees[side].Transform*Feet[side].Transform;
 
+    internal void PlanArrival(Vector3 destination,float? facing)
+    {
+        _wantedArrivalDestination=destination;
+        _wantedArrivalFacing=facing;
+    }
+
+    internal bool TryGetArrivalFacing(out float yaw)
+    {
+        yaw=_arrivalStartYaw+_arrivalTurn*ReachEase((_arrivalTime/LandingDuration-.12f)/1.50f);
+        return _finishingStep&&MathF.Abs(_arrivalTurn)>.001f;
+    }
+
+    private (Vector3 Shift,float Look) ArrivalTransfer()
+    {
+        if(_arrivalWeight<=0||_arrivalTurn==0)return default;
+        float turn=_arrivalTurn/LandingTurnLimit*_arrivalWeight;
+        float phase=_arrivalTime/(2*LandingDuration);
+        float leading=ReachPulse(phase*2),trailing=ReachPulse(phase*2-1);
+        float support=_landingFirst==0?1:-1;
+        var shift=new Vector3(support*(leading-trailing)*(.036f-.006f*Flow),-.021f*(leading+trailing),-.012f*(leading+trailing))*MathF.Abs(turn);
+        float look=turn*ReachEase(phase/.23f)*(1-ReachEase((phase-.26f)/.51f));
+        return (shift,look);
+    }
+
+    private void SampleFootMomentum(float delta)
+    {
+        // Read the final pose from the preceding step, including world IK.
+        // The scene may already have advanced the root for the new frame.
+        if(!_worldLocomotion||_approachDistance>.40f||!_arrivalArmed&&_locomotionSpeed<=.22f)
+        {
+            _footHistoryStep=0;
+            return;
+        }
+        var root=_footHistoryStep>0?_displayedFootRoot:Transform;
+        for(int side=0;side<2;side++)
+        {
+            var pose=root*DisplayedFoot(side);
+            _footWorldVelocity[side]=_footHistoryStep>0?((pose.Origin-_footWorldPose[side].Origin)/_footHistoryStep).LimitLength(.82f):Vector3.Zero;
+            _footWorldPose[side]=pose;
+        }
+        _displayedFootRoot=Transform;_footHistoryStep=delta;
+    }
+
     private void AdvanceArrival(float delta,float wanted,bool canFinishStep)
     {
         if(!_worldLocomotion)return;
@@ -287,10 +338,17 @@ internal partial class ResidentRig
         if(_arrivalArmed&&!_finishingStep&&wanted<.135f)
         {
             _arrivalArmed=false;
-            _arrivalRoot=Transform;
-            _arrivalFeet[0]=DisplayedFoot(0);
-            _arrivalFeet[1]=DisplayedFoot(1);
-            _landingFirst=_arrivalFeet[0].Origin.Y>=_arrivalFeet[1].Origin.Y?0:1;
+            _arrivalFeet[0]=_footWorldPose[0];
+            _arrivalFeet[1]=_footWorldPose[1];
+            _arrivalStartYaw=Rotation.Y;
+            _arrivalDestination=_wantedArrivalDestination;
+            _arrivalTurn=_wantedArrivalFacing is float yaw
+                ?Math.Clamp(Mathf.AngleDifference(_arrivalStartYaw,yaw),-LandingTurnLimit,LandingTurnLimit):0;
+            float heightDifference=_arrivalFeet[0].Origin.Y-_arrivalFeet[1].Origin.Y;
+            _landingFirst=MathF.Abs(heightDifference)<.012f&&MathF.Abs(_arrivalTurn)>.12f
+                ?(_arrivalTurn>0?0:1):(heightDifference>=0?0:1);
+            _arrivalVelocity[_landingFirst]=_footWorldVelocity[_landingFirst];
+            _arrivalVelocity[1-_landingFirst]=Vector3.Zero;
             _arrivalWeight=1;_arrivalTime=0;_finishingStep=true;
         }
         if(!_finishingStep)return;
@@ -306,17 +364,24 @@ internal partial class ResidentRig
     {
         if(_arrivalWeight<=0)return;
         float u=Math.Clamp(_arrivalTime/LandingDuration-(side==_landingFirst?0:1),0,1);
+        var inverse=Transform.AffineInverse();
+        var from=inverse*_arrivalFeet[side];
         var rest=RestFootCenter(side);
-        // The second foot remains over its world contact during the first
-        // landing, even if the root is still covering its last few centimetres.
-        var from=Transform.AffineInverse()*_arrivalRoot*_arrivalFeet[side];
-        float distance=ResidentTravel.Planar(rest-from.Origin).Length();
+        var destination=Transform;
+        if(MathF.Abs(_arrivalTurn)>.001f)
+            destination=new(new Basis(Vector3.Up,_arrivalStartYaw+_arrivalTurn).Scaled(Scale),_arrivalDestination);
+        var to=inverse*destination*new Transform3D(Basis.Identity,rest);
+        float distance=ResidentTravel.Planar(to.Origin-from.Origin).Length();
         float clearance=Math.Clamp((distance-.028f)*.40f,0,.036f);
         float arc=MathF.Sin(MathF.PI*u);
         float progress=ReachEase(u);
-        var step=from.Origin.Lerp(rest,progress)+Vector3.Up*(clearance*arc*arc);
+        // This term starts with the displayed swing velocity and reaches
+        // zero position, velocity and acceleration at the new foot plant.
+        float tail=1-u;
+        var momentum=(inverse.Basis*_arrivalVelocity[side])*(LandingDuration*u*tail*tail*tail*(1+3*u));
+        var step=from.Origin.Lerp(to.Origin,progress)+momentum+Vector3.Up*(clearance*arc*arc);
         var foot=DisplayedFoot(side);
-        var rotation=from.Basis.GetRotationQuaternion().Slerp(Quaternion.Identity,progress);
+        var rotation=from.Basis.Orthonormalized().GetRotationQuaternion().Slerp(to.Basis.Orthonormalized().GetRotationQuaternion(),progress);
         var basis=new Basis(foot.Basis.GetRotationQuaternion().Slerp(rotation,_arrivalWeight));
         SolveLegTo(side,foot.Origin.Lerp(step,_arrivalWeight),basis);
     }
