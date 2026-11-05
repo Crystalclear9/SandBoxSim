@@ -23,14 +23,19 @@ internal sealed partial class NatureModels
         return p+new Vector3(-MathF.Sign(p.X)*shift,0,.0025f*active*TorsoRamp(.045f,.090f,lateral));
     }
 
-    // A broad abdominal/side-waist transition, independent of breast mass.
-    // Keep the pelvis and posterior depth fixed; avoid a pinched hourglass.
+    // Coordinate the abdominal, oblique and lumbar planes as one soft torso.
+    // The lateral waist opens gently while the lower abdomen returns toward
+    // the pelvis; a shallow lumbar fill avoids an abruptly hollow back.
+    // All three edits fade before the pelvis and the rib-cage attachment.
     private static Vector3 BalancedTorsoPoint(Vector3 p)
     {
-        float waist=TorsoRamp(.91f,.96f,p.Y)*(1-TorsoRamp(1.025f,1.085f,p.Y));
+        float waist=TorsoRamp(.89f,.96f,p.Y)*(1-TorsoRamp(1.025f,1.10f,p.Y));
         float front=TorsoRamp(.035f,.090f,-p.Z);
-        float flank=TorsoRamp(.045f,.085f,MathF.Abs(p.X));
-        return p+new Vector3(MathF.Sign(p.X)*.0015f*waist*flank,0,.0015f*waist*front);
+        float flank=TorsoRamp(.025f,.115f,MathF.Abs(p.X));
+        float abdomen=1-TorsoRamp(.95f,1.015f,p.Y);
+        float lumbar=TorsoRamp(-.025f,.045f,p.Z)*(1-TorsoRamp(.065f,.12f,MathF.Abs(p.X)));
+        return p+new Vector3(MathF.Sign(p.X)*.0025f*waist*flank,0,
+            waist*((.0015f+.003f*abdomen)*front+.003f*lumbar));
     }
 
     // Continuous anterior volume on the existing adult thorax, not attached
@@ -72,15 +77,18 @@ internal sealed partial class NatureModels
         var fitted=FemaleThoraxSupport();
         float front=TrunkSample(source,1.00f,-MathF.PI/2)-TrunkSample(fitted,1.00f,-MathF.PI/2);
         float side=TrunkSample(fitted,1.00f,0)-TrunkSample(source,1.00f,0);
-        if(front<.001f||front>.0016f||side<.001f||side>.0016f)
+        float lumbar=TrunkSample(fitted,1.00f,MathF.PI/2)-TrunkSample(source,1.00f,MathF.PI/2);
+        if(front<.001f||front>.002f||side<.002f||side>.0026f||lumbar<.002f||lumbar>.0031f)
             throw new InvalidOperationException("Final waist support loses the balanced depth/breadth transition");
         float minimum=1;
-        for(int row=0;row<=20;row++)for(int col=-12;col<=12;col++)for(int depth=-8;depth<=8;depth++)
+        for(int row=0;row<=24;row++)for(int col=-12;col<=12;col++)for(int depth=-8;depth<=8;depth++)
         {
-            var p=new Vector3(col*.01f,.89f+row*.01f,depth*.02f);const float h=.0001f;
+            var p=new Vector3(col*.01f,.88f+row*.01f,depth*.02f);const float h=.0001f;
             var q=BalancedTorsoPoint(p);
-            if(p.DistanceTo(q)>.00336f||q.Y!=p.Y||(p.Y<=.91f||p.Y>=1.085f)&&q!=p||p.Z>=0&&q.Z!=p.Z)
-                throw new InvalidOperationException("Balanced torso changes a fixed support or exceeds 3.36 mm");
+            var mirror=BalancedTorsoPoint(new(-p.X,p.Y,p.Z));
+            if(p.DistanceTo(q)>.0052f||q.Y!=p.Y||(p.Y<=.89f||p.Y>=1.10f)&&q!=p
+                ||!mirror.IsEqualApprox(new Vector3(-q.X,q.Y,q.Z)))
+                throw new InvalidOperationException("Balanced torso loses symmetry, a fixed support or its 5.2 mm bound");
             var dx=(BalancedTorsoPoint(p+Vector3.Right*h)-BalancedTorsoPoint(p-Vector3.Right*h))/(2*h);
             var dy=(BalancedTorsoPoint(p+Vector3.Up*h)-BalancedTorsoPoint(p-Vector3.Up*h))/(2*h);
             var dz=(BalancedTorsoPoint(p+Vector3.Back*h)-BalancedTorsoPoint(p-Vector3.Back*h))/(2*h);
@@ -88,7 +96,7 @@ internal sealed partial class NatureModels
             if(!float.IsFinite(determinant)||determinant<.85f||determinant>1.15f)
                 throw new InvalidOperationException("Balanced torso folds its abdominal/side-waist surface");
         }
-        GD.Print($"BALANCED_TORSO_PASS: final source waist front retreat={front*1000:F2} mm, side ease={side*1000:F2} mm; fixed pelvis/shoulders/posterior depth, minimum Jacobian={minimum:F3}");
+        GD.Print($"BALANCED_TORSO_PASS: final source waist front retreat={front*1000:F2} mm, side ease={side*1000:F2} mm, lumbar fill={lumbar*1000:F2} mm; fixed pelvis/shoulders, symmetric continuous abdominal/lumbar field, minimum Jacobian={minimum:F3}");
     }
 
     private float[] FemaleThoraxSupport()
@@ -99,7 +107,7 @@ internal sealed partial class NatureModels
         for(int row=0;row<TrunkRows;row++)
         {
             float y=TrunkLow+row*.005f;
-            if(y<=.91f||y>=1.235f)continue;
+            if(y<=.89f||y>=1.235f)continue;
             for(int col=0;col<TrunkColumns;col++)
             {
                 float a=col*Mathf.Tau/TrunkColumns,r=source[row*TrunkColumns+col];

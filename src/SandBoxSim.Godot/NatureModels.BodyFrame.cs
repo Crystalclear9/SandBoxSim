@@ -155,7 +155,7 @@ internal sealed partial class NatureModels
             // Carry the shirt edge, facing and placket through one map.
             float opening=(1-Mathf.SmoothStep(.065f,.100f,MathF.Abs(point.X)))
                 *Mathf.SmoothStep(1.21f,1.28f,point.Y);
-            result.Y-=.008f*opening*(1-.35f*Mathf.SmoothStep(0,.06f,point.Z));
+            result.Y-=.014f*opening*(1-.35f*Mathf.SmoothStep(0,.06f,point.Z));
             result.Z+=.006f*opening*frontNeck;
             result=SoftShoulderPoint(result);
         }
