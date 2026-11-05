@@ -88,7 +88,10 @@ internal sealed partial class NatureModels
         float panelHeight=tailored?Mathf.Lerp(point.Y,TailoredPanelHeight(point),1-upper):point.Y;
         // Coverage is defined in finished-clothing space. A long coat's
         // construction hem starts below .70 m before its panel is remapped.
-        float active=Mathf.SmoothStep(.70f,.735f,panelHeight)*(1-neck);
+        // The final shoulder/neck blend below already fades out the trunk.
+        // Applying the same weight to its radius first squared that fade,
+        // leaving the female upper chest close to the construction cone.
+        float active=Mathf.SmoothStep(.70f,.735f,panelHeight)*(feminine?1:1-neck);
         var fitted=point;
         if(active>0&&point.X*point.X+point.Z*point.Z>.00001f)
         {
