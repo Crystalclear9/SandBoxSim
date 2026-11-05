@@ -286,6 +286,7 @@ internal sealed partial class NatureModels
         rig.GaitPelvisYaw=(BodyFrame==1?.047f:.029f)+rig.GaitIndividual*.012f;
         rig.GaitPelvisRoll=(BodyFrame==1?.019f:.011f)+rig.GaitIndividual*.005f;
         rig.GaitArmSwing=(BodyFrame==1?.29f:.25f)+rig.GaitIndividual*.035f;
+        rig.MotionFlow=child?.5f:Math.Clamp((BodyFrame==1?.85f:.15f)+rig.GaitIndividual*.12f,0,1);
         rig.BootSoleCurve=BootSoleCurve();
         rig.ExpressionPhase=(variation>>24)/255f*10;
         AddSleeveCorrectives(rig);

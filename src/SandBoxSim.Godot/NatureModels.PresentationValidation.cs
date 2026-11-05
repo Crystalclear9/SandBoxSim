@@ -62,6 +62,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateEffortPresentation()
     {
+        ValidateMotionStyles();
         var profile=Resident(17,false,JobType.Builder);
         try
         {
@@ -139,6 +140,42 @@ internal sealed partial class NatureModels
             GD.Print($"EFFORT_PRESENTATION_PASS: observed strokes={string.Join(',',peaks)}, equal capacity across adult frames, fatigue response, held contact, phase continuity and pause");
         }
         finally{foreach(var rig in rigs)rig.Free();}
+    }
+    private void ValidateMotionStyles()
+    {
+        // Identical geometry, capacity and gait amplitudes isolate timing and
+        // coordination from body shape. Observe the actual solved joints.
+        var a=Resident(17,false,JobType.Builder);var b=Resident(17,false,JobType.Builder);
+        a.MotionFlow=0;b.MotionFlow=1;
+        double walk=0,work=0;int walking=0,working=0;
+        try
+        {
+            foreach(var rig in new[]{a,b})
+            {
+                const float h=.0001f;
+                float left=(rig.WorkLift(0)-rig.WorkLift(-h))/h;
+                float right=(rig.WorkLift(h)-rig.WorkLift(0))/h;
+                if(MathF.Abs(left-right)>.005f||MathF.Abs(rig.WorkLift(.27f)-rig.WorkLift(1.27f))>.00001f)
+                    throw new InvalidOperationException("Motion style breaks periodic stroke continuity");
+            }
+            for(int frame=0;frame<600;frame++)
+            {
+                bool moving=frame>=300;
+                foreach(var rig in new[]{a,b})
+                {
+                    rig.ObserveLocomotion(moving?new(0,0,-1.05f/60):Vector3.Zero,1f/60,0,false);
+                    rig.PoseAction(1f/60,moving?ActionKind.Wander:ActionKind.BuildHouse,
+                        moving?ActionPhase.Moving:ActionPhase.Executing,false,0);
+                }
+                if(frame>=150&&frame<300){work+=Math.Pow(InTorso(a.ToolMesh,a.Torso).Origin.DistanceTo(InTorso(b.ToolMesh,b.Torso).Origin),2);working++;}
+                if(frame>=420){walk+=Math.Pow(InTorso(a.Hands[0],a).Origin.DistanceTo(InTorso(b.Hands[0],b).Origin),2);walking++;}
+            }
+            double walkRms=Math.Sqrt(walk/walking),workRms=Math.Sqrt(work/working);
+            if(!double.IsFinite(walkRms)||!double.IsFinite(workRms)||walkRms<.001||workRms<.005)
+                throw new InvalidOperationException($"Motion profiles remain visually identical: walk={walkRms}, work={workRms}");
+            GD.Print($"MOTION_STYLE_PASS: identical body/capacity/speed, solved wrist/tool RMS separation={walkRms:F4}/{workRms:F4} m; periodic stroke continuity; art direction, not sex classification");
+        }
+        finally{a.Free();b.Free();}
     }
     private void ValidateReachTrajectories()
     {

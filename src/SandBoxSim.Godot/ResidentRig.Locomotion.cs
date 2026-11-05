@@ -58,7 +58,7 @@ internal partial class ResidentRig
         if(!moving&&_gaitSpeed<.00001f){_gaitSpeed=0;_activity=0;}
         _gaitTurn=Mathf.Lerp(_gaitTurn,moving?_turnDemand:0,1-MathF.Exp(-dt*7));
         float a=_gaitCycle*MathF.Tau,load=_hasCargo?.72f:1;
-        _gaitOffset=new(-MathF.Sin(a)*(.011f+GaitPelvisRoll*.20f)*_activity,
+        _gaitOffset=new(-MathF.Sin(a)*(.014f-.004f*Flow)*_activity,
             WalkingHipHeight()*_activity,0);
         GaitPelvisBasis=Basis.FromEuler(new(0,-MathF.Cos(a)*GaitPelvisYaw*_activity*load,
             -MathF.Sin(a)*GaitPelvisRoll*_activity));

@@ -24,7 +24,7 @@ internal partial class ResidentRig
         // A periodic phase warp gives a longer preparation and shorter return.
         // Unlike concatenated quintic segments, the apex has nonzero curvature:
         // the limb reverses direction without settling into a held key pose.
-        float skew=.30f+.06f*(RelativeWorkLoad-1);
+        float skew=WorkSkew;
         float cycle=t-skew*(1-MathF.Cos(MathF.Tau*t))/MathF.Tau;
         return .5f-.5f*MathF.Cos(MathF.Tau*cycle);
     }

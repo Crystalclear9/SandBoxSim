@@ -142,3 +142,5 @@
 `resident-female-wardrobe.png` 来自 `visual-female-wardrobe.json` 的第 90 帧，1600×1000、固定 60 Hz、零模拟步进，身份 55 的实际三种职业剪裁；上排正面、下排背面，相机正交尺寸 0.88 米、目标 (0, 1.13, 0)、相对 (0.10, 0.035, 3)。与原男性 `wardrobe-detail.png` 分别采集，没有换肤、局部缩放或重绘。人物图共享 v31 来源体型及按来源自然腰线拟合的衣装，各专题的运行时修形版本按本页记录解释。
 
 `resident-female-neck.png`／`resident-female-inspector.png` 来自公开 `visual-female-portrait.json` 的第 90／130 帧：1600×1000、固定 60 Hz、零模拟步进、8 名居民，使用稳定身份 4294967299 的实际成年女性，复用人物名录选择，再展开观察窗并切换面部／全身。它展示当前世界人物和真实界面，非图册替身；生成结果与命令轨迹同时核对实际身份及观察纯度。
+
+`resident-style-work.png`／GIF 与 `resident-style-walk.png`／GIF 来自 `visual-work-effort`／`visual-body-motion`，使用 `motionStyle=power-flow-v1`、`armSwing=profiled-countermotion-v3`、`workEffort=profiled-phase-v3`。各取两次固定配置回放：PNG 为逻辑帧 180 的直接复制；GIF 为 120–297 每三帧采样的 60 个原生 1600×1000 帧，20 fps、三秒，只统一调色板，不插帧、重绘或缩放。固定 60 Hz、零模拟步进、零窗口恢复，来源与产物哈希核对后发布。其余专题保留各自采样版本。

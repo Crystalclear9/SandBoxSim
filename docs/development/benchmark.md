@@ -160,7 +160,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 挂点和社交姿态另记录 `equipmentAttachment=surface-holster-v2`、`socialMotion=prepared-gesture-v5`；“查看目的地”是玩家界面入口，尚未增加外部评测命令。
 
-`workEffort=phase-warp-v2` 标识按工具、个体表现系数、真实疲劳及健康驱动的作业节奏与躯干配合。`visual-work-effort` 对照同一手锤的男女成人外观与状态，`visual-face-frames` 提供正面及三刻面。面部曝光与局部拟合、动作减速和节奏均改变，需要重新采样；这些展示场景不测量真实力量，也不构成 RSI 结果。请求 Schema 的面板枚举与客户端公开白名单一致，工具回归同时核对所有公开场景。
+`workEffort=profiled-phase-v3` 标识按工具、个体表现系数、真实疲劳及健康驱动的作业节奏与躯干配合。`visual-work-effort` 对照同一手锤的男女成人外观与状态，`visual-face-frames` 提供正面及三刻面。面部曝光与局部拟合、动作减速和节奏均改变，需要重新采样；这些展示场景不测量真实力量，也不构成 RSI 结果。请求 Schema 的面板枚举与客户端公开白名单一致，工具回归同时核对所有公开场景。
 
 `bodyFrame=reference-contour-physique-v31` 包含胸廓／肩部／骨盆衣料绑定（两种成人均使用二十六骨肩袖支撑）、放松站姿落脚求解、连续来源裤装、五骨臀腿蒙皮及 113×128 的来源躯干截面、胸廓／髋侧／臀部方向性支撑、凸包松量与宽缓胸前衣料包络及缩短的女性上衣低段、按缝片坐标衔接的肩袖、腰带与工具挂点高度、骨盆间距及上大腿轮廓；`faceContour=balanced-adult-v3` 标识眉弓、鼻翼、颊部、下颌与颈部的区域拟合。`toolMotion=constraint-feedback-v4` 标识 IK 前的位置／朝向速度跟踪、弧形蓄力、收纳到位判定及手腕约束后的实际握柄姿态反馈。`work-effort` 镜头为正交尺寸 1.15、目标 (0, 1.05, 0)，用于看清头肩和握柄；不同构图或体型版本不能直接混作视觉或效率基线。`body-frames` 当前为六个正／侧／背全身区域，1600 像素宽屏按同视角男女配对以六列展示，使用无职业装备的标准衣装；旧四格胸腰构图不能混作视觉或效率基线。`ADULT_CONTOURS_PASS` 和 `TRUNK_PROFILE_PASS` 的穿衣宽度／深度检查仅约束本项目的几何与 LOD，不是性别识别、真人相似度或 RSI 得分。
 
@@ -174,7 +174,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `bodyFrame=reference-contour-physique-v31` 标识胸廓、短上衣、实际骨盆／臀腿裤装及衣袖排除区的当前造型；`visual-body-frames` 的正／侧／背对照与 `visual-body-motion` 的动作对照使用实际居民网格。髋部截面取上衣及裤装的可见外包络，不能把衣摆宽度当作人体围度，也不是性别分类或 RSI 分数。
 
-`armSwing=relaxed-countermotion-v2` 标识掌面朝内的空手基础姿态、肩肘相位、前臂轴向及独立阻尼目标。`visual-arm-swing` 使用实际网格和控制器，包含正侧面及掌腕近景；人物造型与模拟输入保持独立，图片不是医学步态、视觉真实感或 RSI 分数。
+`armSwing=profiled-countermotion-v3` 标识掌面朝内的空手基础姿态、肩肘相位、前臂轴向及独立阻尼目标。`visual-arm-swing` 使用实际网格和控制器，包含正侧面及掌腕近景；人物造型与模拟输入保持独立，图片不是医学步态、视觉真实感或 RSI 分数。
 
 `bodyFrame=reference-contour-physique-v31` 的成人上衣使用缓存凸包松量，短下摆取上髋支撑；`garmentMaterial=quiet-linen-v17` 对应 `faired-panel-v8` 连续袖片、贴合后重算法线及较薄卷袖口。`visual-wardrobe` 以正交尺寸 0.88、目标 (0, 1.13, 0)、相机相对位置 (0.10, 0.035, 3) 展示衣装近景；它与全身 `body-frames` 分别用于表面和整体比例检查。新几何必须重采视觉与构建耗时，不能将旧图片当作当前包络。
 
@@ -194,7 +194,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `handlingMotion=wholebody-motion-v7` 增加兼容徒手动作的直接交接与世界交互对象的统一朝向。模拟规则及 HTTP Schema 保持；新增只读 C# 查询 `ActionSystem.TryGetInteractionPartner` 表示当前执行候选，非承诺成功或历史结果。视觉／耗时对照需使用同版本。
 
-`wholebody-motion-v7`、`relaxed-countermotion-v2` 和 `phase-warp-v2` 分别标记徒手躯干参与、行走肩肘与胸廓协调、连续劳动相位曲线。改动涉及实际姿态与运行开销，需重新采样视觉及耗时；顶点非平坦和周期连续检查为项目工程约束，不作为真人动作评分。
+`wholebody-motion-v7`、`profiled-countermotion-v3` 和 `profiled-phase-v3` 分别标记徒手躯干参与、行走肩肘与胸廓协调、连续劳动相位曲线。改动涉及实际姿态与运行开销，需重新采样视觉及耗时；顶点非平坦和周期连续检查为项目工程约束，不作为真人动作评分。
 
 `visual-shoulder-elevation.json` / `panel=shoulder-elevation` 是十二秒肩袖范围观察：上排男性外观、下排女性外观，三列为正面、固定侧面和背面。固定 60 Hz、零模拟步进，默认从第 30 帧每 24 帧采样，共 30 帧；左右臂各占六秒：1.5 秒抬起至 135°、一秒保持、1.5 秒放下、两秒休息。它使用实际游戏网格、肩肘腕求解和蒙皮，可用于同版本下的视觉比较，不是 RSI 成绩、帧率测试或医学动作评分。正常作业循环仍由 `visual-shoulder-motion.json` 覆盖。两者必须记录同一 `shoulderSkin`、`shoulderMotion`、构图与灯光后再作对照。
 
@@ -285,3 +285,5 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 衣面烘焙将规范坐标中的候选邻域按剪裁与模式缓存，当前姿态继续计算动态筛选和权重；完整扫描与缓存路径按原索引顺序求和。`BODICE_NEIGHBOR_PASS` 核对实际拟合深度逐位一致，属于程序优化的数值等价检查。缓存影响冷启动成本与内存，效率实验需固定来源、姿态数量、硬件、并行负载与冷／热缓存条件；超时回放保留失败状态，不能视为有效结果。
 
 `portrait.resident` 在 `person`／`person-hands` 中按十进制正整数的稳定身份选择当前世界中的存活居民，取值范围为 Int64 正数；不存在的身份返回运行失败。选择复用名录入口，不修改模拟。结果 `state.portrait.identity`／`child` 记录实际观察对象，校验器核对命令后的身份，拒绝选择未执行或被改写的记录。公开 `visual-female-portrait.json` 使用种子 839102、8 名居民、零模拟步进，观察身份 4294967299，并切换肩颈／全身构图。该入口是视觉回放控制，不增加玩家任务或 HTTP 动作。
+
+`motionStyle=power-flow-v1`、`armSwing=profiled-countermotion-v3`、`workEffort=profiled-phase-v3` 标识成人动作风格的肩肘跟随、躯干侧摆、手势回收及作业相位分配。风格不改变模拟生产效率，但会改变姿态、图像和每帧计算；比较视觉／效率结果须冻结这些标记、完整源码、身体与工具、状态、镜头及冷／热缓存条件。`MOTION_STYLE_PASS` 是相同身体和能力条件下的实际轨迹回归，不是 RSI 或审美评分。
