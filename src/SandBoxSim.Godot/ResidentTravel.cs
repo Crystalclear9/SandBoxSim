@@ -39,7 +39,9 @@ internal struct ResidentTravel
         var forward=new Vector2(-MathF.Sin(yaw),-MathF.Cos(yaw));
         float alignment=forward.Dot(direction.Normalized());
         float steer=.13f+.87f*Mathf.SmoothStep(-.10f,.67f,alignment);
-        float step=MathF.Min(distance*(1-MathF.Exp(-8*dt)),limit*steer*dt);
+        float wanted=MathF.Min(distance*(1-MathF.Exp(-8*dt))/dt,limit*steer);
+        float speed=Mathf.MoveToward(_speed,wanted,dt*(wanted>_speed?3.7f:4.5f));
+        float step=MathF.Min(distance,speed*dt);
         _speed=step/dt;
         return distance<.0001f?current:current.Lerp(target,step/distance);
     }

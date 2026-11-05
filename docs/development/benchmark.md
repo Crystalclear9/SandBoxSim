@@ -174,6 +174,8 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `residentTravel=projected-resident-route-v3` 标识实景的近景路线预判、起步重心转移与换脚转身。`pacedResidentTravel` 记录当前是否启用实景步速。评测配置固定 `ticksPerFrame` 大于零时按该配置推进。`RESIDENT_ROUTE_PROJECTION_PASS` 由模拟动作系统推进实际地形上的多格路线，测量过格时的根节点速度与重复起步，核对转弯支撑、到站拾取、拓扑失效和模拟搜索计数。`RESIDENT_WORLD_MOTION_PASS` 继续检查只收到已确认格点时的步行与转身。`RESIDENT_DEPARTURE_PASS` 同时检查双足与根节点在起步准备期的位置，以及骨盆的侧移。
 
+`WORLD_OUTSOLE_PASS` 在近景跟随距离测量同一条多格路线的起步加速度、承重中段每帧平面漂移、鞋底对地的最低间隙，以及摆动期离地高度。采样点来自成品鞋底轮廓，地形高度与世界角色共用。相邻帧须同处同一只脚的承重中段才计入漂移。
+
 `animalLocomotion=ground-distance-v1` 记录鹿狼的距离驱动步态。居民动画时序和画面更新后，相关视觉评测需采集新基线。
 
 `taskReference=cmu-turn-and-dig-v1` 与 `toolContacts=furrow-edge-and-work-stance-v1` 记录捕捉转身、耕作重心和工具姿态。`CULTIVATION_PASS` 使用实际锄刃坐标检查平面与斜面上的拉土、抬刃和胸廓幅度。`WORLD_CULTIVATION_PASS` 在实际地形上通过世界更新检查锄刃贴地距离与显示层的状态纯度。

@@ -964,10 +964,11 @@ public partial class WorldView3D : MapView
                 node.Rotation=new(0,yaw,0);
             }
             // Keep position interpolation every frame; distant joint poses need fewer updates.
-            float fullRate=paced?17:12;
+            float fullRate=paced?18:12;
             int stride=distanceSquared>45*45?8:distanceSquared>30*30?6:distanceSquared>fullRate*fullRate?2:1;
             if(!paused)node.ObserveDeparture(paced?node.Travel.Preparation:0);
-            node.ObserveLocomotion(rendered-current,delta,headingError,paused,remaining,paced?node.Scale.X:1,anticipatoryTurn);
+            float lateralDistance=paced?direction.X*MathF.Cos(yaw)-direction.Z*MathF.Sin(yaw):0;
+            node.ObserveLocomotion(direction,delta,headingError,paused,remaining,paced?node.Scale.X:1,anticipatoryTurn,lateralDistance);
             node.UpdateDistanceDetail(distanceSquared);
             if((_poseFrame+slot)%stride!=0)continue;
             var cargoKind=ResourceKind.Food;float cargoAmount=0;

@@ -126,7 +126,7 @@ internal sealed partial class NatureModels
                     if(walking)
                     {
                         var world=basis*local+Vector3.Forward*(speed*delta*frame);
-                        maxPin=MathF.Max(maxPin,world.DistanceTo(rig.GroundedFootPoint(side,world)));
+                        maxPin=MathF.Max(maxPin,world.DistanceTo(rig.GroundedFootFrame(side,world,basis.Z).Point));
                     }
                     else
                     {

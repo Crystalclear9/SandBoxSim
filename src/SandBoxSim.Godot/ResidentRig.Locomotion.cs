@@ -12,7 +12,7 @@ internal partial class ResidentRig
     private float _gaitCycle,_gaitSpeed,_locomotionSpeed=1.05f,_turnDemand,_gaitTurn,_sampleDistance,_sampleTime,_locomotionScale=1;
     private bool _worldLocomotion,_groundContactSpeed;
     private float _approachDistance;
-    private float _departureProgress,_turnPreview;
+    private float _departureProgress,_turnPreview,_sampleLateralDistance,_locomotionLateral,_gaitLateral;
     private int _departureLead;
     private Vector3 _travelWeightShift,_travelWeightVelocity;
     private float _travelPitch;
@@ -54,7 +54,8 @@ internal partial class ResidentRig
 
     // Called every rendered world frame, before the distance pose scheduler.
     // Discontinuous tile resynchronisation is not interpreted as a sprint.
-    public void ObserveLocomotion(Vector3 displacement,float delta,float headingError,bool paused,float remainingDistance=0,float scale=1,float turnPreview=0)
+    public void ObserveLocomotion(Vector3 displacement,float delta,float headingError,bool paused,float remainingDistance=0,float scale=1,
+        float turnPreview=0,float lateralDistance=0)
     {
         if(paused||!float.IsFinite(delta)||delta<=0)return;
         _worldLocomotion=true;
@@ -71,6 +72,7 @@ internal partial class ResidentRig
             ResetGroundContacts();
         }
         _sampleDistance+=sample*delta;_sampleTime+=delta;
+        if(_groundContactSpeed&&float.IsFinite(lateralDistance))_sampleLateralDistance+=lateralDistance;
         _approachDistance=float.IsFinite(remainingDistance)?MathF.Max(0,remainingDistance):0;
         _turnPreview=float.IsFinite(turnPreview)?Math.Clamp(turnPreview,-.65f,.65f):0;
         _turnDemand=float.IsFinite(headingError)?Math.Clamp(headingError+_turnPreview,-.65f,.65f):0;
@@ -78,9 +80,10 @@ internal partial class ResidentRig
 
     private void ConsumeLocomotionSamples()
     {
-        if(_sampleTime<=0){if(_worldLocomotion)_locomotionSpeed=0;return;}
+        if(_sampleTime<=0){if(_worldLocomotion)_locomotionSpeed=_locomotionLateral=0;return;}
         _locomotionSpeed=_sampleDistance/_sampleTime;
-        _sampleDistance=_sampleTime=0;
+        _locomotionLateral=_sampleLateralDistance/_sampleTime;
+        _sampleDistance=_sampleTime=_sampleLateralDistance=0;
     }
 
     private void AdvanceLocomotion(float dt,bool moving,bool canFinishStep)
@@ -97,8 +100,10 @@ internal partial class ResidentRig
         float preload=ReachEase(_departureProgress);
         float supportSide=_departureLead==0?1:-1;
         float turn=_turnPreview*Mathf.SmoothStep(.22f,.85f,_gaitSpeed);
+        float lateral=Math.Clamp(_locomotionLateral/MathF.Max(.38f,wanted),-.48f,.48f);
+        _gaitLateral=Mathf.Lerp(_gaitLateral,lateral,1-MathF.Exp(-dt*12));
         float forward=preload*.020f+acceleration*.0075f-MathF.Abs(turn)*.017f;
-        float sideways=supportSide*preload*(.042f-.010f*Flow)-turn*(.020f+.007f*Flow);
+        float sideways=supportSide*preload*(.042f-.010f*Flow)-turn*(.020f+.007f*Flow)+_gaitLateral*.022f;
         var weight=new Vector3(sideways,-.014f*preload-.003f*MathF.Abs(acceleration),-forward);
         DampMotion(ref _travelWeightShift,ref _travelWeightVelocity,weight,.068f,dt);
         _travelPitch=_travelWeightShift.Z*2.7f;
@@ -251,7 +256,8 @@ internal partial class ResidentRig
         float phase=Mathf.PosMod(_gaitCycle+side*.5f,1),support=GaitSupport;
         float steering=phase<support?1-Smooth(phase/support):Smooth((phase-support)/(1-support));
         float stepTurn=_gaitTurn*steering*weight;
-        float x=sign*MathF.Max(.050f,GaitFootHalfWidth+sign*(stepTurn*.085f+foot.Side));
+        float follow=Math.Clamp(-foot.Depth*_gaitLateral,-.075f,.075f);
+        float x=sign*MathF.Max(.050f,GaitFootHalfWidth+sign*(stepTurn*.085f+foot.Side+follow));
         // Rotate about the actual boot sole's contact, not the ankle in air.
         float pitch=foot.Pitch*weight;
         var boot=RockingBoot(pitch,foot.RockerWeight);
@@ -316,30 +322,6 @@ internal partial class ResidentRig
     }
 
     internal void ResetGroundContacts()=>Array.Clear(_groundContactValid);
-
-    internal Vector3 GroundedFootPoint(int side,Vector3 position)
-    {
-        float phase=Mathf.PosMod(_gaitCycle+side*.5f,1),support=GaitSupport;
-        bool preparing=_departureProgress>0;
-        if(!_groundContactSpeed||!preparing&&(_activity<.58f||_arrivalWeight>0||phase>=support))
-        {
-            _groundContactValid[side]=false;
-            return position;
-        }
-        if(!_groundContactValid[side])
-        {
-            _groundContactValid[side]=true;
-            _groundContact[side]=position;
-        }
-        var pull=_groundContact[side]-position;
-        pull.Y=0;
-        float distance=pull.Length();
-        // Retain a planted contact across a small steering correction. Large
-        // errors are released progressively so the leg never chases a stale pin.
-        float weight=(preparing?1:ReachEase(phase/.14f)*ReachEase((support-phase)/.16f))*
-            (1-Mathf.SmoothStep(.045f,.13f,distance));
-        return position+pull*weight;
-    }
 
     private void SolveLegTo(int side,Vector3 footCenter,Basis soleBasis,float planeYaw=0)
     {

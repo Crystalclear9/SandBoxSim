@@ -105,12 +105,18 @@ public partial class WorldView3D
         SyncEntities();
         var rig=(ResidentRig)_people[sim.Society.Identity(slot)];
         rig.Rotation=new(0,HeadingYaw(Horizontal(Place(route[1])-Place(start))),0);
-        _target=(Place(start)+Place(goal))*.5f;_distance=14;UpdateCamera();
+        _target=Place(start);_distance=11;UpdateCamera();
 
         double tickFraction=0;
         long tick=0;
         int crossed=0,projectedFrames=0,preparations=0;
         float lowCruise=float.PositiveInfinity,peak=0;
+        float previousSpeed=0,peakDepartureAcceleration=0;
+        int supportPairs=0;
+        float squaredDrift=0,minimumClearance=float.PositiveInfinity,swingClearance=0;
+        string lowestPose="";
+        var previousSoles=new Vector3[2];
+        var previousSupport=new bool[2];
         bool moving=true,working=false;
         for(int frame=0;frame<1800&&!working;frame++)
         {
@@ -125,16 +131,46 @@ public partial class WorldView3D
                 moving=sim.Agents.PhaseOf(slot)==ActionPhase.Moving;
             }
             var before=rig.Position;
+            _target=before;UpdateCamera();
             string digest=sim.StateDigestString();
             long searches=sim.Pathfinder.TotalSearches;
             AnimateActors(delta,(float)Math.Min(1,tickFraction));
             if(sim.StateDigestString()!=digest||sim.Pathfinder.TotalSearches!=searches)
                 throw new InvalidOperationException("Projected travel changed simulation or simulation search counts");
             float speed=Horizontal(rig.Position-before).Length()/delta;
+            if(crossed==0)peakDepartureAcceleration=MathF.Max(peakDepartureAcceleration,(speed-previousSpeed)/delta);
+            previousSpeed=speed;
             peak=MathF.Max(peak,speed);
             if(rig.Travel.Projecting)projectedFrames++;
             if(rig.Travel.Preparation>0&&crossed>0&&crossed<route.Length-1)preparations++;
             if(crossed>0&&crossed<route.Length-2)lowCruise=MathF.Min(lowCruise,speed);
+            for(int side=0;side<2;side++)
+            {
+                float phase=Mathf.PosMod(rig.GaitCycle+side*.5f,1);
+                float support=rig.GaitSupport;
+                var boot=rig.Feet[side].GlobalTransform;
+                var mark=boot*rig.BootSoleCurve[12];
+                bool planted=rig.Travel.Projecting&&speed>.65f&&phase>.32f*support&&phase<.57f*support;
+                if(planted&&previousSupport[side])
+                {
+                    squaredDrift+=Horizontal(mark-previousSoles[side]).LengthSquared();
+                    supportPairs++;
+                }
+                previousSupport[side]=planted;previousSoles[side]=mark;
+                if(!rig.Travel.Projecting||speed<.65f)continue;
+                float clearance=float.PositiveInfinity;
+                foreach(var sole in rig.BootSoleCurve)
+                {
+                    var point=boot*sole;
+                    clearance=MathF.Min(clearance,point.Y-GroundHeight(point.X,point.Z));
+                }
+                if(clearance<minimumClearance)
+                {
+                    minimumClearance=clearance;
+                    lowestPose=$"{frame}/{side}, phase={phase:F3}, speed={speed:F2}/{rig.GaitSpeed:F2}, camera={_camera.Position.DistanceTo(rig.Position):F2}";
+                }
+                if(phase>support)swingClearance=MathF.Max(swingClearance,clearance);
+            }
             if(!ScenerySegmentClear(before,rig.Position)||!SceneryLegSupported(before,rig.Position))
                 throw new InvalidOperationException("Projected travel crossed scenery or lost ground support");
             working=rig.GestureEngaged(ActionKind.Take);
@@ -143,6 +179,10 @@ public partial class WorldView3D
         }
         if(crossed!=route.Length-1||!working||projectedFrames<180||preparations!=0||lowCruise<.40f||peak>ResidentRig.MaximumGaitSpeed+.001f)
             throw new InvalidOperationException($"Projected resident route: tiles={crossed}/{route.Length-1}, projected frames={projectedFrames}, false starts={preparations}, cruise floor={lowCruise}, peak={peak}, work={working}");
+        float rmsDrift=MathF.Sqrt(squaredDrift/Math.Max(1,supportPairs));
+        if(supportPairs<65||rmsDrift>.008f||minimumClearance<-.018f||swingClearance<.045f||peakDepartureAcceleration>4.2f)
+            throw new InvalidOperationException($"World outsole contact: stance pairs={supportPairs}, RMS drift={rmsDrift}, lowest sole={minimumClearance} ({lowestPose}), swing={swingClearance}, departure acceleration={peakDepartureAcceleration}");
+        GD.Print($"WORLD_OUTSOLE_PASS: {supportPairs} mid-stance frame pairs, RMS sole drift={rmsDrift:F5} m/frame, lowest outsole={minimumClearance:F4} m, swing clearance={swingClearance:F4} m, departure acceleration={peakDepartureAcceleration:F2} m/s² on actual terrain");
 
         sim.Agents.SetTarget(slot,start.X,start.Y);
         sim.Agents.SetAction(slot,ActionKind.Wander,ActionPhase.Moving);

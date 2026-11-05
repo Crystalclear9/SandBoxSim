@@ -136,18 +136,21 @@ public partial class WorldView3D
     }
     private void ConformFeet(ResidentRig rig)
     {
+        var root=rig.GlobalTransform;var inverse=root.AffineInverse();
+        var ground=_actorGround??=GroundHeight;
         for(int side=0;side<2;side++)
         {
-            var foot=rig.Feet[side];var point=rig.GroundedFootPoint(side,foot.GlobalPosition);
+            if(rig.FitWalkingSole(side,root,inverse,ground))continue;
+            var point=rig.Feet[side].GlobalPosition;
             float center=GroundHeight(point.X,point.Z),left=GroundHeight(point.X-.12f,point.Z),right=GroundHeight(point.X+.12f,point.Z);
             float front=GroundHeight(point.X,point.Z-.14f),back=GroundHeight(point.X,point.Z+.14f);
             // Solve from the existing hip root; translating the whole leg
             // disconnects it from the pelvis and leaves the trouser bind stale.
-            var offset=point-foot.GlobalPosition+Vector3.Up*Math.Clamp(center-rig.GlobalPosition.Y,-.07f,.07f);
+            var offset=Vector3.Up*Math.Clamp(center-root.Origin.Y,-.07f,.07f);
             var normal=new Vector3((left-right)/.24f,1,(front-back)/.28f).Normalized();
-            var local=rig.GlobalBasis.Transposed()*normal;
+            var local=root.Basis.Transposed()*normal;
             local=new(Math.Clamp(local.X,-.24f,.24f),1,Math.Clamp(local.Z,-.24f,.24f));
-            rig.ConformFoot(side,rig.GlobalBasis.Inverse()*offset,local);
+            rig.ConformFoot(side,inverse.Basis*offset,local);
         }
         rig.SyncTrousers();
     }
