@@ -15,7 +15,7 @@ internal sealed partial class NatureModels
     private bool ChildHead=>_faceVariant>=8;
     private int HumanFamily=>FaceArchetype<2?0:FaceArchetype<5?1:2;
     private int BodyFrame=>!ChildHead&&HumanFamily==2?1:0;
-    private const float FemaleHeadSettle=.033f;
+    private const float FemaleHeadSettle=.026f;
     // Area-weighted linear forehead samples of the pinned source atlases;
     // tools/measure_head_tones.py reproduces these exposure corrections.
     private float HumanSkinGain=>ChildHead?1:HumanFamily==1?1.299263f:HumanFamily==2?.918634f:1;

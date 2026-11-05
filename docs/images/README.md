@@ -6,7 +6,7 @@
 
 ## 当前配图
 
-2026-11-05 的身体三视图、女性三款衣装、胸廓近景、真实人物观察窗（面部／全身）及身体动态使用 `bodyPresentation=natural-shoulder-contour-v24`、`garmentFit=natural-shoulder-contour-v26`、`shoulderSkin=natural-shoulder-contour-v21`、`neckContour=compact-cervical-v3`。它们来自八次核对通过的原生回放：六张 PNG 直接复制实际采样，身体 GIF 使用 120 个原生帧，只统一调色板、不插帧或重绘。固定 1600×1000、60 Hz、零模拟步进、零窗口恢复，源码、构建身份及每个产物哈希均经过核对。来源身体仍为 v30；下述其他专题保留各自的采样日期与版本。
+2026-11-05 的身体三视图、女性三款衣装、胸廓近景、真实人物观察窗（面部／全身）及身体动态使用 `bodyPresentation=balanced-figure-v25`、`garmentFit=continuous-envelope-v27`、`shoulderSkin=continuous-envelope-v22`、`neckContour=balanced-cervical-v4`。它们来自八次核对通过的原生回放：六张 PNG 直接复制实际采样，身体 GIF 使用 120 个原生帧，只统一调色板、不插帧或重绘。固定 1600×1000、60 Hz、零模拟步进、零窗口恢复，源码、构建身份及每个产物哈希均经过核对。来源身体仍为 v30；下述其他专题保留各自的采样日期与版本。
 
 `resident-arm-junctions.png`／GIF 来自公开 `visual-arm-articulation.json`，使用实际游戏的肩肘腕控制器和连接皮肤。两排为男性／女性外观，三列正面、侧面及背面；正交尺寸 1.04、目标 (0, 1.17, 0)，相机相对位置为 (0.03, 0.03, 4)、(-4, 0.03, 0.10)、(0.03, 0.03, -4)。PNG 取逻辑帧 270；GIF 为原生 1600×1000、160 个采样，逻辑帧 30–507 每三帧取样，20 fps、八秒，分五次固定配置回放编码。动作包含抬臂／屈肘、旋前／旋后和放下，读取 `forearmSkin=continuous-elbow-v9`、`forearmProfile=curvature-flow-v9`、`shoulderSkin=balanced-upperbody-v20`、`upperArmFlex=stable-contour-v3` 与 `shoulderSurface=authored-bind-surface-v3`；没有重绘、插帧或局部缩放。
 

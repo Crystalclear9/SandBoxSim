@@ -384,6 +384,7 @@ internal sealed partial class NatureModels
     public void ValidateBodyFrames()
     {
         ValidateBodicePatches();
+        ValidateClothEnvelopeSampling();
         ValidateSoftShoulderField();
         ValidateMedialThorax();
         ValidateBalancedTorso();
@@ -420,7 +421,9 @@ internal sealed partial class NatureModels
                 if(MathF.Abs(point.X)<.025f&&point.Z<-.060f&&point.Y>-.120f&&point.Y<-.065f)
                 {jaw=MathF.Min(jaw,(headSpace*point).Y);jawSamples++;}
             float exposed=jaw-openingY;
-            if(headShoulder<.195f||headShoulder>.225f||jawSamples<3||exposed<.025f||exposed>.085f)
+            // Art-direction regression: preserve visible neck between jaw
+            // and collar without returning to the extended-neck silhouette.
+            if(headShoulder<.200f||headShoulder>.215f||jawSamples<3||exposed<.030f||exposed>.055f)
                 throw new InvalidOperationException($"Female cervical presentation loses its authored head/shoulder spacing or jaw clearance: head/shoulder={headShoulder}, jaw samples={jawSamples}, exposed={exposed}");
             GD.Print($"CERVICAL_PRESENTATION_PASS: actual head/shoulder spacing={headShoulder*1000:F2} mm, jaw/opening clearance={exposed*1000:F2} mm, jaw samples={jawSamples}; source neck overlap and face Jacobian gates retained; art-direction bounds, not anthropometric standards");
             var headTransform=female.Head.Transform;float movingClearance=float.PositiveInfinity;

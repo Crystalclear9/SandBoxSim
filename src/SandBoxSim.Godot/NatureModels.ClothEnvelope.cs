@@ -105,7 +105,50 @@ internal sealed partial class NatureModels
             }
             _clothEnvelopes[key]=data;
         }
-        return TrunkSample(_clothEnvelopes[key],y,angle);
+        return BodyFrame==1?ClothEnvelopeSample(_clothEnvelopes[key],y,angle):TrunkSample(_clothEnvelopes[key],y,angle);
+    }
+
+    // Positive cubic B-spline weights round the joined ring/meridian tangents
+    // without ringing beyond the contributing cloth supports. The angular
+    // axis wraps; vertical samples clamp at the source ends. This is used
+    // only while fitting the adult female garment, not during animation.
+    private static float ClothEnvelopeSample(float[] data,float y,float angle)
+    {
+        float row=Math.Clamp((y-TrunkLow)/.005f,0,TrunkRows-1);
+        float column=Mathf.PosMod(angle,Mathf.Tau)/Mathf.Tau*TrunkColumns;
+        int r=(int)row,c=(int)column;
+        static Vector4 Weights(float t)
+        {
+            float t2=t*t,t3=t2*t,u=1-t;
+            return new(u*u*u/6,(3*t3-6*t2+4)/6,(-3*t3+3*t2+3*t+1)/6,t3/6);
+        }
+        var wy=Weights(row-r);var wa=Weights(column-c);float radius=0;
+        for(int j=0;j<4;j++)for(int i=0;i<4;i++)
+            radius+=data[Math.Clamp(r+j-1,0,TrunkRows-1)*TrunkColumns+(c+i-1+TrunkColumns)%TrunkColumns]*wy[j]*wa[i];
+        return radius;
+    }
+
+    private static void ValidateClothEnvelopeSampling()
+    {
+        var plane=new float[TrunkRows*TrunkColumns];var curved=new float[plane.Length];
+        for(int r=0;r<TrunkRows;r++)for(int c=0;c<TrunkColumns;c++)
+        {
+            plane[r*TrunkColumns+c]=.10f+r*.0005f;
+            curved[r*TrunkColumns+c]=.13f+.01f*MathF.Sin(r*.18f)+.008f*MathF.Cos(c*Mathf.Tau/TrunkColumns);
+        }
+        float maximumTangentJump=0;
+        for(int r=2;r<TrunkRows-2;r++)for(int c=0;c<TrunkColumns;c+=8)
+        {
+            float y=TrunkLow+r*.005f,a=c*Mathf.Tau/TrunkColumns,h=.0001f;
+            float Sample(float height,float angle)=>ClothEnvelopeSample(curved,height,angle);
+            float value=Sample(y,a),left=(value-Sample(y-h,a))/h,right=(Sample(y+h,a)-value)/h;
+            maximumTangentJump=MathF.Max(maximumTangentJump,MathF.Abs(right-left));
+            if(MathF.Abs(ClothEnvelopeSample(plane,y+.001f,a)-(.10f+(r+.2f)*.0005f))>.000001f
+                ||value<.112f||value>.148f||MathF.Abs(value-Sample(y,a+Mathf.Tau))>.000001f)
+                throw new InvalidOperationException("Cloth sampler loses an affine meridian, source range or periodic seam");
+        }
+        if(maximumTangentJump>.003f)throw new InvalidOperationException("Cloth sampler retains a ring tangent discontinuity");
+        GD.Print($"CLOTH_SAMPLING_PASS: affine meridians, bounded curved support and periodic seam; maximum ring tangent difference={maximumTangentJump:F5}");
     }
 
     // Round the transverse span as well as its vertical fibres. A convex hull
