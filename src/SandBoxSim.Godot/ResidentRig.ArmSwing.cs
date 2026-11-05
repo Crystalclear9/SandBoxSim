@@ -8,7 +8,7 @@ internal partial class ResidentRig
     private readonly Vector3[] _freeShoulder=new Vector3[2],_freeShoulderVelocity=new Vector3[2];
     private readonly Vector3[] _freeForearm=new Vector3[2],_freeForearmVelocity=new Vector3[2];
 
-    private void PoseFreeArm(int side,float dt,float identityPhase)
+    private void PoseFreeArm(int side,float dt,float identityPhase,float idleWeight,float hipShift)
     {
         float mirror=side==0?1:-1;
         // Opposite arm and leg, with a small forearm lag. Elbow flexion grows
@@ -27,6 +27,10 @@ internal partial class ResidentRig
         float follow=.045f+(.065f+.080f*Flow)*Mathf.Lerp(lag,capture.Y,.70f)+.014f*MathF.Cos(phase*2-.80f);
         var forearmTarget=new Vector3(.17f+.057f*Flow+follow*_activity*speedScale,
             mirror*(1.40f+(.037f+.032f*Flow)*lag*_activity),0);
+        float drift=MathF.Sin(_phase*.37f+identityPhase+side*1.24f)*idleWeight;
+        shoulderTarget.X+=.034f*drift;
+        shoulderTarget.Z-=.82f*hipShift*idleWeight;
+        forearmTarget.X+=.027f*drift;
         // Filter free-motion targets independently of solved interaction joints.
         // This retains momentum without pulling an attached tool off its grip.
         float response=Mathf.Lerp(ArmFollowTime,.027f+.008f*Flow,_activity);

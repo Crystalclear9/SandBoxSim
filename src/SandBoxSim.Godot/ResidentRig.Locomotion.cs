@@ -165,13 +165,6 @@ internal partial class ResidentRig
     private Vector3 RestFootCenter(int side)=>new(side==0?-HipHalfWidth:HipHalfWidth,
         HipHeight-ThighLength-ShinLength,-.04f);
 
-    private void PlantPickupLeg(int side,float weight)
-    {
-        if(weight<=.000001f)return;
-        var foot=Legs[side].Transform*Knees[side].Transform*Feet[side].Transform;
-        SolveLegTo(side,foot.Origin.Lerp(RestFootCenter(side),weight),new Basis(foot.Basis.GetRotationQuaternion().Slerp(Quaternion.Identity,weight)));
-    }
-
     private void PoseWalkingLeg(int side,float weight)
     {
         if(weight<=.000001f)return;

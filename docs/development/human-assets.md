@@ -235,6 +235,14 @@ python -m unittest discover -s tools -p test_resident_trousers.py
 python -B tools/export_cmu_gait.py --source .tools/sources/mocap --output src/SandBoxSim.Godot/assets/motions/cmu-walk-cycles.json
 ```
 
+[cmu-action-phrases.json](../../src/SandBoxSim.Godot/assets/motions/cmu-action-phrases.json) 采用 CMU 的 [02_06 弯身与起身](https://mocap.cs.cmu.edu/search.php?subjectnumber=2)、[18_08 交谈](https://mocap.cs.cmu.edu/search.php?subjectnumber=18) 与 [13_09 饮水](https://mocap.cs.cmu.edu/search.php?subjectnumber=13)，使用上述同一许可。每条片段保留 65 个时间采样及原始 120 Hz 帧段。拾取截取两次下探、取物及起身，交谈截取单手和双手各一段，饮水重定时保留接近、抬头及放下顺序。导出保留各部位时序与相对行程，并对首尾姿态去漂移。文件记录原始哈希，身体位移、握持与目标接触由游戏解算。
+
+原始 ASF/AMC 可放在 `.tools/sources/mocap/cmu-02`、`cmu-18` 和 `cmu-13`。用 [export_cmu_actions.py](../../tools/export_cmu_actions.py) 重建。
+
+```powershell
+python -B tools/export_cmu_actions.py --source .tools/sources/mocap --output src/SandBoxSim.Godot/assets/motions/cmu-action-phrases.json
+```
+
 当前裤装在细分表面加入腰下／膝上压褶和侧缝形体，并对中线裤裆的极窄翻折接缝作局部表面松弛，保留原始索引与面数；不改变裤腰及两只靴口的开放边界。`tools/resident_clothing.py` 提供独立于 Blender 的米制褶皱配方，导出时约束在来源骨盆与靴口之间。运行时上衣的近景拟合取实际缝合网格截面，成衣下摆按三套款式区分；详细参数见[模型系统](models.md)。
 
 当前腿部由同一已校验 HM08 身体表面提供径向截面支撑，服装辅助网格仅保留为连续拓扑；导出器在髋—膝中心线上取样、添加一次衣料间隙，并保留骨盆与靴口的渐变区。每套输出的 `anatomicalSupport` 包含 21×64 个来源半径，供最终成衣截面检查；没有添加新的素材许可或运行依赖。具体绑定与鞋楦偏移见[模型系统](models.md)。

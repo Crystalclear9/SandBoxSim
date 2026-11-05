@@ -45,9 +45,13 @@ internal partial class ResidentRig
     {
         float t=Mathf.PosMod(phase,1);
         float preparation=WorkPreparation;
-        return t<preparation
-            ?new(MathF.Sin(MathF.PI*ReachEase(t/preparation)),0)
-            :new(0,MathF.Sin(MathF.PI*ReachEase((t-preparation)/(1-preparation))));
+        // Weight is still on the supporting leg while the chest initiates
+        // the downward stroke. The apex no longer passes through neutral.
+        float loaded=preparation*.78f;
+        float release=preparation-.055f,impact=preparation+.14f;
+        float windup=ReachEase(t/loaded)*(1-ReachEase((t-loaded)/(preparation+.19f-loaded)));
+        float through=ReachEase((t-release)/(impact-release))*(1-ReachEase((t-impact)/(1-impact)));
+        return new(windup,through);
     }
 
     private Vector2 WorkWeightShift(float phase)
@@ -77,28 +81,18 @@ internal partial class ResidentRig
         float arc=MathF.Sin(MathF.PI*ReachEase((t-WorkPreparation)/(1-WorkPreparation)));
         return new Vector3(.008f*(1-Flow),0,-(.018f-.012f*Flow))*arc;
     }
-    private Vector3 SocialChest(float phase)
+    private Vector3 SocialChest(ResidentActionCapture.SocialPose pose)
     {
-        // The trunk sets up a phrase, then yields before the hands settle.
-        float emphasis=ReachPulse(Mathf.PosMod(phase+.09f,1));
-        float answer=ReachPulse(Mathf.PosMod(phase-.12f,1));
-        var drive=new Vector3(-.022f*emphasis,-.083f*emphasis,.040f*emphasis);
-        var flow=new Vector3(-.046f*emphasis,.041f*emphasis-.057f*answer,-.030f*emphasis+.037f*answer);
-        return drive.Lerp(flow,Flow);
+        return pose.Chest*new Vector3(.039f,-.082f,.039f);
     }
-    private (Vector3 Target,float Weight,Basis Palm) SocialPhrase(int side,float phase)
+    private (Vector3 Target,float Weight,Basis Palm) SocialPhrase(int side,Vector3 travel)
     {
         float mirror=side==0?-1:1;
-        float lead=ReachPulse(Mathf.PosMod(phase,1));
-        float echo=ReachPulse(Mathf.PosMod(phase-.13f,1));
-        float driveWeight=side==1?lead:echo*.32f;
-        float turn=Mathf.PosMod(phase+(side==1?.08f:-.045f),1);
-        float flowWeight=ReachPulse(turn)*(side==1?1:.92f);
-        float arc=MathF.Sin(turn*Mathf.Tau);
-        var drive=new Vector3(mirror*(side==1?.275f:.177f),side==1?1.035f:.87f,-.185f-.135f*lead);
-        var flow=new Vector3(mirror*(.190f+.074f*arc),1.015f+.056f*MathF.Cos(turn*Mathf.Tau),-.246f-.040f*arc);
-        var drivePalm=new Vector3(.50f,-mirror*.30f,mirror*.32f);
-        var flowPalm=new Vector3(.89f+.17f*arc,-mirror*(.20f+.13f*arc),mirror*(.19f+.09f*arc));
-        return (drive.Lerp(flow,Flow),Mathf.Lerp(driveWeight,flowWeight,Flow),Basis.FromEuler(drivePalm.Lerp(flowPalm,Flow)));
+        float lift=Math.Clamp(travel.Y,0,1);
+        float weight=Mathf.SmoothStep(.025f,.61f,lift);
+        float spread=Math.Clamp(.205f+travel.X*.135f,.155f,.31f);
+        var target=new Vector3(mirror*spread,.89f+.225f*lift,-.198f-.082f*travel.Z-.035f*lift);
+        var palm=new Vector3(.50f+.29f*Flow+.11f*lift,-mirror*(.28f+.16f*travel.X),mirror*(.27f-.12f*Flow));
+        return (target,weight,Basis.FromEuler(palm));
     }
 }

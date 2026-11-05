@@ -40,7 +40,7 @@
 
 较早作业静态图与移动演示使用 2026-10-29 的 `adult-proportions-v13` 采样；其他人物观察窗保留各自采样版本。
 
-`resident-body-motion.png` 为 `visual-body-motion.json` 扩展采样的第 180 帧、1600×1000；同名 GIF 为 120 个原生采样，逻辑帧 60–417 每三步采样、20 fps、六秒，分四次固定 60 Hz、零模拟步进的回放编码。各批检查窗口未发生恢复，并核对源码与构建身份。六格配对展示放松站立、行走与弯身取物，使用当前 `reference-contour-physique-v31` 模型、实际裤装和腰部衣料绑定。镜头正交尺寸 2.25、目标 (0, 0.82, 0)、相对位置 (1.8, 0.08, 4)，没有身体局部缩放、插帧或重绘。
+`resident-body-motion.png` 为 `visual-body-motion.json` 扩展采样的第 100 帧。GIF 为 1600×1000、60 个原生画面，逻辑帧 36–272，每四步取样，四秒。两批回放固定 60 Hz、零模拟步进，均核对源码、构建身份和窗口状态。上排男性外观、下排女性外观，依次对照放松站立、行走、弯身后起身。版本为 `actionReference=cmu-standing-phrases-v1`，镜头正交尺寸 2.13，目标 (0, 0.82, 0)，相对位置首列 (1.3, 0.08, 4)、其余 (2.8, 0.08, 4)。
 
 `resident-forearm-frames.png` 为公开 `visual-forearm-frames.json` 第 90 帧的小臂对照，正交尺寸 0.46，1600×1000，使用实际分离观察网格，不代表游戏中存在开放切口。该图于 2026-11-04 使用 `lifted-thorax-physique-v27` 重采，保留原雕刻与腕口，按同配方的肘腕截面约束肌腹；头脸采用 `balanced-adult-v3`，原始来源拓扑独立保留。旧 `resident-forearm-detail.png` 仅保留来源拓扑专题，不表示当前肌腹截面；身体轮廓以本次全身与前臂配对图为准。
 
@@ -145,7 +145,7 @@
 
 `resident-style-walk.png`／GIF 来自 `captured-stride-and-overlap-v6` 和 `gaitReference=cmu-contact-curves-v1` 的 `visual-locomotion`。上排为男性外观，下排为女性外观，三列分别为同速步行与转身、负重、持锤。静态图取第 180 帧。GIF 每四帧采样一次，记录逻辑帧 24–380，覆盖起步、稳定步态、转身和停步。
 
-`resident-style-social.png`／GIF 来自 `overlapping-motion-phrases-v5` 的 `visual-social`。上排对照胸廓先行的单手强调与双手成组表达，下排展示分享和进食。`resident-style-work.png`／GIF 保留 `staged-motion-phrases-v4` 的 `visual-work-effort`，从侧前方展示正常与疲劳状态下的外侧蓄力和身前提锤。两组均采样逻辑帧 120–297，每三帧取一帧。
+`resident-style-social.png`／GIF 来自 `captured-standing-and-stride-v7` 的 `visual-social`。上排对照单手强调与错时的双手表达，下排展示分享及饮水。静态图取第 144 帧，GIF 采样逻辑帧 36–272，每四帧取一帧。`resident-style-work.png`／GIF 保留 `staged-motion-phrases-v4` 的 `visual-work-effort`，从侧前方展示正常与疲劳状态下的外侧蓄力和身前提锤，采样逻辑帧 120–297，每三帧取一帧。
 
 各组采用固定 60 Hz 视觉步长，模拟步进为零。每组分两次回放，按所列范围覆盖 `captureFrames`。PNG 直接复制第 180 帧，GIF 由原生 1600×1000 画面转换为统一调色板，60 帧、20 fps、三秒。来源、产物哈希、窗口恢复次数和解码帧逐项核对。
 

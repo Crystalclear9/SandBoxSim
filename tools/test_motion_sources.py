@@ -5,12 +5,14 @@ from pathlib import Path
 import unittest
 
 from export_cmu_arm_motion import export,parse_asf,parse_amc,forward
+from export_cmu_actions import export as export_actions
 from export_cmu_gait import export as export_gait
 from export_shoulder_surface import export as export_shoulder,bind_shoulder
 
 ROOT=Path(__file__).resolve().parents[1]
 MOTION=ROOT/'src/SandBoxSim.Godot/assets/motions/cmu-143-30-stretch.json'
 GAIT=MOTION.with_name('cmu-walk-cycles.json')
+ACTIONS=MOTION.with_name('cmu-action-phrases.json')
 HUMAN=ROOT/'src/SandBoxSim.Godot/assets/models/human'
 
 
@@ -59,6 +61,27 @@ class MotionSourceTests(unittest.TestCase):
     def test_gait_reexport_matches(self):
         data=export_gait(ROOT/'.tools/sources/mocap')
         self.assertEqual(json.dumps(data,separators=(',',':'))+'\n',GAIT.read_text(encoding='utf-8'))
+
+    def test_action_phrases_and_closed_seams(self):
+        data=json.loads(ACTIONS.read_text(encoding='utf-8'))
+        self.assertEqual((data['fps'],data['samples'],data['license']),(120,65,'LicenseRef-CMU-Mocap'))
+        for name,count,width in (('pickup',2,7),('social',2,10),('drink',1,2)):
+            curves=data[name]['curves']
+            self.assertEqual(len(curves),count)
+            for curve in curves:
+                self.assertEqual(len(curve),65)
+                self.assertTrue(all(len(row)==width and all(math.isfinite(v) for v in row) for row in curve))
+                self.assertEqual(curve[0],curve[-1])
+                self.assertEqual(curve[0],[0]*width)
+        solo,paired=data['social']['curves']
+        self.assertLess(max(row[5] for row in solo),.15)
+        self.assertGreater(sum(row[5]>.6 and row[8]>.6 for row in paired),12)
+
+    @unittest.skipUnless(all((ROOT/f'.tools/sources/mocap/cmu-{trial[:2]}/{trial}.amc').exists() for trial in ('02_06','18_08','13_09')),
+                         'Optional original action captures')
+    def test_action_reexport_matches(self):
+        data=export_actions(ROOT/'.tools/sources/mocap')
+        self.assertEqual(json.dumps(data,separators=(',',':'))+'\n',ACTIONS.read_text(encoding='utf-8'))
 
     def test_shoulder_surface_is_weighted_anatomy_with_valid_topology(self):
         for sex in ('male','female'):

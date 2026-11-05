@@ -110,11 +110,11 @@ internal partial class ModelGallery : PanelContainer
         }
         else if(Collection=="body-motion")
         {
-            grid.Columns=GetViewportRect().Size.X>=1500?6:3;body.GetChild<Label>(0).Text="身体动态 · 站立、行走与弯身时的胸廓和骨盆";
-            for(int action=0;action<3;action++)for(int frame=0;frame<2;frame++)
+            grid.Columns=3;body.GetChild<Label>(0).Text="身体动态 · 放松站立、同速行走、弯身后起身";
+            for(int frame=0;frame<2;frame++)for(int action=0;action<3;action++)
             {
                 var rig=models.Resident(frame==0?17:55,false,JobType.None);
-                Closeup(grid,(frame==0?"男性外观":"女性外观")+(action==0?" · 放松站立":action==1?" · 行走":" · 弯身拾取"),rig,2.25f,new(0,.82f,0),new(1.8f,.08f,4),true);
+                Closeup(grid,(frame==0?"男性外观":"女性外观")+(action==0?" · 放松站立":action==1?" · 行走":" · 弯身拾取"),rig,2.13f,new(0,.82f,0),new(action==0?1.3f:2.8f,.08f,4),true);
                 Animate(rig,action==0?ActionKind.None:action==1?ActionKind.Wander:ActionKind.Take);
             }
         }
@@ -141,11 +141,13 @@ internal partial class ModelGallery : PanelContainer
         else if(Collection is "social" or "social-side")
         {
             grid.Columns=2;
-            body.GetChild<Label>(0).Text="居民生活 · 注视、交谈与分享";
-            ActionCard(grid,models.Resident(17,false,JobType.Gatherer),ActionKind.Socialize,"男性外观 · 开放式手势与强调");
-            ActionCard(grid,models.Resident(55,false,JobType.Gatherer),ActionKind.Socialize,"女性外观 · 弧线手势与柔和回收");
+            body.GetChild<Label>(0).Text="居民生活 · 注视、交谈与手口配合";
+            ActionCard(grid,models.Resident(17,false,JobType.Gatherer),ActionKind.Socialize,"男性外观 · 单手强调与点头");
+            ActionCard(grid,models.Resident(55,false,JobType.Gatherer),ActionKind.Socialize,"女性外观 · 双手展开与错时收回");
             ActionCard(grid,models.Resident(19,false,JobType.Trader),ActionKind.ShareFood,"分享 · 双手递送");
-            ActionCard(grid,models.Resident(42,false,JobType.Farmer),ActionKind.Eat,"进食 · 手口配合");
+            bool sideView=Collection=="social-side";
+            ActionCard(grid,models.Resident(42,false,JobType.Farmer),sideView?ActionKind.Eat:ActionKind.Drink,
+                sideView?"进食 · 手口配合":"饮水 · 手到嘴边后抬头");
         }
         else if(Collection is "wardrobe" or "female-wardrobe")
         {

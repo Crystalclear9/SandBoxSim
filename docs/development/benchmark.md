@@ -166,7 +166,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `bodySupport=planted-sagittal-v1` 和 `facialTiming=rested-phrase-blink-v2` 分别记录劳动支撑姿态、身份错开的眨眼及表达节奏；`residentSurface=linear-skin-v9` 包含实测来源 RGB 参考与正确颜色空间校准。动作、头脸像素和成本均改变，需要重新采样。`verify_skin_colour.py` 是需真实显示设备的独立颜色回归，不输出视觉问答分数或 RSI 结论。
 
-`visual-body-motion.json` 使用实际居民的六格配对画面，分别显示无工具站立、行走及弯身拾取。固定 60 Hz 表现步进，采样第 90／180／270／330 帧，镜头为正交尺寸 2.25、目标 (0, 0.82, 0)、相对位置 (1.8, 0.08, 4)。它用于身体蒙皮与轮廓检查，不是 RSI 得分；不同构图不得直接混作性能基线。
+`visual-body-motion.json` 使用六格配对画面，上排男性外观、下排女性外观，显示放松站立、行走和弯身后起身。固定 60 Hz 表现步进，默认采样第 90／180／270／330 帧。镜头正交尺寸 2.13、目标 (0, 0.82, 0)，首列相对位置 (1.3, 0.08, 4)，其余为 (2.8, 0.08, 4)。
 
 `animalPresentation=articulated-paws-v12` 包含鹿 18／狼 21 关节、足区权重转接、来源三角面上的趾爪／副蹄、分段狼尾及物种分开的步态轨迹。`visual-animal-motion.json` 使用 `animal-motion` 四格图册，固定 60 Hz、无模拟 tick，采样第 90／180／330 帧；动物区域标签从实际模型物种生成，分别为 `deer`、`wolf`。它检查模型与动作表现，不构成 RSI 能力分数。
 
@@ -286,7 +286,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `portrait.resident` 在 `person`／`person-hands` 中按十进制正整数的稳定身份选择当前世界中的存活居民，取值范围为 Int64 正数；不存在的身份返回运行失败。选择复用名录入口，不修改模拟。结果 `state.portrait.identity`／`child` 记录实际观察对象，校验器核对命令后的身份，拒绝选择未执行或被改写的记录。公开 `visual-female-portrait.json` 使用种子 839102、8 名居民、零模拟步进，观察身份 4294967299，并切换肩颈／全身构图。该入口是视觉回放控制，不增加玩家任务或 HTTP 动作。
 
-`motionStyle=captured-stride-and-overlap-v6` 标识捕捉步态与当前成人风格。`toolMotion=socket-relative-stow-v5` 标识随腰带挂点运动的收纳末段。`handlingMotion=wholebody-motion-v9` 标识提前屈膝和重复拾取的姿态变化。`socialMotion=overlapping-body-gesture-v9` 标识交谈时胸廓先行及手掌展开。视觉或耗时比较须冻结姿态版本、身体、工具、镜头、步进和缓存条件。`GROUNDED_ARRIVAL_PASS` 检查有限的世界空间脚底修正、停步和左右摆臂曲线。
+`motionStyle=captured-standing-and-stride-v7` 和 `actionReference=cmu-standing-phrases-v1` 标识成人动作与真人片段。`handlingMotion=captured-reach-recovery-v10` 标识拾取和饮水，`socialMotion=captured-conversation-v10` 标识交谈，`workEffort=overlapping-weight-transfer-v7` 标识蓄力和释放之间的承重重叠。`CAPTURED_PICKUP_PASS` 核对实际髋部回升、空手动作和脚底滑移。视觉或耗时比较须冻结姿态版本、身体、工具、镜头、步进和缓存条件。
 
 `habitatDetail=responsive-understory-v12` 增加四候选的林下层、矮阔叶及最近八角色的草叶接触场，改变顶点着色负载与自然物放置缓存身份。`VEGETATION_CONTACT_PASS` 验证接触选择、上传、清除与模拟观察纯度；放置检查验证实际根部占用及缓存恢复。视觉／效率比较须冻结草丛数量、镜头、角色分布、源码与冷／热缓存条件，不能将植被负载变化解释为内核加速或 RSI 改进。
 

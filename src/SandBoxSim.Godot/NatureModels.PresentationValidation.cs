@@ -262,7 +262,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateReachTrajectories()
     {
-        float maxHandStep=0,maxElbowStep=0;int fingertipSamples=0;
+        float maxHandStep=0,maxElbowStep=0,drinkTilt=0;int fingertipSamples=0;
         foreach(var action in new[]{ActionKind.Eat,ActionKind.Drink,ActionKind.Socialize})
         {
             var rig=Resident(42,false,JobType.Gatherer);
@@ -287,6 +287,7 @@ internal sealed partial class NatureModels
                     if(hand.Origin.DistanceTo(InTorso(reference.Hands[1],reference.Torso).Origin)>.008f)
                         throw new InvalidOperationException("Reach path changes with 60/120 Hz cadence: "+action);
                     previousHand=hand.Origin;previousElbow=elbow;
+                    if(action==ActionKind.Drink)drinkTilt=MathF.Max(drinkTilt,rig.Head.Rotation.X);
                     if(frame>100&&action!=ActionKind.Socialize)
                     {
                         var palm=hand*rig.Grip!.Position;
@@ -304,7 +305,39 @@ internal sealed partial class NatureModels
             }
             finally{rig.Free();reference.Free();}
         }
-        GD.Print($"REACH_TRAJECTORY_PASS: eat/drink/social, 60/120 Hz, maximum per-frame hand/elbow step {maxHandStep:F4}/{maxElbowStep:F4} m, mouth approach/return and {fingertipSamples} displayed index-pad proximity samples");
+        if(drinkTilt<.12f)throw new InvalidOperationException("Drinking loses the captured head tilt");
+        GD.Print($"REACH_TRAJECTORY_PASS: eat/drink/social, 60/120 Hz, maximum per-frame hand/elbow step {maxHandStep:F4}/{maxElbowStep:F4} m, {fingertipSamples} displayed index-pad proximity samples; drinking head tilt={drinkTilt:F3} rad");
+        ValidateCapturedPickup();
+    }
+    private void ValidateCapturedPickup()
+    {
+        float maxSoleDrift=0,minHipTravel=float.PositiveInfinity,minSupportHand=float.PositiveInfinity;
+        foreach(float style in new[]{0f,1f})
+        {
+            var rig=Resident(17,false,JobType.None);rig.MotionFlow=style;
+            try
+            {
+                var feet=new[]{InTorso(rig.Feet[0],rig).Origin,InTorso(rig.Feet[1],rig).Origin};
+                var balanceRest=InTorso(rig.Hands[0],rig.Torso).Origin;
+                float low=ResidentRig.HipHeight,high=0,supportHand=0,lowestHand=float.PositiveInfinity,highestHand=0;
+                for(int frame=0;frame<245;frame++)
+                {
+                    rig.PoseAction(1f/60,ActionKind.Take,ActionPhase.Executing,false,0);
+                    float hip=(rig.LowerGarmentFrame*new Vector3(0,ResidentRig.HipHeight,0)).Y;
+                    low=MathF.Min(low,hip);if(frame>64)high=MathF.Max(high,hip);
+                    for(int side=0;side<2;side++)
+                        maxSoleDrift=MathF.Max(maxSoleDrift,InTorso(rig.Feet[side],rig).Origin.DistanceTo(feet[side]));
+                    supportHand=MathF.Max(supportHand,InTorso(rig.Hands[0],rig.Torso).Origin.DistanceTo(balanceRest));
+                    float hand=InTorso(rig.Hands[1],rig).Origin.Y;
+                    lowestHand=MathF.Min(lowestHand,hand);highestHand=MathF.Max(highestHand,hand);
+                }
+                if(high-low<.064f||highestHand-lowestHand<.16f||supportHand<.035f||maxSoleDrift>.0005f)
+                    throw new InvalidOperationException($"Captured pickup loses body recovery or support: style={style}, hip={high-low}, reach={highestHand-lowestHand}, off hand={supportHand}, soles={maxSoleDrift}");
+                minHipTravel=MathF.Min(minHipTravel,high-low);minSupportHand=MathF.Min(minSupportHand,supportHand);
+            }
+            finally{rig.Free();}
+        }
+        GD.Print($"CAPTURED_PICKUP_PASS: same body, two phrase timings, minimum pelvis rise={minHipTravel:F3} m, balance-hand travel={minSupportHand:F3} m, sole drift={maxSoleDrift:F6} m");
     }
     private void ValidatePresentationCadence()
     {
