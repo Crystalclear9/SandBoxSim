@@ -172,7 +172,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `residentLocomotion=captured-boot-rockers-v9` 和 `gaitReference=cmu-contact-curves-v2` 标识摆脚、鞋底俯仰和骨盆重心轨迹。`armSwing=captured-spatial-swing-v8` 加入双侧上臂的外摆采样。`visual-locomotion` 使用同速度成人外观、双手搬运及持锤行走到作业的对照，冻结模拟并推进动画。`BOOT_ROCKER_PASS` 在两种体型的稳定步行中比较实际鞋底承重点与去除补偿后的纵向滑移。
 
-`residentTravel=paced-resident-route-v2` 标识世界中的有限路线缓存、起步重心转移与近景换脚转身。`pacedResidentTravel` 记录当前是否启用实景路径；评测配置固定 `ticksPerFrame` 大于零时仍按该配置推进。`RESIDENT_WORLD_MOTION_PASS` 在真实地形和居民节点上通过正常世界更新重放相邻格转角，测量根节点速度、足部支撑、转身和到站拾取，并检查渲染未改变模拟状态。`RESIDENT_DEPARTURE_PASS` 同时检查双足与根节点在起步准备期的位置，以及骨盆的侧移。
+`residentTravel=projected-resident-route-v3` 标识实景的近景路线预判、起步重心转移与换脚转身。`pacedResidentTravel` 记录当前是否启用实景步速。评测配置固定 `ticksPerFrame` 大于零时按该配置推进。`RESIDENT_ROUTE_PROJECTION_PASS` 由模拟动作系统推进实际地形上的多格路线，测量过格时的根节点速度与重复起步，核对转弯支撑、到站拾取、拓扑失效和模拟搜索计数。`RESIDENT_WORLD_MOTION_PASS` 继续检查只收到已确认格点时的步行与转身。`RESIDENT_DEPARTURE_PASS` 同时检查双足与根节点在起步准备期的位置，以及骨盆的侧移。
 
 `animalLocomotion=ground-distance-v1` 记录鹿狼的距离驱动步态。居民动画时序和画面更新后，相关视觉评测需采集新基线。
 

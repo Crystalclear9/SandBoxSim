@@ -842,7 +842,7 @@ public partial class WorldView3D : MapView
         }
         return true;
     }
-    private void AnimateActors(float delta)
+    private void AnimateActors(float delta,float? observationTickFraction=null)
     {
         using var profile=RenderProfile.Measure("AnimateActors");
         var sim = Game.Sim; _poseFrame++;BeginVegetationContacts(delta);BeginWaterContacts(delta);
@@ -850,6 +850,8 @@ public partial class WorldView3D : MapView
         var frustum=_camera.GetFrustum().ToArray();
         var cameraPosition=_camera.Position;
         bool paced=Game.PacingResidents,paused=Game.VisualPaused;
+        float tickFraction=observationTickFraction??Game.ObservationTickFraction;
+        int routeSearches=2;
         if(paced&&!paused)UpdateResidentStations(delta);
         foreach (var pair in _people)
         {
@@ -877,15 +879,29 @@ public partial class WorldView3D : MapView
             Vector3 rendered=current;
             Vector2 travelHeading=Vector2.Zero;
             float remaining=Horizontal(target-current).Length();
+            float anticipatoryTurn=0;
             if(!paused)
             {
                 if(paced)
                 {
-                    node.Travel.Observe(current,new(x,y),target);
-                    float motor=node.Travel.AdvanceSpeed(current,node.Rotation.Y,delta);
-                    travelHeading=node.Travel.Heading(current);
-                    if(node.Travel.Preparation==0)rendered=SceneryActorPosition(current,node.Travel.Goal,delta,24,false,motor);
-                    remaining=node.Travel.Remaining(rendered);
+                    if(phase==ActionPhase.Moving&&hasTarget&&node.Visible&&cameraPosition.DistanceSquaredTo(current)<54*54
+                        &&TryProjectResidentRoute(node,slot,new(x,y),interest,tickFraction,ref routeSearches,
+                            out var sample,out var routeRemaining,out var turn,out var limit))
+                    {
+                        rendered=node.Travel.ProjectedStep(current,sample,node.Rotation.Y,limit,delta);
+                        rendered.Y=GroundHeight(rendered.X,rendered.Z);
+                        travelHeading=Horizontal(sample-current);
+                        remaining=routeRemaining;
+                        anticipatoryTurn=turn;
+                    }
+                    else
+                    {
+                        node.Travel.Observe(current,new(x,y),target);
+                        float motor=node.Travel.AdvanceSpeed(current,node.Rotation.Y,delta);
+                        travelHeading=node.Travel.Heading(current);
+                        if(node.Travel.Preparation==0)rendered=SceneryActorPosition(current,node.Travel.Goal,delta,24,false,motor);
+                        remaining=node.Travel.Remaining(rendered);
+                    }
                 }
                 else
                 {
@@ -951,14 +967,14 @@ public partial class WorldView3D : MapView
             float fullRate=paced?17:12;
             int stride=distanceSquared>45*45?8:distanceSquared>30*30?6:distanceSquared>fullRate*fullRate?2:1;
             if(!paused)node.ObserveDeparture(paced?node.Travel.Preparation:0);
-            node.ObserveLocomotion(rendered-current,delta,headingError,paused,remaining,paced?node.Scale.X:1);
+            node.ObserveLocomotion(rendered-current,delta,headingError,paused,remaining,paced?node.Scale.X:1,anticipatoryTurn);
             node.UpdateDistanceDetail(distanceSquared);
             if((_poseFrame+slot)%stride!=0)continue;
             var cargoKind=ResourceKind.Food;float cargoAmount=0;
             foreach(var resource in ResidentRig.CargoKinds)
             {float amount=sim.Agents.InventoryOf(slot,resource);if(amount>cargoAmount){cargoAmount=amount;cargoKind=resource;}}
             node.ShowCargo(cargoAmount>.01f,cargoKind);
-            var attention=hasInterest?interestPoint-rendered:Vector3.Zero;
+            var attention=hasInterest&&!node.Travel.Projecting?interestPoint-rendered:Vector3.Zero;
             node.Attend(node.Basis.Inverse()*attention);
             if(!paused&&action==ActionKind.Farm)
             {

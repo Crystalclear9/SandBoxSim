@@ -30,6 +30,8 @@ public partial class MainGame
     private double InteractiveTickRate(int speed)=>speed==ObservationSpeed
         ?Math.Min(Sim.Config.Clock.TicksPerSecondAt1x,ResidentTravel.TilesPerSecond/Math.Max(.01,Sim.Config.Ai.MoveSpeedPerTick))
         :Sim.Config.Clock.TicksPerSecondAt1x*speed;
+    internal float ObservationTickFraction=>(float)Math.Clamp(_pending,0,1);
+    internal double ObservationTickRate=>InteractiveTickRate(ObservationSpeed);
     private void ValidateInteractiveBudget()
     {
         int savedSpeed=_speed;double savedPending=_pending;long before=Sim.Clock;

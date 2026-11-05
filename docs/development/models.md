@@ -967,7 +967,7 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 
 ### 成人动作风格
 
-世界中的居民在“实景”节奏使用 `residentTravel=paced-resident-route-v2`。世界时钟根据模拟的单 tick 移动预算调节到约每秒 0.52 格。画面保留正在通过的格点与下一个已记录的格点，使用连续的水平速度、到站刹车和有上限的转向速度。下一格在前方时延续步行，明显转角先减速，脚步按世界位移和人物缩放推进。路径继续使用地形支撑与树石净空检查。丢失中间格点、地形更新后无法支持或快进追赶时，画面可以重新同步到逻辑位置。
+世界中的居民在“实景”节奏使用 `residentTravel=projected-resident-route-v3`。世界时钟根据模拟的单 tick 移动预算调节到约每秒 0.52 格。视野中距镜头 54 米内的行走居民用观察器的 A* 缓冲取得接下来的两段路线，结合已累积的移动预算和当前 tick 的小数时间计算画面位置。连续经过格心时步态沿实际位移推进，临近转角时头胸和骨盆预先调整。路线缓存随起点、目标、通行拓扑或搜索上限变化失效，每帧最多刷新两条。两段路径和实际接近轨迹须通过地形支撑与树石净空检查。暂时缺少可用路线时，画面沿已确认的格点追赶。模拟照常在 tick 中寻路、移动和结算，表现搜索使用独立缓冲与计数。转角预判参考真人在转向前一步的姿态调整和 Ubisoft 的未来路径采样。[步行转向实验](https://pubmed.ncbi.nlm.nih.gov/15262627/) · [Ubisoft 动画研究](https://www.ubisoft.com/en-us/studio/laforge/news/6xXL85Q3bF2vEj76xmnmIu/introducing-learned-motion-matching)
 
 已站定的居民在较长一段新路前有约 0.16 秒的准备动作。近景双脚保持原站位，骨盆朝初始支撑腿侧移，卸重侧接入第一步。胸廓与骨盆通过阻尼响应加速和制动。持工具步行的握柄沿带相位延迟的弧线移动，锤的摆幅比长柄工具大，手与工具沿用同一个握持约束。起步和摆臂的协调参考[真人起步准备实验](https://pmc.ncbi.nlm.nih.gov/articles/PMC5546309/)和[步行中躯干与手臂的耦合实验](https://pubmed.ncbi.nlm.nih.gov/19181900/)。
 
@@ -993,7 +993,7 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 
 `gaitReference=cmu-contact-curves-v2` 从两段步行记录读取摆脚的前进比例、侧向弧线、鞋底俯仰、骨盆前后位移和上臂外摆。摆脚曲线在离地与落地时渐入渐出，承重中段让鞋底放平。脚跟或前掌着地时，脚踝随鞋底角度补偿水平位移，膝的弯曲平面随落脚朝向调整。髋部前后移动仍受腿长与脚底净空限制。参考[人类行走的足部滚动实验](https://pubmed.ncbi.nlm.nih.gov/15109762/)和[动捕编辑中的脚底支撑约束](https://pages.cs.wisc.edu/~kovar/footskateCleanup.pdf)。
 
-短距离到站时，较高的一只脚先落稳，另一只脚再收回，约 0.44 秒后释放到站门槛。若旅程继续，剩余收脚姿态会淡回步态。此机制参考 [真人停步末次落脚实验](https://pmc.ncbi.nlm.nih.gov/articles/PMC2279001/)与 [转弯中的足点和重心实验](https://pmc.ncbi.nlm.nih.gov/articles/PMC10864096/)，脚底锚点的有限修正参考 [Ubisoft 足部 IK 演讲](https://gdcvault.com/play/1023009/Fitting-the-World-A-Biomechanical)。高倍速跨格重新同步时会释放锚点。
+短距离到站时，较高的一只脚先落稳，另一只脚在收回前保留世界空间的落点，避免根节点完成最后几厘米时拖动鞋底。只有需要换位置的脚才额外抬起，约 0.44 秒后释放到站门槛。若旅程继续，剩余收脚姿态会淡回步态。高倍速跨格重新同步时会释放锚点。[真人停步末次落脚实验](https://pmc.ncbi.nlm.nih.gov/articles/PMC2279001/) · [Ubisoft 足部 IK 演讲](https://gdcvault.com/play/1023009/Fitting-the-World-A-Biomechanical)
 
 工具收纳末段在腰带挂点的局部运动中收敛。即使骨盆仍在摆动，手也能沿着实际挂点完成松握，然后进入双手搬运。交接继续核对显示出来的手掌和握柄。
 

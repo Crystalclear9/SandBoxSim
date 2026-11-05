@@ -12,7 +12,7 @@ internal partial class ResidentRig
     private float _gaitCycle,_gaitSpeed,_locomotionSpeed=1.05f,_turnDemand,_gaitTurn,_sampleDistance,_sampleTime,_locomotionScale=1;
     private bool _worldLocomotion,_groundContactSpeed;
     private float _approachDistance;
-    private float _departureProgress;
+    private float _departureProgress,_turnPreview;
     private int _departureLead;
     private Vector3 _travelWeightShift,_travelWeightVelocity;
     private float _travelPitch;
@@ -23,6 +23,7 @@ internal partial class ResidentRig
     private readonly WalkFoot[] _walkFeet=new WalkFoot[2];
     private readonly record struct WalkFoot(float Side,float Depth,float Lift,float Pitch,float RockerWeight);
     private readonly Transform3D[] _arrivalFeet=new Transform3D[2];
+    private Transform3D _arrivalRoot;
     private readonly Vector3[] _groundContact=new Vector3[2];
     private readonly bool[] _groundContactValid=new bool[2];
     private bool _finishingStep,_arrivalArmed;
@@ -53,7 +54,7 @@ internal partial class ResidentRig
 
     // Called every rendered world frame, before the distance pose scheduler.
     // Discontinuous tile resynchronisation is not interpreted as a sprint.
-    public void ObserveLocomotion(Vector3 displacement,float delta,float headingError,bool paused,float remainingDistance=0,float scale=1)
+    public void ObserveLocomotion(Vector3 displacement,float delta,float headingError,bool paused,float remainingDistance=0,float scale=1,float turnPreview=0)
     {
         if(paused||!float.IsFinite(delta)||delta<=0)return;
         _worldLocomotion=true;
@@ -71,7 +72,8 @@ internal partial class ResidentRig
         }
         _sampleDistance+=sample*delta;_sampleTime+=delta;
         _approachDistance=float.IsFinite(remainingDistance)?MathF.Max(0,remainingDistance):0;
-        _turnDemand=float.IsFinite(headingError)?Math.Clamp(headingError,-.65f,.65f):0;
+        _turnPreview=float.IsFinite(turnPreview)?Math.Clamp(turnPreview,-.65f,.65f):0;
+        _turnDemand=float.IsFinite(headingError)?Math.Clamp(headingError+_turnPreview,-.65f,.65f):0;
     }
 
     private void ConsumeLocomotionSamples()
@@ -94,8 +96,10 @@ internal partial class ResidentRig
         float acceleration=dt>0?Math.Clamp((_gaitSpeed-before)/dt,-4,4):0;
         float preload=ReachEase(_departureProgress);
         float supportSide=_departureLead==0?1:-1;
-        float forward=preload*.020f+acceleration*.0075f;
-        var weight=new Vector3(supportSide*preload*(.042f-.010f*Flow),-.014f*preload-.003f*MathF.Abs(acceleration),-forward);
+        float turn=_turnPreview*Mathf.SmoothStep(.22f,.85f,_gaitSpeed);
+        float forward=preload*.020f+acceleration*.0075f-MathF.Abs(turn)*.017f;
+        float sideways=supportSide*preload*(.042f-.010f*Flow)-turn*(.020f+.007f*Flow);
+        var weight=new Vector3(sideways,-.014f*preload-.003f*MathF.Abs(acceleration),-forward);
         DampMotion(ref _travelWeightShift,ref _travelWeightVelocity,weight,.068f,dt);
         _travelPitch=_travelWeightShift.Z*2.7f;
         float travel=wanted*dt+(before-wanted)*(1-decay)/rate;
@@ -277,6 +281,7 @@ internal partial class ResidentRig
         if(_arrivalArmed&&!_finishingStep&&wanted<.135f)
         {
             _arrivalArmed=false;
+            _arrivalRoot=Transform;
             _arrivalFeet[0]=DisplayedFoot(0);
             _arrivalFeet[1]=DisplayedFoot(1);
             _landingFirst=_arrivalFeet[0].Origin.Y>=_arrivalFeet[1].Origin.Y?0:1;
@@ -296,8 +301,11 @@ internal partial class ResidentRig
         if(_arrivalWeight<=0)return;
         float u=Math.Clamp(_arrivalTime/LandingDuration-(side==_landingFirst?0:1),0,1);
         var rest=RestFootCenter(side);
-        var from=_arrivalFeet[side];
-        float clearance=Math.Clamp((rest-from.Origin).Length()*.40f,0,.045f);
+        // The second foot remains over its world contact during the first
+        // landing, even if the root is still covering its last few centimetres.
+        var from=Transform.AffineInverse()*_arrivalRoot*_arrivalFeet[side];
+        float distance=ResidentTravel.Planar(rest-from.Origin).Length();
+        float clearance=Math.Clamp((distance-.028f)*.40f,0,.036f);
         float arc=MathF.Sin(MathF.PI*u);
         float progress=ReachEase(u);
         var step=from.Origin.Lerp(rest,progress)+Vector3.Up*(clearance*arc*arc);

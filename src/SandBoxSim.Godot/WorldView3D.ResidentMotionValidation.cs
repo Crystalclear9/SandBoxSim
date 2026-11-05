@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Godot;
 using SandBoxSim.Core.Agents;
+using SandBoxSim.Core.Foundation;
 
 namespace SandBoxSim.Client;
 
@@ -21,7 +22,7 @@ public partial class WorldView3D
         int slot=sim.Agents.AliveSlots().Single();
         sim.Agents.SetPosition(slot,tiles.Start.X,tiles.Start.Y);
         sim.Agents.SetAction(slot,ActionKind.Wander,ActionPhase.Moving);
-        sim.Agents.SetTarget(slot,tiles.Goal.X,tiles.Goal.Y);
+        sim.Agents.ClearTarget(slot);
         SyncEntities();
         var rig=(ResidentRig)_people[sim.Society.Identity(slot)];
         rig.Rotation=new(0,HeadingYaw(Horizontal(corner-start)),0);
@@ -86,6 +87,102 @@ public partial class WorldView3D
         GD.Print($"RESIDENT_DEPARTURE_PASS: preparation={preparationFrames} frames, lateral pelvis transfer={departureTransfer:F3} m, root/feet drift={departureRootDrift:F4}/{departureFootDrift:F4} m before the first step");
         ValidateWorldCultivation(rig,slot,tiles.Goal,delta);
         ValidateResidentStations(tiles.Goal,tiles.Corner,delta);
+        ValidateProjectedResidentMotion(delta);
+    }
+
+    private void ValidateProjectedResidentMotion(float delta)
+    {
+        var sim=Game.Sim;
+        var route=FindProjectedMotionRoute();
+        Vector3 Place(Int2 tile)=>PositionAt(tile.X,tile.Y);
+        var start=route[0];var goal=route[^1];
+        if(sim.InterveneSpawnHumans(start.X,start.Y,1,1)!=1)
+            throw new InvalidOperationException("Projected route fixture could not spawn a walker");
+        int slot=sim.Agents.AliveSlots().Last();
+        sim.Agents.SetPosition(slot,start.X,start.Y);
+        sim.Agents.SetTarget(slot,goal.X,goal.Y);
+        sim.Agents.SetAction(slot,ActionKind.Take,ActionPhase.Moving);
+        SyncEntities();
+        var rig=(ResidentRig)_people[sim.Society.Identity(slot)];
+        rig.Rotation=new(0,HeadingYaw(Horizontal(Place(route[1])-Place(start))),0);
+        _target=(Place(start)+Place(goal))*.5f;_distance=14;UpdateCamera();
+
+        double tickFraction=0;
+        long tick=0;
+        int crossed=0,projectedFrames=0,preparations=0;
+        float lowCruise=float.PositiveInfinity,peak=0;
+        bool moving=true,working=false;
+        for(int frame=0;frame<1800&&!working;frame++)
+        {
+            tickFraction+=delta*Game.ObservationTickRate;
+            while(tickFraction>=1&&moving)
+            {
+                tickFraction--;
+                var previous=new Int2(sim.Agents.XOf(slot),sim.Agents.YOf(slot));
+                sim.Actions.Tick(++tick);
+                var tile=new Int2(sim.Agents.XOf(slot),sim.Agents.YOf(slot));
+                if(tile!=previous)crossed++;
+                moving=sim.Agents.PhaseOf(slot)==ActionPhase.Moving;
+            }
+            var before=rig.Position;
+            string digest=sim.StateDigestString();
+            long searches=sim.Pathfinder.TotalSearches;
+            AnimateActors(delta,(float)Math.Min(1,tickFraction));
+            if(sim.StateDigestString()!=digest||sim.Pathfinder.TotalSearches!=searches)
+                throw new InvalidOperationException("Projected travel changed simulation or simulation search counts");
+            float speed=Horizontal(rig.Position-before).Length()/delta;
+            peak=MathF.Max(peak,speed);
+            if(rig.Travel.Projecting)projectedFrames++;
+            if(rig.Travel.Preparation>0&&crossed>0&&crossed<route.Length-1)preparations++;
+            if(crossed>0&&crossed<route.Length-2)lowCruise=MathF.Min(lowCruise,speed);
+            if(!ScenerySegmentClear(before,rig.Position)||!SceneryLegSupported(before,rig.Position))
+                throw new InvalidOperationException("Projected travel crossed scenery or lost ground support");
+            working=rig.GestureEngaged(ActionKind.Take);
+            if(working&&(!rig.InteractionSettled||Horizontal(rig.Position-Place(goal)).Length()>.04f))
+                throw new InvalidOperationException("Projected walker reached for a resource before settling");
+        }
+        if(crossed!=route.Length-1||!working||projectedFrames<180||preparations!=0||lowCruise<.40f||peak>ResidentRig.MaximumGaitSpeed+.001f)
+            throw new InvalidOperationException($"Projected resident route: tiles={crossed}/{route.Length-1}, projected frames={projectedFrames}, false starts={preparations}, cruise floor={lowCruise}, peak={peak}, work={working}");
+
+        sim.Agents.SetTarget(slot,start.X,start.Y);
+        sim.Agents.SetAction(slot,ActionKind.Wander,ActionPhase.Moving);
+        AnimateActors(delta,.7f);
+        if(!rig.Travel.Projecting)throw new InvalidOperationException("New destination did not build a projection");
+        sim.World.SetWalkable(start.X,start.Y,false);
+        try
+        {
+            AnimateActors(delta,.8f);
+            if(rig.Travel.Projecting)throw new InvalidOperationException("Projected route survived a topology change that blocked its destination");
+        }
+        finally {sim.World.SetWalkable(start.X,start.Y,true);}
+        GD.Print($"RESIDENT_ROUTE_PROJECTION_PASS: {crossed} simulated legs, {projectedFrames} projected frames, {lowCruise:F2}–{peak:F2} m/s through the route, no repeated departures, supported turn, arrival before pickup, topology invalidation and read-only playback");
+    }
+
+    private Int2[] FindProjectedMotionRoute()
+    {
+        var world=Game.Sim.World;
+        for(int y=3;y<world.Height-3;y++)for(int x=3;x<world.Width-8;x++)
+        {
+            if(!world.TileAt(x,y).Walkable)continue;
+            foreach(int dy in new[]{-2,2})
+            {
+                var path=_observerPaths.FindPath(x,y,x+5,y+dy,_observedRoute);
+                if(!path.Success||path.Length<6||path.Length>9)continue;
+                bool supported=true,bends=false;
+                Vector2 previous=Vector2.Zero;
+                for(int i=1;i<path.Length&&supported;i++)
+                {
+                    var a=_observedRoute[i-1];var b=_observedRoute[i];
+                    var from=PositionAt(a.X,a.Y);var to=PositionAt(b.X,b.Y);
+                    var direction=Horizontal(to-from).Normalized();
+                    if(i>1&&i<path.Length-1&&direction.Dot(previous)<.85f)bends=true;
+                    previous=direction;
+                    supported=ScenerySegmentClear(from,to)&&SceneryLegSupported(from,to);
+                }
+                if(supported&&bends)return _observedRoute[..path.Length];
+            }
+        }
+        throw new InvalidOperationException("No supported multi-tile route with an interior turn");
     }
 
     private void ValidateWorldCultivation(ResidentRig rig,int slot,Vector2I tile,float delta)

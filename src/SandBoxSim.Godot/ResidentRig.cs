@@ -95,6 +95,7 @@ internal partial class ResidentRig : Node3D
     private bool _hasCargo;
     private ResourceKind _cargoKind;
     internal ResidentTravel Travel;
+    internal WorldView3D.ResidentRoute Route;
     internal Vector2I StationTile;
     internal int StationSlot=-1;
     private ActionKind _observedAction,_completionAction;
@@ -218,7 +219,7 @@ internal partial class ResidentRig : Node3D
         bool usingTool=wanted!=ResidentTool.None;
         _takingTool=usingTool&&!ToolHeld;
         _phase+=delta*(moving?7.5f:1.8f);_workTime+=delta;
-        AdvanceLocomotion(delta,moving,phase!=ActionPhase.Moving);
+        AdvanceLocomotion(delta,moving,phase!=ActionPhase.Moving||Travel.Projecting);
         AdvanceMotionReference(delta,action,phase,identityPhase);
         float gaitPhase=_gaitCycle*Mathf.Tau;
         float breath=MathF.Sin(_phase*.5f+identityPhase);

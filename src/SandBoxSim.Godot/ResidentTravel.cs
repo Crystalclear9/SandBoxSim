@@ -3,12 +3,11 @@ using Godot;
 
 namespace SandBoxSim.Client;
 
-// Presentation-only, with at most one waypoint beyond the current leg.
-// Its destinations come from observed simulation tiles.
+// The observed-tile motor is also the fallback when route projection is unsafe.
 internal struct ResidentTravel
 {
     internal const double TilesPerSecond=.52;
-    internal const string Version="paced-resident-route-v2";
+    internal const string Version="projected-resident-route-v3";
     private const float PreparationTime=.16f;
     private bool _ready,_queued;
     private Vector2I _latestTile;
@@ -17,12 +16,37 @@ internal struct ResidentTravel
 
     internal Vector3 Goal=>_goal;
     internal bool Queued=>_queued;
+    internal bool Projecting{get;private set;}
     internal float Preparation{get;private set;}
     internal static Vector2 Planar(Vector3 p)=>new(p.X,p.Z);
     internal float Remaining(Vector3 current)=>Planar(_goal-current).Length()+(_queued?Planar(_next-_goal).Length():0);
 
+    internal Vector3 ProjectedStep(Vector3 current,Vector3 target,float yaw,float limit,float dt)
+    {
+        Projecting=true;
+        _ready=_queued=false;
+        Preparation=0;
+        var direction=Planar(target-current);
+        float distance=direction.Length();
+        _restTime=distance<.025f?_restTime+dt:0;
+        if(_restTime>=.20f)_preparation=0;
+        if(distance>.012f&&_speed<.05f&&_preparation<PreparationTime)
+        {
+            _preparation=MathF.Min(PreparationTime,_preparation+dt);
+            Preparation=_preparation/PreparationTime;
+            return current;
+        }
+        var forward=new Vector2(-MathF.Sin(yaw),-MathF.Cos(yaw));
+        float alignment=forward.Dot(direction.Normalized());
+        float steer=.13f+.87f*Mathf.SmoothStep(-.10f,.67f,alignment);
+        float step=MathF.Min(distance*(1-MathF.Exp(-8*dt)),limit*steer*dt);
+        _speed=step/dt;
+        return distance<.0001f?current:current.Lerp(target,step/distance);
+    }
+
     internal void Observe(Vector3 current,Vector2I tile,Vector3 destination)
     {
+        Projecting=false;
         if(!_ready)
         {
             _ready=true;_latestTile=tile;
