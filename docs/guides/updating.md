@@ -11,19 +11,18 @@ git status --short
 git fetch origin
 git switch main
 git pull --ff-only origin main
-./tools/godot.ps1 -Mode build -Configuration Release
 ./tools/godot.ps1 -Mode run
 ```
 
 如果提示没有上游分支或无法快进，先确认分支与本地提交，不使用强制重置覆盖自己的开发成果。通过 ZIP 获取源码时，解压到新目录、配置环境，再载入备份存档；保留旧目录用于对照。
 
-图形运行入口会重建 Debug 程序集并导入资源；只编译 Release 不会刷新编辑器正在使用的 Debug 程序集。若工具链版本变化，按 [安装与启动](getting-started.md) 同步 SDK 与 Godot .NET 编辑器。
+从源码启动会构建 Debug 程序集并导入资源。Windows 上 `Play-3D.cmd` 优先启动本机已有的独立包，更新 Git 后仍需运行 `./tools/export-game.ps1` 才能更新该包。工具链和导出模板见 [安装与启动](getting-started.md) 与 [构建与运行](../development/build.md)。
 
 ## 哪些变化影响已有世界
 
 | 更新内容 | 已有世界的处理 |
 |---|---|
-| UI、材质、模型和镜头 | 通常不修改核心状态，但仍应检查显示与输入 |
+| 界面、人物模型、树石绕行与水岸表现 | 读档后按当前版本重建显示。原有格子位置、库存和行为进度来自保存的世界 |
 | 模拟默认参数 | 已有存档使用保存的有效规则，不会自动替换成新默认值 |
 | 自然住房布局默认值 | 新建图形世界开启；旧存档保留自己的开关 |
 | 历史工程配方 | 已从运行资源移除，旧工程元数据不会恢复任务流程 |
@@ -46,7 +45,7 @@ Godot 项目显示名统一为 SandBoxSim。默认用户目录随项目名改变
 
 ## 文档与资源位置
 
-使用文档位于 `docs/guides/`，开发资料位于 `docs/development/`，正式配图位于 `docs/images/`；不再使用的旧界面配图已移除，临时截图使用 `runs/screenshots/`。文档移动不改变游戏存档或资源路径，移动文档与配图时需同步所有引用，维护方法见 [目录与文件管理](../development/repository-layout.md)。
+使用文档位于 `docs/guides/`，开发资料位于 `docs/development/`，正式配图位于 `docs/images/`。临时截图放在 `.tools/tmp/<主题>/`，完整实验结果使用请求指定的输出目录。移动文档与配图时同步所有引用，维护方法见 [目录与文件管理](../development/repository-layout.md)。
 
 资源目标的可达筛选与紧急进食属于行为规则更新，旧存档格式仍可读取，但后续行动与旧版本轨迹可能不同。连通缓存从当前世界重新推导，不写入存档；读档续跑的确定性应在同一版本内比较。
 

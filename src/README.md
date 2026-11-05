@@ -24,9 +24,12 @@
 | 世界手记与观察 | `SandBoxSim.Godot/MainGame.Notebook.cs`、`MainGame.Operations.cs` |
 | UI 配色、字体与状态反馈 | `SandBoxSim.Godot/HudStyle.cs`、`HudButtonDetail.cs`、`HudBevel.cs` |
 | 镜头、地表和天气 | `SandBoxSim.Godot/WorldView3D.cs`、`WorldView3D.Surface.cs`、`WorldView3D.Relief.cs`、`WorldView3D.Atmosphere.cs` |
+| 树石放置、角色绕行与采集站位 | `SandBoxSim.Godot/WorldView3D.SceneryTraversal.cs`、`WorldView3D.ScenerySupport.cs`、`NatureModels.ScenerySupport.cs` |
+| 岸边站位、饮水反馈与草叶接触 | `SandBoxSim.Godot/WorldView3D.AnimalBanks.cs`、`WorldView3D.ShoreInteractions.cs`、`WorldView3D.VegetationContacts.cs` |
 | 建筑增量同步与贴地石基 | `SandBoxSim.Godot/WorldView3D.Buildings.cs` |
 | 扫描表面与建筑材质 | `SandBoxSim.Godot/ScannedSurfaces.cs`、`NatureModels.ScannedCraft.cs`、`assets/materials/scanned/` |
 | 人物姿态与握持 | `SandBoxSim.Godot/ResidentRig.cs`、`ResidentRig.HandPose.cs` |
+| 成人动作风格与作业轨迹 | `SandBoxSim.Godot/ResidentRig.MotionStyle.cs`，由 `ResidentRig.cs` 的行走、工作与交互路径使用 |
 | 网格、材质和草丛 | `SandBoxSim.Godot/NatureModels*.cs` |
 | 连续上衣与草束屋面 | `SandBoxSim.Godot/NatureModels.GarmentSkin.cs`、`NatureModels.Thatch.cs`、`assets/models/garments/` |
 | 动物近景毛束 | `SandBoxSim.Godot/NatureModels.Coat.cs`、`NatureModels.OrganicAssets.cs`、`AnimalRig.cs` |

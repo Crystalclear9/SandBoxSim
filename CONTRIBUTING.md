@@ -23,7 +23,7 @@ git status --short
 
 PR 描述先说明具体问题与变化后的行为，再说明实际运行的检查和限制。使用、配置或存档变化同步对应文档，并在 [CHANGELOG](CHANGELOG.md) 写清更新内容及影响。
 
-文档属于 `docs/guides/` 或 `docs/development/`；历史资料留在 `docs/archive/`。保留正式配图，临时截图放在 `runs/screenshots/`，日志放在 `runs/logs/`。个人存档、SDK、引擎和构建缓存不提交，详细边界见 [文件管理](docs/development/repository-layout.md)。
+文档属于 `docs/guides/` 或 `docs/development/`，原始任务书和素材来源留在 `docs/archive/`。正式配图放在 `docs/images/`，临时截图、脚本和开发日志按主题放在 `.tools/tmp/`。个人存档、SDK、引擎和构建缓存由 Git 忽略。见 [文件管理](docs/development/repository-layout.md)。
 
 ## 文件与文档入口
 

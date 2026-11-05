@@ -58,6 +58,10 @@ Core 中 `Foundation` 提供配置、数学、随机数和基础数据；`World`
 
 `WorldView3D.Surface.cs` 根据地形、湿度、岸线和踩踏混合扫描表面，并把实际河床高度传给水面材质。`ScannedSurfaces.cs` 缓存纹理及打包法线/粗糙度，`NatureModels.ScannedCraft.cs` 复用这些资源绘制建筑。`WorldView3D.Buildings.cs` 的坡地石基属于显示几何，不会整平内核土地或改变通行。
 
+`WorldView3D.SceneryTraversal.cs` 根据实测树干和山石包络分配格角落点，并保留正交格中心通路。内核位置决定显示目标，人物与动物的显示步在邻近树石阻挡时尝试局部绕行。采集站位取自同格的有效资源，站位和绕行都采样显示地形。找不到局部干路或跳过多个模拟步时，显示位置同步到目标。
+
+鹿狼靠岸时按自身足部跨度检查站位。草叶弯折读取实际显示位置，饮水涟漪读取执行中的饮水状态和岸边落点。长期土地变化依旧由内核记录的行走与作业接触决定。见 [地形与场景接触](../guides/terrain-and-traces.md)。
+
 `evaluate.py` 管理 Godot 渲染产物；`efficiency.py` 比较真实 HTTP 程序成本；`rsi_benchmark.py` 管理代理自修改、后代与撤销对照。`rsi_code.py` 和 `rsi_code_worker.py` 执行实际 Python 候选。它们在 Console/Core 之外组织实验，不改变正常游戏的操作流程，也不提供对不可信候选的安全隔离。
 
 `sandbox_research.py` 管理独立源码快照、开发世界剖析、候选编译与语义检查，再调用真实服务配对；`sandbox_research_report.py` 展示假设、源码差异与世界观察。`rsi_efficiency_study.py` 对完成的代理归档做成本分析。实验目录保存候选和构建产物，主工程不会自动采用它们；[源码研究协议](sandbox-research.md) 与 [代理自修改协议](rsi-improver.md) 各自维护版本和证据。

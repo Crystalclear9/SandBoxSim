@@ -14,12 +14,15 @@ SandBoxSim 的源码、运行资源与正式文档由 Git 管理；开发工具�
 | `artifacts/game/windows/` | Windows 独立游戏 EXE 与对应数据目录 |
 | `artifacts/Debug/`、`artifacts/Release/` | 控制台与内核构建产物 |
 | `src/SandBoxSim.Godot/.godot/` | 编辑器索引、导入纹理与 C# 缓存 |
-| `saves/` | 项目内保存的世界与会话 |
+| `runs/saves/` | 项目内可集中保存世界和会话，实际位置由保存时选择 |
 | `runs/` | 用户主动执行的实验输出与评测产物 |
+| `.tools/export-staging/` | 独立包导出和自检期间的暂存位置 |
 | `docs/images/` | 项目说明所引用的正式实机配图 |
 
 游戏通过 Godot 的 `user://` 保存界面偏好；实际位置由 `OS.GetUserDataDir()` 根据平台解析。Windows 项目启动器使用 `.tools/godot-state/config/Godot/app_userdata/SandBoxSim/`，并可只读加载原用户目录的界面动效设置；Linux 使用项目内 XDG 目录，macOS 沿用平台目录。世界和会话可通过游戏中的保存／载入入口管理，格式与兼容规则见[存档](saving.md)。独立包不依赖 Blender、源码或 `.tools/` 才能运行，具体构建方式见[构建与运行](build.md)。
 
 `-ReimportTextures` 会通过编辑器插件重建实际 mip 链，避免导入配置与缓存不一致；正式导出也执行该检查。通常运行不进行离线建模，只有重建素材时才使用 `.tools/sources/` 与 Blender。
+
+开发临时截图、脚本和日志按主题放在 `.tools/tmp/`。停止相关进程后，可清理已确认无用的工作目录、导出暂存和失败的临时试跑。保留可复现的实验目录时，把请求、源码身份、结果和产物一起保留。清理前核对绝对路径，排除符号链接与 junction，存档、用户设置、工具链、素材及独立包按上表管理。直接删除受限时，待人工处理的文件可集中到 Git 忽略的 `待删除-*` 目录。
 
 [目录职责](repository-layout.md) · [开发指南](developer-guide.md) · [文档导航](../README.md)

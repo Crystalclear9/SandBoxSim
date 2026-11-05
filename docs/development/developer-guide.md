@@ -86,7 +86,7 @@ UI 的配色、字体、圆角和基础状态样式集中在 `HudStyle.cs`，手
 
 ## 保存运行资料
 
-人工日志放在 `runs/logs/`，临时画面放在 `runs/screenshots/`，专题模拟放在独立子目录。正式配图放在 `docs/images/`，游戏资源放在客户端 `assets/`。清理调试截图时只处理明确的临时文件，保留配图、素材、日志和世界存档，见 [文件管理](repository-layout.md)。
+临时画面、脚本和开发日志按主题放在 `.tools/tmp/`。需要保留的专题模拟使用独立实验目录。正式配图放在 `docs/images/`，游戏资源放在客户端 `assets/`。清理时区分临时采样、正式资料和世界存档。见 [文件管理](repository-layout.md)。
 
 新增内容的具体接入顺序见 [扩展指南](extending.md)，发布前更新环境、参数和存档说明见 [版本更新](../guides/updating.md)。
 

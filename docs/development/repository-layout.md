@@ -83,7 +83,7 @@ git diff --check
 
 [src](../../src/README.md)、[tools](../../tools/README.md)、[config](../../config/README.md)、[benchmarks](../../benchmarks/README.md) 各自提供职责与入口；[文档图](../images/README.md) 区分现行界面和专题记录。完整素材生成提示独立放在 `docs/archive/asset-generation.md`，当前美术说明专注实际资源、导入与扩展。
 
-当前接口以 `benchmarks/interface.json` 与对应文档为准。世界存档通常集中于 `saves/`，实验输出由运行工具按需创建。独立包、工具链和缓存的职责见[本地环境与运行目录](local-storage.md)。工程、资源和公共脚本路径同时用于编译、`res://`、CI 和外部调用。
+当前接口以 `benchmarks/interface.json` 与对应文档为准。仓库内的世界存档可集中在 `runs/saves/`，具体位置由保存时选择。临时开发采样使用 `.tools/tmp/<主题>/`，公开场景请求与协议在 `benchmarks/`，运行结果按实际请求输出。独立包、工具链和缓存的职责见 [本地环境与运行目录](local-storage.md)。工程、资源和公共脚本路径同时用于编译、`res://`、CI 和外部调用。
 
 ---
 

@@ -54,7 +54,7 @@ Godot 若报 `Failed to read the root certificate store`，属于本机引擎读
 
 ## 提供可复现的信息
 
-记录操作系统、PowerShell、SDK、Godot 版本与 Git 提交，再说明种子、初始人数、场景、速度、工具和落点。列出预期结果与实际结果，附必要日志、存档副本或临时截图。截图放在 `runs/screenshots/`，不要为了排查替换正式文档配图。
+记录操作系统、PowerShell、SDK、Godot 版本与 Git 提交，再说明种子、初始人数、场景、速度、工具和落点。列出预期结果与实际结果，附必要日志、存档副本或临时截图。排查截图放在 `.tools/tmp/<主题>/`，正式配图放在 `docs/images/`。
 
 ```powershell
 pwsh --version

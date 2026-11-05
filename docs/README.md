@@ -1,6 +1,20 @@
 # SandBoxSim 项目文档
 
-文档描述 SandBoxSim 当前的游戏、在线控制和研究工具。所有命令默认从仓库根目录运行：PowerShell 入口使用 PowerShell 7，Python 工具使用 Python 3.10+。原始任务书和素材来源单独保存在 [来源资料](archive/README.md)。
+文档描述 SandBoxSim 当前的游戏、在线控制和研究工具。命令默认从仓库根目录运行，PowerShell 入口使用 PowerShell 7，Python 工具使用 Python 3.10+。原始任务书和素材来源单独保存在 [来源资料](archive/README.md)。
+
+## 当前实现
+
+| 领域 | 现在可以观察或使用的内容 |
+|---|---|
+| 自由沙盒 | 通过地貌、资源与生态工具改变世界，观察天气、火灾、踩踏、植被恢复，以及居民自主形成的聚落和生活经济。见 [玩家指南](guides/player-guide.md) 与 [世界系统](guides/world-systems.md) |
+| 人物与动作 | 成人采用来源体型、连续衣装和肩肘腕解算。实际位移驱动行走，作业与徒手交互经过接近、停稳、动作和回收。成人外观使用不同的摆臂、交谈和挥击风格，个人状态和能力决定作业节奏。见 [3D 模型系统](development/models.md) |
+| 林地、山坡与河岸 | 场景树石保留通路净空，坡面碎石沿地势分布，草丛对近处人物和动物活动产生弯折反馈。伐木与采石使用同格站位，鹿狼按足部跨度寻找岸边支撑，饮水活动产生短时涟漪。见 [地形与场景接触](guides/terrain-and-traces.md) |
+| 观察与回放 | 世界手记、图层和可搜索居民名录读取实际模拟状态，人物窗可查看动作、需求、物资与目的地。公开场景可复现原生图像、界面操作和性能样本。见 [观察与界面](guides/gameplay-observation.md) 与 [视觉评测](development/benchmark.md) |
+| 在线与源码研究 | 命令行和 HTTP 提供内核模拟与固定步进，研究工具提供同状态下的程序对照、源码候选编译与留出世界，以及改进器的分叉和撤销对照。见 [在线控制](development/online-efficiency.md) 与 [真实源码研究](development/sandbox-research.md) |
+
+林地与山坡的绕行覆盖普通树干与山石的水平包络。草叶弯折和饮水涟漪是显示反馈，长期压实由实际模拟活动累积。没有可用局部绕行点时，角色可能短跳到逻辑目标。见 [场景交互边界](guides/terrain-and-traces.md)。
+
+程序性能对照、视觉评测和代理改进分别使用各自的协议。公开夹具验证接口与实验设计，真实模型的改进能力仍需在独立留出任务中测量。见 [代理改进协议](development/rsi-improver.md) 与 [更新记录](../CHANGELOG.md)。
 
 ## 按用途阅读
 
@@ -36,9 +50,7 @@
 | `tools/sandbox_research_compare.py` | Python、三个真实源码研究归档或 .NET SDK | [冻结父/子/撤销程序对照](development/sandbox-research-comparison.md) |
 | `tools/sandbox_research.py` | Python、Git、.NET 8 SDK | 源码调查、候选编译与语义检查、真实开发/留出世界 |
 
-客户端的自然岩灰与苔色配色、前端设计参考、肖像构图与材质说明见 [观察与界面](guides/gameplay-observation.md) 和 [模型系统](development/models.md)。当前扫描地表、河床深浅与坡地建筑说明见 [地形与活动痕迹](guides/terrain-and-traces.md)；素材署名、获取和离线校验见 [环境素材](development/environment-assets.md)。工具携带、动物四足接触和植被接地的当前实现及边界见 [模型系统](development/models.md)。正式图片来自实际 Godot 渲染，采样版本见 [配图说明](images/README.md)。
-
-HTTP 服务不输出实时 3D 图像；Console 和 HTTP 不执行图形会话的额外荒野日界作用。游戏没有研究任务流程。程序加速、视觉识别与代理改进是不同实验，协议及证据不能混用。
+HTTP 和 Console 推进独立内核世界。额外的荒野日界作用由图形会话管理，3D 截图通过 Godot 评测入口获取。正式配图的场景、帧号与版本见 [配图说明](images/README.md)。
 
 ## 文件位置与维护
 
