@@ -15,7 +15,7 @@ internal partial class ResidentRig
     private float GestureRotationTime=>.036f+.010f*Flow;
     private float ArmReturnTime=>.048f+.014f*Flow;
     private float TorsoFollowTime=>.055f+.015f*Flow;
-    private float ThoraxSway=>.025f-.014f*Flow;
+    private float ThoraxSway=>.060f-.044f*Flow;
     private float StrokeAccent=>1.17f-.26f*Flow;
     private float WorkSkew=>.48f-.29f*Flow+.06f*(RelativeWorkLoad-1);
     private float WorkPreparation=>.5f+.28f*WorkSkew;
@@ -27,9 +27,9 @@ internal partial class ResidentRig
     {
         // Keep the head and thorax legible against the alternating pelvis.
         // The flow end carries the rotation through the torso with less side lean.
-        float counterTurn=MathF.Cos(phase-(.12f+.42f*Flow))*GaitPelvisYaw*(.92f+.38f*Flow);
-        float pitch=-(.027f-.016f*Flow)*MathF.Cos(phase*2-.35f);
-        return new Vector3(pitch,counterTurn,MathF.Sin(phase-.18f)*ThoraxSway);
+        float counterTurn=MathF.Cos(phase-(.18f+.49f*Flow))*GaitPelvisYaw*(1.30f-.30f*Flow);
+        float pitch=-(.033f-.019f*Flow)*MathF.Cos(phase*2-.48f);
+        return new Vector3(pitch,counterTurn,MathF.Sin(phase-.28f)*ThoraxSway);
     }
 
     private Vector3 WorkingChest(float phase,float blend)
@@ -76,7 +76,16 @@ internal partial class ResidentRig
         float arc=MathF.Sin(MathF.PI*ReachEase((t-WorkPreparation)/(1-WorkPreparation)));
         return new Vector3(.008f*(1-Flow),0,-(.018f-.012f*Flow))*arc;
     }
-    private (Vector3 Target,float Weight) SocialPhrase(int side,float phase)
+    private Vector3 SocialChest(float phase)
+    {
+        // The trunk sets up a phrase, then yields before the hands settle.
+        float emphasis=ReachPulse(Mathf.PosMod(phase+.09f,1));
+        float answer=ReachPulse(Mathf.PosMod(phase-.12f,1));
+        var drive=new Vector3(-.022f*emphasis,-.083f*emphasis,.040f*emphasis);
+        var flow=new Vector3(-.046f*emphasis,.041f*emphasis-.057f*answer,-.030f*emphasis+.037f*answer);
+        return drive.Lerp(flow,Flow);
+    }
+    private (Vector3 Target,float Weight,Basis Palm) SocialPhrase(int side,float phase)
     {
         float mirror=side==0?-1:1;
         float lead=ReachPulse(Mathf.PosMod(phase,1));
@@ -86,7 +95,9 @@ internal partial class ResidentRig
         float flowWeight=ReachPulse(turn)*(side==1?1:.92f);
         float arc=MathF.Sin(turn*Mathf.Tau);
         var drive=new Vector3(mirror*(side==1?.275f:.177f),side==1?1.035f:.87f,-.185f-.135f*lead);
-        var flow=new Vector3(mirror*(.201f+.030f*arc),1.015f+.039f*MathF.Cos(turn*Mathf.Tau),-.246f-.025f*arc);
-        return (drive.Lerp(flow,Flow),Mathf.Lerp(driveWeight,flowWeight,Flow));
+        var flow=new Vector3(mirror*(.190f+.074f*arc),1.015f+.056f*MathF.Cos(turn*Mathf.Tau),-.246f-.040f*arc);
+        var drivePalm=new Vector3(.50f,-mirror*.30f,mirror*.32f);
+        var flowPalm=new Vector3(.89f+.17f*arc,-mirror*(.20f+.13f*arc),mirror*(.19f+.09f*arc));
+        return (drive.Lerp(flow,Flow),Mathf.Lerp(driveWeight,flowWeight,Flow),Basis.FromEuler(drivePalm.Lerp(flowPalm,Flow)));
     }
 }

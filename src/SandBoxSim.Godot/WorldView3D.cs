@@ -454,8 +454,8 @@ public partial class WorldView3D : MapView
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="wet-bank-mosaic-v7",["sceneryContact"]="solid-scenery-corridors-v3",["habitatDetail"]="responsive-understory-v12",["vegetationSurface"]="engine-faced-v2",
             ["architecture"]="inset-joinery-v13",["garmentMaterial"]="quiet-linen-v17",["upperArmFlex"]="stable-contour-v3",["shoulderSkin"]="reference-figure-v25",["shoulderMotion"]="source-clavicle-v11",["motionReference"]="cmu-143-30-v1",["shoulderSurface"]="authored-bind-surface-v3",["forearmSkin"]="continuous-elbow-v9",["sleeveFairing"]="rest-detail-v2",["workPose"]="raised-hammer-v1",["reachMotion"]="palm-trajectory-v2",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
-            ["animalPresentation"]="articulated-paws-v12",["residentSurface"]="linear-skin-v9",["workEffort"]="planted-weight-transfer-v6",["toolMotion"]="constraint-feedback-v4",["bodySupport"]="planted-spatial-v2",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="wholebody-motion-v8",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="solo-and-paired-gesture-v8",["waterSurface"]="shore-activity-v7",["wristContour"]="continuous-source-v2",
-            ["hairline"]="framed-source-root-v2",["garmentFit"]="continuous-drape-v31",["reedPanicle"]="connected-axis-v1",["bodyPresentation"]="continuous-drape-v29",["bodyFrame"]="reference-contour-physique-v31",["neckContour"]="relaxed-neckline-v5",["faceContour"]="balanced-adult-v3",["forearmProfile"]="curvature-flow-v9",["residentLocomotion"]="distance-matched-stride-v5",["armSwing"]="distance-led-arms-v5",["motionStyle"]="staged-motion-phrases-v4",["limbCoordination"]="hinge-carry-v4" };
+            ["animalPresentation"]="articulated-paws-v12",["residentSurface"]="linear-skin-v9",["workEffort"]="planted-weight-transfer-v6",["toolMotion"]="constraint-feedback-v4",["bodySupport"]="planted-spatial-v2",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="wholebody-motion-v9",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="overlapping-body-gesture-v9",["waterSurface"]="shore-activity-v7",["wristContour"]="continuous-source-v2",
+            ["hairline"]="framed-source-root-v2",["garmentFit"]="continuous-drape-v31",["reedPanicle"]="connected-axis-v1",["bodyPresentation"]="continuous-drape-v29",["bodyFrame"]="reference-contour-physique-v31",["neckContour"]="relaxed-neckline-v5",["faceContour"]="balanced-adult-v3",["forearmProfile"]="curvature-flow-v9",["residentLocomotion"]="continuous-footfall-v6",["armSwing"]="staggered-arm-swing-v6",["motionStyle"]="overlapping-motion-phrases-v5",["limbCoordination"]="hinge-carry-v4" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
         return quality;
@@ -849,7 +849,11 @@ public partial class WorldView3D : MapView
             bool gathering=phase==ActionPhase.Executing&&(action is ActionKind.GatherWood or ActionKind.GatherStone or ActionKind.GatherIron);
             if(gathering&&interest.X==x&&interest.Y==y&&(int)MathF.Floor(current.X*.5f)==x&&(int)MathF.Floor(current.Z*.5f)==y)
                 target=SceneryWorkPosition(x,y,target,action);
-            var rendered=SceneryActorPosition(current,target,delta,10,Game.VisualPaused);
+            // A local interaction approach has time for actual steps.
+            // Keep catch-up for long routes and accelerated world travel.
+            bool localApproach=phase!=ActionPhase.Moving&&Horizontal(target-current).LengthSquared()<.85f*.85f;
+            var rendered=SceneryActorPosition(current,target,delta,10,Game.VisualPaused,
+                localApproach?ResidentRig.MaximumGaitSpeed:float.PositiveInfinity);
             var direction=rendered-current;
             bool settled=SettledAt(rendered,target);
             if(rendered!=current)node.Position=rendered;

@@ -170,7 +170,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `animalPresentation=articulated-paws-v12` 包含鹿 18／狼 21 关节、足区权重转接、来源三角面上的趾爪／副蹄、分段狼尾及物种分开的步态轨迹。`visual-animal-motion.json` 使用 `animal-motion` 四格图册，固定 60 Hz、无模拟 tick，采样第 90／180／330 帧；动物区域标签从实际模型物种生成，分别为 `deer`、`wolf`。它检查模型与动作表现，不构成 RSI 能力分数。
 
-`residentLocomotion=settled-arrival-v3` 标识距离驱动分段步态、鞋底滚动、骨盆／胸廓协调与近景地形腿部解算。`visual-locomotion` 使用同速度成人外观、双手搬运及持锤行走—工作对照，冻结模拟而推进动画；该场景检查表现与采样链路，不作为 RSI、医学步态或客观写实程度的指标。
+`residentLocomotion=continuous-footfall-v6` 标识距离驱动步态、连续触地和离地轨迹及近景地形腿部解算。`armSwing=staggered-arm-swing-v6` 标识肩部与前臂错时摆动。`visual-locomotion` 使用同速度成人外观、双手搬运及持锤行走到作业的对照，冻结模拟并推进动画。该场景检查动作表现和采样链路。
 
 `bodyFrame=reference-contour-physique-v31` 标识胸廓、短上衣、实际骨盆／臀腿裤装及衣袖排除区的当前造型；`visual-body-frames` 的正／侧／背对照与 `visual-body-motion` 的动作对照使用实际居民网格。髋部截面取上衣及裤装的可见外包络，不能把衣摆宽度当作人体围度，也不是性别分类或 RSI 分数。
 
@@ -286,7 +286,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `portrait.resident` 在 `person`／`person-hands` 中按十进制正整数的稳定身份选择当前世界中的存活居民，取值范围为 Int64 正数；不存在的身份返回运行失败。选择复用名录入口，不修改模拟。结果 `state.portrait.identity`／`child` 记录实际观察对象，校验器核对命令后的身份，拒绝选择未执行或被改写的记录。公开 `visual-female-portrait.json` 使用种子 839102、8 名居民、零模拟步进，观察身份 4294967299，并切换肩颈／全身构图。该入口是视觉回放控制，不增加玩家任务或 HTTP 动作。
 
-`motionStyle=staged-motion-phrases-v4`、`workEffort=planted-weight-transfer-v6` 和 `bodySupport=planted-spatial-v2` 标识当前锤击轨迹、髋部重心转移与双脚锚点。`socialMotion=solo-and-paired-gesture-v8` 标识交谈中的主手强调和双手成组表达。视觉或耗时比较须冻结姿态版本、身体、工具、镜头、步进和缓存条件。`MOTION_CHOREOGRAPHY_PASS` 检查同一身体和工具下的握柄高点、髋部偏移与双手共同抬起时间。
+`motionStyle=overlapping-motion-phrases-v5` 标识成人协调风格与身体收势。`handlingMotion=wholebody-motion-v9` 标识接近后提前屈膝和重复拾取的姿态变化。`socialMotion=overlapping-body-gesture-v9` 标识交谈时胸廓先行及手掌展开。视觉或耗时比较须冻结姿态版本、身体、工具、镜头、步进和缓存条件。`GAIT_COORDINATION_PASS` 检查同一身体和步速下的胸髋侧倾与平足支撑滑移。`MOTION_CHOREOGRAPHY_PASS` 检查同一身体和工具下的握柄高点、髋部偏移与双手共同抬起时间。
 
 `habitatDetail=responsive-understory-v12` 增加四候选的林下层、矮阔叶及最近八角色的草叶接触场，改变顶点着色负载与自然物放置缓存身份。`VEGETATION_CONTACT_PASS` 验证接触选择、上传、清除与模拟观察纯度；放置检查验证实际根部占用及缓存恢复。视觉／效率比较须冻结草丛数量、镜头、角色分布、源码与冷／热缓存条件，不能将植被负载变化解释为内核加速或 RSI 改进。
 

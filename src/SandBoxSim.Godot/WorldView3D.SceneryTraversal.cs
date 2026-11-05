@@ -167,13 +167,13 @@ public partial class WorldView3D
         return stand;
     }
 
-    private Vector3 SceneryActorPosition(Vector3 current,Vector3 target,float delta,float response,bool paused)
+    private Vector3 SceneryActorPosition(Vector3 current,Vector3 target,float delta,float response,bool paused,float maximumSpeed=float.PositiveInfinity)
     {
         if(paused)return current;
         float distance=Horizontal(target-current).LengthSquared();
         if(distance>MaximumAdjacentPresentationStep*MaximumAdjacentPresentationStep||distance<.000001f
             ||!DryActorTarget(target)||ScenerySegmentClear(current,target))
-            return GroundedActorPosition(current,target,delta,response,false);
+            return GroundedActorPosition(current,target,delta,response,false,maximumSpeed);
 
         int x=(int)MathF.Floor(current.X*.5f),y=(int)MathF.Floor(current.Z*.5f);
         int tx=(int)MathF.Floor(target.X*.5f),ty=(int)MathF.Floor(target.Z*.5f);
@@ -193,7 +193,7 @@ public partial class WorldView3D
         }
         // Reuse the existing resynchronisation policy when no supported local leg exists.
         // Never interpolate through a solid merely to catch up to the simulator.
-        return float.IsFinite(best)?GroundedActorPosition(current,waypoint,delta,response,false):target;
+        return float.IsFinite(best)?GroundedActorPosition(current,waypoint,delta,response,false,maximumSpeed):target;
     }
 
     private void ValidateSceneryTraversal()

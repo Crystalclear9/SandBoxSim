@@ -18,9 +18,9 @@ internal partial class ResidentRig
     private readonly bool[] _armSolvedThisStep=new bool[2],_armReturning=new bool[2];
     private Transform3D _toolReachRest;
     private readonly Vector3[] _bareVelocity=new Vector3[2],_bareAngularVelocity=new Vector3[2];
-    private void BlendBareHand(int side,Vector3 target,Basis desired,float blend=-1,Vector3? preferredElbow=null)
+    private void BlendBareHand(int side,Vector3 target,Basis desired,float blend=-1,Vector3? preferredElbow=null,bool eased=false)
     {
-        float weight=ReachEase(blend<0?_bareBlend:blend);
+        float weight=eased?blend:ReachEase(blend<0?_bareBlend:blend);
         var rest=Arms[side].Transform*Elbows[side].Transform*Hands[side].Transform;
         var offset=side==1?Grip!.Position:new Vector3(0,-.035f,-.0286f);
         // Plan the palm path before solving the joints. Interpolating three

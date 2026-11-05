@@ -151,6 +151,11 @@ internal sealed partial class NatureModels
         float[] cycles=new float[2],lowestFoot={float.PositiveInfinity,float.PositiveInfinity};
         float[] highestFoot={float.NegativeInfinity,float.NegativeInfinity},kneeBend=new float[2];
         float[] toolCrown=new float[2];
+        float[] chestRoll=new float[2],pelvisRoll=new float[2];
+        Vector3[] previousPlanted=new Vector3[2];
+        bool[] previouslyPlanted=new bool[2];
+        float maxStanceDrift=0;
+        int plantedFrames=0;
         float driveSide=0,flowSide=0;
         var styles=new[]{a,b};
         try
@@ -195,6 +200,19 @@ internal sealed partial class NatureModels
                     float foot=InTorso(rig.Feet[0],rig).Origin.Z;
                     lowestFoot[index]=MathF.Min(lowestFoot[index],foot);
                     highestFoot[index]=MathF.Max(highestFoot[index],foot);
+                    chestRoll[index]=MathF.Max(chestRoll[index],MathF.Abs(rig.Torso.Rotation.Z));
+                    pelvisRoll[index]=MathF.Max(pelvisRoll[index],MathF.Abs(rig.LowerGarmentFrame.Basis.GetEuler().Z));
+                    // Look only at flat mid-stance, when the heel and toe
+                    // rockers are inactive. Include the moving world root.
+                    bool planted=rig.GaitCycle is >.17f and <.33f;
+                    var boot=InTorso(rig.Feet[0],rig).Origin+Vector3.Forward*(frame*1.05f/60);
+                    if(planted&&previouslyPlanted[index])
+                    {
+                        maxStanceDrift=MathF.Max(maxStanceDrift,boot.DistanceTo(previousPlanted[index]));
+                        plantedFrames++;
+                    }
+                    previouslyPlanted[index]=planted;
+                    previousPlanted[index]=boot;
                 }
                 if(frame>=150&&frame<300){work+=Math.Pow(InTorso(a.ToolMesh,a.Torso).Origin.DistanceTo(InTorso(b.ToolMesh,b.Torso).Origin),2);working++;}
                 if(frame>=420){walk+=Math.Pow(InTorso(a.Hands[0],a).Origin.DistanceTo(InTorso(b.Hands[0],b).Origin),2);walking++;}
@@ -206,6 +224,10 @@ internal sealed partial class NatureModels
             if(cycles[0]<=0||cycles[1]/cycles[0]<1.18f||MathF.Abs(a.GaitSpeed-b.GaitSpeed)>.00001f
                 ||strideA-strideB<.055f||kneeBend[0]-kneeBend[1]<.06f)
                 throw new InvalidOperationException($"Motion style does not reach the lower body: cycles={cycles[0]}/{cycles[1]}, feet={strideA}/{strideB}, knees={kneeBend[0]}/{kneeBend[1]}");
+            if(chestRoll[0]-chestRoll[1]<.027f||pelvisRoll[1]-pelvisRoll[0]<.008f
+                ||plantedFrames<20||maxStanceDrift>.001f)
+                throw new InvalidOperationException($"Gait styles lack independent body coordination or drag a planted boot: chest={chestRoll[0]}/{chestRoll[1]}, pelvis={pelvisRoll[0]}/{pelvisRoll[1]}, drift={maxStanceDrift} in {plantedFrames} frames");
+            GD.Print($"GAIT_COORDINATION_PASS: same body at 1.05 m/s, chest roll={chestRoll[0]:F3}/{chestRoll[1]:F3} rad, pelvis roll={pelvisRoll[0]:F3}/{pelvisRoll[1]:F3} rad; flat mid-stance drift={maxStanceDrift:F6} m in {plantedFrames} samples");
             if(toolCrown[0]-toolCrown[1]<.070f||driveSide<.026f||flowSide>-.008f)
                 throw new InvalidOperationException($"Motion styles differ only in timing: tool peaks={toolCrown[0]}/{toolCrown[1]}, preparation shift={driveSide}/{flowSide}");
             double social=0;int socialSamples=0;

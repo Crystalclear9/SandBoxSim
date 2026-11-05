@@ -99,12 +99,12 @@ internal partial class ModelGallery : PanelContainer
         }
         else if(Collection=="locomotion")
         {
-            grid.Columns=3;body.GetChild<Label>(0).Text="同速 1.05 米/秒 · 步幅、摆臂与转身";
+            grid.Columns=3;body.GetChild<Label>(0).Text="同速 1.05 米/秒 · 肩髋配合与落脚";
             for(int frame=0;frame<2;frame++)for(int state=0;state<3;state++)
             {
                 var rig=models.Resident(frame==0?17:55,false,state==2?JobType.Builder:JobType.None);
                 if(state==1)rig.ShowCargo(true,ResourceKind.Wood);
-                Closeup(grid,(frame==0?"男性外观":"女性外观")+(state==0?" · 启停与转身":state==1?" · 负重行走":" · 持锤行走与工作"),rig,2.15f,new(0,.82f,0),new(2.65f,.10f,4),true);
+                Closeup(grid,(frame==0?"男性外观":"女性外观")+(state==0?" · 启停与转身":state==1?" · 负重行走":" · 持锤行走与工作"),rig,2.15f,new(0,.82f,0),new(1.75f,.10f,4),true);
                 Animate(rig,state==2?ActionKind.BuildHouse:ActionKind.Wander);
             }
         }
@@ -295,9 +295,11 @@ internal partial class ModelGallery : PanelContainer
             else if(Collection=="locomotion")
             {
                 float t=_elapsed%10;bool walking=t>.6f&&t<5.5f;
-                float turn=t>2.5f&&t<4.5f?.48f:0;
-                rig.ObserveLocomotion(walking?new(0,0,-1.05f*(float)delta):Vector3.Zero,(float)delta,turn,false);
-                rig.Rotation=new(0,MathF.PI+Mathf.SmoothStep(2.5f,4.5f,t)*.75f,0);
+                float speed=1.05f*ResidentRig.ReachEase((t-.6f)/.48f)*ResidentRig.ReachEase((5.5f-t)/.55f);
+                float turn=.48f*(ResidentRig.ReachEase((t-2.4f)/.5f)-ResidentRig.ReachEase((t-3.9f)/.5f));
+                rig.ObserveLocomotion(new(0,0,-speed*(float)delta),(float)delta,turn,false);
+                float yaw=.75f*(ResidentRig.ReachEase((t-2.5f)/2)-ResidentRig.ReachEase((t-8.5f)/1.5f));
+                rig.Rotation=new(0,MathF.PI+yaw,0);
                 rig.PoseAction((float)delta,action,walking?ActionPhase.Moving:action==ActionKind.BuildHouse&&t>5.5f?ActionPhase.Executing:ActionPhase.Idle,false,0);
             }
             else rig.PoseAction((float)delta,action,Collection=="body-motion"&&action==ActionKind.Wander?ActionPhase.Moving:cycle>.65f&&cycle<4.5f?ActionPhase.Executing:ActionPhase.Idle,false,0);

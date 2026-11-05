@@ -26,22 +26,26 @@ public partial class WorldView3D
             if(GroundHeight(point.X+x*.28f,point.Z+z*.28f)<=.021f)return false;
         return true;
     }
-    private Vector3 GroundedActorPosition(Vector3 current,Vector3 target,float delta,float response,bool paused)
+    private Vector3 GroundedActorPosition(Vector3 current,Vector3 target,float delta,float response,bool paused,float maximumSpeed=float.PositiveInfinity)
     {
         if(paused)return current;
         return GroundedActorStep(current,target,delta,response,false,DryActorTarget(target),
-            _actorNearShore??=ActorNearShore,_actorSupported??=ActorFootSupport,_actorGround??=GroundHeight);
+            _actorNearShore??=ActorNearShore,_actorSupported??=ActorFootSupport,_actorGround??=GroundHeight,maximumSpeed);
     }
     private static Vector3 GroundedActorStep(Vector3 current,Vector3 target,float delta,float response,bool paused,bool dryTarget,
-        Func<Vector3,bool> nearShore,Func<Vector3,bool> supported,Func<float,float,float> ground)
+        Func<Vector3,bool> nearShore,Func<Vector3,bool> supported,Func<float,float,float> ground,float maximumSpeed=float.PositiveInfinity)
     {
         if(paused)return current;
-        var next=current.Lerp(target,1-MathF.Exp(-delta*response));
         float dx=target.X-current.X,dz=target.Z-current.Z;
+        float distanceSquared=dx*dx+dz*dz;
+        float blend=1-MathF.Exp(-delta*response);
+        if(float.IsFinite(maximumSpeed)&&distanceSquared>0)
+            blend=MathF.Min(blend,maximumSpeed*delta/MathF.Sqrt(distanceSquared));
+        var next=current.Lerp(target,blend);
         // The model follows the current logical position, not an invented path.
         // A lag spanning unknown steps cannot safely be interpolated across a
         // river or a turn. Resynchronise XZ as well as Y to the true tile centre.
-        if(dryTarget&&(dx*dx+dz*dz>MaximumAdjacentPresentationStep*MaximumAdjacentPresentationStep||(nearShore(next)&&!supported(next))))next=target;
+        if(dryTarget&&(distanceSquared>MaximumAdjacentPresentationStep*MaximumAdjacentPresentationStep||(nearShore(next)&&!supported(next))))next=target;
         next.Y=ground(next.X,next.Z);return next;
     }
     private void ValidateActorGrounding()
@@ -120,6 +124,11 @@ public partial class WorldView3D
             var start=At(1,1);var end=At(3,1);var expected=start.Lerp(end,.5f);expected.Y=Ground(expected.X,expected.Z);
             if(GroundedActorStep(start,end,delta,response,false,true,_=>true,Supported,Ground).DistanceTo(expected)>.00001f)
                 throw new InvalidOperationException("Safe adjacent fixture does not retain exponential interpolation");
+            const float frame=1f/60;
+            var step=GroundedActorStep(start,end,frame,response,false,true,_=>true,Supported,Ground,ResidentRig.MaximumGaitSpeed);
+            if(MathF.Abs(Horizontal(step-start).Length()-frame*ResidentRig.MaximumGaitSpeed)>.00001f
+                ||MathF.Abs(step.Y-Ground(step.X,step.Z))>.00001f)
+                throw new InvalidOperationException("Local approach disagrees with the gait speed or ground surface");
             var wetTarget=At(5,7);var expectedWet=current.Lerp(wetTarget,.5f);expectedWet.Y=Ground(expectedWet.X,expectedWet.Z);
             if(GroundedActorStep(current,wetTarget,delta,response,false,false,_=>true,Supported,Ground).DistanceTo(expectedWet)>.00001f)
                 throw new InvalidOperationException("Non-dry logical target is falsely moved onto a dry bank");

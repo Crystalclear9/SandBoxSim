@@ -197,7 +197,9 @@ internal partial class ResidentRig : Node3D
             _workTime=0;
             if(_lastPhase!=ActionPhase.Executing||ToolFor(_lastAction)!=ToolFor(action))_strokePhase=0;
         }
-        _lastAction=action;_lastPhase=phase;
+        // Store the visual phase. A logical action may already be executing
+        // while its resident is still finishing the approach.
+        _lastAction=action;_lastPhase=phase==ActionPhase.Executing&&!executing?ActionPhase.Moving:phase;
         var wanted=(phase is ActionPhase.Executing or ActionPhase.Moving)&&!IsChild?ToolFor(action):ResidentTool.None;
         // A long tool is carried in the hand during idle/wandering, rather than
         // hanging diagonally from an invisible waist socket. Bare-hand actions
@@ -219,39 +221,48 @@ internal partial class ResidentRig : Node3D
         float wave=MathF.Cos(gaitPhase),breath=MathF.Sin(_phase*.5f+identityPhase);
         bool pickup=executing&&!ToolHeld&&_reach==0&&_releaseTime==0&&(_bareBlend==0||_bareAction is ActionKind.GatherFood or ActionKind.Take)&&action is ActionKind.GatherFood or ActionKind.Take;
         _pickupBlend=Mathf.MoveToward(_pickupBlend,pickup?1:0,delta/.48f);
-        float vertical=resting?-.09f:Mathf.Lerp(breath*.003f*(1-_activity),-.094f,Smooth(_pickupBlend));
-        float gaitWeight=_activity*(1-Smooth(_pickupBlend))*(resting?0:1);
+        float pickupWeight=Smooth(_pickupBlend);
+        // The knees prepare before the fingers descend, and extend a little
+        // on recovery even while a repeated gathering action stays active.
+        float pickupLoad=pickupWeight>0?ReachPulse(Mathf.PosMod(_bareTime/1.8f+.09f,1)):0;
+        float pickupDrop=Mathf.Lerp(.074f+.012f*Flow,.094f,pickupLoad)*pickupWeight;
+        float vertical=resting?-.09f:breath*.003f*(1-_activity)*(1-pickupWeight)-pickupDrop;
+        float gaitWeight=_activity*(1-pickupWeight)*(resting?0:1);
         if(executing&&usingTool&&ToolHeld&&wanted==CurrentTool&&_draw>=.99f)_strokePhase=Mathf.PosMod(_strokePhase+delta/WorkPeriod,1);
         var stance=WorkSupport(delta,executing&&usingTool&&ToolHeld&&wanted==CurrentTool&&!_carrying,
-            (1-_activity)*(1-Smooth(_pickupBlend)));
+            (1-_activity)*(1-pickupWeight));
         float workBlend=Smooth(_workBlend);
-        float effort=executing&&usingTool?(.5f-WorkLift(_strokePhase+WorkTorsoLead))*.067f*StrokeAccent*RelativeWorkLoad*workBlend:0;
-        float toolLean=-.035f-(.097f-.041f*Flow)*workBlend-effort;
-        float freeLean=-.025f*_activity+.007f*MathF.Sin(_phase*.53f+identityPhase)*(1-_activity);
-        float desiredLean=resting?-.16f:Mathf.Lerp(usingTool?toolLean:freeLean,-.58f,Smooth(_pickupBlend));
-        float bareParticipation=Smooth(_bareBlend)*(1-Smooth(_pickupBlend));
-        float reachLean=-Math.Clamp(-_previousHands[1].Origin.Z-.12f,0,.26f)*.12f*bareParticipation;
-        float reachTurn=Math.Clamp(_previousHands[1].Origin.X,-.22f,.22f)*.09f*bareParticipation;
-        var torsoAngles=Torso.Rotation;
-        var walkingChest=WalkingChest(gaitPhase)*gaitWeight;
-        var workingChest=executing&&usingTool?WorkingChest(_strokePhase,workBlend):Vector3.Zero;
-        var chestTarget=new Vector3(desiredLean+reachLean,reachTurn+_gaitTurn*TurnChestShare*gaitWeight,0);
-        DampMotion(ref torsoAngles,ref _torsoVelocity,chestTarget+walkingChest+workingChest+_referenceChest,TorsoFollowTime,delta);
-        var torsoBasis=Basis.FromEuler(torsoAngles);
-        var restSupport=RestSupport(delta,!moving&&_activity<.001f&&!usingTool&&!resting&&!pickup,identityPhase);
-        var gaitOffset=_gaitOffset*(1-Smooth(_pickupBlend))*(resting?0:1);
-        var translation=stance+Vector3.Up*vertical+restSupport+gaitOffset;
-        var hip=new Vector3(0,HipHeight,0);Torso.Transform=new(torsoBasis,hip-torsoBasis*hip+translation);
-        UpdateBodyBend(stance+restSupport+gaitOffset-Vector3.Up*(.094f*Smooth(_pickupBlend)),new Basis(Quaternion.Identity.Slerp(GaitPelvisBasis.GetRotationQuaternion(),(1-Smooth(_pickupBlend))*(resting?0:1))));
         bool socialReady=executing&&action==ActionKind.Socialize&&!ToolHeld&&_reach==0&&_releaseTime==0&&!_hasCargo&&_bareBlend==0;
         if(socialReady&&_socialBlend==0)_socialTime=0;
         _socialBlend=Mathf.MoveToward(_socialBlend,socialReady?1:0,delta/.70f);
         if(_socialBlend>0)_socialTime+=delta;
-        _attentionYaw=Mathf.Lerp(_attentionYaw,_wantedAttention,1-MathF.Exp(-delta*6));
+        float socialWeight=ReachEase(_socialBlend);
         float expressionPhase=identityPhase+ExpressionPhase;
-        float phrase=Mathf.PosMod(_workTime/3.2f+expressionPhase*.1f,1),phraseEmphasis=ReachPulse(phrase);
+        float socialPhase=_socialTime/3.2f+expressionPhase*.1f;
+        float effort=executing&&usingTool?(.5f-WorkLift(_strokePhase+WorkTorsoLead))*.067f*StrokeAccent*RelativeWorkLoad*workBlend:0;
+        float toolLean=-.035f-(.097f-.041f*Flow)*workBlend-effort;
+        float freeLean=-.025f*_activity+.007f*MathF.Sin(_phase*.53f+identityPhase)*(1-_activity);
+        float pickupLean=Mathf.Lerp(-.37f,-.58f+.06f*Flow,pickupLoad);
+        float desiredLean=resting?-.16f:Mathf.Lerp(usingTool?toolLean:freeLean,pickupLean,pickupWeight);
+        float bareParticipation=Smooth(_bareBlend)*(1-pickupWeight);
+        float reachLean=-Math.Clamp(-_previousHands[1].Origin.Z-.12f,0,.26f)*.12f*bareParticipation;
+        float reachTurn=Math.Clamp(_previousHands[1].Origin.X,-.22f,.22f)*.09f*bareParticipation;
+        var torsoAngles=Torso.Rotation;
+        var walkingChest=WalkingChest(gaitPhase)*gaitWeight;
+        var workingChest=workBlend>0?WorkingChest(_strokePhase,workBlend):Vector3.Zero;
+        var socialChest=socialWeight>0?SocialChest(socialPhase)*socialWeight:Vector3.Zero;
+        var chestTarget=new Vector3(desiredLean+reachLean,reachTurn+_gaitTurn*TurnChestShare*gaitWeight,0);
+        DampMotion(ref torsoAngles,ref _torsoVelocity,chestTarget+walkingChest+workingChest+socialChest+_referenceChest,TorsoFollowTime,delta);
+        var torsoBasis=Basis.FromEuler(torsoAngles);
+        var restSupport=RestSupport(delta,!moving&&_activity<.001f&&!usingTool&&!resting&&!pickup,identityPhase);
+        var gaitOffset=_gaitOffset*(1-pickupWeight)*(resting?0:1);
+        var translation=stance+Vector3.Up*vertical+restSupport+gaitOffset;
+        var hip=new Vector3(0,HipHeight,0);Torso.Transform=new(torsoBasis,hip-torsoBasis*hip+translation);
+        UpdateBodyBend(stance+restSupport+gaitOffset-Vector3.Up*pickupDrop,new Basis(Quaternion.Identity.Slerp(GaitPelvisBasis.GetRotationQuaternion(),(1-pickupWeight)*(resting?0:1))));
+        _attentionYaw=Mathf.Lerp(_attentionYaw,_wantedAttention,1-MathF.Exp(-delta*6));
+        float phrase=Mathf.PosMod(action==ActionKind.Socialize?socialPhase:_workTime/3.2f+expressionPhase*.1f,1),phraseEmphasis=ReachPulse(phrase);
         var headTarget=new Vector3(
-            Mathf.Lerp(usingTool?-.045f-effort*.4f:breath*.018f+MathF.Sin(phrase*MathF.Tau)*.025f*phraseEmphasis*_socialBlend,.15f,Smooth(_pickupBlend)),
+            Mathf.Lerp(usingTool?-.045f-effort*.4f:breath*.018f+MathF.Sin(phrase*MathF.Tau)*.025f*phraseEmphasis*_socialBlend,.15f,pickupWeight),
             MathF.Sin(_phase*.32f+identityPhase)*.045f*(1-_activity)+_attentionYaw+_gaitTurn*TurnHeadShare*gaitWeight-walkingChest.Y*.55f,
             MathF.Sin(phrase*MathF.Tau)*.015f*_socialBlend-walkingChest.Z*.55f);
         Head.Quaternion=DampRotation(Head.Quaternion,ref _headVelocity,Basis.FromEuler(headTarget).GetRotationQuaternion(),.075f,delta);
@@ -262,12 +273,12 @@ internal partial class ResidentRig : Node3D
             Arms[i].Position=ShoulderRest(i);
             var pelvis=LowerGarmentFrame;
             Legs[i].Position=pelvis*new Vector3(i==0?-HipHalfWidth:HipHalfWidth,HipHeight,0);
-            Legs[i].Rotation=new(.55f*Smooth(_pickupBlend),0,0);
-            Knees[i].Rotation=new(-1.1f*Smooth(_pickupBlend),0,0);
+            Legs[i].Rotation=new(.55f*pickupWeight,0,0);
+            Knees[i].Rotation=new(-1.1f*pickupWeight,0,0);
             SetFootOrientation(i,(Legs[i].Basis*Knees[i].Basis).Inverse());
             if(stance.LengthSquared()>1e-10f)SolveLegTo(i,RestFootCenter(i),Basis.Identity);
             if(_restSupport>.00001f)PlantRestLeg(i);
-            PlantPickupLeg(i,Smooth(_pickupBlend));
+            PlantPickupLeg(i,pickupWeight);
             PoseWalkingLeg(i,gaitWeight);
             PoseFreeArm(i,delta,identityPhase);
         }
@@ -439,10 +450,10 @@ internal partial class ResidentRig : Node3D
         {
             for(int side=0;side<2;side++)
             {
-                var gesture=SocialPhrase(side,_socialTime/3.2f+expressionPhase*.1f);
-                var open=Basis.FromEuler(new Vector3(.6f,side==0?.3f:-.3f,side==0?-.35f:.35f));
-                BlendBareHand(side,ReachBodyPoint(gesture.Target),open,_socialBlend*gesture.Weight);
-                CurlHand(side,(.16f+.045f*gesture.Weight)*_socialBlend);
+                var gesture=SocialPhrase(side,socialPhase);
+                float weight=socialWeight*gesture.Weight;
+                BlendBareHand(side,ReachBodyPoint(gesture.Target),gesture.Palm,weight,eased:true);
+                CurlHand(side,Mathf.Lerp(_handCurl[side],.18f,weight));
             }
         }
         ApplyMotionReference();

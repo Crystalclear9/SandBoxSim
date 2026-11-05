@@ -17,11 +17,12 @@ internal partial class ResidentRig
     internal Basis GaitPelvisBasis=Basis.Identity;
     internal float GaitCycle=>_gaitCycle;
     internal float GaitSpeed=>_gaitSpeed;
-    private float GaitSupport=>.622f-.038f*Flow+.02f*_workFatigue+(_hasCargo?.025f:0);
-    private float GaitFootHalfWidth=>MathF.Max(.05f,HipHalfWidth+.014f-.044f*Flow);
+    internal const float MaximumGaitSpeed=1.70f;
+    private float GaitSupport=>.632f-.055f*Flow+.02f*_workFatigue+(_hasCargo?.025f:0);
+    private float GaitFootHalfWidth=>MathF.Max(.048f,HipHalfWidth+.026f-.062f*Flow);
     // Phase is distance driven. Scale the foot's stance travel by the very
     // same cycle length so a quicker cadence does not increase ground speed.
-    private float GaitCycleLength(float speed)=>(.76f+.10f*MathF.Min(1.7f,speed))*(1.11f-.22f*Flow)
+    private float GaitCycleLength(float speed)=>(.76f+.10f*MathF.Min(1.7f,speed))*(1.13f-.26f*Flow)
         *(1-.10f*_workFatigue)*(_hasCargo?.93f:1);
 
     // Called every rendered world frame, before the distance pose scheduler.
@@ -34,7 +35,7 @@ internal partial class ResidentRig
         // An adjacent tile's ordinary exponential interpolation can have a
         // high instantaneous speed. Only reject a large spatial jump, or its
         // first frames would incorrectly suppress the starting step.
-        float sample=float.IsFinite(speed)&&distance<1.25f?Math.Clamp(speed,0,1.70f):0;
+        float sample=float.IsFinite(speed)&&distance<1.25f?Math.Clamp(speed,0,MaximumGaitSpeed):0;
         _sampleDistance+=sample*delta;_sampleTime+=delta;
         _approachDistance=float.IsFinite(remainingDistance)?MathF.Max(0,remainingDistance):0;
         _turnDemand=float.IsFinite(headingError)?Math.Clamp(headingError,-.65f,.65f):0;
@@ -57,15 +58,22 @@ internal partial class ResidentRig
         float rate=wanted>_gaitSpeed?5:9,decay=MathF.Exp(-rate*dt),before=_gaitSpeed;
         _gaitSpeed=wanted+(before-wanted)*decay;
         float travel=wanted*dt+(before-wanted)*(1-decay)/rate;
-        _gaitCycle=Mathf.PosMod(_gaitCycle+travel/GaitCycleLength(wanted),1);
+        // At cruising speed, use the observed root travel for contact timing.
+        // The filtered speed still eases the first step and the final settle.
+        float cruise=Mathf.SmoothStep(.20f,.80f,MathF.Min(wanted,_gaitSpeed));
+        float distance=Mathf.Lerp(travel,wanted*dt,cruise);
+        _gaitCycle=Mathf.PosMod(_gaitCycle+distance/GaitCycleLength(_gaitSpeed),1);
         _activity=Mathf.SmoothStep(0,.80f,_gaitSpeed);
         if(!moving&&_gaitSpeed<.00001f){_gaitSpeed=0;_activity=0;}
         _gaitTurn=Mathf.Lerp(_gaitTurn,moving?_turnDemand:0,1-MathF.Exp(-dt*7));
         float a=_gaitCycle*MathF.Tau,load=_hasCargo?.72f:1;
-        _gaitOffset=new(-MathF.Sin(a)*(.021f-.011f*Flow)*_activity,
+        // The body moves towards the supporting leg just after the weight
+        // handoff. The flowing stride carries more motion in the pelvis.
+        float support=MathF.Sin(a-(GaitSupport-.5f)*MathF.PI);
+        _gaitOffset=new(-support*(.019f+.012f*Flow)*_activity*load,
             WalkingHipHeight()*_activity,0);
-        GaitPelvisBasis=Basis.FromEuler(new(0,-MathF.Cos(a)*GaitPelvisYaw*(.82f+.50f*Flow)*_activity*load,
-            -MathF.Sin(a)*GaitPelvisRoll*(.80f+.65f*Flow)*_activity));
+        GaitPelvisBasis=Basis.FromEuler(new(0,-MathF.Cos(a-.18f*Flow)*GaitPelvisYaw*(.76f+.76f*Flow)*_activity*load,
+            -support*GaitPelvisRoll*(.78f+1.08f*Flow)*_activity));
     }
 
     private (float Z,float Lift,float Pitch) WalkingFootPath(int side)
@@ -77,13 +85,23 @@ internal partial class ResidentRig
         if(t<support)
         {
             float u=t/support;z=Mathf.Lerp(-span,span,u);lift=0;
-            pitch=.13f*(1-Mathf.SmoothStep(0,.19f,u))-.24f*Mathf.SmoothStep(.68f,1,u);
+            pitch=(.16f-.045f*Flow)*(1-ReachEase(u/(.23f-.055f*Flow)))
+                -(.22f+.075f*Flow)*ReachEase((u-(.66f-.07f*Flow))/(.34f+.07f*Flow));
         }
         else
         {
             float u=(t-support)/(1-support),arc=MathF.Sin(MathF.PI*u);
-            z=Mathf.Lerp(span,-span,Smooth(u));lift=(.077f+.018f*Flow)*arc*arc;
-            pitch=Mathf.Lerp(-.24f,.13f,Smooth(u));
+            // The swing reverses progressively. Match the stance tangent
+            // at toe-off and heel contact instead of braking in one frame.
+            const float edge=.145f;
+            float near=MathF.Min(u,1-u);
+            float v=near/edge;
+            float progress=near<edge?edge*v*v*v*(1-.5f*v):(near-.5f*edge);
+            progress/=1-edge;
+            if(u>.5f)progress=1-progress;
+            z=span+2*span/support*((1-support)*u-progress);
+            lift=(.079f+.025f*Flow)*arc*arc*(1+(.18f-.40f*Flow)*MathF.Cos(MathF.PI*u));
+            pitch=Mathf.Lerp(-(.22f+.075f*Flow),.16f-.045f*Flow,ReachEase(u));
         }
         return (z,lift,pitch);
     }
@@ -103,12 +121,19 @@ internal partial class ResidentRig
             foreach(var p in BootSoleCurve)sole=MathF.Max(sole,-p.Y*MathF.Cos(foot.Pitch)+p.Z*MathF.Sin(foot.Pitch));
             // The approaching swing foot also constrains reach. Waiting for
             // its contact flag caused an abrupt pelvis drop at heel strike.
-            height=MathF.Min(height,sole+foot.Lift-offset.Y+MathF.Sqrt(MathF.Max(.05f,reach*reach-z*z-width*width)));
+            height=BlendReachCeiling(height,sole+foot.Lift-offset.Y+MathF.Sqrt(MathF.Max(.05f,reach*reach-z*z-width*width)));
         }
         // A quiet double-support arc avoids transmitting the swing foot's
         // rapid clearance lift into the whole torso. Reach remains a ceiling.
         float arc=-.030f-(.030f-.009f*Flow)*MathF.Cos(_gaitCycle*MathF.Tau*2);
-        return MathF.Min(arc,height-HipHeight-.002f);
+        return BlendReachCeiling(arc,height-HipHeight-.002f);
+    }
+
+    private static float BlendReachCeiling(float first,float second)
+    {
+        const float transition=.018f;
+        float overlap=MathF.Max(0,transition-MathF.Abs(first-second));
+        return MathF.Min(first,second)-overlap*overlap/(4*transition);
     }
 
     private Vector3 RestFootCenter(int side)=>new(side==0?-HipHalfWidth:HipHalfWidth,
