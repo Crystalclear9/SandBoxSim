@@ -240,9 +240,9 @@ internal partial class ResidentRig : Node3D
         var torsoBasis=Basis.FromEuler(torsoAngles);
         var restSupport=RestSupport(delta,!moving&&_activity<.001f&&!usingTool&&!resting&&!pickup,identityPhase);
         var gaitOffset=_gaitOffset*(1-Smooth(_pickupBlend))*(resting?0:1);
-        var translation=stance.Hip+Vector3.Up*vertical+restSupport+gaitOffset;
+        var translation=stance+Vector3.Up*vertical+restSupport+gaitOffset;
         var hip=new Vector3(0,HipHeight,0);Torso.Transform=new(torsoBasis,hip-torsoBasis*hip+translation);
-        UpdateBodyBend(stance.Hip+restSupport+gaitOffset-Vector3.Up*(.094f*Smooth(_pickupBlend)),new Basis(Quaternion.Identity.Slerp(GaitPelvisBasis.GetRotationQuaternion(),(1-Smooth(_pickupBlend))*(resting?0:1))));
+        UpdateBodyBend(stance+restSupport+gaitOffset-Vector3.Up*(.094f*Smooth(_pickupBlend)),new Basis(Quaternion.Identity.Slerp(GaitPelvisBasis.GetRotationQuaternion(),(1-Smooth(_pickupBlend))*(resting?0:1))));
         bool socialReady=executing&&action==ActionKind.Socialize&&!ToolHeld&&_reach==0&&_releaseTime==0&&!_hasCargo&&_bareBlend==0;
         if(socialReady&&_socialBlend==0)_socialTime=0;
         _socialBlend=Mathf.MoveToward(_socialBlend,socialReady?1:0,delta/.70f);
@@ -262,9 +262,10 @@ internal partial class ResidentRig : Node3D
             Arms[i].Position=ShoulderRest(i);
             var pelvis=LowerGarmentFrame;
             Legs[i].Position=pelvis*new Vector3(i==0?-HipHalfWidth:HipHalfWidth,HipHeight,0);
-            Legs[i].Rotation=new(.55f*Smooth(_pickupBlend)+stance.Thigh,0,0);
-            Knees[i].Rotation=new(-1.1f*Smooth(_pickupBlend)+stance.Knee,0,0);
+            Legs[i].Rotation=new(.55f*Smooth(_pickupBlend),0,0);
+            Knees[i].Rotation=new(-1.1f*Smooth(_pickupBlend),0,0);
             SetFootOrientation(i,(Legs[i].Basis*Knees[i].Basis).Inverse());
+            if(stance.LengthSquared()>1e-10f)SolveLegTo(i,RestFootCenter(i),Basis.Identity);
             if(_restSupport>.00001f)PlantRestLeg(i);
             PlantPickupLeg(i,Smooth(_pickupBlend));
             PoseWalkingLeg(i,gaitWeight);
@@ -438,15 +439,10 @@ internal partial class ResidentRig : Node3D
         {
             for(int side=0;side<2;side++)
             {
-                float timing=_socialTime*2.1f+expressionPhase*.73f+side*2.4f;
-                float emphasis=(.5f+.5f*MathF.Sin(timing))*.045f;
-                var target=SocialGestureTarget(side,timing,emphasis);
+                var gesture=SocialPhrase(side,_socialTime/3.2f+expressionPhase*.1f);
                 var open=Basis.FromEuler(new Vector3(.6f,side==0?.3f:-.3f,side==0?-.35f:.35f));
-                float offset=side==0?.50f-.24f*Flow:0;
-                float gesture=ReachPulse(Mathf.PosMod(_socialTime/3.2f+offset+expressionPhase*.1f,1));
-                if(side==0)gesture*=.75f+.22f*Flow;
-                BlendBareHand(side,ReachBodyPoint(target),open,_socialBlend*gesture);
-                CurlHand(side,(.16f+emphasis)*_socialBlend);
+                BlendBareHand(side,ReachBodyPoint(gesture.Target),open,_socialBlend*gesture.Weight);
+                CurlHand(side,(.16f+.045f*gesture.Weight)*_socialBlend);
             }
         }
         ApplyMotionReference();

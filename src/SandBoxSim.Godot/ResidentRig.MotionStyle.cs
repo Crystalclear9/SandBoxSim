@@ -34,9 +34,37 @@ internal partial class ResidentRig
 
     private Vector3 WorkingChest(float phase,float blend)
     {
-        float sweep=MathF.Sin((phase+WorkTorsoLead)*Mathf.Tau-.5f);
-        float load=RelativeWorkLoad*blend;
-        return new Vector3(0,(.046f-.025f*Flow)*sweep*load,(.026f-.016f*Flow)*sweep*load);
+        var arcs=WorkStageArcs(phase+WorkTorsoLead);
+        var drive=new Vector3(0,.105f*arcs.X-.065f*arcs.Y,.040f*arcs.X-.029f*arcs.Y);
+        var flow=new Vector3(0,-.026f*arcs.X+.051f*arcs.Y,-.014f*arcs.X+.024f*arcs.Y);
+        return drive.Lerp(flow,Flow)*(RelativeWorkLoad*blend);
+    }
+
+    private Vector2 WorkStageArcs(float phase)
+    {
+        float t=Mathf.PosMod(phase,1);
+        float preparation=WorkPreparation;
+        return t<preparation
+            ?new(MathF.Sin(MathF.PI*ReachEase(t/preparation)),0)
+            :new(0,MathF.Sin(MathF.PI*ReachEase((t-preparation)/(1-preparation))));
+    }
+
+    private Vector2 WorkWeightShift(float phase)
+    {
+        var arcs=WorkStageArcs(phase+WorkTorsoLead);
+        // The drive winds onto the tool side and releases towards the work.
+        // The other phrase transfers forward early and returns across centre.
+        var drive=new Vector2(.043f*arcs.X-.015f*arcs.Y,.022f*arcs.X-.038f*arcs.Y);
+        var flow=new Vector2(-.015f*arcs.X+.017f*arcs.Y,-.022f*arcs.X+.016f*arcs.Y);
+        return drive.Lerp(flow,Flow);
+    }
+
+    private Vector3 ToolWindup(float lift,float arc)
+    {
+        float crown=lift*lift;
+        var drive=new Vector3(.078f*arc,.045f*crown,.017f*arc);
+        var flow=new Vector3(-.014f*arc,-.096f*crown,.025f*arc-.054f*crown);
+        return drive.Lerp(flow,Flow);
     }
 
     // Distinct recovery paths, with zero velocity/acceleration at their
@@ -48,13 +76,17 @@ internal partial class ResidentRig
         float arc=MathF.Sin(MathF.PI*ReachEase((t-WorkPreparation)/(1-WorkPreparation)));
         return new Vector3(.008f*(1-Flow),0,-(.018f-.012f*Flow))*arc;
     }
-    private Vector3 SocialGestureTarget(int side,float timing,float emphasis)
+    private (Vector3 Target,float Weight) SocialPhrase(int side,float phase)
     {
         float mirror=side==0?-1:1;
-        // Open, forward emphasis versus a narrower, softly orbiting gesture.
-        // This alters the planned palm path before the same constrained IK.
-        float lateral=.265f-.065f*Flow+.024f*Flow*MathF.Sin(timing-.35f);
-        return new(mirror*lateral,1+emphasis+.020f*Flow*MathF.Cos(timing),
-            -.22f-emphasis*(1.36f-.48f*Flow)+.018f*Flow*MathF.Sin(timing));
+        float lead=ReachPulse(Mathf.PosMod(phase,1));
+        float echo=ReachPulse(Mathf.PosMod(phase-.13f,1));
+        float driveWeight=side==1?lead:echo*.32f;
+        float turn=Mathf.PosMod(phase+(side==1?.08f:-.045f),1);
+        float flowWeight=ReachPulse(turn)*(side==1?1:.92f);
+        float arc=MathF.Sin(turn*Mathf.Tau);
+        var drive=new Vector3(mirror*(side==1?.275f:.177f),side==1?1.035f:.87f,-.185f-.135f*lead);
+        var flow=new Vector3(mirror*(.201f+.030f*arc),1.015f+.039f*MathF.Cos(turn*Mathf.Tau),-.246f-.025f*arc);
+        return (drive.Lerp(flow,Flow),Mathf.Lerp(driveWeight,flowWeight,Flow));
     }
 }

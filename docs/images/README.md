@@ -143,9 +143,11 @@
 
 `resident-female-neck.png`／`resident-female-inspector.png` 来自公开 `visual-female-portrait.json` 的第 90／130 帧：1600×1000、固定 60 Hz、零模拟步进、8 名居民，使用稳定身份 4294967299 的实际成年女性，复用人物名录选择，再展开观察窗并切换面部／全身。它展示当前世界人物和真实界面，非图册替身；生成结果与命令轨迹同时核对实际身份及观察纯度。
 
-`resident-style-walk.png`／GIF 取自 `visual-locomotion`，上排为男性外观，下排为女性外观，三列分别为同速步行与转身、负重、持锤。GIF 采样逻辑帧 96–273，每三帧取一帧。`resident-style-work.png`／GIF 取自 `visual-work-effort`，以全身构图对照同锤作业及疲劳状态。`resident-style-social.png`／GIF 取自 `visual-social`，上排为男女交谈，下排展示分享与进食。作业和交谈采样逻辑帧 120–297，每三帧取一帧。
+`resident-style-walk.png`／GIF 来自 `whole-body-motion-style-v3` 的 `visual-locomotion`。上排为男性外观，下排为女性外观，三列分别为同速步行与转身、负重、持锤。GIF 采样逻辑帧 96–273，每三帧取一帧。
 
-三组均使用 `motionStyle=whole-body-motion-style-v3`，固定 60 Hz 视觉步长，模拟步进为零。每组分两次回放，按所列范围覆盖 `captureFrames`。PNG 直接复制第 180 帧，GIF 由原生 1600×1000 画面转换为统一调色板，60 帧、20 fps、三秒。来源、产物哈希、窗口恢复次数和解码帧逐项核对。
+`resident-style-work.png`／GIF 和 `resident-style-social.png`／GIF 使用 `motionStyle=staged-motion-phrases-v4`。`visual-work-effort` 从侧前方对照外侧蓄力和身前提锤，并显示正常与疲劳状态。`visual-social` 上排对照单手强调与双手成组表达，下排展示分享和进食。两组均采样逻辑帧 120–297，每三帧取一帧。
+
+各组采用固定 60 Hz 视觉步长，模拟步进为零。每组分两次回放，按所列范围覆盖 `captureFrames`。PNG 直接复制第 180 帧，GIF 由原生 1600×1000 画面转换为统一调色板，60 帧、20 fps、三秒。来源、产物哈希、窗口恢复次数和解码帧逐项核对。
 
 `living-paths.png` 来自 `world-living-paths` 第 90 帧，记录 80 名初始居民预运行 14 日后的实际小径。`ecology-detail.png` 来自 `rooted-resource-anchors-v1` 的共享环境模型图册。
 

@@ -56,12 +56,12 @@ internal partial class ModelGallery : PanelContainer
         }
         else if(Collection=="work-effort")
         {
-            grid.Columns=2;body.GetChild<Label>(0).Text="同一手锤 · 从脚下支撑到肩肘回收";
+            grid.Columns=2;body.GetChild<Label>(0).Text="同一手锤 · 外侧蓄力与身前提锤";
             for(int condition=0;condition<2;condition++)for(int frame=0;frame<2;frame++)
             {
                 var rig=models.Resident(frame==0?17:55,false,JobType.Builder);
                 rig.SetWorkCondition(condition==0?0:.8f,1);
-                ActionCard(grid,rig,ActionKind.BuildHouse,(frame==0?"男性外观":"女性外观")+(condition==0?" · 状态良好":" · 疲劳后"));
+                ActionCard(grid,rig,ActionKind.BuildHouse,(frame==0?"男性 · 外侧蓄力":"女性 · 身前提锤")+(condition==0?" · 状态良好":" · 疲劳后"));
             }
         }
         else if(Collection=="face-frames")
@@ -325,7 +325,7 @@ internal partial class ModelGallery : PanelContainer
         if(Collection=="work-effort")
         {
             camera.Size=2.35f;
-            camera.Position=target+new Vector3(1.15f,.12f,4);
+            camera.Position=target+new Vector3(2.6f,.12f,4);
             camera.LookAt(target);
         }
         if(Collection is "social" or "social-side")

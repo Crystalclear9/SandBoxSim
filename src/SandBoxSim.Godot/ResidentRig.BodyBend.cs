@@ -21,7 +21,7 @@ internal partial class ResidentRig
         // Solve the small relaxed stance against the original ankle anchors.
         // Pelvic sway alone would make rigid legs slide through the ground.
         var leg=Legs[side];var prior=leg.Basis;var priorKnee=Knees[side].Rotation.X;
-        var anchor=new Vector3(side==0?-HipHalfWidth:HipHalfWidth,HipHeight-ThighLength-ShinLength,-.04f);
+        var anchor=RestFootCenter(side);
         var target=anchor-FootCenterOffset-leg.Position;
         float roll=MathF.Atan2(target.X,-target.Y);var rollBasis=new Basis(Vector3.Back,roll);
         var sagittal=rollBasis.Inverse()*target;float lower=ShinLength,distance=sagittal.Length();

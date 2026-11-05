@@ -111,12 +111,14 @@ internal partial class ResidentRig
         return MathF.Min(arc,height-HipHeight-.002f);
     }
 
+    private Vector3 RestFootCenter(int side)=>new(side==0?-HipHalfWidth:HipHalfWidth,
+        HipHeight-ThighLength-ShinLength,-.04f);
+
     private void PlantPickupLeg(int side,float weight)
     {
         if(weight<=.000001f)return;
         var foot=Legs[side].Transform*Knees[side].Transform*Feet[side].Transform;
-        var anchor=new Vector3(side==0?-HipHalfWidth:HipHalfWidth,HipHeight-ThighLength-ShinLength,-.04f);
-        SolveLegTo(side,foot.Origin.Lerp(anchor,weight),new Basis(foot.Basis.GetRotationQuaternion().Slerp(Quaternion.Identity,weight)));
+        SolveLegTo(side,foot.Origin.Lerp(RestFootCenter(side),weight),new Basis(foot.Basis.GetRotationQuaternion().Slerp(Quaternion.Identity,weight)));
     }
 
     private void PoseWalkingLeg(int side,float weight)
