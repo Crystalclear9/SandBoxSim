@@ -140,8 +140,10 @@ internal partial class ModelGallery : PanelContainer
         }
         else if(Collection is "social" or "social-side")
         {
+            grid.Columns=2;
             body.GetChild<Label>(0).Text="居民生活 · 注视、交谈与分享";
-            ActionCard(grid,models.Resident(17,false,JobType.Gatherer),ActionKind.Socialize,"交谈 · 眼神、点头与张手表达");
+            ActionCard(grid,models.Resident(17,false,JobType.Gatherer),ActionKind.Socialize,"男性外观 · 开放式手势与强调");
+            ActionCard(grid,models.Resident(55,false,JobType.Gatherer),ActionKind.Socialize,"女性外观 · 弧线手势与柔和回收");
             ActionCard(grid,models.Resident(19,false,JobType.Trader),ActionKind.ShareFood,"分享 · 双手递送");
             ActionCard(grid,models.Resident(42,false,JobType.Farmer),ActionKind.Eat,"进食 · 手口配合");
         }

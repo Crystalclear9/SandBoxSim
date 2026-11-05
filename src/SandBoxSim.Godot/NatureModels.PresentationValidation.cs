@@ -157,6 +157,15 @@ internal sealed partial class NatureModels
                 float right=(rig.WorkLift(h)-rig.WorkLift(0))/h;
                 if(MathF.Abs(left-right)>.005f||MathF.Abs(rig.WorkLift(.27f)-rig.WorkLift(1.27f))>.00001f)
                     throw new InvalidOperationException("Motion style breaks periodic stroke continuity");
+                for(int i=0;i<=1000;i++)
+                {
+                    var offset=rig.StrokeFollowThrough(i/1000f);
+                    if(!offset.IsFinite()||offset.Length()>.020f||offset.Y!=0)
+                        throw new InvalidOperationException("Stroke recovery leaves its bounded spatial arc");
+                }
+                if(rig.StrokeFollowThrough(0)!=Vector3.Zero||rig.StrokeFollowThrough(1)!=Vector3.Zero
+                    ||rig.StrokeFollowThrough(1-h).Length()/h>.001f)
+                    throw new InvalidOperationException("Stroke recovery snaps at its periodic boundary");
             }
             for(int frame=0;frame<600;frame++)
             {
@@ -173,6 +182,22 @@ internal sealed partial class NatureModels
             double walkRms=Math.Sqrt(walk/walking),workRms=Math.Sqrt(work/working);
             if(!double.IsFinite(walkRms)||!double.IsFinite(workRms)||walkRms<.001||workRms<.005)
                 throw new InvalidOperationException($"Motion profiles remain visually identical: walk={walkRms}, work={workRms}");
+            double social=0;int socialSamples=0;
+            for(int frame=0;frame<420;frame++)
+            {
+                foreach(var rig in new[]{a,b})rig.PoseAction(1f/60,ActionKind.Socialize,ActionPhase.Executing,false,0);
+                if(frame<180)continue;
+                for(int side=0;side<2;side++)
+                {
+                    var pa=InTorso(a.Hands[side],a.Torso).Origin;var pb=InTorso(b.Hands[side],b.Torso).Origin;
+                    if(!pa.IsFinite()||!pb.IsFinite())throw new InvalidOperationException("Invalid styled social hand");
+                    social+=Math.Pow(pa.DistanceTo(pb),2);socialSamples++;
+                }
+            }
+            double socialRms=Math.Sqrt(social/socialSamples);
+            if(socialRms<.003||a.StrokeFollowThrough(.8f).DistanceTo(b.StrokeFollowThrough(.8f))<.003f)
+                throw new InvalidOperationException("Style changes timing without distinct gesture/recovery paths");
+            GD.Print($"SPATIAL_MOTION_STYLE_PASS: identical body, bilateral social wrist RMS={socialRms:F4} m; distinct bounded recovery arcs, fixed endpoints and continuous wrap");
             GD.Print($"MOTION_STYLE_PASS: identical body/capacity/speed, solved wrist/tool RMS separation={walkRms:F4}/{workRms:F4} m; periodic stroke continuity; art direction, not sex classification");
         }
         finally{a.Free();b.Free();}

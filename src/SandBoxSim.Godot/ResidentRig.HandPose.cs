@@ -142,7 +142,8 @@ internal partial class ResidentRig
     private (Vector3,Basis) WorkPose(ResidentTool kind,float phase)
     {
         float lift=WorkLift(phase);
-        if(kind==ResidentTool.Hoe)return (new(.10f,.84f+lift*.16f,-.27f+lift*.06f),Basis.FromEuler(new Vector3(.25f+lift*.55f,0,.50f)));
+        var recovery=StrokeFollowThrough(phase);
+        if(kind==ResidentTool.Hoe)return (new Vector3(.10f,.84f+lift*.16f,-.27f+lift*.06f)+recovery*.5f,Basis.FromEuler(new Vector3(.25f+lift*.55f,0,.50f)));
         if(kind==ResidentTool.Spear)return (new(.10f,.99f,-.24f-lift*.12f),Basis.FromEuler(new Vector3(-1.1f,0,.45f)));
         float prepare=WorkPreparation;
         float arc=phase<prepare?MathF.Sin(MathF.PI*ReachEase(phase/prepare)):0;
@@ -160,7 +161,7 @@ internal partial class ResidentRig
         // Keeping the wrist below shoulder height throughout instead made
         // this a forearm-only motion, with the head passing by the cheek.
         float height=.92f+lift*(kind==ResidentTool.Hammer?.46f:.26f);
-        return (new((kind==ResidentTool.Hammer?.26f:.10f)+arc*(.035f-.020f*Flow),height,depth),rotation);
+        return (new Vector3((kind==ResidentTool.Hammer?.26f:.10f)+arc*(.035f-.020f*Flow),height,depth)+recovery,rotation);
     }
     // Zero velocity and acceleration at both ends of an intentional reach.
     internal static float ReachEase(float t){t=Math.Clamp(t,0,1);return t*t*t*(10+t*(-15+6*t));}

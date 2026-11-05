@@ -220,13 +220,13 @@ internal partial class ResidentRig : Node3D
         if(executing&&usingTool&&ToolHeld&&wanted==CurrentTool&&_draw>=.99f)_strokePhase=Mathf.PosMod(_strokePhase+delta/WorkPeriod,1);
         var stance=WorkSupport(delta,executing&&usingTool&&ToolHeld&&wanted==CurrentTool&&!_carrying,
             (1-_activity)*(1-Smooth(_pickupBlend)));
-        float effort=executing&&usingTool?(.5f-WorkLift(_strokePhase+.035f))*.045f*StrokeAccent*RelativeWorkLoad*Smooth(_workBlend):0;
+        float effort=executing&&usingTool?(.5f-WorkLift(_strokePhase+WorkTorsoLead))*.045f*StrokeAccent*RelativeWorkLoad*Smooth(_workBlend):0;
         float desiredLean=resting?-.16f:Mathf.Lerp(usingTool?-.035f-.065f*Smooth(_workBlend)-effort:-.025f*_activity+.007f*MathF.Sin(_phase*.53f+identityPhase)*(1-_activity),-.58f,Smooth(_pickupBlend));
         float bareParticipation=Smooth(_bareBlend)*(1-Smooth(_pickupBlend));
         float reachLean=-Math.Clamp(-_previousHands[1].Origin.Z-.12f,0,.26f)*.12f*bareParticipation;
         float reachTurn=Math.Clamp(_previousHands[1].Origin.X,-.22f,.22f)*.09f*bareParticipation;
         var torsoAngles=Torso.Rotation;
-        DampMotion(ref torsoAngles,ref _torsoVelocity,new Vector3(desiredLean+reachLean,(usingTool?effort*1.8f:0)+reachTurn+wave*GaitPelvisYaw*.85f*gaitWeight+_gaitTurn*.16f*gaitWeight,MathF.Sin(_gaitCycle*MathF.Tau)*ThoraxSway*gaitWeight)+_referenceChest,TorsoFollowTime,delta);
+        DampMotion(ref torsoAngles,ref _torsoVelocity,new Vector3(desiredLean+reachLean,(usingTool?effort*1.8f:0)+reachTurn+wave*GaitPelvisYaw*.85f*gaitWeight+_gaitTurn*TurnChestShare*gaitWeight,MathF.Sin(_gaitCycle*MathF.Tau)*ThoraxSway*gaitWeight)+_referenceChest,TorsoFollowTime,delta);
         var torsoBasis=Basis.FromEuler(torsoAngles);
         var restSupport=RestSupport(delta,!moving&&_activity<.001f&&!usingTool&&!resting&&!pickup,identityPhase);
         var gaitOffset=_gaitOffset*(1-Smooth(_pickupBlend))*(resting?0:1);
@@ -240,7 +240,7 @@ internal partial class ResidentRig : Node3D
         _attentionYaw=Mathf.Lerp(_attentionYaw,_wantedAttention,1-MathF.Exp(-delta*6));
         float expressionPhase=identityPhase+ExpressionPhase;
         float phrase=Mathf.PosMod(_workTime/3.2f+expressionPhase*.1f,1),phraseEmphasis=ReachPulse(phrase);
-        var headTarget=new Vector3(Mathf.Lerp(usingTool?-.045f-effort*.4f:breath*.018f+MathF.Sin(phrase*MathF.Tau)*.025f*phraseEmphasis*_socialBlend,.15f,Smooth(_pickupBlend)),MathF.Sin(_phase*.32f+identityPhase)*.045f*(1-_activity)+_attentionYaw+_gaitTurn*.38f*gaitWeight,MathF.Sin(phrase*MathF.Tau)*.015f*_socialBlend);
+        var headTarget=new Vector3(Mathf.Lerp(usingTool?-.045f-effort*.4f:breath*.018f+MathF.Sin(phrase*MathF.Tau)*.025f*phraseEmphasis*_socialBlend,.15f,Smooth(_pickupBlend)),MathF.Sin(_phase*.32f+identityPhase)*.045f*(1-_activity)+_attentionYaw+_gaitTurn*TurnHeadShare*gaitWeight,MathF.Sin(phrase*MathF.Tau)*.015f*_socialBlend);
         Head.Quaternion=DampRotation(Head.Quaternion,ref _headVelocity,Basis.FromEuler(headTarget).GetRotationQuaternion(),.075f,delta);
         var neckPivot=new Vector3(0,NeckPivotY*Head.Scale.Y,0);
         Head.Position=HeadRest+neckPivot-Basis.FromEuler(Head.Rotation)*neckPivot;
@@ -421,7 +421,7 @@ internal partial class ResidentRig : Node3D
                 float timing=_socialTime*2.1f+expressionPhase*.73f+side*2.4f;
                 float emphasis=(.5f+.5f*MathF.Sin(timing))*.045f;
                 var rest=(Arms[side].Transform*Elbows[side].Transform*Hands[side].Transform)*(side==1?Grip!.Position:new Vector3(0,-.035f,-.0286f));
-                var target=new Vector3(side==0?-.23f:.23f,1.00f+emphasis,-.22f-emphasis);
+                var target=SocialGestureTarget(side,timing,emphasis);
                 var restBasis=Arms[side].Basis*Elbows[side].Basis*Hands[side].Basis;
                 var open=Basis.FromEuler(new Vector3(.6f,side==0?.3f:-.3f,side==0?-.35f:.35f));
                 float gesture=ReachPulse(Mathf.PosMod(_socialTime/3.2f+side*.5f+expressionPhase*.1f,1));

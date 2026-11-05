@@ -143,4 +143,5 @@
 
 `resident-female-neck.png`／`resident-female-inspector.png` 来自公开 `visual-female-portrait.json` 的第 90／130 帧：1600×1000、固定 60 Hz、零模拟步进、8 名居民，使用稳定身份 4294967299 的实际成年女性，复用人物名录选择，再展开观察窗并切换面部／全身。它展示当前世界人物和真实界面，非图册替身；生成结果与命令轨迹同时核对实际身份及观察纯度。
 
-`resident-style-work.png`／GIF 与 `resident-style-walk.png`／GIF 来自 `visual-work-effort`／`visual-body-motion`，使用 `motionStyle=power-flow-v1`、`armSwing=profiled-countermotion-v3`、`workEffort=profiled-phase-v3`。各取两次固定配置回放：PNG 为逻辑帧 180 的直接复制；GIF 为 120–297 每三帧采样的 60 个原生 1600×1000 帧，20 fps、三秒，只统一调色板，不插帧、重绘或缩放。固定 60 Hz、零模拟步进、零窗口恢复，来源与产物哈希核对后发布。其余专题保留各自采样版本。
+`resident-style-work.png`／GIF 与 `resident-style-walk.png`／GIF 来自 `visual-work-effort`／`visual-body-motion`，使用 `motionStyle=spatial-power-flow-v2`、`armSwing=elliptic-countermotion-v4`、`workEffort=arc-recovery-v4`。各取两次固定配置回放：PNG 为逻辑帧 180 的直接复制；GIF 为 120–297 每三帧采样的 60 个原生 1600×1000 帧，20 fps、三秒，只统一调色板，不插帧、重绘或缩放。固定 60 Hz、零模拟步进、零窗口恢复，来源与产物哈希核对后发布。其余专题保留各自采样版本。
+`resident-style-social.png`／GIF 来自当前 `visual-social`：上排为男女交谈，下排保留分享与进食，使用 `socialMotion=spatial-gesture-v6`。采样与上述动作演示一致：两次固定回放，逻辑帧 120–297 每三帧取样，1600×1000、60 个原生帧、20 fps、三秒；PNG 直接复制第 180 帧。当前步行、作业与交谈三组共六次回放，均核对来源、产物哈希、零窗口恢复和固定视觉步长。

@@ -18,6 +18,9 @@ internal partial class ResidentRig
         float speedScale=.74f+.24f*MathF.Min(_gaitSpeed,1.7f);
         float amplitude=(GaitArmSwing*.74f+GaitIndividual*.012f)*(1-.12f*_workFatigue)*speedScale;
         float outside=.040f+ArmRestClearance*.50f+.010f*_activity;
+        // A wider direct stroke and a narrower oval are separate spatial
+        // paths, not just playback rates of one sagittal arm animation.
+        outside+=(.014f*(1-Flow)+.008f*Flow*(.5f+.5f*MathF.Sin(phase-.25f)))*_activity;
         var shoulderTarget=new Vector3(-.025f+forward*amplitude*_activity,-mirror*.055f,-mirror*outside);
         float follow=.045f+.090f*lag+.014f*MathF.Cos(phase*2-.80f);
         var forearmTarget=new Vector3(.17f+.025f*Flow+follow*_activity*speedScale,mirror*1.40f,0);
