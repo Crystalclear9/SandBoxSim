@@ -8,10 +8,11 @@ namespace SandBoxSim.Client;
 
 public partial class WorldView3D
 {
+    private const int MeadowCandidateCount=4;
     private readonly List<(MultiMeshInstance3D Batch,List<Transform3D> Roots)> _meadowBatches=new();
     private readonly Dictionary<MultiMeshInstance3D,Transform3D[]> _meadowSeeds=new();
     private Vector3[]? _meadowRootProbes;
-    private readonly Dictionary<(Vector3 Point,Vector3 Scale,float Yaw),(int Revision,bool Valid,Transform3D Placement)> _meadowPlacements=new();
+    private readonly Dictionary<(Vector3 Point,Vector3 Scale,float Yaw),(int Revision,int Blockers,bool Valid,Transform3D Placement)> _meadowPlacements=new();
     private int[] _meadowGroundRevisions=Array.Empty<int>();
     private long _meadowPlacementEvaluations;
     private void ResetMeadowPlacements()
@@ -39,7 +40,7 @@ public partial class WorldView3D
         float patch=TerrainNoise(x*.12f,y*.12f,Game.Sim.World.Seed);
         float threshold=.26f+patch*.48f+tile.Vegetation*.10f;
         int mask=0;
-        for(int candidate=0;candidate<2;candidate++)
+        for(int candidate=0;candidate<MeadowCandidateCount;candidate++)
             if((MeadowSample(hash,candidate)&255)/255f<=threshold)mask|=1<<candidate;
         return mask;
     }
@@ -56,25 +57,36 @@ public partial class WorldView3D
     {
         var world=Game.Sim.World;
         int index=Math.Clamp((int)MathF.Floor(point.Z*.5f),0,world.Height-1)*world.Width+Math.Clamp((int)MathF.Floor(point.X*.5f),0,world.Width-1);
-        int revision=_meadowGroundRevisions[index];var key=(point,scale,yaw);
-        if(_meadowPlacements.TryGetValue(key,out var cached)&&cached.Revision==revision)
+        int revision=_meadowGroundRevisions[index],blockers=0,bit=0;
+        int tx=index%world.Width,ty=index/world.Width;
+        for(int dz=-1;dz<=1;dz++)for(int dx=-1;dx<=1;dx++,bit++)
+            if(!MeadowHabitat(tx+dx,ty+dz))blockers|=1<<bit;
+        var key=(point,scale,yaw);
+        if(_meadowPlacements.TryGetValue(key,out var cached)&&cached.Revision==revision&&cached.Blockers==blockers)
         {placement=cached.Placement;return cached.Valid;}
         _meadowPlacementEvaluations++;
         placement=Transform3D.Identity;
         if(GroundNormal(point).Y<MathF.Cos(.35f)||GroundHeight(point.X,point.Z)<.03f)
-        {_meadowPlacements[key]=(revision,false,placement);return false;}
+        {_meadowPlacements[key]=(revision,blockers,false,placement);return false;}
         var rooted=RootedPlant(point,scale,yaw);
         // The terrain can curve within the footprint even on a gentle slope.
         // Reject that patch rather than leaving peripheral roots suspended.
         bool valid=MeadowRootsFit(rooted);
         if(valid)placement=rooted;
-        _meadowPlacements[key]=(revision,valid,placement);return valid;
+        _meadowPlacements[key]=(revision,blockers,valid,placement);return valid;
+    }
+    private bool MeadowHabitat(int x,int y)
+    {
+        var world=Game.Sim.World;if(!world.IsInBounds(x,y))return false;
+        var tile=world.TileAt(x,y);
+        return tile.BuildingId==0&&tile.Fire!=FireState.Burnt&&tile.Terrain is TerrainKind.Grass or TerrainKind.Forest;
     }
     private bool MeadowRootsFit(Transform3D rooted)
     {
         foreach(var probe in MeadowRootProbes())
         {
             var root=rooted*probe;float gap=root.Y-GroundHeight(root.X,root.Z);
+            if(!MeadowHabitat((int)MathF.Floor(root.X*.5f),(int)MathF.Floor(root.Z*.5f)))return false;
             if(gap>.012f||gap<-.035f)return false;
         }
         return true;
@@ -119,6 +131,18 @@ public partial class WorldView3D
             InvalidateMeadowPlacements(new HashSet<int>{tile});
             if(TryMeadowPlacement(key.Point,key.Scale,key.Yaw,out var rebuilt)!=before||rebuilt!=originalPlacement||_meadowPlacementEvaluations!=evaluations+1)
                 throw new InvalidOperationException("Meadow support invalidation reuses stale geometry");
+            var old=Game.Sim.World.Tiles[tile];string unchanged=StateHash.ComputeDigest(Game.Sim);
+            try
+            {
+                Game.Sim.World.Tiles[tile].BuildingId=int.MaxValue;
+                long prior=_meadowPlacementEvaluations;
+                if(TryMeadowPlacement(key.Point,key.Scale,key.Yaw,out _)||_meadowPlacementEvaluations!=prior+1)
+                    throw new InvalidOperationException("Occupied meadow footprint reuses its cached placement");
+            }
+            finally{Game.Sim.World.Tiles[tile]=old;}
+            if(TryMeadowPlacement(key.Point,key.Scale,key.Yaw,out var restored)!=before||restored!=originalPlacement
+                ||StateHash.ComputeDigest(Game.Sim)!=unchanged)
+                throw new InvalidOperationException("Meadow occupancy recovery changes support or simulation");
             GD.Print("MEADOW_PLACEMENT_CACHE_PASS: unchanged accepted/rejected placement reuse, neighbourhood invalidation and identical rebuilt support");
         }
         int roots=0;
@@ -146,7 +170,7 @@ public partial class WorldView3D
             var tile=world.Tiles[index];if(tile.Terrain!=TerrainKind.Grass||tile.BuildingId!=0||tile.Fire==FireState.Burnt)continue;
             int x=index%world.Width,y=index/world.Width;uint hash=unchecked((uint)(x*73856093^y*19349663));
             float patch=TerrainNoise(x*.12f,y*.12f,world.Seed);
-            for(int candidate=0;candidate<2;candidate++)
+            for(int candidate=0;candidate<MeadowCandidateCount;candidate++)
             {
                 float boundary=((MeadowSample(hash,candidate)&255)/255f-.26f-patch*.48f)/.10f;
                 if(boundary>.26f&&boundary<.89f){selected=index;lower=boundary-.01f;upper=boundary+.01f;break;}

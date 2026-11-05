@@ -287,3 +287,5 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 `portrait.resident` 在 `person`／`person-hands` 中按十进制正整数的稳定身份选择当前世界中的存活居民，取值范围为 Int64 正数；不存在的身份返回运行失败。选择复用名录入口，不修改模拟。结果 `state.portrait.identity`／`child` 记录实际观察对象，校验器核对命令后的身份，拒绝选择未执行或被改写的记录。公开 `visual-female-portrait.json` 使用种子 839102、8 名居民、零模拟步进，观察身份 4294967299，并切换肩颈／全身构图。该入口是视觉回放控制，不增加玩家任务或 HTTP 动作。
 
 `motionStyle=spatial-power-flow-v2`、`armSwing=elliptic-countermotion-v4`、`workEffort=arc-recovery-v4` 标识成人动作风格的肩肘跟随、躯干侧摆、手势回收及作业相位分配。风格不改变模拟生产效率，但会改变姿态、图像和每帧计算；比较视觉／效率结果须冻结这些标记、完整源码、身体与工具、状态、镜头及冷／热缓存条件。`MOTION_STYLE_PASS` 是相同身体和能力条件下的实际轨迹回归，不是 RSI 或审美评分。
+
+`habitatDetail=responsive-understory-v12` 增加四候选的林下层、矮阔叶及最近八角色的草叶接触场，改变顶点着色负载与自然物放置缓存身份。`VEGETATION_CONTACT_PASS` 验证接触选择、上传、清除与模拟观察纯度；放置检查验证实际根部占用及缓存恢复。视觉／效率比较须冻结草丛数量、镜头、角色分布、源码与冷／热缓存条件，不能将植被负载变化解释为内核加速或 RSI 改进。

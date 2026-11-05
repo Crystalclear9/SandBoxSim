@@ -982,3 +982,5 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 [交谈风格演示](../images/resident-style-social.gif)与站立／步行／弯身、同工具作业演示均来自当前游戏。`SPATIAL_MOTION_STYLE_PASS` 另在同一身体上检查双手交谈轨迹差异、相同相位的回收路径差异、20 毫米空间边界和周期端点连续性，防止只有播放速度不同。原有手腕限位、左右手、握持、暂停、动作切换与同等能力节奏检查继续执行。
 
 空间与接续设计另参考[饮水动作中的关节及末端运动研究](https://pubmed.ncbi.nlm.nih.gov/38144196/)和[手臂运动平滑性的实验研究](https://elifesciences.org/articles/68013)。饮水研究观察到的差异随动作阶段变化，女性组的回手阶段并非更慢；项目采用任务相关的协调与有界美术弧线，未导入论文数据，也没有用同一速度倍率代表全部性别差异。
+
+场景地表使用 `habitatDetail=responsive-understory-v12`：共享草丛网格包含 20 片较高弯叶与 4 片矮阔叶，336 个三角形；每个适宜格最多四个候选，外围根部核对相邻地类与占用。人物与鹿狼的近景草叶接触场、占用缓存失效、接地和寻路的职责边界见[地形与场景接触](../guides/terrain-and-traces.md)。即时草叶反应是只读显示；长期压实继续来自内核。

@@ -17,8 +17,10 @@ internal sealed partial class NatureModels
             var forward=new Vector3(MathF.Cos(angle),0,MathF.Sin(angle));
             var across=new Vector3(-forward.Z,0,forward.X);
             var root=forward*radius;
-            float height=.18f+(blade*7%17)/16f*.18f;
+            bool broad=blade%6==0;
+            float height=broad?.11f+(blade%4)*.025f:.18f+(blade*7%17)/16f*.18f;
             float bend=.045f+(blade*11%13)/12f*.14f,width=.006f+(blade%5)*.002f;
+            if(broad){width*=2.2f;bend*=.65f;}
             Vector3 Point(int row,int edge)
             {
                 float t=row/4f;
@@ -33,7 +35,7 @@ internal sealed partial class NatureModels
                 if(normal.Dot(-forward)<0){(br,cr)=(cr,br);(be,ce)=(ce,be);normal=-normal;}
                 normal=normal.Normalized();
                 float dry=blade%7==0?1f:0f;
-                var pigment=new Color(.115f,.205f,.061f).Lerp(new(.235f,.215f,.11f),dry*.65f);
+                var pigment=new Color(.090f,.145f,.065f).Lerp(new(.205f,.185f,.11f),dry*.65f);
                 foreach(var v in new[]{(ar,ae),(br,be),(cr,ce)})
                 {
                     float t=v.Item1/4f;
@@ -47,6 +49,7 @@ internal sealed partial class NatureModels
         tool.Index();var mesh=tool.Commit();
         var shader=new Shader {Code=@"shader_type spatial;render_mode cull_disabled;
 uniform bool soil_bound=false;uniform sampler2D soil:filter_nearest,repeat_disable;uniform vec2 map_size=vec2(1.0);
+uniform vec4 contact_actors[8];uniform int contact_count=0;
 varying float blade_t;
 void vertex(){
     vec3 root=(MODEL_MATRIX*vec4(0,0,0,1)).xyz;blade_t=UV.y;
@@ -54,6 +57,24 @@ void vertex(){
     float wear=soil_bound?texture(soil,clamp(root.xz*.5/map_size,vec2(0),vec2(1))).g:0.0;
     float scale=max(.025,fade*(1.0-wear*.85));
     vec2 bend=vec2(sin(TIME*.8+root.x*.21+root.z*.13)*.020,cos(TIME*.65+root.z*.19)*.010);
+    vec2 push=vec2(0);float pressure=0.0;
+    for(int i=0;i<8;i++){
+        if(i>=contact_count)break;
+        vec2 away=root.xz-contact_actors[i].xz;float d2=dot(away,away);
+        if(d2>=contact_actors[i].w*contact_actors[i].w||abs(root.y-contact_actors[i].y)>=.90)continue;
+        float d=sqrt(d2);
+        float weight=(1.0-smoothstep(0.0,contact_actors[i].w,d))
+            *(1.0-smoothstep(.25,.90,abs(root.y-contact_actors[i].y)));
+        pressure=max(pressure,weight);
+        // Regularization passes continuously through a contact centre; a fixed
+        // fallback direction would flip a pressed leaf as an actor crosses it.
+        push+=away*inversesqrt(d2+.0016)*weight;
+    }
+    float push_length=length(push);if(push_length>1.0)push/=push_length;
+    // Convert a world-space push through the actual instance yaw/scale. Roots
+    // stay pinned; this is visual leaf bending, not navigation or collision.
+    if(pressure>0.0)bend+=(inverse(mat3(MODEL_MATRIX))*vec3(push.x,0,push.y)*.16).xz;
+    scale*=1.0-pressure*.65;
     VERTEX.xz+=bend*blade_t*blade_t*fade;VERTEX.y*=scale;
     vec2 derivative=2.0*blade_t*fade/.30*bend;
     NORMAL=normalize(vec3(NORMAL.x,(NORMAL.y-dot(derivative,NORMAL.xz))/scale,NORMAL.z));
@@ -80,6 +101,18 @@ void fragment(){
     {
         MeadowTurf();_meadowTurfMaterial!.SetShaderParameter("soil_bound",true);
         _meadowTurfMaterial.SetShaderParameter("soil",soil);_meadowTurfMaterial.SetShaderParameter("map_size",size);
+    }
+    internal void BindMeadowContacts(Vector4[] actors,int count)
+    {
+        MeadowTurf();_meadowTurfMaterial!.SetShaderParameter("contact_actors",actors);
+        _meadowTurfMaterial.SetShaderParameter("contact_count",count);
+    }
+    internal void ValidateMeadowContacts(Vector4[] actors,int count)
+    {
+        var uploaded=_meadowTurfMaterial!.GetShaderParameter("contact_actors").AsVector4Array();
+        if(_meadowTurfMaterial.GetShaderParameter("contact_count").AsInt32()!=count||uploaded.Length!=8)
+            throw new InvalidOperationException("Invalid meadow contact uniform budget");
+        for(int i=0;i<8;i++)if(uploaded[i]!=actors[i])throw new InvalidOperationException("Stale meadow actor uniform");
     }
     private void ValidateMeadowTurf()
     {

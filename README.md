@@ -120,3 +120,5 @@ SandBoxSim/
 游戏资源位于 `src/SandBoxSim.Godot/assets/`：`models/` 保存衍生网格与对应贴图，`materials/scanned/` 保存扫描表面及来源清单，`textures/` 保存仍需保留的材质与地图图集。旧插画、配方目录已移除。开发期间的临时截图放在 `runs/screenshots/`；清理时保留正式文档配图、游戏素材和存档。详细约定见 [文件管理](docs/development/repository-layout.md)。
 
 贡献约定见 [CONTRIBUTING.md](CONTRIBUTING.md)，代码授权见 [LICENSE](LICENSE)。
+
+地表包含交错的矮阔叶与长弯叶草丛，附近人物和鹿狼会使草叶弯折、压低；实际草根检查相邻道路、建筑和火烧占用。长期小径仍由真实行走／作业压实缓慢形成。接触范围、性能预算与场景／寻路边界见[地形与场景接触](docs/guides/terrain-and-traces.md)。

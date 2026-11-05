@@ -354,6 +354,8 @@ public partial class WorldView3D : MapView
         CancelPointerGesture();
         _pickMeshes.Clear();_brushTile=new(-1,-1);_pendingTerrain=_pendingNature=_pendingBuildings=false;
         _world = Game.Sim; _follow = -1; Clear(_terrainRoot); Clear(_props); Clear(_actors);
+        _vegetationContactClock=0;_vegetationContactCount=0;Array.Clear(_vegetationContacts);
+        _models.BindMeadowContacts(_vegetationContacts,0);
         _flowerBatches.Clear();
         _observerPaths = new SandBoxSim.Core.Pathing.AStarPathfinder(Game.Sim.World);
         _observedRoute = new Int2[Game.Sim.World.Tiles.Length]; _density = new int[Game.Sim.World.Tiles.Length];
@@ -448,7 +450,7 @@ public partial class WorldView3D : MapView
         var quality=new Dictionary<string,object> { ["worldPresentationEnabled"]=WorldPresentationEnabled,["shadowMode"]=_sunlight.DirectionalShadowMode.ToString(),
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
-            ["landscapeSurface"]="coverage-mosaic-v6",["habitatDetail"]="stratified-meadow-v10",["vegetationSurface"]="engine-faced-v2",
+            ["landscapeSurface"]="coverage-mosaic-v6",["habitatDetail"]="responsive-understory-v12",["vegetationSurface"]="engine-faced-v2",
             ["architecture"]="inset-joinery-v13",["garmentMaterial"]="quiet-linen-v17",["upperArmFlex"]="stable-contour-v3",["shoulderSkin"]="reference-figure-v25",["shoulderMotion"]="source-clavicle-v11",["motionReference"]="cmu-143-30-v1",["shoulderSurface"]="authored-bind-surface-v3",["forearmSkin"]="continuous-elbow-v9",["sleeveFairing"]="rest-detail-v2",["workPose"]="raised-hammer-v1",["reachMotion"]="palm-trajectory-v2",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
             ["animalPresentation"]="articulated-paws-v12",["residentSurface"]="linear-skin-v9",["workEffort"]="arc-recovery-v4",["toolMotion"]="constraint-feedback-v4",["bodySupport"]="planted-sagittal-v1",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="wholebody-motion-v7",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="spatial-gesture-v6",["waterSurface"]="constrained-bank-v6",["wristContour"]="continuous-source-v2",
             ["hairline"]="framed-source-root-v2",["garmentFit"]="continuous-drape-v31",["reedPanicle"]="connected-axis-v1",["bodyPresentation"]="continuous-drape-v29",["bodyFrame"]="reference-contour-physique-v31",["neckContour"]="relaxed-neckline-v5",["faceContour"]="balanced-adult-v3",["forearmProfile"]="curvature-flow-v9",["residentLocomotion"]="ankle-offset-v4",["armSwing"]="elliptic-countermotion-v4",["motionStyle"]="spatial-power-flow-v2",["limbCoordination"]="hinge-carry-v4" };
@@ -496,7 +498,7 @@ public partial class WorldView3D : MapView
         }
         finally {world.Tiles[index]=original;CheckTerrain();}
         if(StateHash.ComputeDigest(Game.Sim)!=digest)throw new InvalidOperationException("Ground presentation validation changed simulation");
-        ValidateMeadowPresentation();
+        ValidateMeadowPresentation();ValidateVegetationContacts();
         ValidateLogicalShoreline();
         GD.Print("GROUND_PRESENTATION_PASS: texture-only overlays, byte-precision wear and unchanged simulation");
     }
@@ -728,7 +730,7 @@ public partial class WorldView3D : MapView
                     ferns.Add(RootedPlant(new(px,0,pz),Vector3.One*scale,h%19+fern));
                 }
             int meadowMask=MeadowCandidateMask(tile,x,y,h);
-            for(int tuft=0;tuft<2;tuft++)
+            for(int tuft=0;tuft<MeadowCandidateCount;tuft++)
             {
                 if((meadowMask&(1<<tuft))==0)continue;
                 uint sample=MeadowSample(h,tuft);
@@ -736,7 +738,7 @@ public partial class WorldView3D : MapView
                 float px=p.X+((sample>>8)&255)/255f*1.60f-.80f;
                 float pz=p.Z+((sample>>16)&255)/255f*1.60f-.80f;
                 float variation=.62f+patch*.48f+((sample>>24)&255)/255f*.30f;
-                var clumpScale=tuft==0?new Vector3(size*1.12f,variation*.65f,size*1.12f):new Vector3(size*.90f,variation*1.10f,size*.90f);
+                var clumpScale=tuft%2==0?new Vector3(size*1.12f,variation*.65f,size*1.12f):new Vector3(size*.90f,variation*1.10f,size*.90f);
                 if(TryMeadowPlacement(new(px,0,pz),clumpScale,(sample%1000)*.006283185f,out var placement))grass.Add(placement);
             }
             if (tile.BuildingId==0&&tile.Terrain == TerrainKind.Forest && tile.Vegetation > .12f && tile.Fire != FireState.Burnt && h % 5 == 0)
@@ -827,7 +829,7 @@ public partial class WorldView3D : MapView
     private void AnimateActors(float delta)
     {
         using var profile=RenderProfile.Measure("AnimateActors");
-        var sim = Game.Sim; _poseFrame++;
+        var sim = Game.Sim; _poseFrame++;BeginVegetationContacts(delta);
         // Copy six planes once; enumerating the native array per resident multiplies interop calls.
         var frustum=_camera.GetFrustum().ToArray();
         var cameraPosition=_camera.Position;
@@ -839,6 +841,7 @@ public partial class WorldView3D : MapView
             bool moving = sim.Agents.PhaseOf(slot) == ActionPhase.Moving;
             var rendered=GroundedActorPosition(current,target,delta,10,Game.VisualPaused);
             if(direction.LengthSquared()>.000001f)node.Position=rendered;
+            OfferVegetationContact(rendered,.55f);
             bool visible=ActorInView(rendered+Vector3.Up*.9f,frustum);
             if(node.Visible!=visible)node.Visible=visible;
             _poseSchedule.Accumulate(pair.Key,delta,visible&&!Game.VisualPaused);
@@ -878,12 +881,14 @@ public partial class WorldView3D : MapView
         foreach (var pair in _deer)
         { int slot = (int)(pair.Key & uint.MaxValue); if (sim.Wildlife.IsAlive(slot)) { MoveAnimal(pair.Value, PositionAt(sim.Wildlife.XOf(slot), sim.Wildlife.YOf(slot)), delta,sim.Wildlife.ActionOf(slot)==ActionKind.Eat); } }
         foreach (var wolf in sim.Predators.Wolves) if (_wolves.TryGetValue(wolf.Id, out Node3D? node)) { MoveAnimal(node, PositionAt(wolf.X, wolf.Y), delta); }
+        EndVegetationContacts();
     }
     private void MoveAnimal(Node3D node, Vector3 target, float delta,bool grazing=false)
     {
-        if(Game.VisualPaused)return;
+        if(Game.VisualPaused){OfferVegetationContact(node.Position,.75f);return;}
         Vector3 direction = target - node.Position;
         var location=GroundedActorPosition(node.Position,target,delta,8,Game.VisualPaused);node.Position=location;
+        OfferVegetationContact(location,node is AnimalRig?.75f:.65f);
         if (direction.LengthSquared() > .02f) { node.Rotation = new Vector3(0, Mathf.LerpAngle(node.Rotation.Y,MathF.Atan2(direction.X, direction.Z) + MathF.PI,1-MathF.Exp(-delta*9)), 0); }
         if(_camera.Position.DistanceSquaredTo(node.Position)<24*24)
         {
