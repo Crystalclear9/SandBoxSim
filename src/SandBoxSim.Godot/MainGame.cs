@@ -16,6 +16,9 @@ public partial class MainGame : Control
 {
     public Simulation Sim { get; private set; } = null!;
     public bool VisualPaused => _speed == 0;
+    internal const int ObservationSpeed=-1;
+    internal bool PacingResidents=>(_speed==ObservationSpeed||VisualPaused&&_resumeSpeed==ObservationSpeed)
+        &&(_evaluation==null||_evaluation.TicksPerFrame==0);
     public PlayerTool Tool { get; private set; }
     public int Scenario { get; private set; }
     public WildPlaces Wild { get; private set; } = new();
@@ -41,7 +44,7 @@ public partial class MainGame : Control
     private readonly System.Collections.Generic.List<(CheckBox Control, Func<bool> Read)> _rules = new();
     private FileDialog _save = null!, _load = null!;
     private double _pending, _refresh;
-    private int _speed = 4, _selected = -1, _selectedGeneration;
+    private int _speed = ObservationSpeed, _selected = -1, _selectedGeneration;
     private long _selectedPersonId;
     private int _selectedAnimal = -1, _selectedAnimalGeneration, _selectedWolf = -1;
     private int _selectedX = 50, _selectedY = 50;
@@ -468,7 +471,7 @@ public partial class MainGame : Control
             }
             if (_selfTest) { SelectTool(PlayerTool.Inspect); _drawer.CurrentTab = 0; }
         }
-        if (_evaluation==null && !_selfTest && _speed > 0)
+        if (_evaluation==null && !_selfTest && !VisualPaused)
         {
             AdvanceInteractive(delta);
         }
@@ -824,6 +827,9 @@ public partial class MainGame : Control
                 ((WorldView3D)_map).ValidateWorldDimensions();
                 ((WorldView3D)_map).ValidateIncrementalBuildings();
                 ValidateInteractiveBudget();
+                int travelSpeed=_speed,travelResume=_resumeSpeed;
+                try{SetSpeed(ObservationSpeed);((WorldView3D)_map).ValidateResidentWorldMotion();}
+                finally{SetSpeed(travelSpeed);_resumeSpeed=travelResume;}
                 var rectangular = new Simulation(Sim.Config.Clone(), 60, 44, 17);
                 string rectangularSave = SaveFile.Encode(rectangular);
                 Sim = Simulation.CreateForRestore(rectangular.Config.Clone(), 60, 44, 17);

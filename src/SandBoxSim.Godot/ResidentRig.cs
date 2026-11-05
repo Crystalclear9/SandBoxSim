@@ -94,6 +94,9 @@ internal partial class ResidentRig : Node3D
     public readonly Dictionary<ResourceKind,Mesh> CargoMeshes=new();
     private bool _hasCargo;
     private ResourceKind _cargoKind;
+    internal ResidentTravel Travel;
+    internal Vector2I StationTile;
+    internal int StationSlot=-1;
     private ActionKind _observedAction,_completionAction;
     private ActionPhase _observedPhase;
     private float _observedExecution,_completionRemaining,_completionAge;
@@ -267,7 +270,7 @@ internal partial class ResidentRig : Node3D
         DampMotion(ref torsoAngles,ref _torsoVelocity,chestTarget+walkingChest+workingChest+socialChest+idleChest+_referenceChest,TorsoFollowTime,delta);
         var torsoBasis=Basis.FromEuler(torsoAngles);
         var gaitOffset=_gaitOffset*(1-pickupWeight)*(resting?0:1);
-        var lowerShift=stance+restSupport+gaitOffset+pickupShift;
+        var lowerShift=stance+restSupport+gaitOffset+pickupShift+(IsPivoting?PivotSupport():Vector3.Zero);
         var translation=lowerShift+Vector3.Up*vertical;
         var hip=new Vector3(0,HipHeight,0);Torso.Transform=new(torsoBasis,hip-torsoBasis*hip+translation);
         UpdateBodyBend(lowerShift,new Basis(Quaternion.Identity.Slerp(GaitPelvisBasis.GetRotationQuaternion(),(1-pickupWeight)*(resting?0:1))));
@@ -295,6 +298,7 @@ internal partial class ResidentRig : Node3D
             if(pickupWeight>0)SolveLegTo(i,RestFootCenter(i),Basis.Identity);
             PoseWalkingLeg(i,gaitWeight);
             PoseArrivalLeg(i);
+            PosePivotLeg(i);
             PoseFreeArm(i,delta,identityPhase,idleWeight,restSupport.X);
         }
         SyncTrousers();

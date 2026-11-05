@@ -23,13 +23,14 @@ public partial class MainGame
         _dayLabel=HudStyle.Label("第 1 天",13);_dayLabel.SizeFlagsHorizontal=SizeFlags.ExpandFill;timeHeading.AddChild(_dayLabel);
         _playStateLabel=HudStyle.Label("",11,true);_playStateLabel.SizeFlagsVertical=SizeFlags.ShrinkCenter;timeHeading.AddChild(_playStateLabel);
         var timeRow=new HBoxContainer();timeRow.AddThemeConstantOverride("separation",2);timeBox.AddChild(timeRow);
-        foreach(int speed in new[]{0,1,4,8,16,32})
+        foreach(int speed in new[]{0,ObservationSpeed,1,4,8,16,32})
         {
             int chosen=speed;
-            var button=ActionButton(timeRow,speed==0?"暂停":speed+"×",()=>SetSpeed(chosen==0?(_speed==0?_resumeSpeed:0):chosen));
+            var button=ActionButton(timeRow,speed==0?"暂停":SpeedName(speed),()=>SetSpeed(chosen==0?(_speed==0?_resumeSpeed:0):chosen));
             button.Name=speed==0?"WorldPauseResume":"WorldSpeed"+speed;
-            button.ToggleMode=true;button.CustomMinimumSize=new(speed==0?52:38,36);
+            button.ToggleMode=true;button.CustomMinimumSize=new(speed==0?48:speed==ObservationSpeed?40:32,36);
             button.SizeFlagsHorizontal=SizeFlags.ExpandFill;button.AddThemeFontSizeOverride("font_size",13);
+            if(speed==ObservationSpeed)button.TooltipText="实景步速 · 以适合近看居民步行与工作的速度演化";
             _speedButtons[speed]=button;
         }
         SetSpeed(_speed);
@@ -148,6 +149,12 @@ public partial class MainGame
         int speed=_speed,resume=_resumeSpeed;
         try
         {
+            SetSpeed(ObservationSpeed);_speedButtons[0].EmitSignal(BaseButton.SignalName.Pressed);
+            if(!VisualPaused||!PacingResidents)throw new InvalidOperationException("Pausing real-time observation loses the route mode");
+            _speedButtons[0].EmitSignal(BaseButton.SignalName.Pressed);
+            if(_speed!=ObservationSpeed||_playStateLabel.Text!="实景 流逝"||
+                InteractiveTickRate(ObservationSpeed)*Sim.Config.Ai.MoveSpeedPerTick>ResidentTravel.TilesPerSecond+.0001)
+                throw new InvalidOperationException("Real-time observation cannot resume at its paced clock");
             SetSpeed(8);_speedButtons[0].EmitSignal(BaseButton.SignalName.Pressed);
             if(_speed!=0||_speedButtons[0].Text!="继续")throw new InvalidOperationException("Pause action has no resume affordance");
             _speedButtons[0].EmitSignal(BaseButton.SignalName.Pressed);

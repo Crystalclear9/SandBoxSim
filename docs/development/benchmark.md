@@ -172,6 +172,10 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `residentLocomotion=captured-gait-grounded-arrival-v7` 标识捕捉时序、近景承重脚锚点和到站收脚。`gaitReference=cmu-contact-curves-v1` 标识两段 CMU 步行曲线。`armSwing=captured-arm-timing-v7` 标识捕捉的双侧上臂与屈肘时序。`visual-locomotion` 使用同速度成人外观、双手搬运及持锤行走到作业的对照，冻结模拟并推进动画。
 
+`residentTravel=paced-resident-route-v1` 标识世界中的有限路线缓存与近景换脚转身。`pacedResidentTravel` 记录当前是否启用实景路径；评测配置固定 `ticksPerFrame` 大于零时仍按该配置推进。`RESIDENT_WORLD_MOTION_PASS` 在真实地形和居民节点上通过正常世界更新重放相邻格转角，测量根节点速度、足部支撑、转身和到站拾取，并检查渲染未改变模拟状态。
+
+`RESIDENT_STATIONS_PASS` 在同一逻辑格放入三位居民，检查显示间距、邻居离开后的站位稳定性与模拟状态摘要。
+
 `bodyFrame=reference-contour-physique-v31` 标识胸廓、短上衣、实际骨盆／臀腿裤装及衣袖排除区的当前造型；`visual-body-frames` 的正／侧／背对照与 `visual-body-motion` 的动作对照使用实际居民网格。髋部截面取上衣及裤装的可见外包络，不能把衣摆宽度当作人体围度，也不是性别分类或 RSI 分数。
 
 `armSwing=elliptic-countermotion-v4` 标识掌面朝内的空手基础姿态、肩肘相位、前臂轴向及独立阻尼目标。`visual-arm-swing` 使用实际网格和控制器，包含正侧面及掌腕近景；人物造型与模拟输入保持独立，图片不是医学步态、视觉真实感或 RSI 分数。

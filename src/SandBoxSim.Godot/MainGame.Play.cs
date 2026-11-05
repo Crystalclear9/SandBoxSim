@@ -17,7 +17,7 @@ public partial class MainGame
     private void AdvanceInteractive(double delta)
     {
         // Keep a bounded debt and yield between ticks; never change the core tick order.
-        double rate=Sim.Config.Clock.TicksPerSecondAt1x*_speed;
+        double rate=InteractiveTickRate(_speed);
         _pending=Math.Min(_pending+Math.Min(delta,.1)*rate,Math.Max(1,rate*.25));
         int limit=Math.Min((int)_pending,Math.Max(1,Sim.Config.Clock.MaxCatchUpTicksPerFrame));
         long started=Stopwatch.GetTimestamp();
@@ -27,6 +27,9 @@ public partial class MainGame
             if((Stopwatch.GetTimestamp()-started)*1000.0/Stopwatch.Frequency>=4)break;
         }
     }
+    private double InteractiveTickRate(int speed)=>speed==ObservationSpeed
+        ?Math.Min(Sim.Config.Clock.TicksPerSecondAt1x,ResidentTravel.TilesPerSecond/Math.Max(.01,Sim.Config.Ai.MoveSpeedPerTick))
+        :Sim.Config.Clock.TicksPerSecondAt1x*speed;
     private void ValidateInteractiveBudget()
     {
         int savedSpeed=_speed;double savedPending=_pending;long before=Sim.Clock;

@@ -9,10 +9,10 @@ internal partial class ResidentRig
     // Speed remains independent of appearance; individual variation overlaps.
     internal float GaitPelvisYaw=.030f,GaitPelvisRoll=.012f,GaitArmSwing=.26f,GaitIndividual;
     internal Vector3[] BootSoleCurve=Array.Empty<Vector3>();
-    private float _gaitCycle,_gaitSpeed,_locomotionSpeed=1.05f,_turnDemand,_gaitTurn,_sampleDistance,_sampleTime;
+    private float _gaitCycle,_gaitSpeed,_locomotionSpeed=1.05f,_turnDemand,_gaitTurn,_sampleDistance,_sampleTime,_locomotionScale=1;
     private bool _worldLocomotion,_groundContactSpeed;
     private float _approachDistance;
-    internal bool InteractionSettled=>!_worldLocomotion||(_approachDistance<.035f&&_gaitSpeed<.15f&&!_finishingStep);
+    internal bool InteractionSettled=>!_worldLocomotion||(_approachDistance<.035f&&_gaitSpeed<.15f&&!_finishingStep&&!IsPivoting);
     private Vector3 _gaitOffset;
     private Vector3 _capturedChest,_capturedPelvis;
     private readonly Transform3D[] _arrivalFeet=new Transform3D[2];
@@ -35,10 +35,11 @@ internal partial class ResidentRig
 
     // Called every rendered world frame, before the distance pose scheduler.
     // Discontinuous tile resynchronisation is not interpreted as a sprint.
-    public void ObserveLocomotion(Vector3 displacement,float delta,float headingError,bool paused,float remainingDistance=0)
+    public void ObserveLocomotion(Vector3 displacement,float delta,float headingError,bool paused,float remainingDistance=0,float scale=1)
     {
         if(paused||!float.IsFinite(delta)||delta<=0)return;
         _worldLocomotion=true;
+        _locomotionScale=scale;
         float distance=new Vector2(displacement.X,displacement.Z).Length(),speed=distance/delta;
         // An adjacent tile's ordinary exponential interpolation can have a
         // high instantaneous speed. Only reject a large spatial jump, or its
@@ -77,7 +78,7 @@ internal partial class ResidentRig
         // The filtered speed still eases the first step and the final settle.
         float cruise=Mathf.SmoothStep(.20f,.80f,MathF.Min(wanted,_gaitSpeed));
         float distance=Mathf.Lerp(travel,wanted*dt,cruise);
-        _gaitCycle=Mathf.PosMod(_gaitCycle+distance/GaitCycleLength(_gaitSpeed),1);
+        _gaitCycle=Mathf.PosMod(_gaitCycle+distance/(GaitCycleLength(_gaitSpeed)*_locomotionScale),1);
         _activity=Mathf.SmoothStep(0,.80f,_gaitSpeed);
         if(!moving&&_gaitSpeed<.00001f){_gaitSpeed=0;_activity=0;}
         _gaitTurn=Mathf.Lerp(_gaitTurn,moving?_turnDemand:0,1-MathF.Exp(-dt*7));

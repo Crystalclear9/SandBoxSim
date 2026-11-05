@@ -48,7 +48,7 @@ public partial class MainGame
     private readonly Dictionary<int, Godot.Button> _speedButtons = new();
     private readonly Dictionary<HudMetricTrail,Control> _historyHoverOwners=new();
     private readonly Dictionary<HudMetricTrail,Tween> _historyHoverTransitions=new();
-    private int _resumeSpeed=1;
+    private int _resumeSpeed=ObservationSpeed;
     private readonly Dictionary<string, Godot.Button> _categoryButtons = new();
     private string _category = "生命";
     private bool _decisionDetails;
@@ -753,17 +753,18 @@ void fragment(){float opacity=.93*(1.0-smoothstep(.48,1.0,UV.y));COLOR=vec4(.065
     }
     private static Godot.Button ActionButton(Container parent, string label, Action action,bool prominent=false)
     { var button = new Godot.Button { Text = label }; HudStyle.Button(button,prominent); parent.AddChild(button); button.Pressed += action; return button; }
+    private static string SpeedName(int speed)=>speed==ObservationSpeed?"实景":speed+"×";
     private void SetSpeed(int speed)
     {
-        if(speed>0)_resumeSpeed=speed;_speed=speed;
+        if(speed!=0)_resumeSpeed=speed;_speed=speed;
         foreach(var pair in _speedButtons)pair.Value.SetPressedNoSignal(pair.Key==speed);
         if(_speedButtons.TryGetValue(0,out var pause))
-        {pause.Text=speed==0?"继续":"暂停";pause.TooltipText=speed==0?"继续演化 · 恢复 "+_resumeSpeed+" 倍速 · 空格":"暂停演化 · 空格";}
+        {pause.Text=speed==0?"继续":"暂停";pause.TooltipText=speed==0?"继续演化 · 恢复 "+SpeedName(_resumeSpeed)+" · 空格":"暂停演化 · 空格";}
         if(_playStateLabel!=null)
         {
-            _playStateLabel.Text=speed==0?"已暂停":speed+"× 流逝";
+            _playStateLabel.Text=speed==0?"已暂停":SpeedName(speed)+" 流逝";
             _playStateLabel.AddThemeColorOverride("font_color",speed==0?HudStyle.Accent:HudStyle.Muted);
-            _playStateLabel.TooltipText=speed==0?"模拟已暂停 · 空格继续":"世界以 "+speed+" 倍速演化 · 空格暂停";
+            _playStateLabel.TooltipText=speed==0?"模拟已暂停 · 空格继续":speed==ObservationSpeed?"世界按近景步速演化 · 空格暂停":"世界以 "+speed+" 倍速演化 · 空格暂停";
         }
     }
     private void ShowCategory(string category)

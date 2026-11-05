@@ -201,7 +201,11 @@ public partial class WorldView3D : MapView
         if (_camera == null || !WorldPresentationEnabled) { return; }
         if (!ReferenceEquals(_world, Game.Sim)) { RebuildWorld(); }
         if (_follow >= 0 && Game.Sim.Agents.IsSlotAlive(_follow) && Game.Sim.Agents.GenerationOf(_follow) == _followGeneration)
-            { _target = PositionAt(Game.Sim.Agents.XOf(_follow), Game.Sim.Agents.YOf(_follow)); }
+        {
+            var id=Game.Sim.Society.Identity(_follow);
+            var focus=_people.TryGetValue(id,out var followed)?followed.Position:PositionAt(Game.Sim.Agents.XOf(_follow),Game.Sim.Agents.YOf(_follow));
+            _target=_target.Lerp(focus,1-MathF.Exp(-(float)delta*9));
+        }
         UpdateCamera();UpdateBuildingDetail();
         _poll += delta;
         if (_poll >= .3)
@@ -362,6 +366,7 @@ public partial class WorldView3D : MapView
         _observedRoute = new Int2[Game.Sim.World.Tiles.Length]; _density = new int[Game.Sim.World.Tiles.Length];
         _routes.Mesh = null; _natureSignature = 0;
         foreach (var e in _effects) { e.Node.QueueFree(); } _effects.Clear(); _people.Clear(); _deer.Clear(); _wolves.Clear(); _personModels.Clear();_poseSchedule.Clear();
+        _residentStationWait=0;_residentStationMasks.Clear();
         ResetLivingDetails(); ResetBuildingVisuals(); BuildTerrain(); BuildNature(); BuildBuildings(); SyncEntities(); SyncHazards();
     }
     private void CheckTerrain(bool deferred=false)
@@ -449,7 +454,7 @@ public partial class WorldView3D : MapView
     }
     internal object RenderQualityState(object[]? galleries=null,object? portrait=null)
     {
-        var quality=new Dictionary<string,object> { ["worldPresentationEnabled"]=WorldPresentationEnabled,["shadowMode"]=_sunlight.DirectionalShadowMode.ToString(),
+        var quality=new Dictionary<string,object> { ["worldPresentationEnabled"]=WorldPresentationEnabled,["residentTravel"]=ResidentTravel.Version,["pacedResidentTravel"]=Game.PacingResidents,["shadowMode"]=_sunlight.DirectionalShadowMode.ToString(),
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="wet-bank-mosaic-v7",["sceneryContact"]="solid-scenery-corridors-v3",["habitatDetail"]="responsive-understory-v12",["vegetationSurface"]="engine-faced-v2",
@@ -796,10 +801,17 @@ public partial class WorldView3D : MapView
         {
             long id = sim.Society.Identity(slot); live.Add(id);
             bool child = sim.Agents.LifeStageOf(slot) == LifeStage.Child; JobType job = sim.Agents.JobOf(slot);
-            if (_people.TryGetValue(id, out Node3D? old) && _personModels[id] != (child, job)) { old.QueueFree(); _people.Remove(id);_poseSchedule.Forget(id); }
-            if (!_people.ContainsKey(id))
+            bool exists=_people.TryGetValue(id,out var old);
+            if (!exists||_personModels[id]!=(child,job))
             {
-                var person = _models.Human(slot, child, job); _actors.AddChild(person); person.Position = PositionAt(sim.Agents.XOf(slot), sim.Agents.YOf(slot));
+                var person=(ResidentRig)_models.Human(slot,child,job);_actors.AddChild(person);
+                if(old is ResidentRig previous)
+                {
+                    person.Position=previous.Position;person.Rotation=previous.Rotation;person.Travel=previous.Travel;
+                    person.StationTile=previous.StationTile;person.StationSlot=previous.StationSlot;
+                    previous.QueueFree();_poseSchedule.Forget(id);
+                }
+                else person.Position=PositionAt(sim.Agents.XOf(slot),sim.Agents.YOf(slot));
                 _people[id] = person; _personModels[id] = (child, job);
             }
         }
@@ -835,10 +847,12 @@ public partial class WorldView3D : MapView
         // Copy six planes once; enumerating the native array per resident multiplies interop calls.
         var frustum=_camera.GetFrustum().ToArray();
         var cameraPosition=_camera.Position;
+        bool paced=Game.PacingResidents,paused=Game.VisualPaused;
+        if(paced&&!paused)UpdateResidentStations(delta);
         foreach (var pair in _people)
         {
             int slot = (int)(pair.Key & uint.MaxValue); if (!sim.Agents.IsSlotAlive(slot) || sim.Society.Identity(slot) != pair.Key) { _poseSchedule.Forget(pair.Key);continue; }
-            var node = pair.Value;
+            var node = (ResidentRig)pair.Value;
             int x=sim.Agents.XOf(slot),y=sim.Agents.YOf(slot);
             var target=PositionAt(x,y);
             var current=node.Position;
@@ -849,19 +863,44 @@ public partial class WorldView3D : MapView
             bool gathering=phase==ActionPhase.Executing&&(action is ActionKind.GatherWood or ActionKind.GatherStone or ActionKind.GatherIron);
             if(gathering&&interest.X==x&&interest.Y==y&&(int)MathF.Floor(current.X*.5f)==x&&(int)MathF.Floor(current.Z*.5f)==y)
                 target=SceneryWorkPosition(x,y,target,action);
+            else if(paced&&!gathering&&phase!=ActionPhase.Moving&&node.StationSlot>0&&node.StationTile==new Vector2I(x,y))
+            {
+                var offset=ResidentStationOffsets[node.StationSlot];
+                target+=new Vector3(offset.X,0,offset.Y);
+                target.Y=GroundHeight(target.X,target.Z);
+            }
             // A local interaction approach has time for actual steps.
             // Keep catch-up for long routes and accelerated world travel.
             bool localApproach=phase!=ActionPhase.Moving&&Horizontal(target-current).LengthSquared()<.85f*.85f;
-            var rendered=SceneryActorPosition(current,target,delta,10,Game.VisualPaused,
-                localApproach?ResidentRig.MaximumGaitSpeed:float.PositiveInfinity);
+            Vector3 rendered=current;
+            Vector2 travelHeading=Vector2.Zero;
+            float remaining=Horizontal(target-current).Length();
+            if(!paused)
+            {
+                if(paced)
+                {
+                    node.Travel.Observe(current,new(x,y),target);
+                    float motor=node.Travel.AdvanceSpeed(current,node.Rotation.Y,delta);
+                    travelHeading=node.Travel.Heading(current);
+                    rendered=SceneryActorPosition(current,node.Travel.Goal,delta,24,false,motor);
+                    remaining=node.Travel.Remaining(rendered);
+                }
+                else
+                {
+                    node.Travel=default;
+                    rendered=SceneryActorPosition(current,target,delta,10,false,
+                        localApproach?ResidentRig.MaximumGaitSpeed:float.PositiveInfinity);
+                    remaining=Horizontal(target-rendered).Length();
+                }
+            }
             var direction=rendered-current;
-            bool settled=SettledAt(rendered,target);
+            bool settled=remaining<.035f;
             if(rendered!=current)node.Position=rendered;
             OfferVegetationContact(rendered,.55f);
             bool visible=ActorInView(rendered+Vector3.Up*.9f,frustum);
             if(node.Visible!=visible)node.Visible=visible;
-            _poseSchedule.Accumulate(pair.Key,delta,visible&&!Game.VisualPaused);
-            if(!visible){((ResidentRig)node).ResetGroundContacts();continue;}
+            _poseSchedule.Accumulate(pair.Key,delta,visible&&!paused);
+            if(!visible){node.ResetGroundContacts();node.CancelPivot();continue;}
             bool hasInterest=(hasTarget||gathering)&&sim.World.IsInBounds(interest);
             var interestPoint=hasInterest?SceneResourceFocus(interest.X,interest.Y,action):target;
             if(sim.Actions.TryGetInteractionPartner(slot,out int partner))
@@ -870,42 +909,70 @@ public partial class WorldView3D : MapView
                 interestPoint=_people.TryGetValue(identity,out var other)?other.Position:PositionAt(sim.Agents.XOf(partner),sim.Agents.YOf(partner));hasInterest=true;
             }
             if(action==ActionKind.Drink&&phase==ActionPhase.Executing
-                &&settled&&TryShoreContact(target,out var bank))
+                &&settled&&TryShoreContact(PositionAt(x,y),out var bank))
             {interestPoint=bank;hasInterest=true;OfferWaterContact(bank,.55f);}
-            bool followsMovement=(!settled||phase!=ActionPhase.Executing)&&Horizontal(direction).LengthSquared()>.000001f;
-            if (!Game.VisualPaused && followsMovement) { node.Rotation = new Vector3(0, Mathf.LerpAngle(node.Rotation.Y,MathF.Atan2(direction.X, direction.Z) + MathF.PI,1-MathF.Exp(-delta*12)), 0); }
-            if(!Game.VisualPaused&&hasInterest&&settled&&phase==ActionPhase.Executing)
-            {
-                var facing=hasInterest?interestPoint-rendered:Vector3.Zero;
-                if(facing.X*facing.X+facing.Z*facing.Z>.002f) node.Rotation=new(0,Mathf.LerpAngle(node.Rotation.Y,MathF.Atan2(facing.X,facing.Z)+MathF.PI,1-MathF.Exp(-delta*7)),0);
-            }
             float distanceSquared=cameraPosition.DistanceSquaredTo(rendered);
+            var heading=Horizontal(direction);
+            if(paced&&travelHeading.LengthSquared()>.001f&&(heading.LengthSquared()<.000001f||
+                heading.Normalized().Dot(travelHeading.Normalized())>.78f))
+                heading=travelHeading;
+            bool followsMovement=(!settled||phase!=ActionPhase.Executing)&&heading.LengthSquared()>.000001f;
+            float yaw=node.Rotation.Y,headingError=0;
+            if(!paused)
+            {
+                var facing=Horizontal(interestPoint-rendered);
+                bool faceInterest=hasInterest&&settled&&phase==ActionPhase.Executing&&facing.LengthSquared()>.002f;
+                if(followsMovement)
+                {
+                    float goal=HeadingYaw(heading);
+                    yaw=paced?TurnResident(yaw,goal,delta,3.2f):Mathf.LerpAngle(yaw,goal,1-MathF.Exp(-delta*12));
+                    headingError=Mathf.AngleDifference(yaw,goal);
+                    node.FadePivot(delta);
+                }
+                else if(faceInterest)
+                {
+                    float goal=HeadingYaw(facing);
+                    if(paced&&distanceSquared<18*18)
+                    {
+                        if(node.IsPivoting||node.InteractionSettled)yaw=node.AdvancePivot(yaw,goal,delta);
+                    }
+                    else
+                    {
+                        node.FadePivot(delta);
+                        yaw=Mathf.LerpAngle(yaw,goal,1-MathF.Exp(-delta*7));
+                    }
+                }
+                else node.FadePivot(delta);
+                node.Rotation=new(0,yaw,0);
+            }
             // Keep position interpolation every frame; distant joint poses need fewer updates.
-            int stride=distanceSquared>45*45?8:distanceSquared>30*30?6:distanceSquared>12*12?2:1;
-            var rig=(ResidentRig)node;
-            float headingError=followsMovement?Mathf.AngleDifference(node.Rotation.Y,MathF.Atan2(direction.X,direction.Z)+MathF.PI):0;
-            rig.ObserveLocomotion(rendered-current,delta,headingError,Game.VisualPaused,new Vector2(target.X-rendered.X,target.Z-rendered.Z).Length());
-            rig.UpdateDistanceDetail(distanceSquared);
+            float fullRate=paced?17:12;
+            int stride=distanceSquared>45*45?8:distanceSquared>30*30?6:distanceSquared>fullRate*fullRate?2:1;
+            node.ObserveLocomotion(rendered-current,delta,headingError,paused,remaining,paced?node.Scale.X:1);
+            node.UpdateDistanceDetail(distanceSquared);
             if((_poseFrame+slot)%stride!=0)continue;
             var cargoKind=ResourceKind.Food;float cargoAmount=0;
             foreach(var resource in ResidentRig.CargoKinds)
             {float amount=sim.Agents.InventoryOf(slot,resource);if(amount>cargoAmount){cargoAmount=amount;cargoKind=resource;}}
-            rig.ShowCargo(cargoAmount>.01f,cargoKind);
+            node.ShowCargo(cargoAmount>.01f,cargoKind);
             var attention=hasInterest?interestPoint-rendered:Vector3.Zero;
-            rig.Attend(node.Basis.Inverse()*attention);
-            rig.SetWorkCondition(sim.Agents.FatigueOf(slot),sim.Agents.HealthOf(slot));
-            rig.PresentAction(_poseSchedule.Consume(pair.Key),action,phase,Game.VisualPaused,slot);
+            node.Attend(node.Basis.Inverse()*attention);
+            node.SetWorkCondition(sim.Agents.FatigueOf(slot),sim.Agents.HealthOf(slot));
+            node.PresentAction(_poseSchedule.Consume(pair.Key),action,phase,paused,slot);
             if(distanceSquared<18*18)
             {
-                if(!Game.VisualPaused)ConformFeet(rig);
+                if(!paused)ConformFeet(node);
             }
-            else rig.ResetGroundContacts();
+            else node.ResetGroundContacts();
         }
         foreach (var pair in _deer)
         { int slot = (int)(pair.Key & uint.MaxValue); if (sim.Wildlife.IsAlive(slot)) { MoveAnimal(pair.Value, PositionAt(sim.Wildlife.XOf(slot), sim.Wildlife.YOf(slot)), delta,sim.Wildlife.ActionOf(slot)); } }
         foreach (var wolf in sim.Predators.Wolves) if (_wolves.TryGetValue(wolf.Id, out Node3D? node)) { MoveAnimal(node, PositionAt(wolf.X, wolf.Y), delta); }
         EndVegetationContacts();EndWaterContacts();
     }
+    private static float HeadingYaw(Vector2 direction)=>MathF.Atan2(direction.X,direction.Y)+MathF.PI;
+    private static float TurnResident(float from,float to,float delta,float rate)
+        =>from+Math.Clamp(Mathf.AngleDifference(from,to),-rate*delta,rate*delta);
     private void MoveAnimal(Node3D node, Vector3 target, float delta,ActionKind action=ActionKind.None)
     {
         if(Game.VisualPaused){OfferVegetationContact(node.Position,.75f);return;}
