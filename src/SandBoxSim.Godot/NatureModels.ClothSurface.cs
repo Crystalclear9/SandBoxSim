@@ -28,13 +28,15 @@ float slub=sin(cloth_position.y*91.0+sin(cloth_position.x*23.0)*2.0)*.006;
 float dye_variation=sin(cloth_position.x*13.0+sin(cloth_position.y*19.0)) * sin(cloth_position.z*17.0+cloth_position.y*11.0)*.035;
 vec3 w=pow(abs(normalize(cloth_normal)),vec3(5.0));w/=max(.001,w.x+w.y+w.z);
 vec3 base=normalize(cloth_normal),side=sign(base+vec3(.000001));
-vec3 p=cloth_position/.27;
+// A small woven repeat reads as fabric; the old 27 cm tile enlarged its
+// photographed yarn into visible checks on a fitted torso.
+vec3 p=cloth_position/(fitted_bodice?.06:.27);
 vec3 cx=texture(weave_map,vec2(p.z,p.y*side.x)).rgb,cy=texture(weave_map,p.xz).rgb,cz=texture(weave_map,vec2(p.x,-p.y*side.z)).rgb;
 vec3 nx=texture(fibre_map,vec2(p.z,p.y*side.x)).rgb,ny=texture(fibre_map,p.xz).rgb,nz=texture(fibre_map,vec2(p.x,-p.y*side.z)).rgb;
 float thread=dot(cx*w.x+cy*w.y+cz*w.z,vec3(.2126,.7152,.0722));
 // The pinned linen map has mean linear luminance .3962. Normalize in the
 // same colour space as texture sampling, retaining its photographed weave.
-float textile=clamp(1.0+(thread-.3962)*2.0/.3962,.65,1.25);
+float textile=clamp(1.0+(thread-.3962)*(fitted_bodice?.65:2.0)/.3962,fitted_bodice?.88:.65,fitted_bodice?1.10:1.25);
 ALBEDO=figure_colour(dye.rgb,UV,fitted_bodice,torso_weight)*.68*(textile+yarn*.018+twill*.008+slub+dye_variation);
 // On the actual sewn sleeve UV2 stores rest-space metric distances. These
 // subdued stitch lines follow skinning, rather than floating above the cloth.
@@ -71,7 +73,7 @@ ALBEDO*=1.0-line*stitch*.16*fade;
 }
 vec3 grain=vec3(0,(nx.g*2.0-1.0)*side.x,nx.r*2.0-1.0)*w.x+vec3(ny.r*2.0-1.0,0,ny.g*2.0-1.0)*w.y+vec3(nz.r*2.0-1.0,(nz.g*2.0-1.0)*-side.z,0)*w.z;
 grain-=base*dot(grain,base);
-NORMAL=normalize(NORMAL+(cloth_axis_x*grain.x+cloth_axis_y*grain.y+cloth_axis_z*grain.z)*(fitted_bodice?.16:.35));
+NORMAL=normalize(NORMAL+(cloth_axis_x*grain.x+cloth_axis_y*grain.y+cloth_axis_z*grain.z)*(fitted_bodice?.10:.35));
 ROUGHNESS=clamp(nx.b*w.x+ny.b*w.y+nz.b*w.z,.78,.96);SPECULAR=.21;RIM=.10;RIM_TINT=.72;
 }" };
         var material = new ShaderMaterial { Shader = _fabricShader };material.SetShaderParameter("dye",new Color(color));

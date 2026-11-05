@@ -43,7 +43,7 @@ internal sealed partial class NatureModels
             var p=chart[i];
             active[i]=(pattern[i].X<0?1:1-Mathf.SmoothStep(.040f,.100f,pattern[i].X))*Mathf.SmoothStep(.045f,.070f,MathF.Abs(p.X))
                 *(1-Mathf.SmoothStep(.135f,.175f,MathF.Abs(p.X)))
-                *Mathf.SmoothStep(1.16f,1.19f,p.Y)*(1-Mathf.SmoothStep(1.25f,1.29f,p.Y))
+                *Mathf.SmoothStep(1.09f,1.14f,p.Y)*(1-Mathf.SmoothStep(1.25f,1.29f,p.Y))
                 *Mathf.SmoothStep(.015f,.040f,-p.Z);
             float neck=(1-Mathf.SmoothStep(.075f,.095f,MathF.Abs(p.X)))*Mathf.SmoothStep(1.20f,1.235f,p.Y);
             active[i]*=1-neck;
@@ -133,7 +133,7 @@ internal sealed partial class NatureModels
 
     private static int[] BodiceCandidates(Vector3[] chart,int index)
     {
-        const float radius=.035f;var root=chart[index];var candidates=new List<int>();
+        const float radius=.045f;var root=chart[index];var candidates=new List<int>();
         for(int j=0;j<chart.Length;j++)
         {
             var p=chart[j];
@@ -146,7 +146,7 @@ internal sealed partial class NatureModels
 
     private static bool TryBodicePatch(Vector3[] points,float[] areas,int index,out float depth,Vector3[]? chart=null,int[]? candidates=null)
     {
-        const float radius=.035f;var centre=points[index];
+        const float radius=.045f;var centre=points[index];
         Span<double> system=stackalloc double[42];Span<double> basis=stackalloc double[6];
         system.Clear();double total=0;int count=0;
         for(int n=0;n<(candidates?.Length??points.Length);n++)

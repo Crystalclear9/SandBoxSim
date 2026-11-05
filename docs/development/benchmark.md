@@ -136,7 +136,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 ## 当前渲染版本
 
-当前渲染元数据为 `animalPresentation=articulated-paws-v12`、`interface=resident-framing-memory-v28`、`architecture=inset-joinery-v13`、`garmentMaterial=rest-seam-linen-v16`、`landscapeSurface=coverage-mosaic-v6`、`habitatDetail=stratified-meadow-v10`。另外记录 `residentSurface=linear-skin-v9`、`vegetationSurface=engine-faced-v2`、`wildFlora=arched-bramble-v1`、`waterSurface=constrained-bank-v6`、`wristContour=continuous-source-v2` 、`hairline=framed-source-root-v2`、`reedPanicle=connected-axis-v1` 和 `handSurface=anatomical-regions-v1`。人物肖像的 `renderQuality.portrait.studio=continuous-inspector-v9`，并记录实际 `thumbnail` 布尔值。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。衣装领口与肩袖、人物布光、动物足部、建筑门窗接合及连续观察控件已改变，需重采相同场景的视觉和耗时基线；不能把不同像素覆盖与布局造成的耗时变化算作代码优化收益。`renderQuality.fontProfile=noto-packaged-v1` 记录随包字库策略，字体变化需要新视觉与耗时基线。`renderQuality.interfaceVisible` 标识界面是否显示，公开评测场景默认显示；沉浸观察不会自动成为新的评测指令。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
+当前渲染元数据为 `animalPresentation=articulated-paws-v12`、`interface=resident-framing-memory-v28`、`architecture=inset-joinery-v13`、`garmentMaterial=quiet-linen-v17`、`landscapeSurface=coverage-mosaic-v6`、`habitatDetail=stratified-meadow-v10`。另外记录 `residentSurface=linear-skin-v9`、`vegetationSurface=engine-faced-v2`、`wildFlora=arched-bramble-v1`、`waterSurface=constrained-bank-v6`、`wristContour=continuous-source-v2` 、`hairline=framed-source-root-v2`、`reedPanicle=connected-axis-v1` 和 `handSurface=anatomical-regions-v1`。人物肖像的 `renderQuality.portrait.studio=continuous-inspector-v9`，并记录实际 `thumbnail` 布尔值。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。衣装领口与肩袖、人物布光、动物足部、建筑门窗接合及连续观察控件已改变，需重采相同场景的视觉和耗时基线；不能把不同像素覆盖与布局造成的耗时变化算作代码优化收益。`renderQuality.fontProfile=noto-packaged-v1` 记录随包字库策略，字体变化需要新视觉与耗时基线。`renderQuality.interfaceVisible` 标识界面是否显示，公开评测场景默认显示；沉浸观察不会自动成为新的评测指令。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
 
 `reachMotion=palm-trajectory-v2` 记录手掌轨迹过渡、朝向插值、错开的社交手势与循环进食表现。动作轨迹改变需要重采相同场景的视觉及耗时基线，不能与旧动作混作效率对照。
 
@@ -176,7 +176,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `armSwing=relaxed-countermotion-v2` 标识掌面朝内的空手基础姿态、肩肘相位、前臂轴向及独立阻尼目标。`visual-arm-swing` 使用实际网格和控制器，包含正侧面及掌腕近景；人物造型与模拟输入保持独立，图片不是医学步态、视觉真实感或 RSI 分数。
 
-`bodyFrame=reference-contour-physique-v31` 的成人上衣使用缓存凸包松量，短下摆取上髋支撑；`garmentMaterial=rest-seam-linen-v16` 对应 `faired-panel-v8` 连续袖片、贴合后重算法线及较薄卷袖口。`visual-wardrobe` 以正交尺寸 0.88、目标 (0, 1.13, 0)、相机相对位置 (0.10, 0.035, 3) 展示衣装近景；它与全身 `body-frames` 分别用于表面和整体比例检查。新几何必须重采视觉与构建耗时，不能将旧图片当作当前包络。
+`bodyFrame=reference-contour-physique-v31` 的成人上衣使用缓存凸包松量，短下摆取上髋支撑；`garmentMaterial=quiet-linen-v17` 对应 `faired-panel-v8` 连续袖片、贴合后重算法线及较薄卷袖口。`visual-wardrobe` 以正交尺寸 0.88、目标 (0, 1.13, 0)、相机相对位置 (0.10, 0.035, 3) 展示衣装近景；它与全身 `body-frames` 分别用于表面和整体比例检查。新几何必须重采视觉与构建耗时，不能将旧图片当作当前包络。
 
 `reference-contour-physique-v31` 还包括按衣片最终高度取样的胸腰／上髋贴合、局部胸廓及腰背轮廓、重新导出的连续臀腿表面、同步适配的上臂与卷袖口，以及远景保留的缝片坐标。对照须使用同一身份、衣色、视角和 LOD；穿衣截面反映项目造型，不是医学分类阈值。
 
@@ -222,7 +222,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `reference-contour-physique-v31` 的身体输入由 `body-profiles.json`、统一三轴比例、十份来源支撑资产及其固定哈希共同定义。躯干、上臂、肩部 A 姿势／绑定表面、连续裤装和前臂截面共享 `shapeRecipe`。官方 CC0 写实身体通过 41 个参考点转移到 HM08，形成两套成人参考；躯干取样按完整骨骼后代排除手臂与手掌，衣袖与逆绑定同步适配。前臂拟合保留原雕刻拓扑、手指和握柄位置，比较时必须同时冻结两套参考形体位移、来源清单、截面文件与拟合代码。
 
-当前衣装按体型和款式缓存六组法线松量包络，腰带收褶与胸腹垂落使用衣片拟合后的腰带高度；中央锁骨衣片与三维肩面各自保留来源支撑。衣装使用实际缝合衣片截面、胸腹垂落、按款式组织的下摆、来源骨盆与上腿支撑、受支撑褶皱及裤裆局部松弛；裤装保持五骨绑定与靴口连接。`garmentMaterial=rest-seam-linen-v16` 标识静止表面坐标中的缝线，`residentLocomotion=ankle-offset-v4` 在踝关节求解后应用共同鞋楦的中心偏移。共同中性站姿、整体等比身高变化和近远景状态也属于比较条件。
+当前衣装按体型和款式缓存六组法线松量包络，腰带收褶与胸腹垂落使用衣片拟合后的腰带高度；中央锁骨衣片与三维肩面各自保留来源支撑。衣装使用实际缝合衣片截面、胸腹垂落、按款式组织的下摆、来源骨盆与上腿支撑、受支撑褶皱及裤裆局部松弛；裤装保持五骨绑定与靴口连接。`garmentMaterial=quiet-linen-v17` 标识静止表面坐标中的缝线，`residentLocomotion=ankle-offset-v4` 在踝关节求解后应用共同鞋楦的中心偏移。共同中性站姿、整体等比身高变化和近远景状态也属于比较条件。
 
 这些变化影响轮廓、蒙皮和缓存构建成本。效率或视觉能力对照应固定相同源码、完整资产、居民身份、衣色、相机、灯光、姿态和 LOD；旧体型与旧图片不能只改标签混作同一输入。身体截面、工具接触与变形边界检查是项目回归约束，不是人体真实度、性别识别、医学或 RSI 评分，也不能把更换体型计为程序加速收益。
 
@@ -230,35 +230,35 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `wristContour=continuous-source-v2`、`forearmProfile=curvature-flow-v9` 与 `forearmSkin=continuous-elbow-v9` 分别标记连续腕臂截面、中心线拟合与腕部渐进蒙皮。新增公开 `wrist-motion` 面板及 `visual-wrist-motion.json`，在冻结模拟、固定 60 Hz 下，对照两种成人外观的手背、掌侧和侧面，循环观察屈伸、侧偏、前臂旋转和握拳。它使用真实居民网格与骨架，不测量人体医学能力，也不作为 RSI 分数。新的连接拓扑、56 骨近手与腕部支撑会改变构建和动画成本，效率对照必须冻结同一素材、渲染版本、输入及源码。
 
-`garmentFit=reference-fit-v30`、`forearmProfile=curvature-flow-v9`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2` 区分衣片纵向弯曲／表面松弛、女性前臂表面、成人脸部比例、额前发根和静止眼睑。它们改变实际网格、缓存创建成本及显示像素；视觉／效率比较须同时冻结这些标识、输入和源码。身体配方为 `reference-contour-physique-v31`：两种成人的参考转移权重均为 1.0；五类身体支撑共享同一配方哈希。不能仅凭头脸或动作版本判断身体呈现相同。几何固定点、体积、截面与三角形检查用于回归，不是 RSI 得分。
+`garmentFit=continuous-drape-v31`、`forearmProfile=curvature-flow-v9`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2` 区分衣片纵向弯曲／表面松弛、女性前臂表面、成人脸部比例、额前发根和静止眼睑。它们改变实际网格、缓存创建成本及显示像素；视觉／效率比较须同时冻结这些标识、输入和源码。身体配方为 `reference-contour-physique-v31`：两种成人的参考转移权重均为 1.0；五类身体支撑共享同一配方哈希。不能仅凭头脸或动作版本判断身体呈现相同。几何固定点、体积、截面与三角形检查用于回归，不是 RSI 得分。
 
-`bodyPresentation=reference-figure-v28` 标识成人女性前领、小腿及鞋部的运行时成品拟合。它改变像素与网格构建成本；比较时须与 `bodyFrame=reference-contour-physique-v31`、`garmentFit=reference-fit-v30` 及源码哈希一并冻结。
+`bodyPresentation=continuous-drape-v29` 标识成人女性前领、小腿及鞋部的运行时成品拟合。它改变像素与网格构建成本；比较时须与 `bodyFrame=reference-contour-physique-v31`、`garmentFit=continuous-drape-v31` 及源码哈希一并冻结。
 
-`reference-figure-v28` 的女性成人衣装还使用独立材质状态、浅色内衫／绿灰外衣分片，以及近远景共用的静止缝片函数。远景顶点颜色保留来源染色数据，另用材质标记选择分片；因此几何截面检查不会把配色变更当成体型变更。新材质、下摆与源码均需冻结后才能比较视觉或效率结果。
+`continuous-drape-v29` 的女性成人衣装还使用独立材质状态、浅色内衫／绿灰外衣分片，以及近远景共用的静止缝片函数。远景顶点颜色保留来源染色数据，另用材质标记选择分片；因此几何截面检查不会把配色变更当成体型变更。新材质、下摆与源码均需冻结后才能比较视觉或效率结果。
 
-`reference-fit-v30` 与 `reference-figure-v28` 还记录前胸横向拟合、折痕分布、短门襟和缝线表现；来源身体为 v29。横向拟合只在成衣缓存创建时运行，但会影响首次构建成本与显示像素，效率比较应区分缓存构建和稳定回放。`CHEST_PANEL_PASS` 是最终三角面连续性与近远景一致性的回归检查，不计入 RSI 能力得分。
+`continuous-drape-v31` 与 `continuous-drape-v29` 还记录前胸横向拟合、折痕分布、短门襟和缝线表现；来源身体为 v29。横向拟合只在成衣缓存创建时运行，但会影响首次构建成本与显示像素，效率比较应区分缓存构建和稳定回放。`CHEST_PANEL_PASS` 是最终三角面连续性与近远景一致性的回归检查，不计入 RSI 能力得分。
 
-`reference-figure-v28`／`reference-fit-v30` 还覆盖女性肩背来源的运行时形体场与中性支撑重建；虽然上游 CC0 参考保持原状，衍生支撑使用 v29 配方，实际中性网格、姿态修正和缓存构建会改变。视觉及效率对照须冻结这些呈现标识和源码，不能仅按原始资产哈希判断输入相同。
+`continuous-drape-v29`／`continuous-drape-v31` 还覆盖女性肩背来源的运行时形体场与中性支撑重建；虽然上游 CC0 参考保持原状，衍生支撑使用 v29 配方，实际中性网格、姿态修正和缓存构建会改变。视觉及效率对照须冻结这些呈现标识和源码，不能仅按原始资产哈希判断输入相同。
 
-`reference-fit-v30`／`reference-figure-v28` 还包括圆领开口、薄折边、下摆／背褶与窄缝线；它们改变成衣几何及像素，来源 v29 不能单独标识相同视觉输入。`NECK_COVERAGE_PASS` 属于成品连接回归约束，不作为形体美观、人体分类或 RSI 分数。
+`continuous-drape-v31`／`continuous-drape-v29` 还包括圆领开口、薄折边、下摆／背褶与窄缝线；它们改变成衣几何及像素，来源 v29 不能单独标识相同视觉输入。`NECK_COVERAGE_PASS` 属于成品连接回归约束，不作为形体美观、人体分类或 RSI 分数。
 
-`reference-figure-v28` 还覆盖女性连续颈部的运行时延展，虽然原始头部文件未变，实际头颈顶点及像素会改变。视觉比较不能只按原始文件哈希或面部区域的旧标识判断输入相同。
+`continuous-drape-v29` 还覆盖女性连续颈部的运行时延展，虽然原始头部文件未变，实际头颈顶点及像素会改变。视觉比较不能只按原始文件哈希或面部区域的旧标识判断输入相同。
 
-`reference-figure-v28`／`reference-fit-v30` 区分前胸皮肤采样与衣料凸包，并改变实际衣装曲面及上胸分片。`thorax-frames`／`visual-thorax-frames.json` 提供冻结模拟的成年衣装近景正面、三刻面和侧面；它是视觉输入及连接观察，不能把画面变化计为 RSI 能力或程序加速收益。来源检查同时覆盖 `skinRadii`、保留的 `radii` 与下游支持哈希。
+`continuous-drape-v29`／`continuous-drape-v31` 区分前胸皮肤采样与衣料凸包，并改变实际衣装曲面及上胸分片。`thorax-frames`／`visual-thorax-frames.json` 提供冻结模拟的成年衣装近景正面、三刻面和侧面；它是视觉输入及连接观察，不能把画面变化计为 RSI 能力或程序加速收益。来源检查同时覆盖 `skinRadii`、保留的 `radii` 与下游支持哈希。
 
 当前前胸远景含局部共享边细分与邻面补齐，再执行表面转移及索引 LOD 重建；这会改变远景顶点／索引与冷缓存创建成本。比较效率时需冻结源码和成品版本，区分冷构建与稳定回放；本次形体变化本身不代表程序加速。
 
-前胸外侧检查使用 `reference-figure-v28`／`reference-fit-v30`。运行时从 v31 来源采样构建局部向内重分配的支撑，来源文件哈希仍与原始身体对应；比较视觉输入必须同时固定形体与衣装标记。`BodyFramesOnly` 是原生几何回归入口，测量最终近远景前侧轮廓及来源间隙，不是 RSI 测试或审美评分。支撑求交只在缓存首次创建时执行；不能据此推断稳定帧率提升。
+前胸外侧检查使用 `continuous-drape-v29`／`continuous-drape-v31`。运行时从 v31 来源采样构建局部向内重分配的支撑，来源文件哈希仍与原始身体对应；比较视觉输入必须同时固定形体与衣装标记。`BodyFramesOnly` 是原生几何回归入口，测量最终近远景前侧轮廓及来源间隙，不是 RSI 测试或审美评分。支撑求交只在缓存首次创建时执行；不能据此推断稳定帧率提升。
 
-`reference-figure-v28`／`reference-fit-v30` 还包含腰腹／侧腰的独立修形、连续衣身分片和纵向衣料弯曲参数。即使上游来源资产未变，视觉及效率比较仍须固定这些运行时标记和源码；几何回归不计为 RSI 得分。
+`continuous-drape-v29`／`continuous-drape-v31` 还包含腰腹／侧腰的独立修形、连续衣身分片和纵向衣料弯曲参数。即使上游来源资产未变，视觉及效率比较仍须固定这些运行时标记和源码；几何回归不计为 RSI 得分。
 
-`reference-figure-v28`／`reference-fit-v30` 包含连续前胸体积与自适应纵向衣料滤波；它改变运行时支撑和最终显示像素，上游人体来源哈希不能单独标识相同视觉输入。`CHEST_VOLUME_PASS` 测量最终穿衣截面深度差，属于形体回归，不是人体体积积分、审美评分或 RSI 能力指标。
+`continuous-drape-v29`／`continuous-drape-v31` 包含连续前胸体积与自适应纵向衣料滤波；它改变运行时支撑和最终显示像素，上游人体来源哈希不能单独标识相同视觉输入。`CHEST_VOLUME_PASS` 测量最终穿衣截面深度差，属于形体回归，不是人体体积积分、审美评分或 RSI 能力指标。
 
-`reference-figure-v28`／`reference-fit-v30` 改变胸廓缓存中的前侧截面圆顺和衣料收束函数。`CHEST_CURVE_PASS` 是实际衣面等间距截线的二阶深度差回归，补充体积／宽度检查，不表示审美质量、医学曲率或 RSI 能力。视觉和效率比较仍需固定运行时标记、完整源码、资产及采样条件。
+`continuous-drape-v29`／`continuous-drape-v31` 改变胸廓缓存中的前侧截面圆顺和衣料收束函数。`CHEST_CURVE_PASS` 是实际衣面等间距截线的二阶深度差回归，补充体积／宽度检查，不表示审美质量、医学曲率或 RSI 能力。视觉和效率比较仍需固定运行时标记、完整源码、资产及采样条件。
 
-`continuous-elbow-v9`／`curvature-flow-v9`／`reference-figure-v28` 分别标识肘部过渡、男女前臂表面与隐藏肘口拟合，以及肩袖／腰胯圆顺。近景每手从 25 骨增加到 56 骨，公共变换按每只手复用；远景维持静态代理策略。效率比较必须固定实际 LOD、近景人数、动作和缓存状态，不能将形体更新计为加速收益。`ELBOW_SKIN_PASS` 测量实际顶点连接和混合行列式，不是医学肌肉能力或 RSI 评分。
+`continuous-elbow-v9`／`curvature-flow-v9`／`continuous-drape-v29` 分别标识肘部过渡、男女前臂表面与隐藏肘口拟合，以及肩袖／腰胯圆顺。近景每手从 25 骨增加到 56 骨，公共变换按每只手复用；远景维持静态代理策略。效率比较必须固定实际 LOD、近景人数、动作和缓存状态，不能将形体更新计为加速收益。`ELBOW_SKIN_PASS` 测量实际顶点连接和混合行列式，不是医学肌肉能力或 RSI 评分。
 
-`continuous-elbow-v9` 在近手缓存 24 组位置／法线形态样本，`curvature-flow-v9` 合并重合位置的法线贡献；`reference-fit-v30` 与 `reference-figure-v28` 同时标记女性上臂衣料松量、肩背和腰胯圆顺。缓存按体型／左右手生成，近景增加存储及 GPU 形态混合，远景沿用静态代理。效率实验必须固定近景人数、细节等级、动作、冷／热缓存与源码，重新采样，不把更换形体表示算作程序加速。`FOREARM_NORMAL_PASS` 的角误差只测指定三角面及姿态，既不是医学肌肉验证，也不是 RSI 或审美评分；原始资产哈希未变仍不足以判定视觉输入相同。
+`continuous-elbow-v9` 在近手缓存 24 组位置／法线形态样本，`curvature-flow-v9` 合并重合位置的法线贡献；`continuous-drape-v31` 与 `continuous-drape-v29` 同时标记女性上臂衣料松量、肩背和腰胯圆顺。缓存按体型／左右手生成，近景增加存储及 GPU 形态混合，远景沿用静态代理。效率实验必须固定近景人数、细节等级、动作、冷／热缓存与源码，重新采样，不把更换形体表示算作程序加速。`FOREARM_NORMAL_PASS` 的角误差只测指定三角面及姿态，既不是医学肌肉验证，也不是 RSI 或审美评分；原始资产哈希未变仍不足以判定视觉输入相同。
 
 `FOREARM_SHAPE_PASS` 测量实际形态混合后曲面的局部变形残差、有向面积及位移；静止细节与固定握持区另有约束。位置修正也会改变像素覆盖和近景混合成本，样本数与变形域改变后，不能沿用旧版效率基线。这些几何数据不是 RSI 能力或肌肉力量指标。
 
@@ -266,21 +266,21 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `continuous-elbow-v9`／`curvature-flow-v9` 标识可见肘域的角度参数蒙皮及 24 组姿态形态，替代窄轴向坡产生的折叠。`elbow-joint`／`visual-elbow-joint.json` 为公开近景。`ELBOW_SURFACE_METRICS` 同时核对真实索引三角面、有限差分 Jacobian、径向误差及开口连接；`GAMEPLAY_ELBOW_PASS` 另在实际 IK 动作过渡中检查肘域三角面朝向；这些是时序几何输入的有效性条件，不是 RSI 或审美分数。近景缓存和混合成本变化，需要重采相同条件的性能基线，不能把表示方式变化算作程序加速。
 
-`reference-figure-v28`／`reference-fit-v30`／`reference-figure-v25` 区分法线细节运输、局部圆顺回退、肩袖邻域方向及独立衣片颜色坐标。姿态形态数量未增加，但烘焙、静态缓存及像素输入会改变；效率实验必须重新冻结源码与渲染版本。`REST_NORMAL_FLOW_PASS` 与颜色坐标检查仅是表面表示的回归条件，不作为 RSI 或审美分数。
+`continuous-drape-v29`／`continuous-drape-v31`／`reference-figure-v25` 区分法线细节运输、局部圆顺回退、肩袖邻域方向及独立衣片颜色坐标。姿态形态数量未增加，但烘焙、静态缓存及像素输入会改变；效率实验必须重新冻结源码与渲染版本。`REST_NORMAL_FLOW_PASS` 与颜色坐标检查仅是表面表示的回归条件，不作为 RSI 或审美分数。
 
-`reference-figure-v28`／`reference-fit-v30`／`reference-figure-v25` 标识来源支撑约束的肩袖几何重整、接触净空与固定绑定面质量筛选。`curvature-flow-v9`／`continuous-elbow-v9` 标识前臂剖面的五次接续。成人静态远景从新的近景静止衣面生成，屏幕索引 LOD、构建与绘制输入随之改变。`ARMHOLE_REST_FLOW`、`ARMHOLE_MOTION_FLOW_PASS`、`BODY_LOD_SURFACE_PASS` 与 `FOREARM_PROFILE_FLOW_PASS` 均是表示和几何回归，不是 RSI 分数；不能将更换网格表示直接当作加速收益。
+`continuous-drape-v29`／`continuous-drape-v31`／`reference-figure-v25` 标识来源支撑约束的肩袖几何重整、接触净空与固定绑定面质量筛选。`curvature-flow-v9`／`continuous-elbow-v9` 标识前臂剖面的五次接续。成人静态远景从新的近景静止衣面生成，屏幕索引 LOD、构建与绘制输入随之改变。`ARMHOLE_REST_FLOW`、`ARMHOLE_MOTION_FLOW_PASS`、`BODY_LOD_SURFACE_PASS` 与 `FOREARM_PROFILE_FLOW_PASS` 均是表示和几何回归，不是 RSI 分数；不能将更换网格表示直接当作加速收益。
 
-当前 `reference-figure-v28`／`reference-fit-v30`／`reference-figure-v25` 增加上臂来源曲面连续取样和女性颈肩的零端曲率接续，`continuous-elbow-v9` 使用小角度敏感的蒙皮更新。姿态数量不变，但近静止时的更新频率可能增加；效率比较需冻结源码、LOD、人数、缓存、动作及采样方式重新测量，不沿用旧版性能数字。`SKIN_MICRO_MOTION_METRICS` 只测特定连接探针与法线角在慢速腕／肘转动中的同步性，`UPPER_ARM_SOURCE_FLOW_PASS` 只测来源范围、接缝与切线接续；它们属于视觉实验的几何有效性约束，不是 RSI 或审美分数。
+当前 `continuous-drape-v29`／`continuous-drape-v31`／`reference-figure-v25` 增加上臂来源曲面连续取样和女性颈肩的零端曲率接续，`continuous-elbow-v9` 使用小角度敏感的蒙皮更新。姿态数量不变，但近静止时的更新频率可能增加；效率比较需冻结源码、LOD、人数、缓存、动作及采样方式重新测量，不沿用旧版性能数字。`SKIN_MICRO_MOTION_METRICS` 只测特定连接探针与法线角在慢速腕／肘转动中的同步性，`UPPER_ARM_SOURCE_FLOW_PASS` 只测来源范围、接缝与切线接续；它们属于视觉实验的几何有效性约束，不是 RSI 或审美分数。
 
-`reference-contour-physique-v31` 重建十份共同来源支撑，`reference-figure-v28`／`reference-fit-v30`／`reference-figure-v25` 标识新的成品形体与衣料跨度、染色和肩袖缓存。肩、手、骨架和 HTTP 协议保持各自合同；视觉输入、冷启动构建及缓存会改变，效率对照必须重新冻结源码、资产、动作、人数、LOD 与采样条件。体型宽深、衣料接续和来源 Jacobian 的回归结果只用于确认输入有效，不作为 RSI 或吸引力评分。
+`reference-contour-physique-v31` 重建十份共同来源支撑，`continuous-drape-v29`／`continuous-drape-v31`／`reference-figure-v25` 标识新的成品形体与衣料跨度、染色和肩袖缓存。肩、手、骨架和 HTTP 协议保持各自合同；视觉输入、冷启动构建及缓存会改变，效率对照必须重新冻结源码、资产、动作、人数、LOD 与采样条件。体型宽深、衣料接续和来源 Jacobian 的回归结果只用于确认输入有效，不作为 RSI 或吸引力评分。
 
 `visual-female-wardrobe.json`／`female-wardrobe` 为成人女性三种实际职业剪裁的六区域静态入口，上排正面、下排背面；不替换原男性 `wardrobe` 场景。当前的中线来源场、上胸／共享袖根整理、姿态末端拟合及领口映射改变像素和缓存构建；比较效率时须重新冻结源码、资产、动作与镜头。几何回归只用于实验输入有效性，不证明吸引力或 RSI 能力。
 
-`reference-contour-physique-v31`／`reference-figure-v28`／`reference-fit-v30`／`reference-figure-v25` 同时区分腰侧、小腹、后腰／臀腿轮廓、较低的前胸重分配和女性衣摆／裤装染色。来源 Jacobian 与位移预算不变；原生身材、上肢和微动作测试仍分别执行。这些是视觉输入身份及几何约束，不是 RSI 或审美评分；性能实验需要重新冻结当前完整输入。
+`reference-contour-physique-v31`／`continuous-drape-v29`／`continuous-drape-v31`／`reference-figure-v25` 同时区分腰侧、小腹、后腰／臀腿轮廓、较低的前胸重分配和女性衣摆／裤装染色。来源 Jacobian 与位移预算不变；原生身材、上肢和微动作测试仍分别执行。这些是视觉输入身份及几何约束，不是 RSI 或审美评分；性能实验需要重新冻结当前完整输入。
 
 自然腰线拟合使用相同来源支撑的局部截面，按三种衣装逆解并缓存腰带位置；衣料收褶、工具挂点及视觉输入随之变化。`NATURAL_WAIST_BELT_PASS` 检查成品腰带的中心和宽度，不是人体或效率评分；旧版固定腰带的回放不作为当前基线。
 
-`neckContour=relaxed-neckline-v5` 与 `reference-figure-v28`／`reference-fit-v30`／`reference-figure-v25` 标识女性头部挂点、颈根连续压缩与领口接续。来源体型仍为 `reference-contour-physique-v31`；视觉与效率对照须固定新增标记、完整源码、动作及镜头。颈部间距、颈根覆盖与九组有限姿态探针是视觉输入的几何约束，不是审美或 RSI 评分，也不等同于完整碰撞验证。
+`neckContour=relaxed-neckline-v5` 与 `continuous-drape-v29`／`continuous-drape-v31`／`reference-figure-v25` 标识女性头部挂点、颈根连续压缩与领口接续。来源体型仍为 `reference-contour-physique-v31`；视觉与效率对照须固定新增标记、完整源码、动作及镜头。颈部间距、颈根覆盖与九组有限姿态探针是视觉输入的几何约束，不是审美或 RSI 评分，也不等同于完整碰撞验证。
 
 衣面烘焙将规范坐标中的候选邻域按剪裁与模式缓存，当前姿态继续计算动态筛选和权重；完整扫描与缓存路径按原索引顺序求和。`BODICE_NEIGHBOR_PASS` 核对实际拟合深度逐位一致，属于程序优化的数值等价检查。缓存影响冷启动成本与内存，效率实验需固定来源、姿态数量、硬件、并行负载与冷／热缓存条件；超时回放保留失败状态，不能视为有效结果。
 
