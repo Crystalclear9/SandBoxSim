@@ -172,7 +172,9 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `residentLocomotion=captured-gait-grounded-arrival-v7` 标识捕捉时序、近景承重脚锚点和到站收脚。`gaitReference=cmu-contact-curves-v1` 标识两段 CMU 步行曲线。`armSwing=captured-arm-timing-v7` 标识捕捉的双侧上臂与屈肘时序。`visual-locomotion` 使用同速度成人外观、双手搬运及持锤行走到作业的对照，冻结模拟并推进动画。
 
-`residentTravel=paced-resident-route-v1` 标识世界中的有限路线缓存与近景换脚转身。`pacedResidentTravel` 记录当前是否启用实景路径；评测配置固定 `ticksPerFrame` 大于零时仍按该配置推进。`RESIDENT_WORLD_MOTION_PASS` 在真实地形和居民节点上通过正常世界更新重放相邻格转角，测量根节点速度、足部支撑、转身和到站拾取，并检查渲染未改变模拟状态。
+`residentTravel=paced-resident-route-v2` 标识世界中的有限路线缓存、起步重心转移与近景换脚转身。`pacedResidentTravel` 记录当前是否启用实景路径；评测配置固定 `ticksPerFrame` 大于零时仍按该配置推进。`RESIDENT_WORLD_MOTION_PASS` 在真实地形和居民节点上通过正常世界更新重放相邻格转角，测量根节点速度、足部支撑、转身和到站拾取，并检查渲染未改变模拟状态。`RESIDENT_DEPARTURE_PASS` 同时检查双足与根节点在起步准备期的位置，以及骨盆的侧移。
+
+`residentLocomotion=captured-gait-weight-transfer-v8` 与 `animalLocomotion=ground-distance-v1` 记录居民启停和持工具步行、鹿狼的距离驱动步态。动画时序和画面发生变化，相关视觉评测需采集新基线。
 
 `RESIDENT_STATIONS_PASS` 在同一逻辑格放入三位居民，检查显示间距、邻居离开后的站位稳定性与模拟状态摘要。
 

@@ -12,6 +12,10 @@ internal partial class ResidentRig
     private float _gaitCycle,_gaitSpeed,_locomotionSpeed=1.05f,_turnDemand,_gaitTurn,_sampleDistance,_sampleTime,_locomotionScale=1;
     private bool _worldLocomotion,_groundContactSpeed;
     private float _approachDistance;
+    private float _departureProgress;
+    private int _departureLead;
+    private Vector3 _travelWeightShift,_travelWeightVelocity;
+    private float _travelPitch;
     internal bool InteractionSettled=>!_worldLocomotion||(_approachDistance<.035f&&_gaitSpeed<.15f&&!_finishingStep&&!IsPivoting);
     private Vector3 _gaitOffset;
     private Vector3 _capturedChest,_capturedPelvis;
@@ -26,6 +30,17 @@ internal partial class ResidentRig
     internal float GaitCycle=>_gaitCycle;
     internal float GaitSpeed=>_gaitSpeed;
     internal const float MaximumGaitSpeed=1.70f;
+    internal void ObserveDeparture(float progress)
+    {
+        if(progress>0&&_departureProgress==0)
+        {
+            _departureLead=(_departureLead+1)%2;
+            ResetGroundContacts();
+            // Both feet are still down. The unloaded foot enters swing first.
+            if(_gaitSpeed<.12f)_gaitCycle=Mathf.PosMod(GaitSupport-.012f-_departureLead*.5f,1);
+        }
+        _departureProgress=progress;
+    }
     private float GaitSupport=>.632f-.055f*Flow+.02f*_workFatigue+(_hasCargo?.025f:0);
     private float GaitFootHalfWidth=>MathF.Max(.048f,HipHalfWidth+.026f-.062f*Flow);
     // Phase is distance driven. Scale the foot's stance travel by the very
@@ -73,10 +88,17 @@ internal partial class ResidentRig
         float rate=wanted>_gaitSpeed?5:9,decay=MathF.Exp(-rate*dt),before=_gaitSpeed;
         _gaitSpeed=wanted+(before-wanted)*decay;
         AdvanceArrival(dt,wanted,canFinishStep);
+        float acceleration=dt>0?Math.Clamp((_gaitSpeed-before)/dt,-4,4):0;
+        float preload=ReachEase(_departureProgress);
+        float supportSide=_departureLead==0?1:-1;
+        float forward=preload*.020f+acceleration*.0075f;
+        var weight=new Vector3(supportSide*preload*(.042f-.010f*Flow),-.014f*preload-.003f*MathF.Abs(acceleration),-forward);
+        DampMotion(ref _travelWeightShift,ref _travelWeightVelocity,weight,.068f,dt);
+        _travelPitch=_travelWeightShift.Z*2.7f;
         float travel=wanted*dt+(before-wanted)*(1-decay)/rate;
         // At cruising speed, use the observed root travel for contact timing.
         // The filtered speed still eases the first step and the final settle.
-        float cruise=Mathf.SmoothStep(.20f,.80f,MathF.Min(wanted,_gaitSpeed));
+        float cruise=Mathf.SmoothStep(.12f,.64f,MathF.Min(wanted,_gaitSpeed));
         float distance=Mathf.Lerp(travel,wanted*dt,cruise);
         _gaitCycle=Mathf.PosMod(_gaitCycle+distance/(GaitCycleLength(_gaitSpeed)*_locomotionScale),1);
         _activity=Mathf.SmoothStep(0,.80f,_gaitSpeed);
@@ -237,7 +259,8 @@ internal partial class ResidentRig
     internal Vector3 GroundedFootPoint(int side,Vector3 position)
     {
         float phase=Mathf.PosMod(_gaitCycle+side*.5f,1),support=GaitSupport;
-        if(!_groundContactSpeed||_activity<.58f||_arrivalWeight>0||phase>=support)
+        bool preparing=_departureProgress>0;
+        if(!_groundContactSpeed||!preparing&&(_activity<.58f||_arrivalWeight>0||phase>=support))
         {
             _groundContactValid[side]=false;
             return position;
@@ -252,7 +275,7 @@ internal partial class ResidentRig
         float distance=pull.Length();
         // Retain a planted contact across a small steering correction. Large
         // errors are released progressively so the leg never chases a stale pin.
-        float weight=ReachEase(phase/.14f)*ReachEase((support-phase)/.16f)*
+        float weight=(preparing?1:ReachEase(phase/.14f)*ReachEase((support-phase)/.16f))*
             (1-Mathf.SmoothStep(.045f,.13f,distance));
         return position+pull*weight;
     }

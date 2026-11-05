@@ -80,12 +80,42 @@ internal sealed partial class NatureModels
             float phase=i*Mathf.Tau/100;var sample=AnimalRig.GaitContact(phase,wolf);
             if(!float.IsFinite(sample.Travel)||sample.Lift<0||sample.Lift>.0751f)throw new InvalidOperationException("Invalid species gait trajectory");
         }
-        foreach(float boundary in new[]{0f,Mathf.Tau*(wolf?.58f:.74f)})
+        foreach(float boundary in new[]{0f,Mathf.Tau*(wolf?.59f:.73f)})
         {
             var before=AnimalRig.GaitContact(boundary-.00001f,wolf);var after=AnimalRig.GaitContact(boundary+.00001f,wolf);
             if(MathF.Abs(before.Travel-after.Travel)>.0001f||MathF.Abs(before.Lift-after.Lift)>.0001f)
                 throw new InvalidOperationException("Foot trajectory jumps at stance/swing or cycle boundaries");
+            var start=AnimalRig.GaitContact(boundary-.001f,wolf);var end=AnimalRig.GaitContact(boundary+.001f,wolf);
+            if(MathF.Abs((before.Travel-start.Travel)-(end.Travel-after.Travel))>.00001f)
+                throw new InvalidOperationException("Foot velocity reverses abruptly at contact");
         }
+        ValidateAnimalStride(rig,wolf);
         GD.Print($"ARTICULATED_PAWS_PASS: {(wolf?"wolf":"deer")}, {nails} source-supported keratin roots, {samples} slope/gait poses, {contacts} actual stance vertices, maximum root gap={maximumRootGap:F6} m, level support and pause");
+    }
+
+    private static void ValidateAnimalStride(AnimalRig rig,bool wolf)
+    {
+        const float delta=1f/60;
+        float squaredSlip=0;int samples=0;
+        var previous=new Vector3[4];var planted=new bool[4];
+        foreach(float speed in new[]{.68f,1.52f})
+        for(int frame=0;frame<240;frame++)
+        {
+            rig.Pose(delta,true,false,displayedSpeed:speed);
+            for(int foot=0;foot<4;foot++)
+            {
+                var sole=rig.ContactSole(foot)+Vector3.Forward*(speed*frame*delta);
+                bool touching=rig.PawLift[foot]<=.000001f;
+                if(frame>=60&&touching&&planted[foot])
+                {
+                    var shift=sole-previous[foot];
+                    squaredSlip+=shift.X*shift.X+shift.Z*shift.Z;samples++;
+                }
+                previous[foot]=sole;planted[foot]=touching;
+            }
+        }
+        float drift=MathF.Sqrt(squaredSlip/Math.Max(1,samples));
+        if(samples<500||drift>.009f)throw new InvalidOperationException($"Distance-driven {(wolf?"wolf":"deer")} foot slide: samples={samples}, rms={drift}");
+        GD.Print($"ANIMAL_STRIDE_PASS: {(wolf?"wolf":"deer")}, two speeds, {samples} consecutive actual sole contacts, horizontal drift RMS={drift:F4} m/frame");
     }
 }

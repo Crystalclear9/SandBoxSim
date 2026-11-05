@@ -17,12 +17,17 @@ internal partial class AnimalRig : Node3D
     public readonly Node3D[] Legs = new Node3D[4], Knees = new Node3D[4];
     internal readonly Node3D?[] Paws=new Node3D?[4];
     internal readonly float[] PawLift=new float[4];
+    internal const float MaxFootExcursion=.26f;
+    private float CycleLength=>Predator?.68f:.60f;
     internal static (float Travel,float Lift) GaitContact(float phase,bool wolf)
     {
-        float cycle=Mathf.PosMod(phase/Mathf.Tau,1),duty=wolf?.58f:.74f;
-        if(cycle<duty)return(Mathf.Lerp(-.14f,.14f,cycle/duty),0);
-        float t=(cycle-duty)/(1-duty),smooth=t*t*(3-2*t);
-        return(Mathf.Lerp(.14f,-.14f,smooth),.075f*MathF.Sin(MathF.PI*t));
+        float cycle=Mathf.PosMod(phase/Mathf.Tau,1),duty=wolf?.59f:.73f,length=wolf?.68f:.60f;
+        float span=length*duty*.5f;
+        if(cycle<duty)return(-span+length*cycle,0);
+        float t=(cycle-duty)/(1-duty),arc=MathF.Sin(MathF.PI*t);
+        // The stance tangent cancels the root's advance. Match it at both
+        // ends of swing so contact does not reverse direction in one frame.
+        return(span+length*((1-duty)*t-ResidentRig.ReachEase(t)),.075f*arc*arc);
     }
     internal Vector3 ContactSole(int i)
     {
@@ -34,7 +39,7 @@ internal partial class AnimalRig : Node3D
     public readonly Vector3[] EarRest=new Vector3[2];
     public Skeleton3D? FurSkeleton;
     public MeshInstance3D? FurSkin;
-    private float _phase, _stride,_graze,_bodyBob;
+    private float _phase,_ambientTime,_stride,_graze,_bodyBob,_worldSpeed,_turnLean;
     internal (Vector3 Logical,long Ground,int Scenery,Vector3 Point)? BankPlacement;
     private float _bankSupportRadius;
     internal float BankSupportRadius
@@ -48,8 +53,7 @@ internal partial class AnimalRig : Node3D
                 var sole=Legs[i].Position+Knees[i].Position+(RestSoles?[i]??new Vector3(0,-.4f,0));
                 radius=MathF.Max(radius,new Vector2(sole.X,sole.Z).Length());
             }
-            // Include the existing 14 cm gait excursion plus a small hoof pad.
-            return _bankSupportRadius=radius+.18f;
+            return _bankSupportRadius=radius+MaxFootExcursion+.04f;
         }
     }
     // Solve the four contact chains against the rendered surface. The body and
@@ -75,7 +79,9 @@ internal partial class AnimalRig : Node3D
                 var contact=GaitContact(phase,Predator);swing=contact.Lift*_stride;travel=contact.Travel*_stride;
             }
             PawLift[i]=swing;
-            var target=Body.Transform*(hip+upper+sole+new Vector3(0,0,travel));
+            // Foot targets live in root space; banking the body shifts its
+            // joints over the contacts rather than tilting the four contacts.
+            var target=hip+upper+sole+new Vector3(0,0,travel);
             target.Y=surfaceHeight(target)+.007f+swing;
             target=Body.Transform.AffineInverse()*target;
             // Authored quadrupeds have different rest-foot spacing. A wider
@@ -125,6 +131,7 @@ internal partial class AnimalRig : Node3D
     public void SetIdentity(int identity)
     {
         _phase=(identity%97)*.371f;_blinkClock=(identity%31)*.071f;
+        _ambientTime=(identity%31)*.17f;
         _blinkSequence=identity%29;_blinkDelay=2.8f+(identity%11)*.13f;
     }
     private void UpdateBlink(float delta)
@@ -140,39 +147,55 @@ internal partial class AnimalRig : Node3D
         Blink=next;EyeMaterial?.SetShaderParameter("blink",Blink);LidMaterial?.SetShaderParameter("blink",Blink);
         if(AuthoredEyelids!=null)AuthoredEyelids.Visible=Blink>.001f;
     }
-    public void Pose(float delta, bool moving, bool paused,bool grazing=false,Func<Vector3,float>? ground=null)
+    internal float AdvanceTravelSpeed(float remaining,float delta)
+    {
+        const float braking=4.3f;
+        float wanted=MathF.Min(Predator?2.15f:1.82f,MathF.Sqrt(2*braking*remaining));
+        _worldSpeed=Mathf.MoveToward(_worldSpeed,wanted,delta*(wanted>_worldSpeed?4.6f:braking));
+        return _worldSpeed;
+    }
+    public void Pose(float delta, bool moving, bool paused,bool grazing=false,Func<Vector3,float>? ground=null,
+        float? displayedSpeed=null,float turnRate=0)
     {
         if (paused) return;
         UpdateBlink(delta);
-        _phase += delta * (moving ? 8 : 1.6f);
-        _stride = Mathf.Lerp(_stride, moving ? 1 : 0, 1 - MathF.Exp(-delta * 9));
-        _bodyBob=MathF.Abs(MathF.Sin(_phase)) * .022f * _stride;
+        _ambientTime+=delta;
+        float speed=displayedSpeed??(moving?.83f:0);
+        _phase=Mathf.PosMod(_phase+delta*speed* Mathf.Tau/CycleLength,Mathf.Tau);
+        _stride=Mathf.Lerp(_stride,Mathf.SmoothStep(.06f,.50f,speed),1-MathF.Exp(-delta*10));
+        _turnLean=Mathf.Lerp(_turnLean,Math.Clamp(turnRate,-2.5f,2.5f)*_stride,1-MathF.Exp(-delta*7));
+        float step=MathF.Sin(2*_phase-.45f),weight=MathF.Sin(_phase-.32f);
+        _bodyBob=(.008f+.014f*step)*_stride;
         Body.Position = new Vector3(0,_bodyBob,0);
-        float breath=MathF.Sin(_phase*.65f)*.004f*(1-_stride);
+        Body.Rotation=new((Predator?.022f:.033f)*step*_stride,.019f*weight*_stride,.026f*weight*_stride-.021f*_turnLean);
+        float breath=MathF.Sin(_ambientTime*1.6f)*.004f*(1-_stride);
         Body.Scale=new Vector3(1+breath,1+breath*.5f,1);
         // Locomotion owns the neck while travelling. A simulator Eat state
         // can precede the rendered root's arrival at its grazing location.
         _graze=Mathf.Lerp(_graze,grazing&&!Predator&&!moving?1:0,1-MathF.Exp(-delta*2.4f));
-        Neck.Rotation=new(-1.55f*_graze+MathF.Sin(_phase*.37f)*.018f*(1-_stride),0,0);
+        Neck.Rotation=new(-1.55f*_graze-.020f*step*_stride+MathF.Sin(_ambientTime*.71f)*.018f*(1-_stride),
+            .057f*_turnLean,0);
         FurSkeleton?.SetBonePoseRotation(11,Neck.Basis.GetRotationQuaternion());
-        Head.Rotation = new Vector3(.20f*_graze+MathF.Sin(_phase * .45f) * .025f, MathF.Sin(_phase * .29f) * .065f * (1 - _stride), 0);
-        Tail.Rotation = new Vector3(0, 0, MathF.Sin(_phase * .6f) * .12f);
+        Head.Rotation = new Vector3(.20f*_graze-.014f*step*_stride+MathF.Sin(_ambientTime*.82f)*.025f*(1-_stride),
+            MathF.Sin(_ambientTime*.52f)*.065f*(1-_stride)+.035f*_turnLean,-Body.Rotation.Z*.64f);
+        float tailPhase=_phase+MathF.Sin(_ambientTime*1.25f)*(1-_stride);
+        Tail.Rotation = new Vector3(0, -.052f*_turnLean, MathF.Sin(tailPhase)*(.055f+.055f*_stride));
         FurSkeleton?.SetBonePoseRotation(1,Head.Basis.GetRotationQuaternion());
         FurSkeleton?.SetBonePoseRotation(2,Tail.Basis.GetRotationQuaternion());
         if(TailMiddle!=null)
         {
-            TailMiddle.Rotation=new(0,MathF.Sin(_phase*.6f-.35f)*.025f,MathF.Sin(_phase*.6f-.45f)*.09f);
-            TailTip!.Rotation=new(0,MathF.Sin(_phase*.6f-.7f)*.025f,MathF.Sin(_phase*.6f-.9f)*.08f);
+            TailMiddle.Rotation=new(0,MathF.Sin(tailPhase-.35f)*.025f,MathF.Sin(tailPhase-.45f)*.09f);
+            TailTip!.Rotation=new(0,MathF.Sin(tailPhase-.7f)*.025f,MathF.Sin(tailPhase-.9f)*.08f);
             FurSkeleton?.SetBonePoseRotation(19,TailMiddle.Basis.GetRotationQuaternion());FurSkeleton?.SetBonePoseRotation(20,TailTip.Basis.GetRotationQuaternion());
         }
         if(Jaw!=null)
         {
-            Jaw.Rotation=new Vector3(Mathf.Lerp(.16f,.07f+MathF.Sin(_phase*.5f)*.025f,_stride),0,0);
+            Jaw.Rotation=new Vector3(Mathf.Lerp(.16f,.07f+MathF.Sin(_ambientTime*4.1f)*.025f,_stride),0,0);
             FurSkeleton?.SetBonePoseRotation(14,Jaw.Basis.GetRotationQuaternion());
         }
         for(int side=0;side<2;side++)
         {
-            Ears[side].Rotation=EarRest[side]+new Vector3(MathF.Sin(_phase*.61f+side*1.7f)*.06f,MathF.Sin(_phase*.39f+side*2.1f)*.10f*(1-_stride),0);
+            Ears[side].Rotation=EarRest[side]+new Vector3(MathF.Sin(_ambientTime*1.13f+side*1.7f)*.06f,MathF.Sin(_ambientTime*.74f+side*2.1f)*.10f*(1-_stride),0);
             if(RestSoles!=null)FurSkeleton?.SetBonePoseRotation(12+side,Ears[side].Basis.GetRotationQuaternion());
         }
         FitFeet(ground??FlatGround);

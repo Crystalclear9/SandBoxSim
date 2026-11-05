@@ -70,7 +70,7 @@ public partial class WorldView3D
                         var sole=rig.Legs[foot].Position+rig.Knees[foot].Position+rig.RestSoles![foot];
                         for(int step=-1;step<=1;step++)
                         {
-                            var offset=new Basis(Vector3.Up,heading*Mathf.Tau/24)*(sole+new Vector3(0,0,step*.14f));
+                            var offset=new Basis(Vector3.Up,heading*Mathf.Tau/24)*(sole+new Vector3(0,0,step*AnimalRig.MaxFootExcursion));
                             if(GroundHeight(target.X+offset.X,target.Z+offset.Z)<=.021f)
                                 throw new InvalidOperationException("Supported animal bank leaves an actual sole over water");
                             samples++;

@@ -221,7 +221,7 @@ internal partial class ResidentRig : Node3D
         AdvanceLocomotion(delta,moving,phase!=ActionPhase.Moving);
         AdvanceMotionReference(delta,action,phase,identityPhase);
         float gaitPhase=_gaitCycle*Mathf.Tau;
-        float wave=MathF.Cos(gaitPhase),breath=MathF.Sin(_phase*.5f+identityPhase);
+        float breath=MathF.Sin(_phase*.5f+identityPhase);
         bool pickup=executing&&!ToolHeld&&_reach==0&&_releaseTime==0&&(_bareBlend==0||_bareAction is ActionKind.GatherFood or ActionKind.Take)&&action is ActionKind.GatherFood or ActionKind.Take;
         if(pickup)
         {
@@ -265,12 +265,13 @@ internal partial class ResidentRig : Node3D
         var workingChest=workBlend>0?WorkingChest(_strokePhase,workBlend):Vector3.Zero;
         var socialChest=SocialChest(socialPose)*socialWeight;
         var idleChest=new Vector3(.011f*breath,.013f*MathF.Sin(_phase*.31f+identityPhase+.8f),-1.25f*restSupport.X)*idleWeight;
-        var chestTarget=new Vector3(desiredLean+reachLean+sip.Y*.028f,
+        var travelShift=_travelWeightShift*(1-pickupWeight)*(resting?0:1);
+        var chestTarget=new Vector3(desiredLean+reachLean+sip.Y*.028f+_travelPitch*(1-pickupWeight),
             reachTurn+_gaitTurn*TurnChestShare*gaitWeight+.053f*gatherPose.Turn*pickupWeight,0);
         DampMotion(ref torsoAngles,ref _torsoVelocity,chestTarget+walkingChest+workingChest+socialChest+idleChest+_referenceChest,TorsoFollowTime,delta);
         var torsoBasis=Basis.FromEuler(torsoAngles);
         var gaitOffset=_gaitOffset*(1-pickupWeight)*(resting?0:1);
-        var lowerShift=stance+restSupport+gaitOffset+pickupShift+(IsPivoting?PivotSupport():Vector3.Zero);
+        var lowerShift=stance+restSupport+gaitOffset+travelShift+pickupShift+(IsPivoting?PivotSupport():Vector3.Zero);
         var translation=lowerShift+Vector3.Up*vertical;
         var hip=new Vector3(0,HipHeight,0);Torso.Transform=new(torsoBasis,hip-torsoBasis*hip+translation);
         UpdateBodyBend(lowerShift,new Basis(Quaternion.Identity.Slerp(GaitPelvisBasis.GetRotationQuaternion(),(1-pickupWeight)*(resting?0:1))));
@@ -293,7 +294,7 @@ internal partial class ResidentRig : Node3D
             Legs[i].Position=pelvis*new Vector3(i==0?-HipHalfWidth:HipHalfWidth,HipHeight,0);
             Legs[i].Rotation=Knees[i].Rotation=Vector3.Zero;
             SetFootOrientation(i,(Legs[i].Basis*Knees[i].Basis).Inverse());
-            if(stance.LengthSquared()>1e-10f)SolveLegTo(i,RestFootCenter(i),Basis.Identity);
+            if(stance.LengthSquared()+travelShift.LengthSquared()>1e-10f)SolveLegTo(i,RestFootCenter(i),Basis.Identity);
             if(_restSupport>.00001f)PlantRestLeg(i);
             if(pickupWeight>0)SolveLegTo(i,RestFootCenter(i),Basis.Identity);
             PoseWalkingLeg(i,gaitWeight);
@@ -336,7 +337,7 @@ internal partial class ResidentRig : Node3D
             }
             if(wantCurrent)_returning=false;
             var work=WorkPose(CurrentTool,_strokePhase);
-            var carry=CarryPose(CurrentTool,wave*_activity);
+            var carry=CarryPose(CurrentTool,gaitPhase);
             var active=(carry.Item1.Lerp(work.Item1,Smooth(_workBlend)),new Basis(carry.Item2.GetRotationQuaternion().Slerp(work.Item2.GetRotationQuaternion(),Smooth(_workBlend))));
             var (target,basis)=_returning?(_returnPosition,_returnBasis):active;
             if(!_returning)target=ReachBodyPoint(target);

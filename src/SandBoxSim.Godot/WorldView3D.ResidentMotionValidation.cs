@@ -30,7 +30,8 @@ public partial class WorldView3D
         AnimateActors(delta);
 
         float peak=0,nearestCorner=float.PositiveInfinity,stepLift=0,plantDrift=0;
-        int pivotFrames=0;
+        int pivotFrames=0,preparationFrames=0;
+        float departureTransfer=0,departureRootDrift=0,departureFootDrift=0;
         bool retained=false,startedWork=false;
         var previousFeet=new[]{rig.Feet[0].GlobalPosition,rig.Feet[1].GlobalPosition};
         void MoveFor(int frames)
@@ -45,6 +46,13 @@ public partial class WorldView3D
                 retained|=rig.Travel.Queued;
                 if(!ScenerySegmentClear(previous,rig.Position))throw new InvalidOperationException("Resident crosses a scenery solid");
                 var left=rig.Feet[0].GlobalPosition;var right=rig.Feet[1].GlobalPosition;
+                if(rig.Travel.Preparation>0&&sim.Agents.PhaseOf(slot)==ActionPhase.Moving)
+                {
+                    preparationFrames++;
+                    departureTransfer=MathF.Max(departureTransfer,MathF.Abs((rig.LowerGarmentFrame*(Vector3.Up*ResidentRig.HipHeight)).X));
+                    departureRootDrift=MathF.Max(departureRootDrift,Horizontal(rig.Position-previous).Length());
+                    departureFootDrift=MathF.Max(departureFootDrift,MathF.Max(Horizontal(left-previousFeet[0]).Length(),Horizontal(right-previousFeet[1]).Length()));
+                }
                 if(rig.IsPivoting)
                 {
                     pivotFrames++;
@@ -73,6 +81,9 @@ public partial class WorldView3D
             ||pivotFrames<20||stepLift<.017f||plantDrift>.020f||!startedWork)
             throw new InvalidOperationException($"Resident world route: peak={peak}, corner={nearestCorner}, queue={retained}, pivots={pivotFrames}, lift={stepLift}, drift={plantDrift}, action={startedWork}");
         GD.Print($"RESIDENT_WORLD_MOTION_PASS: actual world actor, original root peak={oldPeak:F2} m/s, paced={peak:F2} m/s, recorded corner retained, pivot frames={pivotFrames}, foot lift={stepLift:F3} m, planted frame drift={plantDrift:F4} m, arrival then pickup, unchanged simulation");
+        if(preparationFrames<6||departureTransfer<.015f||departureRootDrift>.001f||departureFootDrift>.010f)
+            throw new InvalidOperationException($"Resident first step: frames={preparationFrames}, pelvis={departureTransfer}, root drift={departureRootDrift}, foot drift={departureFootDrift}");
+        GD.Print($"RESIDENT_DEPARTURE_PASS: preparation={preparationFrames} frames, lateral pelvis transfer={departureTransfer:F3} m, root/feet drift={departureRootDrift:F4}/{departureFootDrift:F4} m before the first step");
         ValidateResidentStations(tiles.Goal,tiles.Corner,delta);
     }
 

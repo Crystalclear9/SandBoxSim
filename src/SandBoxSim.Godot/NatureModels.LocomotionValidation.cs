@@ -138,12 +138,13 @@ internal sealed partial class NatureModels
 
     private void ValidateLocomotionLoads()
     {
-        float maxPalm=0;int contacts=0;
+        float maxPalm=0,minCarryTravel=float.PositiveInfinity;int contacts=0;
         foreach(int identity in new[]{17,55})foreach(bool cargo in new[]{false,true})
         {
             var rig=Resident(identity,false,cargo?JobType.None:JobType.Builder);
             try
             {
+                float gripFront=float.PositiveInfinity,gripBack=float.NegativeInfinity;
                 if(cargo)rig.ShowCargo(true,SandBoxSim.Core.Environment.ResourceKind.Wood);
                 var previous=new[]{InTorso(rig.Hands[0],rig).Origin,InTorso(rig.Hands[1],rig).Origin};
                 for(int frame=0;frame<480;frame++)
@@ -169,13 +170,19 @@ internal sealed partial class NatureModels
                         var palm=InTorso(rig.Hands[1],rig.Torso)*rig.Grip!.Position;
                         if(palm.DistanceTo(InTorso(rig.ToolMesh,rig.Torso).Origin)>.001f)
                             throw new InvalidOperationException("Walk-to-work transition loses palm/tool contact");
+                        if(frame>=165&&frame<300)
+                        {
+                            gripFront=MathF.Min(gripFront,palm.Z);
+                            gripBack=MathF.Max(gripBack,palm.Z);
+                        }
                         contacts++;
                     }
                 }
+                if(!cargo)minCarryTravel=MathF.Min(minCarryTravel,gripBack-gripFront);
             }
             finally{rig.Free();}
         }
-        if(contacts<600)throw new InvalidOperationException("Loaded locomotion test never reaches held-tool walking");
-        GD.Print($"LOCOMOTION_LOAD_PASS: two frames, cargo/hammer walking to work, {contacts} actual held contacts, maximum palm step={maxPalm:F4} m; slope IK preserves hip roots and refreshes trouser binds");
+        if(contacts<600||minCarryTravel<.085f)throw new InvalidOperationException($"Loaded locomotion: contacts={contacts}, hammer carry travel={minCarryTravel}");
+        GD.Print($"LOCOMOTION_LOAD_PASS: two frames, cargo/hammer walking to work, {contacts} actual held contacts, minimum hammer carry excursion={minCarryTravel:F3} m, maximum palm step={maxPalm:F4} m; slope IK preserves hip roots and refreshes trouser binds");
     }
 }

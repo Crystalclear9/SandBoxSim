@@ -459,8 +459,8 @@ public partial class WorldView3D : MapView
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="wet-bank-mosaic-v7",["sceneryContact"]="solid-scenery-corridors-v3",["habitatDetail"]="responsive-understory-v12",["vegetationSurface"]="engine-faced-v2",
             ["architecture"]="inset-joinery-v13",["garmentMaterial"]="quiet-linen-v17",["upperArmFlex"]="stable-contour-v3",["shoulderSkin"]="reference-figure-v25",["shoulderMotion"]="source-clavicle-v11",["motionReference"]="cmu-143-30-v1",["shoulderSurface"]="authored-bind-surface-v3",["forearmSkin"]="continuous-elbow-v9",["sleeveFairing"]="rest-detail-v2",["workPose"]="raised-hammer-v1",["reachMotion"]="palm-trajectory-v2",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
-            ["animalPresentation"]="articulated-paws-v12",["residentSurface"]="linear-skin-v9",["workEffort"]="overlapping-weight-transfer-v7",["toolMotion"]="socket-relative-stow-v5",["bodySupport"]="planted-spatial-v3",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="captured-reach-recovery-v10",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="captured-conversation-v10",["waterSurface"]="shore-activity-v7",["wristContour"]="continuous-source-v2",
-            ["hairline"]="framed-source-root-v2",["garmentFit"]="continuous-drape-v31",["reedPanicle"]="connected-axis-v1",["bodyPresentation"]="continuous-drape-v29",["bodyFrame"]="reference-contour-physique-v31",["neckContour"]="relaxed-neckline-v5",["faceContour"]="balanced-adult-v3",["forearmProfile"]="curvature-flow-v9",["residentLocomotion"]="captured-gait-grounded-arrival-v7",["gaitReference"]=ResidentGaitCapture.Version,["actionReference"]=ResidentActionCapture.Version,["armSwing"]="captured-arm-timing-v7",["motionStyle"]="captured-standing-and-stride-v7",["limbCoordination"]="hinge-carry-v4" };
+            ["animalPresentation"]="articulated-paws-v12",["animalLocomotion"]="ground-distance-v1",["residentSurface"]="linear-skin-v9",["workEffort"]="overlapping-weight-transfer-v7",["toolMotion"]="socket-relative-stow-v5",["bodySupport"]="planted-spatial-v3",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="captured-reach-recovery-v10",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="captured-conversation-v10",["waterSurface"]="shore-activity-v7",["wristContour"]="continuous-source-v2",
+            ["hairline"]="framed-source-root-v2",["garmentFit"]="continuous-drape-v31",["reedPanicle"]="connected-axis-v1",["bodyPresentation"]="continuous-drape-v29",["bodyFrame"]="reference-contour-physique-v31",["neckContour"]="relaxed-neckline-v5",["faceContour"]="balanced-adult-v3",["forearmProfile"]="curvature-flow-v9",["residentLocomotion"]="captured-gait-weight-transfer-v8",["gaitReference"]=ResidentGaitCapture.Version,["actionReference"]=ResidentActionCapture.Version,["armSwing"]="captured-arm-timing-v7",["motionStyle"]="captured-standing-and-stride-v7",["limbCoordination"]="hinge-carry-v4" };
         if(galleries is {Length:>0})quality["galleries"]=galleries;
         if(portrait!=null)quality["portrait"]=portrait;
         return quality;
@@ -882,7 +882,7 @@ public partial class WorldView3D : MapView
                     node.Travel.Observe(current,new(x,y),target);
                     float motor=node.Travel.AdvanceSpeed(current,node.Rotation.Y,delta);
                     travelHeading=node.Travel.Heading(current);
-                    rendered=SceneryActorPosition(current,node.Travel.Goal,delta,24,false,motor);
+                    if(node.Travel.Preparation==0)rendered=SceneryActorPosition(current,node.Travel.Goal,delta,24,false,motor);
                     remaining=node.Travel.Remaining(rendered);
                 }
                 else
@@ -948,6 +948,7 @@ public partial class WorldView3D : MapView
             // Keep position interpolation every frame; distant joint poses need fewer updates.
             float fullRate=paced?17:12;
             int stride=distanceSquared>45*45?8:distanceSquared>30*30?6:distanceSquared>fullRate*fullRate?2:1;
+            if(!paused)node.ObserveDeparture(paced?node.Travel.Preparation:0);
             node.ObserveLocomotion(rendered-current,delta,headingError,paused,remaining,paced?node.Scale.X:1);
             node.UpdateDistanceDetail(distanceSquared);
             if((_poseFrame+slot)%stride!=0)continue;
@@ -966,32 +967,42 @@ public partial class WorldView3D : MapView
             else node.ResetGroundContacts();
         }
         foreach (var pair in _deer)
-        { int slot = (int)(pair.Key & uint.MaxValue); if (sim.Wildlife.IsAlive(slot)) { MoveAnimal(pair.Value, PositionAt(sim.Wildlife.XOf(slot), sim.Wildlife.YOf(slot)), delta,sim.Wildlife.ActionOf(slot)); } }
-        foreach (var wolf in sim.Predators.Wolves) if (_wolves.TryGetValue(wolf.Id, out Node3D? node)) { MoveAnimal(node, PositionAt(wolf.X, wolf.Y), delta); }
+        { int slot = (int)(pair.Key & uint.MaxValue); if (sim.Wildlife.IsAlive(slot)) { MoveAnimal((AnimalRig)pair.Value, PositionAt(sim.Wildlife.XOf(slot), sim.Wildlife.YOf(slot)), delta,sim.Wildlife.ActionOf(slot)); } }
+        foreach (var wolf in sim.Predators.Wolves) if (_wolves.TryGetValue(wolf.Id, out Node3D? node)) { MoveAnimal((AnimalRig)node, PositionAt(wolf.X, wolf.Y), delta); }
         EndVegetationContacts();EndWaterContacts();
     }
     private static float HeadingYaw(Vector2 direction)=>MathF.Atan2(direction.X,direction.Y)+MathF.PI;
     private static float TurnResident(float from,float to,float delta,float rate)
         =>from+Math.Clamp(Mathf.AngleDifference(from,to),-rate*delta,rate*delta);
-    private void MoveAnimal(Node3D node, Vector3 target, float delta,ActionKind action=ActionKind.None)
+    private void MoveAnimal(AnimalRig node, Vector3 target, float delta,ActionKind action=ActionKind.None)
     {
         if(Game.VisualPaused){OfferVegetationContact(node.Position,.75f);return;}
-        target=AnimalShoreTarget((AnimalRig)node,target);
+        target=AnimalShoreTarget(node,target);
         var current=node.Position;
-        var location=SceneryActorPosition(current,target,delta,8,false);
-        var direction=location-current;
+        bool paced=Game.PacingResidents;
+        float speedLimit=node.AdvanceTravelSpeed(Horizontal(target-current).Length(),delta);
+        var location=SceneryActorPosition(current,target,delta,8,false,paced?speedLimit:float.PositiveInfinity);
+        var direction=Horizontal(location-current);
+        float travel=direction.Length(),speed=travel<1.25f&&delta>0?MathF.Min(2.2f,travel/delta):0;
         node.Position=location;
         bool travelling=!SettledAt(location,target),drinking=false;
         if(!travelling&&action==ActionKind.Drink&&TryShoreContact(target,out var bank))
-        {direction=bank-location;drinking=true;OfferWaterContact(bank,.75f);}
+        {direction=Horizontal(bank-location);drinking=true;OfferWaterContact(bank,.75f);}
         bool grazing=action==ActionKind.Eat||drinking;
-        OfferVegetationContact(location,node is AnimalRig?.75f:.65f);
-        if ((travelling||drinking)&&Horizontal(direction).LengthSquared()>.000001f) { node.Rotation = new Vector3(0, Mathf.LerpAngle(node.Rotation.Y,MathF.Atan2(direction.X, direction.Z) + MathF.PI,1-MathF.Exp(-delta*9)), 0); }
+        OfferVegetationContact(location,.75f);
+        float before=node.Rotation.Y,yaw=before;
+        if((travelling||drinking)&&direction.LengthSquared()>.000001f)
+        {
+            float heading=HeadingYaw(direction);
+            yaw=paced?TurnResident(before,heading,delta,4.2f):Mathf.LerpAngle(before,heading,1-MathF.Exp(-delta*9));
+            node.Rotation=new(0,yaw,0);
+        }
+        float turn=delta>0?Mathf.AngleDifference(before,yaw)/delta:0;
         if(_camera.Position.DistanceSquaredTo(node.Position)<24*24)
         {
             var space=node.Transform;var inverse=space.AffineInverse();
-            ((AnimalRig)node).Pose(delta,travelling,false,grazing,point=>{var world=space*point;world.Y=GroundHeight(world.X,world.Z);return (inverse*world).Y;});
+            node.Pose(delta,travelling,false,grazing,point=>{var world=space*point;world.Y=GroundHeight(world.X,world.Z);return (inverse*world).Y;},speed,turn);
         }
-        else ((AnimalRig)node).Pose(delta,travelling,false,grazing);
+        else node.Pose(delta,travelling,false,grazing,displayedSpeed:speed,turnRate:turn);
     }
 }

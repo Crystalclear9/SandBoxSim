@@ -8,15 +8,16 @@ namespace SandBoxSim.Client;
 internal struct ResidentTravel
 {
     internal const double TilesPerSecond=.52;
-    internal const string Version="paced-resident-route-v1";
+    internal const string Version="paced-resident-route-v2";
+    private const float PreparationTime=.16f;
     private bool _ready,_queued;
     private Vector2I _latestTile;
     private Vector3 _goal,_next;
-    private float _cruise,_speed;
+    private float _cruise,_speed,_preparation,_restTime;
 
     internal Vector3 Goal=>_goal;
     internal bool Queued=>_queued;
-    internal float Speed=>_speed;
+    internal float Preparation{get;private set;}
     internal static Vector2 Planar(Vector3 p)=>new(p.X,p.Z);
     internal float Remaining(Vector3 current)=>Planar(_goal-current).Length()+(_queued?Planar(_next-_goal).Length():0);
 
@@ -68,7 +69,17 @@ internal struct ResidentTravel
         var direction=Planar(_goal-current);
         float remaining=direction.Length();
         const float braking=4.5f;
+        Preparation=0;
+        _restTime=!_queued&&remaining<.025f?_restTime+dt:0;
+        if(_restTime>=.20f)_preparation=0;
         if(remaining<.004f)return _speed=Mathf.MoveToward(_speed,0,dt*braking);
+        if(remaining>.12f&&_speed<.05f&&_preparation<PreparationTime)
+        {
+            _preparation=MathF.Min(PreparationTime,_preparation+dt);
+            Preparation=_preparation/PreparationTime;
+            return _speed=0;
+        }
+        if(remaining>.12f)_preparation=PreparationTime;
         var forward=new Vector2(-MathF.Sin(yaw),-MathF.Cos(yaw));
         float alignment=forward.Dot(direction/remaining);
         float throughSpeed=0;
