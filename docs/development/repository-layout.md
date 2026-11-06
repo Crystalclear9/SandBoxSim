@@ -45,7 +45,7 @@
 
 上衣采样源与成品读取在 `NatureModels.GarmentSkin.cs`，连续草束屋面在 `NatureModels.Thatch.cs`。`tools/bake-garments.ps1` 把维护用输入放在 `.tools/garment-sources/`，只将正式蒙皮与清单写入 `assets/models/garments/`；预览和失败试版不进入正式目录。
 
-正式动物由 `tools/export_authored_animals.py` 转换，`NatureModels.AuthoredAnimals.cs` 校验并读取鹿 14 / 狼 15 关节的作者网格与贴图；`AnimalRig.cs` 驱动步态、坡面接地和下颌。程序动物构造器作为独立校准实现保留。动物图册使用 `animal-details`、`animal-heads` 场景，正式配图位于 `docs/images/`。`addons/texture_import_guard/` 为编辑器提供实际 mip 链维护，普通游戏不运行该插件。
+正式动物由 `tools/export_authored_animals.py` 转换，`NatureModels.AuthoredAnimals.cs` 校验并读取鹿 14／狼 15 关节的来源网格和贴图，运行时扩展为鹿 18／狼 21 关节，补足足部与狼尾的运动。`AnimalRig.cs` 驱动分物种步态、坡面接地和下颌。程序动物构造器作为独立校准实现保留。动物图册使用 `animal-details`、`animal-heads` 场景，正式配图位于 `docs/images/`。`addons/texture_import_guard/` 为编辑器提供实际 mip 链维护，普通游戏不运行该插件。
 
 ## 运行资料与截图
 

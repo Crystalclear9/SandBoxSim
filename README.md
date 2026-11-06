@@ -18,7 +18,7 @@ Windows 本机已有完整独立包时，双击 [Play-3D.cmd](Play-3D.cmd)。启
 
 安装脚本把开发依赖放在项目 `.tools/` 中。Linux 和 macOS 的引擎路径、已有工具链与独立包更新方法见 [安装与启动](docs/guides/getting-started.md)、[构建与运行](docs/development/build.md) 和 [版本更新](docs/guides/updating.md)。
 
-左键拖动平移，右键拖动旋转与俯仰，滚轮缩放，空格暂停或继续。底部「创造」打开可搜索工具库。「手记」提供现场、详情、历史和曲线。选中居民后点击肖像，可查看面部、双手、全身、实际行为和随身物资。见 [玩家指南](docs/guides/player-guide.md) 与 [观察与界面](docs/guides/gameplay-observation.md)。
+观察模式下左键拖动平移，右键拖动旋转与俯仰，滚轮以鼠标指向的地面为中心缩放，空格暂停或恢复原倍率。底部「创造」打开可搜索工具库，F10 切换沉浸观察。选中居民后打开「档案」，可切换面部、双手和全身镜头，也可以跟随居民或查看当前目的地。见 [玩家指南](docs/guides/player-guide.md) 与 [观察与界面](docs/guides/gameplay-observation.md)。
 
 ## 当前游戏内容
 
@@ -27,7 +27,7 @@ Windows 本机已有完整独立包时，双击 [Play-3D.cmd](Play-3D.cmd)。启
 | 世界与生态 | 改变地貌和资源，栽植花甸、野果、苇泽与腐木，观察天气、火灾、授粉与地力变化。见 [自由探索](docs/guides/exploration.md) 与 [天气与生态](docs/guides/ecology.md) |
 | 居民与聚落 | 居民按需求与可达性行动，形成住房、农业、仓储和家庭。作物周期、地力变化、食物腐损、仓储保护及房屋使用状态均可观察。见 [聚落与居民](docs/guides/settlements.md) 与 [农业与食物流动](docs/guides/living-economy.md) |
 | 场景与移动 | 林地树丛、贴坡山石、岸边碎砾和连续水陆曲面。人物与鹿狼绕过登记的树干和山石，按地形落脚。居民在采集格内靠近资源，饮水活动产生水面涟漪。见 [地形与场景接触](docs/guides/terrain-and-traces.md) |
-| 人物与动物表现 | 来源人体轮廓、贴体衣装与连续肩肘腕形变。成人角色在同速下采用不同步幅与节奏，锤击有外侧蓄力与身前提锤两种路线，交谈有单手强调和双手成组表达。鹿狼使用授权网格与四足贴地。见 [模型系统](docs/development/models.md) |
+| 人物与动物表现 | 两种成人体型采用各自的肩颈、躯干与四肢拟合。女性外观包括编发和低位盘发、三套按体型拟合的上衣，以及带侧缝和屈膝余量的连续裤装。近景鞋底随支撑、离地与转身调整，工具由实际握点带动。鹿狼使用授权网格、分物种步态和四足贴地。见 [模型系统](docs/development/models.md) 和 [实机图册](docs/images/README.md) |
 | 状态观察与保存 | 图层、可搜索居民名录、行动目的地、跟随、世界记录和曲线。保存世界与会话后可继续运行。见 [玩家指南](docs/guides/player-guide.md) 与 [存档与确定性](docs/development/saving.md) |
 
 场景绕行使用普通树干与山石的水平包络。多步跳过或局部找不到干地绕行点时，显示位置会同步到目标，可能出现短跳。详细实现、使用边界及版本记录见 [项目文档](docs/README.md) 和 [更新记录](CHANGELOG.md)。

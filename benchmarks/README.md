@@ -67,9 +67,11 @@ python tools/evaluate.py verify runs/evaluation/visual-example
 
 `scenarios/visual-model-details.json` 提供衣料、靴子、鹿、狼和两类住房的实际共享网格近景，语义区域标注居民、鹿、狼及住房。它用于检查几何与材质表现，不包含专用展示模型或模拟任务。
 
-`scenarios/visual-animal-heads.json` 提供正式鹿狼模型的正侧面裁切；当前模型使用授权源 UV，鹿 14 / 狼 15 关节，`animalPresentation=authored-wildlife-v2`。新旧资产需分别建立基线，不能将更换素材带来的耗时差异视为程序优化收益。
+`scenarios/visual-animal-heads.json` 提供正式鹿狼模型的正侧面裁切；当前模型保留授权来源 UV，运行时鹿 18／狼 21 关节，`animalPresentation=articulated-paws-v12`，实际位移驱动步态标识为 `animalLocomotion=ground-distance-v1`。新旧资产需分别建立基线，不能将更换素材带来的耗时差异视为程序优化收益。
 
 `scenarios/visual-wardrobe.json` 用同一身份的实际职业网格展示三种剪裁的正背面，便于观察衣身轮廓、卷袖、背包和下摆。模型使用世界共用网格，图册不实例化模拟居民。
+
+`visual-female-wardrobe` 对照女性角色的三款衣装，`visual-female-portrait` 在固定世界中选择实际居民并拍摄面部与全身，`visual-forearm-frames` 和 `visual-wrist-motion` 分别用于静态截面外观和关节变形观察。完整画面和复现参数见 [实机图册](../docs/images/README.md)。
 
 `scenarios/visual-ecology-details.json` 展示与世界共用的阔叶树、针叶树、蕨类、草叶、岩石和灌木，提供 `tree`、`fern`、`grass`、`rock`、`shrub` 标签与无标题裁切。新标签追加到公开对象选项，历史问题保留各自已归档的选项。
 

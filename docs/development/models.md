@@ -24,7 +24,7 @@
 
 搬运姿势用 0.4 秒过渡托起与收手，双手就位后才显示物资。进食和饮水优先于搬运外观，避免整捆木材随靠近嘴部的右手移动；递交仍显示实际库存对应的物资。库存清空会立即隐藏物资，随后手臂收回；该机制只影响表现，不延迟库存交易。木材捆保留三根木料，增加两道闭合绑绳、独立木端面及年轮，合并缓存为共享网格。当前仍是双手支撑姿态与挂点表现，不包含任意物体的抓取或物理碰撞求解。
 
-![实际木材捆与双手支撑近景](../images/resident-cargo-detail.png)
+[双手搬运与交接的原生场景](../../benchmarks/scenarios/visual-handling-transitions.json)
 
 徒手拿取、递交、进食和饮水采用约 0.7 秒的目标姿态进入与退出。目标进度使用五次曲线，在目标曲线端点减速；实际手掌和肘部以上一帧已显示的姿态作参考，不从每帧重建的垂臂姿势重新选择肘向。手掌目标移动速度限制为 1 米/秒，朝向变化限制为 6 弧度/秒，肘部绕肩腕连线的转动限制为 3 弧度/秒。这些是游戏表现参数，不是人体医学标准。
 
@@ -36,11 +36,7 @@
 
 [日常上肢动作实测](https://pmc.ncbi.nlm.nih.gov/articles/PMC4690598/)与[伸手及手口动作测量](https://pubmed.ncbi.nlm.nih.gov/26539500/)分别记录上臂、肘部、前臂和手腕的运动；本项目据此区分到达目标、肘部连续性和腕部余量约束，没有把实验中的某个峰值当作所有居民的固定姿势。自检在 60 Hz 下将连续抬手的手腕、肘部单帧位移上限分别设为 25、30 毫米，并保留 60/120 Hz 对照、嘴部接近与返回检查。侧面演示用于观察前后深度和肘部弯曲；这些检查不构成人体动作捕捉精度验证。
 
-![原生锄地、锤击与站姿切换演示](../images/resident-tool-motion.gif)
-
-![原生交谈、递交与进食演示](../images/resident-social-motion.gif)
-
-![侧面交谈、递交与进食演示](../images/resident-social-side-motion.gif)
+[原生作业动作](../images/resident-style-work.webp) · [交谈、递交与进食](../images/resident-style-social.webp) · [生活动作侧面复现](../../benchmarks/scenarios/visual-social-side.json)
 
 手锤具有中央安装体与两端敲击面，边缘倒角按米制尺寸生成；锄刃有封闭侧壁、弧面及由厚到薄的刃缘，复用工具缓存和原握柄位置。木柄与金属头的材料组织参考 [Royal Museums Greenwich 工具藏品](https://www.rmg.co.uk/collections/objects/rmgc-object-69633)，属于游戏形态设计，没有复制藏品图片或声称复刻该器物。
 
@@ -138,7 +134,7 @@
 
 分段设计参考[动态前臂旋转测量](https://pubmed.ncbi.nlm.nih.gov/20696507/)及[实时分段前臂模型研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC8243400/)，区分屈肘、前臂旋转和手腕活动。当前是游戏皮肤的分段近似，没有独立桡尺骨、骨间膜、肌肉收缩或医学有效性；没有把测量论文的骨运动直接当作皮肤位移。`FOREARM_TWIST_PASS` 检查两种成人外观、两侧肢体的肘端／腕端、区间截面、暂停与 LOD；实际工具动作在连续解剖参考框架中检查点误差、混合体积及固定腕部过渡。
 
-`--panel=arm-articulation` 使用游戏共用的抬臂、肘腕求解器和模型，八秒内完成抬臂、屈肘、旋前／旋后与放下。观察入口采用连续五次时间曲线，保留正面、侧面及背面；不推进模拟或增加玩家任务。见[连续上肢近景](../images/resident-arm-junctions.gif)。
+`--panel=arm-articulation` 使用游戏共用的抬臂、肘腕求解器和模型，八秒内完成抬臂、屈肘、旋前／旋后与放下。观察入口采用连续五次时间曲线，保留正面、侧面及背面；不推进模拟或增加玩家任务。见 [上肢连动评测场景](../../benchmarks/scenarios/visual-arm-articulation.json)。
 
 ![上肢近景](../images/resident-arm-junctions.png)
 
@@ -213,9 +209,9 @@
 
 `--panel=locomotion` 提供同速度男女外观的启停转身、负重行走及持锤行走—工作六格演示；公开场景为 `visual-locomotion.json`。`LOCOMOTION_PASS` 检查真实关节的启停、不同速度、转向、拾取、固定肢长、实际鞋底截面、步间连续和暂停；`LOCOMOTION_LOAD_PASS` 检查搬运／持锤行走到工作中的掌柄接触、手掌连续、坡面髋部锚点和裤装绑定；`LOCOMOTION_SAMPLING_PASS` 核对逐帧变速输入与间隔八帧消费的相位／速度差，并检查儿童髋部随运动骨盆保持连接。原有远近景节奏、衣装蒙皮和握持检查继续执行。世界根节点仍按模拟格点插值，在高倍速或位置重新同步时不能保证每只脚在世界坐标完全锁定；画廊与截图也不能单独证明动作写实程度。
 
-![实际地形上的居民起步、直行、转弯与停步](../images/resident-locomotion.webp)
+![两种成人外观的同速步行、搬运与持锤](../images/resident-locomotion.webp)
 
-![人物移动与动作衔接](../images/resident-locomotion.png)
+实景地形上的接地可通过跟随居民观察，场景入口见 [场景接触](../../benchmarks/scenarios/world-scenery-contacts.json)。
 
 ### 动作链与脚步支撑
 
@@ -245,7 +241,7 @@
 
 公开 `visual-handling-transitions.json` 以十二秒循环、固定 60 Hz 和零模拟步进，对两套成人外观展示实际根节点靠近后拾取、持锤到进食再换锄及逃离、双手搬运与交接。`INTERACTION_SEQUENCE_PASS` 检查十五类动作、实际接触时的工具归属变化、物资支撑、种类切换、短动作、取消和暂停；原有手腕／肩肘、衣料、远近景节奏检查继续执行。它们是工程约束，不是主线流程、动作自然度或 RSI 分数。
 
-![实际交互衔接](../images/resident-handling-transitions.gif)
+![实际交互衔接图册](../images/resident-handling-transitions.png)
 
 当前没有双人同步抓握、物品从地面到手中再放下的完整实体生命周期、杯具和食物实体、世界空间足部锁定、任意目标接触或工具撞击物理。短动作补全只在可观察到完成状态时发生；高速模拟可能跳过短暂状态，不能据图册声称所有世界事件均有完整动画。
 
@@ -285,7 +281,7 @@
 
 ![肩袖活动范围的正侧背面](../images/resident-shoulder-elevation.png)
 
-[肩袖连续抬起、保持与放下](../images/resident-shoulder-elevation.gif)来自公开 `visual-shoulder-elevation.json`，使用游戏共用模型和同一个肩肘腕求解器，左右臂各占六秒：1.5 秒抬起、一秒保持、1.5 秒放下、两秒休息。该入口只用于观察绑定范围，不向玩家增加任务，也不是导入的动作捕捉。实际挥锤及返回另见[肩肘作业演示](../images/resident-shoulder-motion.gif)。
+[肩袖连续抬起、保持与放下的公开场景](../../benchmarks/scenarios/visual-shoulder-elevation.json)，使用游戏共用模型和同一个肩肘腕求解器，左右臂各占六秒：1.5 秒抬起、一秒保持、1.5 秒放下、两秒休息。该入口只用于观察绑定范围，不向玩家增加任务，也不是导入的动作捕捉。挥锤与返回可从 [肩肘作业场景](../../benchmarks/scenarios/visual-shoulder-motion.json) 采样。
 
 ### 来源肩部与捕捉伸展
 
@@ -295,7 +291,7 @@
 
 近景、空手、无搬运的成人持续空闲约 35–57 秒后可自行伸展；移动、工具、搬运与其它互动具有优先级，退出时使用已有的惯性收回。暂停冻结播放，儿童及远景代理不启用该空闲片段。自由运动直接使用来源方向及手腕旋转，不再经过手掌目标速度限制，以免把捕捉时序改成程序 IK 滞后；接触任务继续使用原有求解器。`CAPTURED_ARM_MOTION_PASS` 检查来源方向／朝向、实际蒙皮、空闲世界接入、持物优先级、暂停、退出和 LOD。
 
-`--panel=captured-stretch` 是使用同一游戏模型的观察入口，每 3.075 秒记录后接两秒休息，休息首尾各留 0.25 秒连续混合，连接放下和下一次起手。原生演示见下图及[连续伸展](../images/resident-captured-stretch.gif)，旧的 `shoulder-elevation` 仍用于固定范围检查。捕捉记录按 CMU 的独立条款使用，来源与重建见[人物素材](human-assets.md)，不能将其标成 CC0。
+`--panel=captured-stretch` 是使用同一游戏模型的观察入口，每 3.075 秒记录后接两秒休息，休息首尾各留 0.25 秒连续混合，连接放下和下一次起手。原生画面见下图，完整伸展可用 [捕捉伸展场景](../../benchmarks/scenarios/visual-captured-stretch.json) 采样，旧的 `shoulder-elevation` 仍用于固定范围检查。捕捉记录按 CMU 的独立条款使用，来源与重建见[人物素材](human-assets.md)，不能将其标成 CC0。
 
 ![捕捉伸展的游戏模型](../images/resident-captured-stretch.png)
 
@@ -305,7 +301,7 @@
 
 ![肩肘抬手与收回的正侧背面对照](../images/resident-shoulder-motion.png)
 
-[肩肘连续动作演示](../images/resident-shoulder-motion.gif)使用同一实际动作控制器，公开场景为 `visual-shoulder-motion.json`。抬臂、肱骨轴向旋转与肩胛／锁骨运动分开描述的参考见 [ISB 上肢关节坐标系建议](https://media.isbweb.org/images/documents/standards/isb_jcs_part_ii.pdf)；当前没有实现独立肩胛骨、锁骨关节或肌肉动力学。
+[肩肘连续动作场景](../../benchmarks/scenarios/visual-shoulder-motion.json) 使用同一实际动作控制器。抬臂、肱骨轴向旋转与肩胛／锁骨运动分开描述的参考见 [ISB 上肢关节坐标系建议](https://media.isbweb.org/images/documents/standards/isb_jcs_part_ii.pdf)；当前没有实现独立肩胛骨、锁骨关节或肌肉动力学。
 
 弯身拾取时，在原腿长下求解到角色局部的原脚踝落点，保持脚底朝向；手部、腰背与工具挂点继续跟随现有过渡。这不是世界空间的足部锁定、任意物体抓取、地面接触力或完整动作捕捉。`SUPPORT_COORDINATION_PASS` 检查两种成人外观的支撑中段、骨盆连续性、拾取后的脚踝稳定和低位携带；原有手部／工具接触、60/120 Hz、远近景与暂停检查同时保留，结果不作为写实程度或医学步态评分。
 
@@ -341,7 +337,7 @@
 
 ![行走中的肩肘与掌腕](../images/resident-arm-swing.png)
 
-![正面与侧面的实际摆臂循环](../images/resident-arm-swing.gif)
+[正面与侧面的摆臂循环场景](../../benchmarks/scenarios/visual-arm-swing.json)
 
 ### 发力、疲劳与动作节奏
 
@@ -357,7 +353,7 @@
 
 世界角色与人物观察窗都读取真实疲劳和健康值。`work-effort` 用相同手锤展示两种成人外观的状态对照；自检核对相同系数下的周期一致性、疲劳后的节奏与躯干响应、掌柄接触、状态切换连续性和暂停。该检查保证运行约束，不把通过结果当作动作写实评分。
 
-![实际作业节奏与状态对照](../images/resident-work-effort.gif)
+![实际作业节奏与状态对照](../images/resident-style-work.webp)
 
 劳动支撑姿态由工具相位和相对负荷驱动，髋部、小幅屈膝与上肢同时配合。计算保持原大腿／小腿长度及脚踝前偏移，反求髋部位置与膝角，使角色局部的两只脚踝落点和鞋底朝向保持稳定；已有世界转向、地面高度与坡面补偿继续生效。这是矢状面支撑姿态，没有全身平衡物理、地面接触力或转身时的世界空间足部锁定。进入和退出保留阻尼速度，暂停冻结。远景仅对便宜的支撑滤波按 60 Hz 分段积分，不重复整套 IK；徒手过渡以最多 1/30 秒子步处理，保留原有 60/120 Hz 和远近景姿态误差检查。
 
@@ -534,7 +530,7 @@
 
 `NatureModels.Bramble.cs` 构造七根拱垂主枝和交错的三／五小叶；每片叶有 20×4 分段，叶面弯曲、叶尖下垂，边缘使用真实锯齿轮廓。复叶的小叶通过短叶柄连到同一节点，主枝补短刺；14 枚果实通过分叉果梗下垂，每枚由 21 个小果粒组成。果实与叶柄在合并后的同一局部坐标中使用共享风动函数，避免枝条摆动时果实停在原处。结果／无果模型共 31,616／16,608 三角形，使用原材质缓存、屏幕 LOD 和 42 米显示距离。结构参考 Kew／RHS 的荆棘类灌木资料，来源与视觉尺度见[环境素材](environment-assets.md)；模拟中的食物、季节和采集规则不变。
 
-![同一灌丛的原生叶果近景](../images/bramble-detail.png)
+野果灌丛可在 [当前生态模型图册](../images/ecology-detail.png) 中查看。
 
 ## 源码入口
 
@@ -701,7 +697,7 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 
 ## 展示图与几何契约
 
-[正式图片索引](../images/README.md) 区分当前 UI/地表图与人物动作专题记录。模型图册和肖像读取实际共享网格，专题截图中的旧菜单颜色不作为现行 UI 说明。几何自检验证顶点、法线、UV、关节和预算；美感、人体比例与自然感仍需在真实近景和运动中判断。
+模型图册和肖像读取共享网格。实机图册按世界与界面、环境模型、人物和动作分类，记录实际采样的源码、场景和帧号。静态图可观察轮廓与材质，短片展示多个动作阶段；几何自检另外检查顶点、法线、UV、关节和预算。[实机图册](../images/README.md)
 
 ## 米制构件与近景细节
 
@@ -779,7 +775,7 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 
 腕部旋转混合的收缩问题参考 [Blender 的骨架体积保持说明](https://docs.blender.org/manual/en/latest/modeling/modifiers/deform/armature.html)。当前运行时仍使用引擎原有蒙皮，通过分段四元数支撑减小相邻旋转差，并检查最终蒙皮矩阵的体积与接缝；没有将整个 Godot 角色改为双四元数蒙皮。
 
-当前腕部的[静态近景](../images/resident-wrist-motion.png)与[八秒连续回放](../images/resident-wrist-motion.gif)均来自游戏原生视口。
+当前腕部的[静态近景](../images/resident-wrist-motion.png)与[八秒连续回放](../images/resident-wrist-motion.webp)均来自游戏原生视口。
 
 衣装的 `garmentFit=continuous-drape-v31` 先对衣片的纵向轮廓作受约束的弯曲能量最小化，再进行肩胸与腋下的表面松弛。纵向求解保留来源体型与基础松量，额外间隙上限通常在正背面为 16 毫米、侧面为 6 毫米，女性上胸区再收至 4 毫米，胸下渐增至 13 毫米；领口和腰带支撑保持固定，避免逐层截面在胸腹与腰背处形成突然转折。它按体型与三种剪裁缓存，普通动画帧不运行迭代求解。后续表面松弛沿法线跨过细小凹槽，位移上限 8 毫米，领口、袖口、成衣腰带及下摆保持各自约束，并检查实际三角形方向和固定点。
 
@@ -813,7 +809,7 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 
 衣装设计参考 [FIT 的 1350–1399 服装资料](https://fashionhistory.fitnyc.edu/1350-1399/)与 [Blender Studio 身体及衣装流程](https://studio.blender.org/training/stylized-character-workflow/chapter/5d384eb4a5b8f5c2c32c8505/)，用于当前沙盒角色的原创组合，不作为特定年代服饰的复原。
 
-当前[全身对照](../images/resident-body-frames.png)展示近景衣装轮廓；[默认世界视距](../images/resident-world-distance.png)保留上一版身体的远景分层配色采样，版本见配图说明。身体曲线与分片材质共同决定角色的可读性。
+当前[全身对照](../images/resident-body-frames.png)展示近景衣装轮廓。普通视距的衣装和场景比例见 [世界远景](../images/terrain-modern.png)。身体曲线与分片材质共同决定角色的可读性。
 
 `balanced-silhouette-v6` 对女性前胸增加最多 12 毫米的宽缓向上位移，并将投影从胸下重新分配到上胸；关节辅助点保持原位，向上位移在后侧退出。位移总预算 18 毫米，三轴雅可比、左右对称、来源重建与关节一致性继续检查。当前烘焙前胸截面最前点约为 1.145 米；这个位置是项目角色的设计参数。
 
@@ -1023,7 +1019,7 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 
 `MOTION_CHOREOGRAPHY_PASS` 在同一身体和同一把锤上检查实际握柄高点、髋部偏移方向，以及交谈中双手共同抬起的时长。`CAPTURED_PICKUP_PASS` 测量取物后的髋部回升、空手平衡和脚底滑移。`REACH_TRAJECTORY_PASS` 核对饮水抬头、手指近嘴和两种更新步进。`GROUNDED_ARRIVAL_PASS` 检查步态接缝、左右摆臂、转向锚点和停步关节连续。`WORK_SUPPORT_PASS` 检查双脚锚点、腿长和暂停。
 
-[同速步态对照](../images/resident-style-walk.gif) · [同锤作业对照](../images/resident-style-work.gif) · [交谈对照](../images/resident-style-social.gif)
+[同速步态对照](../images/resident-locomotion.webp) · [同锤作业对照](../images/resident-style-work.webp) · [交谈对照](../images/resident-style-social.webp)
 
 场景地表使用 `habitatDetail=responsive-understory-v12`：共享草丛网格包含 20 片较高弯叶与 4 片矮阔叶，336 个三角形；每个适宜格最多四个候选，外围根部核对相邻地类与占用。人物与鹿狼的近景草叶接触场、占用缓存失效、接地和寻路的职责边界见[地形与场景接触](../guides/terrain-and-traces.md)。即时草叶反应是只读显示；长期压实继续来自内核。
 

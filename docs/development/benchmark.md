@@ -36,13 +36,13 @@ python tools/evaluate.py run benchmarks/scenarios/render-population.json --label
 
 ## 场景协议
 
-机器可读字段描述见 [request.schema.json](../../benchmarks/request.schema.json)；跨字段条件由引擎验证。预设位于 [benchmarks/scenarios](../../benchmarks/scenarios/visual-characters.json)，包含人物/动物、建筑、面部、握持手部、人物界面和 300 人模拟渲染。字段名严格匹配，未知字段、未知命令、重复截图帧及越界参数会被拒绝。
+机器可读字段描述见 [request.schema.json](../../benchmarks/request.schema.json)；跨字段条件由引擎验证。预设位于 [benchmarks/scenarios](../../benchmarks/scenarios/visual-characters.json)，包含人物体型、衣装、面部和关节对照、动物、建筑、界面及 300 人模拟渲染。字段名严格匹配，未知字段、未知命令、重复截图帧及越界参数会被拒绝。
 
 | 字段 | 含义与范围 |
 |---|---|
 | `id`, `seed` | 实验名称（1–64 位字母/数字/点/下划线/短横线，首位为字母或数字）与世界种子 |
 | `agents`, `previewDays` | 人口 0–2000，初始预演 0–30 天 |
-| `panel` | `field`, `tools`, `trails`, `homes`, `farms`, `person`, `person-hands`, `architecture`, `characters`, `model-details`, `animal-details`, `animal-motion`, `animal-heads`, `ecology-details`, `wardrobe`, `faces`, `equipment`, `actions`, `hands`, `naturemodels`, `body-frames`, `body-motion`, `locomotion`, `arm-swing`, `forearm-frames`, `face-frames`, `work-effort`, `motion`, `social`, `social-side`, `shoulder-motion`, `shoulder-elevation`, `handling-transitions` |
+| `panel` | `field`, `tools`, `trails`, `homes`, `farms`, `person`, `person-hands`, `architecture`, `characters`, `faces`, `equipment`, `actions`, `hands`, `naturemodels`, `model-details`, `ecology-details`, `animal-details`, `animal-motion`, `animal-heads`, `wardrobe`, `female-wardrobe`, `body-frames`, `body-motion`, `locomotion`, `arm-swing`, `forearm-frames`, `face-frames`, `thorax-frames`, `work-effort`, `motion`, `social`, `social-side`, `shoulder-motion`, `handling-transitions`, `shoulder-elevation`, `captured-stretch`, `arm-articulation`, `upper-arm-flex`, `elbow-joint`, `wrist-motion` |
 | `warmupFrames`, `measuredFrames` | 预热 3–3600 帧，采样 2–36000 帧 |
 | `ticksPerFrame` | 每个逻辑帧推进 0–20 个模拟 tick，与本机快慢无关 |
 | `captureFrames` | 从 0 开始的逻辑帧索引；至少第 3 帧，最多 32 个，无重复，不能超过运行末帧 |
@@ -136,7 +136,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 ## 当前渲染版本
 
-当前渲染元数据为 `animalPresentation=articulated-paws-v12`、`interface=resident-framing-memory-v28`、`architecture=inset-joinery-v13`、`garmentMaterial=quiet-linen-v17`、`landscapeSurface=coverage-mosaic-v6`、`habitatDetail=stratified-meadow-v10`。另外记录 `residentSurface=linear-skin-v9`、`vegetationSurface=engine-faced-v2`、`wildFlora=arched-bramble-v1`、`waterSurface=constrained-bank-v6`、`wristContour=continuous-source-v2` 、`hairline=framed-source-root-v2`、`reedPanicle=connected-axis-v1` 和 `handSurface=anatomical-regions-v1`。人物肖像的 `renderQuality.portrait.studio=continuous-inspector-v9`，并记录实际 `thumbnail` 布尔值。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。衣装领口与肩袖、人物布光、动物足部、建筑门窗接合及连续观察控件已改变，需重采相同场景的视觉和耗时基线；不能把不同像素覆盖与布局造成的耗时变化算作代码优化收益。`renderQuality.fontProfile=noto-packaged-v1` 记录随包字库策略，字体变化需要新视觉与耗时基线。`renderQuality.interfaceVisible` 标识界面是否显示，公开评测场景默认显示；沉浸观察不会自动成为新的评测指令。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
+当前渲染元数据为 `animalPresentation=articulated-paws-v12`、`interface=resident-framing-memory-v28`、`architecture=inset-joinery-v13`、`garmentMaterial=quiet-linen-v17`、`landscapeSurface=wet-bank-mosaic-v7`、`habitatDetail=responsive-understory-v12`。另外记录 `residentSurface=linear-skin-v9`、`vegetationSurface=engine-faced-v2`、`wildFlora=arched-bramble-v1`、`waterSurface=shore-activity-v7`、`wristContour=continuous-source-v2`、`hairline=framed-source-root-v2`、`femaleGroom=scalp-guided-plait-v1`、`reedPanicle=connected-axis-v1` 和 `handSurface=anatomical-regions-v1`。人物肖像的 `renderQuality.portrait.studio=continuous-inspector-v9`，并记录实际 `thumbnail` 布尔值。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。衣装领口与肩袖、人物布光、动物足部、建筑门窗接合及连续观察控件已改变，需重采相同场景的视觉和耗时基线；不能把不同像素覆盖与布局造成的耗时变化算作代码优化收益。`renderQuality.fontProfile=noto-packaged-v1` 记录随包字库策略，字体变化需要新视觉与耗时基线。`renderQuality.interfaceVisible` 标识界面是否显示，公开评测场景默认显示；沉浸观察不会自动成为新的评测指令。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
 
 `reachMotion=palm-trajectory-v2` 记录手掌轨迹过渡、朝向插值、错开的社交手势与循环进食表现。动作轨迹改变需要重采相同场景的视觉及耗时基线，不能与旧动作混作效率对照。
 
