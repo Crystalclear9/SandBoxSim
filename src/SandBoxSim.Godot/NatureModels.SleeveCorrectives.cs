@@ -87,6 +87,17 @@ internal sealed partial class NatureModels
         }
         var detailBindings=new SleeveDetail[2];
         for(int side=0;side<2;side++)detailBindings[side]=BindSleeveDetail(source,ids,patches,activation[side]);
+        var innerSleeve=new float[source.Length];
+        if(FittedFigure)
+            for(int i=0;i<source.Length;i++)
+            {
+                float along=uv[i].X;
+                // Preserve the shoulder cap and cuff. The inner arm carries
+                // the compression fold between the sewn axilla and the sleeve.
+                innerSleeve[i]=TorsoRamp(.015f,.060f,along)*(1-TorsoRamp(.115f,.165f,along))
+                    *(1-TorsoRamp(.127f,.166f,MathF.Abs(source[i].X)))
+                    *(1-TorsoRamp(1.16f,1.23f,source[i].Y));
+            }
         var inverseBlends=new Transform3D[source.Length];
         var result=new Godot.Collections.Array<Godot.Collections.Array>();
         for(int side=0;side<2;side++)for(int plane=0;plane<ResidentRig.SleevePlaneCount;plane++)for(int height=0;height<ResidentRig.SleeveHeightCount;height++)for(int roll=0;roll<ResidentRig.SleeveRollCount;roll++)
@@ -156,6 +167,19 @@ internal sealed partial class NatureModels
             for(int i=0;i<source.Length;i++){points[i]+=offsets[i];target[i]=blends[i]*points[i];}
             if(FittedFigure)
             {
+                float overhead=TorsoRamp(45,125,(height+1)*45);
+                RelaxRaisedInnerSleeve(target,patches,active,innerSleeve,overhead,shoulder,direction);
+                for(int i=0;i<source.Length;i++)
+                {
+                    if(active[i]<=0||uv[i].X>=0)continue;
+                    float lateral=MathF.Abs(source[i].X);
+                    float ribs=TorsoRamp(1.067f,1.095f,source[i].Y)*(1-TorsoRamp(1.136f,1.175f,source[i].Y));
+                    float flank=TorsoRamp(.084f,.112f,lateral)*(1-TorsoRamp(.035f,.080f,MathF.Abs(source[i].Z)));
+                    float excess=MathF.Max(0,MathF.Abs(target[i].X)-lateral-.010f);
+                    // The torso panel is supported by the ribs below the
+                    // armpit. Soften outward slack carried by a high reach.
+                    target[i].X-=MathF.Sign(source[i].X)*MathF.Min(excess,.014f)*ribs*flank*overhead*active[i];
+                }
                 CompleteBodiceSurface(target,ids,uv,source,active);
                 for(int i=0;i<source.Length;i++)points[i]=inverseBlends[i]*target[i];
             }

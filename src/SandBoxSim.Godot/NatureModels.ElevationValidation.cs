@@ -102,7 +102,10 @@ internal sealed partial class NatureModels
                     // Worst midpoint between neighbouring rotations: unlike
                     // checking individual bones, this detects LBS collapse.
                     var rotation=rig.Arms[side].Quaternion;
-                    var axis=new Vector3(rotation.X,rotation.Y,rotation.Z).Normalized();
+                    var axis=new Vector3(rotation.X,rotation.Y,rotation.Z);
+                    // At a perfectly hanging arm the rotation is identity.
+                    // Use the real long axis for the radial probe in that pose.
+                    axis=axis.LengthSquared()<1e-10f?-rig.Arms[side].Basis.Y:axis.Normalized();
                     var radial=axis.Cross(MathF.Abs(axis.Y)<.9f?Vector3.Up:Vector3.Right).Normalized();
                     for(int span=0;span<ResidentRig.SleeveSpans;span++)
                     {

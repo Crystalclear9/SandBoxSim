@@ -6,8 +6,8 @@ namespace SandBoxSim.Client;
 
 internal partial class ResidentRig
 {
-    // Opt-in rig study: an anatomical-plane target passed through the same
-    // shoulder/elbow/wrist solver and skin as gameplay. Not motion capture.
+    // Unloaded joint-angle reference on the gameplay skeleton and skin.
+    // Set the angles directly so a prior grip cannot steer the reference.
     internal void StudyArmElevation(float delta,float elevation,float plane,int side=1,float pronation=0,float flexion=.35f)
     {
         bool ambient=AmbientMotionEnabled;AmbientMotionEnabled=false;
@@ -16,14 +16,11 @@ internal partial class ResidentRig
         var outward=new Vector3((side==0?-1:1)*MathF.Cos(plane),0,-MathF.Sin(plane));
         var axis=Vector3.Down.Cross(outward).Normalized();
         var upper=Vector3.Down.Rotated(axis,elevation);
-        var reference=PreferredArmFrame(side,upper);
-        var lower=upper.Rotated(reference.X,flexion);
-        var elbow=ShoulderRest(side)+upper*.28f;
-        var wrist=elbow+lower*Hands[side].Position.Length();
-        var right=reference.X;var up=-lower;var basis=new Basis(right,up,right.Cross(up)).Orthonormalized();
-        basis=new Basis(lower,pronation)*basis;
-        var grip=side==1?Grip!.Position:new Vector3(0,-.035f,-.0286f);
-        SolveHand(side,wrist+basis*grip,basis,true,0,elbow);
-        CurlHand(side,.22f);SyncShoulderBone(side);UpdateHandBones(side);
+        Arms[side].Position=ShoulderGirdle(side,upper).Origin;
+        Arms[side].Basis=PreferredArmFrame(side,upper);
+        Hands[side].Basis=Basis.Identity;
+        CurlHand(side,.22f);
+        SyncShoulderBone(side);
+        StudyForearmRotation(side,new Basis(Vector3.Right,flexion),pronation);
     }
 }

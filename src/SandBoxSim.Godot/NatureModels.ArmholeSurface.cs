@@ -95,7 +95,7 @@ internal sealed partial class NatureModels
         GD.Print($"ARMHOLE_REST_FLOW: frame={BodyFrame}, cut={_garmentCut}, edges={after.Edges}, sharp before/after={before.Sharp}/{after.Sharp}, maximum edit={maximumEdit:F5} m; shared seam relaxed, neck/centre/waist/cuff fixed");
 
     }
-    private static (int Edges,int Sharp) ArmholeCreases(Vector3[] points,int[] triangles,Vector2[] pattern)
+    private static (int Edges,int Sharp,float LongestInnerFold) ArmholeCreases(Vector3[] points,int[] triangles,Vector2[] pattern,Vector3[]? rest=null,int raisedSide=-1)
     {
         var normals=new Vector3[triangles.Length/3];var edges=new Dictionary<(int,int),List<int>>();
         for(int t=0;t<triangles.Length;t+=3)
@@ -109,15 +109,21 @@ internal sealed partial class NatureModels
                 if(!edges.TryGetValue(key,out var faces))edges[key]=faces=new();faces.Add(t/3);
             }
         }
-        int samples=0,sharp=0;
+        int samples=0,sharp=0;float longestInnerFold=0;
         foreach(var edge in edges)
         {
             var (a,b)=edge.Key;if(edge.Value.Count!=2||pattern[a].X<0||pattern[b].X<0||pattern[a].X>=.20f||pattern[b].X>=.20f)continue;
-            if(normals[edge.Value[0]].Dot(normals[edge.Value[1]])<-.17364818f)sharp++;samples++;
+            float turn=normals[edge.Value[0]].Dot(normals[edge.Value[1]]);
+            if(turn<-.17364818f)sharp++;
+            samples++;
+            if(rest==null||turn>=-.70710678f||MathF.Min(pattern[a].X,pattern[b].X)<=.04f||MathF.Max(pattern[a].X,pattern[b].X)>=.14f)continue;
+            var centre=(rest[a]+rest[b])*.5f;
+            if((centre.X<0)==(raisedSide==0)&&MathF.Abs(centre.X)>.07f&&centre.Y>1.08f&&centre.Y<1.17f)
+                longestInnerFold=MathF.Max(longestInnerFold,points[a].DistanceTo(points[b]));
         }
-        return(samples,sharp);
+        return(samples,sharp,longestInnerFold);
     }
-    private (int Edges,int Sharp) ArmholePoseCreases(ResidentRig rig)
+    private (int Edges,int Sharp,float LongestInnerFold) ArmholePoseCreases(ResidentRig rig,int raisedSide)
     {
         var arrays=rig.DetailedBodyMesh.SurfaceGetArrays(0);var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
         var local=CorrectedSleeveSource(rig,p);var posed=new Vector3[p.Length];
@@ -125,7 +131,7 @@ internal sealed partial class NatureModels
         var palette=new Transform3D[ResidentRig.SupportedBodyBones];
         for(int i=0;i<palette.Length;i++)palette[i]=rig.ShoulderSkeleton.GetBonePose(i)*rig.DetailedBodySkin.GetBindPose(i);
         for(int i=0;i<posed.Length;i++)for(int j=0;j<4;j++)posed[i]+=(palette[bones[i*4+j]]*local[i])*weights[i*4+j];
-        return ArmholeCreases(posed,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array());
+        return ArmholeCreases(posed,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array(),p,raisedSide);
     }
 
 }

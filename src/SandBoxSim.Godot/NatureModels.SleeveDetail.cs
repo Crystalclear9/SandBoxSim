@@ -80,6 +80,33 @@ internal sealed partial class NatureModels
         }
         return result;
     }
+
+    private static void RelaxRaisedInnerSleeve(Vector3[] posed,(int Index,float Weight)[][] patches,float[] active,float[] innerSleeve,float elevation,Vector3 shoulder,Vector3 axis)
+    {
+        if(elevation<=0)return;
+        var original=(Vector3[])posed.Clone();
+        var next=new Vector3[posed.Length];
+        for(int pass=0;pass<8;pass++)
+        {
+            for(int i=0;i<posed.Length;i++)
+            {
+                next[i]=posed[i];
+                float amount=active[i]*innerSleeve[i]*elevation;
+                if(amount<=0||patches[i].Length==0)continue;
+                var mean=Vector3.Zero;
+                foreach(var (j,w) in patches[i])mean+=posed[j]*w;
+                var offset=(posed[i].Lerp(mean,.55f*amount)-original[i]).LimitLength(.016f*amount);
+                var fromAxis=original[i]-shoulder;
+                var radial=fromAxis-axis*fromAxis.Dot(axis);
+                var outward=radial.Normalized();
+                // Round the compressed fold primarily along the sleeve.
+                // Keep the fitted clearance on the arm side of the cloth.
+                float inward=MathF.Max(0,-offset.Dot(outward)-.002f*amount);
+                next[i]=original[i]+offset+inward*outward;
+            }
+            Array.Copy(next,posed,posed.Length);
+        }
+    }
     private static void ValidateSleeveDetail()
     {
         const int size=9;var source=new Vector3[size*size];var free=new float[source.Length];var ids=new List<int>();

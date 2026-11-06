@@ -211,15 +211,15 @@ internal partial class ResidentRig
         if(!bare)_bareVelocity[side]=_bareAngularVelocity[side]=Vector3.Zero;
         _armSolvedThisStep[side]=true;_armReturning[side]=true;
         Vector3 gripOffset=side==1?Grip!.Position:new(0,-.035f,-.0286f);
-        Vector3 wrist=gripTarget-handBasis*gripOffset;
+        Vector3 requestedWrist=gripTarget-handBasis*gripOffset;
         // Seed the shoulder from the displayed upper arm, or an explicit
         // elbow hint. Wrist height includes elbow flexion and must not create
         // a fresh shrug before the coupled shoulder/elbow refinement below.
         var upperHint=elbowHint.HasValue?elbowHint.Value-ShoulderRest(side):-_priorArms[side].Basis.Y;
-        Vector3 shoulder=ShoulderForReach(side,wrist,upperHint);Arms[side].Position=shoulder;
+        Vector3 shoulder=ShoulderForReach(side,requestedWrist,upperHint);Arms[side].Position=shoulder;
         float upper=.28f,lower=Hands[side].Position.Length();
-        Vector3 delta=wrist-shoulder;float distance=Math.Clamp(delta.Length(),.08f,upper+lower-.002f);var direction=delta.Normalized();
-        wrist=shoulder+direction*distance;
+        Vector3 delta=requestedWrist-shoulder;float distance=Math.Clamp(delta.Length(),.08f,upper+lower-.002f);var direction=delta.Normalized();
+        var wrist=shoulder+direction*distance;
         float along=(upper*upper-lower*lower+distance*distance)/(2*distance);
         // Keep the elbow below and slightly outside the shoulder. A tool's
         // shaft orientation must not drag the elbow up into a winged pose.
@@ -289,8 +289,10 @@ internal partial class ResidentRig
         // wrist target. The correction is bounded to the existing girdle.
         for(int pass=0;pass<2;pass++)
         {
-            shoulder=ShoulderForReach(side,wrist,elbow-shoulder);
-            delta=wrist-shoulder;distance=Math.Clamp(delta.Length(),.08f,upper+lower-.002f);direction=delta.Normalized();
+            shoulder=ShoulderForReach(side,requestedWrist,elbow-shoulder);
+            // Reproject the original target around the updated shoulder.
+            // Reusing the first clamped wrist keeps it on the wrong arc.
+            delta=requestedWrist-shoulder;distance=Math.Clamp(delta.Length(),.08f,upper+lower-.002f);direction=delta.Normalized();
             wrist=shoulder+direction*distance;
             along=(upper*upper-lower*lower+distance*distance)/(2*distance);
             bend-=direction*bend.Dot(direction);
