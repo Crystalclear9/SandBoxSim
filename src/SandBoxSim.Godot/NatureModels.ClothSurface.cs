@@ -69,10 +69,11 @@ ALBEDO*=1.0-max(side_seam,yoke)*(fitted_bodice?.08:.13)*near_fade;
 if(trouser_details){
 // UV2 is an independent rest-space seam chart, so stitches cannot slide
 // over the thigh when its bones rotate or the material is shared.
-float seam_distance=abs(sin(UV2.x))*.065;
+float seam_distance=tailored_trousers?abs(UV2.x):abs(sin(UV2.x))*.065;
 float aa=max(fwidth(seam_distance),.0001);
 float line=1.0-smoothstep(.0006,.0016+aa,seam_distance);
 float stitch=.65+.35*smoothstep(-.2,.3,sin(UV2.y*2094.395));
+if(tailored_trousers){stitch=mix(stitch,.825,smoothstep(.0008,.0025,fwidth(UV2.y)));}
 float fade=1.0-smoothstep(.002,.006,aa);
 ALBEDO*=1.0-line*stitch*.16*fade;
 if(tailored_trousers){
