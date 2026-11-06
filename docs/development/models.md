@@ -179,6 +179,8 @@
 
 女性三款成衣的下摆使用成品外层截面拟合。拟合时剔除内侧翻边三角面，沿最低实测外层截面的切向补足采样边界。翻边的两圈顶点随后从外层下缘和上一排重新定位，分别向内收 2.4 与 3.2 毫米。近景网格重算法线，远景从同一静止衣面生成。裤装与下摆的重叠在拾取、工作和步行姿态下通过蒙皮后的表面检查。
 
+三款女性成衣各自使用下摆高度曲线。工作衫沿侧腰放出少量活动余量，下缘接近平直。采集短衣在侧髋抬高，前后保留弧线。商人外套由腰向下逐渐展开，后片比前片更长。余量从已覆盖裤装的外层衣面向外加，接近腰带前逐渐归零。三款染色分别向亚麻褐、灰绿和暖赭调整，混合居民原有颜色。正背面可直接比较同一居民换装后的效果。[女性成衣图册](../images/resident-female-wardrobe.png) · [Colonial Williamsburg 工作短衣藏品](https://emuseum.colonialwilliamsburg.org/objects/7862/jacket) · [腰下展开版型藏品](https://emuseum.colonialwilliamsburg.org/objects/503/jacket)
+
 女性后领与上背之间采用局部深度修形。肩袖拟合完成后，后片超出目标弧面的部分逐渐向内收，修形在领口和袖窿前退出。几何法线从成品网格重建，近远景使用相同的静止轮廓。后育克的弧形针脚由衣面的静止坐标驱动，随肩背弯曲。三款衣装的实际成品在背中线及左右 25 毫米的截面上检查后领下方的外突量。造型参考肩颈与肩胛之间的宽缓连接，以及服装在肩部活动时的拉伸与压缩。[肩颈表面结构](https://elsevier-elibrary.com/contents/fullcontent/58090/epubcontent_v2/OEBPS/B9780443069529000126A.htm) · [Blender Studio 衣装形体](https://studio.blender.org/training/realistic-human-research/clothing-shapes/)
 
 [女性三款衣装实机配图](../images/resident-female-wardrobe.png)展示相同身份的正面与背面。女性三款衣装可通过 [公开衣装场景](../../benchmarks/scenarios/visual-female-wardrobe.json) 复现，同镜头比较正面与背面，完整身体仍看 `visual-body-frames`／`visual-body-motion`。结构调研参考 [Proko 的前胸形体常见错误](https://www.proko.com/course-lesson/common-mistakes-of-drawing-breasts)和 [Blender Studio 角色制作流程](https://studio.blender.org/training/realistic-human-research/)；当前是穿衣曲面与有限姿态修正，不是新的裸身扫描或软组织仿真。
@@ -442,7 +444,7 @@
 
 [NASA 人体整合设计手册](https://www.nasa.gov/wp-content/uploads/2023/03/human-integration-design-handbook-revision-1.pdf)说明了男女尺寸范围与个体差异；[肩胛形态研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC11470781/)也区分了尺寸与形状因素。[FAA 人因设计指南第 14 章](https://rosap.ntl.bts.gov/view/dot/12782/dot_12782_DS1.pdf)区分肩宽、髋宽等尺寸，并要求考虑衣着及多项尺寸的关联；项目用它指导分区与比较方式，没有把某一个样本均值当作所有人的比例。本项目保留身份决定的等比身高变化，并通过头脸、躯干及小臂共同表现外观。这里是两种成人表现轮廓，不是模拟内核的性别系统或对角色身份的判断；儿童不应用成人女性躯干映射，目前也没有完整年龄、体脂或肌肉量生成系统。
 
-`--panel=body-motion` 配对展示实际站立、行走和弯身拾取，`--panel=body-frames` 显示无职业装备遮挡、相同衣色与肤色的正面／侧面／背面全身三视图，`--panel=forearm-frames` 显示两种外观的小臂掌侧、背侧和侧面。图册采用实际游戏模型，参数与采样见[配图索引](../images/README.md)。
+`--panel=body-motion` 配对展示实际站立、行走和弯身拾取，`--panel=body-frames` 显示无职业装备遮挡、同视角与同肤色的正面／侧面／背面全身三视图，`--panel=forearm-frames` 显示两种外观的小臂掌侧、背侧和侧面。图册采用实际游戏模型，参数与采样见[配图索引](../images/README.md)。
 
 ![成人穿衣体型对照](../images/resident-body-frames.png)
 

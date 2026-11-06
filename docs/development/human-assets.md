@@ -65,7 +65,7 @@ python -B tools/fetch-body-reference.py --verify
 
 `--panel=forearms` 是本地维护预览，展示相同模型的左右掌侧/背侧；该旧入口仅用于本地观察。体型与小臂的公开评测入口见下文。
 
-当前小臂另通过 `RefineForearmProfile` 收束肌腹，并以连续曲率过渡保留腕部及隐藏肘缘。两种成人外观拥有独立缓存，近手、远手与前臂保持同源轮廓；法线包含体积形变导数，手指和握柄区不改变。形态依据、项目拟合范围与局限见[成人体型与前臂说明](models.md)。新增公开评测面板 `body-frames` 与 `forearm-frames`，分别复现同衣色体型和小臂正侧面比较；对应 `visual-body-frames.json` 与 `visual-forearm-frames.json`。
+当前小臂另通过 `RefineForearmProfile` 收束肌腹，并以连续曲率过渡保留腕部及隐藏肘缘。两种成人外观拥有独立缓存，近手、远手与前臂保持同源轮廓；法线包含体积形变导数，手指和握柄区不改变。形态依据、项目拟合范围与局限见[成人体型与前臂说明](models.md)。新增公开评测面板 `body-frames` 与 `forearm-frames`，分别复现同视角的成人体型和小臂正侧面比较；对应 `visual-body-frames.json` 与 `visual-forearm-frames.json`。
 
 发根表现参考 [MakeHuman 官方材质](https://static.makehumancommunity.org/assets/creatingassets/makeclothes/makeclothes_materials.html)和[Godot 透明材质](https://docs.godotengine.org/en/stable/tutorials/3d/standard_material_3d.html)。当前固定 Compatibility 路径仍使用原 Scissor；没有声称启用 Alpha-to-Coverage，也没有新增扫描或全部毛发几何。
 

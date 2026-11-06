@@ -125,6 +125,16 @@ internal sealed partial class NatureModels
                 // its support above the waistband over a finite distance.
                 float trousers=TrouserLayerRadius(MathF.Min(panelHeight,.935f),angle);
                 target=Mathf.Lerp(BlendOuterLayer(target,trousers),target,Mathf.SmoothStep(.94f,.969f,panelHeight));
+                // Release the lower coat panels from the belt toward the
+                // hip instead of following the trousers into their folds.
+                float release=1-Mathf.SmoothStep(.80f,.935f,panelHeight);
+                float flank=MathF.Abs(MathF.Cos(angle));
+                target+=_garmentCut switch
+                {
+                    0=>.005f*release*flank*flank,
+                    2=>release*(.004f+.010f*flank*flank),
+                    _=>0
+                };
             }
             else if(panelHeight<.94f)
             {
@@ -547,16 +557,7 @@ internal sealed partial class NatureModels
             GD.Print($"BODY_CUT_PASS: raised garment hem={hemRise:F4} m, preserved trouser overlap and separate lower-body geometry");
             float CheckCurvedHem(Mesh mesh)
             {
-                float left=float.PositiveInfinity,right=left,front=left,back=left;
-                foreach(var p in mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
-                {
-                    float radius=new Vector2(p.X,p.Z).Length();
-                    if(radius<.05f)continue;
-                    if(p.X<-.95f*radius)left=MathF.Min(left,p.Y);
-                    if(p.X>.95f*radius)right=MathF.Min(right,p.Y);
-                    if(p.Z<-.97f*radius)front=MathF.Min(front,p.Y);
-                    if(p.Z>.97f*radius)back=MathF.Min(back,p.Y);
-                }
+                var (left,right,front,back)=HemExtents(mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array());
                 float curve=MathF.Min(left,right)-MathF.Max(front,back);
                 if(!float.IsFinite(curve)||curve<.020f||curve>.036f||MathF.Abs(left-right)>.003f)
                     throw new InvalidOperationException("Short female shirt loses its curved side hem or waistband coverage");
@@ -660,6 +661,7 @@ internal sealed partial class NatureModels
         finally{male.Free();female.Free();_faceVariant=previous;_facePoints=null;_faceIndices=null;}
         GD.Print("BODY_CUT_POSE_PASS: raised hem retains trouser overlap through eating, work and pickup transitions");
         GD.Print("BODY_FRAMES_PASS: source chest/waist/hip presentation, separate near/far caches, bounded forearm fit/Jacobian, exact wrist and animated limb lengths");
+        ValidateLumbarClothing();
     }
     private static float ClothSectionWidth(Mesh mesh,float height,Color? cloth=null,bool allowEmpty=false)
     {

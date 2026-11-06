@@ -176,6 +176,11 @@ internal sealed partial class NatureModels
         string[] clothColors = { "#637471", "#8c8978", "#806f65", "#6a7680", "#717961", "#9a9080" };
         string[] skinColors = { "#aa8b78", "#8e705e", "#ba9d89", "#806653" };
         string cloth = clothColors[variation % clothColors.Length], skin = skinColors[(variation >> 4) % skinColors.Length];
+        if(FittedFigure)
+        {
+            var dye=new Color(_garmentCut switch {0=>"#948364",1=>"#59736f",_=>"#765854"});
+            cloth="#"+new Color(cloth).Lerp(dye,.70f).ToHtml(false);
+        }
         string hair = (variation & 1) == 0 ? "#42352c" : "#695344";
         var rig = new ResidentRig { Name = "Resident", IsChild = child };
         rig.Torso = new Node3D { Name = "Torso" }; rig.AddChild(rig.Torso);

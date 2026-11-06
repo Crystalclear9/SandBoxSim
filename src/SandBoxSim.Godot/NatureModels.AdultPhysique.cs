@@ -69,19 +69,24 @@ internal sealed partial class NatureModels
         // anatomical waist with a short 1.15 m height ramp over-compressed the
         // lower panels, even though the radial map remained invertible.
         float result=panel+(finished-hem)*(1-Mathf.SmoothStep(hem,1.23f,panel));
-        if(FittedFigure&&_garmentCut!=2)
+        if(FittedFigure)
         {
-            // A broad curved hem follows the pelvis and clears the side of
-            // the upper thigh. Fade into the panel before reaching the belt.
-            float offset=ShortFemaleHemOffset(MathF.Sin(MathF.Atan2(point.Z,point.X)));
+            // Give each cut its own hem shape. Fade the change before it
+            // reaches the natural waist and the mounted equipment.
+            float offset=FemaleHemOffset(MathF.Sin(MathF.Atan2(point.Z,point.X)));
             result+=offset*(1-Mathf.SmoothStep(finished,finished+.085f,result));
         }
         return result;
     }
-    private static float ShortFemaleHemOffset(float depth)
+    private float FemaleHemOffset(float depth)
     {
         float depthSquared=depth*depth,side=1-depthSquared;
-        return .013f*side*side-(depth<0?.018f:.017f)*depthSquared;
+        return _garmentCut switch
+        {
+            0=>.005f*side-(depth<0?.004f:.006f)*depthSquared,
+            1=>.013f*side*side-(depth<0?.018f:.017f)*depthSquared,
+            _=>.014f*side+(depth<0?.008f*depthSquared:-.033f*depthSquared*depthSquared)
+        };
     }
 
     private float FinishedGarmentHem=>_garmentCut==2?(BodyFrame==1?.78f:.745f)

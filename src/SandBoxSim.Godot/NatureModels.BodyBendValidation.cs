@@ -21,7 +21,10 @@ internal sealed partial class NatureModels
                 var bones=cloth[(int)Mesh.ArrayType.Bones].AsInt32Array();var w=cloth[(int)Mesh.ArrayType.Weights].AsFloat32Array();
                 var ids=cloth[(int)Mesh.ArrayType.Index].AsInt32Array();var posed=new Vector3[p.Length];
                 if(FittedFigure)
+                {
                     backYoke=MathF.Max(backYoke,MeasureRearCollarProjection(p,ids));
+                    ValidateFemaleHemCut(p);
+                }
                 var pants=rig.Trousers!.Mesh.SurfaceGetArrays(0);var pp=pants[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                 float hem=float.PositiveInfinity;foreach(var point in p)hem=MathF.Min(hem,point.Y);
                 var pb=pants[(int)Mesh.ArrayType.Bones].AsInt32Array();var pw=pants[(int)Mesh.ArrayType.Weights].AsFloat32Array();
@@ -59,13 +62,18 @@ internal sealed partial class NatureModels
                         // Check the whole overlapping panel, including the
                         // travelling coat below the hip. The curved side of a
                         // short shirt begins above its front/back low points.
-                        float localHem=FittedFigure&&_garmentCut!=2
-                            ?FinishedGarmentHem+ShortFemaleHemOffset(MathF.Sin(MathF.Atan2(pp[i].Z,pp[i].X))):hem;
+                        float localHem=FittedFigure
+                            ?FinishedGarmentHem+FemaleHemOffset(MathF.Sin(MathF.Atan2(pp[i].Z,pp[i].X))):hem;
                         // Probe closer to the revised female hem so the
                         // exterior/facing fit is exercised during motion too.
                         float edgeMargin=FittedFigure?.013f:.020f;
                         if(pp[i].Y<localHem+edgeMargin||pp[i].Y>.91f)continue;
                         var point=Vector3.Zero;for(int j=0;j<4;j++)point+=trouserTransforms[pb[i*4+j]]*trouserPoints[i]*pw[i*4+j];
+                        // Below the front hem, a rear-tail slice is an open
+                        // flap. Its outer back face must cover the trousers,
+                        // but a second, front-facing wall cannot be required.
+                        bool rearTail=FittedFigure&&_garmentCut==2&&pp[i].Z>0
+                            &&pp[i].Y<FinishedGarmentHem+FemaleHemOffset(-1);
                         float front=float.PositiveInfinity,back=float.NegativeInfinity;
                         for(int t=0;t<ids.Length;t+=3)
                         {
@@ -76,9 +84,19 @@ internal sealed partial class NatureModels
                             // roundoff at shared triangle edges. Include those
                             // edges without relaxing the millimetre clearance.
                             float u=hit.Cross(ac)/det,v=ab.Cross(hit)/det;if(u<-.000001f||v<-.000001f||u+v>1.000001f)continue;
-                            float z=a.Z*(1-u-v)+b.Z*u+c.Z*v;front=MathF.Min(front,z);back=MathF.Max(back,z);
+                            float z=a.Z*(1-u-v)+b.Z*u+c.Z*v;
+                            front=MathF.Min(front,z);
+                            if(!rearTail||det<0)back=MathF.Max(back,z);
                         }
-                        if(!float.IsFinite(front)||point.Z<front-.001f||point.Z>back+.001f)
+                        if(rearTail&&!float.IsFinite(back))
+                        {
+                            // A bent trouser leg can move below the open rear
+                            // edge. Use the posed edge at this lateral station
+                            // to distinguish exposure from a missing panel.
+                            float lowerEdge=PosedRearEdgeAt(p,posed,ids,point.X);
+                            if(float.IsFinite(lowerEdge)&&point.Y<lowerEdge)continue;
+                        }
+                        if(!float.IsFinite(back)||(!rearTail&&point.Z<front-.001f)||point.Z>back+.001f)
                             throw new InvalidOperationException($"Trousers pierce the lower shirt: {identity}/{job}/{action}/{f}, source={pp[i]}, point={point}, cloth={front}/{back}, hem={hem}, torso={rig.Torso.Rotation}, pelvis={rig.LowerGarmentFrame}");
                         probes++;
                     }
@@ -123,6 +141,54 @@ internal sealed partial class NatureModels
         GD.Print($"FEMALE_BACK_YOKE_PASS: actual exterior depth, 3 cuts and 3 rear meridians, maximum collar-relative projection={backYoke*1000:F2} mm");
         GD.Print($"LUMBAR_CLOTH_PASS: 2 frames/3 cuts, 3 actions, {probes} actual posed trouser-clearance rays; pelvic/chest excursion={excursion:F3} m, rigid mounts and pause");
         GD.Print($"RELAXED_STANCE_PASS: 2 frames/480 steps, planted level soles after 0.35s entry, entry drift={entryDrift:F4} m, fixed thigh lengths, sway={sway:F3} m, knee={knee:F3} rad and pause");
+    }
+
+    private void ValidateFemaleHemCut(Vector3[] points)
+    {
+        var (left,right,front,back)=HemExtents(points);
+        float sideRise=MathF.Min(left,right)-MathF.Max(front,back);
+        float rearDrop=front-back;
+        bool correct=_garmentCut switch
+        {
+            0=>sideRise>=.004f&&sideRise<=.014f&&MathF.Abs(rearDrop)<.005f,
+            1=>sideRise>=.020f&&sideRise<=.036f,
+            _=>rearDrop>=.033f&&rearDrop<=.047f
+        };
+        if(!correct||MathF.Abs(left-right)>.003f)
+            throw new InvalidOperationException($"Female cut {_garmentCut} loses its authored hem profile: side={sideRise}, rear={rearDrop}");
+        GD.Print($"FEMALE_HEM_CUT_PASS: cut={_garmentCut}, actual side rise={sideRise*1000:F1} mm, rear drop={rearDrop*1000:F1} mm");
+    }
+
+    private static (float Left,float Right,float Front,float Back) HemExtents(Vector3[] points)
+    {
+        float left=float.PositiveInfinity,right=left,front=left,back=left;
+        foreach(var p in points)
+        {
+            float radius=new Vector2(p.X,p.Z).Length();
+            if(radius<.05f)continue;
+            if(p.X<-.95f*radius)left=MathF.Min(left,p.Y);
+            if(p.X>.95f*radius)right=MathF.Min(right,p.Y);
+            if(p.Z<-.97f*radius)front=MathF.Min(front,p.Y);
+            if(p.Z>.97f*radius)back=MathF.Min(back,p.Y);
+        }
+        if(!float.IsFinite(left)||!float.IsFinite(right)||!float.IsFinite(front)||!float.IsFinite(back))
+            throw new InvalidOperationException("Missing garment hem sector");
+        return(left,right,front,back);
+    }
+
+    private static float PosedRearEdgeAt(Vector3[] rest,Vector3[] posed,int[] indices,float x)
+    {
+        float lowest=float.PositiveInfinity;
+        for(int t=0;t<indices.Length;t+=3)
+        for(int edge=0;edge<3;edge++)
+        {
+            int i=indices[t+edge],j=indices[t+(edge+1)%3];
+            if(rest[i].Z<=0||rest[j].Z<=0||rest[i].Y>.9f||rest[j].Y>.9f)continue;
+            var a=posed[i];var b=posed[j];
+            if(x<MathF.Min(a.X,b.X)||x>MathF.Max(a.X,b.X)||a.X==b.X)continue;
+            lowest=MathF.Min(lowest,Mathf.Lerp(a.Y,b.Y,(x-a.X)/(b.X-a.X)));
+        }
+        return lowest;
     }
 
     private static float MeasureRearCollarProjection(Vector3[] points,int[] indices)

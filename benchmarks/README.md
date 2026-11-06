@@ -27,7 +27,7 @@
 | `visual-architecture` | 五种住房与仓库的无标题裁切图与对象识别题 |
 | `visual-characters` | 成人、儿童、鹿和狼的对象识别 |
 | `visual-faces` | 面部近景，供人工表面检查 |
-| `visual-face-frames` | 同衣色、肤色的男女成人外观，正面及三刻面；第 90 帧，模拟零步进 |
+| `visual-face-frames` | 同肤色的男女成人外观，正面及三刻面；第 90 帧，模拟零步进 |
 | `visual-arm-swing` | 同步正面、侧面与掌腕近景的空手启停／摆臂；冻结模拟，以 60 Hz 推进动画，含短循环连续采样；用于方向与衔接检查 |
 | `visual-shoulder-elevation` | 两种成人外观的正侧背面，0–135° 抬起、保持、放下与休息；十二秒固定 60 Hz，冻结模拟，用于肩袖变形检查 |
 | `visual-shoulder-motion` | 两种成人外观的同工具正面／工作臂侧面／背面肩肘近景，抬手、挥锤和返回携带；固定 60 Hz，冻结模拟 |
