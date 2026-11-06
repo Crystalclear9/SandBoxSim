@@ -55,10 +55,12 @@ internal sealed partial class NatureModels
             new(.0435f,-.242f,.0415f),new(.0435f,-.266f,.0415f)});
     private Mesh TurnedBootRim()
     {
-        float drop=FittedFigure?.016f:0;
-        return FabricFacing("turned-boot-rim:"+FittedFigure,new[]{
-            new Vector3(.050f,-.047f-drop,.047f),new(.053f,-.039f-drop,.050f),new(.051f,-.028f-drop,.048f),
-            new(.047f,-.024f-drop,.044f),new(.045f,-.028f-drop,.042f),new(.046f,-.042f-drop,.043f)});
+        return FittedFigure?FabricFacing("contoured-boot-rim",new[]{
+            new Vector3(.0478f,-.034f,.0451f),new(.0490f,-.030f,.0462f),new(.0488f,-.023f,.0460f),
+            new(.0473f,-.018f,.0445f),new(.0455f,-.019f,.0428f),new(.0457f,-.031f,.0431f)})
+            :FabricFacing("turned-boot-rim:False",new[]{
+            new Vector3(.050f,-.047f,.047f),new(.053f,-.039f,.050f),new(.051f,-.028f,.048f),
+            new(.047f,-.024f,.044f),new(.045f,-.028f,.042f),new(.046f,-.042f,.043f)});
     }
     private Mesh TurnedNeckline()
     {
