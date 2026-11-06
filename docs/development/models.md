@@ -177,6 +177,8 @@
 
 女性折领按体型与款式分别缓存。前领开口向颈部收拢，两侧略放宽，后领放低，锁骨到肩头的鞍形过渡同时用于静止支撑面和抬臂修正。衣摆与裤腰之间使用平滑的外层包络，取裤腰顶部附近的有效截面向上渐隐，降低两层支撑交接处的硬折。[Blender Studio 衣装姿态设计](https://studio.blender.org/training/realistic-human-research/clothing-shapes/) · [TailorNet 的形体与服装版型研究](https://openaccess.thecvf.com/content_CVPR_2020/html/Patel_TailorNet_Predicting_Clothing_in_3D_as_a_Function_of_Human_CVPR_2020_paper.html)
 
+女性三款成衣的下摆使用成品外层截面拟合。拟合时剔除内侧翻边三角面，沿最低实测外层截面的切向补足采样边界。翻边的两圈顶点随后从外层下缘和上一排重新定位，分别向内收 2.4 与 3.2 毫米。近景网格重算法线，远景从同一静止衣面生成。裤装与下摆的重叠在拾取、工作和步行姿态下通过蒙皮后的表面检查。
+
 [女性三款衣装实机配图](../images/resident-female-wardrobe.png)展示相同身份的正面与背面。女性三款衣装可通过 [公开衣装场景](../../benchmarks/scenarios/visual-female-wardrobe.json) 复现，同镜头比较正面与背面，完整身体仍看 `visual-body-frames`／`visual-body-motion`。结构调研参考 [Proko 的前胸形体常见错误](https://www.proko.com/course-lesson/common-mistakes-of-drawing-breasts)和 [Blender Studio 角色制作流程](https://studio.blender.org/training/realistic-human-research/)；当前是穿衣曲面与有限姿态修正，不是新的裸身扫描或软组织仿真。
 
 腰侧和骨盆的结构还参考 [Proko 腰侧形体](https://www.proko.com/course-lesson/how-to-draw-obliques-form)与[骨盆结构](https://www.proko.com/course-lesson/anatomy-of-the-pelvis)：区分骨性边界和柔和表面，先检查正侧背面的连续体积。角色采用自然匀称的美术方向，不用固定腰臀比或局部尺寸定义吸引力。

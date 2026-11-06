@@ -7,6 +7,7 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
+    private const int SewnPanelColumns=64;
     // Same metre-space support field as tools/garment_pattern.py. The baked
     // surface is checked against it below. Apply it to the attached clothing
     // too, so a moving side-chest cannot leave a rigid shoulder strap behind.
@@ -22,7 +23,7 @@ internal sealed partial class NatureModels
         for(int cut=0;cut<3;cut++)
         {
             SelectGarmentCut(cut);
-            const int rings=40,sides=64;
+            const int rings=40,sides=SewnPanelColumns;
             var positions=new List<float>();
             for(int r=0;r<=rings;r++)for(int c=0;c<sides;c++)
             {

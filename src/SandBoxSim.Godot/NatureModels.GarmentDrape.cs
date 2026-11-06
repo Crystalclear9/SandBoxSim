@@ -127,12 +127,16 @@ internal sealed partial class NatureModels
 
     private float[] SewnFrameReference()
     {
-        if(_sewnFrameReference[_garmentCut]!=null)return _sewnFrameReference[_garmentCut];
+        bool exteriorHem=BodyFrame==1;
+        int key=_garmentCut+(exteriorHem?3:0);
+        if(_sewnFrameReference[key]!=null)return _sewnFrameReference[key];
         var samples=(float[])GarmentFrameReference().Clone();
         var arrays=ContinuousGarment().SurfaceGetArrays(0);
         var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
         var ids=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
         var detail=arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
+        var firstSection=new int[TrunkColumns];
+        Array.Fill(firstSection,-1);
         // The retopologized sewn shirt is not identical to its analytic
         // construction cage. Fit its actual planar sections; using the cage
         // as a denominator preserved old chest inflation and a scalloped hem.
@@ -144,6 +148,7 @@ internal sealed partial class NatureModels
             {
                 int a=ids[t],b=ids[t+1],c=ids[t+2];
                 if(detail[a].X>0||detail[b].X>0||detail[c].X>0)continue;
+                if(exteriorHem&&Math.Max(a,Math.Max(b,c))>=p.Length-2*SewnPanelColumns)continue;
                 Vector2 first=default,second=default;int count=0;
                 void Edge(int i,int j)
                 {
@@ -167,10 +172,57 @@ internal sealed partial class NatureModels
                 }
                 // Above the axilla a torso section can be open at its sleeve.
                 // Preserve the construction reference only in those openings.
-                if(float.IsFinite(radius))samples[row*TrunkColumns+col]=radius;
+                if(float.IsFinite(radius))
+                {
+                    if(firstSection[col]<0)firstSection[col]=row;
+                    samples[row*TrunkColumns+col]=radius;
+                }
             }
         }
-        return _sewnFrameReference[_garmentCut]=samples;
+        if(exteriorHem)
+            for(int col=0;col<TrunkColumns;col++)
+            {
+                // The lowest edge rises around the coat vents. Extend the
+                // measured outer panel into its last interpolation cell.
+                int row=firstSection[col];
+                if(row<0)throw new InvalidOperationException("Missing exterior garment meridian");
+                float radius=samples[row*TrunkColumns+col];
+                float slope=Math.Clamp(samples[(row+1)*TrunkColumns+col]-radius,-.003f,.003f);
+                for(int lower=row-1;lower>=0;lower--)
+                    samples[lower*TrunkColumns+col]=radius+slope*Math.Max(lower-row,-2);
+            }
+        return _sewnFrameReference[key]=samples;
+    }
+
+    private int[] FindFemaleHem(Vector3[] input)
+    {
+        var source=ContinuousGarment().SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var indices=new System.Collections.Generic.Dictionary<Vector3,int>(input.Length);
+        for(int i=0;i<input.Length;i++)indices.TryAdd(input[i],i);
+        // The source baker emits the first two exterior rings and the last
+        // two facing rings in pattern order. SurfaceTool reindexes them.
+        var hem=new int[4*SewnPanelColumns];
+        int facing=source.Length-2*SewnPanelColumns;
+        for(int i=0;i<2*SewnPanelColumns;i++)
+        {
+            hem[i]=indices[source[i]];
+            hem[i+2*SewnPanelColumns]=indices[source[facing+i]];
+        }
+        return hem;
+    }
+
+    private static void FitFemaleHemFacing(Vector3[] points,int[] hem)
+    {
+        for(int col=0;col<SewnPanelColumns;col++)
+        {
+            var rim=points[hem[col]];
+            var above=points[hem[col+SewnPanelColumns]];
+            var radial=new Vector3(rim.X,0,rim.Z).Normalized();
+            // Form the fold beneath the fitted exterior. Sampling it as a
+            // separate shell lets the facing flare through the visible cloth.
+            points[hem[2*SewnPanelColumns+col]]=rim.Lerp(above,.05f)-radial*.0024f;
+            points[hem[3*SewnPanelColumns+col]]=rim.Lerp(above,.45f)-radial*.0032f;
+        }
     }
 
     // Bind-space sewn folds. They follow the same fit as buttons, ribbons and

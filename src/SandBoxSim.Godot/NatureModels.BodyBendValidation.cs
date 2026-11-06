@@ -59,7 +59,10 @@ internal sealed partial class NatureModels
                         // short shirt begins above its front/back low points.
                         float localHem=FittedFigure&&_garmentCut!=2
                             ?FinishedGarmentHem+ShortFemaleHemOffset(MathF.Sin(MathF.Atan2(pp[i].Z,pp[i].X))):hem;
-                        if(pp[i].Y<localHem+.020f||pp[i].Y>.91f)continue;
+                        // Probe closer to the revised female hem so the
+                        // exterior/facing fit is exercised during motion too.
+                        float edgeMargin=FittedFigure?.013f:.020f;
+                        if(pp[i].Y<localHem+edgeMargin||pp[i].Y>.91f)continue;
                         var point=Vector3.Zero;for(int j=0;j<4;j++)point+=trouserTransforms[pb[i*4+j]]*trouserPoints[i]*pw[i*4+j];
                         float front=float.PositiveInfinity,back=float.NegativeInfinity;
                         for(int t=0;t<ids.Length;t+=3)

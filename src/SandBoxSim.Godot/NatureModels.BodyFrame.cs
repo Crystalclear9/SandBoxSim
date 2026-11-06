@@ -8,7 +8,7 @@ internal sealed partial class NatureModels
 {
     private float[]? _trunkMale,_trunkFeminine,_trunkFeminineSkin;
     private readonly float[][] _garmentFrameReference=new float[3][];
-    private readonly float[][] _sewnFrameReference=new float[3][];
+    private readonly float[][] _sewnFrameReference=new float[6][];
     private const int TrunkRows=113,TrunkColumns=128;
     private const string MaleTrunkHash="411a429e3f886a75adc63d2c2ef93edd5b626e27ba9a012c86800cdd6aadd65b";
     private const string FemaleTrunkHash="e48dd450b045f4551ce4bfb130d841afee2ef78a9410b9d411ca75b3c91f9bf6";
@@ -236,6 +236,8 @@ internal sealed partial class NatureModels
                 ?SleeveDistances(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern):Array.Empty<float>();
             if(tailored&&sleeveDistance.Length==points.Length)
             {
+                if(s==0&&BodyFrame==1)
+                    FitFemaleHemFacing(points,FindFemaleHem(arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array()));
                 FitUpperArmSupport(points,pattern,sleeveDistance);
                 FitShoulderSurface(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern,sleeveDistance);
                 FairGarmentRest(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern,source.SurfaceGetMaterial(s)?.HasMeta("FittedBodice")==true);
