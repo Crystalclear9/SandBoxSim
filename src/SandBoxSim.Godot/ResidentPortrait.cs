@@ -79,7 +79,7 @@ internal partial class ResidentPortrait : SubViewportContainer
     private ActionKind _action;
     private ActionPhase _actionPhase;
     private uint? _actionRevision;
-    private bool _resyncAction;
+    private bool _resyncAction,_hasPartner;
     private float _yaw = -.28f, _distance = FaceDistance;
     public override void _Ready()
     {
@@ -136,9 +136,9 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
     }
     public bool FinishingGesture=>_resident?.CompletionVisible==true;
     public void ShowCargo(bool hasCargo, SandBoxSim.Core.Environment.ResourceKind resource) => _resident?.ShowCargo(hasCargo,resource);
-    public void ShowActivity(ActionKind action,ActionPhase phase,bool paused,float fatigue=0,float health=1,uint? revision=null)
+    public void ShowActivity(ActionKind action,ActionPhase phase,bool paused,float fatigue,float health,uint revision,bool hasPartner)
     {
-        _action=action;_actionPhase=phase;_actionRevision=revision;_worldPaused=paused;
+        _action=action;_actionPhase=phase;_actionRevision=revision;_worldPaused=paused;_hasPartner=hasPartner;
         _resident?.SetWorkCondition(fatigue,health);
     }
     internal object EvaluationState()=>new {identity=_identity,child=_child,framing=_framing.ToString().ToLowerInvariant(),yaw=_yaw,pitch=_pitch,distance=_distance,dragging=_drag,orbiting=_orbiting,lighting=Lighting==0?"soft":"raking",thumbnail=IsThumbnail};
@@ -219,7 +219,7 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
                 _resident.ObserveOffscreenAction(_action,_actionPhase,revision);
                 _resyncAction=false;
             }
-            _resident.PresentAction((float)delta, _action, _actionPhase, _worldPaused, (float)(_identity % 11), _actionRevision);
+            _resident.PresentAction((float)delta, _action, _actionPhase, _worldPaused, (float)(_identity % 11), _actionRevision,_hasPartner);
             string handling=(_worldPaused?"已暂停 · ":"实时 · ")+_resident.Handling;
             if(_activityReadout.Text!=handling)_activityReadout.Text=handling;
             string held=_resident.HeldObject;

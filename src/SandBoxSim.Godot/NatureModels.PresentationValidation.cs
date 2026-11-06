@@ -262,7 +262,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateReachTrajectories()
     {
-        float maxHandStep=0,maxElbowStep=0,drinkTilt=0;int fingertipSamples=0;
+        float maxHandStep=0,maxElbowStep=0,drinkTilt=0;int contactSamples=0;
         foreach(var action in new[]{ActionKind.Eat,ActionKind.Drink,ActionKind.Socialize})
         {
             var rig=Resident(42,false,JobType.Gatherer);
@@ -270,8 +270,8 @@ internal sealed partial class NatureModels
             try
             {
                 Vector3 previousHand=Vector3.Zero,previousElbow=Vector3.Zero;
-                float low=float.PositiveInfinity,high=float.NegativeInfinity,closestMouth=float.PositiveInfinity,closestTip=float.PositiveInfinity;int nearTip=0;
-                for(int frame=0;frame<360;frame++)
+                float low=float.PositiveInfinity,high=float.NegativeInfinity,closestMouth=float.PositiveInfinity,closestProp=float.PositiveInfinity;int near=0;
+                for(int frame=0;frame<420;frame++)
                 {
                     rig.PoseAction(1f/60,action,ActionPhase.Executing,false,.37f);
                     reference.PoseAction(1f/120,action,ActionPhase.Executing,false,.37f);
@@ -288,25 +288,30 @@ internal sealed partial class NatureModels
                         throw new InvalidOperationException("Reach path changes with 60/120 Hz cadence: "+action);
                     previousHand=hand.Origin;previousElbow=elbow;
                     if(action==ActionKind.Drink)drinkTilt=MathF.Max(drinkTilt,rig.Head.Rotation.X);
-                    if(frame>100&&action!=ActionKind.Socialize)
+                    if(action!=ActionKind.Socialize)
                     {
                         var palm=hand*rig.Grip!.Position;
                         low=MathF.Min(low,palm.Y);high=MathF.Max(high,palm.Y);
                         closestMouth=MathF.Min(closestMouth,palm.DistanceTo(rig.Head.Transform*rig.Mouth.Position));
-                        var tip=InTorso(rig.Fingertips[1,0],rig.Torso)*new Vector3(0,-.014f*.92f,0);
-                        float contact=tip.DistanceTo(rig.Head.Transform*rig.Mouth.Position);
-                        closestTip=MathF.Min(closestTip,contact);if(contact<.05f){nearTip++;fingertipSamples++;}
+                        if(rig.Cup.Visible&&rig.Bite.Visible)throw new InvalidOperationException("Consumption displays two objects in one hand");
+                        var prop=action==ActionKind.Drink?rig.Cup:rig.Bite;
+                        if(!prop.Visible)continue;
+                        if(prop.GetParent()!=rig.Hands[1])throw new InvalidOperationException("Consumable is detached from the hand");
+                        var point=action==ActionKind.Drink?hand*ResidentRig.CupRim:InTorso(prop,rig.Torso).Origin;
+                        float gap=point.DistanceTo(rig.MouthContact);
+                        closestProp=MathF.Min(closestProp,gap);
+                        if(gap<.031f){near++;contactSamples++;}
                     }
                 }
-                if(action!=ActionKind.Socialize&&(closestTip>.05f||nearTip<12))
-                    throw new InvalidOperationException($"Consuming finger pad misses the mouth: {action}, distance={closestTip}, near frames={nearTip}");
+                if(action!=ActionKind.Socialize&&(closestProp>.030f||near<7||rig.ConsumeContacts==0))
+                    throw new InvalidOperationException($"Consumable misses the mouth: {action}, distance={closestProp}, near frames={near}, completed contacts={rig.ConsumeContacts}");
                 if(action!=ActionKind.Socialize&&(high-low<.12f||closestMouth>.13f))
                     throw new InvalidOperationException($"Consuming hand does not lift, reach the mouth and return: {action}, excursion={high-low}, mouth={closestMouth}");
             }
             finally{rig.Free();reference.Free();}
         }
         if(drinkTilt<.12f)throw new InvalidOperationException("Drinking loses the captured head tilt");
-        GD.Print($"REACH_TRAJECTORY_PASS: eat/drink/social, 60/120 Hz, maximum per-frame hand/elbow step {maxHandStep:F4}/{maxElbowStep:F4} m, {fingertipSamples} displayed index-pad proximity samples; drinking head tilt={drinkTilt:F3} rad");
+        GD.Print($"REACH_TRAJECTORY_PASS: eat/drink/social, 60/120 Hz, maximum per-frame hand/elbow step {maxHandStep:F4}/{maxElbowStep:F4} m, {contactSamples} visible rim/bite proximity samples; drinking head tilt={drinkTilt:F3} rad");
         ValidateCapturedPickup();
     }
     private void ValidateCapturedPickup()

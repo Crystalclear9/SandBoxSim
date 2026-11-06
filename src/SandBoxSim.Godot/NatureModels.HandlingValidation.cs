@@ -443,9 +443,9 @@ internal sealed partial class NatureModels
             foreach(var action in new[]{ActionKind.Eat,ActionKind.Drink})
             {
                 for(int i=0;i<90;i++)rig.PoseAction(1f/60,action,ActionPhase.Executing,false,0);
-                if(rig.CargoMesh.Visible||rig.HeldObject.Length!=0)throw new InvalidOperationException("Eating/drinking lifts the entire cargo bundle");
+                if(rig.CargoMesh.Visible||rig.HeldObject=="木材捆")throw new InvalidOperationException("Eating/drinking lifts the entire cargo bundle");
             }
-            for(int i=0;i<90;i++)rig.PoseAction(1f/60,ActionKind.Deposit,ActionPhase.Executing,false,0);
+            for(int i=0;i<180;i++)rig.PoseAction(1f/60,ActionKind.Deposit,ActionPhase.Executing,false,0);
             if(!rig.CargoMesh.Visible)throw new InvalidOperationException("Transfer loses existing cargo");
             var pose=rig.Hands[1].Transform;var cargo=rig.CargoMesh.Transform;
             rig.PoseAction(1,ActionKind.None,ActionPhase.Idle,true,0);

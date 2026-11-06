@@ -26,6 +26,8 @@ public sealed class ActionSystem
 
     /// <summary>小数步进度（槽位 → 剩余步数）。用数组而不是字典，避免迭代顺序问题。</summary>
     private float[] _moveProgress = System.Array.Empty<float>();
+    private (AgentRef Actor, uint Revision, AgentRef Partner)[] _presentedPartners =
+        System.Array.Empty<(AgentRef, uint, AgentRef)>();
 
     /// <summary>
     /// 读取某个个体的小数步进度（存档专用）。
@@ -51,6 +53,7 @@ public sealed class ActionSystem
     public void ClearAllMoveProgress()
     {
         for (int i = 0; i < _moveProgress.Length; i++) { _moveProgress[i] = 0f; }
+        System.Array.Clear(_presentedPartners);
     }
 
     /// <summary>本 tick 的移动次数与完成次数（性能与观测量）。</summary>
@@ -105,6 +108,7 @@ public sealed class ActionSystem
     {
         if (_moveProgress.Length >= capacity) { return; }
         System.Array.Resize(ref _moveProgress, capacity);
+        System.Array.Resize(ref _presentedPartners, capacity);
     }
 
     /// <summary>
@@ -872,8 +876,10 @@ public sealed class ActionSystem
     // 完成 / 失败
     // ---------------------------------------------------------------------
 
-    private void Complete(int slot, long tick)
+    private void Complete(int slot, long tick, int partner = -1)
     {
+        if (partner >= 0)
+            _presentedPartners[slot] = (_store.RefOf(slot), _store.ActionRevisionOf(slot), _store.RefOf(partner));
         _store.SetPhase(slot, ActionPhase.Done);
         _store.SetState(slot, AgentState.Idle);
         _store.ClearTarget(slot);
@@ -920,7 +926,7 @@ public sealed class ActionSystem
         StoresIntoBuilding = 0;
         MovesThisTick = 0;
         for (int i = 0; i < HarvestedByKind.Length; i++) { HarvestedByKind[i] = 0f; }
-        if (_moveProgress.Length > 0) { System.Array.Clear(_moveProgress, 0, _moveProgress.Length); }
+        ClearAllMoveProgress();
     }
 
     /// <summary>累计采集总量（报告用）。</summary>
@@ -954,6 +960,28 @@ public sealed class ActionSystem
         };
     }
 
+    /// <summary>Current candidate or the actual partner of the completed action, for presentation only.</summary>
+    public bool TryGetPresentationPartner(int slot, out int partner)
+    {
+        if (TryGetInteractionPartner(slot, out partner)) return true;
+        if (!_store.IsSlotAlive(slot) || _store.PhaseOf(slot) != ActionPhase.Done
+            || slot >= _presentedPartners.Length) return false;
+        var recorded = _presentedPartners[slot];
+        if (recorded.Revision != _store.ActionRevisionOf(slot) || !_store.IsValid(recorded.Actor)
+            || !_store.IsValid(recorded.Partner) || recorded.Partner.Slot == slot) return false;
+        float radius = _store.ActionOf(slot) switch
+        {
+            ActionKind.Socialize or ActionKind.ShareFood => _config.Relationship.SocializeRadius,
+            ActionKind.Attack when !_config.Rules.PeaceMode => _config.Relationship.AttackRange,
+            _ => 0f
+        };
+        float dx = _store.XOf(slot) - _store.XOf(recorded.Partner.Slot);
+        float dy = _store.YOf(slot) - _store.YOf(recorded.Partner.Slot);
+        if (radius <= 0 || dx * dx + dy * dy > radius * radius) return false;
+        partner = recorded.Partner.Slot;
+        return true;
+    }
+
     /// <summary>社交：和身边的人相处一会儿，双方关系变好、社交需求被满足。</summary>
     private void TickSocialize(int slot, long tick)
     {
@@ -975,7 +1003,7 @@ public sealed class ActionSystem
         _store.SetSocial(slot, 1f);
         _store.SetSocial(other, 1f);
 
-        Complete(slot, tick);
+        Complete(slot, tick, other);
     }
 
     /// <summary>分享食物：把自己的一部分食物给附近最饿的人。</summary>
@@ -1014,7 +1042,7 @@ public sealed class ActionSystem
             other,
             "分享 " + amount.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture));
 
-        Complete(slot, tick);
+        Complete(slot, tick, other);
     }
 
     /// <summary>逃跑：只要还在威胁附近就继续跑，脱离之后结束。</summary>
@@ -1075,7 +1103,7 @@ public sealed class ActionSystem
             victim,
             "伤害 " + damage.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture));
 
-        Complete(slot, tick);
+        Complete(slot, tick, victim);
     }
 
     /// <summary>找指定半径内最近的另一个个体（槽位升序 ⇒ 平局取较小槽位）。</summary>

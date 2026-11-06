@@ -20,9 +20,11 @@ internal partial class ResidentRig
     {
         if(action==ActionKind.Socialize)
             return Math.Clamp(.35f+.55f*MathF.Abs(MathF.Sin(_workTime*7)+.25f*MathF.Sin(_workTime*13)),0,1)*emphasis*_socialBlend;
-        if(action is not (ActionKind.Eat or ActionKind.Drink))return 0;
-        float cycle=Mathf.PosMod(_bareTime/2.6f,1);
-        float nearMouth=ReachEase((cycle-.35f)/.12f)*(1-ReachEase((cycle-.88f)/.12f));
-        return nearMouth*(action==ActionKind.Drink?.15f:.35f+.15f*MathF.Abs(MathF.Sin(_bareTime*6)));
+        if(action!=_consumeAction)return 0;
+        if(_consumeStage==ConsumeStage.Use)
+            return ReachEase(_consumeContactTime/.06f)*(action==ActionKind.Drink?.15f:.40f);
+        if(action==ActionKind.Eat&&_consumeStage==ConsumeStage.Return&&!Bite.Visible)
+            return .32f*(.55f+.45f*MathF.Sin(_consumeTime*24))*(1-ReachEase(_consumeTime/.62f));
+        return 0;
     }
 }

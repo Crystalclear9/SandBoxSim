@@ -38,4 +38,31 @@ public sealed class InteractionPartnerTests
         sim.Config.Rules.PeaceMode=true;sim.Agents.SetAction(actor,ActionKind.Attack,ActionPhase.Executing);
         Assert.False(sim.Actions.TryGetInteractionPartner(actor,out partner));
     }
+
+    [Fact("Completed interactions expose the actual nearby participant without changing the simulation")]
+    public void CompletedPartnerBelongsToTheCommittedAction()
+    {
+        var config=new SimConfig();config.World.Width=config.World.Height=32;
+        var sim=new Simulation(config,32,32,4321);
+        sim.InterveneSpawnHumans(12,12,3,2);
+        var slots=sim.Agents.AliveSlots().ToArray();Assert.Equal(3,slots.Length);
+        int actor=slots[0],receiver=slots[1],bystander=slots[2];
+        sim.Agents.SetPosition(actor,12,12);sim.Agents.SetPosition(receiver,13,12);sim.Agents.SetPosition(bystander,14,12);
+        sim.Agents.SetHunger(receiver,.8f);sim.Agents.SetHunger(bystander,.3f);
+        sim.Agents.SetInventory(actor,ResourceKind.Food,config.Relationship.ShareFoodAmount);
+        sim.Agents.SetAction(actor,ActionKind.ShareFood,ActionPhase.Executing);
+        sim.Actions.Tick(1);
+        Assert.Equal(ActionPhase.Done,sim.Agents.PhaseOf(actor));
+        Assert.Equal(0f,sim.Agents.InventoryOf(actor,ResourceKind.Food));
+
+        sim.Agents.SetHunger(receiver,.1f);sim.Agents.SetHunger(bystander,.95f);
+        string before=sim.StateDigestString();
+        Assert.True(sim.Actions.TryGetPresentationPartner(actor,out int partner));Assert.Equal(receiver,partner);
+        Assert.Equal(before,sim.StateDigestString());
+        sim.Agents.SetPosition(receiver,31,31);
+        Assert.False(sim.Actions.TryGetPresentationPartner(actor,out partner));Assert.Equal(-1,partner);
+        sim.Agents.SetPosition(receiver,13,12);
+        sim.Agents.SetAction(actor,ActionKind.ShareFood,ActionPhase.Done);
+        Assert.False(sim.Actions.TryGetPresentationPartner(actor,out partner));
+    }
 }

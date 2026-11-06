@@ -11,6 +11,8 @@ internal sealed partial class NatureModels
     {
         ValidateCargoPlacement();
         ValidateObservedActionHandoffs();
+        ValidateConsumptionInterrupts();
+        ValidatePartnerLoss();
         var actions=Enum.GetValues<ActionKind>();
         int contactTransfers=0,visibleLoads=0;
         foreach(int identity in new[]{17,55})
@@ -125,6 +127,74 @@ internal sealed partial class NatureModels
         }
         if(contactTransfers<20||visibleLoads<100)throw new InvalidOperationException("Interaction checks did not exercise contact changes and carried loads");
         GD.Print($"INTERACTION_SEQUENCE_PASS: two adult frames, all {actions.Length} action kinds, rendered arrival, {contactTransfers} contact ownership changes, {visibleLoads} supported load frames, resource replacement, short completion, cancellation and pause");
+    }
+
+    private void ValidatePartnerLoss()
+    {
+        var rig=Resident(17,false,JobType.None);
+        try
+        {
+            foreach(var action in new[]{ActionKind.Socialize,ActionKind.ShareFood,ActionKind.Attack})
+            {
+                for(int i=0;i<180;i++)rig.PresentAction(1f/60,action,ActionPhase.Executing,false,0,1,false);
+                if(rig.GestureEngaged(action)||rig.ToolHeld)
+                    throw new InvalidOperationException($"Partner action starts towards empty space: {action}");
+                rig.PresentAction(1f/60,action,ActionPhase.Done,false,0,2,true);
+                if(!rig.CompletionVisible)throw new InvalidOperationException($"Committed interaction loses its finish: {action}");
+                rig.PresentAction(1f/60,action,ActionPhase.Done,false,0,2,false);
+                if(rig.GestureEngaged(action)||rig.CompletionVisible)
+                    throw new InvalidOperationException($"Partner loss leaves an active completion: {action}");
+            }
+        }
+        finally{rig.Free();}
+        GD.Print("PARTNER_HANDOFF_PASS: social, share and attack wait for a participant and stop when that participant leaves");
+    }
+
+    private void ValidateConsumptionInterrupts()
+    {
+        float releaseGap=0;int supportedReturnFrames=0;
+        foreach(int identity in new[]{17,55})
+        {
+            var rig=Resident(identity,false,JobType.None);
+            try
+            {
+                rig.PresentAction(1f/60,ActionKind.Drink,ActionPhase.Executing,false,0,1);
+                bool sawCup=false;
+                for(int i=0;i<360;i++)
+                {
+                    rig.PresentAction(1f/60,ActionKind.Drink,ActionPhase.Done,false,0,1);
+                    sawCup|=rig.Cup.Visible;
+                    if(sawCup&&!rig.CompletionVisible)break;
+                }
+                if(!sawCup||rig.ConsumeContacts!=1||rig.Cup.Visible||rig.CompletionVisible)
+                    throw new InvalidOperationException($"Short drinking must complete exactly one contact and return: {identity}, contacts={rig.ConsumeContacts}, {rig.Handling}");
+                releaseGap=MathF.Max(releaseGap,(InTorso(rig.Hands[1],rig.Torso)*rig.Grip!.Position).DistanceTo(rig.ConsumePocket));
+                for(int i=0;i<60;i++)rig.PresentAction(1f/60,ActionKind.Drink,ActionPhase.Done,false,0,1);
+                if(rig.ConsumeContacts!=1||rig.Cup.Visible)
+                    throw new InvalidOperationException("Completed drinking is replayed without a new action");
+
+                for(int i=0;i<180&&!rig.Cup.Visible;i++)
+                    rig.PresentAction(1f/60,ActionKind.Drink,ActionPhase.Executing,false,0,2);
+                if(!rig.Cup.Visible)throw new InvalidOperationException("Interrupted drinking never acquires the cup");
+                for(int i=0;i<22;i++)rig.PresentAction(1f/60,ActionKind.Drink,ActionPhase.Executing,false,0,2);
+                var frozen=InTorso(rig.Cup,rig.Torso);
+                rig.PresentAction(1,ActionKind.Flee,ActionPhase.Moving,true,0,3);
+                if(frozen!=InTorso(rig.Cup,rig.Torso))throw new InvalidOperationException("Paused interruption moves the cup");
+                bool gait=false;
+                for(int i=0;i<160;i++)
+                {
+                    rig.PresentAction(1f/60,ActionKind.Flee,ActionPhase.Moving,false,0,3);
+                    gait|=rig.GaitSpeed>.1f&&rig.Cup.Visible;
+                    if(rig.Cup.Visible)supportedReturnFrames++;
+                }
+                if(!gait||rig.ConsumeContacts!=1||rig.Cup.Visible||rig.CompletionVisible)
+                    throw new InvalidOperationException($"Flee must recover the held cup without swallowing: {identity}, contacts={rig.ConsumeContacts}, {rig.Handling}");
+            }
+            finally{rig.Free();}
+        }
+        if(releaseGap>.035f||supportedReturnFrames<12)
+            throw new InvalidOperationException($"Released cup leaves hand before returning to the waist: gap={releaseGap}");
+        GD.Print($"CONSUMPTION_CONTACT_PASS: two adult frames, exactly one sip on short completion, return gap={releaseGap*1000:F1} mm, {supportedReturnFrames} held frames during interrupted gait, pause and no duplicate contact");
     }
 
     private void ValidateObservedActionHandoffs()

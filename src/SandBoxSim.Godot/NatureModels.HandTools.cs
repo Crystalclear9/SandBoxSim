@@ -46,12 +46,44 @@ ROUGHNESS=.64;SPECULAR=.24;
             JobType.Builder or JobType.Craftsman=>ResidentTool.Hammer, JobType.Soldier=>ResidentTool.Spear,_=>ResidentTool.None };
         rig.SelectTool(rig.DefaultTool);
         rig.CargoMesh=new MeshInstance3D {Name="CarriedResources",Position=new(-.12f,-.106f,-.025f),Visible=false};rig.Hands[1].AddChild(rig.CargoMesh);
+        rig.Cup=new MeshInstance3D {Name="DrinkingCup",Mesh=DrinkingCup(),Position=new(0,-.039f,-.031f),Rotation=new(MathF.PI,0,0),Visible=false};
+        rig.Bite=new MeshInstance3D {Name="FoodBite",Mesh=Shape("seed"),MaterialOverride=ResidentMaterial("#b88a4f"),
+            Position=ResidentRig.BiteCentre,Scale=new(.020f,.018f,.024f),Visible=false};
+        rig.Hands[1].AddChild(rig.Cup);rig.Hands[1].AddChild(rig.Bite);
         foreach(var resource in ResidentRig.CargoKinds)
         {
             var mesh=CargoBundle(resource);
             rig.CargoMeshes[resource]=mesh;
             rig.CargoSupports[resource]=CargoUnderside(resource,mesh);
         }
+    }
+    private Mesh DrinkingCup()
+    {
+        const string key="drinking-cup";
+        if(_meshes.TryGetValue(key,out var mesh))return mesh;
+        var profile=new Vector2[]{new(.001f,-.031f),new(.016f,-.031f),new(.019f,-.027f),new(.025f,.018f),
+            new(.028f,.034f),new(.028f,.036f),new(.025f,.036f),new(.024f,.032f),new(.019f,-.018f),new(.001f,-.021f)};
+        using var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);
+        surface.SetMaterial(new StandardMaterial3D {VertexColorUseAsAlbedo=true,Roughness=.71f});
+        for(int ring=0;ring<profile.Length-1;ring++)
+        {
+            var a=profile[ring];var b=profile[ring+1];var tangent=(b-a).Normalized();
+            surface.SetColor(new Color(ring is 3 or 4 or 5?"#d8c7a1":ring>=6?"#3f5951":"#466b60"));
+            for(int edge=0;edge<24;edge++)
+            {
+                float start=edge*MathF.Tau/24,end=(edge+1)*MathF.Tau/24;
+                void Vertex(Vector2 point,float angle)
+                {
+                    float x=MathF.Cos(angle),z=MathF.Sin(angle);
+                    surface.SetNormal(new Vector3(tangent.Y*x,-tangent.X,tangent.Y*z));
+                    surface.AddVertex(new Vector3(point.X*x,point.Y,point.X*z));
+                }
+                Vertex(a,start);Vertex(a,end);Vertex(b,end);
+                Vertex(a,start);Vertex(b,end);Vertex(b,start);
+            }
+        }
+        surface.Index();
+        return _meshes[key]=surface.Commit();
     }
     private readonly Dictionary<ResourceKind,(Vector3 Left,Vector3 Right)> _cargoUndersides=new();
     private (Vector3 Left,Vector3 Right) CargoUnderside(ResourceKind resource,Mesh mesh)
