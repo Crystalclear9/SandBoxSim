@@ -66,9 +66,9 @@ internal sealed partial class NatureModels
         for(int i=0;i<points.Length;i++)if(Root(i)!=Root(0))throw new InvalidOperationException("Hand and forearm are not one connected skin");
     }
     private static Vector3 ReflectHand(Vector3 point)=>new(-point.X,point.Y,point.Z);
-    private void ValidateHandLaterality()
+    private void ValidateHandLaterality(int identity)
     {
-        var rig=Resident(17,false,JobType.Gatherer);
+        var rig=Resident(identity,false,JobType.Gatherer);
         void CheckMirroredMesh(Mesh left,Mesh right,bool skinned)
         {
             if(left==right)throw new InvalidOperationException("Both hands share the same unmirrored mesh");
@@ -136,7 +136,7 @@ internal sealed partial class NatureModels
                 throw new InvalidOperationException("Distance switch replaces both hands with a right hand");
             rig.SetHandDetail(true);
         }
-        rig.Free();GD.Print("HAND_LATERALITY_PASS: distinct left/right near/far hands, thumb side, normals/winding, finger identity, open/closed binding and LOD switching");
+        rig.Free();GD.Print($"HAND_LATERALITY_PASS: identity={identity}, distinct left/right near/far hands, thumb side, normals/winding, finger identity, open/closed binding and LOD switching");
     }
     private void ValidateSocialGesture()
     {
@@ -165,7 +165,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateHandling()
     {
-        ValidateCultivation();ValidateForearmSurfaces();ValidateHandLaterality();ValidateSocialGesture();ValidatePresentationCadence();ValidateLocomotion();ValidateWalkingArms();ValidateReachTrajectories();ValidateEffortPresentation();ValidateMotionContinuity();ValidateWorkSupport();ValidateCarrying();ValidateAnimalContacts();ValidateBareTransitions();
+        ValidateCultivation();ValidateForearmSurfaces();ValidateHandLaterality(17);ValidateHandLaterality(55);ValidateSocialGesture();ValidatePresentationCadence();ValidateLocomotion();ValidateWalkingArms();ValidateReachTrajectories();ValidateEffortPresentation();ValidateMotionContinuity();ValidateWorkSupport();ValidateCarrying();ValidateAnimalContacts();ValidateBareTransitions();
         foreach(var action in new[]{ActionKind.GatherWood,ActionKind.GatherIron,ActionKind.Farm,ActionKind.BuildHouse})
         {
             var rig=Resident(17,false,JobType.Gatherer);

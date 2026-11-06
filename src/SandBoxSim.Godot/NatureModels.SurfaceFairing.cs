@@ -252,6 +252,7 @@ internal sealed partial class NatureModels
     private void FairForearmRest(Vector3[] points,Vector3[] normals,int[] indices,int frame,string source)
     {
         bool wristJoin=frame==1&&source!="hand-lod";
+        bool femalePalm=frame==1&&(source is "hand" or "hand-lod");
         source=frame+":"+source;
         if(_forearmFairings.TryGetValue(source,out var cached))
         {
@@ -262,6 +263,7 @@ internal sealed partial class NatureModels
         FairRestSurface(points,indices,freedom,frame==1?.0008f:.00065f);
         TransportFairingNormals(rest,points,normals,indices,freedom);
         if(wristJoin)BlendFemaleForearmJoin(points,normals,indices);
+        if(femalePalm)FitFemalePalm(points,normals,indices);
         _forearmFairings[source]=((Vector3[])points.Clone(),(Vector3[])normals.Clone());
     }
 

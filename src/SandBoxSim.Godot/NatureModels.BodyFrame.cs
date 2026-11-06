@@ -584,6 +584,7 @@ internal sealed partial class NatureModels
                 throw new InvalidOperationException($"Fitted facing intersects the turning neck or reveals its source edge: samples={rimProbes}, radial={rimClearance*1000:F2} mm, cover={coveredNeckEdge*1000:F2} mm");
             GD.Print($"COLLAR_CLEARANCE_PASS: {rimProbes} radial sections against actual neck skin, minimum={rimClearance*1000:F2} mm, source edge cover={coveredNeckEdge*1000:F2} mm");
             ValidateForearmSupport(male,0);ValidateForearmSupport(female,1);
+            ValidateFemalePalmGeometry(male,female);
             foreach(var rig in new[]{male,female})
             {
                 ValidateArmClothingFit(rig);
