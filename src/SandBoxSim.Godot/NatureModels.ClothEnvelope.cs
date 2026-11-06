@@ -90,34 +90,51 @@ internal sealed partial class NatureModels
             // inward turn of the abdomen. A bounded one-sided envelope bridges
             // the hollows below the chest without enlarging the source pelvis.
             // The belt gradually gathers this ease at its actual fitted height.
-            var skin=(float[])data.Clone();
-            for(int row=0;row<TrunkRows;row++)for(int col=0;col<TrunkColumns;col++)
+            var supported=(float[])data.Clone();
+            for(int col=0;col<TrunkColumns;col++)
             {
-                float height=TrunkLow+row*.005f;
                 float sampleAngle=col*Mathf.Tau/TrunkColumns;
                 float belt=FinishedBeltHeight(sampleAngle);
-                float free=Mathf.SmoothStep(belt+.018f,belt+.11f,height)*(1-Mathf.SmoothStep(1.16f,1.21f,height));
-                free*=1-MathF.Pow(MathF.Abs(MathF.Cos(sampleAngle)),4);
-                float radius=skin[row*TrunkColumns+col],hanging=radius;
-                for(int step=1;step<=24&&row+step<TrunkRows;step++)
-                    hanging=MathF.Max(hanging,skin[(row+step)*TrunkColumns+col]-step*.005f*.22f);
-                float drape=MathF.Min(.007f,hanging-radius)*free;
-                if(BodyFrame==1)
+                float front=MathF.Max(0,-MathF.Sin(sampleAngle));
+                float panel=frame==1?TorsoRamp(.30f,.90f,front):0;
+                float side=MathF.Abs(MathF.Cos(sampleAngle));
+                float lower=belt+.017f;
+                float upper=Mathf.Lerp(1.150f,1.170f,side*side);
+                float lowerRadius=panel>0?TrunkSample(supported,lower,sampleAngle):0;
+                float upperRadius=panel>0?TrunkSample(supported,upper,sampleAngle):0;
+                float sideReturn=TorsoRamp(.28f,.58f,side)*TorsoRamp(.46f,.78f,front);
+                float circumferentialEase=1-side*side*side*side;
+                for(int row=0;row<TrunkRows;row++)
                 {
-                    // The front grain hangs between the high chest support
-                    // and the panel above the belt. Span the lower hollow
-                    // without copying its steep anatomical return into cloth.
-                    const float low=1.023f,high=1.145f;
-                    float front=MathF.Max(0,-MathF.Sin(sampleAngle));
-                    if(height>low&&height<high&&front>0)
+                    float height=TrunkLow+row*.005f;
+                    int i=row*TrunkColumns+col;
+                    float free=Mathf.SmoothStep(belt+.018f,belt+.11f,height)*(1-Mathf.SmoothStep(1.16f,1.21f,height));
+                    free*=circumferentialEase;
+                    float radius=supported[i],hanging=radius;
+                    for(int step=1;step<=24&&row+step<TrunkRows;step++)
+                        hanging=MathF.Max(hanging,supported[i+step*TrunkColumns]-step*.005f*.22f);
+                    float drape=MathF.Min(.007f,hanging-radius)*free;
+                    if(panel>0&&height>lower&&height<upper)
                     {
-                        float lower=TrunkSample(skin,low,sampleAngle);
-                        float upper=TrunkSample(skin,high,sampleAngle);
-                        float supported=Mathf.Lerp(lower,upper,Mathf.SmoothStep(low,high,height));
-                        drape=MathF.Max(drape,Math.Clamp(supported-radius,0,.014f)*front*front);
+                        // The woven front is supported by the chest and gathered
+                        // at the belt. In between, the vertical grain bridges the
+                        // rib hollow. A shallow curve eases into the upper support,
+                        // and the soft contact leaves no crease at either
+                        // support or where the underlying cloth meets the span.
+                        float t=(height-lower)/(upper-lower);
+                        float span=Mathf.Lerp(lowerRadius,upperRadius,t*(2-t))+.008f*t*(1-t);
+                        float gap=MathF.Max(0,span-radius);
+                        float suspension=.012f*(1-MathF.Exp(-gap*gap/(.013f*.013f)));
+                        float contact=TorsoRamp(0,.36f,t)*(1-TorsoRamp(.72f,1,t));
+                        drape=Mathf.Lerp(drape,suspension,panel*contact);
+                        // Release the front-side grain along the lower rib cage.
+                        // It blends back into the supported flank above the waist.
+                        float lowerRib=(height-1.093f)/.029f;
+                        float ribs=MathF.Exp(-lowerRib*lowerRib)*contact;
+                        drape+=.008f*sideReturn*ribs;
                     }
+                    data[i]=radius+drape;
                 }
-                data[row*TrunkColumns+col]=radius+drape;
             }
             _clothEnvelopes[key]=data;
         }

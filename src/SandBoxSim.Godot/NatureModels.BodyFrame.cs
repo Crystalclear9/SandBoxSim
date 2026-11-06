@@ -825,8 +825,26 @@ internal sealed partial class NatureModels
                 float bend=MathF.Abs(Front(female.DetailedBodyMesh,y-.005f,x)-2*Front(female.DetailedBodyMesh,y,x)+Front(female.DetailedBodyMesh,y+.005f,x));
                 maximumChestBend=MathF.Max(maximumChestBend,bend);
             }
-        if(maximumChestBend>.003f)throw new InvalidOperationException($"Final chest retains an abrupt meridian tangent break: {maximumChestBend}");
-        GD.Print($"CHEST_CURVE_PASS: final four anterior meridians, 5 mm sampling, maximum second depth difference={maximumChestBend*1000:F2} mm <=3 mm; source contact and LOD checks retained");
+        if(maximumChestBend>.002f)throw new InvalidOperationException($"Final chest retains an abrupt meridian tangent break: {maximumChestBend}");
+        GD.Print($"CHEST_CURVE_PASS: final four anterior meridians, 5 mm sampling, maximum second depth difference={maximumChestBend*1000:F2} mm <=2 mm; source contact and LOD checks retained");
+        // A short padded band can reduce the tangent break near the ribs while
+        // creating a second ridge lower down. Sample through to the belt.
+        float largestReturn=0;
+        foreach(float x in new[]{-.075f,-.045f,0,.045f,.075f})
+        {
+            float previousDepth=Front(female.DetailedBodyMesh,1.035f,x);
+            for(int row=1;row<=18;row++)
+            {
+                float y=1.035f+row*.005f;
+                float depth=Front(female.DetailedBodyMesh,y,x);
+                float advance=previousDepth-depth;
+                if(advance<-.0003f||advance>.0035f)
+                    throw new InvalidOperationException($"Front panel return breaks at x={x}, height={y}: {advance} m per 5 mm");
+                largestReturn=MathF.Max(largestReturn,advance);
+                previousDepth=depth;
+            }
+        }
+        GD.Print($"FRONT_PANEL_RETURN_PASS: five bilateral meridians above belt, largest depth step={largestReturn*1000:F2} mm per 5 mm");
         // Measure the outer front contour independently of full trunk breadth:
         // the latter can stay unchanged even when anterior volume splays out.
         static float AnteriorWidth(float[] support,float y,float depth)

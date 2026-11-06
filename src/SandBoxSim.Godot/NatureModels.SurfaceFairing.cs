@@ -186,6 +186,9 @@ internal sealed partial class NatureModels
                     // that outer-quadrant excess before restoring clearance.
                     float outer=Mathf.SmoothStep(.055f,.085f,MathF.Abs(p.X));
                     float bridgeEase=.006f+.006f*(1-Mathf.SmoothStep(1.08f,1.14f,p.Y));
+                    // Retain room for the suspended panel at its lower side
+                    // return. The contact cap still controls the upper root.
+                    bridgeEase+=.007f*TorsoRamp(1.052f,1.087f,p.Y)*(1-TorsoRamp(1.106f,1.140f,p.Y));
                     float outside=radius-TrunkSample(skin,p.Y,angle)-bridgeEase;
                     // C1 onset: the old max(0, outside) introduced a tangent
                     // break exactly at the outer chest/under-bust transition.
