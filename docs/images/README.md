@@ -34,11 +34,11 @@
 
 | 内容 | 采样入口 | 配图 |
 |---|---|---|
-| 成人体型与女性衣身 | `visual-body-frames`、`visual-thorax-frames` 第 90 帧，三视图可对照腰背至上臀的轮廓，近景展示胸廓下缘至腰带的衣面 | [全身三视图](resident-body-frames.png) · [女性衣身](resident-thorax-detail.png) |
+| 成人体型与女性衣身 | `visual-body-frames`、`visual-thorax-frames` 第 90 帧，三视图可对照腰背、骨盆与上腿的轮廓，近景展示胸廓下缘至腰带的衣面 | [全身三视图](resident-body-frames.png) · [女性衣身](resident-thorax-detail.png) |
 | 成人头脸 | `visual-faces`、`visual-face-frames` 第 90 帧 | [三种头脸](resident-face-detail.png) · [成人外观对照](resident-face-frames.png) |
 | 三种衣装的正背面 | `visual-wardrobe`、`visual-female-wardrobe` 第 90 帧，可对照女性腰下褶线、双肩背包和后腰皮袋 | [男性成衣](wardrobe-detail.png) · [女性成衣](resident-female-wardrobe.png) |
 | 手部、前臂和腕部 | `visual-hands`、`visual-forearm-frames` 第 90 帧，`visual-wrist-motion` 第 150 帧 | [握持](resident-hand-detail.png) · [前臂三视图](resident-forearm-frames.png) · [腕部近景](resident-wrist-motion.png) |
-| 静立、步行与拾取 | `visual-body-motion` 第 105 帧，可观察弯身时胸廓、骨盆和双膝的配合 | [全身姿势](resident-body-motion.png) |
+| 静立、步行与拾取 | `visual-body-motion` 第 105 帧，可观察弯身时胸廓、骨盆和双膝的配合，以及裤装在屈髋处的变化 | [全身姿势](resident-body-motion.png) |
 | 同速步行、搬运和持锤 | `visual-locomotion` 第 180 帧 | [步态对照](resident-style-walk.png) |
 | 交谈、递交与进食 | `visual-social` 第 150 帧 | [生活动作](resident-social.png) |
 | 同工具与不同疲劳状态 | `visual-work-effort` 第 180 帧 | [作业姿态](resident-work-effort.png) |

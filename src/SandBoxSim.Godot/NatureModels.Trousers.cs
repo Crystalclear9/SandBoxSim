@@ -60,7 +60,7 @@ internal sealed partial class NatureModels
                 // fabric bridge. The back and pelvic crest retain their fit.
                 float rise=TorsoRamp(.690f,.728f,point.Y)*(1-TorsoRamp(.754f,.805f,point.Y))
                     *(1-TorsoRamp(.017f,.062f,MathF.Abs(point.X)))*TorsoRamp(.004f,.065f,-point.Z);
-                points[i]=FemalePelvicPoint(point)-new Vector3(0,.008f,.004f)*rise;
+                points[i]=FemaleHipTransition(FemalePelvicPoint(point))-new Vector3(0,.008f,.004f)*rise;
                 freedom[i]=points[i]==rest[i]?0:1;
             }
             TransportFairingNormals(rest,points,normals,ids,freedom);
@@ -172,6 +172,19 @@ internal sealed partial class NatureModels
         TransportFairingNormals(rest,points,normals,ids,freedom);
     }
 
+    private static Vector3 FemaleHipTransition(Vector3 p)
+    {
+        float x=MathF.Abs(p.X);
+        // Taper the cloth under the broadest part of the pelvis. Keep the
+        // back of the seat and the inner seam on their original support.
+        float outerHeight=TorsoRamp(.635f,.696f,p.Y)*(1-TorsoRamp(.706f,.782f,p.Y));
+        float outer=TorsoRamp(.113f,.155f,x)
+            *TorsoRamp(-.086f,-.034f,p.Z)*(1-TorsoRamp(.024f,.066f,p.Z));
+        float frontHeight=TorsoRamp(.663f,.704f,p.Y)*(1-TorsoRamp(.728f,.776f,p.Y));
+        float front=TorsoRamp(.050f,.079f,x)*(1-TorsoRamp(.102f,.142f,x))*TorsoRamp(.049f,.082f,-p.Z);
+        return p+new Vector3(-MathF.Sign(p.X)*.004f*outer*outerHeight,0,.0042f*front*frontHeight);
+    }
+
     private static Godot.Collections.Array BakeTrouserKneeFlex(Vector3[] rest,Vector3[] restNormals,int[] ids,int[] bones,float[] weights,int side)
     {
         var points=(Vector3[])rest.Clone();
@@ -221,24 +234,36 @@ internal sealed partial class NatureModels
             var p=rest[i];float x=MathF.Abs(p.X);
             if((p.X<0)!=(side==0))continue;
             float panel=Mathf.SmoothStep(.54f,.65f,p.Y)*(1-Mathf.SmoothStep(.75f,.83f,p.Y))*Mathf.SmoothStep(.028f,.080f,x);
-            float front=Mathf.SmoothStep(.014f,.071f,-p.Z),rear=Mathf.SmoothStep(.017f,.084f,p.Z);
-            float fold=(p.Y-(.723f-.27f*(x-.09f)))/.034f;
-            float diagonal=.008f*MathF.Exp(-fold*fold)*front;
+            float front=TorsoRamp(.020f,.076f,-p.Z),rear=TorsoRamp(.017f,.084f,p.Z);
+            float outerRear=TorsoRamp(.122f,.155f,x)*TorsoRamp(.014f,.057f,p.Z);
+            float rearSupport=MathF.Max(rear,.55f*outerRear);
             float thighWeight=0;
             for(int j=0;j<4;j++)if(bones[i*4+j]==side+1)thighWeight+=weights[i*4+j];
             var lever=p-pivot;
             var linear=new Basis(Vector3.Right,Vector3.Up.Lerp(rotation.Y,thighWeight),Vector3.Back.Lerp(rotation.Z,thighWeight));
             var arc=new Basis(Vector3.Right,TrouserHipFlexAngle*thighWeight)*lever;
             // Restore the outside arc lost to linear skinning at the hip.
-            // The front of the bend retains the separate compression fold.
-            var edit=(linear.Inverse()*arc-lever)*rear-Vector3.Back*diagonal;
+            // The shortened front panel tucks beside a shallow oblique
+            // fold. Both ends fade into the rise and outseam.
+            var edit=(linear.Inverse()*arc-lever)*rearSupport+Vector3.Back*HipFoldDepth(p,front);
             points[i]+=panel*edit.LimitLength(.010f);
-            freedom[i]=panel*(front+rear);
+            freedom[i]=panel*MathF.Max(front,rearSupport);
         }
         TransportFairingNormals(rest,points,normals,ids,freedom);
         var shape=new Godot.Collections.Array();shape.Resize((int)Mesh.ArrayType.Max);
         shape[(int)Mesh.ArrayType.Vertex]=points;shape[(int)Mesh.ArrayType.Normal]=normals;
         return shape;
+    }
+
+    private static float HipFoldDepth(Vector3 p,float front)
+    {
+        float x=MathF.Abs(p.X);
+        float along=TorsoRamp(.049f,.148f,x);
+        float centre=Mathf.Lerp(.761f,.712f,along);
+        float offset=(p.Y-centre)/Mathf.Lerp(.019f,.023f,along);
+        float tuck=(offset+.91f)/.77f;
+        float coverage=front*TorsoRamp(.045f,.077f,x)*(1-TorsoRamp(.123f,.168f,x));
+        return coverage*(.0036f*MathF.Exp(-tuck*tuck)-.0058f*MathF.Exp(-offset*offset));
     }
     private void AddContinuousTrousers(ResidentRig rig)
     {
@@ -406,6 +431,10 @@ internal sealed partial class NatureModels
             ||thighWidthEase<.004f||thighWidthEase>.009f||rise<.007f||rise>.011f)
             throw new InvalidOperationException($"Female trouser ease loses its local fit: knee={kneeWidthEase:F4}/{kneeFrontEase:F4}, thigh={thighWidthEase:F4}, rise={rise:F4}");
         GD.Print($"FEMALE_TROUSER_DRAPE_PASS: actual knee width/front ease={kneeWidthEase*1000:F2}/{kneeFrontEase*1000:F2} mm, thigh width ease={thighWidthEase*1000:F2} mm, front rise release={rise*1000:F2} mm; fixed cuffs");
+        float taper=SampleTrouserSection(fittedSections,.78f).Max.X-SampleTrouserSection(fittedSections,.69f).Max.X;
+        if(taper<.004f||taper>.009f)
+            throw new InvalidOperationException($"Female upper thigh loses its taper below the pelvis: {taper*1000:F2} mm per side");
+        GD.Print($"FEMALE_HIP_TRANSITION_PASS: fitted upper thigh tapers {taper*1000:F2} mm per side over 90 mm");
     }
 
     private static void ValidateHipCloth(Vector3[] points,int[] bones,float[] weights,Vector3[][] targets)
@@ -430,6 +459,21 @@ internal sealed partial class NatureModels
         if(samples<20||after>=.80f*before)
             throw new InvalidOperationException($"Hip correction does not preserve the rear cloth radius: {samples}, {before}/{after}");
         GD.Print($"HIP_CLOTH_RADIUS_PASS: {samples} posterior samples, mean radius loss={1000*before/samples:F2} -> {1000*after/samples:F2} mm");
+
+        for(int side=0;side<2;side++)
+        {
+            float ridge=0,tuck=0;
+            for(int i=0;i<points.Length;i++)
+            {
+                var p=points[i];float x=MathF.Abs(p.X);
+                if((p.X<0)!=(side==0)||x<.055f||x>.150f||p.Z>-.065f||p.Y<.65f||p.Y>.81f)continue;
+                float depth=targets[side][i].Z-p.Z;
+                ridge=MathF.Max(ridge,-depth);tuck=MathF.Max(tuck,depth);
+            }
+            if(ridge<.004f||ridge>.006f||tuck<.001f||tuck>.003f)
+                throw new InvalidOperationException($"Hip flex loses its front-panel fold and tuck: side={side}, ridge={ridge:F4}, tuck={tuck:F4}");
+            GD.Print($"FEMALE_HIP_FOLD_PASS: side={side}, baked fold/tuck={ridge*1000:F2}/{tuck*1000:F2} mm");
+        }
     }
 
     private static void ValidateKneeCloth(ResidentRig rig,Vector3[] points,int[] bones,float[] weights,Vector3[][] targets)
