@@ -864,6 +864,7 @@ public partial class WorldView3D : MapView
             var current=node.Position;
             var action=sim.Agents.ActionOf(slot);
             var phase=sim.Agents.PhaseOf(slot);
+            uint actionRevision=sim.Agents.ActionRevisionOf(slot);
             bool hasTarget=sim.Agents.HasTarget(slot);
             var interest=hasTarget?sim.Agents.TargetOf(slot):new Int2(x,y);
             bool gathering=phase==ActionPhase.Executing&&(action is ActionKind.GatherWood or ActionKind.GatherStone or ActionKind.GatherIron);
@@ -920,7 +921,12 @@ public partial class WorldView3D : MapView
             bool visible=ActorInView(rendered+Vector3.Up*.9f,frustum);
             if(node.Visible!=visible)node.Visible=visible;
             _poseSchedule.Accumulate(pair.Key,delta,visible&&!paused);
-            if(!visible){node.ResetGroundContacts();node.CancelPivot();node.ClearTransientCargo();continue;}
+            if(!visible)
+            {
+                node.ResetGroundContacts();node.CancelPivot();
+                if(!paused)node.ObserveOffscreenAction(action,phase,actionRevision);
+                continue;
+            }
             bool hasInterest=(hasTarget||gathering)&&sim.World.IsInBounds(interest);
             var interestPoint=hasInterest?SceneResourceFocus(interest.X,interest.Y,action):target;
             if(sim.Actions.TryGetInteractionPartner(slot,out int partner))
@@ -999,7 +1005,7 @@ public partial class WorldView3D : MapView
                     (GroundHeight(near.X,near.Z)-rendered.Y)/node.Scale.Y);
             }
             node.SetWorkCondition(sim.Agents.FatigueOf(slot),sim.Agents.HealthOf(slot));
-            node.PresentAction(_poseSchedule.Consume(pair.Key),action,phase,paused,slot);
+            node.PresentAction(_poseSchedule.Consume(pair.Key),action,phase,paused,slot,actionRevision);
             if(distanceSquared<18*18)
             {
                 if(!paused)ConformFeet(node);

@@ -23,11 +23,12 @@ internal partial class ResidentRig
 
     private static bool IsPlacement(ActionKind action)=>action is ActionKind.Deposit or ActionKind.StoreInBuilding;
 
-    private void ObserveCargoPlacement(ActionKind action,ActionPhase phase,bool newlyDone)
+    private void ObserveCargoPlacement(ActionKind action,ActionPhase phase,bool newlyDone,bool newRun)
     {
-        if(!IsPlacement(action)||action!=_observedAction||phase!=ActionPhase.Done||_hasCargo||!InteractionSettled)
+        bool wasPlacing=_placingCargo;
+        if(newRun||!IsPlacement(action)||phase!=ActionPhase.Done||_hasCargo||!InteractionSettled)
             _placingCargo=false;
-        if(newlyDone&&IsPlacement(action)&&!_hasCargo&&CargoMesh.Visible&&!_releasedCargo&&InteractionSettled)
+        if(newlyDone&&!wasPlacing&&IsPlacement(action)&&!_hasCargo&&CargoMesh.Visible&&!_releasedCargo&&InteractionSettled)
         {
             // Inventory has already committed. Keep only the already
             // displayed parcel, for the time needed to finish its set-down.

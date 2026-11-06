@@ -11,11 +11,11 @@ internal partial class ModelGallery
     private readonly List<(ResidentRig Rig,int Sequence,Label Readout,string Title)> _interactionFlow=new();
     private void BuildInteractionFlow(NatureModels models,GridContainer grid,Label heading)
     {
-        heading.Text="交互衔接 · 转向落脚、换工具与存放物资";grid.Columns=3;
+        heading.Text="交互衔接 · 到站、作业、休息与存放物资";grid.Columns=3;
         for(int frame=0;frame<2;frame++)for(int sequence=0;sequence<3;sequence++)
         {
             var rig=models.Resident(frame==0?17:55,false,sequence==1?JobType.Builder:JobType.None);
-            string title=(frame==0?"男性外观":"女性外观")+" · "+new[]{"走近、转向与拾取","作业与生活","托举、送稳与松手"}[sequence];
+            string title=(frame==0?"男性外观":"女性外观")+" · "+new[]{"走近、转向与拾取","作业、休息与起身","托举、送稳与松手"}[sequence];
             Closeup(grid,title,rig,2.10f,new(0,.82f,0),new(1.3f,.06f,4),true);
             var readout=grid.GetChild<VBoxContainer>(grid.GetChildCount()-1).GetChild<Label>(1);
             _interactionFlow.Add((rig,sequence,readout,title));
@@ -50,8 +50,9 @@ internal partial class ModelGallery
             }
             else if(sequence==1)
             {
-                action=t<3?ActionKind.BuildHouse:t<5.2f?ActionKind.Eat:t<7?ActionKind.Drink:t<9.5f?ActionKind.Farm:ActionKind.Flee;
-                phase=t<9.5f?ActionPhase.Executing:ActionPhase.Moving;
+                action=t<2.7f?ActionKind.BuildHouse:t<4.65f?ActionKind.Eat:t<6.25f?ActionKind.Drink:
+                    t<8.5f?ActionKind.Farm:t<10.55f?ActionKind.Sleep:ActionKind.Flee;
+                phase=t<10.55f?ActionPhase.Executing:ActionPhase.Moving;
             }
             else
             {

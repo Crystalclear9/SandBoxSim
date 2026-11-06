@@ -78,6 +78,8 @@ internal partial class ResidentPortrait : SubViewportContainer
     private bool _child, _drag, _fullBody, _worldPaused;
     private ActionKind _action;
     private ActionPhase _actionPhase;
+    private uint? _actionRevision;
+    private bool _resyncAction;
     private float _yaw = -.28f, _distance = FaceDistance;
     public override void _Ready()
     {
@@ -134,7 +136,11 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
     }
     public bool FinishingGesture=>_resident?.CompletionVisible==true;
     public void ShowCargo(bool hasCargo, SandBoxSim.Core.Environment.ResourceKind resource) => _resident?.ShowCargo(hasCargo,resource);
-    public void ShowActivity(ActionKind action,ActionPhase phase,bool paused,float fatigue=0,float health=1) { _action=action;_actionPhase=phase;_worldPaused=paused;_resident?.SetWorkCondition(fatigue,health); }
+    public void ShowActivity(ActionKind action,ActionPhase phase,bool paused,float fatigue=0,float health=1,uint? revision=null)
+    {
+        _action=action;_actionPhase=phase;_actionRevision=revision;_worldPaused=paused;
+        _resident?.SetWorkCondition(fatigue,health);
+    }
     internal object EvaluationState()=>new {identity=_identity,child=_child,framing=_framing.ToString().ToLowerInvariant(),yaw=_yaw,pitch=_pitch,distance=_distance,dragging=_drag,orbiting=_orbiting,lighting=Lighting==0?"soft":"raking",thumbnail=IsThumbnail};
     internal object InspectionState()=>new {framing=_framing.ToString().ToLowerInvariant(),yaw=_yaw,pitch=_pitch,distance=_distance,dragging=_drag,orbiting=_orbiting,lighting=Lighting==0?"soft":"raking"};
     internal void SetLighting(int mode)
@@ -204,10 +210,16 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
     {
         delta=EvaluationClock.Delta(delta);
         AdvanceOrbit((float)delta);
+        if(!IsVisibleInTree()){_resyncAction=true;return;}
         // Mirrors the selected real action; this isolated model never advances the simulation.
-        if (IsVisibleInTree() && _resident != null)
+        if (_resident != null)
         {
-            _resident.PresentAction((float)delta, _action, _actionPhase, _worldPaused, (float)(_identity % 11));
+            if(_resyncAction&&!_worldPaused&&_actionRevision is uint revision)
+            {
+                _resident.ObserveOffscreenAction(_action,_actionPhase,revision);
+                _resyncAction=false;
+            }
+            _resident.PresentAction((float)delta, _action, _actionPhase, _worldPaused, (float)(_identity % 11), _actionRevision);
             string handling=(_worldPaused?"已暂停 · ":"实时 · ")+_resident.Handling;
             if(_activityReadout.Text!=handling)_activityReadout.Text=handling;
             string held=_resident.HeldObject;

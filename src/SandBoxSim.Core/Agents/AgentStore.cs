@@ -102,6 +102,9 @@ public sealed class AgentStore : ISimEntitySet
     private int[] _pathNextY = System.Array.Empty<int>();
     private bool[] _hasPathStep = System.Array.Empty<bool>();
     private int[] _actionTicks = System.Array.Empty<int>();
+    // Runtime observation identity. It does not participate in simulation
+    // decisions, snapshots or deterministic state hashes.
+    private uint[] _actionRevision = System.Array.Empty<uint>();
 
     /// <summary>每个个体的决策相位（分批更新用：phase = Slot % batchCount）。</summary>
     private int[] _decisionPhase = System.Array.Empty<int>();
@@ -282,6 +285,7 @@ public sealed class AgentStore : ISimEntitySet
         _targetY[slot] = -1;
         _hasPathStep[slot] = false;
         _actionTicks[slot] = 0;
+        _actionRevision[slot] = 0;
 
         _decisionPhase[slot] = 0;
         _nextDecisionTick[slot] = tick;
@@ -394,6 +398,7 @@ public sealed class AgentStore : ISimEntitySet
         System.Array.Resize(ref _pathNextY, capacity);
         System.Array.Resize(ref _hasPathStep, capacity);
         System.Array.Resize(ref _actionTicks, capacity);
+        System.Array.Resize(ref _actionRevision, capacity);
         System.Array.Resize(ref _decisionPhase, capacity);
         System.Array.Resize(ref _nextDecisionTick, capacity);
         System.Array.Resize(ref _lastDecision, capacity);
@@ -540,6 +545,7 @@ public sealed class AgentStore : ISimEntitySet
         _targetX[slot] = targetX;
         _targetY[slot] = targetY;
         _actionTicks[slot] = actionTicks;
+        _actionRevision[slot] = 0;
 
         // 寻路的"下一步"缓存必须一起恢复。
         //
@@ -659,6 +665,7 @@ public sealed class AgentStore : ISimEntitySet
         _pathNextY[slot] = -1;
         _hasPathStep[slot] = false;
         _actionTicks[slot] = 0;
+        _actionRevision[slot] = 0;
 
         // 决策相位：用个体的名字哈希（与位置无关）分散，保证"同一个人永远在同一相位"
         _decisionPhase[slot] = 0;
@@ -791,6 +798,7 @@ public sealed class AgentStore : ISimEntitySet
     public ActionPhase PhaseOf(int slot) => (ActionPhase)_actionPhase[slot];
     public ActionFailReason FailReasonOf(int slot) => (ActionFailReason)_failReason[slot];
     public int ActionTicksOf(int slot) => _actionTicks[slot];
+    public uint ActionRevisionOf(int slot) => _actionRevision[slot];
     public Int2 TargetOf(int slot) => new Int2(_targetX[slot], _targetY[slot]);
     public bool HasTarget(int slot) => _targetX[slot] >= 0 && _targetY[slot] >= 0;
     public bool HasPathStep(int slot) => _hasPathStep[slot];
@@ -930,6 +938,7 @@ public sealed class AgentStore : ISimEntitySet
         _action[slot] = (byte)action;
         _actionPhase[slot] = (byte)phase;
         _actionTicks[slot] = 0;
+        _actionRevision[slot] = unchecked(_actionRevision[slot] + 1);
     }
 
     public void SetPhase(int slot, ActionPhase phase) => _actionPhase[slot] = (byte)phase;

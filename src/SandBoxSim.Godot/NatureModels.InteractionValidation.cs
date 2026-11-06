@@ -10,6 +10,8 @@ internal sealed partial class NatureModels
     private void ValidateInteractionSequencing()
     {
         ValidateCargoPlacement();
+        ValidateObservedActionHandoffs();
+        var actions=Enum.GetValues<ActionKind>();
         int contactTransfers=0,visibleLoads=0;
         foreach(int identity in new[]{17,55})
         {
@@ -48,16 +50,21 @@ internal sealed partial class NatureModels
 
                 // All tool families, bare actions and failures share the same
                 // real pose path; verify each ownership change at contact.
-                foreach(var action in new[]{ActionKind.BuildHouse,ActionKind.GatherWood,ActionKind.Farm,
-                    ActionKind.GatherStone,ActionKind.GatherIron,ActionKind.Hunt,ActionKind.Attack,
-                    ActionKind.Eat,ActionKind.Drink,ActionKind.GatherFood,ActionKind.Socialize,
-                    ActionKind.ShareFood,ActionKind.Trade,ActionKind.Deposit,ActionKind.StoreInBuilding})
+                foreach(var action in actions)
                 {
+                    var phase=action switch
+                    {
+                        ActionKind.None=>ActionPhase.Idle,
+                        ActionKind.Wander or ActionKind.Explore or ActionKind.Migrate or ActionKind.Flee=>ActionPhase.Moving,
+                        _=>ActionPhase.Executing
+                    };
                     for(int frame=0;frame<240;frame++)
                     {
+                        var movement=phase==ActionPhase.Moving?new Vector3(0,0,-.85f/60):Vector3.Zero;
+                        rig.ObserveLocomotion(movement,1f/60,0,false);
                         bool held=rig.ToolHeld;
                         var previousTool=InTorso(rig.ToolMesh,rig.Torso);
-                        rig.PresentAction(1f/60,action,ActionPhase.Executing,false,.3f);
+                        rig.PresentAction(1f/60,action,phase,false,.3f);
                         var next=InTorso(rig.ToolMesh,rig.Torso);
                         if(held!=rig.ToolHeld)
                         {
@@ -66,8 +73,9 @@ internal sealed partial class NatureModels
                                 throw new InvalidOperationException($"Tool ownership changes across a gap: {identity}/{action}");
                         }
                     }
-                    if(!rig.GestureEngaged(action))
-                        throw new InvalidOperationException($"Requested interaction does not engage: {identity}/{action}, {rig.Handling}");
+                    if(rig.GestureEngaged(action)!=(phase==ActionPhase.Executing)
+                        ||phase==ActionPhase.Moving&&rig.GaitSpeed<.1f)
+                        throw new InvalidOperationException($"Requested interaction does not match its phase: {identity}/{action}, {rig.Handling}");
                 }
                 rig.ShowCargo(true,ResourceKind.Wood);
                 for(int frame=0;frame<180;frame++)
@@ -116,7 +124,72 @@ internal sealed partial class NatureModels
             finally{shortAction.Free();}
         }
         if(contactTransfers<20||visibleLoads<100)throw new InvalidOperationException("Interaction checks did not exercise contact changes and carried loads");
-        GD.Print($"INTERACTION_SEQUENCE_PASS: two adult frames, rendered arrival, fifteen action families, {contactTransfers} contact ownership changes, {visibleLoads} supported load frames, resource replacement, short completion, cancellation and pause");
+        GD.Print($"INTERACTION_SEQUENCE_PASS: two adult frames, all {actions.Length} action kinds, rendered arrival, {contactTransfers} contact ownership changes, {visibleLoads} supported load frames, resource replacement, short completion, cancellation and pause");
+    }
+
+    private void ValidateObservedActionHandoffs()
+    {
+        float largestCadenceDifference=0;
+        foreach(int identity in new[]{17,55})
+        {
+            var rig=Resident(identity,false,JobType.Builder);
+            try
+            {
+                rig.PresentAction(1f/60,ActionKind.Eat,ActionPhase.Done,false,0,1);
+                if(rig.CompletionVisible)throw new InvalidOperationException("Initial snapshot replays a completed action");
+                rig.PresentAction(1f/60,ActionKind.Eat,ActionPhase.Done,false,0,2);
+                if(!rig.CompletionVisible)throw new InvalidOperationException("A distinct completion of the same action was lost");
+                rig.PresentAction(1f/60,ActionKind.Flee,ActionPhase.Moving,true,0,3);
+                if(!rig.CompletionVisible)throw new InvalidOperationException("Paused observation interrupts an active completion");
+                rig.PresentAction(1f/60,ActionKind.Flee,ActionPhase.Moving,false,0,3);
+                if(rig.CompletionVisible||rig.GestureEngaged(ActionKind.Eat))
+                    throw new InvalidOperationException("Flee does not interrupt the completed meal");
+                rig.ObserveOffscreenAction(ActionKind.Eat,ActionPhase.Done,4);
+                rig.PresentAction(1f/60,ActionKind.Eat,ActionPhase.Done,false,0,4);
+                if(rig.CompletionVisible)throw new InvalidOperationException("Returning on camera replays a hidden completion");
+
+                for(int i=0;i<180;i++)rig.PresentAction(1f/60,ActionKind.BuildHouse,ActionPhase.Executing,false,0,5);
+                if(!rig.GestureEngaged(ActionKind.BuildHouse))throw new InvalidOperationException("Rest handoff never starts from a held hammer");
+                for(int i=0;i<180;i++)
+                {
+                    rig.PresentAction(1f/60,ActionKind.Sleep,ActionPhase.Executing,false,0,6);
+                    if((rig.ToolHeld||rig.Handling=="松开手指")&&rig.RestPoseWeight>.01f)
+                        throw new InvalidOperationException("Pelvis lowers before the tool is stowed and released");
+                }
+                if(!rig.GestureEngaged(ActionKind.Sleep))throw new InvalidOperationException("Rest fails to take over after tool release");
+                for(int i=0;i<180;i++)
+                {
+                    rig.PresentAction(1f/60,ActionKind.Take,ActionPhase.Executing,false,0,7);
+                    if(rig.RestPoseWeight>=.20f&&rig.GestureEngaged(ActionKind.Take))
+                        throw new InvalidOperationException("Pickup engages before the resident rises from rest");
+                }
+                if(!rig.GestureEngaged(ActionKind.Take))throw new InvalidOperationException("Pickup fails to start after rising");
+            }
+            finally{rig.Free();}
+
+            float near=MealCompletionTime(identity,1f/60),far=MealCompletionTime(identity,.2f);
+            largestCadenceDifference=MathF.Max(largestCadenceDifference,MathF.Abs(near-far));
+            if(MathF.Abs(near-far)>.24f)throw new InvalidOperationException($"Sparse observation changes the meal handoff duration: {near}/{far}");
+        }
+        GD.Print($"OBSERVED_HANDOFF_PASS: two adult frames, repeat completions, pause, offscreen expiry, tool release before rest, rise before pickup; 60 Hz/5 Hz duration difference {largestCadenceDifference:F3} s");
+    }
+
+    private float MealCompletionTime(int identity,float delta)
+    {
+        var rig=Resident(identity,false,JobType.Builder);
+        try
+        {
+            for(int i=0;i<180;i++)rig.PresentAction(1f/60,ActionKind.BuildHouse,ActionPhase.Executing,false,0,1);
+            bool sawMeal=false;
+            for(float elapsed=delta;elapsed<6;elapsed+=delta)
+            {
+                rig.PresentAction(delta,ActionKind.Eat,ActionPhase.Done,false,0,2);
+                sawMeal|=rig.GestureEngaged(ActionKind.Eat);
+                if(sawMeal&&!rig.CompletionVisible)return elapsed;
+            }
+            throw new InvalidOperationException("Meal handoff does not finish after stowing a held tool");
+        }
+        finally{rig.Free();}
     }
 
     private void ValidateCargoPlacement()
