@@ -218,11 +218,55 @@ internal sealed partial class NatureModels
             var rim=points[hem[col]];
             var above=points[hem[col+SewnPanelColumns]];
             var radial=new Vector3(rim.X,0,rim.Z).Normalized();
-            // Form the fold beneath the fitted exterior. Sampling it as a
-            // separate shell lets the facing flare through the visible cloth.
-            points[hem[2*SewnPanelColumns+col]]=rim.Lerp(above,.05f)-radial*.0024f;
-            points[hem[3*SewnPanelColumns+col]]=rim.Lerp(above,.45f)-radial*.0032f;
+            // Turn the existing rings around a slightly rounded edge. Keep
+            // the two facing rings inside the actual exterior as it flares.
+            points[hem[col]]=rim+radial*.0012f;
+            points[hem[2*SewnPanelColumns+col]]=rim.Lerp(above,.085f)-radial*.0028f;
+            points[hem[3*SewnPanelColumns+col]]=rim.Lerp(above,.48f)-radial*.0039f;
         }
+    }
+
+    private float FemaleLowerPanelEase(float height,float angle)
+    {
+        float depth=MathF.Sin(angle),side=MathF.Abs(MathF.Cos(angle));
+        float belt=FinishedBeltHeight(angle),hem=FinishedGarmentHem+FemaleHemOffset(depth);
+        float t=Math.Clamp((belt-height)/(belt-hem),0,1);
+        float release=TorsoRamp(.08f,.91f,t);
+        float outseam=side*side*side;
+        float frontQuarter=TorsoRamp(.12f,.48f,-depth)*(1-TorsoRamp(.71f,.97f,-depth));
+        float backQuarter=TorsoRamp(.16f,.56f,depth)*(1-TorsoRamp(.83f,1,depth));
+        float towardWaist=TorsoRamp(.887f,.923f,height);
+        float waistAllowance=(1-Mathf.SmoothStep(.80f,.935f,height))*(_garmentCut switch
+        {
+            0=>.005f*side*side,
+            1=>0,
+            _=>.004f+.010f*side*side
+        });
+        // Release the linen in the direction it hangs from the belt.
+        // Travel cloth keeps more room behind the hip than at centre front.
+        float hemAllowance=release*(_garmentCut switch
+        {
+            0=>.0013f+.0048f*outseam+.0023f*frontQuarter,
+            1=>.0011f+.0024f*outseam+.0015f*frontQuarter,
+            _=>.0028f+.0067f*outseam+.0058f*backQuarter+.0020f*frontQuarter
+        });
+        return Mathf.Lerp(hemAllowance,waistAllowance,towardWaist);
+    }
+
+    private Color[] FemaleHemFinishCoordinates(Vector3[] points,Vector2[] pattern)
+    {
+        // Keep the finish in bind space so it travels with the skirt. Alpha
+        // stores a metric, while RGB remains available for the distant dye.
+        var chart=new Color[points.Length];
+        for(int i=0;i<points.Length;i++)
+        {
+            var p=points[i];
+            float depth=p.Z/MathF.Max(.001f,new Vector2(p.X,p.Z).Length());
+            float hem=FinishedGarmentHem+FemaleHemOffset(depth);
+            float fromEdge=pattern[i].X<0?Math.Clamp((p.Y-hem)/.024f,0,1):1;
+            chart[i]=new(1,1,1,fromEdge);
+        }
+        return chart;
     }
 
     // Bind-space sewn folds. They follow the same fit as buttons, ribbons and
@@ -257,13 +301,18 @@ internal sealed partial class NatureModels
         if(FittedFigure)
         {
             backPleat*=.65f;
-            // Two shallow releases below the waist follow the bias of the
-            // actual cut. The loose outer cloth bridges the hip underneath.
-            float release=TorsoRamp(.023f,.120f,-above)*TorsoRamp(.760f,.835f,height);
-            float flank=MathF.Abs(x),grain=Mathf.Lerp(.43f,.62f,release);
-            float fall=Bell(flank-grain,.135f)*front*front+Bell(flank-(.56f-.11f*release),.17f)*back*back;
-            float clothEase=_garmentCut==2?.0045f:_garmentCut==1?.0027f:.0020f;
-            hem=clothEase*release*fall;
+            // Keep the two broad hanging folds distinct from the structural
+            // ease of each cut. Stop before they can scallop the turned hem.
+            float edge=FinishedGarmentHem+FemaleHemOffset(MathF.Sin(angle));
+            float release=TorsoRamp(.025f,.105f,-above)*TorsoRamp(.002f,.030f,height-edge);
+            float flank=MathF.Abs(x),grain=Mathf.Lerp(.48f,.66f,release);
+            float fall=Bell(flank-grain,.15f)*front*front+Bell(flank-.52f,.20f)*back*back;
+            float edgeFold=(_garmentCut==2?.0035f:.0024f)*release*fall;
+            float waistRelease=TorsoRamp(.023f,.120f,-above)*TorsoRamp(.760f,.835f,height);
+            float waistFold=(_garmentCut==2?.0045f:_garmentCut==1?.0027f:.0020f)*waistRelease
+                *(Bell(flank-Mathf.Lerp(.43f,.62f,waistRelease),.135f)*front*front
+                    +Bell(flank-(.56f-.11f*waistRelease),.17f)*back*back);
+            hem=Mathf.Lerp(edgeFold,waistFold,TorsoRamp(.887f,.923f,height));
         }
         float clearNeck=1-Mathf.SmoothStep(1.18f,1.22f,height);
         float sideSeam=1-Mathf.SmoothStep(.90f,1,MathF.Abs(x));

@@ -131,16 +131,7 @@ internal sealed partial class NatureModels
                 float layerHeight=Mathf.Lerp(MathF.Min(panelHeight,.935f),taperedHeight,TorsoRamp(.50f,.93f,front));
                 float trousers=TrouserLayerRadius(layerHeight,angle);
                 target=Mathf.Lerp(BlendOuterLayer(target,trousers),target,TorsoRamp(.928f,.990f,panelHeight));
-                // Release the lower coat panels from the belt toward the
-                // hip instead of following the trousers into their folds.
-                float release=1-Mathf.SmoothStep(.80f,.935f,panelHeight);
-                float flank=MathF.Abs(MathF.Cos(angle));
-                target+=_garmentCut switch
-                {
-                    0=>.005f*release*flank*flank,
-                    2=>release*(.004f+.010f*flank*flank),
-                    _=>0
-                };
+                if(tailored)target+=FemaleLowerPanelEase(panelHeight,angle);
             }
             else if(panelHeight<.94f)
             {
@@ -378,7 +369,10 @@ internal sealed partial class NatureModels
                 }
             if(bones.Length>0){arrays[(int)Mesh.ArrayType.Bones]=bones;arrays[(int)Mesh.ArrayType.Weights]=weights;}
             if(tailored&&s==0&&source.SurfaceGetMaterial(s)?.HasMeta("FittedBodice")==true)
+            {
                 FoldFemaleNeckline(arrays,ref points,ref pattern);
+                arrays[(int)Mesh.ArrayType.Color]=FemaleHemFinishCoordinates(points,pattern);
+            }
             // Pattern coordinates are a surface parameter, not a spatial Y
             // function. Rebuild the sewn panel normals from final triangles;
             // otherwise its sleeve/torso seam receives mismatched gradients.

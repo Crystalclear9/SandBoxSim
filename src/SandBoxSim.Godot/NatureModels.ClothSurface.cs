@@ -41,6 +41,7 @@ float thread=dot(cx*w.x+cy*w.y+cz*w.z,vec3(.2126,.7152,.0722));
 float thread_contrast=fitted_bodice?.65:(tailored_trousers?1.0:2.0);
 float textile=clamp(1.0+(thread-.3962)*thread_contrast/.3962,fitted_bodice?.88:.65,fitted_bodice?1.10:1.25);
 ALBEDO=figure_colour(dye.rgb,UV,fitted_bodice,torso_weight)*.68*(textile+yarn*.018+twill*.008+slub+dye_variation);
+if(fitted_bodice)ALBEDO*=figure_hem_finish(COLOR.a,(-UV.x-2.0)*6.2831853);
 // On the actual sewn sleeve UV2 stores rest-space metric distances. These
 // subdued stitch lines follow skinning, rather than floating above the cloth.
 // Filter in metric space so they disappear cleanly at world-camera distances.

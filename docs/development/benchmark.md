@@ -136,7 +136,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 ## 当前渲染版本
 
-当前渲染元数据为 `animalPresentation=articulated-paws-v12`、`interface=resident-framing-memory-v28`、`architecture=inset-joinery-v13`、`garmentMaterial=quiet-linen-v17`、`landscapeSurface=wet-bank-mosaic-v7`、`habitatDetail=responsive-understory-v12`。另外记录 `residentSurface=linear-skin-v9`、`vegetationSurface=engine-faced-v2`、`wildFlora=arched-bramble-v1`、`waterSurface=shore-activity-v7`、`wristContour=continuous-source-v2`、`hairline=framed-source-root-v2`、`femaleGroom=scalp-guided-plait-v1`、`reedPanicle=connected-axis-v1` 和 `handSurface=anatomical-regions-v1`。人物肖像的 `renderQuality.portrait.studio=continuous-inspector-v9`，并记录实际 `thumbnail` 布尔值。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。衣装领口与肩袖、人物布光、动物足部、建筑门窗接合及连续观察控件已改变，需重采相同场景的视觉和耗时基线；不能把不同像素覆盖与布局造成的耗时变化算作代码优化收益。`renderQuality.fontProfile=noto-packaged-v1` 记录随包字库策略，字体变化需要新视觉与耗时基线。`renderQuality.interfaceVisible` 标识界面是否显示，公开评测场景默认显示；沉浸观察不会自动成为新的评测指令。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
+当前渲染元数据为 `animalPresentation=articulated-paws-v12`、`interface=resident-framing-memory-v28`、`architecture=inset-joinery-v13`、`garmentMaterial=quiet-linen-v18`、`landscapeSurface=wet-bank-mosaic-v7`、`habitatDetail=responsive-understory-v12`。另外记录 `residentSurface=linear-skin-v9`、`vegetationSurface=engine-faced-v2`、`wildFlora=arched-bramble-v1`、`waterSurface=shore-activity-v7`、`wristContour=continuous-source-v2`、`hairline=framed-source-root-v2`、`femaleGroom=scalp-guided-plait-v1`、`reedPanicle=connected-axis-v1` 和 `handSurface=anatomical-regions-v1`。人物肖像的 `renderQuality.portrait.studio=continuous-inspector-v9`，并记录实际 `thumbnail` 布尔值。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。衣装领口与肩袖、人物布光、动物足部、建筑门窗接合及连续观察控件已改变，需重采相同场景的视觉和耗时基线；不能把不同像素覆盖与布局造成的耗时变化算作代码优化收益。`renderQuality.fontProfile=noto-packaged-v1` 记录随包字库策略，字体变化需要新视觉与耗时基线。`renderQuality.interfaceVisible` 标识界面是否显示，公开评测场景默认显示；沉浸观察不会自动成为新的评测指令。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
 
 `reachMotion=palm-trajectory-v2` 记录手掌轨迹过渡、朝向插值、错开的社交手势与循环进食表现。动作轨迹改变需要重采相同场景的视觉及耗时基线，不能与旧动作混作效率对照。
 
@@ -242,11 +242,11 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `wristContour=continuous-source-v2`、`forearmProfile=curvature-flow-v9` 与 `forearmSkin=continuous-elbow-v9` 分别标记连续腕臂截面、中心线拟合与腕部渐进蒙皮。新增公开 `wrist-motion` 面板及 `visual-wrist-motion.json`，在冻结模拟、固定 60 Hz 下，对照两种成人外观的手背、掌侧和侧面，循环观察屈伸、侧偏、前臂旋转和握拳。它使用真实居民网格与骨架，不测量人体医学能力，也不作为 RSI 分数。新的连接拓扑、56 骨近手与腕部支撑会改变构建和动画成本，效率对照必须冻结同一素材、渲染版本、输入及源码。
 
-`garmentFit=continuous-drape-v33`、`forearmProfile=curvature-flow-v9`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2` 区分衣片拟合和姿态形态、女性前臂表面、成人脸部比例、额前发根和静止眼睑。视觉与效率比较须同时冻结这些标识、输入和源码。身体配方 `reference-contour-physique-v31` 的两种成人参考转移权重均为 1.0，五类身体支撑共享同一配方哈希。固定点、体积、截面与三角形检查用于几何回归。
+`garmentFit=continuous-drape-v34`、`forearmProfile=curvature-flow-v9`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2` 区分衣片拟合和姿态形态、女性前臂表面、成人脸部比例、额前发根和静止眼睑。视觉与效率比较须同时冻结这些标识、输入和源码。身体配方 `reference-contour-physique-v31` 的两种成人参考转移权重均为 1.0，五类身体支撑共享同一配方哈希。固定点、体积、截面与三角形检查用于几何回归。
 
 `renderQuality.femaleGroom=scalp-guided-plait-v1` 标识成年女性的编发、盘发和配套远景几何。评测头部肖像或世界人物时，固定居民身份和观察距离，再比较轮廓与渲染耗时。
 
-`bodyPresentation=continuous-drape-v29` 标识成人女性前领、小腿及鞋部的运行时成品拟合。比较像素和网格构建成本时，须与 `bodyFrame=reference-contour-physique-v31`、`garmentFit=continuous-drape-v33` 及源码哈希一并冻结。
+`bodyPresentation=continuous-drape-v29` 标识成人女性前领、小腿及鞋部的运行时成品拟合。比较像素和网格构建成本时，须与 `bodyFrame=reference-contour-physique-v31`、`garmentFit=continuous-drape-v34` 及源码哈希一并冻结。
 
 `continuous-drape-v29` 的女性成人衣装还使用独立材质状态、浅色内衫／绿灰外衣分片，以及近远景共用的静止缝片函数。远景顶点颜色保留来源染色数据，另用材质标记选择分片；因此几何截面检查不会把配色变更当成体型变更。新材质、下摆与源码均需冻结后才能比较视觉或效率结果。
 
@@ -297,6 +297,8 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 `neckContour=relaxed-neckline-v7` 与 `garmentFit=continuous-drape-v33` 标识女性颈根、按角距圆顺的领缘、锁骨衣面和重新生成的肩袖形态。来源体型为 `reference-contour-physique-v31`。比较视觉输入与构建效率时须固定成衣标识、源码、动作、LOD 和机位。颈部间隙与颈根覆盖是几何回归条件。
 
 `trouserSkin=guided-knee-v1` 标识女性下装的臀腿轮廓、膝部支撑骨与配套姿态修形。源网格哈希仍对应 `reference-contour-physique-v31`。比较此版画面与耗时需要同时固定运行时蒙皮版本、近远景状态和动作。`handling-transitions` 左列镜头随实际骨盆高度收近，图像对照也须固定机位逻辑。
+
+`garmentFit=continuous-drape-v34` 记录三款女性衣片的局部下摆高度、腰带以下的方向性布量和连续翻边。`garmentMaterial=quiet-linen-v18` 记录近远景共用的衣缘距离与缝线过滤。视觉输入或耗时比较须固定剪裁、机位与细节等级。
 
 衣面烘焙将规范坐标中的候选邻域按剪裁与模式缓存，当前姿态继续计算动态筛选和权重；完整扫描与缓存路径按原索引顺序求和。`BODICE_NEIGHBOR_PASS` 核对实际拟合深度逐位一致，属于程序优化的数值等价检查。缓存影响冷启动成本与内存，效率实验需固定来源、姿态数量、硬件、并行负载与冷／热缓存条件；超时回放保留失败状态，不能视为有效结果。
 

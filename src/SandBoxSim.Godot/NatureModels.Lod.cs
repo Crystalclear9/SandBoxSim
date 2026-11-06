@@ -28,11 +28,15 @@ internal sealed partial class NatureModels
             var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
             var colors=arrays[(int)Mesh.ArrayType.Color].AsColorArray();
             var detail=arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
+            bool cloth=material?.HasMeta("FittedBodice")==true;
             int count=indices.Length>0?indices.Length:points.Length;
             for(int i=0;i<count;i++)
             {
-                int v=indices.Length>0?indices[i]:i;tool.SetColor(colors.Length==points.Length?tint*colors[v]:tint);
-                tool.SetUV(new Vector2(material?.HasMeta("FittedBodice")==true?1:0,0));
+                int v=indices.Length>0?indices[i]:i;
+                var shade=colors.Length==points.Length?tint*colors[v]:tint;
+                tool.SetUV(new Vector2(cloth?1:0,cloth?shade.A:1));
+                if(cloth)shade.A=tint.A;
+                tool.SetColor(shade);
                 tool.SetUV2(detail.Length==points.Length?detail[v]:new Vector2(-1,0));
                 tool.SetNormal(normals[v]);tool.AddVertex(points[v]);
             }

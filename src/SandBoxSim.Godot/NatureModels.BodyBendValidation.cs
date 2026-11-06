@@ -26,6 +26,7 @@ internal sealed partial class NatureModels
                     lumbarSlope=MathF.Max(lumbarSlope,MeasureLumbarSlope(p,ids));
                     frontWaistReversal=MathF.Max(frontWaistReversal,MeasureFrontWaistReversal(p,ids));
                     ValidateFemaleHemCut(p);
+                    ValidateFemaleHemFinish(rig.DetailedBodyMesh,rig.DistantBodyMesh);
                 }
                 var pants=rig.Trousers!.Mesh.SurfaceGetArrays(0);var pp=pants[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                 float hem=float.PositiveInfinity;foreach(var point in p)hem=MathF.Min(hem,point.Y);
@@ -225,6 +226,35 @@ internal sealed partial class NatureModels
         if(!correct||MathF.Abs(left-right)>.003f)
             throw new InvalidOperationException($"Female cut {_garmentCut} loses its authored hem profile: side={sideRise}, rear={rearDrop}");
         GD.Print($"FEMALE_HEM_CUT_PASS: cut={_garmentCut}, actual side rise={sideRise*1000:F1} mm, rear drop={rearDrop*1000:F1} mm");
+    }
+
+    private static void ValidateFemaleHemFinish(Mesh near,Mesh far)
+    {
+        var detail=near.SurfaceGetArrays(0);
+        var points=detail[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var colours=detail[(int)Mesh.ArrayType.Color].AsColorArray();
+        var proxy=far.SurfaceGetArrays(0);
+        var farPoints=proxy[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var chart=proxy[(int)Mesh.ArrayType.TexUV].AsVector2Array();
+        if(colours.Length!=points.Length||chart.Length!=farPoints.Length)
+            throw new InvalidOperationException("Hem finish loses its bind-space chart");
+        var distances=new System.Collections.Generic.Dictionary<Vector3,float>();
+        int edge=0;
+        for(int i=0;i<points.Length;i++)if(colours[i].A<.999f)
+        {
+            distances[points[i]]=colours[i].A;
+            if(colours[i].A<.08f)edge++;
+        }
+        int shared=0;
+        for(int i=0;i<farPoints.Length;i++)if(chart[i].X>.5f&&chart[i].Y<.999f)
+        {
+            if(!distances.TryGetValue(farPoints[i],out float metric)||MathF.Abs(metric-chart[i].Y)>.005f)
+                throw new InvalidOperationException("Distant seam finish drifts from the fitted hem");
+            shared++;
+        }
+        if(edge<SewnPanelColumns||shared<distances.Count)
+            throw new InvalidOperationException($"Hem finish does not cover the sewn edge: {edge} edge vertices, {shared}/{distances.Count} shared positions");
+        GD.Print($"FEMALE_HEM_FINISH_PASS: {edge} edge vertices and {shared} matching distant coordinates");
     }
 
     private static (float Left,float Right,float Front,float Back) HemExtents(Vector3[] points)

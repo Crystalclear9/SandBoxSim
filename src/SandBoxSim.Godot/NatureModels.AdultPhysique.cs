@@ -73,19 +73,20 @@ internal sealed partial class NatureModels
         {
             // Give each cut its own hem shape. Fade the change before it
             // reaches the natural waist and the mounted equipment.
-            float offset=FemaleHemOffset(MathF.Sin(MathF.Atan2(point.Z,point.X)));
+            float localRelease=1-TorsoRamp(finished,finished+.046f,result);
+            float offset=FemaleHemOffset(MathF.Sin(MathF.Atan2(point.Z,point.X)),localRelease);
             result+=offset*(1-Mathf.SmoothStep(finished,finished+.085f,result));
         }
         return result;
     }
-    private float FemaleHemOffset(float depth)
+    private float FemaleHemOffset(float depth,float localRelease=1)
     {
         float depthSquared=depth*depth,side=1-depthSquared;
         return _garmentCut switch
         {
-            0=>.005f*side-(depth<0?.004f:.006f)*depthSquared,
-            1=>.013f*side*side-(depth<0?.018f:.017f)*depthSquared,
-            _=>.014f*side+(depth<0?.008f*depthSquared:-.033f*depthSquared*depthSquared)
+            0=>Mathf.Lerp(.005f*side,.008f*side*side,localRelease)-(depth<0?.004f:.006f)*depthSquared,
+            1=>side*(.013f*side+.008f*depthSquared*localRelease)-(depth<0?.018f:.017f)*depthSquared,
+            _=>Mathf.Lerp(.014f*side,.019f*side*side,localRelease)+(depth<0?.008f*depthSquared:-.033f*depthSquared*depthSquared)
         };
     }
 

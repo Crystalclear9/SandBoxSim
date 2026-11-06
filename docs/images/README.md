@@ -36,13 +36,13 @@
 |---|---|---|
 | 成人体型与女性衣身 | `visual-body-frames`、`visual-thorax-frames` 第 90 帧。全身图对照腰背、骨盆和上腿。近景从正面、三刻面和侧面对照领口斜侧、颈根到肩部的接续，以及侧肋到腰带的垂坠 | [全身三视图](resident-body-frames.png) · [女性衣身近景](resident-thorax-detail.png) |
 | 成人头脸 | `visual-faces`、`visual-face-frames` 第 90 帧 | [三种头脸](resident-face-detail.png) · [成人外观对照](resident-face-frames.png) |
-| 三种衣装的正背面 | `visual-wardrobe`、`visual-female-wardrobe` 第 90 帧，可对照女性腰下褶线、双肩背包和后腰皮袋 | [男性成衣](wardrobe-detail.png) · [女性成衣](resident-female-wardrobe.png) |
+| 三种衣装的正背面 | `visual-wardrobe`、`visual-female-wardrobe` 第 90 帧，可对照女性三款衣片的腰下垂坠、侧缝和下摆翻边 | [男性成衣](wardrobe-detail.png) · [女性成衣](resident-female-wardrobe.png) |
 | 手部、前臂和腕部 | `visual-hands`、`visual-forearm-frames` 第 90 帧，`visual-wrist-motion` 第 150 帧可对照手背、掌侧与侧面的近腕轮廓 | [握持](resident-hand-detail.png) · [前臂三视图](resident-forearm-frames.png) · [手掌与腕部近景](resident-wrist-motion.png) |
 | 静立、步行与拾取 | `visual-body-motion` 第 105 帧，可观察弯身时胸廓、骨盆和双膝的配合，以及裤装在屈髋处的变化 | [全身姿势](resident-body-motion.png) |
 | 同速步行、搬运和持锤 | `visual-locomotion` 第 180 帧 | [步态对照](resident-style-walk.png) |
 | 交谈、递交与进食 | `visual-social` 第 150 帧 | [生活动作](resident-social.png) |
 | 同工具与不同疲劳状态 | `visual-work-effort` 第 180 帧 | [作业姿态](resident-work-effort.png) |
-| 到站、存放与双人递物 | `visual-handling-transitions` 第 822 帧可近看男女角色放下木捆时的膝部、裤脚和靴口。第 810 帧可见接收方托住同一个食物包，第 306 帧可见饮水 | [交互衔接](resident-handling-transitions.png) |
+| 到站、存放与双人递物 | `visual-handling-transitions` 第 822 帧可近看放下木捆时的衣摆、膝部和靴口。第 810 帧可见接收方托住同一个食物包，第 306 帧可见饮水 | [交互衔接](resident-handling-transitions.png) |
 | 上肢连动与抬手 | `visual-arm-articulation` 第 270 帧，`visual-shoulder-elevation` 第 108 帧对照 135° 高举时的领口、袖根和胸侧，`visual-shoulder-motion` 第 156 帧 | [肩肘腕](resident-arm-junctions.png) · [抬臂近景](resident-shoulder-elevation.png) · [作业肩袖](resident-shoulder-motion.png) |
 | 空闲伸展、摆臂与屈肘 | `visual-captured-stretch` 第 110 帧，`visual-arm-swing` 第 150 帧，`visual-upper-arm-flex`、`visual-elbow-joint` 第 270 帧 | [伸展](resident-captured-stretch.png) · [摆臂](resident-arm-swing.png) · [上臂](resident-upper-arm-flex.png) · [肘部](resident-elbow-joint.png) |
 | 服装配件、职业动作和左右手 | 客户端预览 `--panel=equipment`、`--panel=actions`、`--panel=forearms`、`--panel=handedness` | [配件](resident-equipment.png) · [职业动作](resident-garment-actions.png) · [前臂](resident-forearm-detail.png) · [左右手](resident-handedness.png) |

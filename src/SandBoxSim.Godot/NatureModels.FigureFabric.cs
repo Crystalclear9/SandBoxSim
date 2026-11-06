@@ -7,7 +7,15 @@ internal sealed partial class NatureModels
     private bool FittedFigure=>BodyFrame==1&&!ChildHead;
     // Both detail levels use the same rest-space sewn panels. This is a
     // material boundary on the actual fitted cloth, not an independent shell.
-    private const string FigureFabricFunctions=@"vec3 figure_colour(vec3 dye,vec2 chart,bool enabled,float torso_weight){
+    private const string FigureFabricFunctions=@"float figure_hem_finish(float hem_metric,float angle){
+float metres=hem_metric*.024;
+float aa=max(.0002,fwidth(metres));
+float facing=1.0-smoothstep(.006-aa,.009+aa,metres);
+float thread=1.0-smoothstep(.00055,.0011+aa,abs(metres-.008));
+float stitches=mix(.68,.68+.32*cos(angle*96.0),1.0-smoothstep(.01,.04,fwidth(angle)));
+return 1.0-.14*facing+.11*thread*stitches;
+}
+vec3 figure_colour(vec3 dye,vec2 chart,bool enabled,float torso_weight){
 if(!enabled)return dye;
 vec3 linen=mix(dye,vec3(.72,.69,.61),.12);
 
@@ -49,5 +57,7 @@ return mix(linen,surface,clamp(torso_weight,0.0,1.0));
         Code="shader_type spatial;"+FigureFabricFunctions+@"
 varying vec2 torso_chart;varying float torso_weight;
 void vertex(){torso_chart=vec2(-2.0-atan(VERTEX.z,VERTEX.x)/6.2831853,VERTEX.y);torso_weight=UV2.x < -1.1 ? 1.0 : 0.0;}
-void fragment(){ALBEDO=figure_colour(COLOR.rgb,torso_chart,UV.x>.5,torso_weight);ROUGHNESS=.9;SPECULAR=.16;}"}};
+void fragment(){ALBEDO=figure_colour(COLOR.rgb,torso_chart,UV.x>.5,torso_weight);
+if(UV.x>.5)ALBEDO*=figure_hem_finish(UV.y,(-torso_chart.x-2.0)*6.2831853);
+ROUGHNESS=.9;SPECULAR=.16;}"}};
 }
