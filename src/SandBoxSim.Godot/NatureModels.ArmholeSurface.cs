@@ -123,7 +123,7 @@ internal sealed partial class NatureModels
         }
         return(samples,sharp,longestInnerFold);
     }
-    private (int Edges,int Sharp,float LongestInnerFold) ArmholePoseCreases(ResidentRig rig,int raisedSide)
+    private (int Edges,int Sharp,float LongestInnerFold,float WallFlare,int WallSamples) ArmholePoseCreases(ResidentRig rig,int raisedSide)
     {
         var arrays=rig.DetailedBodyMesh.SurfaceGetArrays(0);var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
         var local=CorrectedSleeveSource(rig,p);var posed=new Vector3[p.Length];
@@ -131,7 +131,18 @@ internal sealed partial class NatureModels
         var palette=new Transform3D[ResidentRig.SupportedBodyBones];
         for(int i=0;i<palette.Length;i++)palette[i]=rig.ShoulderSkeleton.GetBonePose(i)*rig.DetailedBodySkin.GetBindPose(i);
         for(int i=0;i<posed.Length;i++)for(int j=0;j<4;j++)posed[i]+=(palette[bones[i*4+j]]*local[i])*weights[i*4+j];
-        return ArmholeCreases(posed,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array(),p,raisedSide);
+        var pattern=arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
+        var creases=ArmholeCreases(posed,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern,p,raisedSide);
+        float flare=0,sign=raisedSide==0?-1:1;int samples=0;
+        for(int i=0;i<p.Length;i++)
+        {
+            var rest=p[i];
+            // Inspect the side of the finished bodice rather than the
+            // movable seam or the front/rear volume of the axillary folds.
+            if(pattern[i].X>=0||rest.X*sign<.100f||MathF.Abs(rest.Z)>.030f||rest.Y<1.090f||rest.Y>1.115f)continue;
+            flare=MathF.Max(flare,sign*(posed[i].X-rest.X));samples++;
+        }
+        return(creases.Edges,creases.Sharp,creases.LongestInnerFold,flare,samples);
     }
 
 }

@@ -182,6 +182,7 @@ internal sealed partial class NatureModels
             result.Z+=.006f*opening*frontNeck;
             result=FemaleCollarEase(result,point);
             result=SoftShoulderPoint(result);
+            result=result.Lerp(FemaleAxillaryPoint(result),1-upper);
         }
         return result;
     }

@@ -22,6 +22,34 @@ internal sealed partial class NatureModels
             *Ramp(-.095f,-.005f,p.Z);
         return p-new Vector3(0,.011f*mask,.004f*mask*Ramp(0,.060f,p.Z));
     }
+
+    // Recess the side wall between the two axillary folds. The pectoral
+    // and posterior folds occupy different depth bands and stay supported.
+    private static float FemaleAxillaryWall(Vector3 p)
+    {
+        float x=MathF.Abs(p.X);
+        return TorsoRamp(.087f,.115f,x)*(1-TorsoRamp(.140f,.175f,x))
+            *TorsoRamp(-.076f,-.029f,p.Z)*(1-TorsoRamp(.024f,.078f,p.Z));
+    }
+
+    private static Vector3 FemaleAxillaryPoint(Vector3 p)
+    {
+        float height=TorsoRamp(1.060f,1.100f,p.Y)*(1-TorsoRamp(1.118f,1.162f,p.Y));
+        return p-Vector3.Right*(MathF.Sign(p.X)*.0035f*height*FemaleAxillaryWall(p));
+    }
+
+    private static Vector3 ReturnFemaleAxillaryWall(Vector3 rest,Vector3 posed,float overhead)
+    {
+        // Upper side cloth is still carried by the sleeve seam. Restrain
+        // the unsupported flare below it without flattening the front/back
+        // folds or driving the side cloth inside its rest rib envelope.
+        float height=TorsoRamp(1.055f,1.084f,rest.Y)*(1-TorsoRamp(1.109f,1.151f,rest.Y));
+        float amount=overhead*height*FemaleAxillaryWall(rest),sign=MathF.Sign(rest.X);
+        float flare=Math.Clamp((posed.X-rest.X)*sign-.003f,0,.018f);
+        float lift=Math.Clamp(posed.Y-rest.Y-.004f,0,.016f);
+        return posed-new Vector3(sign*.81f*flare,.20f*lift,0)*amount;
+    }
+
     private static void ValidateSoftShoulderField()
     {
         float maximum=0;
@@ -78,7 +106,7 @@ internal sealed partial class NatureModels
             var transforms=new[]{Transform3D.Identity,At(result.ArmBind),At(Quaternion.Identity.Slerp(result.ArmBind,.5f)),Transform3D.Identity};
             for(int i=0;i<result.Source.Length;i++)
             {
-                var shaped=SoftShoulderPoint(result.Source[i]);
+                var shaped=FemaleAxillaryPoint(SoftShoulderPoint(result.Source[i]));
                 if(shaped==result.Source[i])continue;
                 result.Source[i]=shaped;
                 result.Points[i]=BlendRigidShoulder(shaped,transforms,result.Weights[i]);

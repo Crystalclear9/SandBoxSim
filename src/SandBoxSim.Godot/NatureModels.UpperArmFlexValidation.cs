@@ -10,7 +10,8 @@ internal sealed partial class NatureModels
     {
         ValidateElbowSurface();
         float maxRollStep=0,maxVertexStep=0,maxIdleStep=0;int samples=0,gameplaySamples=0,gameplayFolds=0;float gameplayMinimum=1,maxArmholeCrease=0;int armholeEdges=0;
-        float maximumElevationError=0,maximumInnerFold=0;
+        float maximumElevationError=0,maximumInnerFold=0,maximumWallFlare=0;
+        int wallSamples=0;
         foreach(int identity in new[]{17,55})foreach(var job in new[]{JobType.Farmer,JobType.Gatherer,JobType.Trader})
         {
             var rig=Resident(identity,false,job);rig.AmbientMotionEnabled=false;
@@ -33,6 +34,10 @@ internal sealed partial class NatureModels
                         maximumInnerFold=MathF.Max(maximumInnerFold,check.LongestInnerFold);
                         if(check.LongestInnerFold>.028f)
                             throw new InvalidOperationException($"Long folded edge on the raised female inner sleeve: cut={job}, side={studySide}, edge={check.LongestInnerFold:F5} m");
+                        if(check.WallSamples<4||check.WallFlare>.014f)
+                            throw new InvalidOperationException($"Raised female bodice loses its side-wall contour: cut={job}, side={studySide}, samples={check.WallSamples}, flare={check.WallFlare:F5} m");
+                        maximumWallFlare=MathF.Max(maximumWallFlare,check.WallFlare);
+                        wallSamples+=check.WallSamples;
                     }
                     float fraction=check.Sharp/(float)check.Edges;maxArmholeCrease=MathF.Max(maxArmholeCrease,fraction);
                     if(fraction>.015f)throw new InvalidOperationException($"Folded posed armhole: identity={identity}, job={job}, side={studySide}, elevation={degrees}, sharp={check.Sharp}/{check.Edges}");
@@ -96,6 +101,7 @@ internal sealed partial class NatureModels
         if(gameplaySamples<1000||gameplayFolds!=0||gameplayMinimum<=0)throw new InvalidOperationException($"Gameplay elbow folds: samples={gameplaySamples}, folds={gameplayFolds}, minimum={gameplayMinimum}");
         GD.Print($"ARMHOLE_MOTION_FLOW_PASS: {armholeEdges} actual posed edge samples, adults/three cuts/both arms, 0/45/90/135 degrees in the 30-degree plane, maximum >100-degree crease fraction={maxArmholeCrease:F5}");
         GD.Print($"ARM_STUDY_ALIGNMENT_PASS: settled arm elevation error <=1.5 degrees, measured {maximumElevationError:F2}; longest >135-degree inner sleeve fold at high reach {maximumInnerFold*1000:F2} mm");
+        GD.Print($"FEMALE_AXILLA_PASS: 3 garment cuts, both arms at 135 degrees, {wallSamples} finished bodice vertices; maximum side-wall flare {maximumWallFlare*1000:F2} mm");
         GD.Print($"GAMEPLAY_ELBOW_PASS: samples={gameplaySamples}, adults/both arms/three garment cuts/five action families, nonpositive={gameplayFolds}, minimum signed area={gameplayMinimum:F4}");
         if(samples<1000||maxVertexStep>.008f||maxIdleStep>.0005f)throw new InvalidOperationException($"Displayed forearm has a temporal discontinuity: samples={samples}, step={maxVertexStep}, idleStep={maxIdleStep}");
         GD.Print($"UPPER_ARM_FLEX_PASS: samples={samples}, adults/both arms/three cuts, 480-frame continuous reference, maximum roll/vertex step={maxRollStep:F5} rad/{maxVertexStep:F6} m, gameplay idle surface step={maxIdleStep:F7} m; gameplay uses 120 shoulder shapes without muscle-volume targets, five action families and pause");

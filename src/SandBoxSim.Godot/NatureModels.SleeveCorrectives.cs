@@ -170,16 +170,8 @@ internal sealed partial class NatureModels
                 float overhead=TorsoRamp(45,125,(height+1)*45);
                 RelaxRaisedInnerSleeve(target,patches,active,innerSleeve,overhead,shoulder,direction);
                 for(int i=0;i<source.Length;i++)
-                {
-                    if(active[i]<=0||uv[i].X>=0)continue;
-                    float lateral=MathF.Abs(source[i].X);
-                    float ribs=TorsoRamp(1.067f,1.095f,source[i].Y)*(1-TorsoRamp(1.136f,1.175f,source[i].Y));
-                    float flank=TorsoRamp(.084f,.112f,lateral)*(1-TorsoRamp(.035f,.080f,MathF.Abs(source[i].Z)));
-                    float excess=MathF.Max(0,MathF.Abs(target[i].X)-lateral-.010f);
-                    // The torso panel is supported by the ribs below the
-                    // armpit. Soften outward slack carried by a high reach.
-                    target[i].X-=MathF.Sign(source[i].X)*MathF.Min(excess,.014f)*ribs*flank*overhead*active[i];
-                }
+                    if(active[i]>0&&uv[i].X<0)
+                        target[i]=ReturnFemaleAxillaryWall(source[i],target[i],overhead);
                 CompleteBodiceSurface(target,ids,uv,source,active);
                 for(int i=0;i<source.Length;i++)points[i]=inverseBlends[i]*target[i];
             }
