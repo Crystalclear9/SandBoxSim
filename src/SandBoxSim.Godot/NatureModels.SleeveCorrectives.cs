@@ -7,11 +7,12 @@ namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
     private readonly Dictionary<(int Frame,int Cut),Godot.Collections.Array<Godot.Collections.Array>> _sleevePoseCache=new();
-    private void AddSleeveCorrectives(ResidentRig rig)
+    private readonly Dictionary<(int Cut,FemaleBuild Build),Godot.Collections.Array<Godot.Collections.Array>> _femaleSleevePoseCache=new();
+    private void AddSleeveCorrectives(ResidentRig rig,FemaleBuild build)
     {
         if(rig.IsChild)return;
         var source=rig.DetailedBodyMesh;
-        string key="sleeve-poses:"+source.GetInstanceId();
+        string key="sleeve-poses:"+source.GetInstanceId()+":"+build;
         if(!_meshes.TryGetValue(key,out var corrected))
         {
             var result=new ArrayMesh {BlendShapeMode=Mesh.BlendShapeMode.Normalized};
@@ -25,19 +26,26 @@ internal sealed partial class NatureModels
             {
                 var arrays=source.SurfaceGetArrays(surface);
                 var shapes=poses;
+                var sleeve=build!=FemaleBuild.Reference?arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array():null;
+                var shaped=build==FemaleBuild.Reference?arrays:ShapeFemaleArrays(arrays,build,sleeve);
+                if(surface==0&&build!=FemaleBuild.Reference)
+                {
+                    if(!_femaleSleevePoseCache.TryGetValue((_garmentCut,build),out shapes!))
+                        _femaleSleevePoseCache[(_garmentCut,build)]=shapes=ShapeFemalePoses(poses,arrays,shaped,build,sleeve);
+                }
                 if(surface!=0)
                 {
                     shapes=new();
                     for(int i=0;i<ResidentRig.SleevePoseCount;i++)
                     {
                         var unchanged=new Godot.Collections.Array();unchanged.Resize((int)Mesh.ArrayType.Max);
-                        unchanged[(int)Mesh.ArrayType.Vertex]=arrays[(int)Mesh.ArrayType.Vertex];
-                        unchanged[(int)Mesh.ArrayType.Normal]=arrays[(int)Mesh.ArrayType.Normal];
+                        unchanged[(int)Mesh.ArrayType.Vertex]=shaped[(int)Mesh.ArrayType.Vertex];
+                        unchanged[(int)Mesh.ArrayType.Normal]=shaped[(int)Mesh.ArrayType.Normal];
                         shapes.Add(unchanged);
                     }
                 }
-                arrays[(int)Mesh.ArrayType.Tangent]=default(Variant);
-                result.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays,shapes);
+                shaped[(int)Mesh.ArrayType.Tangent]=default(Variant);
+                result.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,shaped,shapes);
                 result.SurfaceSetMaterial(surface,source.SurfaceGetMaterial(surface));
             }
             corrected=WithScreenLods(result);corrected.SetMeta("BodyFrameFit",true);_meshes[key]=corrected;

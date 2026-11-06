@@ -42,7 +42,7 @@ python tools/evaluate.py run benchmarks/scenarios/render-population.json --label
 |---|---|
 | `id`, `seed` | 实验名称（1–64 位字母/数字/点/下划线/短横线，首位为字母或数字）与世界种子 |
 | `agents`, `previewDays` | 人口 0–2000，初始预演 0–30 天 |
-| `panel` | `field`, `tools`, `trails`, `homes`, `farms`, `person`, `person-hands`, `architecture`, `characters`, `faces`, `equipment`, `actions`, `hands`, `naturemodels`, `model-details`, `ecology-details`, `animal-details`, `animal-motion`, `animal-heads`, `wardrobe`, `female-wardrobe`, `body-frames`, `body-motion`, `locomotion`, `arm-swing`, `forearm-frames`, `face-frames`, `thorax-frames`, `work-effort`, `motion`, `social`, `social-side`, `shoulder-motion`, `handling-transitions`, `shoulder-elevation`, `captured-stretch`, `arm-articulation`, `upper-arm-flex`, `elbow-joint`, `wrist-motion` |
+| `panel` | `field`, `tools`, `trails`, `homes`, `farms`, `person`, `person-hands`, `architecture`, `characters`, `faces`, `equipment`, `actions`, `hands`, `naturemodels`, `model-details`, `ecology-details`, `animal-details`, `animal-motion`, `animal-heads`, `wardrobe`, `female-wardrobe`, `female-builds`, `body-frames`, `body-motion`, `locomotion`, `arm-swing`, `forearm-frames`, `face-frames`, `thorax-frames`, `work-effort`, `motion`, `social`, `social-side`, `shoulder-motion`, `handling-transitions`, `shoulder-elevation`, `captured-stretch`, `arm-articulation`, `upper-arm-flex`, `elbow-joint`, `wrist-motion` |
 | `warmupFrames`, `measuredFrames` | 预热 3–3600 帧，采样 2–36000 帧 |
 | `ticksPerFrame` | 每个逻辑帧推进 0–20 个模拟 tick，与本机快慢无关 |
 | `captureFrames` | 从 0 开始的逻辑帧索引；至少第 3 帧，最多 32 个，无重复，不能超过运行末帧 |
@@ -185,6 +185,8 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 `RESIDENT_STATIONS_PASS` 在同一逻辑格放入三位居民，检查显示间距、邻居离开后的站位稳定性与模拟状态摘要。
 
 `bodyFrame=reference-contour-physique-v31` 标识胸廓、短上衣、实际骨盆／臀腿裤装及衣袖排除区的当前造型；`visual-body-frames` 的正／侧／背对照与 `visual-body-motion` 的动作对照使用实际居民网格。髋部截面取上衣及裤装的可见外包络，不能把衣摆宽度当作人体围度，也不是性别分类或 RSI 分数。
+
+`femaleBodyBuild=regional-builds-v1` 标识世界与居民详情使用的三种成年女性身形。`visual-female-builds` 以正交尺寸 0.87、目标 (0, 0.98, 0) 记录同一居民的正面与侧面。对照固定身高、衣装和姿态，检查腰髋几何与近远景一致性。
 
 `armSwing=elliptic-countermotion-v4` 标识掌面朝内的空手基础姿态、肩肘相位、前臂轴向及独立阻尼目标。`visual-arm-swing` 使用实际网格和控制器，包含正侧面及掌腕近景；人物造型与模拟输入保持独立，图片不是医学步态、视觉真实感或 RSI 分数。
 

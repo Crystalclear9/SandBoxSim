@@ -35,6 +35,7 @@
 | 内容 | 采样入口 | 配图 |
 |---|---|---|
 | 成人体型与女性衣身 | `visual-body-frames`、`visual-thorax-frames` 第 90 帧。全身图对照腰背、骨盆和上腿。近景从正面、三刻面和侧面对照胸廓到侧腰的曲面、收褶与腰带连接 | [全身三视图](resident-body-frames.png) · [女性衣身近景](resident-thorax-detail.png) |
+| 女性个人身形 | `visual-female-builds` 第 90 帧。同一居民、同一身高和衣装的三种腰髋轮廓，正面和侧面采用相同的正交尺度 | [女性身形对照](resident-female-builds.png) |
 | 成人头脸 | `visual-faces`、`visual-face-frames` 第 90 帧 | [三种头脸](resident-face-detail.png) · [成人外观对照](resident-face-frames.png) |
 | 三种衣装的正背面 | `visual-wardrobe`、`visual-female-wardrobe` 第 90 帧，可对照女性三款衣片的腰下垂坠、侧缝和下摆翻边 | [男性成衣](wardrobe-detail.png) · [女性成衣](resident-female-wardrobe.png) |
 | 手部、前臂和腕部 | `visual-hands`、`visual-forearm-frames` 第 90 帧，`visual-wrist-motion` 第 150 帧可对照手背、掌侧与侧面的近腕轮廓 | [握持](resident-hand-detail.png) · [前臂三视图](resident-forearm-frames.png) · [手掌与腕部近景](resident-wrist-motion.png) |

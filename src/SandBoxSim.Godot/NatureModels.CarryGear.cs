@@ -9,7 +9,7 @@ internal sealed partial class NatureModels
 {
     private readonly record struct StrapStation(Vector3 Centre,Vector3 Outward,float Pelvis);
 
-    private void AddFemaleCarryGear(ResidentRig rig,JobType job)
+    private void AddFemaleCarryGear(ResidentRig rig,JobType job,FemaleBuild build)
     {
         if(rig.PackMount==null&&job!=JobType.Trader)return;
         var cloth=rig.DetailedBodyMesh.SurfaceGetArrays(0);
@@ -30,7 +30,7 @@ internal sealed partial class NatureModels
             }
             if(!float.IsFinite(back))throw new InvalidOperationException("Gatherer's pack misses the fitted back panel");
             pack.Position=new(0,pack.Position.Y,back+.004f);
-            var harness=new MeshInstance3D {Name="FittedPackHarness",Mesh=FemalePackHarness(pack.Position,points,indices),
+            var harness=new MeshInstance3D {Name="FittedPackHarness",Mesh=FemalePackHarness(pack.Position,points,indices,build),
                 Skin=rig.DetailedBodySkin,Skeleton=new NodePath("../ShoulderSkeleton")};
             rig.Torso.AddChild(harness);
         }
@@ -61,9 +61,9 @@ internal sealed partial class NatureModels
         }
     }
 
-    private Mesh FemalePackHarness(Vector3 pack,Vector3[] points,int[] indices)
+    private Mesh FemalePackHarness(Vector3 pack,Vector3[] points,int[] indices,FemaleBuild build)
     {
-        string key="female-pack-harness:"+_garmentCut;
+        string key="female-pack-harness:"+_garmentCut+":"+build;
         if(_meshes.TryGetValue(key,out var mesh))return mesh;
         using var surface=new SurfaceTool();
         surface.Begin(Mesh.PrimitiveType.Triangles);

@@ -341,7 +341,7 @@ internal sealed partial class NatureModels
         float coverage=front*TorsoRamp(.045f,.077f,x)*(1-TorsoRamp(.123f,.168f,x));
         return coverage*(.0036f*MathF.Exp(-tuck*tuck)-.0058f*MathF.Exp(-offset*offset));
     }
-    private void AddContinuousTrousers(ResidentRig rig)
+    private void AddContinuousTrousers(ResidentRig rig,FemaleBuild build)
     {
         if(rig.IsChild)return;
         var skeleton=rig.TrouserSkeleton=new Skeleton3D {Name="TrouserSkeleton"};rig.AddChild(skeleton);
@@ -365,7 +365,9 @@ internal sealed partial class NatureModels
             skin.AddBind(bone,skin.GetBindPose(side+3));
         }
         skeleton.ResetBonePoses();
-        rig.Trousers=new MeshInstance3D {Name="ContinuousTrousers",Mesh=ContinuousTrousers(),Skin=skin,Skeleton=new NodePath("../TrouserSkeleton")};rig.AddChild(rig.Trousers);
+        var trousers=ContinuousTrousers();
+        if(build!=FemaleBuild.Reference)trousers=ShapeFemaleMesh(trousers,build);
+        rig.Trousers=new MeshInstance3D {Name="ContinuousTrousers",Mesh=trousers,Skin=skin,Skeleton=new NodePath("../TrouserSkeleton")};rig.AddChild(rig.Trousers);
         rig.TrouserHipFlex=BodyFrame==1;
         // Fit the unloaded arm clearance to the actual clothed thigh, not
         // a sex-specific joint-spacing proxy. Reserve palm width and ease.

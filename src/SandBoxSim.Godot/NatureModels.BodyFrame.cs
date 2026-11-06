@@ -715,6 +715,7 @@ internal sealed partial class NatureModels
         GD.Print("BODY_FRAMES_PASS: source chest/waist/hip presentation, separate near/far caches, bounded forearm fit/Jacobian, exact wrist and animated limb lengths");
         ValidateLumbarClothing();
         ValidateContinuousTrousers();
+        ValidateFemaleBuilds();
     }
     private static float ClothSectionWidth(Mesh mesh,float height,Color? cloth=null,bool allowEmpty=false)
     {

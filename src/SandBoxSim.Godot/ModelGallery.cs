@@ -79,6 +79,15 @@ internal partial class ModelGallery : PanelContainer
                     models.Resident(55,false,JobType.None),.56f,new(0,1.13f,0),
                     view==0?new(.02f,.015f,4):view==1?new(2,.015f,3.4f):new(4,.015f,.05f),true);
         }
+        else if(Collection=="female-builds")
+        {
+            body.GetChild<Label>(0).Text="女性身形 · 同身高、同衣装的腰背与髋腿";
+            var builds=new[]{FemaleBuild.Reference,FemaleBuild.StraighterWaist,FemaleBuild.RoundedHips};
+            var names=new[]{"均衡轮廓","较直腰线","圆润髋线"};
+            for(int view=0;view<2;view++)for(int i=0;i<builds.Length;i++)
+                Closeup(grid,names[i]+(view==0?" · 正面":" · 侧面"),models.Resident(55,false,JobType.None,builds[i]),
+                    .87f,new(0,.98f,0),view==0?new(0,.025f,4):new(4,.025f,0),true);
+        }
         else if(Collection=="body-frames")
         {
             grid.Columns=GetViewportRect().Size.X>=1500?6:3;body.GetChild<Label>(0).Text="成人身材 · 同视角配对的骨盆、臀腿与衣装轮廓";

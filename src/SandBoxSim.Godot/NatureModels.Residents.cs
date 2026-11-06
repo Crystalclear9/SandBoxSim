@@ -168,7 +168,7 @@ internal sealed partial class NatureModels
         var instance=new MeshInstance3D {Mesh=combined};parent.AddChild(instance);
         if(key.StartsWith("resident:"))instance.SetMeta("DistantMesh",DistantColors(combined));
     }
-    public ResidentRig Resident(int identity, bool child, JobType job)
+    public ResidentRig Resident(int identity, bool child, JobType job, FemaleBuild build=FemaleBuild.Reference)
     {
         uint variation = unchecked((uint)identity * 2654435761u);
         SelectGarmentCut(child?0:job==JobType.Trader?2:job is JobType.Gatherer or JobType.Hunter or JobType.Soldier?1:0);
@@ -284,13 +284,20 @@ internal sealed partial class NatureModels
         rig.HeadProxy=new MeshInstance3D {Name="DistantHead",Mesh=DistantHead(skin,hair),Visible=false};rig.Head.AddChild(rig.HeadProxy);
         AddHandSkin(rig,skin);
         ApplyBodyFrame(rig);
+        if(!FittedFigure)build=FemaleBuild.Reference;
+        AddContinuousTrousers(rig,build);
+        AddSleeveCorrectives(rig,build);
         if(FittedFigure)
         {
+            if(build!=FemaleBuild.Reference)
+            {
+                rig.DistantBodyMesh=ShapeFemaleMesh(rig.DistantBodyMesh,build,useSleevePattern:true);
+                rig.Holster.Position=FemaleBuildPoint(rig.Holster.Position,build);
+            }
             AddFittedPlacketButtons(rig);
-            AddFemaleCarryGear(rig,job);
+            AddFemaleCarryGear(rig,job,build);
         }
         if(!child)rig.CaptureBodyMounts();
-        AddContinuousTrousers(rig);
         rig.Head.Scale=new Vector3(.99f+((variation>>15)%4)*.0125f,.995f+((variation>>18)%3)*.0125f,1);
         if (child) { rig.Scale = new Vector3(.72f, .65f, .72f); rig.Head.Scale = Vector3.One * 1.15f; }
         else
@@ -309,7 +316,6 @@ internal sealed partial class NatureModels
         rig.MotionFlow=child?.5f:Math.Clamp((BodyFrame==1?.90f:.10f)+rig.GaitIndividual*.10f,0,1);
         rig.BootSoleCurve=BootSoleCurve();
         rig.ExpressionPhase=(variation>>24)/255f*10;
-        AddSleeveCorrectives(rig);
         rig.RegisterDistanceMeshes(rig);return rig;
     }
     public void ValidateResidentMeshes()

@@ -131,7 +131,7 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         if (identity == _identity && child == _child && job == _job) { return; }
         SetOrbiting(false);
         _resident?.QueueFree(); _identity = identity; _child = child; _job = job;
-        _resident = _models.Resident(slot, child, job); _stage.AddChild(_resident);
+        _resident = _models.Human(identity, slot, child, job); _stage.AddChild(_resident);
         _resident.Rotation = new Vector3(0, IsThumbnail?ThumbnailYaw:_yaw, 0); Aim();
     }
     public bool FinishingGesture=>_resident?.CompletionVisible==true;

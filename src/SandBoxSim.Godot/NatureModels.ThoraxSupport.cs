@@ -36,8 +36,10 @@ internal sealed partial class NatureModels
         float lumbar=TorsoRamp(.915f,.984f,p.Y)*(1-TorsoRamp(1.011f,1.133f,p.Y));
         float back=TorsoRamp(-.020f,.045f,p.Z)*(1-TorsoRamp(.035f,.120f,MathF.Abs(p.X)));
         float sideWaist=TorsoRamp(.875f,.965f,p.Y)*(1-TorsoRamp(1.032f,1.115f,p.Y));
+        float lowerFront=TorsoRamp(.882f,.916f,p.Y)*(1-TorsoRamp(.924f,.965f,p.Y));
+        float frontDepth=MathF.Max(0,-p.Z)*TorsoRamp(0,.04f,-p.Z);
         return p+new Vector3(MathF.Sign(p.X)*.0035f*sideWaist*flank,0,
-            waist*(.0015f+.003f*abdomen)*front+.012f*lumbar*back);
+            waist*(.0015f+.003f*abdomen)*front+.012f*lumbar*back+.05f*lowerFront*frontDepth);
     }
 
     private static Vector3 FemalePelvicPoint(Vector3 point)
