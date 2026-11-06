@@ -117,8 +117,9 @@ internal sealed partial class NatureModels
     private float FemaleNecklineHeight(float angle)
     {
         float depth=MathF.Sin(angle);
+        float front=MathF.Max(0,-depth),rear=MathF.Max(0,depth);
         float cut=_garmentCut==2?.004f:_garmentCut==1?.001f:0;
-        return 1.282f+.008f*depth+.004f*depth*depth+cut*MathF.Max(0,-depth);
+        return 1.281f-.0035f*front*front+.009f*rear*rear+cut*front;
     }
 
     private void ShapeFemaleNeckline(Vector3[] points,int[] indices,Vector2[] pattern)
@@ -135,6 +136,31 @@ internal sealed partial class NatureModels
             rim[i]=(angle,new Vector2(point.X,point.Z).Length(),point.Y,FemaleNecklineHeight(angle)-point.Y);
         }
         Array.Sort(rim,(a,b)=>a.Angle.CompareTo(b.Angle));
+        // Round the diagonal quarters of the actual opening. The sewn ring
+        // is not evenly spaced in angle after fitting, so sample the profile
+        // at fixed angular offsets rather than averaging vertex indices.
+        (int Lo,int Hi,float Blend) RimSpan(float angle)
+        {
+            angle=Mathf.Wrap(angle,-Mathf.Pi,Mathf.Pi);
+            int next=0;
+            while(next<rim.Length&&rim[next].Angle<angle)next++;
+            int lo=(next+rim.Length-1)%rim.Length,hi=next%rim.Length;
+            float a=rim[lo].Angle,b=rim[hi].Angle;
+            return (lo,hi,Mathf.PosMod(angle-a,Mathf.Tau)/Mathf.PosMod(b-a,Mathf.Tau));
+        }
+        float RadiusAt(float angle)
+        {
+            var (lo,hi,t)=RimSpan(angle);
+            return Mathf.Lerp(rim[lo].Radius,rim[hi].Radius,t);
+        }
+        var curve=new float[rim.Length];
+        for(int i=0;i<rim.Length;i++)
+        {
+            float angle=rim[i].Angle;
+            float averaged=.40f*rim[i].Radius+.22f*(RadiusAt(angle-.19f)+RadiusAt(angle+.19f))
+                +.08f*(RadiusAt(angle-.38f)+RadiusAt(angle+.38f));
+            curve[i]=Math.Clamp(averaged-rim[i].Radius,-.003f,.0045f);
+        }
         var rest=(Vector3[])points.Clone();
         var clavicularPanel=new float[points.Length];
         for(int i=0;i<points.Length;i++)
@@ -142,10 +168,8 @@ internal sealed partial class NatureModels
             var point=points[i];
             if(pattern[i].X>=0||point.Y<1.22f)continue;
             float angle=MathF.Atan2(point.Z,point.X);
-            int next=0;
-            while(next<rim.Length&&rim[next].Angle<angle)next++;
-            var a=rim[(next+rim.Length-1)%rim.Length];var b=rim[next%rim.Length];
-            float t=Mathf.PosMod(angle-a.Angle,Mathf.Tau)/Mathf.PosMod(b.Angle-a.Angle,Mathf.Tau);
+            var (lo,hi,t)=RimSpan(angle);
+            var a=rim[lo];var b=rim[hi];
             float height=Mathf.Lerp(a.Height,b.Height,t);
             float radius=Mathf.Lerp(a.Radius,b.Radius,t);
             var radial=new Vector2(point.X,point.Z);
@@ -156,26 +180,27 @@ internal sealed partial class NatureModels
             // The collar eases back towards the throat. A flatter taper
             // under the front edge replaces the last standing lip.
             float side=ray.X*ray.X;
-            var inset=ray*(.0017f+.0023f*front*front+.0022f*side)*follow;
+            float rolledInset=.0017f+.0023f*front*front+.0022f*side;
+            var inset=ray*(rolledInset-Mathf.Lerp(curve[lo],curve[hi],t))*follow;
             float rimOffset=Mathf.Lerp(a.Offset,b.Offset,t);
             float spread=MathF.Max(0,radial.Length()-radius);
             var fitted=point+new Vector3(-inset.X,rimOffset*follow,-inset.Y);
             // Give the shoulder-facing cloth a graded fall from the sewn rim.
             // Soften the high spots of the yoke without flattening the lower
             // cloth, changing the opening itself, or lowering the placket.
-            float yoke=TorsoRamp(.002f,.012f,spread)*(1-TorsoRamp(.028f,.059f,spread))*(1-front*front);
-            float fall=height+rimOffset-.28f*spread;
+            float yoke=TorsoRamp(.002f,.012f,spread)*(1-TorsoRamp(.035f,.073f,spread))*(1-front*front);
+            float fall=height+rimOffset-spread*Mathf.Lerp(.36f,.68f,side);
             float excess=MathF.Max(0,fitted.Y-fall);
-            fitted.Y-=MathF.Min(.007f,excess)*yoke;
+            fitted.Y-=MathF.Min(.010f,excess)*yoke;
             points[i]=fitted;
             float lateral=MathF.Abs(point.X);
             // Round the cloth below the sides of the opening. Keep the rim
             // itself and the far shoulder as the two fixed supports.
-            clavicularPanel[i]=TorsoRamp(.006f,.020f,distance)*(1-TorsoRamp(.032f,.062f,distance))
-                *TorsoRamp(.031f,.055f,lateral)*(1-TorsoRamp(.084f,.113f,lateral))
-                *TorsoRamp(.012f,.037f,-point.Z)*TorsoRamp(1.230f,1.258f,point.Y);
+            clavicularPanel[i]=TorsoRamp(.005f,.017f,distance)*(1-TorsoRamp(.048f,.078f,distance))
+                *TorsoRamp(.034f,.063f,lateral)*(1-TorsoRamp(.109f,.150f,lateral))
+                *TorsoRamp(1.221f,1.249f,point.Y);
         }
-        FairRestSurface(points,indices,clavicularPanel,.0045f,roundRelief:true);
+        FairRestSurface(points,indices,clavicularPanel,.007f,roundRelief:true);
         foreach(var edge in opening)
         {
             var point=points[edge.From];

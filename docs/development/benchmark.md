@@ -242,11 +242,11 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `wristContour=continuous-source-v2`、`forearmProfile=curvature-flow-v9` 与 `forearmSkin=continuous-elbow-v9` 分别标记连续腕臂截面、中心线拟合与腕部渐进蒙皮。新增公开 `wrist-motion` 面板及 `visual-wrist-motion.json`，在冻结模拟、固定 60 Hz 下，对照两种成人外观的手背、掌侧和侧面，循环观察屈伸、侧偏、前臂旋转和握拳。它使用真实居民网格与骨架，不测量人体医学能力，也不作为 RSI 分数。新的连接拓扑、56 骨近手与腕部支撑会改变构建和动画成本，效率对照必须冻结同一素材、渲染版本、输入及源码。
 
-`garmentFit=continuous-drape-v32`、`forearmProfile=curvature-flow-v9`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2` 区分衣片拟合和姿态形态、女性前臂表面、成人脸部比例、额前发根和静止眼睑。视觉与效率比较须同时冻结这些标识、输入和源码。身体配方 `reference-contour-physique-v31` 的两种成人参考转移权重均为 1.0，五类身体支撑共享同一配方哈希。固定点、体积、截面与三角形检查用于几何回归。
+`garmentFit=continuous-drape-v33`、`forearmProfile=curvature-flow-v9`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2` 区分衣片拟合和姿态形态、女性前臂表面、成人脸部比例、额前发根和静止眼睑。视觉与效率比较须同时冻结这些标识、输入和源码。身体配方 `reference-contour-physique-v31` 的两种成人参考转移权重均为 1.0，五类身体支撑共享同一配方哈希。固定点、体积、截面与三角形检查用于几何回归。
 
 `renderQuality.femaleGroom=scalp-guided-plait-v1` 标识成年女性的编发、盘发和配套远景几何。评测头部肖像或世界人物时，固定居民身份和观察距离，再比较轮廓与渲染耗时。
 
-`bodyPresentation=continuous-drape-v29` 标识成人女性前领、小腿及鞋部的运行时成品拟合。比较像素和网格构建成本时，须与 `bodyFrame=reference-contour-physique-v31`、`garmentFit=continuous-drape-v32` 及源码哈希一并冻结。
+`bodyPresentation=continuous-drape-v29` 标识成人女性前领、小腿及鞋部的运行时成品拟合。比较像素和网格构建成本时，须与 `bodyFrame=reference-contour-physique-v31`、`garmentFit=continuous-drape-v33` 及源码哈希一并冻结。
 
 `continuous-drape-v29` 的女性成人衣装还使用独立材质状态、浅色内衫／绿灰外衣分片，以及近远景共用的静止缝片函数。远景顶点颜色保留来源染色数据，另用材质标记选择分片；因此几何截面检查不会把配色变更当成体型变更。新材质、下摆与源码均需冻结后才能比较视觉或效率结果。
 
@@ -294,7 +294,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 自然腰线拟合使用相同来源支撑的局部截面，按三种衣装逆解并缓存腰带位置；衣料收褶、工具挂点及视觉输入随之变化。`NATURAL_WAIST_BELT_PASS` 检查成品腰带的中心和宽度，不是人体或效率评分；旧版固定腰带的回放不作为当前基线。
 
-`neckContour=relaxed-neckline-v6` 与 `garmentFit=continuous-drape-v32` 标识女性领缘与肩颈衣面、胸廓到腰带的重新拟合，以及两组深屈膝裤装形态。来源体型为 `reference-contour-physique-v31`。比较视觉输入与构建效率时须固定成衣标识、源码、动作、LOD 和机位。颈部间隙、颈根覆盖与深蹲时的膝前半径是几何回归条件。
+`neckContour=relaxed-neckline-v7` 与 `garmentFit=continuous-drape-v33` 标识女性颈根、按角距圆顺的领缘、锁骨衣面和重新生成的肩袖形态。来源体型为 `reference-contour-physique-v31`。比较视觉输入与构建效率时须固定成衣标识、源码、动作、LOD 和机位。颈部间隙与颈根覆盖是几何回归条件。
 
 `trouserSkin=guided-knee-v1` 标识女性下装的臀腿轮廓、膝部支撑骨与配套姿态修形。源网格哈希仍对应 `reference-contour-physique-v31`。比较此版画面与耗时需要同时固定运行时蒙皮版本、近远景状态和动作。`handling-transitions` 左列镜头随实际骨盆高度收近，图像对照也须固定机位逻辑。
 

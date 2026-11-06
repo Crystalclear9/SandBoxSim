@@ -47,6 +47,17 @@ internal sealed partial class NatureModels
                 *Mathf.SmoothStep(.015f,.040f,-p.Z);
             float neck=(1-Mathf.SmoothStep(.075f,.095f,MathF.Abs(p.X)))*Mathf.SmoothStep(1.20f,1.235f,p.Y);
             active[i]*=1-neck;
+            if(pattern[i].X<0)
+            {
+                // Continue the patch across the diagonal front yoke. A
+                // narrow remnant between collar and shoulder should follow
+                // the chest plane, while the sewn opening stays pinned.
+                float x=MathF.Abs(p.X);
+                float yoke=TorsoRamp(.034f,.052f,x)*(1-TorsoRamp(.083f,.118f,x))
+                    *TorsoRamp(1.219f,1.239f,p.Y)*(1-TorsoRamp(1.269f,1.282f,p.Y))
+                    *TorsoRamp(.023f,.044f,-p.Z);
+                active[i]=MathF.Max(active[i],yoke);
+            }
             if(participation!=null)active[i]*=participation[i];
         }
         foreach(var edge in edges)if(edge.Value==1){active[edge.Key.Item1]=0;active[edge.Key.Item2]=0;}

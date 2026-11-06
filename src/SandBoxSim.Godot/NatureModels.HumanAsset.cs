@@ -185,6 +185,19 @@ internal sealed partial class NatureModels
             float malar=MathF.Exp(-MathF.Pow((MathF.Abs(p.X)-.048f)/.025f,2)-MathF.Pow((p.Y+.020f)/.028f,2));
             x*=1+front*(HumanFamily==2?-.020f*nasal+.008f*malar:.020f*nasal);
         }
+        if(!ChildHead&&HumanFamily==2)
+        {
+            // Widen the base a little where the neck meets the collar. An
+            // oblique, shallow relief follows the front-side neck plane into
+            // the base. Keep the jaw, throat midline and hidden root stable.
+            float baseNeck=TorsoRamp(.114f,.137f,-p.Y)*(1-TorsoRamp(.148f,.182f,-p.Y));
+            float neckSide=TorsoRamp(.016f,.033f,MathF.Abs(p.X))*TorsoRamp(-.064f,-.038f,p.Z);
+            x+=MathF.Sign(x)*.0017f*baseNeck*neckSide;
+            float diagonal=Mathf.Lerp(.037f,.019f,TorsoRamp(.095f,.153f,-p.Y));
+            float relief=MathF.Exp(-MathF.Pow((MathF.Abs(p.X)-diagonal)/.015f,2));
+            float frontSide=TorsoRamp(-.079f,-.050f,p.Z)*(1-TorsoRamp(-.011f,.026f,p.Z));
+            z-=.00115f*relief*frontSide*TorsoRamp(.103f,.127f,-p.Y)*(1-TorsoRamp(.139f,.174f,-p.Y));
+        }
         return new(x,y,z);
     }
 

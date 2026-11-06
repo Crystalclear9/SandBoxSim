@@ -277,10 +277,10 @@ internal sealed partial class NatureModels
                 RelaxArmholeSurface(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
                 if(source.SurfaceGetMaterial(s)?.HasMeta("FittedBodice")==true)
                 {
-                    CompleteBodiceSurface(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
                     for(int i=0;i<points.Length;i++)
                         if(pattern[i].X<0)points[i]=FemaleBackYokePoint(points[i]);
                     ShapeFemaleNeckline(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
+                    CompleteBodiceSurface(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
                 }
                 sleeveDistance=SleeveDistances(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
             }
@@ -979,7 +979,7 @@ internal sealed partial class NatureModels
                     var dz=(HumanPoint(p+Vector3.Back*h)-HumanPoint(p-Vector3.Back*h))/(2*h);
                     float determinant=new Basis(dx,dy,dz).Determinant();
                     if(!float.IsFinite(determinant)||determinant<.65f||determinant>1.45f)
-                        throw new InvalidOperationException("Adult regional face fit folds or over-stretches the source surface");
+                        throw new InvalidOperationException($"Adult regional fit folds or over-stretches source {_faceVariant} at {p}: determinant={determinant:F4}");
                 }
             }
         }
