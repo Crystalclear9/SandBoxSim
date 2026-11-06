@@ -296,6 +296,8 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `neckContour=relaxed-neckline-v6` 与 `garmentFit=continuous-drape-v32` 标识女性领缘与肩颈衣面、胸廓到腰带的重新拟合，以及两组深屈膝裤装形态。来源体型为 `reference-contour-physique-v31`。比较视觉输入与构建效率时须固定成衣标识、源码、动作、LOD 和机位。颈部间隙、颈根覆盖与深蹲时的膝前半径是几何回归条件。
 
+`trouserSkin=guided-knee-v1` 标识女性下装的臀腿轮廓、膝部支撑骨与配套姿态修形。源网格哈希仍对应 `reference-contour-physique-v31`。比较此版画面与耗时需要同时固定运行时蒙皮版本、近远景状态和动作。`handling-transitions` 左列镜头随实际骨盆高度收近，图像对照也须固定机位逻辑。
+
 衣面烘焙将规范坐标中的候选邻域按剪裁与模式缓存，当前姿态继续计算动态筛选和权重；完整扫描与缓存路径按原索引顺序求和。`BODICE_NEIGHBOR_PASS` 核对实际拟合深度逐位一致，属于程序优化的数值等价检查。缓存影响冷启动成本与内存，效率实验需固定来源、姿态数量、硬件、并行负载与冷／热缓存条件；超时回放保留失败状态，不能视为有效结果。
 
 `portrait.resident` 在 `person`／`person-hands` 中按十进制正整数的稳定身份选择当前世界中的存活居民，取值范围为 Int64 正数；不存在的身份返回运行失败。选择复用名录入口，不修改模拟。结果 `state.portrait.identity`／`child` 记录实际观察对象，校验器核对命令后的身份，拒绝选择未执行或被改写的记录。公开 `visual-female-portrait.json` 使用种子 839102、8 名居民、零模拟步进，观察身份 4294967299，并切换肩颈／全身构图。该入口是视觉回放控制，不增加玩家任务或 HTTP 动作。

@@ -467,9 +467,9 @@
 
 `reference-contour-physique-v31` 裤装从两套来源服装辅助表面重新导出，以来源骨盆截面加 5 毫米松量约束腰臀，上腿另保留有边界的衣料间隙；基础压褶靠近髋部和靴口，幅度不超过 2.5 毫米；细分后另加入 −4 至 +6 毫米范围内的受支撑褶皱和侧缝，并对裤裆极窄翻折作局部松弛，保留原始拓扑。两套裤装的骨盆及臀部不另叠加体积偏移，靴口保持连接。导出器和运行加载器共同检查米制范围，防止局部位移逃逸为远离身体的几何；法线按最终表面重算。
 
-裤装使用腰部、左右大腿与左右膝关节五骨连续蒙皮。腰部跟随与上衣低段一致的骨盆表现变换，大腿以其逆变换保持原有独立关节姿态，大腿下段平滑转接膝关节，0.40 米以下裤脚完全跟随膝部／靴口；裤裆以平滑权重过渡；原上衣、手部、靴子、脸部及动作目标保留。裤装按体型共享网格，单材质使用现有扫描织物，近远景保留同一绑定并使用屏幕尺寸 LOD。它没有布料物理或独立肌肉求解。
+裤装使用腰部、左右大腿与左右膝关节的来源绑定。腰部跟随与上衣低段一致的骨盆变换，0.40 米以下裤脚完全跟随膝部和靴口。女性裤装在成品缓存中重新分配膝部权重，左右各加入一根沿原膝轴转动的支撑骨，角度取屈膝量的一半。支撑权重由大腿和小腿等量分出，前方较强，向膝窝、内缝和靴口渐隐。每个顶点仍最多四个权重，近远景共用绑定和屏幕尺寸 LOD。臀侧与大腿前后的修形在同一连续表面上衔接。[Kavan 等关于线性蒙皮体积损失的研究](https://dcgi.felk.cvut.cz/home/zara/papers/KavanEtAll-TOG08.pdf)
 
-女性裤装的左右膝分别在约 64° 与 128° 之间混合普通弯折和深弯折形态。深屈膝时，膝前曲面补回线性蒙皮损失的半径，膝后形成较宽的压褶，变形在靴口和上方大腿之前衰减。`FEMALE_DEEP_KNEE_PASS` 逐角度检查两形态的衔接和左右独立性，并在地面放物资动作中检查双膝实际进入深弯折形态。[站姿与坐姿下身截面研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC8464815/) · [TailorNet 姿态、体型与服装形变研究](https://openaccess.thecvf.com/content_CVPR_2020/html/Patel_TailorNet_Predicting_Clothing_in_3D_as_a_Function_of_Human_CVPR_2020_paper.html)
+女性裤装的左右膝分别在约 64° 与 128° 之间混合普通弯折和深弯折形态。修形基于新的蒙皮权重重新生成，深弯折额外保留膝后的宽压褶。`FEMALE_DEEP_KNEE_PASS` 检查前膝半径、左右独立性和过渡，在放物资动作中读取真实支撑骨变换、局部网格边长和深弯折权重。网格边长沿用连续裤装的三倍几何上限。[站姿与坐姿下身截面研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC8464815/) · [TailorNet 姿态、体型与服装形变研究](https://openaccess.thecvf.com/content_CVPR_2020/html/Patel_TailorNet_Predicting_Clothing_in_3D_as_a_Function_of_Human_CVPR_2020_paper.html)
 
 [MakeHuman 服装建模文档](https://static.makehumancommunity.org/assets/creatingassets/makeclothes/clothes.html)将 tights 辅助几何用于服装拟合；[Blender Studio 服装形体工作流](https://studio.blender.org/training/realistic-human-research/chapter/clothing-shapes-rotation/)强调身体与服装形体的规划。本项目据此采用连续衣料与独立的骨盆／腿部驱动，保持原有 CC0 来源。
 

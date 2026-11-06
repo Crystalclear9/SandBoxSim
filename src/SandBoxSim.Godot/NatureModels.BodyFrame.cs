@@ -720,6 +720,7 @@ internal sealed partial class NatureModels
         GD.Print("BODY_CUT_POSE_PASS: raised hem retains trouser overlap through eating, work and pickup transitions");
         GD.Print("BODY_FRAMES_PASS: source chest/waist/hip presentation, separate near/far caches, bounded forearm fit/Jacobian, exact wrist and animated limb lengths");
         ValidateLumbarClothing();
+        ValidateContinuousTrousers();
     }
     private static float ClothSectionWidth(Mesh mesh,float height,Color? cloth=null,bool allowEmpty=false)
     {
@@ -792,7 +793,7 @@ internal sealed partial class NatureModels
             float sourceHipDifference=(Width(sourceFemale,.78f)-Width(sourceMale,.78f));
             float actualHipDifference=ClothSectionWidth(female.Trousers!.Mesh,.78f)-ClothSectionWidth(male.Trousers!.Mesh,.78f);
             if(actualHipDifference<.014f)
-                throw new InvalidOperationException("Current adult designs lose their intended clothed pelvic silhouette contrast");
+                throw new InvalidOperationException($"Current adult designs lose their intended clothed pelvic silhouette contrast: {actualHipDifference*1000:F2} mm");
             float sourceChestDifference=Width(sourceMale,1.135f)-Width(sourceFemale,1.135f);
             float actualChestDifference=ClothSectionWidth(m,1.135f,maleDye)-ClothSectionWidth(f,1.135f,femaleDye);
             if(MathF.Abs(actualHipDifference-sourceHipDifference)>.015f||MathF.Abs(actualChestDifference-sourceChestDifference)>.015f)

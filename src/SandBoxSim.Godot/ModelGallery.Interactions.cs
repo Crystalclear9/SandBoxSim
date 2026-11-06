@@ -8,7 +8,7 @@ namespace SandBoxSim.Client;
 
 internal partial class ModelGallery
 {
-    private readonly List<(ResidentRig Rig,int Sequence,Label Readout,string Title)> _interactionFlow=new();
+    private readonly List<(ResidentRig Rig,int Sequence,Label Readout,string Title,Camera3D Camera)> _interactionFlow=new();
     private sealed class HandoffStudy(ResidentRig giver,ResidentRig receiver,Label readout)
     {
         internal readonly ResidentRig Giver=giver,Receiver=receiver;
@@ -40,14 +40,15 @@ internal partial class ModelGallery
             string title=(frame==0?"男性外观":"女性外观")+" · "+(sequence==0?"到站拾取与屈膝放下":"工具、饮水与进食");
             Closeup(grid,title,rig,sequence==1?1.16f:2.10f,new(0,sequence==1?1.15f:.82f,0),
                 new(sequence==1?-2.3f:1.3f,.06f,4),true);
-            var readout=grid.GetChild<VBoxContainer>(grid.GetChildCount()-1).GetChild<Label>(1);
-            _interactionFlow.Add((rig,sequence,readout,title));
+            var column=grid.GetChild<VBoxContainer>(grid.GetChildCount()-1);
+            var stage=column.GetChild<SubViewportContainer>(0).GetChild<SubViewport>(0).GetChild<Node3D>(0);
+            _interactionFlow.Add((rig,sequence,column.GetChild<Label>(1),title,stage.GetChild<Camera3D>(stage.GetChildCount()-1)));
         }
     }
     private void AdvanceInteractionFlow(float dt)
     {
         float t=_elapsed%16.5f;
-        foreach(var (rig,sequence,readout,title) in _interactionFlow)
+        foreach(var (rig,sequence,readout,title,camera) in _interactionFlow)
         {
             ActionKind action;ActionPhase phase;
             if(sequence==0)
@@ -81,6 +82,14 @@ internal partial class ModelGallery
                 phase=t<14.65f?ActionPhase.Executing:ActionPhase.Moving;
             }
             rig.PresentAction(dt,action,phase,false,0);
+            if(sequence==0)
+            {
+                float crouch=Mathf.SmoothStep(.10f,.44f,ResidentRig.HipHeight-rig.Legs[0].Position.Y);
+                var target=new Vector3(0,Mathf.Lerp(.84f,.45f,crouch),rig.Position.Z);
+                camera.Size=Mathf.Lerp(1.86f,.98f,crouch);
+                camera.Position=target+new Vector3(Mathf.Lerp(1.3f,3.7f,crouch),.14f,4);
+                camera.LookAt(target);
+            }
             string status=title+"\n"+rig.Handling;
             if(readout.Text!=status)readout.Text=status;
         }

@@ -85,8 +85,11 @@ public partial class MainGame : Control
         if(OS.GetCmdlineUserArgs().Contains("--test-body-frames"))
         {
             SetProcess(false);SetPhysicsProcess(false);SetProcessInput(false);
-            try{new NatureModels().ValidateBodyFrames();GD.Print("BODY_FRAMES_TEST_PASS: final near/far clothing, anterior contour, source clearance and adult body frames");GetTree().Quit();}
-            catch(Exception exception){GD.PushError(exception.ToString());GetTree().Quit(1);}
+            Callable.From(()=>
+            {
+                try{new NatureModels().ValidateBodyFrames();GD.Print("BODY_FRAMES_TEST_PASS: final near/far clothing, anterior contour, source clearance, adult body frames and posed trousers");GetTree().Quit();}
+                catch(Exception exception){GD.PushError(exception.ToString());GetTree().Quit(1);}
+            }).CallDeferred();
             return;
         }
         if(OS.GetCmdlineUserArgs().Contains("--test-upper-arm-flex"))
