@@ -71,12 +71,19 @@ internal sealed partial class NatureModels
         float result=panel+(finished-hem)*(1-Mathf.SmoothStep(hem,1.23f,panel));
         if(FittedFigure&&_garmentCut!=2)
         {
-            float angle=MathF.Atan2(point.Z,point.X);
-            float front=MathF.Pow(MathF.Max(0,-MathF.Sin(angle)),6),back=MathF.Pow(MathF.Max(0,MathF.Sin(angle)),6);
-            result-=(.018f*front+.012f*back)*(1-Mathf.SmoothStep(finished,finished+.10f,result));
+            // A broad curved hem follows the pelvis and clears the side of
+            // the upper thigh. Fade into the panel before reaching the belt.
+            float offset=ShortFemaleHemOffset(MathF.Sin(MathF.Atan2(point.Z,point.X)));
+            result+=offset*(1-Mathf.SmoothStep(finished,finished+.085f,result));
         }
         return result;
     }
+    private static float ShortFemaleHemOffset(float depth)
+    {
+        float depthSquared=depth*depth,side=1-depthSquared;
+        return .013f*side*side-(depth<0?.018f:.017f)*depthSquared;
+    }
+
     private float FinishedGarmentHem=>_garmentCut==2?(BodyFrame==1?.78f:.745f)
         :_garmentCut==1?(BodyFrame==1?.86f:.825f):(BodyFrame==1?.85f:.805f);
 

@@ -40,6 +40,17 @@ internal sealed partial class NatureModels
             // already source-authored pelvic contrast after clothing.
             FairRestSurface(points,ids,freedom,.002f);
             TransportFairingNormals(rest,points,normals,ids,freedom);
+            rest=(Vector3[])points.Clone();
+            for(int i=0;i<points.Length;i++)
+            {
+                var point=points[i];float x=MathF.Abs(point.X);
+                freedom[i]=Mathf.SmoothStep(.64f,.70f,point.Y)*(1-Mathf.SmoothStep(.79f,.84f,point.Y))
+                    *Mathf.SmoothStep(.012f,.032f,x)*(1-Mathf.SmoothStep(.050f,.095f,x));
+            }
+            // Relieve the crease where the inseam joins the upper leg. Keep
+            // the centre stitching, outer hip and lower legs on their binds.
+            FairRestSurface(points,ids,freedom,.006f,true);
+            TransportFairingNormals(rest,points,normals,ids,freedom);
         }
         var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);
         var seam=new Vector2[count];
@@ -47,8 +58,38 @@ internal sealed partial class NatureModels
         arrays[(int)Mesh.ArrayType.Vertex]=points;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.TexUV]=coords;arrays[(int)Mesh.ArrayType.TexUV2]=seam;
         arrays[(int)Mesh.ArrayType.Bones]=b;arrays[(int)Mesh.ArrayType.Weights]=w;arrays[(int)Mesh.ArrayType.Index]=ids;
         var material=(ShaderMaterial)Fabric(BodyFrame==1?"#747264":"#645e53");material.SetShaderParameter("trouser_details",true);
-        var mesh=new ArrayMesh();mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays);mesh.SurfaceSetMaterial(0,material);
+        var mesh=new ArrayMesh {BlendShapeMode=Mesh.BlendShapeMode.Normalized};
+        var bends=new Godot.Collections.Array<Godot.Collections.Array>();
+        if(BodyFrame==1)
+        {
+            mesh.AddBlendShape("LeftHipFlex");mesh.AddBlendShape("RightHipFlex");
+            for(int side=0;side<2;side++)bends.Add(BakeTrouserHipFlex(points,normals,ids,side));
+        }
+        mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays,bends);mesh.SurfaceSetMaterial(0,material);
         return _meshes[key]=WithScreenLods(mesh);
+    }
+
+    private static Godot.Collections.Array BakeTrouserHipFlex(Vector3[] rest,Vector3[] restNormals,int[] ids,int side)
+    {
+        var points=(Vector3[])rest.Clone();var normals=(Vector3[])restNormals.Clone();
+        var freedom=new float[rest.Length];
+        for(int i=0;i<rest.Length;i++)
+        {
+            var p=rest[i];float x=MathF.Abs(p.X);
+            if((p.X<0)!=(side==0))continue;
+            float panel=Mathf.SmoothStep(.54f,.65f,p.Y)*(1-Mathf.SmoothStep(.75f,.83f,p.Y))*Mathf.SmoothStep(.028f,.080f,x);
+            float front=Mathf.SmoothStep(.014f,.071f,-p.Z),rear=Mathf.SmoothStep(.017f,.084f,p.Z);
+            float fold=(p.Y-(.723f-.27f*(x-.09f)))/.034f;
+            float diagonal=.010f*MathF.Exp(-fold*fold)*front;
+            // The raised leg compresses the front cloth into a broad diagonal
+            // fold and retains a rounded transition behind the pelvis.
+            points[i].Z+=panel*(.007f*rear-diagonal);
+            freedom[i]=panel*(front+rear);
+        }
+        TransportFairingNormals(rest,points,normals,ids,freedom);
+        var shape=new Godot.Collections.Array();shape.Resize((int)Mesh.ArrayType.Max);
+        shape[(int)Mesh.ArrayType.Vertex]=points;shape[(int)Mesh.ArrayType.Normal]=normals;
+        return shape;
     }
     private void AddContinuousTrousers(ResidentRig rig)
     {
@@ -68,6 +109,7 @@ internal sealed partial class NatureModels
         }
         skeleton.ResetBonePoses();
         rig.Trousers=new MeshInstance3D {Name="ContinuousTrousers",Mesh=ContinuousTrousers(),Skin=skin,Skeleton=new NodePath("../TrouserSkeleton")};rig.AddChild(rig.Trousers);
+        rig.TrouserHipFlex=BodyFrame==1;
         // Fit the unloaded arm clearance to the actual clothed thigh, not
         // a sex-specific joint-spacing proxy. Reserve palm width and ease.
         var points=rig.Trousers.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
@@ -80,16 +122,36 @@ internal sealed partial class NatureModels
     }
     private void ValidateContinuousTrousers()
     {
-        float maximum=0;int samples=0;
+        float maximum=0,maximumHipEdit=0;int samples=0;
+        var peakHipWeights=new float[2];var independentHipSamples=new bool[2];
         foreach(int identity in new[]{17,55})
         {
             var rig=Resident(identity,false,SandBoxSim.Core.Agents.JobType.None);
             ((SceneTree)Engine.GetMainLoop()).Root.AddChild(rig);
             try
             {
-                var mesh=rig.Trousers!.Mesh;var skin=rig.Trousers.Skin;var skeleton=rig.TrouserSkeleton!;
+                var mesh=(ArrayMesh)rig.Trousers!.Mesh;var skin=rig.Trousers.Skin;var skeleton=rig.TrouserSkeleton!;
                 if(ContinuousTrousers()!=mesh||mesh.GetSurfaceCount()!=1)throw new InvalidOperationException("Trouser cache or draw surface changed");
                 var a=mesh.SurfaceGetArrays(0);var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();var b=a[(int)Mesh.ArrayType.Bones].AsInt32Array();var w=a[(int)Mesh.ArrayType.Weights].AsFloat32Array();var ids=a[(int)Mesh.ArrayType.Index].AsInt32Array();
+                var shapes=mesh.SurfaceGetBlendShapeArrays(0);
+                if(shapes.Count!=(BodyFrame==1?2:0)||mesh.BlendShapeMode!=Mesh.BlendShapeMode.Normalized)
+                    throw new InvalidOperationException("Trouser LOD generation dropped its hip correctives");
+                var hipTargets=new Vector3[shapes.Count][];
+                for(int side=0;side<shapes.Count;side++)
+                {
+                    var target=hipTargets[side]=shapes[side][(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                    var normals=shapes[side][(int)Mesh.ArrayType.Normal].AsVector3Array();
+                    for(int i=0;i<p.Length;i++)
+                    {
+                        float displacement=p[i].DistanceTo(target[i]);
+                        maximumHipEdit=MathF.Max(maximumHipEdit,displacement);
+                        bool fixedPoint=(p[i].X<0)!=(side==0)||MathF.Abs(p[i].X)<=.028f||p[i].Y<=.54f||p[i].Y>=.83f;
+                        if(!target[i].IsFinite()||!normals[i].IsFinite()||MathF.Abs(normals[i].Length()-1)>.001f
+                            ||displacement>.01001f||fixedPoint&&displacement>.000001f)
+                            throw new InvalidOperationException("Hip corrective moves a fixed trouser panel or has invalid geometry");
+                    }
+                }
+                var hipWeights=new float[shapes.Count];
                 var edges=new System.Collections.Generic.HashSet<(int A,int B)>();
                 for(int i=0;i<ids.Length;i+=3)for(int j=0;j<3;j++){int x=ids[i+j],y=ids[i+(j+1)%3];edges.Add(x<y?(x,y):(y,x));}
                 var posed=new Vector3[p.Length];
@@ -105,9 +167,18 @@ internal sealed partial class NatureModels
                         throw new InvalidOperationException($"Trouser skin mismatch: {transforms[side+1]} expected {rig.Legs[side].Transform*skin.GetBindPose(side+1)}");
                     for(int side=0;side<2;side++)if(!transforms[side+3].IsEqualApprox(rig.Legs[side].Transform*rig.Knees[side].Transform*skin.GetBindPose(side+3)))
                         throw new InvalidOperationException("Trouser knee skin does not follow the actual boot rim");
+                    for(int side=0;side<hipWeights.Length;side++)
+                    {
+                        hipWeights[side]=rig.Trousers.GetBlendShapeValue(side);
+                        peakHipWeights[side]=MathF.Max(peakHipWeights[side],hipWeights[side]);
+                    }
+                    for(int side=0;side<hipWeights.Length;side++)
+                        independentHipSamples[side]|=hipWeights[side]>.15f&&hipWeights[1-side]<.01f;
                     for(int i=0;i<p.Length;i++)
                     {
-                        var v=Vector3.Zero;for(int j=0;j<4;j++)v+=(transforms[b[i*4+j]]*p[i])*w[i*4+j];
+                        var bindPoint=p[i];
+                        for(int side=0;side<hipWeights.Length;side++)bindPoint+=(hipTargets[side][i]-p[i])*hipWeights[side];
+                        var v=Vector3.Zero;for(int j=0;j<4;j++)v+=(transforms[b[i*4+j]]*bindPoint)*w[i*4+j];
                         if(!v.IsFinite())throw new InvalidOperationException("Invalid animated trousers");
                         if(p[i].Y>.88f&&v.DistanceTo(transforms[0]*p[i])>.00001f)throw new InvalidOperationException("Leg movement drags the trouser waist");
                         if(p[i].Y<.40f&&v.DistanceTo(transforms[p[i].X<0?3:4]*p[i])>.00001f)throw new InvalidOperationException("Trouser cuff detaches from the moving knee");
@@ -121,13 +192,19 @@ internal sealed partial class NatureModels
                     }
                     samples++;
                 }
+                for(int side=0;side<hipWeights.Length;side++)hipWeights[side]=rig.Trousers.GetBlendShapeValue(side);
                 var frozen=skeleton.GetBonePose(1);rig.PoseAction(1,SandBoxSim.Core.Agents.ActionKind.Take,SandBoxSim.Core.Agents.ActionPhase.Executing,true,0);
                 if(skeleton.GetBonePose(1)!=frozen)throw new InvalidOperationException("Paused trousers continue moving");
+                for(int side=0;side<hipWeights.Length;side++)
+                    if(hipWeights[side]!=rig.Trousers.GetBlendShapeValue(side))throw new InvalidOperationException("Paused hip correctives continue moving");
                 rig.ValidateDistanceMeshes();if(rig.Trousers.Mesh!=mesh)throw new InvalidOperationException("Distance change replaces the bound lower garment");
             }
             finally{rig.Free();}
         }
         GD.Print($"CONTINUOUS_TROUSERS_PASS: two source frames, {samples} actual gait/work/pickup samples, thigh/knee binds, attached cuffs, stable waist, pause, distance and edge stretch={maximum:F3}");
+        if(maximumHipEdit<.003f||!independentHipSamples[0]||!independentHipSamples[1])
+            throw new InvalidOperationException($"Hip correctives do not independently respond to the two thighs: {peakHipWeights[0]:F3}/{peakHipWeights[1]:F3}");
+        GD.Print($"FEMALE_HIP_FLEX_PASS: left/right peak={peakHipWeights[0]:F3}/{peakHipWeights[1]:F3}, maximum cloth edit={maximumHipEdit*1000:F2} mm; independent legs, fixed inseam center/waist/cuffs, normalized shapes and pause");
     }
 }
 
@@ -135,6 +212,8 @@ internal partial class ResidentRig
 {
     internal Skeleton3D? TrouserSkeleton;
     internal MeshInstance3D? Trousers;
+    internal bool TrouserHipFlex;
+    private readonly float[] _trouserHipWeights=new float[2];
     internal void SyncTrousers()
     {
         if(TrouserSkeleton==null)return;
@@ -148,6 +227,12 @@ internal partial class ResidentRig
             var local=inverse*Legs[side].Transform;
             TrouserSkeleton.SetBonePose(side+1,local);
             TrouserSkeleton.SetBonePose(side+3,Knees[side].Transform);
+            if(!TrouserHipFlex)continue;
+            float forward=local.Basis.Y.Z;
+            float weight=Mathf.SmoothStep(.14f,.58f,forward);
+            if(MathF.Abs(weight-_trouserHipWeights[side])<=.00001f)continue;
+            Trousers!.SetBlendShapeValue(side,weight);
+            _trouserHipWeights[side]=weight;
         }
     }
 }

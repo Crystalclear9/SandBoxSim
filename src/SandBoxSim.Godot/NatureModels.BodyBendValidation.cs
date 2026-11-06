@@ -46,13 +46,21 @@ internal sealed partial class NatureModels
                     if(MathF.Abs(rig.Holster.Basis.Determinant()-1)>.0001f)throw new InvalidOperationException("Lumbar bending stretches the mounted tool");
                     var trouserTransforms=new[]{rig.LowerGarmentFrame,rig.Legs[0].Transform*rig.Trousers.Skin.GetBindPose(1),rig.Legs[1].Transform*rig.Trousers.Skin.GetBindPose(2),
                         rig.Legs[0].Transform*rig.Knees[0].Transform*rig.Trousers.Skin.GetBindPose(3),rig.Legs[1].Transform*rig.Knees[1].Transform*rig.Trousers.Skin.GetBindPose(4)};
+                    var trouserPoints=pp;
+                    if(rig.TrouserHipFlex)
+                    {
+                        using var baked=rig.Trousers.BakeMeshFromCurrentBlendShapeMix();
+                        trouserPoints=baked.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                    }
                     for(int i=0;i<pp.Length;i+=9)
                     {
                         // Check the whole overlapping panel, including the
-                        // travelling coat below the hip. A fixed .82 m floor
-                        // hid lower-hem penetration in otherwise passing tests.
-                        if(pp[i].Y<hem+.020f||pp[i].Y>.91f)continue;
-                        var point=Vector3.Zero;for(int j=0;j<4;j++)point+=trouserTransforms[pb[i*4+j]]*pp[i]*pw[i*4+j];
+                        // travelling coat below the hip. The curved side of a
+                        // short shirt begins above its front/back low points.
+                        float localHem=FittedFigure&&_garmentCut!=2
+                            ?FinishedGarmentHem+ShortFemaleHemOffset(MathF.Sin(MathF.Atan2(pp[i].Z,pp[i].X))):hem;
+                        if(pp[i].Y<localHem+.020f||pp[i].Y>.91f)continue;
+                        var point=Vector3.Zero;for(int j=0;j<4;j++)point+=trouserTransforms[pb[i*4+j]]*trouserPoints[i]*pw[i*4+j];
                         float front=float.PositiveInfinity,back=float.NegativeInfinity;
                         for(int t=0;t<ids.Length;t+=3)
                         {

@@ -517,6 +517,26 @@ internal sealed partial class NatureModels
                 ||MathF.Abs(Hem(male.DetailedBodyMesh)-.825f)>.002f)
                 throw new InvalidOperationException("Tailored hem loses trouser coverage or retains the common long cut");
             GD.Print($"BODY_CUT_PASS: raised garment hem={hemRise:F4} m, preserved trouser overlap and separate lower-body geometry");
+            float CheckCurvedHem(Mesh mesh)
+            {
+                float left=float.PositiveInfinity,right=left,front=left,back=left;
+                foreach(var p in mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
+                {
+                    float radius=new Vector2(p.X,p.Z).Length();
+                    if(radius<.05f)continue;
+                    if(p.X<-.95f*radius)left=MathF.Min(left,p.Y);
+                    if(p.X>.95f*radius)right=MathF.Min(right,p.Y);
+                    if(p.Z<-.97f*radius)front=MathF.Min(front,p.Y);
+                    if(p.Z>.97f*radius)back=MathF.Min(back,p.Y);
+                }
+                float curve=MathF.Min(left,right)-MathF.Max(front,back);
+                if(!float.IsFinite(curve)||curve<.020f||curve>.036f||MathF.Abs(left-right)>.003f)
+                    throw new InvalidOperationException("Short female shirt loses its curved side hem or waistband coverage");
+                return curve;
+            }
+            float nearHem=CheckCurvedHem(female.DetailedBodyMesh),farHem=CheckCurvedHem(female.DistantBodyMesh);
+            if(MathF.Abs(nearHem-farHem)>.003f)throw new InvalidOperationException("Hem silhouette changes when the viewing distance changes");
+            GD.Print($"CURVED_HEM_PASS: actual near/far side rise={nearHem*1000:F2}/{farHem*1000:F2} mm");
             if(MathF.Abs(female.HipHalfWidth-ResidentRig.NeutralHipHalfWidth)>.00001f||MathF.Abs(male.HipHalfWidth-ResidentRig.NeutralHipHalfWidth)>.00001f)
                 throw new InvalidOperationException("Neutral stance does not match the fitted clothing");
             foreach(var rig in new[]{male,female})
@@ -591,7 +611,7 @@ internal sealed partial class NatureModels
             var rim=new System.Collections.Generic.List<Vector3>();
             float hem=Hem(female.DetailedBodyMesh);
             foreach(var point in female.DetailedBodyMesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
-                if(point.Y<=hem+.025f)rim.Add(point);
+                if(point.Y<=hem+.039f)rim.Add(point);
             foreach(var rig in new[]{male,female})
             foreach(var action in new[]{SandBoxSim.Core.Agents.ActionKind.Eat,SandBoxSim.Core.Agents.ActionKind.BuildHouse,SandBoxSim.Core.Agents.ActionKind.Take})
             for(int f=0;f<150;f++)
