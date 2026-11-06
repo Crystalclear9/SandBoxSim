@@ -7,7 +7,7 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
-    private sealed record HairlineData(Vector2[] Metrics,int RootEdges,int CapVertices);
+    private sealed record HairlineData(Vector2[] Metrics,int RootEdges,int CapVertices,int[]? CrownIndices,int[]? GroomIndices);
     private readonly Dictionary<int,HairlineData> _hairlineSources=new();
     private HairlineData HairlineSource()
     {
@@ -80,7 +80,37 @@ internal sealed partial class NatureModels
             }
             metric[i]=new(MathF.Sqrt(best),at);
         }
-        return _hairlineSources[HumanFamily]=new(metric,ordered.Count,capVertices);
+        int[]? crownIndices=null,groomIndices=null;
+        if(HumanFamily==2)
+        {
+            // The bundled tail consists of several welded card islands.
+            // Remove entire rear islands that extend below the source nape,
+            // while retaining the cap and its shorter, swept surface cards.
+            var tail=new HashSet<int>();
+            for(int v=0;v<physical.Count;v++)
+            {
+                if(cap.Contains(v)||physical[v].Y>=-.115f||physical[v].Z<=.050f)continue;
+                queue.Push(v);
+                while(queue.Count>0)
+                {
+                    int next=queue.Pop();
+                    if(cap.Contains(next)||!tail.Add(next))continue;
+                    foreach(int neighbour in neighbours[next])queue.Push(neighbour);
+                }
+            }
+            var crown=new List<int>();var groom=new List<int>();
+            for(int i=0;i<source.Indices.Length;i+=3)
+            {
+                int a=source.Indices[i],b=source.Indices[i+1],c=source.Indices[i+2];
+                if(cap.Contains(ids[a])){crown.Add(a);crown.Add(b);crown.Add(c);}
+                if(!tail.Contains(ids[a])){groom.Add(a);groom.Add(b);groom.Add(c);}
+            }
+            crownIndices=crown.ToArray();
+            groomIndices=groom.ToArray();
+            if(crownIndices.Length==0||groomIndices.Length>=source.Indices.Length||crownIndices.Length>groomIndices.Length)
+                throw new InvalidOperationException("Female groom cannot separate the scalp and old rear cards");
+        }
+        return _hairlineSources[HumanFamily]=new(metric,ordered.Count,capVertices,crownIndices,groomIndices);
     }
 
     private void ValidateHairlineSource()

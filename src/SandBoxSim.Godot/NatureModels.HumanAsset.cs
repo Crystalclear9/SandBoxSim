@@ -299,6 +299,7 @@ internal sealed partial class NatureModels
             var data=HumanData();
             ValidateHairlineSource();
             ValidateHairFraming();
+            if(FittedFigure)ValidateFemaleGatheredHair();
             if(data.Radii.Length!=data.Rows*data.Columns||data.Centers.Length!=data.Rows||data.High<=data.Low)
                 throw new InvalidOperationException("Incomplete scalp surface lookup");
             foreach(float radius in data.Radii)if(!float.IsFinite(radius)||radius<=0)throw new InvalidOperationException("Invalid scalp sample");

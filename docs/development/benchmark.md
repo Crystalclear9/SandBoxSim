@@ -244,6 +244,8 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `garmentFit=continuous-drape-v31`、`forearmProfile=curvature-flow-v9`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2` 区分衣片纵向弯曲／表面松弛、女性前臂表面、成人脸部比例、额前发根和静止眼睑。它们改变实际网格、缓存创建成本及显示像素；视觉／效率比较须同时冻结这些标识、输入和源码。身体配方为 `reference-contour-physique-v31`：两种成人的参考转移权重均为 1.0；五类身体支撑共享同一配方哈希。不能仅凭头脸或动作版本判断身体呈现相同。几何固定点、体积、截面与三角形检查用于回归，不是 RSI 得分。
 
+`renderQuality.femaleGroom=scalp-guided-plait-v1` 标识成年女性的编发、盘发和配套远景几何。评测头部肖像或世界人物时，固定居民身份和观察距离，再比较轮廓与渲染耗时。
+
 `bodyPresentation=continuous-drape-v29` 标识成人女性前领、小腿及鞋部的运行时成品拟合。它改变像素与网格构建成本；比较时须与 `bodyFrame=reference-contour-physique-v31`、`garmentFit=continuous-drape-v31` 及源码哈希一并冻结。
 
 `continuous-drape-v29` 的女性成人衣装还使用独立材质状态、浅色内衫／绿灰外衣分片，以及近远景共用的静止缝片函数。远景顶点颜色保留来源染色数据，另用材质标记选择分片；因此几何截面检查不会把配色变更当成体型变更。新材质、下摆与源码均需冻结后才能比较视觉或效率结果。

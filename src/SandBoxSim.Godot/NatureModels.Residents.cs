@@ -207,7 +207,13 @@ internal sealed partial class NatureModels
         // Its lower source triangles still overlap the shirt opening.
         rig.Head = new Node3D { Name = "Head", Position = new Vector3(0, 1.400f-(BodyFrame==1?FemaleHeadSettle:0), 0) }; rig.Torso.AddChild(rig.Head);
         Detail(rig.Head, "face", Vector3.Zero, new Vector3(.177f, .220f, .195f), skin).MaterialOverride=AnatomicalFaceMaterial(skin);
-        Detail(rig.Head, "hair", new Vector3(0, .008f, 0), new Vector3(.181f, .224f, .200f), hair).MaterialOverride=AuthoredHairMaterial(hair);
+        var scalp=Detail(rig.Head,"hair",new Vector3(0,.008f,0),new Vector3(.181f,.224f,.200f),hair);
+        scalp.MaterialOverride=AuthoredHairMaterial(hair);
+        if(FittedFigure)
+        {
+            scalp.Mesh=FemaleScalp(false);
+            Sculpt(rig.Head,FemaleGatheredHair(false),Vector3.Zero,GatheredHairMaterial(hair));
+        }
         rig.Head.AddChild(new MeshInstance3D {Name="Brows",Mesh=Brows(),MaterialOverride=ResidentMaterial(hair)});
 
         // The short cut exposes the trouser waist. A continuous pelvis connects
