@@ -183,6 +183,22 @@ internal sealed partial class NatureModels
         return MathF.Max(cloth,trousers)+overlap*overlap/.032f;
     }
 
+    private static Vector3 FemaleBackYokePoint(Vector3 point)
+    {
+        float x=MathF.Abs(point.X),y=point.Y;
+        float blend=ResidentRig.ReachEase((y-1.195f)/.048f)
+            *(1-ResidentRig.ReachEase((y-1.278f)/.027f))
+            *(1-ResidentRig.ReachEase((x-.047f)/.058f));
+        // The old rear neckline blend retained a stand-collar shelf.
+        // Bring its excess toward a broad yoke while leaving the opening
+        // and the source-based shoulder/sleeve seam outside the edit.
+        float support=.072f+.004f*Mathf.SmoothStep(1.203f,1.242f,y)
+            -.003f*Mathf.SmoothStep(1.270f,1.300f,y)-.005f*Mathf.SmoothStep(.025f,.085f,x);
+        float excess=MathF.Max(0,point.Z-support);
+        point.Z-=.79f*blend*excess*excess/(excess+.002f);
+        return point;
+    }
+
     private Vector3 FemaleCollarEase(Vector3 fitted,Vector3 construction)
     {
         float x=MathF.Abs(construction.X);
@@ -243,7 +259,11 @@ internal sealed partial class NatureModels
                 FairGarmentRest(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern,source.SurfaceGetMaterial(s)?.HasMeta("FittedBodice")==true);
                 RelaxArmholeSurface(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
                 if(source.SurfaceGetMaterial(s)?.HasMeta("FittedBodice")==true)
+                {
                     CompleteBodiceSurface(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
+                    for(int i=0;i<points.Length;i++)
+                        if(pattern[i].X<0)points[i]=FemaleBackYokePoint(points[i]);
+                }
                 sleeveDistance=SleeveDistances(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
             }
             var girdle=tailored&&sleeveDistance.Length==points.Length

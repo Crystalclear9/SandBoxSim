@@ -278,7 +278,7 @@ internal sealed partial class NatureModels
         string thread="#"+new Color(cloth).Darkened(.14f).ToHtml(false);
         // A subdued rear-yoke stitch follows the same shirt surface used by
         // the backpack and shoulder skin; no detached trim across the back.
-        for(int stitch=0;stitch<48;stitch++)
+        if(!FittedFigure)for(int stitch=0;stitch<48;stitch++)
         {
             float x0=Mathf.Lerp(-.15f,.15f,stitch/48f),x1=x0+.0038f;
             float Y(float x)=>1.155f+.018f*(1-MathF.Pow(x/.15f,2));

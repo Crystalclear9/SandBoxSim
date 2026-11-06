@@ -57,9 +57,11 @@ float angle=(-UV2.x-2.0)*6.2831853;
 float side_distance=abs(sin(angle))*.15;
 float side_aa=max(fwidth(side_distance),.0001);
 float side_seam=1.0-smoothstep(.0008,.0018+side_aa,side_distance);
-float yoke_distance=abs(UV2.y-1.19);
-float yoke_aa=max(fwidth(UV2.y),.0001);
+float yoke_height=fitted_bodice?1.165+.020*sin(angle)*sin(angle):1.19;
+float yoke_distance=abs(UV2.y-yoke_height);
+float yoke_aa=max(fwidth(UV2.y-yoke_height),.0001);
 float yoke=(1.0-smoothstep(.0006,.0015+yoke_aa,yoke_distance))*smoothstep(.1,.5,sin(angle));
+if(fitted_bodice){yoke*=.57+.43*smoothstep(-.15,.45,sin(angle*173.0));}
 float near_fade=1.0-smoothstep(.002,.007,max(side_aa,yoke_aa));
 ALBEDO*=1.0-max(side_seam,yoke)*(fitted_bodice?.08:.13)*near_fade;
 }

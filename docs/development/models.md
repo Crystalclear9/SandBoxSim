@@ -179,6 +179,8 @@
 
 女性三款成衣的下摆使用成品外层截面拟合。拟合时剔除内侧翻边三角面，沿最低实测外层截面的切向补足采样边界。翻边的两圈顶点随后从外层下缘和上一排重新定位，分别向内收 2.4 与 3.2 毫米。近景网格重算法线，远景从同一静止衣面生成。裤装与下摆的重叠在拾取、工作和步行姿态下通过蒙皮后的表面检查。
 
+女性后领与上背之间采用局部深度修形。肩袖拟合完成后，后片超出目标弧面的部分逐渐向内收，修形在领口和袖窿前退出。几何法线从成品网格重建，近远景使用相同的静止轮廓。后育克的弧形针脚由衣面的静止坐标驱动，随肩背弯曲。三款衣装的实际成品在背中线及左右 25 毫米的截面上检查后领下方的外突量。造型参考肩颈与肩胛之间的宽缓连接，以及服装在肩部活动时的拉伸与压缩。[肩颈表面结构](https://elsevier-elibrary.com/contents/fullcontent/58090/epubcontent_v2/OEBPS/B9780443069529000126A.htm) · [Blender Studio 衣装形体](https://studio.blender.org/training/realistic-human-research/clothing-shapes/)
+
 [女性三款衣装实机配图](../images/resident-female-wardrobe.png)展示相同身份的正面与背面。女性三款衣装可通过 [公开衣装场景](../../benchmarks/scenarios/visual-female-wardrobe.json) 复现，同镜头比较正面与背面，完整身体仍看 `visual-body-frames`／`visual-body-motion`。结构调研参考 [Proko 的前胸形体常见错误](https://www.proko.com/course-lesson/common-mistakes-of-drawing-breasts)和 [Blender Studio 角色制作流程](https://studio.blender.org/training/realistic-human-research/)；当前是穿衣曲面与有限姿态修正，不是新的裸身扫描或软组织仿真。
 
 腰侧和骨盆的结构还参考 [Proko 腰侧形体](https://www.proko.com/course-lesson/how-to-draw-obliques-form)与[骨盆结构](https://www.proko.com/course-lesson/anatomy-of-the-pelvis)：区分骨性边界和柔和表面，先检查正侧背面的连续体积。角色采用自然匀称的美术方向，不用固定腰臀比或局部尺寸定义吸引力。

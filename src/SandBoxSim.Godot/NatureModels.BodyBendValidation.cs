@@ -8,7 +8,7 @@ internal sealed partial class NatureModels
 {
     private void ValidateLumbarClothing()
     {
-        int probes=0;float excursion=0;
+        int probes=0;float excursion=0,backYoke=0;
         foreach(int identity in new[]{17,55})
         foreach(var job in new[]{JobType.Farmer,JobType.Gatherer,JobType.Trader})
         {
@@ -20,6 +20,8 @@ internal sealed partial class NatureModels
                 var cloth=rig.DetailedBodyMesh.SurfaceGetArrays(0);var p=cloth[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                 var bones=cloth[(int)Mesh.ArrayType.Bones].AsInt32Array();var w=cloth[(int)Mesh.ArrayType.Weights].AsFloat32Array();
                 var ids=cloth[(int)Mesh.ArrayType.Index].AsInt32Array();var posed=new Vector3[p.Length];
+                if(FittedFigure)
+                    backYoke=MathF.Max(backYoke,MeasureRearCollarProjection(p,ids));
                 var pants=rig.Trousers!.Mesh.SurfaceGetArrays(0);var pp=pants[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                 float hem=float.PositiveInfinity;foreach(var point in p)hem=MathF.Min(hem,point.Y);
                 var pb=pants[(int)Mesh.ArrayType.Bones].AsInt32Array();var pw=pants[(int)Mesh.ArrayType.Weights].AsFloat32Array();
@@ -116,7 +118,27 @@ internal sealed partial class NatureModels
             finally{rig.Free();}
         }
         if(sway<.005f||knee<.05f||knee>.12f)throw new InvalidOperationException("Relaxed stance locks the knees or crouches from the shoe-origin offset");
+        if(backYoke<=0||backYoke>.012f)
+            throw new InvalidOperationException($"Female rear yoke retains a protruding collar shelf: {backYoke*1000:F2} mm");
+        GD.Print($"FEMALE_BACK_YOKE_PASS: actual exterior depth, 3 cuts and 3 rear meridians, maximum collar-relative projection={backYoke*1000:F2} mm");
         GD.Print($"LUMBAR_CLOTH_PASS: 2 frames/3 cuts, 3 actions, {probes} actual posed trouser-clearance rays; pelvic/chest excursion={excursion:F3} m, rigid mounts and pause");
         GD.Print($"RELAXED_STANCE_PASS: 2 frames/480 steps, planted level soles after 0.35s entry, entry drift={entryDrift:F4} m, fixed thigh lengths, sway={sway:F3} m, knee={knee:F3} rad and pause");
+    }
+
+    private static float MeasureRearCollarProjection(Vector3[] points,int[] indices)
+    {
+        float maximum=0;
+        foreach(float x in new[]{-.025f,0,.025f})
+        {
+            float collar=GarmentDepth(points,indices,x,1.300f,true);
+            if(!float.IsFinite(collar))throw new InvalidOperationException("Female rear collar loses its continuous surface");
+            for(int mm=1235;mm<=1285;mm+=5)
+            {
+                float depth=GarmentDepth(points,indices,x,mm*.001f,true);
+                if(!float.IsFinite(depth))throw new InvalidOperationException("Female rear yoke loses its continuous surface");
+                maximum=MathF.Max(maximum,depth-collar);
+            }
+        }
+        return maximum;
     }
 }
