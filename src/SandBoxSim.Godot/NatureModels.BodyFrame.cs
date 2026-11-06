@@ -118,13 +118,14 @@ internal sealed partial class NatureModels
             target+=GarmentDrapeDetail(panelHeight,angle);
             // The shirt is outside the actual finished trousers, not only
             // outside the unclothed source. This includes a coat's lower skirt.
-            if(feminine&&panelHeight<.969f)
+            if(feminine&&panelHeight<.990f)
             {
                 // The top of the trousers ends below the natural waist.
-                // Carry that last fitted contour into the shirt and taper
-                // its support above the waistband over a finite distance.
+                // Continue the last fitted contour under the shirt across
+                // the lumbar and upper-hip transition. A narrow falloff at
+                // the waistband made the rear panel hinge at one height.
                 float trousers=TrouserLayerRadius(MathF.Min(panelHeight,.935f),angle);
-                target=Mathf.Lerp(BlendOuterLayer(target,trousers),target,Mathf.SmoothStep(.94f,.969f,panelHeight));
+                target=Mathf.Lerp(BlendOuterLayer(target,trousers),target,TorsoRamp(.928f,.990f,panelHeight));
                 // Release the lower coat panels from the belt toward the
                 // hip instead of following the trousers into their folds.
                 float release=1-Mathf.SmoothStep(.80f,.935f,panelHeight);

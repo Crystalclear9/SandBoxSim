@@ -292,7 +292,12 @@ internal partial class ResidentRig : Node3D
         var lowerShift=stance+restSupport+gaitOffset+travelShift+pickupShift+arrival.Shift+(IsPivoting?PivotSupport():Vector3.Zero)+Vector3.Down*(.09f*restWeight);
         var translation=lowerShift+Vector3.Up*vertical;
         var hip=new Vector3(0,HipHeight,0);Torso.Transform=new(torsoBasis,hip-torsoBasis*hip+translation);
-        UpdateBodyBend(lowerShift,new Basis(Quaternion.Identity.Slerp(GaitPelvisBasis.GetRotationQuaternion(),(1-pickupWeight)*(1-restWeight))));
+        var pelvisBasis=new Basis(Quaternion.Identity.Slerp(GaitPelvisBasis.GetRotationQuaternion(),(1-pickupWeight)*(1-restWeight)));
+        // Share the pickup flexion with the hips while the chest still leads
+        // the reach. Use the captured bend so both frames release together.
+        if(pickupWeight>0&&!IsChild)
+            pelvisBasis=new Basis(Vector3.Right,-(.11f+.10f*Flow)*gatherPose.Bend*pickupWeight)*pelvisBasis;
+        UpdateBodyBend(lowerShift,pelvisBasis);
         _attentionYaw=Mathf.Lerp(_attentionYaw,_wantedAttention,1-MathF.Exp(-delta*6));
         float phraseEmphasis=action==ActionKind.Socialize
             ?Math.Clamp(MathF.Max(socialPose.Left.Y,socialPose.Right.Y),0,1)

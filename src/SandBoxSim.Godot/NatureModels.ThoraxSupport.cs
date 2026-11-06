@@ -25,18 +25,19 @@ internal sealed partial class NatureModels
 
     // Coordinate the abdominal, oblique and lumbar planes as one soft torso.
     // The lateral waist opens gently while the lower abdomen returns toward
-    // the pelvis; a shallow lumbar fill avoids an abruptly hollow back.
-    // All three edits fade before the pelvis and the rib-cage attachment.
+    // the pelvis. Carry a broad rear surface from the upper seat into the
+    // lower ribs so the sagittal curve continues across the waist.
     private static Vector3 BalancedTorsoPoint(Vector3 p)
     {
         float waist=TorsoRamp(.89f,.96f,p.Y)*(1-TorsoRamp(1.025f,1.10f,p.Y));
         float front=TorsoRamp(.027f,.095f,-p.Z);
         float flank=TorsoRamp(.012f,.105f,MathF.Abs(p.X));
         float abdomen=1-TorsoRamp(.95f,1.015f,p.Y);
-        float lumbar=TorsoRamp(-.025f,.045f,p.Z)*(1-TorsoRamp(.015f,.065f,MathF.Abs(p.X)));
+        float lumbar=TorsoRamp(.915f,.984f,p.Y)*(1-TorsoRamp(1.011f,1.133f,p.Y));
+        float back=TorsoRamp(-.020f,.045f,p.Z)*(1-TorsoRamp(.035f,.120f,MathF.Abs(p.X)));
         float sideWaist=TorsoRamp(.875f,.965f,p.Y)*(1-TorsoRamp(1.032f,1.115f,p.Y));
         return p+new Vector3(MathF.Sign(p.X)*.005f*sideWaist*flank,0,
-            waist*((.0015f+.003f*abdomen)*front+.003f*lumbar));
+            waist*(.0015f+.003f*abdomen)*front+.012f*lumbar*back);
     }
 
     private static Vector3 FemalePelvicPoint(Vector3 point)
@@ -91,25 +92,25 @@ internal sealed partial class NatureModels
         float front=TrunkSample(source,1.00f,-MathF.PI/2)-TrunkSample(fitted,1.00f,-MathF.PI/2);
         float side=TrunkSample(fitted,1.00f,0)-TrunkSample(source,1.00f,0);
         float lumbar=TrunkSample(fitted,1.00f,MathF.PI/2)-TrunkSample(source,1.00f,MathF.PI/2);
-        if(front<.001f||front>.002f||side<.0045f||side>.0051f||lumbar<.002f||lumbar>.0031f)
-            throw new InvalidOperationException("Final waist support loses the balanced depth/breadth transition");
-        float minimum=1;
-        for(int row=0;row<=26;row++)for(int col=-12;col<=12;col++)for(int depth=-8;depth<=8;depth++)
+        if(front<.001f||front>.002f||side<.0045f||side>.0052f||lumbar<.010f||lumbar>.0121f)
+            throw new InvalidOperationException($"Final waist support loses the balanced depth/breadth transition: front={front:F5}, side={side:F5}, lumbar={lumbar:F5}");
+        float minimum=1,maximum=1;
+        for(int row=0;row<=28;row++)for(int col=-12;col<=12;col++)for(int depth=-8;depth<=8;depth++)
         {
             var p=new Vector3(col*.01f,.86f+row*.01f,depth*.02f);const float h=.0001f;
             var q=BalancedTorsoPoint(p);
             var mirror=BalancedTorsoPoint(new(-p.X,p.Y,p.Z));
-            if(p.DistanceTo(q)>.007f||q.Y!=p.Y||(p.Y<=.875f||p.Y>=1.115f)&&q!=p
+            if(p.DistanceTo(q)>.013f||q.Y!=p.Y||(p.Y<=.875f||p.Y>=1.133f)&&q!=p
                 ||!mirror.IsEqualApprox(new Vector3(-q.X,q.Y,q.Z)))
-                throw new InvalidOperationException("Balanced torso loses symmetry, a fixed support or its 7 mm bound");
+                throw new InvalidOperationException("Balanced torso loses symmetry, a fixed support or its 13 mm bound");
             var dx=(BalancedTorsoPoint(p+Vector3.Right*h)-BalancedTorsoPoint(p-Vector3.Right*h))/(2*h);
             var dy=(BalancedTorsoPoint(p+Vector3.Up*h)-BalancedTorsoPoint(p-Vector3.Up*h))/(2*h);
             var dz=(BalancedTorsoPoint(p+Vector3.Back*h)-BalancedTorsoPoint(p-Vector3.Back*h))/(2*h);
-            float determinant=new Basis(dx,dy,dz).Determinant();minimum=MathF.Min(minimum,determinant);
-            if(!float.IsFinite(determinant)||determinant<.85f||determinant>1.15f)
-                throw new InvalidOperationException("Balanced torso folds its abdominal/side-waist surface");
+            float determinant=new Basis(dx,dy,dz).Determinant();minimum=MathF.Min(minimum,determinant);maximum=MathF.Max(maximum,determinant);
+            if(!float.IsFinite(determinant)||determinant<.85f||determinant>1.50f)
+                throw new InvalidOperationException($"Balanced torso has an out-of-range local volume ratio: {determinant:F3} at {p}");
         }
-        GD.Print($"BALANCED_TORSO_PASS: final source waist front retreat={front*1000:F2} mm, side ease={side*1000:F2} mm, lumbar fill={lumbar*1000:F2} mm; fixed pelvis/shoulders, symmetric continuous abdominal/lumbar field, minimum Jacobian={minimum:F3}");
+        GD.Print($"BALANCED_TORSO_PASS: final source waist front retreat={front*1000:F2} mm, side ease={side*1000:F2} mm, lumbar fill={lumbar*1000:F2} mm; fixed pelvis/shoulders, symmetric continuous abdominal/lumbar field, Jacobian={minimum:F3}..{maximum:F3}");
     }
 
     private float[] FemaleThoraxSupport()

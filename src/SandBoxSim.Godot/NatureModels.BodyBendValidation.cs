@@ -8,7 +8,7 @@ internal sealed partial class NatureModels
 {
     private void ValidateLumbarClothing()
     {
-        int probes=0;float excursion=0,backYoke=0;
+        int probes=0;float excursion=0,backYoke=0,lumbarSlope=0;
         foreach(int identity in new[]{17,55})
         foreach(var job in new[]{JobType.Farmer,JobType.Gatherer,JobType.Trader})
         {
@@ -23,21 +23,36 @@ internal sealed partial class NatureModels
                 if(FittedFigure)
                 {
                     backYoke=MathF.Max(backYoke,MeasureRearCollarProjection(p,ids));
+                    lumbarSlope=MathF.Max(lumbarSlope,MeasureLumbarSlope(p,ids));
                     ValidateFemaleHemCut(p);
                 }
                 var pants=rig.Trousers!.Mesh.SurfaceGetArrays(0);var pp=pants[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                 float hem=float.PositiveInfinity;foreach(var point in p)hem=MathF.Min(hem,point.Y);
                 var pb=pants[(int)Mesh.ArrayType.Bones].AsInt32Array();var pw=pants[(int)Mesh.ArrayType.Weights].AsFloat32Array();
+                float pickupPitch=0,priorPitch=0;
                 foreach(var action in new[]{ActionKind.Take,ActionKind.BuildHouse,ActionKind.None})
                 for(int f=0;f<120;f++)
                 {
                     rig.PoseAction(1f/60,action,action==ActionKind.None?ActionPhase.Moving:ActionPhase.Executing,false,0);
+                    if(action==ActionKind.Take)
+                    {
+                        float pitch=-rig.LowerGarmentFrame.Basis.GetEuler().X;
+                        if(pitch<-.001f||pitch>MathF.Max(0,-rig.Torso.Rotation.X)+.015f||MathF.Abs(pitch-priorPitch)>.020f)
+                            throw new InvalidOperationException("Pickup pelvis leads the chest, reverses or snaps between frames");
+                        pickupPitch=MathF.Max(pickupPitch,pitch);
+                        priorPitch=pitch;
+                    }
                     if(f%30!=29)continue;
                     if(!rig.ShoulderSkeleton.GetBonePose(3).IsEqualApprox(rig.PelvicClothPose)||
-                        !rig.LowerGarmentFrame.Basis.IsEqualApprox(action==ActionKind.None?rig.GaitPelvisBasis:Basis.Identity))
+                        (action!=ActionKind.Take&&!rig.LowerGarmentFrame.Basis.IsEqualApprox(action==ActionKind.None?rig.GaitPelvisBasis:Basis.Identity)))
                         throw new InvalidOperationException("Lower cloth inherits the rigid chest rotation");
+                    // Sample the overlapping layers in the pelvis frame. A
+                    // world-Z ray through a tilted open hem can leave through
+                    // the opening before reaching its opposite cloth panel.
+                    var toPelvis=rig.LowerGarmentFrame.AffineInverse();
+                    var chest=toPelvis*rig.Torso.Transform;
                     var transforms=new Transform3D[rig.ShoulderSkeleton.GetBoneCount()];
-                    for(int b=0;b<transforms.Length;b++)transforms[b]=rig.Torso.Transform*rig.ShoulderSkeleton.GetBonePose(b)*rig.DetailedBodySkin.GetBindPose(b);
+                    for(int b=0;b<transforms.Length;b++)transforms[b]=chest*rig.ShoulderSkeleton.GetBonePose(b)*rig.DetailedBodySkin.GetBindPose(b);
                     for(int i=0;i<p.Length;i++)
                     {
                         var v=Vector3.Zero;for(int j=0;j<4;j++)v+=transforms[bones[i*4+j]]*p[i]*w[i*4+j];posed[i]=v;
@@ -45,7 +60,7 @@ internal sealed partial class NatureModels
                         if(p[i].Y<.84f)
                         {
                             if(w[i*4+3]<.999f)throw new InvalidOperationException("The shirt hem is still bound to the rigid chest");
-                            excursion=MathF.Max(excursion,v.DistanceTo(rig.Torso.Transform*p[i]));
+                            excursion=MathF.Max(excursion,v.DistanceTo(chest*p[i]));
                         }
                     }
                     if(MathF.Abs(rig.Holster.Basis.Determinant()-1)>.0001f)throw new InvalidOperationException("Lumbar bending stretches the mounted tool");
@@ -69,6 +84,7 @@ internal sealed partial class NatureModels
                         float edgeMargin=FittedFigure?.013f:.020f;
                         if(pp[i].Y<localHem+edgeMargin||pp[i].Y>.91f)continue;
                         var point=Vector3.Zero;for(int j=0;j<4;j++)point+=trouserTransforms[pb[i*4+j]]*trouserPoints[i]*pw[i*4+j];
+                        point=toPelvis*point;
                         // Below the front hem, a rear-tail slice is an open
                         // flap. Its outer back face must cover the trousers,
                         // but a second, front-facing wall cannot be required.
@@ -101,6 +117,9 @@ internal sealed partial class NatureModels
                         probes++;
                     }
                 }
+                if(pickupPitch<(FittedFigure?.16f:.10f)||pickupPitch>.22f)
+                    throw new InvalidOperationException($"Pickup loses its supported hip flexion: {identity}/{job}, pitch={pickupPitch}");
+                GD.Print($"PICKUP_HIP_PASS: {identity}/{job}, peak {Mathf.RadToDeg(pickupPitch):F1} degrees, continuous 60 Hz samples");
                 var frozen=rig.PelvicClothPose;var mount=rig.Holster.Transform;
                 rig.PoseAction(1,ActionKind.Take,ActionPhase.Executing,true,0);
                 if(rig.PelvicClothPose!=frozen||rig.Holster.Transform!=mount)throw new InvalidOperationException("Paused lower cloth or equipment moves");
@@ -138,9 +157,32 @@ internal sealed partial class NatureModels
         if(sway<.005f||knee<.05f||knee>.12f)throw new InvalidOperationException("Relaxed stance locks the knees or crouches from the shoe-origin offset");
         if(backYoke<=0||backYoke>.012f)
             throw new InvalidOperationException($"Female rear yoke retains a protruding collar shelf: {backYoke*1000:F2} mm");
+        if(lumbarSlope<=0||lumbarSlope>.655f)
+            throw new InvalidOperationException($"Female rear waist returns too steeply from the upper seat: {lumbarSlope:F3} m/m");
         GD.Print($"FEMALE_BACK_YOKE_PASS: actual exterior depth, 3 cuts and 3 rear meridians, maximum collar-relative projection={backYoke*1000:F2} mm");
+        GD.Print($"FEMALE_LUMBAR_PROFILE_PASS: 3 cuts and 3 rear meridians, steepest waist transition={lumbarSlope:F3} m/m");
         GD.Print($"LUMBAR_CLOTH_PASS: 2 frames/3 cuts, 3 actions, {probes} actual posed trouser-clearance rays; pelvic/chest excursion={excursion:F3} m, rigid mounts and pause");
         GD.Print($"RELAXED_STANCE_PASS: 2 frames/480 steps, planted level soles after 0.35s entry, entry drift={entryDrift:F4} m, fixed thigh lengths, sway={sway:F3} m, knee={knee:F3} rad and pause");
+    }
+
+    private static float MeasureLumbarSlope(Vector3[] points,int[] indices)
+    {
+        const float step=.010f;
+        float maximum=0;
+        foreach(float x in new[]{-.035f,0,.035f})
+        {
+            float previous=GarmentDepth(points,indices,x,.92f,true);
+            for(int row=1;row<=10;row++)
+            {
+                float current=GarmentDepth(points,indices,x,.92f+step*row,true);
+                float slope=(previous-current)/step;
+                if(!float.IsFinite(slope))
+                    throw new InvalidOperationException("Female lumbar meridian loses its continuous surface");
+                maximum=MathF.Max(maximum,slope);
+                previous=current;
+            }
+        }
+        return maximum;
     }
 
     private void ValidateFemaleHemCut(Vector3[] points)
