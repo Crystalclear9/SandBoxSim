@@ -611,7 +611,7 @@ internal sealed partial class NatureModels
                 var dz=(RefineForearmProfile(point+Vector3.Back*h,normal,frame).Point-RefineForearmProfile(point-Vector3.Back*h,normal,frame).Point)/(2*h);
                 var reference=(new Basis(dx,dy,dz).Inverse().Transposed()*normal).Normalized();
                 if(reference.DistanceTo(fitted.Normal)>.001f)throw new InvalidOperationException("Forearm volume normals miss their composite deformation");
-                if(y<=.005f&&fitted.Point!=point)
+                if(y<=(frame==1?-.014f:.005f)&&fitted.Point!=point)
                     throw new InvalidOperationException("Muscle fit changes the grip or wrist attachment");
             }
             var rim=new System.Collections.Generic.List<Vector3>();

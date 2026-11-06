@@ -52,20 +52,30 @@ internal sealed partial class NatureModels
     }
     private static (Vector3 Point,Vector3 Normal) FitForearmSupport(Vector3 point,Vector3 normal,int frame)
     {
-        if(point.Y<=.005f||point.Y>=.290f)return(point,normal);
+        float wristStart=frame==1?-.014f:.005f;
+        if(point.Y<=wristStart||point.Y>=.290f)return(point,normal);
         var fit=ForearmSupport(frame);
         (float V,float D) Ramp(float low,float high)
         {
             float t=Math.Clamp((point.Y-low)/(high-low),0,1);
             return(t*t*t*(10+t*(-15+6*t)),30*t*t*(1-t)*(1-t)/(high-low));
         }
-        var rise=Ramp(.005f,.035f);var fall=Ramp(.275f,.290f);
-        float w=rise.V*(1-fall.V),dw=rise.D*(1-fall.V)-rise.V*fall.D;
+        var widthRise=Ramp(wristStart,.035f);
+        var depthRise=Ramp(.005f,.035f);
+        var fall=Ramp(.275f,.290f);
+        float widthWeight=widthRise.V*(1-fall.V);
+        float depthWeight=depthRise.V*(1-fall.V);
+        float dWidth=widthRise.D*(1-fall.V)-widthRise.V*fall.D;
+        float dDepth=depthRise.D*(1-fall.V)-depthRise.V*fall.D;
         var x=ForearmProfileSample(fit.X,point.Y);var z=ForearmProfileSample(fit.Z,point.Y);
         var ox=ForearmProfileSample(fit.OffsetX,point.Y);var oz=ForearmProfileSample(fit.OffsetZ,point.Y);
-        float sx=1+(x.Value-1)*w,sz=1+(z.Value-1)*w;
-        float dx=x.Derivative*w+(x.Value-1)*dw,dz=z.Derivative*w+(z.Value-1)*dw;
-        float tx=ox.Value*w,tz=oz.Value*w,dtx=ox.Derivative*w+ox.Value*dw,dtz=oz.Derivative*w+oz.Value*dw;
+        // Spread the female breadth transition through the proximal palm.
+        // Keep depth on the original forearm support and the grasping digits
+        // beyond the lower boundary of the fit.
+        float sx=1+(x.Value-1)*widthWeight,sz=1+(z.Value-1)*depthWeight;
+        float dx=x.Derivative*widthWeight+(x.Value-1)*dWidth,dz=z.Derivative*depthWeight+(z.Value-1)*dDepth;
+        float tx=ox.Value*widthWeight,tz=oz.Value*depthWeight;
+        float dtx=ox.Derivative*widthWeight+ox.Value*dWidth,dtz=oz.Derivative*depthWeight+oz.Value*dDepth;
         return(new(point.X*sx+tx,point.Y,point.Z*sz+tz),
             new Vector3(normal.X/sx,normal.Y-normal.X*(point.X*dx+dtx)/sx-normal.Z*(point.Z*dz+dtz)/sz,normal.Z/sz).Normalized());
     }
@@ -102,11 +112,12 @@ internal sealed partial class NatureModels
     private static void ValidateForearmSupport(ResidentRig rig,int frame)
     {
         var fit=ForearmSupport(frame);int samples=0;
+        float wristMin=float.PositiveInfinity,wristMax=0,largestChange=0;
         for(int side=0;side<2;side++)
         {
             var arrays=rig.HandSkins[side].Mesh.SurfaceGetArrays(0);
             var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();var ids=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
-            foreach(float y in new[]{.045f,.060f,.090f,.15f,.19f,.225f})
+            Vector2 Section(float y)
             {
                 float x0=float.PositiveInfinity,x1=float.NegativeInfinity,z0=x0,z1=x1;
                 for(int t=0;t<ids.Length;t+=3)for(int edge=0;edge<3;edge++)
@@ -115,12 +126,36 @@ internal sealed partial class NatureModels
                     if((a.Y-y)*(b.Y-y)>0||MathF.Abs(b.Y-a.Y)<1e-9f)continue;
                     var q=a.Lerp(b,(y-a.Y)/(b.Y-a.Y));x0=MathF.Min(x0,q.X);x1=MathF.Max(x1,q.X);z0=MathF.Min(z0,q.Z);z1=MathF.Max(z1,q.Z);
                 }
+                return new(x1-x0,z1-z0);
+            }
+            foreach(float y in new[]{.045f,.060f,.090f,.15f,.19f,.225f})
+            {
+                var section=Section(y);
                 float width=ForearmProfileSample(fit.Width,y).Value,depth=ForearmProfileSample(fit.Depth,y).Value;
-                if(!float.IsFinite(x0)||MathF.Abs(x1-x0-width)>.002f||MathF.Abs(z1-z0-depth)>.002f)
-                    throw new InvalidOperationException($"Rendered forearm misses its body support: frame={frame}, side={side}, y={y}, actual={x1-x0}/{z1-z0}, expected={width}/{depth}");
+                if(!section.IsFinite()||MathF.Abs(section.X-width)>.002f||MathF.Abs(section.Y-depth)>.002f)
+                    throw new InvalidOperationException($"Rendered forearm misses its body support: frame={frame}, side={side}, y={y}, actual={section}, expected={width}/{depth}");
                 samples++;
+            }
+            if(frame==1)
+            {
+                float wrist=Section(.010f).X;
+                wristMin=MathF.Min(wristMin,wrist);
+                wristMax=MathF.Max(wristMax,wrist);
+                float previous=Section(-.014f).X;
+                for(int i=1;i<=14;i++)
+                {
+                    float width=Section(-.014f+i*.004f).X;
+                    largestChange=MathF.Max(largestChange,MathF.Abs(width-previous));
+                    previous=width;
+                }
             }
         }
         GD.Print($"FOREARM_BODY_SUPPORT_PASS: frame={frame}, {samples} actual wrist/forearm sections, source-bound widths/depths within 2 mm, exact fingers/grip");
+        if(frame==1)
+        {
+            if(wristMin<.043f||wristMax>.048f||wristMax-wristMin>.0001f||largestChange>.0049f)
+                throw new InvalidOperationException($"Female palm-to-wrist taper is stepped or asymmetric: width={wristMin}/{wristMax}, step={largestChange}");
+            GD.Print($"FEMALE_WRIST_TAPER_PASS: bilateral palm/wrist slices, width at +10 mm={wristMin*1000:F2} mm, maximum change per 4 mm={largestChange*1000:F2} mm");
+        }
     }
 }

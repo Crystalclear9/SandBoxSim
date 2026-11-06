@@ -248,6 +248,7 @@ internal sealed partial class NatureModels
     private readonly Dictionary<string,(Vector3[] Points,Vector3[] Normals)> _forearmFairings=new();
     private void FairForearmRest(Vector3[] points,Vector3[] normals,int[] indices,int frame,string source)
     {
+        bool wristJoin=frame==1&&source!="hand-lod";
         source=frame+":"+source;
         if(_forearmFairings.TryGetValue(source,out var cached))
         {
@@ -257,7 +258,74 @@ internal sealed partial class NatureModels
         for(int i=0;i<points.Length;i++)freedom[i]=Mathf.SmoothStep(.055f,.095f,points[i].Y)*(1-Mathf.SmoothStep(.225f,.250f,points[i].Y));
         FairRestSurface(points,indices,freedom,frame==1?.0008f:.00065f);
         TransportFairingNormals(rest,points,normals,indices,freedom);
+        if(wristJoin)BlendFemaleForearmJoin(points,normals,indices);
         _forearmFairings[source]=((Vector3[])points.Clone(),(Vector3[])normals.Clone());
+    }
+
+    private static void BlendFemaleForearmJoin(Vector3[] points,Vector3[] normals,int[] indices)
+    {
+        const float low=.053f,high=.099f,step=.006f,centreZ=.004f;
+        const int columns=64;
+        float[] Section(float y)
+        {
+            var profile=new float[columns];
+            Array.Fill(profile,float.PositiveInfinity);
+            for(int t=0;t<indices.Length;t+=3)
+            {
+                var start=Vector2.Zero;
+                var end=Vector2.Zero;
+                int count=0;
+                for(int edge=0;edge<3;edge++)
+                {
+                    var a=points[indices[t+edge]];
+                    var b=points[indices[t+(edge+1)%3]];
+                    if((a.Y-y)*(b.Y-y)>0||a.Y==b.Y)continue;
+                    var cut=a.Lerp(b,(y-a.Y)/(b.Y-a.Y));
+                    if(count++==0)start=new(cut.X,cut.Z-centreZ);
+                    else end=new(cut.X,cut.Z-centreZ);
+                }
+                if(count!=2||start==end)continue;
+                var span=end-start;
+                for(int col=0;col<columns;col++)
+                {
+                    float angle=col*Mathf.Tau/columns;
+                    var ray=new Vector2(MathF.Cos(angle),MathF.Sin(angle));
+                    float cross=ray.Cross(span);
+                    if(MathF.Abs(cross)<1e-10f)continue;
+                    float distance=start.Cross(span)/cross,along=start.Cross(ray)/cross;
+                    if(distance>0&&along>=0&&along<=1)profile[col]=MathF.Min(profile[col],distance);
+                }
+            }
+            foreach(float r in profile)if(!float.IsFinite(r))throw new InvalidOperationException("Open forearm support section near the wrist join");
+            return profile;
+        }
+        var before=Section(low-step);var lower=Section(low);
+        var upper=Section(high);var after=Section(high+step);
+        var original=(Vector3[])points.Clone();
+        var freedom=new float[points.Length];
+        for(int i=0;i<points.Length;i++)
+        {
+            var p=points[i];
+            if(p.Y<=low||p.Y>=high)continue;
+            var radial=new Vector2(p.X,p.Z-centreZ);
+            float column=Mathf.PosMod(radial.Angle(),Mathf.Tau)*columns/Mathf.Tau;
+            int col=(int)column%columns;
+            float fraction=column-MathF.Floor(column);
+            float Sample(float[] ring)=>Mathf.Lerp(ring[col],ring[(col+1)%columns],fraction);
+            float a=Sample(lower),b=Sample(upper);
+            float d=(high-low)/step;
+            float t=(p.Y-low)/(high-low),t2=t*t,t3=t2*t;
+            float target=(2*t3-3*t2+1)*a+(t3-2*t2+t)*(a-Sample(before))*d
+                +(-2*t3+3*t2)*b+(t3-t2)*(Sample(after)-b)*d;
+            // Match actual cross-sections on both sides of the original
+            // seam instead of smoothing one tessellation ring in isolation.
+            float mask=Mathf.SmoothStep(low,.067f,p.Y)*(1-Mathf.SmoothStep(.083f,high,p.Y));
+            float edit=Math.Clamp(target-radial.Length(),-.0014f,.0014f)*mask;
+            var offset=radial.Normalized()*edit;
+            points[i]+=new Vector3(offset.X,0,offset.Y);
+            freedom[i]=edit==0?0:1;
+        }
+        TransportFairingNormals(original,points,normals,indices,freedom);
     }
     private static void TransportFairingNormals(Vector3[] rest,Vector3[] points,Vector3[] normals,int[] indices,float[] freedom)
     {

@@ -42,10 +42,17 @@ internal sealed partial class NatureModels
         {Triangle(row,col,row+1,col,row,col+1);Triangle(row,col+1,row+1,col,row+1,col+1);}
         surface.GenerateNormals();surface.Index();var mesh=surface.Commit();_meshes[key]=mesh;return mesh;
     }
-    private Mesh RolledCuff()=>FabricFacing("rolled-cuff",new[]{
-        new Vector3(.045f,-.270f,.043f),new(.048f,-.266f,.046f),new(.049f,-.260f,.047f),
-        new(.047f,-.254f,.045f),new(.048f,-.248f,.046f),new(.047f,-.241f,.045f),
-        new(.0435f,-.242f,.0415f),new(.0435f,-.266f,.0415f)});
+    private Mesh RolledCuff()=>FittedFigure
+        // One compact turn over the sewn sleeve edge, without the second
+        // outer ridge that made the narrow adult sleeve look like two cuffs.
+        ?FabricFacing("female-turned-cuff",new[]{
+            new Vector3(.045f,-.270f,.043f),new(.0475f,-.267f,.0458f),new(.0488f,-.262f,.0468f),
+            new(.0476f,-.254f,.0455f),new(.0455f,-.246f,.0438f),new(.0440f,-.2405f,.0424f),
+            new(.0435f,-.244f,.0415f),new(.0435f,-.266f,.0415f)})
+        :FabricFacing("rolled-cuff",new[]{
+            new Vector3(.045f,-.270f,.043f),new(.048f,-.266f,.046f),new(.049f,-.260f,.047f),
+            new(.047f,-.254f,.045f),new(.048f,-.248f,.046f),new(.047f,-.241f,.045f),
+            new(.0435f,-.242f,.0415f),new(.0435f,-.266f,.0415f)});
     private Mesh TurnedBootRim()
     {
         float drop=FittedFigure?.016f:0;
