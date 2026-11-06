@@ -15,7 +15,7 @@ internal partial class ModelGallery
         for(int frame=0;frame<2;frame++)for(int view=0;view<3;view++)
         {
             var rig=models.Resident(frame==0?17:55,false,JobType.None);
-            Closeup(grid,(frame==0?"男性外观":"女性外观")+(view==0?" · 正面":view==1?" · 侧面":" · 背面"),rig,1.38f,new(0,1.24f,0),view==0?new(.03f,.03f,4):view==1?new(-4,.03f,.10f):new(.03f,.03f,-4),true);
+            Closeup(grid,(frame==0?"男性外观":"女性外观")+(view==0?" · 正面":view==1?" · 侧面":" · 背面"),rig,.89f,new(0,1.34f,0),view==0?new(.03f,.03f,4):view==1?new(-4,.03f,.10f):new(.03f,.03f,-4),true);
             _elevationStudies.Add(rig);
         }
     }
@@ -26,6 +26,6 @@ internal partial class ModelGallery
         float weight=cycle<1.5f?ResidentRig.ReachEase(cycle/1.5f):cycle<2.5f?1:cycle<4?1-ResidentRig.ReachEase((cycle-2.5f)/1.5f):0;
         float angle=Mathf.DegToRad(135)*weight;
         foreach(var rig in _elevationStudies)rig.StudyArmElevation(delta,angle,Mathf.DegToRad(30),side);
-        if(_elevationReadout!=null)_elevationReadout.Text=$"肩袖变形观察 · {(side==1?"右臂":"左臂")} {Mathf.RadToDeg(angle):0}° · 抬起、保持与放下";
+        if(_elevationReadout!=null)_elevationReadout.Text=$"领口与肩袖近景 · {(side==1?"右臂":"左臂")} {Mathf.RadToDeg(angle):0}°";
     }
 }

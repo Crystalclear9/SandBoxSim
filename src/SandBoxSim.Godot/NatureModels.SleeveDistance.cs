@@ -37,7 +37,7 @@ internal sealed partial class NatureModels
             if(!float.IsFinite(distance[i]))throw new InvalidOperationException("Sleeve has no path to its sewn armhole");
         return distance;
     }
-    private static float[] GirdleWeights(Vector3[] points,int[] indices,Vector2[] pattern)
+    private float[] GirdleWeights(Vector3[] points,int[] indices,Vector2[] pattern)
     {
         var neighbours=new HashSet<int>[points.Length];for(int i=0;i<points.Length;i++)neighbours[i]=new();
         for(int i=0;i<indices.Length;i+=3)for(int j=0;j<3;j++)
@@ -46,15 +46,33 @@ internal sealed partial class NatureModels
         var queue=new PriorityQueue<int,float>();
         for(int a=0;a<points.Length;a++)if(pattern[a].X<=0)
             foreach(int b in neighbours[a])if(pattern[b].X>0){distance[a]=0;queue.Enqueue(a,0);break;}
-        while(queue.TryDequeue(out int a,out float travelled))
+        void WalkSurface(float[] distances,bool crossSleeve)
         {
-            if(travelled>distance[a])continue;
-            foreach(int b in neighbours[a])
+            while(queue.TryDequeue(out int a,out float travelled))
             {
-                if(pattern[b].X>0)continue;
-                float next=travelled+points[a].DistanceTo(points[b]);
-                if(next>=distance[b])continue;distance[b]=next;queue.Enqueue(b,next);
+                if(travelled>distances[a])continue;
+                foreach(int b in neighbours[a])
+                {
+                    if(!crossSleeve&&pattern[b].X>0)continue;
+                    float next=travelled+points[a].DistanceTo(points[b]);
+                    if(next>=distances[b])continue;distances[b]=next;queue.Enqueue(b,next);
+                }
             }
+        }
+        WalkSurface(distance,false);
+        float[]? collarDistance=null;
+        if(FittedFigure)
+        {
+            // Carry the sewn rim's fixed boundary into the surrounding yoke.
+            // A binary pin at the turn of cloth otherwise pulls the next row
+            // away from the opening as the shoulder blade rotates overhead.
+            collarDistance=new float[points.Length];Array.Fill(collarDistance,float.PositiveInfinity);
+            foreach(var edge in NeckOpeningEdges(points,indices))
+            {
+                collarDistance[edge.From]=0;
+                queue.Enqueue(edge.From,0);
+            }
+            WalkSurface(collarDistance,true);
         }
         var result=new float[points.Length];
         for(int i=0;i<points.Length;i++)
@@ -67,6 +85,8 @@ internal sealed partial class NatureModels
             float reach=Mathf.Lerp(.06f,.16f,Mathf.SmoothStep(1.08f,1.19f,points[i].Y));
             result[i]=pattern[i].X>0?1:(1-Mathf.SmoothStep(0,reach,distance[i]))
                 *Mathf.SmoothStep(.04f,.105f,MathF.Abs(points[i].X))*Mathf.SmoothStep(.96f,1.075f,points[i].Y);
+            if(collarDistance!=null)
+                result[i]*=TorsoRamp(.010f,.072f,collarDistance[i]);
         }
         return result;
     }

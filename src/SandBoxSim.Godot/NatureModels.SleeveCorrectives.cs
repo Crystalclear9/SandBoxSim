@@ -52,16 +52,18 @@ internal sealed partial class NatureModels
         var bones=arrays[(int)Mesh.ArrayType.Bones].AsInt32Array();
         var weights=arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();
         var uv=arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
-        var girdleWeights=GirdleWeights(source,ids,uv);
-        if(FittedFigure)
+        var girdleWeights=new float[source.Length];
+        for(int i=0;i<source.Length;i++)
         {
-            // Every added fold triangle has a new collar vertex. Exclude
-            // the whole stitched rim, including its original outer edge,
-            // from the raised-arm corrective as well as shoulder skinning.
-            int firstFold=source.Length-2*NeckOpeningSegments;
-            for(int i=0;i<ids.Length;i+=3)
-                if(ids[i]>=firstFold||ids[i+1]>=firstFold||ids[i+2]>=firstFold)
-                    girdleWeights[ids[i]]=girdleWeights[ids[i+1]]=girdleWeights[ids[i+2]]=0;
+            // Use the actual sewn mesh's torso weights. Rebuilding from
+            // distances after adding the facing gives a different neck rim.
+            if(!FittedFigure&&uv[i].X==0){girdleWeights[i]=1;continue;}
+            bool sleeve=uv[i].X>0;
+            int bone=sleeve?0:ResidentRig.GirdleBone(source[i].X<0?0:1);
+            float weight=0;
+            for(int slot=0;slot<4;slot++)
+                if(bones[i*4+slot]==bone)weight+=weights[i*4+slot];
+            girdleWeights[i]=sleeve?1-weight:weight;
         }
         var adjacent=new HashSet<int>[source.Length];for(int i=0;i<source.Length;i++)adjacent[i]=new();
         for(int i=0;i<ids.Length;i+=3)for(int j=0;j<3;j++)
@@ -74,7 +76,7 @@ internal sealed partial class NatureModels
         {
             activation[side]=new float[source.Length];constraintEdges[side]=new();
             for(int i=0;i<source.Length;i++)if((source[i].X<0)==(side==0))
-                activation[side][i]=uv[i].X>=0?1-Mathf.SmoothStep(.17f,.23f,uv[i].X):girdleWeights[i];
+                activation[side][i]=girdleWeights[i]*(uv[i].X>0?1-Mathf.SmoothStep(.17f,.23f,uv[i].X):1);
             for(int a=0;a<source.Length;a++)foreach(int b in adjacent[a])if(b>a)
             {
                 float freeA=activation[side][a]>0?1:0,freeB=activation[side][b]>0?1:0;
@@ -174,7 +176,7 @@ internal sealed partial class NatureModels
             for(int i=0;i<source.Length;i++)
             {
                 bool own=(source[i].X<0)==(side==0);
-                float normalWeight=!own?0:uv[i].X>=0?1-Mathf.SmoothStep(.22f,.263f,uv[i].X):girdleWeights[i];
+                float normalWeight=!own?0:girdleWeights[i]*(uv[i].X>0?1-Mathf.SmoothStep(.22f,.263f,uv[i].X):1);
                 if(normalWeight<=0)continue;
                 var inverse=inverseBlends[i];
                 var corrected=(inverse.Basis*targetNormals[i]).Normalized();

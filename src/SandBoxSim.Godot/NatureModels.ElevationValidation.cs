@@ -10,7 +10,9 @@ internal sealed partial class NatureModels
     private void ValidateElevationSurface()
     {
         int poses=0,hingeSamples=0;float minimumRadius=1,maximumSleeveRadius=0,maximumGirdleError=0,minimumHingeAlignment=1,maximumEdgeStretch=0;
-        string worstStretch="";
+        string worstStretch="",worstNeckStretch="";
+        float maximumNeckStretch=0;
+        int neckSamples=0;
         foreach(int identity in new[]{17,55})
         foreach(float plane in new[]{0f,30f,75f})
         foreach(int side in new[]{0,1})
@@ -29,6 +31,14 @@ internal sealed partial class NatureModels
                     int a=indices[i+j],b=indices[i+(j+1)%3];
                     if(points[a].Y>1&&points[b].Y>1&&points[a].DistanceSquaredTo(points[b])>1e-10f)edges.Add(a<b?(a,b):(b,a));
                 }
+                var neckEdges=new HashSet<(int A,int B)>();
+                if(FittedFigure)
+                    foreach(var edge in edges)
+                    {
+                        var centre=(points[edge.A]+points[edge.B])*.5f;
+                        if(MathF.Abs(centre.X)<.10f&&centre.Y>1.26f&&seams[edge.A].X<0&&seams[edge.B].X<0)
+                            neckEdges.Add(edge);
+                    }
                 var posed=new Vector3[points.Length];
                 // Both directions, three planes; feed the displayed solver,
                 // then inspect the actual GPU palette and fitted mesh data.
@@ -74,6 +84,15 @@ internal sealed partial class NatureModels
                             maximumEdgeStretch=stretch;
                             worstStretch=$"identity={identity}, side={side}, plane={plane}, frame={frame}, stretch={stretch}, restLength={points[edge.A].DistanceTo(points[edge.B])}, seam={seams[edge.A]}/{seams[edge.B]}";
                         }
+                        if(neckEdges.Contains(edge))
+                        {
+                            neckSamples++;
+                            if(stretch>maximumNeckStretch)
+                            {
+                                maximumNeckStretch=stretch;
+                                worstNeckStretch=$"side={side}, plane={plane}, frame={frame}";
+                            }
+                        }
                     }
                     float actualElevation=MathF.Acos(Math.Clamp((-rig.Arms[side].Basis.Y).Dot(Vector3.Down),-1,1));
                     var expectedGirdle=rig.ShoulderGirdle(side,-rig.Arms[side].Basis.Y);
@@ -100,6 +119,9 @@ internal sealed partial class NatureModels
             finally{rig.Free();}
         }
         if(maximumEdgeStretch>4.5f)throw new InvalidOperationException("Raised shoulder tears an actual garment edge: "+worstStretch);
+        if(neckSamples==0||maximumNeckStretch>1.85f)
+            throw new InvalidOperationException($"Raised shoulder pinches the female collar transition: stretch={maximumNeckStretch:F3}, {worstNeckStretch}");
+        GD.Print($"FEMALE_COLLAR_MOTION_PASS: {neckSamples} morphed/skinned edges around the turned opening, maximum stretch={maximumNeckStretch:F3}, {worstNeckStretch}");
         GD.Print($"ELEVATION_SURFACE_PASS: poses={poses}, two adult frames, both arms, 0–135 degrees, three planes, raise/lower, minimum interval radius={minimumRadius:F4}, mid-sleeve radial extent={maximumSleeveRadius:F4} m, girdle error={maximumGirdleError:F5} m, finite skin and attached cuffs");
         GD.Print($"SIGNED_ELBOW_FRAME_PASS: settled raised samples={hingeSamples}, minimum flexion-axis alignment={minimumHingeAlignment:F4}; no unsigned hinge flip");
         GD.Print($"ELEVATION_EDGE_PASS: actual morphed/skinned shoulder edges, maximum stretch={maximumEdgeStretch:F3}, both arms and three elevation planes");

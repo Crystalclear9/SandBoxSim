@@ -340,6 +340,15 @@ internal sealed partial class NatureModels
                         bones[i*4]=lower;bones[i*4+1]=upper;bones[i*4+2]=lowerCap;bones[i*4+3]=upperCap;
                         weights[i*4]=(1-t)*(1-gather);weights[i*4+1]=t*(1-gather);
                         weights[i*4+2]=(1-t)*gather;weights[i*4+3]=t*gather;
+                        if(segment==0&&girdle.Length==points.Length&&girdle[i]<1)
+                        {
+                            // The two lower slots both use the girdle at this
+                            // span. Give its unengaged fraction to the bodice
+                            // across the shared seam beside the neck opening.
+                            weights[i*4]=(1-t)*girdle[i];
+                            bones[i*4+2]=0;
+                            weights[i*4+2]=(1-t)*(1-girdle[i]);
+                        }
                     }
                     else if(segment==0)
                     {
