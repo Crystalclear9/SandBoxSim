@@ -73,9 +73,9 @@ internal partial class ModelGallery : PanelContainer
         }
         else if(Collection=="thorax-frames")
         {
-            grid.Columns=3;body.GetChild<Label>(0).Text="成人衣装 · 前胸、胸下与腋下的连续曲面";
+            grid.Columns=3;body.GetChild<Label>(0).Text="女性衣身 · 胸廓、侧腰与腹部";
             for(int view=0;view<3;view++)
-                Closeup(grid,view==0?"正面 · 胸骨两侧过渡":view==1?"三刻面 · 衣料体积":"侧面 · 上胸与胸下弧线",
+                Closeup(grid,view==0?"正面 · 胸廓与腰线":view==1?"三刻面 · 侧腰与衣片":"侧面 · 胸腹轮廓",
                     models.Resident(55,false,JobType.None),.56f,new(0,1.13f,0),
                     view==0?new(.02f,.015f,4):view==1?new(2,.015f,3.4f):new(4,.015f,.05f),true);
         }

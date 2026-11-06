@@ -53,6 +53,7 @@ internal sealed partial class NatureModels
             TransportFairingNormals(rest,points,normals,ids,freedom);
             FitFemaleTrouserLegs(points,normals,ids);
             rest=(Vector3[])points.Clone();
+            var torsoSupport=FemaleThoraxSupport();
             for(int i=0;i<points.Length;i++)
             {
                 var point=rest[i];
@@ -60,7 +61,8 @@ internal sealed partial class NatureModels
                 // fabric bridge. The back and pelvic crest retain their fit.
                 float rise=TorsoRamp(.690f,.728f,point.Y)*(1-TorsoRamp(.754f,.805f,point.Y))
                     *(1-TorsoRamp(.017f,.062f,MathF.Abs(point.X)))*TorsoRamp(.004f,.065f,-point.Z);
-                points[i]=FemaleHipTransition(FemalePelvicPoint(point))-new Vector3(0,.008f,.004f)*rise;
+                points[i]=FitFemaleTrouserWaist(FemaleHipTransition(FemalePelvicPoint(point)),torsoSupport)
+                    -new Vector3(0,.008f,.004f)*rise;
                 freedom[i]=points[i]==rest[i]?0:1;
             }
             TransportFairingNormals(rest,points,normals,ids,freedom);
@@ -183,6 +185,21 @@ internal sealed partial class NatureModels
         float frontHeight=TorsoRamp(.663f,.704f,p.Y)*(1-TorsoRamp(.728f,.776f,p.Y));
         float front=TorsoRamp(.050f,.079f,x)*(1-TorsoRamp(.102f,.142f,x))*TorsoRamp(.049f,.082f,-p.Z);
         return p+new Vector3(-MathF.Sign(p.X)*.004f*outer*outerHeight,0,.0042f*front*frontHeight);
+    }
+
+    private static Vector3 FitFemaleTrouserWaist(Vector3 p,float[] support)
+    {
+        if(p.Y<=.884f||p.Z>=0)return p;
+        var section=new Vector2(p.X,p.Z);
+        float radius=section.Length(),angle=MathF.Atan2(p.Z,p.X);
+        // Fit the hidden front waistband to the same abdomen that supports
+        // the shirt. Retain the inner layer's ease and leave the side and
+        // rear waist free for the pelvis; the upper shirt can bridge it.
+        float front=TorsoRamp(.45f,.94f,-p.Z/radius);
+        float rise=TorsoRamp(.884f,.936f,p.Y);
+        float excess=radius-TrunkSample(support,p.Y,angle)-.0028f;
+        var fitted=section*(1-Math.Clamp(excess,0,.006f)*front*rise/radius);
+        return new(fitted.X,p.Y,fitted.Y);
     }
 
     private static Godot.Collections.Array BakeTrouserKneeFlex(Vector3[] rest,Vector3[] restNormals,int[] ids,int[] bones,float[] weights,int side)

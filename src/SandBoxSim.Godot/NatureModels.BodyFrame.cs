@@ -124,7 +124,12 @@ internal sealed partial class NatureModels
                 // Continue the last fitted contour under the shirt across
                 // the lumbar and upper-hip transition. A narrow falloff at
                 // the waistband made the rear panel hinge at one height.
-                float trousers=TrouserLayerRadius(MathF.Min(panelHeight,.935f),angle);
+                // At the front, taper the sampling rate to zero before
+                // holding the last supported ring so its tangent stays soft.
+                float band=Math.Clamp((panelHeight-.924f)/.022f,0,1);
+                float taperedHeight=MathF.Min(panelHeight,.924f)+.022f*band*(1-.5f*band);
+                float layerHeight=Mathf.Lerp(MathF.Min(panelHeight,.935f),taperedHeight,TorsoRamp(.50f,.93f,front));
+                float trousers=TrouserLayerRadius(layerHeight,angle);
                 target=Mathf.Lerp(BlendOuterLayer(target,trousers),target,TorsoRamp(.928f,.990f,panelHeight));
                 // Release the lower coat panels from the belt toward the
                 // hip instead of following the trousers into their folds.

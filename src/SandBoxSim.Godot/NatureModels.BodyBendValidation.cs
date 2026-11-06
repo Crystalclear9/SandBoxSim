@@ -8,7 +8,7 @@ internal sealed partial class NatureModels
 {
     private void ValidateLumbarClothing()
     {
-        int probes=0;float excursion=0,backYoke=0,lumbarSlope=0;
+        int probes=0,frontWaistProbes=0;float excursion=0,backYoke=0,lumbarSlope=0,frontWaistReversal=0;
         foreach(int identity in new[]{17,55})
         foreach(var job in new[]{JobType.Farmer,JobType.Gatherer,JobType.Trader})
         {
@@ -24,6 +24,7 @@ internal sealed partial class NatureModels
                 {
                     backYoke=MathF.Max(backYoke,MeasureRearCollarProjection(p,ids));
                     lumbarSlope=MathF.Max(lumbarSlope,MeasureLumbarSlope(p,ids));
+                    frontWaistReversal=MathF.Max(frontWaistReversal,MeasureFrontWaistReversal(p,ids));
                     ValidateFemaleHemCut(p);
                 }
                 var pants=rig.Trousers!.Mesh.SurfaceGetArrays(0);var pp=pants[(int)Mesh.ArrayType.Vertex].AsVector3Array();
@@ -82,7 +83,10 @@ internal sealed partial class NatureModels
                         // Probe closer to the revised female hem so the
                         // exterior/facing fit is exercised during motion too.
                         float edgeMargin=FittedFigure?.013f:.020f;
-                        if(pp[i].Y<localHem+edgeMargin||pp[i].Y>.91f)continue;
+                        // Probe the front waistband all the way to its top
+                        // as well as the broader lower overlap panel.
+                        bool frontWaist=FittedFigure&&pp[i].Y>.91f&&pp[i].Z<-.055f&&MathF.Abs(pp[i].X)<.075f;
+                        if(pp[i].Y<localHem+edgeMargin||pp[i].Y>.91f&&!frontWaist)continue;
                         var point=Vector3.Zero;for(int j=0;j<4;j++)point+=trouserTransforms[pb[i*4+j]]*trouserPoints[i]*pw[i*4+j];
                         point=toPelvis*point;
                         // Below the front hem, a rear-tail slice is an open
@@ -115,6 +119,7 @@ internal sealed partial class NatureModels
                         if(!float.IsFinite(back)||(!rearTail&&point.Z<front-.001f)||point.Z>back+.001f)
                             throw new InvalidOperationException($"Trousers pierce the lower shirt: {identity}/{job}/{action}/{f}, source={pp[i]}, point={point}, cloth={front}/{back}, hem={hem}, torso={rig.Torso.Rotation}, pelvis={rig.LowerGarmentFrame}");
                         probes++;
+                        if(frontWaist)frontWaistProbes++;
                     }
                 }
                 if(pickupPitch<(FittedFigure?.16f:.10f)||pickupPitch>.22f)
@@ -159,10 +164,31 @@ internal sealed partial class NatureModels
             throw new InvalidOperationException($"Female rear yoke retains a protruding collar shelf: {backYoke*1000:F2} mm");
         if(lumbarSlope<=0||lumbarSlope>.655f)
             throw new InvalidOperationException($"Female rear waist returns too steeply from the upper seat: {lumbarSlope:F3} m/m");
+        if(frontWaistReversal>.003f||frontWaistProbes==0)
+            throw new InvalidOperationException($"Female lower front panel retains a waistband ridge or lacks coverage samples: {frontWaistReversal*1000:F2} mm, {frontWaistProbes} probes");
         GD.Print($"FEMALE_BACK_YOKE_PASS: actual exterior depth, 3 cuts and 3 rear meridians, maximum collar-relative projection={backYoke*1000:F2} mm");
         GD.Print($"FEMALE_LUMBAR_PROFILE_PASS: 3 cuts and 3 rear meridians, steepest waist transition={lumbarSlope:F3} m/m");
+        GD.Print($"FEMALE_FRONT_WAIST_PASS: 3 cuts, 5 anterior meridians, maximum contour reversal={frontWaistReversal*1000:F2} mm; {frontWaistProbes} posed waistband rays");
         GD.Print($"LUMBAR_CLOTH_PASS: 2 frames/3 cuts, 3 actions, {probes} actual posed trouser-clearance rays; pelvic/chest excursion={excursion:F3} m, rigid mounts and pause");
         GD.Print($"RELAXED_STANCE_PASS: 2 frames/480 steps, planted level soles after 0.35s entry, entry drift={entryDrift:F4} m, fixed thigh lengths, sway={sway:F3} m, knee={knee:F3} rad and pause");
+    }
+
+    private static float MeasureFrontWaistReversal(Vector3[] points,int[] indices)
+    {
+        float maximum=0;
+        foreach(float x in new[]{-.060f,-.030f,0,.030f,.060f})
+        {
+            float previousPeak=float.NegativeInfinity;
+            for(int row=0;row<=13;row++)
+            {
+                float depth=-GarmentDepth(points,indices,x,.925f+.005f*row,false);
+                if(!float.IsFinite(depth))
+                    throw new InvalidOperationException("Female lower abdomen loses its continuous front panel");
+                previousPeak=MathF.Max(previousPeak,depth);
+                maximum=MathF.Max(maximum,previousPeak-depth);
+            }
+        }
+        return maximum;
     }
 
     private static float MeasureLumbarSlope(Vector3[] points,int[] indices)
