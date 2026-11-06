@@ -287,10 +287,14 @@ internal sealed partial class NatureModels
             *Bell(height-1.105f,.09f)*front;
         if(FittedFigure)
         {
-            // Short gathers belong near the waist/armhole. Repeating their
-            // two ridges across the breast apex cuts one panel into two lobes.
+            // Short, broad gathers belong where the belt supports the linen.
+            // Keep the front-side grain continuous through the lower ribs.
+            float waistLine=MathF.Abs(x)-(.51f+.42f*above);
+            float broadGather=(.0019f*Bell(waistLine,.19f)-.00065f*Bell(waistLine-.18f,.14f))
+                *Bell(above-.032f,.056f)*front*front;
             float span=Mathf.SmoothStep(1.04f,1.09f,height)*(1-Mathf.SmoothStep(1.17f,1.22f,height))*front*front;
-            gathering*=1-.8f*span;axilla*=1-.8f*span;
+            gathering=Mathf.Lerp(gathering*(1-.8f*span),broadGather,TorsoRamp(1.006f,1.052f,height));
+            axilla*=1-.8f*span;
         }
         float backPleat=.0028f*Bell(MathF.Abs(x)-.32f,.10f)*back*back
             *Bell(height-(belt+.12f),.17f);

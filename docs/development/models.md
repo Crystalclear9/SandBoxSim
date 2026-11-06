@@ -24,6 +24,8 @@
 
 `CHEST_CURVE_PASS` 检查成品网格四条前侧纵线，每隔 5 毫米取样，连续两个深度步长的差值上限为 2 毫米。`FRONT_PANEL_RETURN_PASS` 另测腰带上方五条纵线，限制连续深度变化并检测反向鼓起。抬臂时衣料余量与袖窿、侧缝长度相关，因此同时保留肩袖姿态检查。三视图和抬手预览见[实机图册](../images/README.md)。[抬臂衣量与袖窿研究](https://www.jstage.jst.go.jp/article/fiber/64/9/64_9_236/_article/-char/en)
 
+三款女性上衣的成品前片在 5 毫米的横纵网格上重新取样。拟合同时减小两个方向的深度二阶差，位移受皮肤包络、领缘、袖窿和腰带限制。深度写回网格前检查三角面方向，整理后的前片与各款成衣一起缓存，并作为肩袖姿态修形的输入。腰带上方的窄褶逐渐过渡成较宽的垂坠。`FEMALE_CROSS_DRAPE_PASS` 检查成品前衣片的 891 处横向截线采样。[女性躯干三维形态研究](https://www.sciencedirect.com/science/article/pii/S0003687022002277) · [TailorNet 服装形变研究](https://openaccess.thecvf.com/content_CVPR_2020/html/Patel_TailorNet_Predicting_Clothing_in_3D_as_a_Function_of_Human_CVPR_2020_paper.html)
+
 女性三款上衣从实际缝合的领口沿衣面计算距离。肩带牵引在离缝线 10 至 72 毫米的范围内逐渐接入，过渡跨过肩袖接缝。领口折边、衣身与袖根的姿态修正直接读取成衣的蒙皮权重。`FEMALE_COLLAR_MOTION_PASS` 检查左右臂在三个方向抬起和放下时的成品网格，领口外圈的边长变化受约束。[肩带三维运动研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC2657311/)
 
 女性三款上衣沿实际缝合开口按固定角距取样，圆顺前领斜侧的半径突变。后领沿弧线降低，侧领到肩部的布面沿较宽的范围逐渐落下。前领定型后，再用面积加权的局部二次曲面收顺锁骨下方的窄折，固定领缘和袖口。最终网格用于生成肩袖姿态修形与远景衣面。颈根皮肤增加少量侧面体积和斜向起伏，并沿用来源颈根的衣内覆盖。`COLLAR_CLEARANCE_PASS` 将成品内缘逐点与九种转头及俯仰姿态下的颈部截面比较。后领测量从实际领缘向下取样。[锁骨肌肉附着的三维研究](https://pubmed.ncbi.nlm.nih.gov/36864447/) · [Blender Studio 衣装形体](https://studio.blender.org/training/realistic-human-research/clothing-shapes/)

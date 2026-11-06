@@ -85,6 +85,92 @@ internal sealed partial class NatureModels
             before+=Math.Pow(depth-rest[i].Z,2)*active[i];count++;
         }
         if(canonical!=null&&count==0)return;
+        ApplyBodiceDepth(points,rest,indices,delta);
+        for(int i=0;i<points.Length;i++)
+        {
+            float edit=points[i].DistanceTo(rest[i]);maximum=MathF.Max(maximum,edit);
+            if(!points[i].IsFinite()||edit>.01001f*active[i]+.000001f||(active[i]==0&&points[i]!=rest[i]))
+                throw new InvalidOperationException("Bodice patch completion loses its fixed neckline, cuff or source bound");
+            if(fitted[i])after+=Math.Pow(depths[i]-points[i].Z,2)*active[i];
+        }
+        if(canonical==null&&count<20||after>before+.00000001)throw new InvalidOperationException("Bodice completion does not reduce its narrow surface residual");
+        if(canonical!=null)
+        {
+            if(verify)GD.Print($"BODICE_NEIGHBOR_PASS: cut={_garmentCut}, pose={call}, active={count}; reference scan and cached candidates yield bit-identical depths");
+            _posedBodiceSamples+=count;_posedBodiceMaximum=MathF.Max(_posedBodiceMaximum,maximum);return;
+        }
+        FitFemaleFrontDrape(points,indices,pattern);
+        _bodiceSurfaces[_garmentCut]=new(rest,(int[])indices.Clone(),(Vector2[])pattern.Clone(),(Vector3[])points.Clone());
+        GD.Print($"BODICE_SURFACE_FLOW: cut={_garmentCut}, vertices={count}, local quadratic residual={Math.Sqrt(before/count)*1000:F3}/{Math.Sqrt(after/count)*1000:F3} mm, maximum edit={maximum*1000:F3} mm; local backtracking, fixed neck/cuff/apex/waist; shared sleeve root");
+    }
+
+    private void FitFemaleFrontDrape(Vector3[] points,int[] indices,Vector2[] pattern)
+    {
+        // Solve on the sewn exterior in X/Y metres. Rays in the input
+        // envelope have unequal spacing across the chest and side wall.
+        const int firstRow=58,rows=37,columns=41; // 1.030–1.210 m above the sole
+        const float step=.005f,halfWidth=.100f;
+        float bottom=TrunkLow+firstRow*step;
+        var skin=FemaleThoraxSupport();
+        var section=new Vector2[TrunkColumns];
+        var before=new float[rows*columns];var lower=new float[before.Length];var upper=new float[before.Length];
+        for(int r=0;r<rows;r++)
+        {
+            float y=bottom+r*step;
+            for(int a=0;a<TrunkColumns;a++)
+            {
+                float angle=a*Mathf.Tau/TrunkColumns;
+                section[a]=new Vector2(MathF.Cos(angle),MathF.Sin(angle))*skin[(firstRow+r)*TrunkColumns+a];
+            }
+            for(int c=0;c<columns;c++)
+            {
+                int i=r*columns+c;float x=c*step-halfWidth;
+                float depth=before[i]=-GarmentDepth(points,indices,x,y,false);
+                if(!float.IsFinite(depth))throw new InvalidOperationException($"Missing finished front-panel section at {x:F3}/{y:F3}");
+                float skinDepth=float.NegativeInfinity;
+                for(int j=0;j<TrunkColumns;j++)
+                {
+                    var a=section[j];var b=section[(j+1)%TrunkColumns];
+                    if((x-a.X)*(x-b.X)>0||MathF.Abs(b.X-a.X)<1e-8f)continue;
+                    skinDepth=MathF.Max(skinDepth,-Mathf.Lerp(a.Y,b.Y,(x-a.X)/(b.X-a.X)));
+                }
+                float mask=TorsoRamp(1.035f,1.063f,y)*(1-TorsoRamp(1.170f,1.197f,y))
+                    *(1-TorsoRamp(.076f,.098f,MathF.Abs(x)));
+                lower[i]=MathF.Max(MathF.Min(depth,skinDepth+.002f),depth-.005f*mask);
+                upper[i]=depth+.004f*mask;
+            }
+        }
+        var fitted=(float[])before.Clone();
+        const float bending=36;
+        for(int pass=0;pass<80;pass++)for(int sweep=0;sweep<2;sweep++)
+        for(int y=2;y<rows-2;y++)for(int x=2;x<columns-2;x++)
+        {
+            int r=sweep==0?y:rows-1-y,c=sweep==0?x:columns-1-x,i=r*columns+c;
+            if(lower[i]>=upper[i])continue;
+            float neighbour=4*(fitted[i-1]+fitted[i+1]+fitted[i-columns]+fitted[i+columns]);
+            float second=fitted[i-2]+fitted[i+2]+fitted[i-2*columns]+fitted[i+2*columns];
+            fitted[i]=Math.Clamp((before[i]+bending*(neighbour-second))/(1+12*bending),lower[i],upper[i]);
+        }
+        var delta=new float[points.Length];
+        for(int i=0;i<points.Length;i++)
+        {
+            var p=points[i];
+            float row=(p.Y-bottom)/step,col=(p.X+halfWidth)/step;
+            if(pattern[i].X>=0||p.Z>=-.025f||row<=0||row>=rows-1||col<=0||col>=columns-1)continue;
+            int r=(int)row,c=(int)col,a=r*columns+c;
+            float x=col-c,y=row-r;
+            float Sample(float[] values)=>Mathf.Lerp(Mathf.Lerp(values[a],values[a+1],x),
+                Mathf.Lerp(values[a+columns],values[a+columns+1],x),y);
+            float original=Sample(before);
+            // The projected chart belongs to the front exterior only.
+            float exterior=1-TorsoRamp(.002f,.012f,p.Z+original);
+            delta[i]=(original-Sample(fitted))*exterior;
+        }
+        ApplyBodiceDepth(points,(Vector3[])points.Clone(),indices,delta);
+    }
+
+    private static void ApplyBodiceDepth(Vector3[] points,Vector3[] rest,int[] indices,float[] delta)
+    {
         // A slender cap triangle must not undo the whole front-panel edit.
         // Backtrack its own vertices; recheck the boundary on the next pass.
         var gain=new float[points.Length];Array.Fill(gain,1);
@@ -99,24 +185,9 @@ internal sealed partial class NatureModels
                 if(n.Dot(updated)>=.25f*n.LengthSquared())continue;
                 valid=false;gain[a]*=.5f;gain[b]*=.5f;gain[c]*=.5f;
             }
-            if(valid)break;
-            if(attempt==63)throw new InvalidOperationException("Bodice patch completion folds its repaired input");
+            if(valid)return;
         }
-        for(int i=0;i<points.Length;i++)
-        {
-            float edit=points[i].DistanceTo(rest[i]);maximum=MathF.Max(maximum,edit);
-            if(!points[i].IsFinite()||edit>.01001f*active[i]+.000001f||(active[i]==0&&points[i]!=rest[i]))
-                throw new InvalidOperationException("Bodice patch completion loses its fixed neckline, cuff or source bound");
-            if(fitted[i])after+=Math.Pow(depths[i]-points[i].Z,2)*active[i];
-        }
-        if(canonical==null&&count<20||after>before+.00000001)throw new InvalidOperationException("Bodice completion does not reduce its narrow surface residual");
-        if(canonical!=null)
-        {
-            if(verify)GD.Print($"BODICE_NEIGHBOR_PASS: cut={_garmentCut}, pose={call}, active={count}; reference scan and cached candidates yield bit-identical depths");
-            _posedBodiceSamples+=count;_posedBodiceMaximum=MathF.Max(_posedBodiceMaximum,maximum);return;
-        }
-        _bodiceSurfaces[_garmentCut]=new(rest,(int[])indices.Clone(),(Vector2[])pattern.Clone(),(Vector3[])points.Clone());
-        GD.Print($"BODICE_SURFACE_FLOW: cut={_garmentCut}, vertices={count}, local quadratic residual={Math.Sqrt(before/count)*1000:F3}/{Math.Sqrt(after/count)*1000:F3} mm, maximum edit={maximum*1000:F3} mm; local backtracking, fixed neck/cuff/apex/waist; shared sleeve root");
+        throw new InvalidOperationException("Bodice depth fit folds its repaired input");
     }
 
     private int _posedBodiceSamples;

@@ -242,11 +242,11 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `wristContour=continuous-source-v2`、`forearmProfile=curvature-flow-v9` 与 `forearmSkin=continuous-elbow-v9` 分别标记连续腕臂截面、中心线拟合与腕部渐进蒙皮。新增公开 `wrist-motion` 面板及 `visual-wrist-motion.json`，在冻结模拟、固定 60 Hz 下，对照两种成人外观的手背、掌侧和侧面，循环观察屈伸、侧偏、前臂旋转和握拳。它使用真实居民网格与骨架，不测量人体医学能力，也不作为 RSI 分数。新的连接拓扑、56 骨近手与腕部支撑会改变构建和动画成本，效率对照必须冻结同一素材、渲染版本、输入及源码。
 
-`garmentFit=continuous-drape-v34`、`forearmProfile=curvature-flow-v9`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2` 区分衣片拟合和姿态形态、女性前臂表面、成人脸部比例、额前发根和静止眼睑。视觉与效率比较须同时冻结这些标识、输入和源码。身体配方 `reference-contour-physique-v31` 的两种成人参考转移权重均为 1.0，五类身体支撑共享同一配方哈希。固定点、体积、截面与三角形检查用于几何回归。
+`garmentFit=continuous-drape-v35`、`forearmProfile=curvature-flow-v9`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2` 区分衣片拟合和姿态形态、女性前臂表面、成人脸部比例、额前发根和静止眼睑。视觉与效率比较须同时冻结这些标识、输入和源码。身体配方 `reference-contour-physique-v31` 的两种成人参考转移权重均为 1.0，五类身体支撑共享同一配方哈希。固定点、体积、截面与三角形检查用于几何回归。
 
 `renderQuality.femaleGroom=scalp-guided-plait-v1` 标识成年女性的编发、盘发和配套远景几何。评测头部肖像或世界人物时，固定居民身份和观察距离，再比较轮廓与渲染耗时。
 
-`bodyPresentation=continuous-drape-v29` 标识成人女性前领、小腿及鞋部的运行时成品拟合。比较像素和网格构建成本时，须与 `bodyFrame=reference-contour-physique-v31`、`garmentFit=continuous-drape-v34` 及源码哈希一并冻结。
+`bodyPresentation=continuous-drape-v29` 标识成人女性前领、小腿及鞋部的运行时成品拟合。比较像素和网格构建成本时，须与 `bodyFrame=reference-contour-physique-v31`、`garmentFit=continuous-drape-v35` 及源码哈希一并冻结。
 
 `continuous-drape-v29` 的女性成人衣装还使用独立材质状态、浅色内衫／绿灰外衣分片，以及近远景共用的静止缝片函数。远景顶点颜色保留来源染色数据，另用材质标记选择分片；因此几何截面检查不会把配色变更当成体型变更。新材质、下摆与源码均需冻结后才能比较视觉或效率结果。
 
@@ -299,6 +299,8 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 `trouserSkin=guided-knee-v1` 标识女性下装的臀腿轮廓、膝部支撑骨与配套姿态修形。源网格哈希仍对应 `reference-contour-physique-v31`。比较此版画面与耗时需要同时固定运行时蒙皮版本、近远景状态和动作。`handling-transitions` 左列镜头随实际骨盆高度收近，图像对照也须固定机位逻辑。
 
 `garmentFit=continuous-drape-v34` 记录三款女性衣片的局部下摆高度、腰带以下的方向性布量和连续翻边。`garmentMaterial=quiet-linen-v18` 记录近远景共用的衣缘距离与缝线过滤。视觉输入或耗时比较须固定剪裁、机位与细节等级。
+
+`garmentFit=continuous-drape-v35` 增加女性成品前片的横纵截面拟合与腰上收褶调整。几何求解发生在首次构建成衣缓存时。冷启动测量需固定款式缓存状态，稳定回放需固定动作、距离和细节等级。`FEMALE_CROSS_DRAPE_PASS` 属于成品几何回归。
 
 衣面烘焙将规范坐标中的候选邻域按剪裁与模式缓存，当前姿态继续计算动态筛选和权重；完整扫描与缓存路径按原索引顺序求和。`BODICE_NEIGHBOR_PASS` 核对实际拟合深度逐位一致，属于程序优化的数值等价检查。缓存影响冷启动成本与内存，效率实验需固定来源、姿态数量、硬件、并行负载与冷／热缓存条件；超时回放保留失败状态，不能视为有效结果。
 

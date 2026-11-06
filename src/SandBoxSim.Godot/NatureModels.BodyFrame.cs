@@ -880,6 +880,20 @@ internal sealed partial class NatureModels
             }
         if(maximumChestBend>.002f)throw new InvalidOperationException($"Final chest retains an abrupt meridian tangent break: {maximumChestBend}");
         GD.Print($"CHEST_CURVE_PASS: final four anterior meridians, 5 mm sampling, maximum second depth difference={maximumChestBend*1000:F2} mm <=2 mm; source contact and LOD checks retained");
+        float maximumCrossBend=0;
+        for(int row=1;row<28;row++)
+        {
+            float y=1.05f+row*.005f;
+            float left=Front(female.DetailedBodyMesh,y,-.085f),centre=Front(female.DetailedBodyMesh,y,-.080f);
+            for(int col=-16;col<=16;col++)
+            {
+                float right=Front(female.DetailedBodyMesh,y,(col+1)*.005f);
+                maximumCrossBend=MathF.Max(maximumCrossBend,MathF.Abs(left-2*centre+right));
+                left=centre;centre=right;
+            }
+        }
+        if(maximumCrossBend>.003f)throw new InvalidOperationException($"Final front cloth develops a transverse ridge: {maximumCrossBend*1000:F2} mm");
+        GD.Print($"FEMALE_CROSS_DRAPE_PASS: completed front cloth, 891 samples, maximum transverse second depth difference={maximumCrossBend*1000:F2} mm");
         // A short padded band can reduce the tangent break near the ribs while
         // creating a second ridge lower down. Sample through to the belt.
         float largestReturn=0;
