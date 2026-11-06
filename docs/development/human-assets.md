@@ -251,7 +251,7 @@ python -B tools/export_cmu_actions.py --source .tools/sources/mocap --output src
 
 当前裤装在细分表面加入腰下／膝上压褶和侧缝形体，并对中线裤裆的极窄翻折接缝作局部表面松弛，保留原始索引与面数；不改变裤腰及两只靴口的开放边界。`tools/resident_clothing.py` 提供独立于 Blender 的米制褶皱配方，导出时约束在来源骨盆与靴口之间。运行时上衣的近景拟合取实际缝合网格截面，成衣下摆按三套款式区分；详细参数见[模型系统](models.md)。
 
-女性裤片的内侧圆顺和左右髋屈修形在运行时构建网格缓存时生成。复现时用相同的已校验源裤装即可，左右形状及法线由 [NatureModels.Trousers.cs](../../src/SandBoxSim.Godot/NatureModels.Trousers.cs) 生成，并与近远景共享五骨蒙皮。实际动画使用大腿相对骨盆的朝向更新形状权重。
+女性裤片的内侧圆顺、裤腿静止松量以及左右髋屈与膝屈修形都在构建网格缓存时生成。复现时用相同的已校验源裤装即可，形状及法线由 [NatureModels.Trousers.cs](../../src/SandBoxSim.Godot/NatureModels.Trousers.cs) 生成，并与近远景共享五骨蒙皮。实际动画使用大腿相对骨盆的朝向和各自的膝屈角度更新形状权重。
 
 当前腿部由同一已校验 HM08 身体表面提供径向截面支撑，服装辅助网格仅保留为连续拓扑；导出器在髋—膝中心线上取样、添加一次衣料间隙，并保留骨盆与靴口的渐变区。每套输出的 `anatomicalSupport` 包含 21×64 个来源半径，供最终成衣截面检查；没有添加新的素材许可或运行依赖。具体绑定与鞋楦偏移见[模型系统](models.md)。
 

@@ -899,6 +899,10 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 
 女性裤装在静止时额外圆顺裤裆缝两侧至上腿内侧的凹折。该修形限制在离中线 12–95 毫米、高度 0.64–0.84 米的区域，最大位移 6 毫米。前屈时，左右裤片分别按大腿相对骨盆的实际角度混合预烘焙形状，前侧形成宽缓的斜向压褶，后侧保留臀腿过渡。两侧共享一张连续五骨网格，中线、裤腰和靴口保留原绑定。`FEMALE_HIP_FLEX_PASS` 检查两条腿独立驱动、形变范围、静止边界和暂停状态。走路、施工和拾取的网格拉伸检查包含混合后的实际顶点。褶皱布局参考了 Blender Studio 对静止衣形、抬腿挤压和姿态修形的处理。[衣装形体](https://studio.blender.org/training/realistic-human-research/clothing-shapes/) · [服装雕刻与形变](https://studio.blender.org/training/realistic-human-research/design-sculpting/)
 
+成人女性裤腿在高度 0.405–0.725 米间从原有面网格向外放出最多 10 毫米松量，大腿内侧少放量，上端与靴口连续收回。膝部另有左右两套独立修形。膝前用关节圆弧补偿线性蒙皮的半径损失，后侧形成一条浅压褶；修形按各膝的实际屈角混合，靴口和裤腰的位置固定。裤料改用更细的织纹比例及沿原缝位绘制的双线。静止松量和形变幅度是项目参数。设计参考了不同姿势下的下肢扫描和针对机织裤装的局部松量研究。[下肢姿势扫描](https://journals.sagepub.com/doi/10.1177/0040517510377822) · [机织裤装松量研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC8464815/)
+
+`FEMALE_KNEE_FLEX_PASS` 检查实际动作中两膝的驱动与编辑范围。`KNEE_CLOTH_RADIUS_PASS` 在独立屈膝姿态下比较膝前面料的径向损失。原有裤腰、靴口、距离切换、暂停及拉伸约束覆盖新的四套形状。
+
 `ELBOW_SKIN_PASS` 扫描男女、双臂和反复屈肘下的真实近肘顶点，核对上臂连接误差小于 0.1 毫米、四个小臂主体轴向点偏差小于 0.3 毫米、混合变换行列式至少 0.97，以及近肘尺寸继续受各自来源约束。工具动作检查在连续解剖参考框架中比较实际蒙皮：点误差不超过 1 毫米、混合行列式至少 0.97，固定腕部与实际握柄接触约束继续保留；旧的整段刚性直筒轴向／半径假设不适用于新的肘部过渡。现有左右镜像、动作切换、暂停和近远景恢复检查继续运行。
 
 实现参考 [Blender 骨架变形的体积保持说明](https://docs.blender.org/manual/en/latest/modeling/modifiers/deform/armature.html)与[修正平滑说明](https://docs.blender.org/manual/en/latest/modeling/modifiers/deform/corrective_smooth.html)；实现采用本项目原生分段支撑，不依赖运行时 Blender。公开 `visual-arm-articulation.json` 与 `visual-forearm-frames.json` 分别展示实际动作和静止截面，读图入口见[配图说明](../images/README.md)。
