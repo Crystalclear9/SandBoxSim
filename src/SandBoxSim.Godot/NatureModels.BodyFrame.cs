@@ -183,7 +183,7 @@ internal sealed partial class NatureModels
         return MathF.Max(cloth,trousers)+overlap*overlap/.032f;
     }
 
-    private static Vector3 FemaleCollarEase(Vector3 fitted,Vector3 construction)
+    private Vector3 FemaleCollarEase(Vector3 fitted,Vector3 construction)
     {
         float x=MathF.Abs(construction.X);
         float opening=Mathf.SmoothStep(1.270f,1.335f,construction.Y)*(1-Mathf.SmoothStep(.080f,.128f,x));
@@ -195,6 +195,11 @@ internal sealed partial class NatureModels
         // Close the forward flare of the old stand collar. The broad fade
         // leaves room for the throat and keeps the placket tangent continuous.
         fitted.Z+=.020f*opening*front*(1-Mathf.SmoothStep(.032f,.075f,x));
+        float stand=Mathf.SmoothStep(1.261f,1.320f,construction.Y);
+        float scoop=_garmentCut==2?.003f:_garmentCut==1?.006f:.008f;
+        float rim=1-Mathf.SmoothStep(.052f,.085f,x);
+        fitted.Y-=stand*rim*(scoop*front+.004f*side*(1-rear));
+        fitted.Z+=stand*.008f*front*(1-Mathf.SmoothStep(.030f,.074f,x));
         return fitted;
     }
     private Mesh FrameMesh(Mesh source,Transform3D space,bool tailored=false)
@@ -323,6 +328,8 @@ internal sealed partial class NatureModels
                     float amount=weights[i*4]*lower;weights[i*4]-=amount;bones[i*4+3]=3;weights[i*4+3]=amount;
                 }
             if(bones.Length>0){arrays[(int)Mesh.ArrayType.Bones]=bones;arrays[(int)Mesh.ArrayType.Weights]=weights;}
+            if(tailored&&s==0&&source.SurfaceGetMaterial(s)?.HasMeta("FittedBodice")==true)
+                FoldFemaleNeckline(arrays,ref points,ref pattern);
             // Pattern coordinates are a surface parameter, not a spatial Y
             // function. Rebuild the sewn panel normals from final triangles;
             // otherwise its sleeve/torso seam receives mismatched gradients.
@@ -431,11 +438,10 @@ internal sealed partial class NatureModels
         ValidateNaturalWaistBelts();
         int previous=_faceVariant;
         var male=Resident(17,false,SandBoxSim.Core.Agents.JobType.Gatherer);
-        var maleBinding=TurnedNeckline();
         var female=Resident(42,false,SandBoxSim.Core.Agents.JobType.Gatherer);
         try
         {
-            if(maleBinding==TurnedNeckline())throw new InvalidOperationException("Female folded collar reuses the male binding mesh");
+            ValidateFoldedNeckline(male,female);
             ValidateFemaleBootFit(male,female);
             ValidateAdultContourSections(male,female);
             foreach(var rig in new[]{male,female})

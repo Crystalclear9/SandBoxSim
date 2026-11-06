@@ -24,7 +24,12 @@ internal sealed partial class NatureModels
             }
             _garmentPoints=projection.Points;_garmentIndices=projection.Indices;
         }
-        var vertices=_garmentPoints;var indices=_garmentIndices!;
+        float z=GarmentDepth(_garmentPoints,_garmentIndices!,x,y,back);
+        if(!float.IsFinite(z))throw new InvalidOperationException($"Clothing layer outside garment surface: {x}, {y}");
+        var result=new Vector3(x,y,z+(back?offset:-offset));_garmentSamples[sampleKey]=result;return result;
+    }
+    private static float GarmentDepth(Vector3[] vertices,int[] indices,float x,float y,bool back)
+    {
         float z = back ? float.NegativeInfinity : float.PositiveInfinity;
         for (int i = 0; i < indices.Length; i += 3)
         {
@@ -38,8 +43,7 @@ internal sealed partial class NatureModels
             float hit = u*a.Z+v*b.Z+(1-u-v)*c.Z;
             z = back ? MathF.Max(z,hit) : MathF.Min(z,hit);
         }
-        if (!float.IsFinite(z)) throw new InvalidOperationException($"Clothing layer outside garment surface: {x}, {y}");
-        var result=new Vector3(x,y,z+(back ? offset : -offset));_garmentSamples[sampleKey]=result;return result;
+        return z;
     }
     private static void EquipmentTriangle(SurfaceTool surface, Vector3 a, Vector3 b, Vector3 c, Vector3 outward)
     {

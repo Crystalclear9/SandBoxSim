@@ -101,7 +101,23 @@ internal sealed partial class NatureModels
                 float radius=skin[row*TrunkColumns+col],hanging=radius;
                 for(int step=1;step<=24&&row+step<TrunkRows;step++)
                     hanging=MathF.Max(hanging,skin[(row+step)*TrunkColumns+col]-step*.005f*.22f);
-                data[row*TrunkColumns+col]=radius+MathF.Min(.007f,hanging-radius)*free;
+                float drape=MathF.Min(.007f,hanging-radius)*free;
+                if(BodyFrame==1)
+                {
+                    // The front grain hangs between the high chest support
+                    // and the panel above the belt. Span the lower hollow
+                    // without copying its steep anatomical return into cloth.
+                    const float low=1.023f,high=1.145f;
+                    float front=MathF.Max(0,-MathF.Sin(sampleAngle));
+                    if(height>low&&height<high&&front>0)
+                    {
+                        float lower=TrunkSample(skin,low,sampleAngle);
+                        float upper=TrunkSample(skin,high,sampleAngle);
+                        float supported=Mathf.Lerp(lower,upper,Mathf.SmoothStep(low,high,height));
+                        drape=MathF.Max(drape,Math.Clamp(supported-radius,0,.014f)*front*front);
+                    }
+                }
+                data[row*TrunkColumns+col]=radius+drape;
             }
             _clothEnvelopes[key]=data;
         }

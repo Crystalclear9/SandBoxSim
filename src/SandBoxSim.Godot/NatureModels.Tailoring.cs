@@ -1,10 +1,13 @@
 using System;
+using System.Collections.Generic;
 using Godot;
 using SandBoxSim.Core.Agents;
 
 namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
+    private const int NeckOpeningSegments=64;
+
     private Mesh SewnButton()=>Loft("sewn-button",new[]{
         new Vector4(-.0038f,0,.0001f,.0001f),new(-.0032f,0,.0038f,.0038f),
         new(-.0020f,0,.0048f,.0048f),new(0,0,.0048f,.0048f),
@@ -52,7 +55,7 @@ internal sealed partial class NatureModels
     }
     private Mesh TurnedNeckline()
     {
-        string key="sewn-neck-binding:"+_garmentCut+":"+FittedFigure;
+        string key="sewn-neck-binding:"+_garmentCut;
         if(_meshes.TryGetValue(key,out var cached))return cached;
         // A narrow folded facing follows the actual shirt opening. The old
         // independently sized elliptical ring overhung the front and sides.
@@ -67,7 +70,6 @@ internal sealed partial class NatureModels
             float angle=-MathF.PI/2+.045f+(MathF.Tau-.090f)*column/sides;
             var seam=GarmentPoint(1,angle);var radial=new Vector3(MathF.Cos(angle),0,MathF.Sin(angle));
             var profile=section[row%section.Length];
-            if(FittedFigure)profile*=new Vector2(1.25f,.53f);
             return seam+radial*profile.X+Vector3.Up*profile.Y;
         }
         for(int row=0;row<section.Length;row++)for(int col=0;col<sides;col++)
@@ -82,6 +84,149 @@ internal sealed partial class NatureModels
             for(int row=0;row<section.Length;row++)EquipmentTriangle(surface,center,Point(row,col),Point(row+1,col),col==0?Vector3.Left:Vector3.Right);
         }
         surface.GenerateNormals();surface.Index();var mesh=surface.Commit();_meshes[key]=mesh;return mesh;
+    }
+    private static List<(int From,int To)> NeckOpeningEdges(Vector3[] points,int[] indices)
+    {
+        var exposed=new Dictionary<(int,int),(int,int)>();
+        void Count(int a,int b)
+        {
+            if(MathF.Min(points[a].Y,points[b].Y)<1.25f||MathF.Max(MathF.Abs(points[a].X),MathF.Abs(points[b].X))>.10f)return;
+            var key=a<b?(a,b):(b,a);
+            if(!exposed.Remove(key))exposed.Add(key,(a,b));
+        }
+        for(int i=0;i<indices.Length;i+=3)
+        {
+            Count(indices[i],indices[i+1]);
+            Count(indices[i+1],indices[i+2]);
+            Count(indices[i+2],indices[i]);
+        }
+        return new(exposed.Values);
+    }
+
+    private static void FoldFemaleNeckline(Godot.Collections.Array arrays,ref Vector3[] points,ref Vector2[] pattern)
+    {
+        var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+        var edges=NeckOpeningEdges(points,indices);
+        var rim=edges.ConvertAll(edge=>edge.From);
+        rim.Sort();
+        if(rim.Count!=NeckOpeningSegments||new HashSet<int>(rim).Count!=rim.Count)
+            throw new InvalidOperationException("Female garment lost the single sewn throat opening");
+        int outerCount=points.Length,innerCount=outerCount+2*rim.Count;
+        var bones=arrays[(int)Mesh.ArrayType.Bones].AsInt32Array();
+        var weights=arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();
+        Array.Resize(ref points,innerCount);
+        Array.Resize(ref pattern,innerCount);
+        Array.Resize(ref bones,innerCount*4);
+        Array.Resize(ref weights,innerCount*4);
+        var returned=new Dictionary<int,int>(rim.Count);
+        for(int i=0;i<rim.Count;i++)
+        {
+            int a=rim[i],b=outerCount+i,c=b+rim.Count;
+            var point=points[a];
+            var inward=new Vector3(-point.X,0,-point.Z).Normalized();
+            points[b]=point+inward*.0017f+Vector3.Up*.0013f;
+            points[c]=point+inward*.0033f-Vector3.Up*.0055f;
+            pattern[b]=pattern[c]=pattern[a];
+            // The turn moves with the neck opening, clear of the arm-driven
+            // clavicle panel. Pin the outer seam and both layers together.
+            Array.Clear(bones,a*4,4);
+            Array.Clear(weights,a*4,4);
+            weights[a*4]=1;
+            Array.Copy(bones,a*4,bones,b*4,4);
+            Array.Copy(bones,a*4,bones,c*4,4);
+            Array.Copy(weights,a*4,weights,b*4,4);
+            Array.Copy(weights,a*4,weights,c*4,4);
+            returned.Add(a,b);
+        }
+        var sewn=new List<int>(indices.Length+12*rim.Count);
+        sewn.AddRange(indices);
+        foreach(var (a,b) in edges)
+        {
+            int aFold=returned[a],bFold=returned[b];
+            sewn.AddRange(new[]{b,a,aFold,b,aFold,bFold,
+                bFold,aFold,aFold+rim.Count,bFold,aFold+rim.Count,bFold+rim.Count});
+        }
+        arrays[(int)Mesh.ArrayType.Index]=sewn.ToArray();
+        arrays[(int)Mesh.ArrayType.Bones]=bones;
+        arrays[(int)Mesh.ArrayType.Weights]=weights;
+    }
+
+    private static void ValidateFoldedNeckline(ResidentRig male,ResidentRig female)
+    {
+        var cloth=female.DetailedBodyMesh.SurfaceGetArrays(0);
+        var p=cloth[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var indices=cloth[(int)Mesh.ArrayType.Index].AsInt32Array();
+        int original=male.DetailedBodyMesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array().Length;
+        int count=(p.Length-original)/2;
+        var opening=NeckOpeningEdges(p,indices);
+        if(count!=NeckOpeningSegments||opening.Count!=count||opening.Exists(e=>e.From<original+count||e.To<original+count))
+            throw new InvalidOperationException("Folded neckline has a detached facing or a sealed throat");
+        var weights=cloth[(int)Mesh.ArrayType.Weights].AsFloat32Array();
+        var bones=cloth[(int)Mesh.ArrayType.Bones].AsInt32Array();
+        for(int i=original;i<original+count;i++)
+        {
+            int inner=i+count;
+            if(MathF.Abs(p[i].Y-p[inner].Y-.0068f)>.00001f)
+                throw new InvalidOperationException("Folded neckline loses its turned-in depth");
+            if(bones[i*4]!=0||weights[i*4]!=1)
+                throw new InvalidOperationException("Folded neckline responds to arm movement");
+            for(int j=0;j<4;j++)
+                if(weights[i*4+j]!=weights[inner*4+j]||bones[i*4+j]!=bones[inner*4+j])
+                    throw new InvalidOperationException("The two sides of the neckline fold use different skin weights");
+        }
+        GD.Print($"FOLDED_NECKLINE_PASS: {count} joined edge pairs, one open throat, shared skin weights and rounded return in the continuous garment");
+        var buttonMesh=female.Torso.GetNode<MeshInstance3D>("FittedPlacketButtons").Mesh;
+        var buttons=buttonMesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        for(int row=0;row<3;row++)
+        {
+            float y=1.258f-row*.034f,front=float.NegativeInfinity,back=float.PositiveInfinity;
+            foreach(var point in buttons)
+            {
+                if(MathF.Abs(point.Y-y)>.005f)continue;
+                float gap=GarmentDepth(p,indices,point.X,point.Y,false)-point.Z;
+                if(!float.IsFinite(gap)||MathF.Abs(gap)>.008f)
+                    throw new InvalidOperationException("Fitted placket button loses contact with the actual front panel");
+                front=MathF.Max(front,gap);
+                back=MathF.Min(back,gap);
+            }
+            if(front<.0005f||back>-.0005f)throw new InvalidOperationException("Fitted placket button has no visible face or embedded base");
+        }
+        GD.Print("FITTED_PLACKET_PASS: three buttons have visible faces and embedded bases on the actual sewn surface");
+    }
+
+    private void AddFittedPlacketButtons(ResidentRig rig)
+    {
+        string key="fitted-placket-buttons:"+_garmentCut;
+        if(!_meshes.TryGetValue(key,out var mesh))
+        {
+            var cloth=rig.DetailedBodyMesh.SurfaceGetArrays(0);
+            var clothPoints=cloth[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            var clothIndices=cloth[(int)Mesh.ArrayType.Index].AsInt32Array();
+            var button=SewnButton().SurfaceGetArrays(0);
+            var points=button[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            var normals=button[(int)Mesh.ArrayType.Normal].AsVector3Array();
+            var indices=button[(int)Mesh.ArrayType.Index].AsInt32Array();
+            var axis=new Basis(Vector3.Right,MathF.PI/2);
+            using var surface=new SurfaceTool();
+            surface.Begin(Mesh.PrimitiveType.Triangles);
+            surface.SetMaterial(ResidentMaterial("#514237"));
+            for(int row=0;row<3;row++)
+            {
+                const float x=.002f;
+                float y=1.258f-row*.034f;
+                float z=GarmentDepth(clothPoints,clothIndices,x,y,false);
+                if(!float.IsFinite(z))throw new InvalidOperationException("Fitted placket button misses the final front panel");
+                var anchor=new Vector3(x,y,z+.0007f);
+                foreach(int i in indices)
+                {
+                    surface.SetNormal(axis*normals[i]);
+                    surface.AddVertex(anchor+axis*points[i]);
+                }
+            }
+            surface.Index();
+            _meshes[key]=mesh=WithScreenLods(surface.Commit());
+        }
+        rig.Torso.AddChild(new MeshInstance3D {Name="FittedPlacketButtons",Mesh=mesh});
     }
     private Material CollarMaterial(string cloth)
     {
@@ -133,7 +278,7 @@ internal sealed partial class NatureModels
             FineBeam(rig.Torso,TorsoSurface(x0,Y(x0),true,.0016f),
                 TorsoSurface(x1,Y(x1),true,.0016f),.00045f,thread);
         }
-        foreach(float side in new[]{-1f,1f})for(int stitch=0;stitch<24;stitch++)
+        if(!FittedFigure)foreach(float side in new[]{-1f,1f})for(int stitch=0;stitch<24;stitch++)
         {
             float y=Mathf.Lerp(PlacketBottom+.006f,PlacketTop-.006f,stitch/23f);
             FineBeam(rig.Torso,TorsoSurface(side*.007f,y,false,.0047f),

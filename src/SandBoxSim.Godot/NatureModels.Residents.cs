@@ -181,16 +181,18 @@ internal sealed partial class NatureModels
         rig.Torso = new Node3D { Name = "Torso" }; rig.AddChild(rig.Torso);
         rig.Torso.AddChild(new MeshInstance3D { Mesh = Garment(), MaterialOverride = FigureGarmentMaterial(cloth) });
         // Collar, placket and the hem distinguish tailored cloth from the body's silhouette.
-        Sculpt(rig.Torso,TurnedNeckline(),Vector3.Zero,CollarMaterial(cloth));
+        if(!FittedFigure)Sculpt(rig.Torso,TurnedNeckline(),Vector3.Zero,CollarMaterial(cloth));
         if(_garmentCut==2)foreach(float side in new[]{-1f,1f})
             Sculpt(rig.Torso,CollarLeaf(side),Vector3.Zero,CollarMaterial(cloth));
-        Sculpt(rig.Torso,FittedRibbon("placket",PlacketBottom,PlacketTop),Vector3.Zero,CollarMaterial(cloth));
-        for (int button = 0; button < 3; button++)
+        if(!FittedFigure)
         {
-            float buttonY=FittedFigure?Mathf.Lerp(1.237f,PlacketBottom+.015f,button/2f):1.237f-button*.067f;
-            var anchor=TorsoSurface(.006f,buttonY,false,.0012f);
-            Sculpt(rig.Torso,SewnButton(),anchor,ResidentMaterial("#514237"));
-            FineBeam(rig.Torso,anchor+new Vector3(-.0014f,-.0010f,-.0038f),anchor+new Vector3(.0014f,.0010f,-.0038f),.00055f,"#a09380");
+            Sculpt(rig.Torso,FittedRibbon("placket",PlacketBottom,PlacketTop),Vector3.Zero,CollarMaterial(cloth));
+            for(int button=0;button<3;button++)
+            {
+                var anchor=TorsoSurface(.006f,1.237f-button*.067f,false,.0012f);
+                Sculpt(rig.Torso,SewnButton(),anchor,ResidentMaterial("#514237"));
+                FineBeam(rig.Torso,anchor+new Vector3(-.0014f,-.0010f,-.0038f),anchor+new Vector3(.0014f,.0010f,-.0038f),.00055f,"#a09380");
+            }
         }
         float beltHalf=BodyFrame==1?.009f:.0135f;
         Sculpt(rig.Torso, FittedRibbon("belt", .7615f-beltHalf+BeltRise, .7615f+beltHalf+BeltRise), Vector3.Zero, ResidentMaterial("#514237"));
@@ -270,6 +272,7 @@ internal sealed partial class NatureModels
         rig.HeadProxy=new MeshInstance3D {Name="DistantHead",Mesh=DistantHead(skin,hair),Visible=false};rig.Head.AddChild(rig.HeadProxy);
         AddHandSkin(rig,skin);
         ApplyBodyFrame(rig);
+        if(FittedFigure)AddFittedPlacketButtons(rig);
         AddContinuousTrousers(rig);
         rig.Head.Scale=new Vector3(.99f+((variation>>15)%4)*.0125f,.995f+((variation>>18)%3)*.0125f,1);
         if (child) { rig.Scale = new Vector3(.72f, .65f, .72f); rig.Head.Scale = Vector3.One * 1.15f; }

@@ -53,6 +53,16 @@ internal sealed partial class NatureModels
         var weights=arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();
         var uv=arrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array();
         var girdleWeights=GirdleWeights(source,ids,uv);
+        if(FittedFigure)
+        {
+            // Every added fold triangle has a new collar vertex. Exclude
+            // the whole stitched rim, including its original outer edge,
+            // from the raised-arm corrective as well as shoulder skinning.
+            int firstFold=source.Length-2*NeckOpeningSegments;
+            for(int i=0;i<ids.Length;i+=3)
+                if(ids[i]>=firstFold||ids[i+1]>=firstFold||ids[i+2]>=firstFold)
+                    girdleWeights[ids[i]]=girdleWeights[ids[i+1]]=girdleWeights[ids[i+2]]=0;
+        }
         var adjacent=new HashSet<int>[source.Length];for(int i=0;i<source.Length;i++)adjacent[i]=new();
         for(int i=0;i<ids.Length;i+=3)for(int j=0;j<3;j++)
         {int a=ids[i+j],b=ids[i+(j+1)%3];adjacent[a].Add(b);adjacent[b].Add(a);}
