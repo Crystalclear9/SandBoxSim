@@ -379,7 +379,7 @@ internal partial class ModelGallery : PanelContainer
         int index=grid.GetChildCount()-1;
         string semanticLabel=Collection=="animal-heads"?(index<2?"deer":"wolf"):Collection=="animal-details"?(index<3?"deer":"wolf"):Collection=="forearms"?"resident":Collection=="ecology-details"?new[]{"tree","tree","fern","grass","rock","shrub"}[index]:model is ResidentRig?"resident":Collection=="model-details"?(index==2?"deer":index==3?"wolf":"house"):Collection=="architecture"?(index<5?"house":"storage"):Collection=="characters"?(index==4?"deer":"wolf"):index<2?"tree":index==2?"farm":index==3?"mine":index==4?"ruins":"grove";
         if(model is AnimalRig fauna)semanticLabel=fauna.Predator?"wolf":"deer";
-        if(Collection is "forearm-frames" or "wrist-motion")semanticLabel="resident";
+        if(Collection is "forearm-frames" or "wrist-motion" or "handling-transitions")semanticLabel="resident";
         _evaluationRegions.Add((view,semanticLabel));
         var viewport=new SubViewport { OwnWorld3D=true,Size=new(420,280),Msaa3D=Viewport.Msaa.Msaa4X,RenderTargetUpdateMode=SubViewport.UpdateMode.Once }; view.AddChild(viewport);
         var stage=new Node3D(); viewport.AddChild(stage);

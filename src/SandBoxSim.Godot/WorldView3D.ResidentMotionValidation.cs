@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Godot;
 using SandBoxSim.Core.Agents;
+using SandBoxSim.Core.Environment;
 using SandBoxSim.Core.Foundation;
 
 namespace SandBoxSim.Client;
@@ -95,6 +96,75 @@ public partial class WorldView3D
         ValidateWorldCultivation(rig,slot,tiles.Goal,delta);
         ValidateResidentStations(tiles.Goal,tiles.Corner,delta);
         ValidateProjectedResidentMotion(delta);
+        ValidateSceneHandoff(tiles.Start,tiles.Corner,delta);
+    }
+
+    private void ValidateSceneHandoff(Vector2I giverTile,Vector2I receiverTile,float delta)
+    {
+        var sim=Game.Sim;var agents=sim.Agents;
+        var existing=agents.AliveSlots().ToArray();
+        foreach(int slot in existing)
+        {
+            agents.SetPosition(slot,sim.World.Width-2,sim.World.Height-2);
+            agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
+        }
+        if(sim.InterveneSpawnHumans(giverTile.X,giverTile.Y,2,2)!=2)
+            throw new InvalidOperationException("Handoff fixture could not spawn two residents");
+        var added=agents.AliveSlots().Except(existing).ToArray();
+        int giverSlot=added[0],receiverSlot=added[1];
+        agents.SetLifeStage(giverSlot,LifeStage.Adult);agents.SetLifeStage(receiverSlot,LifeStage.Adult);
+        agents.SetPosition(giverSlot,giverTile.X,giverTile.Y);
+        agents.SetPosition(receiverSlot,receiverTile.X,receiverTile.Y);
+        agents.SetAction(receiverSlot,ActionKind.None,ActionPhase.Idle);agents.SetHunger(receiverSlot,.92f);
+        agents.SetInventory(giverSlot,ResourceKind.Food,sim.Config.Relationship.ShareFoodAmount);
+        agents.SetAction(giverSlot,ActionKind.ShareFood,ActionPhase.Executing);
+        sim.Actions.Tick(sim.Clock);
+        if(!sim.Actions.TryGetPresentationPartner(giverSlot,out int actual)||actual!=receiverSlot)
+            throw new InvalidOperationException("World fixture does not have a committed food exchange");
+
+        SyncEntities();
+        long giverId=sim.Society.Identity(giverSlot),receiverId=sim.Society.Identity(receiverSlot);
+        var giver=(ResidentRig)_people[giverId];var receiver=(ResidentRig)_people[receiverId];
+        var start=giver.Position;var end=receiver.Position;
+        giver.Rotation=new(0,HeadingYaw(Horizontal(end-start)),0);
+        receiver.Rotation=new(0,HeadingYaw(Horizontal(start-end)),0);
+        if(!HandoffStands(giver,receiver,out var give,out var take))
+            throw new InvalidOperationException("Adjacent fixture has no safe handoff placement");
+        var midpoint=Horizontal((give+take)*.5f);
+        var obstacleKey=new Vector2I((int)MathF.Round(midpoint.X*.5f),(int)MathF.Round(midpoint.Y*.5f));
+        bool hadSolid=_scenerySolids.TryGetValue(obstacleKey,out var previousSolid);
+        try
+        {
+            _scenerySolids[obstacleKey]=(midpoint,.10f);
+            if(!ValidHandoffStand(start,give)||!ValidHandoffStand(end,take)||HandoffStands(giver,receiver,out _,out _))
+                throw new InvalidOperationException("Handoff routes can reach through a solid between two clear stands");
+        }
+        finally
+        {
+            if(hadSolid)_scenerySolids[obstacleKey]=previousSolid;
+            else _scenerySolids.Remove(obstacleKey);
+        }
+        _target=(start+end)*.5f;_distance=9;_pitch=.62f;UpdateCamera();
+        string committed=sim.StateDigestString();
+        ResidentHandoff? motion=null;
+        int parcelFrames=0;
+        float approach=0;
+        for(int i=0;i<490;i++)
+        {
+            AnimateActors(delta);
+            if(motion==null&&_residentHandoffs.Count>0)motion=_residentHandoffs[0].Motion;
+            if(motion?.ParcelVisible==true)
+            {
+                parcelFrames++;
+                if(!motion.Transferred&&(!giver.InteractionSettled||!receiver.InteractionSettled))
+                    throw new InvalidOperationException("Parcel appears before both world residents settle");
+            }
+            if(motion?.UsesMeeting==true)approach=MathF.Max(approach,Horizontal(giver.Position-start).Length());
+        }
+        if(motion==null||!motion.Transferred||!motion.Finished||approach<.20f||parcelFrames<18
+            ||_residentHandoffs.Count!=0||sim.StateDigestString()!=committed)
+            throw new InvalidOperationException($"World handoff misses approach, transfer or one-shot cleanup: distance={approach}, frames={parcelFrames}, transferred={motion?.Transferred}");
+        GD.Print($"WORLD_HANDOFF_PASS: committed adjacent-tile recipient, {approach:F3} m visual approach, {parcelFrames} supported frames, obstruction rejected and read-only playback");
     }
 
     private void ValidateProjectedResidentMotion(float delta)

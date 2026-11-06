@@ -194,7 +194,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `limbCoordination=hinge-carry-v4` 标识肘部屈曲平面、低位携带和按掌柄绑定安排的短柄／长柄朝向；`residentLocomotion=settled-arrival-v3` 增加连续骨盆支撑与局部拾取脚踝求解。`visual-motion`、`visual-social`、`visual-social-side` 的默认采样从第 30 帧开始每 14 帧一次，共 30 帧，冻结模拟而按 60 Hz 推进表现。它们用于观察动作和评测采样链路，不是 RSI 或人体写实程度评分。
 
-`handlingMotion=object-contact-v11` 的进食和饮水追踪实际食物或杯沿到嘴部的距离。近景和稀疏更新共用最高 120 Hz 的局部约束步长。`REACH_TRAJECTORY_PASS` 检查实际道具接近与手腕、肘部轨迹。`CONSUMPTION_CONTACT_PASS` 检查短饮水只完成一次、道具放低和暂停恢复。
+`handlingMotion=shared-parcel-v12` 包含共享物件递接与近地存放。进食和饮水继续追踪实际食物或杯沿到嘴部的距离，近景和稀疏更新共用最高 120 Hz 的局部约束步长。`REACH_TRAJECTORY_PASS` 检查实际道具接近与手腕、肘部轨迹。`CONSUMPTION_CONTACT_PASS` 检查短饮水只完成一次、道具放低和暂停恢复。
 
 `shoulderMotion=source-clavicle-v11` 标识分开的抬臂／轴向旋转、上臂驱动的锁骨弧线与肩胛上旋／后倾、接近伸直的稳定参考和左右独立返回；`limbCoordination=hinge-carry-v4` 包含工具肘平面连续性、真实作业支撑与挥锤朝向。`visual-shoulder-motion.json` 以同衣装的两种成人外观、正面、工作臂侧面和背面观察同一完整挥锤循环；默认从第 30 帧每 14 帧采样，共 30 帧。它冻结模拟，在固定 60 Hz 下推进动作，不构成 RSI 或人体动作质量的客观评分。
 
@@ -202,7 +202,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `bodyFrame=reference-contour-physique-v31` 包含方向性胸腰衣料、重新导出的骨盆／大腿连续裤装和五档等比身高变化。`ADULT_CONTOURS_PASS` 测量近远景的胸腰与裤装骨盆截面，并检查它们相对来源的偏差；已有动态穿插、臂腿绑定及工具接触检查继续执行。该检查是几何回归门槛，不是人体性别分类、审美或 RSI 的能力分数。
 
-`visual-handling-transitions.json` 使用公开 `handling-transitions` 面板，固定 60 Hz、冻结模拟，六个视口运行 16.5 秒的动作循环。默认第 30 帧起每 24 帧采样，另采第 306 帧的饮水接触，共 42 帧。中列采用上身近景。`INTERACTION_SEQUENCE_PASS` 覆盖当前 25 种居民动作，检查实际接触、停稳和中断。该场景测量表现和采样链路，旧视觉与耗时基线应按原版本保存。
+`visual-handling-transitions.json` 使用公开 `handling-transitions` 面板，固定 60 Hz、冻结模拟。左列为到站和近地存放，中列为生活和作业的上身近景，右列每 5.5 秒演示两人走近、递出和接稳。`INTERACTION_SEQUENCE_PASS` 覆盖 25 种居民动作。`SHARED_PARCEL_PASS` 和 `WORLD_HANDOFF_PASS` 分别测量共同接触、物件连续性和实景走近，`CARGO_PLACEMENT_PASS` 核对地面存放的实际松手高度。视觉与耗时基线按版本保存。
 
 客户端的只读 C# 查询 `ActionSystem.TryGetPresentationPartner` 在执行阶段返回当前候选，完成阶段返回仍在范围内的实际对象。`PARTNER_HANDOFF_PASS` 检查对象消失后停止收尾。对象记录绑定动作实例，保存在运行期。
 

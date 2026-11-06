@@ -14,6 +14,9 @@ internal partial class ResidentRig
     private float _cargoDepth,_placementAge,_placementContact;
     private Vector2 _placementStart;
     private bool _placingCargo;
+    private bool _groundPlacement;
+    private float _floorCrouch,_floorDrop=.46f,_floorLean=.91f,_floorCorrection;
+    private Transform3D _floorStart,_floorGoal;
     internal bool PlacingCargo=>_placingCargo;
     private bool _releasedCargo;
     private Transform3D _releasedCargoPose;
@@ -35,8 +38,35 @@ internal partial class ResidentRig
             _placingCargo=true;
             _placementAge=_placementContact=0;
             _placementStart=new(_cargoLift,_cargoDepth);
+            _groundPlacement=action==ActionKind.Deposit;
+            if(_groundPlacement)PlanGroundPlacement();
         }
     }
+
+    private void PlanGroundPlacement()
+    {
+        var actor=RigWorldSpace;
+        _floorStart=HandWorldPose(1)*CargoMesh.Transform;
+        var point=actor*new Vector3(0,0,-.54f);
+        var ground=CargoGroundHeight?.Invoke(point.X,point.Z)??actor.Origin.Y;
+        float below=Mathf.Clamp((actor.Origin.Y-ground)/actor.Basis.Y.Length(),0,.14f);
+        _floorDrop=.46f+below*.55f;
+        _floorLean=.91f+below*1.15f;
+        _floorCorrection=0;
+        point.Y=ground-CargoMesh.Mesh.GetAabb().Position.Y*actor.Basis.Y.Length()+.035f;
+        var basis=new Basis(Vector3.Up,actor.Basis.Orthonormalized().GetEuler().Y);
+        _floorGoal=new(basis.Scaled(actor.Basis.Scale),point);
+    }
+
+    private float GroundPlacementBody(float delta)
+    {
+        _floorCrouch=Mathf.MoveToward(_floorCrouch,_placingCargo&&_groundPlacement?1:0,delta/.83f);
+        return ReachEase(_floorCrouch);
+    }
+
+    private Basis PlacementPalmBasis=>_placingCargo&&_groundPlacement
+        ?new Basis(CargoPalmBasis.GetRotationQuaternion().Slerp((Torso.Basis.Inverse()*CargoPalmBasis).GetRotationQuaternion(),Smooth(_floorCrouch)))
+        :CargoPalmBasis;
 
     private void SetCargoReach(float delta)
     {
@@ -59,6 +89,16 @@ internal partial class ResidentRig
     internal Vector3 CargoSupportTarget(int side)
     {
         var (left,right)=CargoSupports[_cargoKind];
+        if(_placingCargo&&_groundPlacement)
+        {
+            float descent=ReachEase((_placementAge-.08f)/1.04f);
+            var parcel=_floorStart.InterpolateWith(_floorGoal,descent);
+            parcel.Origin+=Vector3.Up*_floorCorrection;
+            var hand=(RigWorldSpace*Torso.Transform).AffineInverse()*(parcel*(side==0?left:right));
+            // Use the last actual wrist basis. The anatomical wrist limit
+            // can turn the underside contact away from the desired pose.
+            return hand+_previousHands[side].Basis*(Grip!.Position-CargoPalmContact);
+        }
         var centre=BodyPoint(new(0,.887f+_cargoLift,-.292f-_cargoDepth));
         var support=(side==0?left:right)-(left+right)*.5f;
         return centre+support+CargoPalmBasis*(Grip!.Position-CargoPalmContact);
@@ -92,8 +132,20 @@ internal partial class ResidentRig
             CargoMesh.Transform=rightHand.AffineInverse()*new Transform3D(basis,origin);
         }
         if(!_placingCargo)return;
-        _placementContact=supported&&CargoMesh.Visible&&_placementAge>=.52f?_placementContact+delta:0;
-        if(_placementContact>=.085f||_placementAge>=1.25f)
+        bool onFloor=true;
+        if(_groundPlacement)
+        {
+            var pose=HandWorldPose(1)*CargoMesh.Transform;
+            var p=pose.Origin;
+            float ground=CargoGroundHeight?.Invoke(p.X,p.Z)??RigWorldSpace.Origin.Y;
+            float gap=p.Y+CargoMesh.Mesh.GetAabb().Position.Y*pose.Basis.Y.Length()-ground;
+            if(CargoMesh.Visible&&(_placementAge>=1.12f||_placementAge>=.86f&&gap<.014f))
+                _floorCorrection=Mathf.Clamp(_floorCorrection+Math.Clamp(.014f-gap,-delta*.13f,delta*.13f),-.09f,.12f);
+            onFloor=gap is >=0 and <=.038f;
+        }
+        float readyAt=_groundPlacement?1.12f:.52f;
+        _placementContact=supported&&CargoMesh.Visible&&onFloor&&_placementAge>=readyAt?_placementContact+delta:0;
+        if(_placementContact>=.085f||_placementAge>=(_groundPlacement?2.25f:1.25f))
         {
             bool releasedAtContact=_placementContact>=.085f;
             _placingCargo=false;

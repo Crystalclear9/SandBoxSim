@@ -13,6 +13,7 @@ internal sealed partial class NatureModels
         ValidateObservedActionHandoffs();
         ValidateConsumptionInterrupts();
         ValidatePartnerLoss();
+        ValidateSharedParcel();
         var actions=Enum.GetValues<ActionKind>();
         int contactTransfers=0,visibleLoads=0;
         foreach(int identity in new[]{17,55})
@@ -127,6 +128,52 @@ internal sealed partial class NatureModels
         }
         if(contactTransfers<20||visibleLoads<100)throw new InvalidOperationException("Interaction checks did not exercise contact changes and carried loads");
         GD.Print($"INTERACTION_SEQUENCE_PASS: two adult frames, all {actions.Length} action kinds, rendered arrival, {contactTransfers} contact ownership changes, {visibleLoads} supported load frames, resource replacement, short completion, cancellation and pause");
+    }
+
+    private void ValidateSharedParcel()
+    {
+        float worstGrip=0,maxStep=0;
+        int overlap=0;
+        foreach(bool reversed in new[]{false,true})
+        {
+            var giver=Resident(reversed?55:17,false,JobType.None);
+            var receiver=Resident(reversed?17:55,false,JobType.None);
+            giver.Position=new(-.46f,0,0);receiver.Position=new(.46f,0,0);
+            giver.Rotation=new(0,-MathF.PI/2,0);receiver.Rotation=new(0,MathF.PI/2,0);
+            try
+            {
+                foreach(bool interrupt in new[]{false,true})
+                {
+                    var exchange=new ResidentHandoff(giver,receiver);
+                    bool sawParcel=false,stopped=false;
+                    for(int frame=0;frame<390&&!exchange.Finished;frame++)
+                    {
+                        exchange.Prepare();
+                        giver.PresentAction(1f/60,ActionKind.ShareFood,ActionPhase.Done,false,0,hasPartner:false);
+                        receiver.PresentAction(1f/60,ActionKind.None,ActionPhase.Idle,false,0);
+                        var previous=exchange.ParcelPose;
+                        bool visible=exchange.ParcelVisible;
+                        exchange.Advance(1f/60);
+                        if(!exchange.ParcelVisible)continue;
+                        if(visible)maxStep=MathF.Max(maxStep,previous.Origin.DistanceTo(exchange.ParcelPose.Origin));
+                        sawParcel=true;
+                        worstGrip=MathF.Max(worstGrip,exchange.OwnerGap);
+                        if(!exchange.Transferred&&receiver.HandoffHandReady&&exchange.ReceiverGap<.018f)overlap++;
+                        if(interrupt&&!stopped)
+                        {
+                            stopped=true;exchange.Interrupt();
+                            if(!exchange.ParcelVisible)throw new InvalidOperationException("Interrupted parcel vanishes before recovery");
+                        }
+                    }
+                    if(!sawParcel||!exchange.Finished||exchange.Transferred==interrupt||giver.HandoffReserved||receiver.HandoffReserved)
+                        throw new InvalidOperationException($"Two-person exchange does not resolve: reversed={reversed}, interrupted={interrupt}, parcel={sawParcel}, transferred={exchange.Transferred}");
+                }
+            }
+            finally{giver.Free();receiver.Free();}
+        }
+        if(overlap<8||worstGrip>.020f||maxStep>.025f)
+            throw new InvalidOperationException($"Parcel contact gap={worstGrip}, step={maxStep}, shared frames={overlap}");
+        GD.Print($"SHARED_PARCEL_PASS: both adult roles, {overlap} receiver contact frames before transfer, maximum owner gap {worstGrip*1000:F1} mm, maximum parcel step {maxStep*1000:F1} mm, interrupt and recovery");
     }
 
     private void ValidatePartnerLoss()
@@ -264,16 +311,16 @@ internal sealed partial class NatureModels
 
     private void ValidateCargoPlacement()
     {
-        float largestGap=0;int supportedFrames=0;
+        float largestGap=0,largestReleaseHeight=0;int supportedFrames=0;
         foreach(int identity in new[]{17,55})
         foreach(var resource in ResidentRig.CargoKinds)
         {
             var rig=Resident(identity,false,JobType.None);
             try
             {
-                const float ground=.12f;
+                float ground=resource==ResourceKind.Stone?-.055f:.12f;
                 rig.CargoGroundHeight=(_,_)=>ground;
-                var action=resource==ResourceKind.Wood?ActionKind.Deposit:ActionKind.StoreInBuilding;
+                var action=resource is ResourceKind.Wood or ResourceKind.Stone?ActionKind.Deposit:ActionKind.StoreInBuilding;
                 rig.ShowCargo(true,resource);
                 for(int frame=0;frame<120;frame++)rig.PresentAction(1f/60,action,ActionPhase.Executing,false,0);
                 if(!rig.CargoMesh.Visible)throw new InvalidOperationException($"Cargo never reaches its two palm supports: {identity}/{resource}");
@@ -287,14 +334,19 @@ internal sealed partial class NatureModels
                     throw new InvalidOperationException("Pause advances a parcel placement");
                 float descent=0;int released=-1;
                 var (left,right)=rig.CargoSupports[resource];
-                for(int frame=1;frame<=84;frame++)
+                for(int frame=1;frame<=140;frame++)
                 {
                     rig.PresentAction(1f/60,action,ActionPhase.Done,false,0);
                     if(rig.ReleasedCargo)
                     {
                         released=frame;break;
                     }
-                    if(!rig.CargoMesh.Visible)throw new InvalidOperationException("Placement hides the parcel before release");
+                    if(!rig.CargoMesh.Visible)
+                    {
+                        var lp=InTorso(rig.Hands[0],rig.Torso)*rig.Grip!.Position;
+                        var rp=InTorso(rig.Hands[1],rig.Torso)*rig.Grip.Position;
+                        throw new InvalidOperationException($"Placement loses its parcel: {identity}/{resource}, frame={frame}, placing={rig.PlacingCargo}, palm errors={lp.DistanceTo(rig.CargoSupportTarget(0)):F4}/{rp.DistanceTo(rig.CargoSupportTarget(1)):F4}, gap={lp.DistanceTo(rp):F4}");
+                    }
                     var inTorso=InTorso(rig.CargoMesh,rig.Torso);
                     descent=MathF.Max(descent,start.Origin.Y-(rig.Torso.Transform*inTorso).Origin.Y);
                     for(int side=0;side<2;side++)
@@ -306,11 +358,19 @@ internal sealed partial class NatureModels
                     }
                     supportedFrames++;
                 }
-                if(released<33||released>=74||descent<.025f||rig.PlacingCargo)
+                bool floor=action==ActionKind.Deposit;
+                if(released<(floor?65:33)||released>=(floor?135:74)||descent<(floor?.44f:.025f)||rig.PlacingCargo)
                     throw new InvalidOperationException($"Placement does not settle and release at contact: {identity}/{resource}, frame={released}, drop={descent}");
                 var releasePose=rig.Transform*InTorso(rig.CargoMesh,rig);
                 var release=releasePose.Origin;
                 float bottom=rig.CargoMesh.Mesh.GetAabb().Position.Y*releasePose.Basis.Y.Length();
+                if(floor)
+                {
+                    float heightAtRelease=release.Y+bottom-ground;
+                    if(heightAtRelease<-.0001f||heightAtRelease>.039f)
+                        throw new InvalidOperationException($"Ground placement releases away from the support: {heightAtRelease} m");
+                    largestReleaseHeight=MathF.Max(largestReleaseHeight,heightAtRelease);
+                }
                 rig.PresentAction(.5f,ActionKind.None,ActionPhase.Idle,true,0);
                 if(rig.Transform*InTorso(rig.CargoMesh,rig)!=releasePose)
                     throw new InvalidOperationException("Pause moves a released parcel");
@@ -338,6 +398,6 @@ internal sealed partial class NatureModels
             }
             finally{rig.Free();}
         }
-        GD.Print($"CARGO_PLACEMENT_PASS: two adult frames, four cargo meshes, {supportedFrames} placed frames, worst palm gap={largestGap*1000:F1} mm; contact release, ground landing, pause and interruption");
+        GD.Print($"CARGO_PLACEMENT_PASS: two adult frames, four cargo meshes, {supportedFrames} placed frames, worst palm gap={largestGap*1000:F1} mm, ground release height <= {largestReleaseHeight*1000:F1} mm; pause and interruption");
     }
 }
