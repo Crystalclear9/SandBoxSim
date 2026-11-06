@@ -52,6 +52,13 @@ internal sealed partial class NatureModels
             FairRestSurface(points,ids,freedom,.006f,true);
             TransportFairingNormals(rest,points,normals,ids,freedom);
             FitFemaleTrouserLegs(points,normals,ids);
+            rest=(Vector3[])points.Clone();
+            for(int i=0;i<points.Length;i++)
+            {
+                points[i]=FemalePelvicPoint(rest[i]);
+                freedom[i]=points[i]==rest[i]?0:1;
+            }
+            TransportFairingNormals(rest,points,normals,ids,freedom);
         }
         var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);
         var seam=new Vector2[count];
@@ -66,7 +73,7 @@ internal sealed partial class NatureModels
         if(BodyFrame==1)
         {
             mesh.AddBlendShape("LeftHipFlex");mesh.AddBlendShape("RightHipFlex");
-            for(int side=0;side<2;side++)bends.Add(BakeTrouserHipFlex(points,normals,ids,side));
+            for(int side=0;side<2;side++)bends.Add(BakeTrouserHipFlex(points,normals,ids,b,w,side));
             mesh.AddBlendShape("LeftKneeFlex");mesh.AddBlendShape("RightKneeFlex");
             for(int side=0;side<2;side++)bends.Add(BakeTrouserKneeFlex(points,normals,ids,b,w,side));
         }
@@ -132,10 +139,13 @@ internal sealed partial class NatureModels
         return shape;
     }
 
-    private static Godot.Collections.Array BakeTrouserHipFlex(Vector3[] rest,Vector3[] restNormals,int[] ids,int side)
+    private const float TrouserHipFlexAngle=.62f;
+    private static Godot.Collections.Array BakeTrouserHipFlex(Vector3[] rest,Vector3[] restNormals,int[] ids,int[] bones,float[] weights,int side)
     {
         var points=(Vector3[])rest.Clone();var normals=(Vector3[])restNormals.Clone();
         var freedom=new float[rest.Length];
+        var rotation=new Basis(Vector3.Right,TrouserHipFlexAngle);
+        var pivot=new Vector3((side==0?-1:1)*ResidentRig.NeutralHipHalfWidth,ResidentRig.HipHeight,0);
         for(int i=0;i<rest.Length;i++)
         {
             var p=rest[i];float x=MathF.Abs(p.X);
@@ -143,10 +153,16 @@ internal sealed partial class NatureModels
             float panel=Mathf.SmoothStep(.54f,.65f,p.Y)*(1-Mathf.SmoothStep(.75f,.83f,p.Y))*Mathf.SmoothStep(.028f,.080f,x);
             float front=Mathf.SmoothStep(.014f,.071f,-p.Z),rear=Mathf.SmoothStep(.017f,.084f,p.Z);
             float fold=(p.Y-(.723f-.27f*(x-.09f)))/.034f;
-            float diagonal=.010f*MathF.Exp(-fold*fold)*front;
-            // The raised leg compresses the front cloth into a broad diagonal
-            // fold and retains a rounded transition behind the pelvis.
-            points[i].Z+=panel*(.007f*rear-diagonal);
+            float diagonal=.008f*MathF.Exp(-fold*fold)*front;
+            float thighWeight=0;
+            for(int j=0;j<4;j++)if(bones[i*4+j]==side+1)thighWeight+=weights[i*4+j];
+            var lever=p-pivot;
+            var linear=new Basis(Vector3.Right,Vector3.Up.Lerp(rotation.Y,thighWeight),Vector3.Back.Lerp(rotation.Z,thighWeight));
+            var arc=new Basis(Vector3.Right,TrouserHipFlexAngle*thighWeight)*lever;
+            // Restore the outside arc lost to linear skinning at the hip.
+            // The front of the bend retains the separate compression fold.
+            var edit=(linear.Inverse()*arc-lever)*rear-Vector3.Back*diagonal;
+            points[i]+=panel*edit.LimitLength(.010f);
             freedom[i]=panel*(front+rear);
         }
         TransportFairingNormals(rest,points,normals,ids,freedom);
@@ -267,7 +283,12 @@ internal sealed partial class NatureModels
                 if(skeleton.GetBonePose(1)!=frozen)throw new InvalidOperationException("Paused trousers continue moving");
                 for(int shape=0;shape<shapeWeights.Length;shape++)
                     if(shapeWeights[shape]!=rig.Trousers.GetBlendShapeValue(shape))throw new InvalidOperationException("Paused trouser correctives continue moving");
-                if(shapeWeights.Length>0)ValidateKneeCloth(rig,p,b,w,targets);
+                if(shapeWeights.Length>0)
+                {
+                    ValidateFemalePelvicContour(p,ids);
+                    ValidateHipCloth(p,b,w,targets);
+                    ValidateKneeCloth(rig,p,b,w,targets);
+                }
                 rig.ValidateDistanceMeshes();if(rig.Trousers.Mesh!=mesh)throw new InvalidOperationException("Distance change replaces the bound lower garment");
             }
             finally{rig.Free();}
@@ -279,6 +300,46 @@ internal sealed partial class NatureModels
         if(maximumKneeEdit<.003f||peakKneeWeights[0]<.1f||peakKneeWeights[1]<.1f)
             throw new InvalidOperationException($"Knee cloth does not respond in actual resident poses: {peakKneeWeights[0]:F3}/{peakKneeWeights[1]:F3}");
         GD.Print($"FEMALE_KNEE_FLEX_PASS: left/right peak={peakKneeWeights[0]:F3}/{peakKneeWeights[1]:F3}, maximum cloth edit={maximumKneeEdit*1000:F2} mm");
+    }
+
+    private static void ValidateFemalePelvicContour(Vector3[] points,int[] indices)
+    {
+        using var source=JsonDocument.Parse(FileAccess.GetFileAsString("res://assets/models/human/trousers-female.mesh.json"));
+        var coords=source.RootElement.GetProperty("positions");
+        var original=new Vector3[coords.GetArrayLength()/3];
+        for(int i=0;i<original.Length;i++)original[i]=new(coords[i*3].GetSingle(),coords[i*3+1].GetSingle(),coords[i*3+2].GetSingle());
+        var sourceTopology=source.RootElement.GetProperty("indices");
+        var originalIndices=new int[sourceTopology.GetArrayLength()];
+        for(int i=0;i<originalIndices.Length;i++)originalIndices[i]=sourceTopology[i].GetInt32();
+        float upper=GarmentDepth(original,originalIndices,.032f,.827f,true)-GarmentDepth(points,indices,.032f,.827f,true);
+        float lower=GarmentDepth(points,indices,.085f,.725f,true)-GarmentDepth(original,originalIndices,.085f,.725f,true);
+        if(!float.IsFinite(upper)||upper<.006f||upper>.013f||!float.IsFinite(lower)||lower<.001f||lower>.009f)
+            throw new InvalidOperationException($"Female pelvic contour loses its rear depth transition: upper={upper:F4}, lower={lower:F4}");
+        GD.Print($"FEMALE_PELVIC_CONTOUR_PASS: upper rear depth reduced by {upper*1000:F1} mm, rear thigh transition filled by {lower*1000:F1} mm on actual meshes");
+    }
+
+    private static void ValidateHipCloth(Vector3[] points,int[] bones,float[] weights,Vector3[][] targets)
+    {
+        float before=0,after=0;int samples=0;
+        var rotation=new Basis(Vector3.Right,TrouserHipFlexAngle);
+        for(int i=0;i<points.Length;i++)
+        {
+            var point=points[i];
+            if(point.Y<.67f||point.Y>.77f||point.Z<.060f||MathF.Abs(point.X)<.060f)continue;
+            int side=point.X<0?0:1;
+            float thigh=0;
+            for(int j=0;j<4;j++)if(bones[i*4+j]==side+1)thigh+=weights[i*4+j];
+            if(thigh<.15f||thigh>.85f)continue;
+            var axis=new Vector3(point.X,ResidentRig.HipHeight,0);
+            var lever=point-axis;
+            var corrected=targets[side][i]-axis;
+            before+=MathF.Abs(lever.Length()-lever.Lerp(rotation*lever,thigh).Length());
+            after+=MathF.Abs(lever.Length()-corrected.Lerp(rotation*corrected,thigh).Length());
+            samples++;
+        }
+        if(samples<20||after>=.80f*before)
+            throw new InvalidOperationException($"Hip correction does not preserve the rear cloth radius: {samples}, {before}/{after}");
+        GD.Print($"HIP_CLOTH_RADIUS_PASS: {samples} posterior samples, mean radius loss={1000*before/samples:F2} -> {1000*after/samples:F2} mm");
     }
 
     private static void ValidateKneeCloth(ResidentRig rig,Vector3[] points,int[] bones,float[] weights,Vector3[][] targets)

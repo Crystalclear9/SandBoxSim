@@ -39,6 +39,18 @@ internal sealed partial class NatureModels
             waist*((.0015f+.003f*abdomen)*front+.003f*lumbar));
     }
 
+    private static Vector3 FemalePelvicPoint(Vector3 point)
+    {
+        // Rebalance the sagittal contour between the upper seat and the
+        // rear thigh. Keep hip breadth, waistband and the inner leg fixed.
+        float rear=TorsoRamp(.026f,.076f,point.Z);
+        float upper=TorsoRamp(.774f,.819f,point.Y)*(1-TorsoRamp(.839f,.900f,point.Y));
+        float lower=TorsoRamp(.659f,.713f,point.Y)*(1-TorsoRamp(.740f,.794f,point.Y))
+            *TorsoRamp(.033f,.068f,MathF.Abs(point.X));
+        point.Z+=rear*(.005f*lower-.009f*upper);
+        return point;
+    }
+
     // Continuous anterior volume on the existing adult thorax, not attached
     // cup primitives. Leave the sternum, lateral wall and upper shoulder fixed.
     private static Vector3 ChestVolumePoint(Vector3 p)
@@ -108,11 +120,11 @@ internal sealed partial class NatureModels
         for(int row=0;row<TrunkRows;row++)
         {
             float y=TrunkLow+row*.005f;
-            if(y<=.875f||y>=1.235f)continue;
+            if(y>=1.235f)continue;
             for(int col=0;col<TrunkColumns;col++)
             {
                 float a=col*Mathf.Tau/TrunkColumns,r=source[row*TrunkColumns+col];
-                var p=ChestVolumePoint(BalancedTorsoPoint(MedialThoraxPoint(new(MathF.Cos(a)*r,y,MathF.Sin(a)*r))));
+                var p=FemalePelvicPoint(ChestVolumePoint(BalancedTorsoPoint(MedialThoraxPoint(new(MathF.Cos(a)*r,y,MathF.Sin(a)*r)))));
                 ring[col]=new(p.X,p.Z);
             }
             // Re-intersect the mapped polygon. Scaling radii directly would
