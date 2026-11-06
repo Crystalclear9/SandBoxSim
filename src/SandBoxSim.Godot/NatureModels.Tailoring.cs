@@ -361,7 +361,7 @@ internal sealed partial class NatureModels
             FineBeam(rig.Torso,TorsoSurface(side*.007f,y,false,.0047f),
                 TorsoSurface(side*.007f,y+.0035f,false,.0047f),.00055f,thread);
         }
-        if(job is JobType.Gatherer or JobType.Hunter or JobType.Trader)
+        if(!FittedFigure&&(job is JobType.Gatherer or JobType.Hunter or JobType.Trader))
         {
             Sculpt(rig.Torso,FittedRibbon("shoulder-front",.81f,1.20f),Vector3.Zero,LeatherSurface("#665141"));
             Sculpt(rig.Torso,FittedRibbon("shoulder-back",.81f,1.20f,true),Vector3.Zero,LeatherSurface("#665141"));

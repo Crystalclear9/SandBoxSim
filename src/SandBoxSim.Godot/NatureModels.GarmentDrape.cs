@@ -254,7 +254,17 @@ internal sealed partial class NatureModels
         // Their support is the waistband, so they fade out above it.
         float below=1-Mathf.SmoothStep(belt-.015f,belt+.025f,height);
         float hem=.0020f*MathF.Cos(angle*8+.25f)*below;
-        if(FittedFigure){hem*=.45f;backPleat*=.65f;}
+        if(FittedFigure)
+        {
+            backPleat*=.65f;
+            // Two shallow releases below the waist follow the bias of the
+            // actual cut. The loose outer cloth bridges the hip underneath.
+            float release=TorsoRamp(.023f,.120f,-above)*TorsoRamp(.760f,.835f,height);
+            float flank=MathF.Abs(x),grain=Mathf.Lerp(.43f,.62f,release);
+            float fall=Bell(flank-grain,.135f)*front*front+Bell(flank-(.56f-.11f*release),.17f)*back*back;
+            float clothEase=_garmentCut==2?.0045f:_garmentCut==1?.0027f:.0020f;
+            hem=clothEase*release*fall;
+        }
         float clearNeck=1-Mathf.SmoothStep(1.18f,1.22f,height);
         float sideSeam=1-Mathf.SmoothStep(.90f,1,MathF.Abs(x));
         return Math.Clamp((gathering+axilla+backPleat+hem)*clearNeck*sideSeam,-.003f,.0045f);

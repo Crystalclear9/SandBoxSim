@@ -284,7 +284,12 @@ internal sealed partial class NatureModels
         rig.HeadProxy=new MeshInstance3D {Name="DistantHead",Mesh=DistantHead(skin,hair),Visible=false};rig.Head.AddChild(rig.HeadProxy);
         AddHandSkin(rig,skin);
         ApplyBodyFrame(rig);
-        if(FittedFigure)AddFittedPlacketButtons(rig);
+        if(FittedFigure)
+        {
+            AddFittedPlacketButtons(rig);
+            AddFemaleCarryGear(rig,job);
+        }
+        if(!child)rig.CaptureBodyMounts();
         AddContinuousTrousers(rig);
         rig.Head.Scale=new Vector3(.99f+((variation>>15)%4)*.0125f,.995f+((variation>>18)%3)*.0125f,1);
         if (child) { rig.Scale = new Vector3(.72f, .65f, .72f); rig.Head.Scale = Vector3.One * 1.15f; }

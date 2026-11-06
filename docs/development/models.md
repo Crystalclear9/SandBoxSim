@@ -191,6 +191,8 @@
 
 三款女性成衣各自使用下摆高度曲线。工作衫沿侧腰放出少量活动余量，下缘接近平直。采集短衣在侧髋抬高，前后保留弧线。商人外套由腰向下逐渐展开，后片比前片更长。余量从已覆盖裤装的外层衣面向外加，接近腰带前逐渐归零。三款染色分别向亚麻褐、灰绿和暖赭调整，混合居民原有颜色。正背面可直接比较同一居民换装后的效果。[女性成衣图册](../images/resident-female-wardrobe.png) · [Colonial Williamsburg 工作短衣藏品](https://emuseum.colonialwilliamsburg.org/objects/7862/jacket) · [腰下展开版型藏品](https://emuseum.colonialwilliamsburg.org/objects/503/jacket)
 
+三款女性衣装的腰下褶线从腰带往髋侧逐渐张开，短衣和长外套分别留出不同的衣量。采集者与猎人的背包贴合实际后衣片，双肩带沿衣面穿过肩部，并绕回背包的上下挂点。商人的薄皮袋用两条翻折挂袢固定在左后腰。`FEMALE_CARRY_GEAR_PASS` 检查背带挂点和蒙皮，以及走路、拾取、交易、交谈和进食时手臂中线相对皮袋包围盒的净空。[工作短衣藏品](https://emuseum.colonialwilliamsburg.org/objects/7862/jacket) · [皮袋与皮质挂点藏品](https://postalmuseum.si.edu/object/npm_2004.2004.17)
+
 女性裤装沿高度每隔 10 毫米读取实际截面。大腿外侧、内缝、膝前和膝后各自分配衣量，前裆到内缝的转折下放最多 8 毫米，靴内的裤脚与髋关节支撑继续使用对应的成品网格。裤缝以到截面中线的有符号距离定位，内外缝跟随实际腿型，针脚细节随距离平滑过渡。静止造型与弯身、行走使用同一网格，髋、膝各自响应姿态。`FEMALE_TROUSER_DRAPE_PASS` 检查成品膝前与膝侧余量、大腿横向余量、前裆曲面和固定裤脚。[女裤三维合体研究](https://journals.sagepub.com/doi/10.1177/0887302X07309479) · [站姿与坐姿下身截面研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC8464815/)
 
 女性后领与上背之间采用局部深度修形。肩袖拟合完成后，后片超出目标弧面的部分逐渐向内收，修形在领口和袖窿前退出。几何法线从成品网格重建，近远景使用相同的静止轮廓。后育克的弧形针脚由衣面的静止坐标驱动，随肩背弯曲。三款衣装的实际成品在背中线及左右 25 毫米的截面上检查后领下方的外突量。造型参考肩颈与肩胛之间的宽缓连接，以及服装在肩部活动时的拉伸与压缩。[肩颈表面结构](https://elsevier-elibrary.com/contents/fullcontent/58090/epubcontent_v2/OEBPS/B9780443069529000126A.htm) · [Blender Studio 衣装形体](https://studio.blender.org/training/realistic-human-research/clothing-shapes/)

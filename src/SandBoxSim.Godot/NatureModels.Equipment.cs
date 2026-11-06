@@ -178,7 +178,7 @@ ROUGHNESS = 0.93; SPECULAR = 0.18;
             Sculpt(rig.Torso,FittedRibbon(job==JobType.Soldier?"armor":"apron",job==JobType.Soldier?.91f:.79f,1.17f),Vector3.Zero,ResidentMaterial(job==JobType.Soldier?"#7d8581":"#75654f"));
         }
         AddHandTools(rig,job);
-        if(job is JobType.Gatherer or JobType.Hunter or JobType.Trader)
+        if((job is JobType.Gatherer or JobType.Hunter or JobType.Trader)&&(!FittedFigure||job!=JobType.Trader))
         {
             rig.PackMount=new Node3D {Name="PackMount",Position=new(0,1.02f,TorsoSurface(0,1.02f,true).Z+.066f)};rig.Torso.AddChild(rig.PackMount);
             Sculpt(rig.PackMount,PackBody(),Vector3.Zero,LeatherSurface("#665141"),new(-MathF.PI/2,0,0));

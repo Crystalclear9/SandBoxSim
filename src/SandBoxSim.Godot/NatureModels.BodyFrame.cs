@@ -467,7 +467,6 @@ internal sealed partial class NatureModels
         }
         rig.ShoulderSkeleton.ResetBonePoses();rig.DetailedBodySkin=skin;rig.BodySkin.Skin=skin;
         FitArmClothing(rig);
-        rig.CaptureBodyMounts();
     }
     public void ValidateBodyFrames()
     {
@@ -642,9 +641,9 @@ internal sealed partial class NatureModels
             for(int side=0;side<2;side++)
                 if(!(female.ShoulderSkeleton.GetBoneRest(side+1)*female.DetailedBodySkin.GetBindPose(side+1)).IsEqualApprox(Transform3D.Identity))
                     throw new InvalidOperationException("Fitted shoulder rest and inverse bind disagree");
-            if(male.SatchelMount==null||female.SatchelMount==null||male.SatchelMount.Scale!=Vector3.One||female.SatchelMount.Scale!=Vector3.One||
-                male.SatchelMount.GetChild<MeshInstance3D>(0).Mesh.GetAabb()!=female.SatchelMount.GetChild<MeshInstance3D>(0).Mesh.GetAabb())
-                throw new InvalidOperationException("Body fitting stretches the rigid satchel instead of adapting its mount");
+            if(male.SatchelMount==null||male.SatchelMount.Scale!=Vector3.One||female.SatchelMount!=null||female.PackMount==null)
+                throw new InvalidOperationException("Gathering equipment loses its fitted adult carry layout");
+            ValidateFemaleCarryGear(female);
             foreach(var rig in new[]{male,female})
                 if(MathF.Abs(rig.Scale.X-rig.Scale.Y)>.00001f||MathF.Abs(rig.Scale.X-rig.Scale.Z)>.00001f||rig.Head.Scale.X<.98f||rig.Head.Scale.X>1.04f)
                     throw new InvalidOperationException("Stature scaling distorts the adult body or head proportions");
