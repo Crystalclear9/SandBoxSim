@@ -7,7 +7,6 @@ namespace SandBoxSim.Client;
 internal partial class ResidentRig
 {
     private float _bareBlend,_pickupBlend,_pickupTime,_bareTime,_cargoBlend,_supportBlend,_cargoLift;
-    internal Vector3 CargoSupportTarget(int side)=>BodyPoint(new(side==0?-.12f:.12f,.90f+_cargoLift,-.29f));
     private SandBoxSim.Core.Agents.ActionKind _bareAction;
     private readonly Transform3D[] _previousHands=new Transform3D[2];
     private readonly Vector3[] _previousElbows=new Vector3[2];

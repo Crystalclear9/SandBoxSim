@@ -46,7 +46,43 @@ ROUGHNESS=.64;SPECULAR=.24;
             JobType.Builder or JobType.Craftsman=>ResidentTool.Hammer, JobType.Soldier=>ResidentTool.Spear,_=>ResidentTool.None };
         rig.SelectTool(rig.DefaultTool);
         rig.CargoMesh=new MeshInstance3D {Name="CarriedResources",Position=new(-.12f,-.106f,-.025f),Visible=false};rig.Hands[1].AddChild(rig.CargoMesh);
-        foreach(var resource in new[]{ResourceKind.Food,ResourceKind.Wood,ResourceKind.Stone,ResourceKind.Iron})rig.CargoMeshes[resource]=CargoBundle(resource);
+        foreach(var resource in ResidentRig.CargoKinds)
+        {
+            var mesh=CargoBundle(resource);
+            rig.CargoMeshes[resource]=mesh;
+            rig.CargoSupports[resource]=CargoUnderside(resource,mesh);
+        }
+    }
+    private readonly Dictionary<ResourceKind,(Vector3 Left,Vector3 Right)> _cargoUndersides=new();
+    private (Vector3 Left,Vector3 Right) CargoUnderside(ResourceKind resource,Mesh mesh)
+    {
+        if(_cargoUndersides.TryGetValue(resource,out var existing))return existing;
+        float half=resource==ResourceKind.Wood?.090f:.076f;
+        float Probe(float x)
+        {
+            float bottom=float.PositiveInfinity;
+            for(int surface=0;surface<mesh.GetSurfaceCount();surface++)
+            {
+                var arrays=mesh.SurfaceGetArrays(surface);
+                var p=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                var ids=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+                int count=ids.Length==0?p.Length:ids.Length;
+                for(int i=0;i<count;i+=3)
+                {
+                    var a=p[ids.Length==0?i:ids[i]];
+                    var b=p[ids.Length==0?i+1:ids[i+1]]-a;
+                    var c=p[ids.Length==0?i+2:ids[i+2]]-a;
+                    var ab=new Vector2(b.X,b.Z);var ac=new Vector2(c.X,c.Z);
+                    float area=ab.Cross(ac);if(MathF.Abs(area)<1e-9f)continue;
+                    var offset=new Vector2(x-a.X,-a.Z);
+                    float u=offset.Cross(ac)/area,v=ab.Cross(offset)/area;
+                    if(u>=-.00001f&&v>=-.00001f&&u+v<=1.00001f)bottom=MathF.Min(bottom,a.Y+u*b.Y+v*c.Y);
+                }
+            }
+            if(!float.IsFinite(bottom))throw new InvalidOperationException($"Missing underside contact on carried {resource}");
+            return bottom;
+        }
+        return _cargoUndersides[resource]=(new(-half,Probe(-half),0),new(half,Probe(half),0));
     }
     private Mesh CargoBundle(ResourceKind resource)
     {

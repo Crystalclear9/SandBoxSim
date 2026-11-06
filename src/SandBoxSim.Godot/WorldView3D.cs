@@ -39,6 +39,7 @@ public partial class WorldView3D : MapView
     private double _poll;
     private int _lastOverlay = -1;
     private readonly Dictionary<long, Node3D> _people = new();
+    private Func<float,float,float>? _cargoGroundHeight;
     private readonly Dictionary<long, Node3D> _deer = new();
     private readonly Dictionary<int, Node3D> _wolves = new();
     private readonly Dictionary<long, (bool Child, JobType Job)> _personModels = new();
@@ -807,6 +808,7 @@ public partial class WorldView3D : MapView
             if (!exists||_personModels[id]!=(child,job))
             {
                 var person=(ResidentRig)_models.Human(slot,child,job);_actors.AddChild(person);
+                person.CargoGroundHeight=_cargoGroundHeight??=GroundHeight;
                 if(old is ResidentRig previous)
                 {
                     person.Position=previous.Position;person.Rotation=previous.Rotation;person.Travel=previous.Travel;
@@ -918,7 +920,7 @@ public partial class WorldView3D : MapView
             bool visible=ActorInView(rendered+Vector3.Up*.9f,frustum);
             if(node.Visible!=visible)node.Visible=visible;
             _poseSchedule.Accumulate(pair.Key,delta,visible&&!paused);
-            if(!visible){node.ResetGroundContacts();node.CancelPivot();continue;}
+            if(!visible){node.ResetGroundContacts();node.CancelPivot();node.ClearTransientCargo();continue;}
             bool hasInterest=(hasTarget||gathering)&&sim.World.IsInBounds(interest);
             var interestPoint=hasInterest?SceneResourceFocus(interest.X,interest.Y,action):target;
             if(sim.Actions.TryGetInteractionPartner(slot,out int partner))

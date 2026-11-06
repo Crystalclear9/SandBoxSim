@@ -101,22 +101,27 @@ internal partial class ResidentRig : Node3D
     private ActionKind _observedAction,_completionAction;
     private ActionPhase _observedPhase;
     private float _observedExecution,_completionRemaining,_completionAge;
-    public bool CompletionVisible=>_completionRemaining>0;
+    public bool CompletionVisible=>_completionRemaining>0||_placingCargo;
     public void PresentAction(float delta,ActionKind action,ActionPhase phase,bool paused,float identityPhase)
     {
         if(paused)return;
         delta=PresentationDelta(delta);
+        bool newlyDone=phase==ActionPhase.Done&&(_observedPhase!=ActionPhase.Done||_observedAction!=action);
+        ObserveCargoPlacement(action,phase,newlyDone);
         if(action!=_observedAction || (phase==ActionPhase.Moving&&_observedPhase!=ActionPhase.Moving) || (phase==ActionPhase.Executing&&_observedPhase is ActionPhase.Done or ActionPhase.Idle or ActionPhase.Failed)){_observedExecution=0;_completionRemaining=0;}
         bool gesture=ToolFor(action)!=ResidentTool.None||action is ActionKind.GatherFood or ActionKind.Take or ActionKind.Deposit or ActionKind.StoreInBuilding or ActionKind.Eat or ActionKind.Drink or ActionKind.ShareFood or ActionKind.Trade or ActionKind.Socialize;
         if(phase==ActionPhase.Executing&&GestureEngaged(action))_observedExecution+=delta;
-        if(gesture&&phase==ActionPhase.Done&&(_observedPhase!=ActionPhase.Done||_observedAction!=action))
+        if(gesture&&newlyDone)
         {
             _completionAction=action;_completionAge=0;
             _completionRemaining=MathF.Max(0,(ToolFor(action)==ResidentTool.None?1.65f:MathF.Max(.9f,WorkPeriod))-_observedExecution);
+            if(IsPlacement(action)&&!_hasCargo)_completionRemaining=0;
         }
         if(phase is ActionPhase.Moving or ActionPhase.Failed)_completionRemaining=0;
         _observedAction=action;_observedPhase=phase;
-        if(_completionRemaining>0)
+        if(_placingCargo)
+            PoseAction(delta,action,ActionPhase.Executing,false,identityPhase);
+        else if(_completionRemaining>0)
         {
             PoseAction(delta,_completionAction,ActionPhase.Executing,false,identityPhase);
             // Reaching/stowing/arrival is preparation, not a visible work
@@ -133,7 +138,8 @@ internal partial class ResidentRig : Node3D
     private Vector3 _restPose,_restPoseVelocity;
     private bool _carrying,_takingTool;
     public bool ToolHeld {get;private set;}
-    public string Handling => !InteractionSettled&&_lastPhase==ActionPhase.Executing?"接近目的地 / 停稳":ToolHeld ? _returning?"收回工具":_draw<.99f?"取出 / 抬手":_carrying?"手持携带":"使用工具" : _releaseTime>0?"松开手指":_reach>.01f?(_takingTool?(_reach==1?"合拢握柄":"伸手拿取"):"收回手臂"):CargoMesh.Visible?(_bareBlend>.01f&&CompatibleBareActions(_bareAction,ActionKind.Deposit)?"双手交接":"双手搬运"):_bareBlend>.01f?_bareAction switch {ActionKind.Eat=>"进食 / 收手",ActionKind.Drink=>"饮水 / 收手",ActionKind.Take or ActionKind.GatherFood=>"弯身取物",_=>"徒手交互"}:_cargoBlend>.01f?(_hasCargo?"托起物资":"放下 / 收手"):"双手放松";
+    public string Handling => _placingCargo?"双手送稳 / 准备松开":_releasedCargo?"物资落地 / 收手":
+        !InteractionSettled&&_lastPhase==ActionPhase.Executing?"接近目的地 / 停稳":ToolHeld ? _returning?"收回工具":_draw<.99f?"取出 / 抬手":_carrying?"手持携带":"使用工具" : _releaseTime>0?"松开手指":_reach>.01f?(_takingTool?(_reach==1?"合拢握柄":"伸手拿取"):"收回手臂"):CargoMesh.Visible?(_bareBlend>.01f&&CompatibleBareActions(_bareAction,ActionKind.Deposit)?"双手递出":"双手搬运"):_bareBlend>.01f?_bareAction switch {ActionKind.Eat=>"进食 / 收手",ActionKind.Drink=>"饮水 / 收手",ActionKind.Take or ActionKind.GatherFood=>"弯身取物",_=>"徒手交互"}:_cargoBlend>.01f?(_hasCargo?"托起物资":"放下 / 收手"):"双手放松";
     internal bool GestureEngaged(ActionKind action)=>InteractionSettled&&(ToolFor(action)!=ResidentTool.None
         ?ToolHeld&&CurrentTool==ToolFor(action)&&!_returning&&_draw>=.99f&&_workBlend>.9f&&(!UsesStagedStance||WorkStanceSettled)
         :action==ActionKind.Socialize?_socialBlend>.9f||_hasCargo&&!ToolHeld:_bareAction==action&&_bareBlend>.9f);
@@ -144,7 +150,7 @@ internal partial class ResidentRig : Node3D
         ActionKind.BuildHouse or ActionKind.BuildFarm or ActionKind.BuildStorage or ActionKind.BuildMine=>ResidentTool.Hammer,
         ActionKind.Attack or ActionKind.Hunt=>ResidentTool.Spear,_=>ResidentTool.None };
     public string HeldObject=>ToolHeld?CurrentTool switch {ResidentTool.Axe=>"斧头",ResidentTool.Pick=>"镐",ResidentTool.Hoe=>"锄头",ResidentTool.Hammer=>"手锤",ResidentTool.Spear=>"长矛",_=>""}
-        :CargoMesh.Visible?_cargoKind switch {ResourceKind.Wood=>"木材捆",ResourceKind.Food=>"食物袋",ResourceKind.Stone=>"石料袋",ResourceKind.Iron=>"铁料袋",_=>"物资"}:"";
+        :CargoMesh.Visible&&!_releasedCargo?_cargoKind switch {ResourceKind.Wood=>"木材捆",ResourceKind.Food=>"食物袋",ResourceKind.Stone=>"石料袋",ResourceKind.Iron=>"铁料袋",_=>"物资"}:"";
     public void SelectTool(ResidentTool kind)
     {
         CurrentTool=kind;ToolMesh.Visible=kind!=ResidentTool.None;
@@ -169,7 +175,7 @@ internal partial class ResidentRig : Node3D
         // Distant residents arrive with several frame intervals accumulated.
         // Consume that time in bounded steps instead of discarding everything
         // beyond .1 seconds. A long host stall still has a one-second budget.
-        bool fineReach=_referencePlaying||_referenceWeight>0||_hasArmReturn||_reach>0||_releaseTime>0||ToolHeld&&(_draw<.99f||_returning)||!ToolHeld&&ToolFor(action)!=ResidentTool.None||_cargoBlend>0||_socialBlend>.001f||action is ActionKind.Socialize or ActionKind.Eat or ActionKind.Drink or ActionKind.Take or ActionKind.GatherFood or ActionKind.Deposit or ActionKind.StoreInBuilding or ActionKind.ShareFood or ActionKind.Trade;
+        bool fineReach=_referencePlaying||_referenceWeight>0||_hasArmReturn||_reach>0||_releaseTime>0||ToolHeld&&(_draw<.99f||_returning)||!ToolHeld&&ToolFor(action)!=ResidentTool.None||_cargoBlend>0||_releasedCargo||_socialBlend>.001f||action is ActionKind.Socialize or ActionKind.Eat or ActionKind.Drink or ActionKind.Take or ActionKind.GatherFood or ActionKind.Deposit or ActionKind.StoreInBuilding or ActionKind.ShareFood or ActionKind.Trade;
         ConsumeLocomotionSamples();
         // Mouth approaches combine wrist orientation limits and a very short
         // target distance. Resolve those constraints at one shared cadence so
@@ -211,7 +217,7 @@ internal partial class ResidentRig : Node3D
         // A long tool is carried in the hand during idle/wandering, rather than
         // hanging diagonally from an invisible waist socket. Bare-hand actions
         // and cargo retain priority and go through the complete stow transition.
-        if(wanted==ResidentTool.None&&!IsChild&&!_hasCargo&&!resting&&
+        if(wanted==ResidentTool.None&&!IsChild&&!_hasCargo&&!_placingCargo&&!_releasedCargo&&!resting&&
             (action is ActionKind.None or ActionKind.Wander||phase is ActionPhase.Idle or ActionPhase.Done))
             wanted=DefaultTool;
         _carrying=wanted!=ResidentTool.None&&(!executing||ToolFor(action)==ResidentTool.None);
@@ -263,7 +269,8 @@ internal partial class ResidentRig : Node3D
         float toolLean=-.035f-(.097f-.041f*Flow)*workBlend-effort;
         float freeLean=-(.033f+.018f*_gaitSpeed)*_activity+.007f*MathF.Sin(_phase*.53f+identityPhase)*(1-_activity);
         float pickupLean=(-.61f+.055f*Flow)*gatherPose.Bend;
-        float desiredLean=Mathf.Lerp(Mathf.Lerp(usingTool?toolLean:freeLean,pickupLean,pickupWeight),-.16f,restWeight);
+        float placementLean=_placingCargo?-.14f*ReachEase(_placementAge/.52f):0;
+        float desiredLean=Mathf.Lerp(Mathf.Lerp(usingTool?toolLean:freeLean,pickupLean,pickupWeight),-.16f,restWeight)+placementLean;
         float bareParticipation=Smooth(_bareBlend)*(1-pickupWeight);
         float reachLean=-Math.Clamp(-_previousHands[1].Origin.Z-.12f,0,.26f)*.12f*bareParticipation;
         float reachTurn=Math.Clamp(_previousHands[1].Origin.X,-.22f,.22f)*.09f*bareParticipation;
@@ -440,7 +447,7 @@ internal partial class ResidentRig : Node3D
             }
         }
         bool consuming=executing&&action is ActionKind.Eat or ActionKind.Drink;
-        bool cargoWanted=_hasCargo&&!usingTool&&!ToolHeld&&!resting&&!pickup&&!consuming&&_reach==0;
+        bool cargoWanted=(_hasCargo||_placingCargo)&&!usingTool&&!ToolHeld&&!resting&&!pickup&&!consuming&&_reach==0;
         _cargoBlend=Mathf.MoveToward(_cargoBlend,cargoWanted?1:0,delta/.40f);
         bool bareActive=executing&&!usingTool&&!ToolHeld&&_reach==0&&_releaseTime==0&&action is ActionKind.GatherFood or ActionKind.Take or ActionKind.Deposit or ActionKind.StoreInBuilding or ActionKind.ShareFood or ActionKind.Trade or ActionKind.Eat or ActionKind.Drink;
         // Compatible actions share hands, targets and cycle duration. Handoff
@@ -454,13 +461,13 @@ internal partial class ResidentRig : Node3D
         // One controller owns each arm. Transfers move the same carrying
         // targets instead of solving cargo and then overriding both arms.
         bool cargoArms=_cargoBlend>0&&!usingTool&&!ToolHeld&&_reach==0&&!consuming;
-        _cargoLift=_bareBlend>0&&_bareAction is ActionKind.Deposit or ActionKind.StoreInBuilding or ActionKind.ShareFood or ActionKind.Trade
-            ?.07f*ReachPulse((_bareTime%1.8f)/1.8f)*Smooth(_bareBlend):0;
+        SetCargoReach(delta);
         if(cargoArms)
             for(int i=0;i<2;i++)
             {
-                BlendBareHand(i,CargoSupportTarget(i),Basis.FromEuler(new Vector3(MathF.PI/2,0,0)),_cargoBlend);
-                CurlHand(i,Mathf.Lerp(_handCurl[i],.75f,Smooth(_cargoBlend)));
+                BlendBareHand(i,CargoSupportTarget(i),CargoPalmBasis,_cargoBlend);
+                float curl=_releasedCargo?Mathf.Lerp(.75f,.10f,ReachEase(_releasedCargoTime/.13f)):.75f;
+                CurlHand(i,Mathf.Lerp(_handCurl[i],curl,Smooth(_cargoBlend)));
             }
         if(_bareBlend>0&&!cargoArms&&!usingTool&&!ToolHeld&&_reach==0)
         {
@@ -521,23 +528,7 @@ internal partial class ResidentRig : Node3D
         }
         ApplyMotionReference();
         FinishArmReturns();
-        // A blend timer may finish before the speed-limited hands arrive.
-        // Keep an established load attached, but require both actual palms
-        // near their support targets before its first displayed frame.
-        bool supported=true;
-        for(int side=0;side<2;side++)
-        {
-            var hand=Arms[side].Transform*Elbows[side].Transform*Hands[side].Transform;
-            supported&=(hand*Grip!.Position).DistanceTo(CargoSupportTarget(side))<.025f;
-        }
-        CargoMesh.Visible=cargoWanted&&_cargoBlend>=.999f&&(CargoMesh.Visible||supported);
-        if(CargoMesh.Visible)
-        {
-            var right=Arms[1].Transform*Elbows[1].Transform*Hands[1].Transform;
-            var left=Arms[0].Transform*Elbows[0].Transform*Hands[0].Transform;
-            var center=((right*Grip!.Position)+(left*Grip.Position))*.5f+new Vector3(0,_cargoKind==ResourceKind.Wood?.05f:.13f,-.04f);
-            CargoMesh.Transform=right.AffineInverse()*new Transform3D(Basis.Identity,center);
-        }
+        UpdateCarriedObject(delta,cargoWanted);
         if(ToolHeld){var held=Arms[1].Transform*Elbows[1].Transform*Hands[1].Transform*Grip!.Transform;_heldPosition=held.Origin;_heldBasis=held.Basis;}
         if(_detailedHands)for(int side=0;side<2;side++)
         {
@@ -564,8 +555,10 @@ internal partial class ResidentRig : Node3D
     }
     public void ShowCargo(bool hasCargo,ResourceKind resource)
     {
-        if(hasCargo&&_hasCargo&&resource!=_cargoKind){CargoMesh.Visible=false;_cargoBlend=0;}
-        _hasCargo=hasCargo;_cargoKind=resource;
+        if(!hasCargo){_hasCargo=false;return;}
+        if(_releasedCargo)ClearTransientCargo();
+        if((_hasCargo||CargoMesh.Visible)&&resource!=_cargoKind){CargoMesh.Visible=false;_cargoBlend=0;}
+        _hasCargo=true;_cargoKind=resource;
         if(hasCargo&&CargoMeshes.TryGetValue(resource,out var mesh)&&CargoMesh.Mesh!=mesh)CargoMesh.Mesh=mesh;
     }
     public void SetHandDetail(bool detailed)
