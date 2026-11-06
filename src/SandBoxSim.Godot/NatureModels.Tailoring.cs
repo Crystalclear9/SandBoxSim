@@ -112,6 +112,74 @@ internal sealed partial class NatureModels
         return new(exposed.Values);
     }
 
+    private const float FemaleNeckFacingDepth=.0045f;
+    private float FemaleNecklineHeight(float angle)
+    {
+        float depth=MathF.Sin(angle);
+        float cut=_garmentCut==2?.004f:_garmentCut==1?.001f:0;
+        return 1.287f+.010f*depth+.002f*depth*depth+cut*MathF.Max(0,-depth);
+    }
+
+    private void ShapeFemaleNeckline(Vector3[] points,int[] indices,Vector2[] pattern)
+    {
+        // Build the collar slope from the actual sewn opening. Let the near
+        // yoke share that change instead of bending just the boundary ring.
+        var opening=NeckOpeningEdges(points,indices);
+        if(opening.Count!=NeckOpeningSegments)throw new InvalidOperationException("Cannot shape an incomplete neck opening");
+        var rim=new (float Angle,float Radius,float Height,float Offset)[opening.Count];
+        for(int i=0;i<rim.Length;i++)
+        {
+            var point=points[opening[i].From];
+            float angle=MathF.Atan2(point.Z,point.X);
+            rim[i]=(angle,new Vector2(point.X,point.Z).Length(),point.Y,FemaleNecklineHeight(angle)-point.Y);
+        }
+        Array.Sort(rim,(a,b)=>a.Angle.CompareTo(b.Angle));
+        var rest=(Vector3[])points.Clone();
+        var clavicularPanel=new float[points.Length];
+        for(int i=0;i<points.Length;i++)
+        {
+            var point=points[i];
+            if(pattern[i].X>=0||point.Y<1.22f)continue;
+            float angle=MathF.Atan2(point.Z,point.X);
+            int next=0;
+            while(next<rim.Length&&rim[next].Angle<angle)next++;
+            var a=rim[(next+rim.Length-1)%rim.Length];var b=rim[next%rim.Length];
+            float t=Mathf.PosMod(angle-a.Angle,Mathf.Tau)/Mathf.PosMod(b.Angle-a.Angle,Mathf.Tau);
+            float height=Mathf.Lerp(a.Height,b.Height,t);
+            float radius=Mathf.Lerp(a.Radius,b.Radius,t);
+            var radial=new Vector2(point.X,point.Z);
+            float distance=new Vector2(point.Y-height,radial.Length()-radius).Length();
+            float follow=1-TorsoRamp(.004f,.062f,distance);
+            var ray=radial.Normalized();
+            float front=MathF.Max(0,-ray.Y);
+            // The collar eases back towards the throat. A flatter taper
+            // under the front edge replaces the last standing lip.
+            var inset=ray*(.0015f+.0025f*front*front)*follow;
+            points[i]=point+new Vector3(-inset.X,Mathf.Lerp(a.Offset,b.Offset,t)*follow,-inset.Y);
+            float lateral=MathF.Abs(point.X);
+            // Round the cloth below the sides of the opening. Keep the rim
+            // itself and the far shoulder as the two fixed supports.
+            clavicularPanel[i]=TorsoRamp(.006f,.020f,distance)*(1-TorsoRamp(.032f,.062f,distance))
+                *TorsoRamp(.031f,.055f,lateral)*(1-TorsoRamp(.084f,.113f,lateral))
+                *TorsoRamp(.012f,.037f,-point.Z)*TorsoRamp(1.230f,1.258f,point.Y);
+        }
+        FairRestSurface(points,indices,clavicularPanel,.0045f,roundRelief:true);
+        foreach(var edge in opening)
+        {
+            var point=points[edge.From];
+            if(MathF.Abs(point.Y-FemaleNecklineHeight(MathF.Atan2(point.Z,point.X)))>.0002f)
+                throw new InvalidOperationException("Sewn rim does not follow its continuous collar slope");
+        }
+        for(int i=0;i<indices.Length;i+=3)
+        {
+            int a=indices[i],b=indices[i+1],c=indices[i+2];
+            var before=(rest[b]-rest[a]).Cross(rest[c]-rest[a]);
+            var after=(points[b]-points[a]).Cross(points[c]-points[a]);
+            if(before.LengthSquared()>1e-20f&&before.Dot(after)<=0)
+                throw new InvalidOperationException("Shaped collar reverses a sewn triangle");
+        }
+    }
+
     private static void FoldFemaleNeckline(Godot.Collections.Array arrays,ref Vector3[] points,ref Vector2[] pattern)
     {
         var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
@@ -133,8 +201,8 @@ internal sealed partial class NatureModels
             int a=rim[i],b=outerCount+i,c=b+rim.Count;
             var point=points[a];
             var inward=new Vector3(-point.X,0,-point.Z).Normalized();
-            points[b]=point+inward*.0017f+Vector3.Up*.0013f;
-            points[c]=point+inward*.0033f-Vector3.Up*.0055f;
+            points[b]=point+inward*.0022f+Vector3.Up*.0006f;
+            points[c]=point+inward*.0038f-Vector3.Up*FemaleNeckFacingDepth;
             pattern[b]=pattern[c]=pattern[a];
             // The turn moves with the neck opening, clear of the arm-driven
             // clavicle panel. Pin the outer seam and both layers together.
@@ -175,7 +243,7 @@ internal sealed partial class NatureModels
         for(int i=original;i<original+count;i++)
         {
             int inner=i+count;
-            if(MathF.Abs(p[i].Y-p[inner].Y-.0068f)>.00001f)
+            if(MathF.Abs(p[i].Y-p[inner].Y-(FemaleNeckFacingDepth+.0006f))>.00001f)
                 throw new InvalidOperationException("Folded neckline loses its turned-in depth");
             if(bones[i*4]!=0||weights[i*4]!=1)
                 throw new InvalidOperationException("Folded neckline responds to arm movement");

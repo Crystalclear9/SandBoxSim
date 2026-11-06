@@ -273,6 +273,7 @@ internal sealed partial class NatureModels
                     CompleteBodiceSurface(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
                     for(int i=0;i<points.Length;i++)
                         if(pattern[i].X<0)points[i]=FemaleBackYokePoint(points[i]);
+                    ShapeFemaleNeckline(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
                 }
                 sleeveDistance=SleeveDistances(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
             }
@@ -494,19 +495,31 @@ internal sealed partial class NatureModels
             GD.Print("BODY_LOD_SURFACE_PASS: both adult frames, static distant cloth shares the repaired near rest positions");
             var headMesh=female.Head.GetChild<MeshInstance3D>(0);
             var headSpace=InTorso(headMesh,female.Torso);
+            var headSurface=headMesh.Mesh.SurfaceGetArrays(0);
+            var headPoints=headSurface[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            var headIndices=headSurface[(int)Mesh.ArrayType.Index].AsInt32Array();
             float neckBase=float.PositiveInfinity;
-            foreach(var point in headMesh.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
+            foreach(var point in headPoints)
             {
                 var p=headSpace*point;
                 if(MathF.Abs(p.X)<.03f)neckBase=MathF.Min(neckBase,p.Y);
             }
-            float openingY=FramePoint(ResidentRig.BodyPoint(GarmentPoint(1,-MathF.PI/2))).Y;
+            var bodice=female.DetailedBodyMesh.SurfaceGetArrays(0);
+            var cloth=bodice[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            var openingEdges=NeckOpeningEdges(cloth,bodice[(int)Mesh.ArrayType.Index].AsInt32Array());
+            float openingY=float.PositiveInfinity;
+            foreach(var edge in openingEdges)
+            {
+                var point=cloth[edge.From];
+                if(MathF.Abs(point.X)<.005f&&point.Z<0)openingY=MathF.Min(openingY,point.Y+FemaleNeckFacingDepth);
+            }
+            if(!float.IsFinite(openingY))throw new InvalidOperationException("Missing central fitted throat opening");
             if(!float.IsFinite(neckBase)||neckBase>openingY-.001f)
                 throw new InvalidOperationException($"Lowered female neckline exposes the source neck boundary: skin={neckBase}, opening={openingY}");
             GD.Print($"NECK_COVERAGE_PASS: actual central neck extends below rounded opening by {(openingY-neckBase)*1000:F2} mm");
             float headShoulder=female.Head.Position.Y-female.Arms[0].Position.Y;
             float jaw=float.PositiveInfinity;int jawSamples=0;
-            foreach(var point in headMesh.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
+            foreach(var point in headPoints)
                 if(MathF.Abs(point.X)<.025f&&point.Z<-.060f&&point.Y>-.120f&&point.Y<-.065f)
                 {jaw=MathF.Min(jaw,(headSpace*point).Y);jawSamples++;}
             float exposed=jaw-openingY;
@@ -516,6 +529,13 @@ internal sealed partial class NatureModels
                 throw new InvalidOperationException($"Female cervical presentation loses its authored head/shoulder spacing or jaw clearance: head/shoulder={headShoulder}, jaw samples={jawSamples}, exposed={exposed}");
             GD.Print($"CERVICAL_PRESENTATION_PASS: actual head/shoulder spacing={headShoulder*1000:F2} mm, jaw/opening clearance={exposed*1000:F2} mm, jaw samples={jawSamples}; source neck overlap and face Jacobian gates retained; art-direction bounds, not anthropometric standards");
             var headTransform=female.Head.Transform;float movingClearance=float.PositiveInfinity;
+            float rimClearance=float.PositiveInfinity;
+            float coveredNeckEdge=float.PositiveInfinity;
+            int rimProbes=0;
+            var posedHead=new Vector3[headPoints.Length];
+            var projected=new Vector3[headPoints.Length];
+            var sourceHead=HumanData().Head.Points;
+            float innerFrontHeight=openingY-FemaleNeckFacingDepth;
             var neckPivot=new Vector3(0,ResidentRig.NeckPivotY*female.Head.Scale.Y,0);
             try
             {
@@ -527,14 +547,36 @@ internal sealed partial class NatureModels
                     // different jaw arc from the one seen by the player.
                     female.Head.Position=female.HeadRest+neckPivot-Basis.FromEuler(female.Head.Rotation)*neckPivot;
                     var pose=InTorso(headMesh,female.Torso);
-                    foreach(var point in headMesh.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
+                    for(int i=0;i<headPoints.Length;i++)
+                    {
+                        var point=headPoints[i];posedHead[i]=pose*point;
                         if(MathF.Abs(point.X)<.025f&&point.Z<-.060f&&point.Y>-.120f&&point.Y<-.065f)
-                            movingClearance=MathF.Min(movingClearance,(pose*point).Y-openingY);
+                            movingClearance=MathF.Min(movingClearance,posedHead[i].Y-openingY);
+                        if(sourceHead[i].Y<=-.140f)
+                            coveredNeckEdge=MathF.Min(coveredNeckEdge,innerFrontHeight-posedHead[i].Y);
+                    }
+                    foreach(var edge in openingEdges)
+                    {
+                        var rimPoint=cloth[edge.From];
+                        var radial=new Vector2(rimPoint.X,rimPoint.Z);
+                        var ray=radial.Normalized();
+                        for(int i=0;i<posedHead.Length;i++)
+                        {
+                            var p=posedHead[i];
+                            projected[i]=new(-p.X*ray.Y+p.Z*ray.X,p.Y,p.X*ray.X+p.Z*ray.Y);
+                        }
+                        float skin=GarmentDepth(projected,headIndices,0,rimPoint.Y,true);
+                        if(!float.IsFinite(skin))continue;
+                        rimClearance=MathF.Min(rimClearance,radial.Length()-skin);rimProbes++;
+                    }
                 }
             }
             finally{female.Head.Transform=headTransform;}
             if(movingClearance<.012f)throw new InvalidOperationException("Settled head loses anterior jaw clearance during its nod/turn probe");
             GD.Print($"CERVICAL_MOTION_PASS: nine actual nod/turn transforms retain {movingClearance*1000:F2} mm above the anterior opening plane; finite pose probe, not complete cloth collision validation");
+            if(rimProbes<openingEdges.Count*8||rimClearance<.002f||!float.IsFinite(coveredNeckEdge)||coveredNeckEdge<.002f)
+                throw new InvalidOperationException($"Fitted facing intersects the turning neck or reveals its source edge: samples={rimProbes}, radial={rimClearance*1000:F2} mm, cover={coveredNeckEdge*1000:F2} mm");
+            GD.Print($"COLLAR_CLEARANCE_PASS: {rimProbes} radial sections against actual neck skin, minimum={rimClearance*1000:F2} mm, source edge cover={coveredNeckEdge*1000:F2} mm");
             ValidateForearmSupport(male,0);ValidateForearmSupport(female,1);
             foreach(var rig in new[]{male,female})
             {

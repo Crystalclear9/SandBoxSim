@@ -10,7 +10,7 @@
 | 现场手记、人物手记 | `visual-landscape` 第 40 帧，清空命令保留手记。人物手记使用 `ui-portrait-window` 的人物面板，第 65 帧选择身份 4294967299，第 70 帧采样 | [现场](free-world-ui.png) · [人物](ui-detail-refined.png) |
 | 创造工具库 | `ui-tool-library` 第 90 帧，分别采用 1600×1000 与 1280×800 | [常规窗口](tool-palette.png) · [紧凑窗口](tool-palette-compact.png) |
 | 人物观察窗 | `ui-portrait-window` 第 90／130／170 帧，展示面部、双手与全身 | [面部](resident-portrait.png) · [双手](resident-hand-inspector.png) · [全身](resident-body-inspector.png) |
-| 女性居民的领口与全身 | `visual-female-portrait` 第 90／130 帧，使用稳定身份 4294967299 | [面部与领口](resident-female-neck.png) · [全身](resident-female-inspector.png) |
+| 女性居民的领口与全身 | `visual-female-portrait` 第 90／130 帧，使用稳定身份 4294967299，近景可见薄翻边和连续颈根 | [面部与领口](resident-female-neck.png) · [全身](resident-female-inspector.png) |
 | 住房、小径 | `world-living-homes` 第 120 帧，`world-living-paths` 第 90 帧。80 人开局，预演 14 日 | [住房](living-homes.png) · [小径](living-paths.png) |
 | 农田、作物与地力 | Windows 独立包的 `--panel=farms --agents=150 --demo-days=14 --capture-delay=1.5` 预览，暂停于第 15 日 | [农田](living-farms.png) |
 | 居民与动物在岸边和林地活动 | `world-scenery-contacts` 第 90 帧。40 人开局，预演两日后每帧推进一模拟步 | [场景接触](scene-resource-contacts.png) |

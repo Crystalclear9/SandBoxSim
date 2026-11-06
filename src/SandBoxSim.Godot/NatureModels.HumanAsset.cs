@@ -143,7 +143,14 @@ internal sealed partial class NatureModels
         // The female head anchor settles by the same amount recovered here at
         // the neck root. The face travels intact; the long extended neck is
         // compressed smoothly while its lower attachment stays in place.
-        if(!ChildHead&&HumanFamily==2)y-=(.024f-FemaleHeadSettle)*Mathf.SmoothStep(.080f,.180f,-p.Y);
+        if(!ChildHead&&HumanFamily==2)
+        {
+            y-=(.024f-FemaleHeadSettle)*Mathf.SmoothStep(.080f,.180f,-p.Y);
+            // Carry the irregular lower source edge underneath the low
+            // neckline. Limit the extension to the neck side of the jaw.
+            float root=TorsoRamp(.068f,.140f,-p.Y)*TorsoRamp(-.052f,-.029f,p.Z);
+            y-=.017f*root;
+        }
         if(ChildHead&&y<.010f)
         {
             float blend=Math.Clamp((y+.14f)/.055f,0,1);blend=blend*blend*(3-2*blend);

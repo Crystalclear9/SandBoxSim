@@ -193,10 +193,20 @@ internal sealed partial class NatureModels
 
     private static float MeasureRearCollarProjection(Vector3[] points,int[] indices)
     {
+        var opening=NeckOpeningEdges(points,indices);
         float maximum=0;
         foreach(float x in new[]{-.025f,0,.025f})
         {
-            float collar=GarmentDepth(points,indices,x,1.300f,true);
+            float rimHeight=float.NegativeInfinity;
+            foreach(var (from,to) in opening)
+            {
+                var a=points[from];var b=points[to];
+                if(a.Z<=0||b.Z<=0||(a.X-x)*(b.X-x)>0||MathF.Abs(b.X-a.X)<1e-8f)continue;
+                rimHeight=MathF.Max(rimHeight,Mathf.Lerp(a.Y,b.Y,(x-a.X)/(b.X-a.X)));
+            }
+            // Read the rear collar from the real rim rather than a fixed Y
+            // plane that sat above the lowered standing collar.
+            float collar=GarmentDepth(points,indices,x,rimHeight+FemaleNeckFacingDepth-.008f,true);
             if(!float.IsFinite(collar))throw new InvalidOperationException("Female rear collar loses its continuous surface");
             for(int mm=1235;mm<=1285;mm+=5)
             {
