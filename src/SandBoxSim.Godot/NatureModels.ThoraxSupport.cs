@@ -36,7 +36,7 @@ internal sealed partial class NatureModels
         float lumbar=TorsoRamp(.915f,.984f,p.Y)*(1-TorsoRamp(1.011f,1.133f,p.Y));
         float back=TorsoRamp(-.020f,.045f,p.Z)*(1-TorsoRamp(.035f,.120f,MathF.Abs(p.X)));
         float sideWaist=TorsoRamp(.875f,.965f,p.Y)*(1-TorsoRamp(1.032f,1.115f,p.Y));
-        return p+new Vector3(MathF.Sign(p.X)*.005f*sideWaist*flank,0,
+        return p+new Vector3(MathF.Sign(p.X)*.0035f*sideWaist*flank,0,
             waist*(.0015f+.003f*abdomen)*front+.012f*lumbar*back);
     }
 
@@ -59,10 +59,12 @@ internal sealed partial class NatureModels
         float x=MathF.Abs(p.X);
         float height=TorsoRamp(1.075f,1.105f,p.Y)*(1-TorsoRamp(1.195f,1.235f,p.Y));
         float root=TorsoRamp(.008f,.028f,x)*(1-TorsoRamp(.085f,.115f,x));
-        float vertical=Mathf.Lerp(.060f,.090f,TorsoRamp(1.11f,1.17f,p.Y));
-        float oval=MathF.Exp(-MathF.Pow((x-.048f)/.055f,2)-MathF.Pow((p.Y-1.145f)/vertical,2));
+        float upper=MathF.Exp(-MathF.Pow((x-.047f)/.056f,2)-MathF.Pow((p.Y-1.165f)/.053f,2));
+        float lower=MathF.Exp(-MathF.Pow((x-.071f)/.043f,2)-MathF.Pow((p.Y-1.113f)/.029f,2));
         float front=TorsoRamp(.040f,.100f,-p.Z);
-        return p-new Vector3(0,0,.0045f*height*root*oval*front);
+        // Retain the upper thoracic slope while blending the lower, outer
+        // surface back into the ribs. Both lobes use the same bound mesh.
+        return p+new Vector3(0,0,height*root*front*(.0055f*lower-.0040f*upper));
     }
 
     private void ValidateChestVolume()
@@ -73,9 +75,9 @@ internal sealed partial class NatureModels
             var p=new Vector3(col*.01f,1.06f+row*.005f,depth*.02f);const float h=.0001f;
             var q=ChestVolumePoint(p);maximum=MathF.Max(maximum,p.DistanceTo(q));
             var mirror=ChestVolumePoint(new(-p.X,p.Y,p.Z));
-            if(q.X!=p.X||q.Y!=p.Y||MathF.Abs(q.Z-mirror.Z)>1e-6f||p.DistanceTo(q)>.005001f
+            if(q.X!=p.X||q.Y!=p.Y||MathF.Abs(q.Z-mirror.Z)>1e-6f||p.DistanceTo(q)>.005501f
                 ||(MathF.Abs(p.X)<=.008f||MathF.Abs(p.X)>=.115f||p.Z>=-.040f)&&q!=p)
-                throw new InvalidOperationException("Anterior chest volume loses symmetry, fixed roots or its 5 mm bound");
+                throw new InvalidOperationException("Anterior chest volume loses symmetry, fixed roots or its 5.5 mm bound");
             var dx=(ChestVolumePoint(p+Vector3.Right*h)-ChestVolumePoint(p-Vector3.Right*h))/(2*h);
             var dy=(ChestVolumePoint(p+Vector3.Up*h)-ChestVolumePoint(p-Vector3.Up*h))/(2*h);
             var dz=(ChestVolumePoint(p+Vector3.Back*h)-ChestVolumePoint(p-Vector3.Back*h))/(2*h);
@@ -92,7 +94,7 @@ internal sealed partial class NatureModels
         float front=TrunkSample(source,1.00f,-MathF.PI/2)-TrunkSample(fitted,1.00f,-MathF.PI/2);
         float side=TrunkSample(fitted,1.00f,0)-TrunkSample(source,1.00f,0);
         float lumbar=TrunkSample(fitted,1.00f,MathF.PI/2)-TrunkSample(source,1.00f,MathF.PI/2);
-        if(front<.001f||front>.002f||side<.0045f||side>.0052f||lumbar<.010f||lumbar>.0121f)
+        if(front<.001f||front>.002f||side<.0032f||side>.0037f||lumbar<.010f||lumbar>.0121f)
             throw new InvalidOperationException($"Final waist support loses the balanced depth/breadth transition: front={front:F5}, side={side:F5}, lumbar={lumbar:F5}");
         float minimum=1,maximum=1;
         for(int row=0;row<=28;row++)for(int col=-12;col<=12;col++)for(int depth=-8;depth<=8;depth++)

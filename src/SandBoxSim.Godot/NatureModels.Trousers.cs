@@ -1,6 +1,8 @@
 using System;
 using System.Text.Json;
 using Godot;
+using SandBoxSim.Core.Agents;
+using SandBoxSim.Core.Environment;
 
 namespace SandBoxSim.Client;
 
@@ -91,7 +93,9 @@ internal sealed partial class NatureModels
             mesh.AddBlendShape("LeftHipFlex");mesh.AddBlendShape("RightHipFlex");
             for(int side=0;side<2;side++)bends.Add(BakeTrouserHipFlex(points,normals,ids,b,w,side));
             mesh.AddBlendShape("LeftKneeFlex");mesh.AddBlendShape("RightKneeFlex");
-            for(int side=0;side<2;side++)bends.Add(BakeTrouserKneeFlex(points,normals,ids,b,w,side));
+            for(int side=0;side<2;side++)bends.Add(BakeTrouserKneeFlex(points,normals,ids,b,w,side,false));
+            mesh.AddBlendShape("LeftDeepKneeFlex");mesh.AddBlendShape("RightDeepKneeFlex");
+            for(int side=0;side<2;side++)bends.Add(BakeTrouserKneeFlex(points,normals,ids,b,w,side,true));
         }
         mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles,arrays,bends);mesh.SurfaceSetMaterial(0,material);
         return _meshes[key]=WithScreenLods(mesh);
@@ -202,12 +206,12 @@ internal sealed partial class NatureModels
         return new(fitted.X,p.Y,fitted.Y);
     }
 
-    private static Godot.Collections.Array BakeTrouserKneeFlex(Vector3[] rest,Vector3[] restNormals,int[] ids,int[] bones,float[] weights,int side)
+    private static Godot.Collections.Array BakeTrouserKneeFlex(Vector3[] rest,Vector3[] restNormals,int[] ids,int[] bones,float[] weights,int side,bool deep)
     {
         var points=(Vector3[])rest.Clone();
         var normals=(Vector3[])restNormals.Clone();
         var freedom=new float[rest.Length];
-        const float angle=-1.12f;
+        float angle=deep?-ResidentRig.DeepTrouserKneeAngle:-ResidentRig.MidTrouserKneeAngle;
         var rotation=new Basis(Vector3.Right,angle);
         var pivot=new Vector3((side==0?-1:1)*ResidentRig.NeutralHipHalfWidth,ResidentRig.HipHeight-ResidentRig.ThighLength,0);
         for(int i=0;i<rest.Length;i++)
@@ -226,9 +230,16 @@ internal sealed partial class NatureModels
             float outside=1-Mathf.SmoothStep(-.012f,.038f,point.Z);
             var edit=(linear.Inverse()*arc-lever)*outside;
             float rear=Mathf.SmoothStep(.012f,.041f,point.Z);
-            float fold=(point.Y-(.456f+.19f*(MathF.Abs(point.X)-.088f)))/.011f;
-            edit.Z+=rear*.0045f*MathF.Exp(-fold*fold);
-            points[i]+=edit.LimitLength(.010f)*panel;
+            float fold=(point.Y-(.456f+.19f*(MathF.Abs(point.X)-.088f)))/(deep?.015f:.011f);
+            edit.Z+=rear*(deep?.006f:.0045f)*MathF.Exp(-fold*fold);
+            if(deep)
+            {
+                // Let the rear cloth turn back into the knee beside the
+                // compression fold; keep the boot seam and thigh fixed.
+                float tuck=(fold+1.10f)/.72f;
+                edit.Z-=rear*.0025f*MathF.Exp(-tuck*tuck);
+            }
+            points[i]+=edit.LimitLength(deep?.024f:.010f)*panel;
             freedom[i]=panel;
         }
         TransportFairingNormals(rest,points,normals,ids,freedom);
@@ -326,7 +337,7 @@ internal sealed partial class NatureModels
                 if(ContinuousTrousers()!=mesh||mesh.GetSurfaceCount()!=1)throw new InvalidOperationException("Trouser cache or draw surface changed");
                 var a=mesh.SurfaceGetArrays(0);var p=a[(int)Mesh.ArrayType.Vertex].AsVector3Array();var b=a[(int)Mesh.ArrayType.Bones].AsInt32Array();var w=a[(int)Mesh.ArrayType.Weights].AsFloat32Array();var ids=a[(int)Mesh.ArrayType.Index].AsInt32Array();
                 var shapes=mesh.SurfaceGetBlendShapeArrays(0);
-                if(shapes.Count!=(BodyFrame==1?4:0)||mesh.BlendShapeMode!=Mesh.BlendShapeMode.Normalized)
+                if(shapes.Count!=(BodyFrame==1?6:0)||mesh.BlendShapeMode!=Mesh.BlendShapeMode.Normalized)
                     throw new InvalidOperationException("Trouser LOD generation dropped its flex correctives");
                 var targets=new Vector3[shapes.Count][];
                 for(int shape=0;shape<shapes.Count;shape++)
@@ -334,6 +345,7 @@ internal sealed partial class NatureModels
                     var target=targets[shape]=shapes[shape][(int)Mesh.ArrayType.Vertex].AsVector3Array();
                     var normals=shapes[shape][(int)Mesh.ArrayType.Normal].AsVector3Array();
                     bool knee=shape>=2;
+                    float limit=shape>=4?.02401f:.01001f;
                     int side=shape%2;
                     for(int i=0;i<p.Length;i++)
                     {
@@ -344,7 +356,7 @@ internal sealed partial class NatureModels
                             ?p[i].Y<=.409f||p[i].Y>=.555f
                             :MathF.Abs(p[i].X)<=.028f||p[i].Y<=.54f||p[i].Y>=.83f);
                         if(!target[i].IsFinite()||!normals[i].IsFinite()||MathF.Abs(normals[i].Length()-1)>.001f
-                            ||displacement>.01001f||fixedPoint&&displacement>.000001f)
+                            ||displacement>limit||fixedPoint&&displacement>.000001f)
                             throw new InvalidOperationException("Flex corrective moves a fixed trouser panel or has invalid geometry");
                     }
                 }
@@ -366,10 +378,10 @@ internal sealed partial class NatureModels
                         throw new InvalidOperationException("Trouser knee skin does not follow the actual boot rim");
                     for(int shape=0;shape<shapeWeights.Length;shape++)
                         shapeWeights[shape]=rig.Trousers.GetBlendShapeValue(shape);
-                    for(int side=0;side<shapeWeights.Length/2;side++)
+                    for(int side=0;side<2&&shapeWeights.Length!=0;side++)
                     {
                         peakHipWeights[side]=MathF.Max(peakHipWeights[side],shapeWeights[side]);
-                        peakKneeWeights[side]=MathF.Max(peakKneeWeights[side],shapeWeights[side+2]);
+                        peakKneeWeights[side]=MathF.Max(peakKneeWeights[side],shapeWeights[side+2]+shapeWeights[side+4]);
                         independentHipSamples[side]|=shapeWeights[side]>.15f&&shapeWeights[1-side]<.01f;
                     }
                     for(int i=0;i<p.Length;i++)
@@ -400,6 +412,7 @@ internal sealed partial class NatureModels
                     ValidateFemalePelvicContour(p,ids);
                     ValidateHipCloth(p,b,w,targets);
                     ValidateKneeCloth(rig,p,b,w,targets);
+                    ValidateDeepKneeCloth(rig,p,b,w,targets);
                 }
                 rig.ValidateDistanceMeshes();if(rig.Trousers.Mesh!=mesh)throw new InvalidOperationException("Distance change replaces the bound lower garment");
             }
@@ -526,6 +539,59 @@ internal sealed partial class NatureModels
             throw new InvalidOperationException($"Knee correction does not preserve the front cloth radius: {samples}, {before}/{after}");
         GD.Print($"KNEE_CLOTH_RADIUS_PASS: {samples} knee-front samples at 64 degrees, mean radius loss={1000*before/samples:F2} -> {1000*after/samples:F2} mm");
     }
+
+    private static void ValidateDeepKneeCloth(ResidentRig rig,Vector3[] points,int[] bones,float[] weights,Vector3[][] targets)
+    {
+        float before=0,after=0,maximumStep=0;
+        int samples=0;
+        float angle=-ResidentRig.DeepTrouserKneeAngle;
+        var rotation=new Basis(Vector3.Right,angle);
+        var garment=rig.Trousers!;
+        for(int side=0;side<2;side++)
+        {
+            rig.Knees[1-side].Rotation=Vector3.Zero;
+            rig.Knees[side].Rotation=Vector3.Zero;rig.SyncTrousers();
+            var previous=Vector2.Zero;
+            for(int frame=1;frame<=100;frame++)
+            {
+                rig.Knees[side].Rotation=new(angle*frame/100,0,0);rig.SyncTrousers();
+                var mixed=new Vector2(garment.GetBlendShapeValue(side+2),garment.GetBlendShapeValue(side+4));
+                maximumStep=MathF.Max(maximumStep,mixed.DistanceTo(previous));previous=mixed;
+                if(mixed.X+mixed.Y>1.00001f||garment.GetBlendShapeValue(5-side)>1e-6f)
+                    throw new InvalidOperationException("Deep bend leaks into the other leg or doubles its correction");
+            }
+            if(previous.Y<.999f||previous.X>.00001f)
+                throw new InvalidOperationException("A deeply bent knee still uses the walking shape");
+            for(int i=0;i<points.Length;i++)
+            {
+                var p=points[i];
+                if((p.X<0)!=(side==0)||p.Z>=-.035f||p.Y<.45f||p.Y>.52f)continue;
+                float knee=0;
+                for(int j=0;j<4;j++)if(bones[i*4+j]==side+3)knee+=weights[i*4+j];
+                if(knee<.15f||knee>.85f)continue;
+                var pivot=new Vector3(p.X,ResidentRig.HipHeight-ResidentRig.ThighLength,0);
+                float radius=(p-pivot).Length();
+                var mid=targets[side+2][i]-pivot;
+                var deep=targets[side+4][i]-pivot;
+                before+=MathF.Abs(radius-mid.Lerp(rotation*mid,knee).Length());
+                after+=MathF.Abs(radius-deep.Lerp(rotation*deep,knee).Length());
+                samples++;
+            }
+        }
+        const float delta=1f/60;
+        rig.ShowCargo(true,ResourceKind.Wood);
+        for(int frame=0;frame<145;frame++)rig.PresentAction(delta,ActionKind.Deposit,ActionPhase.Executing,false,0);
+        rig.ShowCargo(false,ResourceKind.Wood);
+        float gameplay=0;
+        for(int frame=0;frame<145;frame++)
+        {
+            rig.PresentAction(delta,ActionKind.Deposit,ActionPhase.Done,false,0);
+            gameplay=MathF.Max(gameplay,MathF.Min(garment.GetBlendShapeValue(4),garment.GetBlendShapeValue(5)));
+        }
+        if(samples<20||after>=before*.86f||maximumStep>.05f||gameplay<.35f)
+            throw new InvalidOperationException($"Deep knee fit misses its radius or gameplay pose: loss={before:F4}/{after:F4}, step={maximumStep:F4}, placement={gameplay:F3}");
+        GD.Print($"FEMALE_DEEP_KNEE_PASS: {samples} knee-front samples, radius loss={1000*before/samples:F2} -> {1000*after/samples:F2} mm, both knees during actual placement={gameplay:F3}");
+    }
 }
 
 internal partial class ResidentRig
@@ -533,7 +599,8 @@ internal partial class ResidentRig
     internal Skeleton3D? TrouserSkeleton;
     internal MeshInstance3D? Trousers;
     internal bool TrouserHipFlex;
-    private readonly float[] _trouserFlexWeights=new float[4];
+    internal const float MidTrouserKneeAngle=1.12f,DeepTrouserKneeAngle=2.24f;
+    private readonly float[] _trouserFlexWeights=new float[6];
     internal void SyncTrousers()
     {
         if(TrouserSkeleton==null)return;
@@ -549,7 +616,11 @@ internal partial class ResidentRig
             TrouserSkeleton.SetBonePose(side+3,Knees[side].Transform);
             if(!TrouserHipFlex)continue;
             SyncTrouserFlex(side,Mathf.SmoothStep(.14f,.58f,local.Basis.Y.Z));
-            SyncTrouserFlex(side+2,Mathf.SmoothStep(.15f,1.12f,-Knees[side].Rotation.X));
+            float bend=-Knees[side].Rotation.X;
+            float flex=Mathf.SmoothStep(.15f,MidTrouserKneeAngle,bend);
+            float deep=Mathf.SmoothStep(MidTrouserKneeAngle,DeepTrouserKneeAngle,bend);
+            SyncTrouserFlex(side+2,flex*(1-deep));
+            SyncTrouserFlex(side+4,flex*deep);
         }
     }
     private void SyncTrouserFlex(int shape,float weight)

@@ -113,11 +113,12 @@ internal sealed partial class NatureModels
     }
 
     private const float FemaleNeckFacingDepth=.0045f;
+    private const float FemaleNeckRollRise=.00035f;
     private float FemaleNecklineHeight(float angle)
     {
         float depth=MathF.Sin(angle);
         float cut=_garmentCut==2?.004f:_garmentCut==1?.001f:0;
-        return 1.287f+.010f*depth+.002f*depth*depth+cut*MathF.Max(0,-depth);
+        return 1.282f+.008f*depth+.004f*depth*depth+cut*MathF.Max(0,-depth);
     }
 
     private void ShapeFemaleNeckline(Vector3[] points,int[] indices,Vector2[] pattern)
@@ -149,13 +150,24 @@ internal sealed partial class NatureModels
             float radius=Mathf.Lerp(a.Radius,b.Radius,t);
             var radial=new Vector2(point.X,point.Z);
             float distance=new Vector2(point.Y-height,radial.Length()-radius).Length();
-            float follow=1-TorsoRamp(.004f,.062f,distance);
+            float follow=1-TorsoRamp(.004f,.073f,distance);
             var ray=radial.Normalized();
             float front=MathF.Max(0,-ray.Y);
             // The collar eases back towards the throat. A flatter taper
             // under the front edge replaces the last standing lip.
-            var inset=ray*(.0015f+.0025f*front*front)*follow;
-            points[i]=point+new Vector3(-inset.X,Mathf.Lerp(a.Offset,b.Offset,t)*follow,-inset.Y);
+            float side=ray.X*ray.X;
+            var inset=ray*(.0017f+.0023f*front*front+.0022f*side)*follow;
+            float rimOffset=Mathf.Lerp(a.Offset,b.Offset,t);
+            float spread=MathF.Max(0,radial.Length()-radius);
+            var fitted=point+new Vector3(-inset.X,rimOffset*follow,-inset.Y);
+            // Give the shoulder-facing cloth a graded fall from the sewn rim.
+            // Soften the high spots of the yoke without flattening the lower
+            // cloth, changing the opening itself, or lowering the placket.
+            float yoke=TorsoRamp(.002f,.012f,spread)*(1-TorsoRamp(.028f,.059f,spread))*(1-front*front);
+            float fall=height+rimOffset-.28f*spread;
+            float excess=MathF.Max(0,fitted.Y-fall);
+            fitted.Y-=MathF.Min(.007f,excess)*yoke;
+            points[i]=fitted;
             float lateral=MathF.Abs(point.X);
             // Round the cloth below the sides of the opening. Keep the rim
             // itself and the far shoulder as the two fixed supports.
@@ -201,7 +213,7 @@ internal sealed partial class NatureModels
             int a=rim[i],b=outerCount+i,c=b+rim.Count;
             var point=points[a];
             var inward=new Vector3(-point.X,0,-point.Z).Normalized();
-            points[b]=point+inward*.0022f+Vector3.Up*.0006f;
+            points[b]=point+inward*.0022f+Vector3.Up*FemaleNeckRollRise;
             points[c]=point+inward*.0038f-Vector3.Up*FemaleNeckFacingDepth;
             pattern[b]=pattern[c]=pattern[a];
             // The turn moves with the neck opening, clear of the arm-driven
@@ -243,7 +255,7 @@ internal sealed partial class NatureModels
         for(int i=original;i<original+count;i++)
         {
             int inner=i+count;
-            if(MathF.Abs(p[i].Y-p[inner].Y-(FemaleNeckFacingDepth+.0006f))>.00001f)
+            if(MathF.Abs(p[i].Y-p[inner].Y-(FemaleNeckFacingDepth+FemaleNeckRollRise))>.00001f)
                 throw new InvalidOperationException("Folded neckline loses its turned-in depth");
             if(bones[i*4]!=0||weights[i*4]!=1)
                 throw new InvalidOperationException("Folded neckline responds to arm movement");
@@ -342,7 +354,12 @@ internal sealed partial class NatureModels
     }
     private void AddResidentTailoring(ResidentRig rig,string cloth,string skin,JobType job)
     {
-        Detail(rig.Torso,"box",TorsoSurface(.021f,.737f+BeltRise,false,.006f),new(.033f,.075f,.012f),"#514237");
+        if(BodyFrame==1)
+        {
+            Sculpt(rig.Torso,FemaleBeltOverlap(),Vector3.Zero,ResidentMaterial("#604c3b"));
+            Detail(rig.Torso,"box",TorsoSurface(-.010f,.7615f+BeltRise,false,.007f),new(.009f,.022f,.006f),"#48372d");
+        }
+        else Detail(rig.Torso,"box",TorsoSurface(.021f,.737f+BeltRise,false,.006f),new(.033f,.075f,.012f),"#514237");
         // Short stitches follow the actual folded surface instead of spanning
         // the chest as two loose, contrasting cords.
         string thread="#"+new Color(cloth).Darkened(.14f).ToHtml(false);
@@ -371,6 +388,35 @@ internal sealed partial class NatureModels
             Sculpt(pouch,SatchelFlap(),Vector3.Zero,LeatherSurface("#786346"));
             Detail(pouch,"sphere",new(0,.030f,SatchelDepth(0,.030f)-.005f),new(.010f,.010f,.008f),"#514237");
         }
+    }
+
+    private Mesh FemaleBeltOverlap()
+    {
+        string key="female-belt-overlap:"+_garmentCut;
+        if(_meshes.TryGetValue(key,out var cached))return cached;
+        var surface=new SurfaceTool();surface.Begin(Mesh.PrimitiveType.Triangles);surface.SetSmoothGroup(0);
+        void Quad(Vector3 a,Vector3 b,Vector3 c,Vector3 d,Vector3 outward)
+        {
+            EquipmentTriangle(surface,a,b,c,outward);EquipmentTriangle(surface,b,d,c,outward);
+        }
+        Vector3 Edge(int section,float side,bool outer)
+        {
+            float t=section/12f;
+            float x=Mathf.Lerp(-.059f,.025f,t);
+            float halfWidth=Mathf.Lerp(.0028f,.0070f,Mathf.SmoothStep(0,.16f,t));
+            return TorsoSurface(x,.7615f+BeltRise+side*halfWidth,false,outer?.0078f:.0040f);
+        }
+        for(int section=0;section<12;section++)
+        {
+            int next=section+1;
+            Quad(Edge(section,-1,true),Edge(next,-1,true),Edge(section,1,true),Edge(next,1,true),Vector3.Forward);
+            Quad(Edge(section,-1,false),Edge(next,-1,false),Edge(section,1,false),Edge(next,1,false),Vector3.Back);
+            Quad(Edge(section,1,true),Edge(next,1,true),Edge(section,1,false),Edge(next,1,false),Vector3.Up);
+            Quad(Edge(section,-1,true),Edge(next,-1,true),Edge(section,-1,false),Edge(next,-1,false),Vector3.Down);
+        }
+        Quad(Edge(0,-1,true),Edge(0,1,true),Edge(0,-1,false),Edge(0,1,false),Vector3.Left);
+        Quad(Edge(12,-1,true),Edge(12,1,true),Edge(12,-1,false),Edge(12,1,false),Vector3.Right);
+        surface.GenerateNormals();surface.Index();return _meshes[key]=surface.Commit();
     }
     private void ValidateGarmentCuts()
     {

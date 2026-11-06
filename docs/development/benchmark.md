@@ -242,11 +242,11 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `wristContour=continuous-source-v2`、`forearmProfile=curvature-flow-v9` 与 `forearmSkin=continuous-elbow-v9` 分别标记连续腕臂截面、中心线拟合与腕部渐进蒙皮。新增公开 `wrist-motion` 面板及 `visual-wrist-motion.json`，在冻结模拟、固定 60 Hz 下，对照两种成人外观的手背、掌侧和侧面，循环观察屈伸、侧偏、前臂旋转和握拳。它使用真实居民网格与骨架，不测量人体医学能力，也不作为 RSI 分数。新的连接拓扑、56 骨近手与腕部支撑会改变构建和动画成本，效率对照必须冻结同一素材、渲染版本、输入及源码。
 
-`garmentFit=continuous-drape-v31`、`forearmProfile=curvature-flow-v9`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2` 区分衣片纵向弯曲／表面松弛、女性前臂表面、成人脸部比例、额前发根和静止眼睑。它们改变实际网格、缓存创建成本及显示像素；视觉／效率比较须同时冻结这些标识、输入和源码。身体配方为 `reference-contour-physique-v31`：两种成人的参考转移权重均为 1.0；五类身体支撑共享同一配方哈希。不能仅凭头脸或动作版本判断身体呈现相同。几何固定点、体积、截面与三角形检查用于回归，不是 RSI 得分。
+`garmentFit=continuous-drape-v32`、`forearmProfile=curvature-flow-v9`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2` 区分衣片拟合和姿态形态、女性前臂表面、成人脸部比例、额前发根和静止眼睑。视觉与效率比较须同时冻结这些标识、输入和源码。身体配方 `reference-contour-physique-v31` 的两种成人参考转移权重均为 1.0，五类身体支撑共享同一配方哈希。固定点、体积、截面与三角形检查用于几何回归。
 
 `renderQuality.femaleGroom=scalp-guided-plait-v1` 标识成年女性的编发、盘发和配套远景几何。评测头部肖像或世界人物时，固定居民身份和观察距离，再比较轮廓与渲染耗时。
 
-`bodyPresentation=continuous-drape-v29` 标识成人女性前领、小腿及鞋部的运行时成品拟合。它改变像素与网格构建成本；比较时须与 `bodyFrame=reference-contour-physique-v31`、`garmentFit=continuous-drape-v31` 及源码哈希一并冻结。
+`bodyPresentation=continuous-drape-v29` 标识成人女性前领、小腿及鞋部的运行时成品拟合。比较像素和网格构建成本时，须与 `bodyFrame=reference-contour-physique-v31`、`garmentFit=continuous-drape-v32` 及源码哈希一并冻结。
 
 `continuous-drape-v29` 的女性成人衣装还使用独立材质状态、浅色内衫／绿灰外衣分片，以及近远景共用的静止缝片函数。远景顶点颜色保留来源染色数据，另用材质标记选择分片；因此几何截面检查不会把配色变更当成体型变更。新材质、下摆与源码均需冻结后才能比较视觉或效率结果。
 
@@ -294,7 +294,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 自然腰线拟合使用相同来源支撑的局部截面，按三种衣装逆解并缓存腰带位置；衣料收褶、工具挂点及视觉输入随之变化。`NATURAL_WAIST_BELT_PASS` 检查成品腰带的中心和宽度，不是人体或效率评分；旧版固定腰带的回放不作为当前基线。
 
-`neckContour=relaxed-neckline-v5` 与 `continuous-drape-v29`／`continuous-drape-v31`／`reference-figure-v25` 标识女性头部挂点、颈根连续压缩与领口接续。来源体型仍为 `reference-contour-physique-v31`；视觉与效率对照须固定新增标记、完整源码、动作及镜头。颈部间距、颈根覆盖与九组有限姿态探针是视觉输入的几何约束，不是审美或 RSI 评分，也不等同于完整碰撞验证。
+`neckContour=relaxed-neckline-v6` 与 `garmentFit=continuous-drape-v32` 标识女性领缘与肩颈衣面、胸廓到腰带的重新拟合，以及两组深屈膝裤装形态。来源体型为 `reference-contour-physique-v31`。比较视觉输入与构建效率时须固定成衣标识、源码、动作、LOD 和机位。颈部间隙、颈根覆盖与深蹲时的膝前半径是几何回归条件。
 
 衣面烘焙将规范坐标中的候选邻域按剪裁与模式缓存，当前姿态继续计算动态筛选和权重；完整扫描与缓存路径按原索引顺序求和。`BODICE_NEIGHBOR_PASS` 核对实际拟合深度逐位一致，属于程序优化的数值等价检查。缓存影响冷启动成本与内存，效率实验需固定来源、姿态数量、硬件、并行负载与冷／热缓存条件；超时回放保留失败状态，不能视为有效结果。
 

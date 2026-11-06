@@ -99,7 +99,7 @@ internal sealed partial class NatureModels
                 float panel=frame==1?TorsoRamp(.30f,.90f,front):0;
                 float side=MathF.Abs(MathF.Cos(sampleAngle));
                 float lower=belt+.017f;
-                float upper=Mathf.Lerp(1.150f,1.170f,side*side);
+                float upper=Mathf.Lerp(1.152f,1.166f,side*side);
                 float lowerRadius=panel>0?TrunkSample(supported,lower,sampleAngle):0;
                 float upperRadius=panel>0?TrunkSample(supported,upper,sampleAngle):0;
                 float sideReturn=TorsoRamp(.28f,.58f,side)*TorsoRamp(.46f,.78f,front);
@@ -122,16 +122,16 @@ internal sealed partial class NatureModels
                         // and the soft contact leaves no crease at either
                         // support or where the underlying cloth meets the span.
                         float t=(height-lower)/(upper-lower);
-                        float span=Mathf.Lerp(lowerRadius,upperRadius,t*(2-t))+.008f*t*(1-t);
+                        float span=Mathf.Lerp(lowerRadius,upperRadius,t+.52f*t*(1-t))+.006f*t*(1-t);
                         float gap=MathF.Max(0,span-radius);
                         float suspension=.012f*(1-MathF.Exp(-gap*gap/(.013f*.013f)));
                         float contact=TorsoRamp(0,.36f,t)*(1-TorsoRamp(.72f,1,t));
                         drape=Mathf.Lerp(drape,suspension,panel*contact);
                         // Release the front-side grain along the lower rib cage.
                         // It blends back into the supported flank above the waist.
-                        float lowerRib=(height-1.093f)/.029f;
+                        float lowerRib=(height-1.079f)/.043f;
                         float ribs=MathF.Exp(-lowerRib*lowerRib)*contact;
-                        drape+=.008f*sideReturn*ribs;
+                        drape+=.0045f*sideReturn*ribs;
                     }
                     data[i]=radius+drape;
                 }
