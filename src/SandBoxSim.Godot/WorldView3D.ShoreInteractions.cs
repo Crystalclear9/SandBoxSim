@@ -14,7 +14,7 @@ public partial class WorldView3D
     private readonly Vector4[] _waterContacts=new Vector4[8];
     private int _waterContactCount;
     private ShaderMaterial? _interactiveWater;
-    private readonly Dictionary<int,Vector3?> _shoreContacts=new();
+    private readonly Dictionary<(int Tile,bool CardinalOnly),Vector3?> _shoreContacts=new();
     private const float WaterContactLifetime=2.6f;
     private readonly List<Transform3D> _bankGravel=new();
 
@@ -44,17 +44,24 @@ public partial class WorldView3D
         }
     }
 
-    private bool TryShoreContact(Vector3 stand,out Vector3 contact)
+    private bool TryResidentWaterContact(int slot,Vector3 stand,out Vector3 contact)
+    {
+        contact=default;
+        return Game.Sim.Actions.HasAdjacentWater(slot)&&TryShoreContact(stand,out contact,cardinalOnly:true);
+    }
+
+    private bool TryShoreContact(Vector3 stand,out Vector3 contact,bool cardinalOnly=false)
     {
         contact=default;var world=Game.Sim.World;
         int x=(int)MathF.Floor(stand.X*.5f),y=(int)MathF.Floor(stand.Z*.5f);
         if(!world.IsInBounds(x,y)||stand.Y>.65f||!DryActorTarget(stand)||!ActorFootSupport(stand))return false;
-        int key=y*world.Width+x;
+        var key=(y*world.Width+x,cardinalOnly);
         if(!_shoreContacts.TryGetValue(key,out var cached))
         {
             Vector3 center=PositionAt(x,y);float best=1.65f*1.65f;cached=null;
             for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++)
             {
+                if(cardinalOnly&&Math.Abs(dx)+Math.Abs(dy)!=1)continue;
                 int wx=x+dx,wy=y+dy;
                 if(!world.IsInBounds(wx,wy)||world.TerrainAt(wx,wy)!=TerrainKind.Water)continue;
                 var wet=PositionAt(wx,wy);

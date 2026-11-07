@@ -997,23 +997,76 @@ public partial class WorldView3D
         agents.ClearTarget(slot);
         int previousContacts=rig.ConsumeContacts;
         float gap=float.PositiveInfinity;
-        for(int i=0;i<210&&gap>.032f;i++)
+        string beforeMeal=sim.StateDigestString();
+        for(int i=0;i<240;i++)
         {
             AnimateActors(delta);
             if(rig.Bite.Visible)gap=(rig.HandWorldPose(1)*ResidentRig.BiteCentre)
                 .DistanceTo(rig.RigWorldSpace*rig.Torso.Transform*rig.MouthContact)/rig.Scale.X;
+            if(gap<.045f||rig.ConsumeContacts!=previousContacts||rig.ConversationMouth>.025f)
+                throw new InvalidOperationException("An unconfirmed meal reaches the mouth");
         }
-        if(gap>.032f||!rig.Bite.Visible||rig.ConsumeContacts!=previousContacts)
-            throw new InvalidOperationException($"Skipped meal fixture did not approach the mouth before contact: {gap:F3} m, {rig.Handling}");
+        if(!rig.ConsumptionPrepared||!rig.Bite.Visible||sim.StateDigestString()!=beforeMeal)
+            throw new InvalidOperationException($"The unconfirmed meal cannot wait with the food in hand: {gap:F3} m, {rig.Handling}");
         sim.Actions.Tick(sim.Clock);
         agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
         if(!sim.Actions.TryGetLatestContactCompletion(slot,out var meal)||meal.Action!=ActionKind.Eat||meal.Site.HasValue)
             throw new InvalidOperationException("The completed meal did not retain its own contact");
         string afterMeal=sim.StateDigestString();
-        for(int i=0;i<150;i++)AnimateActors(delta);
-        if(rig.ConsumeContacts!=previousContacts+1||rig.Bite.Visible||sim.StateDigestString()!=afterMeal)
+        float chew=0;
+        for(int i=0;i<150;i++)
+        {
+            AnimateActors(delta);
+            if(rig.ConsumeContacts>previousContacts)chew=MathF.Max(chew,rig.ConversationMouth);
+        }
+        if(rig.ConsumeContacts!=previousContacts+1||chew<.055f||rig.Bite.Visible||sim.StateDigestString()!=afterMeal)
             throw new InvalidOperationException($"Skipped meal did not reach the mouth once and recover: contacts={rig.ConsumeContacts-previousContacts}, {rig.Handling}");
         GD.Print("WORLD_CONTACT_BRIDGE_PASS: prepared pickup, deposit and meal survive a skipped Done once, flight and tile changes cancel, read-only");
+        ValidateConfirmedDrink(rig,slot,delta);
+    }
+
+    private void ValidateConfirmedDrink(ResidentRig rig,int slot,float delta)
+    {
+        var sim=Game.Sim;var agents=sim.Agents;var world=sim.World;
+        var tile=Enumerable.Range(0,world.Width*world.Height)
+            .Select(i=>new Vector2I(i%world.Width,i/world.Width))
+            .First(p=>world.TileAt(p.X,p.Y).Walkable&&TryShoreContact(PositionAt(p.X,p.Y),out _,cardinalOnly:true));
+        agents.SetPosition(slot,tile.X,tile.Y);
+        rig.Position=PositionAt(tile.X,tile.Y);rig.Travel=default;
+        if(TryResidentWaterContact(slot,rig.Position,out var bank))rig.Rotation=new(0,HeadingYaw(Horizontal(bank-rig.Position)),0);
+        _target=rig.Position;_distance=8;UpdateCamera();
+        for(int i=0;i<120;i++)AnimateActors(delta);
+        int contacts=rig.ConsumeContacts;
+        agents.SetAction(slot,ActionKind.Drink,ActionPhase.Done);
+        for(int i=0;i<180;i++)
+        {
+            AnimateActors(delta);
+            if(rig.Cup.Visible||rig.ConsumeContacts!=contacts)
+                throw new InvalidOperationException("A Done phase without a drink receipt creates a visible sip");
+        }
+        foreach(bool confirmed in new[]{false,true})
+        {
+            agents.SetNeed(slot,NeedIndex.Thirst,.20f);
+            agents.SetAction(slot,ActionKind.Drink,ActionPhase.Executing);
+            agents.ClearTarget(slot);
+            string pending=sim.StateDigestString();
+            for(int i=0;i<240;i++)
+            {
+                AnimateActors(delta);
+                if(rig.ConsumeContacts!=contacts)throw new InvalidOperationException("The resident drinks without confirmation");
+            }
+            if(!rig.ConsumptionPrepared||!rig.Cup.Visible||sim.StateDigestString()!=pending)
+                throw new InvalidOperationException("The resident does not hold the cup while awaiting a valid drink");
+            if(confirmed)sim.Actions.Tick(sim.Clock);
+            agents.SetAction(slot,confirmed?ActionKind.None:ActionKind.Flee,confirmed?ActionPhase.Idle:ActionPhase.Moving);
+            string digest=sim.StateDigestString();
+            AnimateActors(delta);
+            if(!rig.Cup.Visible)throw new InvalidOperationException("The cup vanishes during the decision change");
+            for(int i=0;i<220;i++)AnimateActors(delta);
+            if(rig.ConsumeContacts!=contacts+(confirmed?1:0)||rig.Cup.Visible||sim.StateDigestString()!=digest)
+                throw new InvalidOperationException($"Drink confirmation or interruption failed: {rig.ConsumeContacts-contacts}, {rig.Handling}");
+        }
+        GD.Print("WORLD_CONSUMPTION_COMMIT_PASS: no unconfirmed contact, no cup from an empty receipt, interrupted cup returns, confirmed meal and drink each contact once across skipped Done, chewing survives the decision change, read-only");
     }
 
     private void ValidateSceneHandoff(Vector2I giverTile,Vector2I receiverTile,float delta)

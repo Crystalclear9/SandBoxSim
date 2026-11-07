@@ -184,6 +184,8 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `residentContactContinuity=bounded-confirmation-v1` 记录场景在渲染帧错过 `Done` 时的近景接触收尾。`WORLD_CONTACT_BRIDGE_PASS` 在真实地图中让模拟完成取物、放货和进食，再于下一帧前指定后续动作。检查抓握、松手和嘴部接触各发生一次，逃跑或离开原格时取消尚未发生的接触，并核对表现前后的模拟摘要。
 
+`residentConsumption=confirmed-mouth-contact-v1` 记录入口与模拟结算的同步。`WORLD_CONSUMPTION_COMMIT_PASS` 验证长时间准备、没有完成记录的 `Done`、逃跑时持杯收手、跳过 `Done` 的一次进食和一次饮水，以及入口后的咀嚼。场景播放期间核对模拟摘要。
+
 `pickupCarryContinuity=palm-supported-transfer-v1` 记录拾取与搬运之间的载物交接。`WORLD_PICKUP_CARRY_PASS` 在真实地面物资堆检查从抓握到同类载物托稳期间只有一个可见物件，测量拾取小件的逐帧位移并核对模拟摘要。`POSE_SCHEDULER_PASS` 验证同一猎物移动时保留动作时钟和朝向迟滞，目标代次变化后只计入新时间。
 
 `caravanHandling=ledger-supported-cargo-v1` 记录商队货物与个人库存之间的动作衔接。`WORLD_CARAVAN_LOAD_PASS` 使用两个真实聚落和仓库成交，检查去程负重行走、休息时切换到同类个人载物、复程恢复商队货物、回程托运报酬和交易结束后的收手。检查同时核对收货、报酬和播放前后的模拟摘要。

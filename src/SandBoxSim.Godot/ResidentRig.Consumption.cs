@@ -12,6 +12,9 @@ internal partial class ResidentRig
     private ActionKind _consumeAction;
     private uint? _consumeRevision;
     private float _consumeReach,_consumeTime,_consumeContactTime,_consumeReturnStart;
+    private const float PreparedLiftTime=.34f;
+    private bool _awaitConsumptionCommit;
+    private float _chewRemaining;
     private int _consumeContacts;
     internal MeshInstance3D Cup=null!,Bite=null!;
     internal static readonly Vector3 CupRim=new(0,-.075f,-.059f);
@@ -21,11 +24,14 @@ internal partial class ResidentRig
     private string ConsumptionHandling=>_consumeStage switch
     {
         ConsumeStage.Reach=>_consumeAction==ActionKind.Drink?"取杯":"取食物",
+        ConsumeStage.Lift when _awaitConsumptionCommit&&_consumeTime>=PreparedLiftTime
+            =>_consumeAction==ActionKind.Drink?"持杯待饮":"持食待用",
         ConsumeStage.Lift=>_consumeAction==ActionKind.Drink?"举杯":"送到嘴边",
         ConsumeStage.Use=>_consumeAction==ActionKind.Drink?(_consumeContactTime>0?"饮水":"对准杯沿"):"进食",
         _=>_consumeAction==ActionKind.Drink?"放低杯子 / 收手":"收手"
     };
     internal int ConsumeContacts=>_consumeContacts;
+    internal bool ConsumptionPrepared=>_consumeStage==ConsumeStage.Lift&&_consumeTime>=PreparedLiftTime;
     internal Vector3 MouthContact=>Head.Transform*(Mouth.Position+new Vector3(.002f,.002f,-.012f));
     // Keep the displayed wrist and the held object in front of the cloth and
     // the diagonal belt tool throughout the pickup and release.
@@ -48,6 +54,7 @@ internal partial class ResidentRig
 
     private void PoseConsumption(float delta,ActionKind request,uint? revision)
     {
+        _chewRemaining=MathF.Max(0,_chewRemaining-delta);
         if(!ConsumptionOwnsHand)
         {
             if(request==ActionKind.None)return;
@@ -63,6 +70,9 @@ internal partial class ResidentRig
         bool drink=_consumeAction==ActionKind.Drink;
         float closed=drink?.82f:BiteCurl;
         _consumeTime+=delta;
+        // Prepare up to chest height while the simulation is still deciding
+        // the outcome. Continue the same lift when the receipt arrives.
+        if(_awaitConsumptionCommit&&_consumeStage==ConsumeStage.Lift)_consumeTime=MathF.Min(_consumeTime,PreparedLiftTime);
         _consumeReach=_consumeStage switch
         {
             ConsumeStage.Lift=>ReachEase(_consumeTime/.66f),
@@ -116,7 +126,7 @@ internal partial class ResidentRig
                 if(_consumeContactTime>=(drink?.20f:.09f))
                 {
                     _consumeContacts++;
-                    if(!drink)Bite.Visible=false;
+                    if(!drink){Bite.Visible=false;_chewRemaining=.62f;}
                     ReturnConsumption();
                 }
                 else if(_consumeTime>1.1f)

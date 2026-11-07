@@ -147,6 +147,7 @@ internal partial class ResidentRig : Node3D
         if(paused)return;
         _waitingForContact=false;
         _conversation=null;
+        _awaitConsumptionCommit=false;
         AdvancePose(PresentationDelta(delta),action,phase,identityPhase,false);
     }
     private void AdvancePose(float delta,ActionKind action,ActionPhase phase,float identityPhase,bool presented,bool targetAligned=true)
@@ -374,7 +375,8 @@ internal partial class ResidentRig : Node3D
                 Eyes[eye].Scale=HasAnatomicalEyes?Vector3.One:new(1,MathF.Max(.02f,1-blink),1);
                 Eyes[eye].Rotation=HasAnatomicalEyes?new Vector3(_gaze.Y,_gaze.X,0):Vector3.Zero;
             }
-            float speech=_conversation.HasValue?pairedSpeech*(.54f+.32f*MathF.Abs(MathF.Sin(_phase*9))):executing?MouthActivity(action,phraseEmphasis):0;
+            float speech=_conversation.HasValue?pairedSpeech*(.54f+.32f*MathF.Abs(MathF.Sin(_phase*9))):
+                executing||_chewRemaining>0?MouthActivity(action,phraseEmphasis):0;
             _mouthAmount=Mathf.Lerp(_mouthAmount,speech,1-MathF.Exp(-delta*24));
             Mouth.Position=MouthRest;Mouth.Scale=Vector3.One;MouthMaterial.SetShaderParameter("speech",_mouthAmount);
         }

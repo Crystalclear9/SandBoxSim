@@ -69,7 +69,7 @@ internal partial class ResidentRig
                 ActionFamily.Tool=>_observedContactReady&&GestureEngaged(completion.Action),
                 _=>false
             }),
-            ActionPhase.Done=>CompletionVisible&&!(placement&&ReleasedCargo),
+            ActionPhase.Done=>CompletionVisible&&!(placement&&ReleasedCargo)&&!(family==ActionFamily.Consume&&_observedMouthContact),
             _=>false
         };
         if(!ready)return false;
@@ -81,7 +81,7 @@ internal partial class ResidentRig
         // Finish the nearby physical contact. Longer follow-through belongs
         // to the normal pose transitions into the new action.
         _bridgeAge+=PresentationDelta(delta);
-        return _bridgeAge<=(placement?1.60f:.64f);
+        return _bridgeAge<=(placement?1.60f:family==ActionFamily.Consume?1.40f:.64f);
     }
 
     internal void ObserveOffscreenAction(ActionKind action,ActionPhase phase,uint revision)
@@ -98,6 +98,7 @@ internal partial class ResidentRig
         _conversation=null;
         ConversationNod=0;
         _mouthAmount=0;
+        _chewRemaining=0;
         _finishConsumption=_observedMouthContact=false;
         ClearConsumption();
         ClearTransientCargo();
@@ -112,7 +113,7 @@ internal partial class ResidentRig
     public void PresentAction(float delta,ActionKind action,ActionPhase phase,bool paused,float identityPhase,uint? revision=null,bool hasPartner=true,bool targetAligned=true,
         Vector3? sceneContact=null,ResourceKind contactResource=ResourceKind.None,InteractionTarget target=default,
         bool completeToolStroke=true,bool awaitToolCommit=false,ToolSurface? toolSurface=null,bool contactReady=true,bool deferContact=false,
-        ResourceKind? inventoryCargo=null,ConversationBeat? conversation=null,bool fromCaravan=false)
+        ResourceKind? inventoryCargo=null,ConversationBeat? conversation=null,bool fromCaravan=false,bool? consumptionConfirmed=null)
     {
         if(paused)return;
         _conversation=conversation;
@@ -191,7 +192,8 @@ internal partial class ResidentRig
         _scenePickupConfirmed=phase==ActionPhase.Done;
         _interactionTarget=target;
         ObserveCargoPlacement(action,phase,newlyDone&&contactReady,newRun,contactResource,inventoryCargo,fromCaravan);
-        if(newlyDone&&contactReady&&family==ActionFamily.Consume)
+        _awaitConsumptionCommit=consumptionConfirmed==false;
+        if(newlyDone&&contactReady&&family==ActionFamily.Consume&&!_awaitConsumptionCommit)
         {
             _completionAge=0;
             _finishConsumption=!_observedMouthContact||ConsumptionOwnsHand;

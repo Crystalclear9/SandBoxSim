@@ -468,6 +468,7 @@ public partial class WorldView3D : MapView
             ["residentContactContinuity"]="bounded-confirmation-v1",
             ["pickupCarryContinuity"]="palm-supported-transfer-v1",
             ["caravanHandling"]="ledger-supported-cargo-v1",
+            ["residentConsumption"]="confirmed-mouth-contact-v1",
             ["pairedInteractions"]="confirmed-participants-v1",
             ["residentSupportRelease"]="planted-departure-v1",
             ["spearTargeting"]="bounded-live-contact-v1",
@@ -1076,8 +1077,8 @@ public partial class WorldView3D : MapView
             bool hasShore=false;
             if(action==ActionKind.Drink&&(phase==ActionPhase.Executing||finishing))
             {
-                hasShore=TryShoreContact(PositionAt(x,y),out var bank);
-                if(hasShore){interestPoint=bank;hasInterest=true;}
+                if(TryResidentWaterContact(slot,PositionAt(x,y),out var bank))
+                {hasShore=true;interestPoint=bank;hasInterest=true;}
             }
             var strikeResource=StrikeResource(action);
             bool validStrike=phase!=ActionPhase.Executing||strikeResource==ResourceKind.None
@@ -1173,6 +1174,10 @@ public partial class WorldView3D : MapView
                 sceneContact.HasValue&&site.Surface==ActionSystem.ContactSurface.BuildingWork?site:null);
             bool reachable=spear||toolSurface is not {} bound||ReachableToolSurface(node,target,bound);
             bool contactReady=validStrike&&reachable&&(!requiresSurface||toolSurface.HasValue);
+            bool consuming=action is ActionKind.Eat or ActionKind.Drink;
+            bool consumptionConfirmed=consuming&&phase==ActionPhase.Done
+                &&sim.Actions.TryGetLatestContactCompletion(slot,out var receipt)&&receipt.Action==action
+                &&receipt.Revision==actionRevision&&receipt.Origin==new Int2(x,y);
             if(phase is ActionPhase.Executing or ActionPhase.Done)
             {
                 contactReady&=action switch
@@ -1184,8 +1189,9 @@ public partial class WorldView3D : MapView
                     ActionKind.Hunt=>phase==ActionPhase.Executing?preyInRange:sceneContact.HasValue,
                     ActionKind.Socialize=>conversation!=null,
                     ActionKind.ShareFood or ActionKind.Attack=>hasPartner,
-                    ActionKind.Drink=>hasShore,
+                    ActionKind.Drink=>hasShore&&(phase==ActionPhase.Executing||consumptionConfirmed),
                     ActionKind.Eat when phase==ActionPhase.Executing=>sim.Agents.InventoryOf(slot,ResourceKind.Food)>0,
+                    ActionKind.Eat=>consumptionConfirmed,
                     _=>true
                 };
             }
@@ -1233,7 +1239,8 @@ public partial class WorldView3D : MapView
                 hasPartner&&action!=ActionKind.ShareFood,aligned,sceneContact,contactResource,interactionTarget,completeToolStroke,
                 awaitToolCommit:phase==ActionPhase.Executing&&(action is ActionKind.Hunt or ActionKind.Attack),toolSurface:toolSurface,
                 contactReady:contactReady,deferContact:deferredPost,inventoryCargo:cargoKind,
-                conversation:conversation==null?null:ConversationBeat(conversation,initiates),fromCaravan:caravanCargo!=ResourceKind.None);
+                conversation:conversation==null?null:ConversationBeat(conversation,initiates),fromCaravan:caravanCargo!=ResourceKind.None,
+                consumptionConfirmed:consuming?consumptionConfirmed:null);
             if(distanceSquared<18*18)
             {
                 if(!paused)ConformFeet(node);

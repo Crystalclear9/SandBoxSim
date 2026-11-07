@@ -26,11 +26,14 @@ internal partial class ResidentRig
     {
         if(action==ActionKind.Socialize)
             return Math.Clamp(.35f+.55f*MathF.Abs(MathF.Sin(_workTime*7)+.25f*MathF.Sin(_workTime*13)),0,1)*emphasis*_socialBlend;
+        if(_chewRemaining>0)
+        {
+            float elapsed=.62f-_chewRemaining;
+            return .32f*(.55f+.45f*MathF.Sin(elapsed*24))*(1-ReachEase(elapsed/.62f));
+        }
         if(action!=_consumeAction)return 0;
         if(_consumeStage==ConsumeStage.Use)
             return ReachEase(_consumeContactTime/.06f)*(action==ActionKind.Drink?.15f:.40f);
-        if(action==ActionKind.Eat&&_consumeStage==ConsumeStage.Return&&!Bite.Visible)
-            return .32f*(.55f+.45f*MathF.Sin(_consumeTime*24))*(1-ReachEase(_consumeTime/.62f));
         return 0;
     }
 }

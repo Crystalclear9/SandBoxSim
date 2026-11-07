@@ -811,8 +811,10 @@ public sealed class ActionSystem
         }
     }
 
-    private bool HasAdjacentWater(int slot)
+    /// <summary>Read-only water prerequisite shared by drinking and presentation.</summary>
+    public bool HasAdjacentWater(int slot)
     {
+        if (!_store.IsSlotAlive(slot)) return false;
         int x = _store.XOf(slot);
         int y = _store.YOf(slot);
         World world = _sim.World;

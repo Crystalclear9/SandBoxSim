@@ -34,7 +34,7 @@ public partial class WorldView3D
                     ||!ReachableToolSurface(resident,stand,strike)))
                 return false;
         }
-        else if(completion.Action==ActionKind.Drink&&!TryShoreContact(logical,out _))return false;
+        else if(completion.Action==ActionKind.Drink&&!TryResidentWaterContact(slot,logical,out _))return false;
         return true;
     }
 
