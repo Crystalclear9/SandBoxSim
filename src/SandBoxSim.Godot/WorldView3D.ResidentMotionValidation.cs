@@ -440,10 +440,18 @@ public partial class WorldView3D
         committed=sim.StateDigestString();
         float release=float.PositiveInfinity;
         int placementFrames=0,visiblePlacementFrames=0;
+        bool changedFacing=false;
+        int realignmentFrames=0;
         float closestPlacement=float.PositiveInfinity;
         for(int i=0;i<360;i++)
         {
             AnimateActors(delta);
+            if(changedFacing&&rig.IsPivoting)
+            {
+                realignmentFrames++;
+                if(rig.PlacingCargo||rig.ReleasedCargo||rig.SupportedCargo!=ResourceKind.Stone)
+                    throw new InvalidOperationException("The realigned resident releases the load during the planted turn");
+            }
             if(rig.PlacingCargo)
             {
                 placementFrames++;
@@ -454,13 +462,19 @@ public partial class WorldView3D
                     var basePoint=pose.Origin+Vector3.Up*rig.CargoMesh.Mesh.GetAabb().Position.Y*pose.Basis.Y.Length();
                     closestPlacement=Math.Min(closestPlacement,basePoint.DistanceTo(drop));
                 }
+                if(placementFrames==50&&!changedFacing)
+                {
+                    changedFacing=true;
+                    rig.Rotation=new(0,rig.Rotation.Y+.9f,0);
+                }
             }
             if(!rig.ReleasedCargo)continue;
             var parcel=(rig.HandWorldPose(1)*rig.CargoMesh.Transform).Origin;
             release=Math.Min(release,Horizontal(parcel-drop).Length());
         }
-        if(release>.067f||sim.StateDigestString()!=committed)
+        if(release>.067f||realignmentFrames<10||sim.StateDigestString()!=committed)
             throw new InvalidOperationException($"World deposit released {release:F3} m away: placement {visiblePlacementFrames}/{placementFrames} frames, closest={closestPlacement:F3} m, stance={rig.Position.DistanceTo(dropStand):F3} m");
+        GD.Print($"WORLD_PLACEMENT_REALIGN_PASS: holds the stone through {realignmentFrames} planted turn frames, resumes to within {release:F3} m of its deposit point");
 
         var warehouse=Enumerable.Range(0,sim.World.Width*sim.World.Height)
             .Select(index=>new Vector2I(index%sim.World.Width,index/sim.World.Width))

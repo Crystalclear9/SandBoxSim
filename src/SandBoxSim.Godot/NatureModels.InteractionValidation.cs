@@ -14,6 +14,8 @@ internal sealed partial class NatureModels
         ValidateObservedActionHandoffs();
         ValidateConsumptionInterrupts();
         ValidateContactBoundaries();
+        ValidatePickupContactTiming();
+        ValidateInterruptedPlacementAlignment();
         ValidateUnavailableInteractionContacts();
         ValidateActionRetarget();
         ValidatePartnerLoss();
@@ -243,6 +245,117 @@ internal sealed partial class NatureModels
             finally{rig.Free();}
         }
         GD.Print("INTERACTION_READINESS_PASS: 12 unavailable actions on both adult rigs, one delayed construction impact and no expired replay");
+    }
+
+    private void ValidatePickupContactTiming()
+    {
+        const float delta=1f/60;
+        int lateContacts=0;
+        float maximumRecoveryStep=0;
+        foreach(int identity in new[]{17,55})
+        {
+            var rig=Resident(identity,false,JobType.None);
+            try
+            {
+                var actual=new Vector3(.035f,.10f,-.46f);
+                var missed=new Vector3(actual.X,-.50f,actual.Z);
+                var mesh=GroundPickupPiece(ResourceKind.Stone,0);
+                var replacement=GroundPickupPiece(ResourceKind.Wood,0);
+                var target=new ResidentRig.InteractionTarget(new(2,3),0,
+                    new(new(2,3),ResourceKind.Stone,SandBoxSim.Core.Systems.ActionSystem.ContactSurface.GroundStock));
+                rig.PresentAction(delta,ActionKind.None,ActionPhase.Idle,false,0,1);
+                rig.SetPickupPiece(mesh,true);
+                for(int frame=0;frame<86;frame++)
+                {
+                    rig.PresentAction(delta,ActionKind.Take,ActionPhase.Done,false,0,2,sceneContact:missed,target:target);
+                    if(rig.ScenePickupGrasped||rig.ScenePickupPieceVisible)
+                        throw new InvalidOperationException($"Unreachable stock enters the hand: {identity}");
+                }
+                for(int frame=0;frame<30&&!rig.ScenePickupGrasped;frame++)
+                    rig.PresentAction(delta,ActionKind.Take,ActionPhase.Done,false,0,2,sceneContact:actual,target:target);
+                if(!rig.ScenePickupGrasped||rig.ScenePickupPiecePose is not {} pose
+                    ||pose.Origin.DistanceTo(actual)>.012f
+                    ||(rig.HandWorldPose(1)*rig.Grip!.Position).DistanceTo(actual)>.055f)
+                    throw new InvalidOperationException($"A late reachable target misses its pickup: {identity}, state={rig.Handling}, gap={(rig.HandWorldPose(1)*rig.Grip!.Position).DistanceTo(actual):F3}");
+                lateContacts++;
+
+                var attached=rig.HandWorldPose(1).AffineInverse()*pose;
+                rig.SetPickupPiece(replacement,false);
+                for(int frame=0;frame<10;frame++)
+                {
+                    rig.PresentAction(delta,ActionKind.Take,ActionPhase.Done,false,0,2,sceneContact:actual+new Vector3(.24f,.15f,0),target:target);
+                    if(rig.ScenePickupPiecePose is not {} held
+                        ||(rig.HandWorldPose(1).AffineInverse()*held).Origin.DistanceTo(attached.Origin)>.0001f
+                        ||rig.GetNode<MeshInstance3D>("PickedUpResource").Mesh!=mesh)
+                        throw new InvalidOperationException($"A refreshed stock model replaces the gripped object: {identity}");
+                    pose=held;
+                }
+                rig.SetPickupPiece(null,false);
+                rig.PresentAction(delta,ActionKind.Take,ActionPhase.Done,false,0,2,sceneContact:actual,target:target,contactReady:false);
+                if(!rig.RecoveringPickup||rig.ScenePickupPiecePose is not {} recovery)
+                    throw new InvalidOperationException($"An invalidated pickup drops the supported prop: {identity}");
+                maximumRecoveryStep=MathF.Max(maximumRecoveryStep,recovery.Origin.DistanceTo(pose.Origin));
+                for(int frame=0;frame<120;frame++)
+                    rig.PresentAction(delta,ActionKind.None,ActionPhase.Idle,false,0,3);
+
+                rig.SetPickupPiece(mesh,true);
+                for(int frame=0;frame<210;frame++)
+                {
+                    rig.PresentAction(delta,ActionKind.Take,ActionPhase.Done,false,0,4,sceneContact:missed,target:target);
+                    if(rig.ScenePickupGrasped||rig.ScenePickupPieceVisible)
+                        throw new InvalidOperationException($"Expired reach creates an object without contact: {identity}");
+                }
+                if(rig.CompletionVisible||rig.RecoveringPickup)
+                    throw new InvalidOperationException($"Unreachable pickup never leaves the contact wait: {identity}");
+            }
+            finally{rig.Free();}
+        }
+        if(maximumRecoveryStep>.06f)throw new InvalidOperationException($"Lost contact jolts a held object: {maximumRecoveryStep:F3} m");
+        GD.Print($"PICKUP_CONTACT_TIMING_PASS: {lateContacts} late grasps after the old contact window, invalidated contact enters recovery, unreachable targets expire, max recovery step={maximumRecoveryStep:F3} m");
+    }
+
+    private void ValidateInterruptedPlacementAlignment()
+    {
+        const float delta=1f/60;
+        int releases=0;
+        foreach(int identity in new[]{17,55})
+        {
+            var rig=Resident(identity,false,JobType.None);
+            try
+            {
+                var point=new Vector3(0,0,-.54f);
+                rig.CargoGroundHeight=(_,_)=>0;
+                for(int frame=0;frame<120;frame++)
+                    rig.PresentAction(delta,ActionKind.Deposit,ActionPhase.Executing,false,0,1,inventoryCargo:ResourceKind.Wood);
+                for(int frame=0;frame<60;frame++)
+                    rig.PresentAction(delta,ActionKind.Deposit,ActionPhase.Done,false,0,1,sceneContact:point,
+                        contactResource:ResourceKind.Wood,inventoryCargo:ResourceKind.None);
+                if(!rig.PlacingCargo||rig.SupportedCargo!=ResourceKind.Wood)
+                    throw new InvalidOperationException($"Interrupted placement has no load in descent: {identity}");
+                for(int frame=0;frame<45;frame++)
+                {
+                    rig.PresentAction(delta,ActionKind.Deposit,ActionPhase.Done,false,0,1,targetAligned:false,sceneContact:point,
+                        contactResource:ResourceKind.Wood,inventoryCargo:ResourceKind.None);
+                    if(rig.PlacingCargo||rig.ReleasedCargo||rig.SupportedCargo!=ResourceKind.Wood)
+                        throw new InvalidOperationException($"A lost alignment releases or drops a held parcel: {identity}/{frame}");
+                }
+                for(int frame=0;frame<165;frame++)
+                {
+                    rig.PresentAction(delta,ActionKind.Deposit,ActionPhase.Done,false,0,1,sceneContact:point,
+                        contactResource:ResourceKind.Wood,inventoryCargo:ResourceKind.None);
+                    if(!rig.ReleasedCargo)continue;
+                    var world=rig.HandWorldPose(1)*rig.CargoMesh.Transform;
+                    var basePoint=world.Origin+Vector3.Up*rig.CargoMesh.Mesh.GetAabb().Position.Y*world.Basis.Y.Length();
+                    if(basePoint.DistanceTo(point)>.075f)
+                        throw new InvalidOperationException($"Resumed placement releases away from its original support: {identity}, {basePoint}");
+                    releases++;
+                    break;
+                }
+            }
+            finally{rig.Free();}
+        }
+        if(releases!=2)throw new InvalidOperationException("A re-aligned placement never returns to its support");
+        GD.Print("PLACEMENT_REALIGN_PASS: both adult rigs hold the parcel during alignment loss, replan from the displayed pose and release only at the original support");
     }
 
     private void ValidateActionRetarget()

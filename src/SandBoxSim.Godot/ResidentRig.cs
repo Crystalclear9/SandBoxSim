@@ -230,7 +230,7 @@ internal partial class ResidentRig : Node3D
         float breath=MathF.Sin(_phase*.5f+identityPhase);
         bool scenePickup=_sceneContact.HasValue&&family==ActionFamily.Pickup&&revision.HasValue;
         bool pickupRequested=upperReady&&family==ActionFamily.Pickup
-            &&(scenePickup?_scenePickupAge<ScenePickupDuration:!_plannedPickup);
+            &&(scenePickup?!ScenePickupFinished:!_plannedPickup);
         bool pickup=pickupRequested&&handsFree&&cargoReleased&&_socialBlend<=.10f
             &&(_bareBlend==0||FamilyOf(_bareAction)==ActionFamily.Pickup);
         if(pickup)
@@ -461,7 +461,7 @@ internal partial class ResidentRig : Node3D
             }
         }
         bool consumeRequested=upperReady&&family==ActionFamily.Consume;
-        bool preparingScenePickup=scenePickup&&CompletionVisible&&_scenePickupAge<ScenePickupDuration;
+        bool preparingScenePickup=scenePickup&&CompletionVisible&&!ScenePickupFinished;
         bool cargoWanted=!reserved&&!_recoveringPickup&&!_releasedCargo&&!WaitingForPlacementParcel&&(_hasCargo||_placingCargo||_placementPending)&&!toolRequested&&!usingTool&&!ToolHeld&&!ConsumptionOwnsHand
             &&!restRequested&&!pickupRequested&&!preparingScenePickup&&!consumeRequested&&_reach==0;
         cargoWanted=RetainCargoDuringTuck(cargoWanted,delta);

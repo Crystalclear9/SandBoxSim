@@ -94,9 +94,10 @@ internal partial class ResidentRig
                 _consumeStage=ConsumeStage.Lift;_consumeTime=_consumeContactTime=0;
             }
         }
-        else if(_consumeStage==ConsumeStage.Return&&_consumeReach<=.001f&&pocketGap<.032f)
+        else if(_consumeStage==ConsumeStage.Return)
         {
-            _consumeContactTime+=delta;
+            bool supported=_consumeReach<=.001f&&pocketGap<.032f;
+            _consumeContactTime=supported?_consumeContactTime+delta:0;
             CurlHand(1,Mathf.Lerp(closed,.12f,ReachEase(_consumeContactTime/.16f)));
             if(_consumeContactTime>=.16f)ClearConsumption();
         }

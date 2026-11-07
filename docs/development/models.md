@@ -299,6 +299,8 @@
 
 取物和徒手采集在执行时读取候选物资。取物的候选查询与模拟结算共用同一套资源选择规则。角色可以先伸手，只有候选与实际结算对应、手掌持续到达接触点时才合指和抬起。已经握住物件时，紧急移动会先接管下肢，持物手保留原来的握持位置和姿态，随起身动作向腰侧收回。交互对象、格位或物资种类变化时，上一段接触计时失效，新目标重新确认朝向。同一目标已对准后，短暂的小角度偏移仍可维持姿态。[伸手中途修正的实验](https://journals.physiology.org/doi/full/10.1152/jn.00336.2020) · [动作中断的惯性过渡](https://gdcvault.com/play/1025165/Inertialization-High-Performance-Animation-Transitions)
 
+`residentObjectContact=confirmed-support-v1` 将伸手等待和握住后的抬起分开计时。模拟确认后，手在伸手姿态中等待实际接触。目标移动会重算接触，等待有上限。合指后锁住物件网格及其手内变换，后续的场景更新只影响未握住的目标。放货途中若失去朝向、落脚支撑或手部使用权，居民保留双手托举，重新对准后从画面中的包裹位置继续下放。杯子与食物收回腰前时，松指需要连续到位。[目标位移后的手臂修正实验](https://link.springer.com/article/10.1007/s00221-011-2843-4)
+
 地面存放和仓库入库在执行阶段读取可接收的物资与位置。居民可先抱着物资走到堆旁或货箱前，并提前转向。模拟确认后才进入下放，结算结果决定实际交付的物资和目标。若结算时尚未到位，双手继续托住物资，待落脚、转向完成才下放。物件底部接近接收面且双掌持续支撑时松手。还留有同种物资时可恢复搬运。紧急移动或新动作可取消尚未放下的表现。
 
 `residentContactApproach=supported-contact-v1` 让近距离的物资交互、作业和双人会合在加速模式下共用步行控制。重心先转移，再迈步接近目标。剩余距离进入刹停区间时减速，最后两次落脚可以带入一部分目标转角。砍伐、采矿与施工面向工具实际接触的树干、岩面或木桩位置。距离过大时按世界原有的远距离同步规则追上逻辑位置。[Sumo Digital 的落脚预判与地面适配](https://www.unrealengine.com/tech-blog/sumo-digital-shares-how-it-created-spyder-s-sophisticated-animation-systems) · [足点保持研究](https://pages.cs.wisc.edu/~kovar/footskateCleanup.pdf)

@@ -138,8 +138,12 @@ internal partial class ResidentRig
         if(_awaitingContact)_contactWait+=PresentationDelta(delta);
         bool newlyDone=observedCompletion||pendingCompletion&&contactReady;
         var nextContact=phase==ActionPhase.Done&&!firstSnapshot||phase==ActionPhase.Executing&&target.Pickup.HasValue?sceneContact:null;
+        if(family==ActionFamily.Pickup&&!contactReady)nextContact=null;
         if(newRun||changedPickup||_sceneContact.HasValue!=nextContact.HasValue)
             ResetScenePickup();
+        else if(family==ActionFamily.Pickup&&!_scenePickupGrasped&&_sceneContact is {} prior&&nextContact is {} next
+            &&prior.DistanceSquaredTo(next)>.022f*.022f)
+            _scenePickupContact=0;
         if(newRun)_plannedPickup=false;
         _plannedPickup|=target.Pickup.HasValue;
         _sceneContact=nextContact;
@@ -221,12 +225,11 @@ internal partial class ResidentRig
         // observation may contain tool stow, arrival and the first gesture.
         if(phase==ActionPhase.Executing&&active)_observedExecution+=delta;
         if(!finishing)return;
-        if(_sceneContact.HasValue&&FamilyOf(action)==ActionFamily.Pickup&&_scenePickupAge>=ScenePickupDuration)
+        if(_sceneContact.HasValue&&FamilyOf(action)==ActionFamily.Pickup)
         {
-            _completionRemaining=0;
-            return;
+            if(ScenePickupFinished)_completionRemaining=0;
         }
-        if(active)_completionRemaining=MathF.Max(0,_completionRemaining-delta);
+        else if(active)_completionRemaining=MathF.Max(0,_completionRemaining-delta);
         _completionAge+=delta;
         if(_completionAge>=6)_completionRemaining=0;
     }

@@ -44,11 +44,6 @@ internal partial class ResidentRig
             ||_placementSurface.Value.DistanceSquaredTo(_sceneContact.Value)>.14f*.14f);
         if(newRun||!IsPlacement(action)||phase!=ActionPhase.Done||lostSurface)
             _placingCargo=_placementPending=false;
-        if(_placingCargo&&!InteractionSettled)
-        {
-            _placingCargo=false;
-            _placementPending=true;
-        }
         bool matchingParcel=_sceneContact.HasValue&&contactResource==_cargoKind;
         bool confirmedParcel=inventoryCargo.HasValue&&_sceneContact.HasValue&&contactResource!=ResourceKind.None;
         bool emptyInventory=inventoryCargo.HasValue?inventoryCargo==ResourceKind.None:!_hasCargo;
@@ -80,12 +75,21 @@ internal partial class ResidentRig
 
     private void AdvancePendingPlacement(float delta,bool targetAligned)
     {
+        bool ready=targetAligned&&InteractionSettled&&!HandoffReserved;
+        if(_placingCargo&&!ready)
+        {
+            // An interrupted descent can continue only from the displayed
+            // parcel pose, after the receiver is aligned and grounded again.
+            _placingCargo=false;
+            _placementPending=true;
+            _placementContact=0;
+        }
         if(!_placementPending)return;
         _placementWait+=delta;
         // A rendered warehouse entrance can lie outside the logical building
         // tile. Allow the same approach budget as other committed gestures.
         if(_placementWait>=(_placementSurface.HasValue?6f:2.5f)){_placementPending=false;return;}
-        if(!targetAligned||!InteractionSettled||HandoffReserved||_releasedCargo||!CargoMesh.Visible||WaitingForPlacementParcel)return;
+        if(!ready||_releasedCargo||!CargoMesh.Visible||WaitingForPlacementParcel)return;
         _placementPending=false;_placingCargo=true;
         _placementAge=_placementContact=0;
         _placementStart=new(_cargoLift,_cargoDepth);
