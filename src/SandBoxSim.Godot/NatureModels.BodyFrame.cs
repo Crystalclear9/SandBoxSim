@@ -459,6 +459,7 @@ internal sealed partial class NatureModels
         ValidateSoftShoulderField();
         ValidateMedialThorax();
         ValidateBalancedTorso();
+        ValidateFemaleFlankSupport();
         ValidateChestVolume();
         ValidateNaturalWaistBelts();
         int previous=_faceVariant;

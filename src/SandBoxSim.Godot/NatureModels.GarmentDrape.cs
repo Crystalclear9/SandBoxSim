@@ -309,9 +309,9 @@ internal sealed partial class NatureModels
         float backQuarter=TorsoRamp(.16f,.56f,depth)*(1-TorsoRamp(.83f,1,depth));
         float fall=_garmentCut switch
         {
-            0=>.0012f+.0024f*outseam+.0019f*frontQuarter+.0022f*backQuarter,
-            1=>.0014f+.0061f*outseam+.0008f*frontQuarter+.0045f*backQuarter,
-            _=>.0028f+.0056f*outseam+.0013f*frontQuarter+.0085f*backQuarter
+            0=>.0012f+.0015f*outseam+.0019f*frontQuarter+.0022f*backQuarter,
+            1=>.0014f+.0035f*outseam+.0008f*frontQuarter+.0045f*backQuarter,
+            _=>.0028f+.0033f*outseam+.0013f*frontQuarter+.0085f*backQuarter
         };
         // Release the two folds from the back of the belt. Their crests
         // diverge toward the hip and fade before the turned lower edge.

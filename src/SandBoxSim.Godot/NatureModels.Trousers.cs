@@ -197,11 +197,6 @@ internal sealed partial class NatureModels
     private static Vector3 FemaleHipTransition(Vector3 p)
     {
         float x=MathF.Abs(p.X);
-        // Turn the outer panel just below the pelvis, then let it hang
-        // into the fuller upper leg. Keep the crest and waistband in place.
-        float outerHeight=TorsoRamp(.640f,.699f,p.Y)*(1-TorsoRamp(.720f,.775f,p.Y));
-        float outer=TorsoRamp(.113f,.155f,x)
-            *TorsoRamp(-.086f,-.034f,p.Z)*(1-TorsoRamp(.024f,.066f,p.Z));
         // Add length through the front rise and bridge the slope between
         // the two leg panels. Fade before the free inner-leg edges.
         float riseHeight=TorsoRamp(.689f,.725f,p.Y)*(1-TorsoRamp(.745f,.802f,p.Y));
@@ -212,8 +207,7 @@ internal sealed partial class NatureModels
         // transition over the back of the thigh.
         float rearEase=TorsoRamp(.600f,.656f,p.Y)*(1-TorsoRamp(.696f,.759f,p.Y))
             *TorsoRamp(.038f,.077f,x)*(1-TorsoRamp(.125f,.167f,x))*TorsoRamp(.025f,.067f,p.Z);
-        return p+new Vector3(-MathF.Sign(p.X)*.005f*outer*outerHeight,-.009f*rise,
-            .006f*rearEase-.009f*rise+.008f*frontTurn);
+        return p+new Vector3(0,-.009f*rise,.006f*rearEase-.009f*rise+.008f*frontTurn);
     }
 
     private static Vector3 FitFemaleTrouserWaist(Vector3 p,float[] support)
@@ -545,6 +539,10 @@ internal sealed partial class NatureModels
         if(taper<.004f||taper>.009f)
             throw new InvalidOperationException($"Female upper thigh loses its taper below the pelvis: {taper*1000:F2} mm per side");
         GD.Print($"FEMALE_HIP_TRANSITION_PASS: fitted upper thigh tapers {taper*1000:F2} mm per side over 90 mm");
+        float outerCrest=SampleTrouserSection(sourceSections,.815f).Max.X-SampleTrouserSection(fittedSections,.815f).Max.X;
+        if(!float.IsFinite(outerCrest)||outerCrest<.004f||outerCrest>.009f)
+            throw new InvalidOperationException($"Female trousers fail to follow the outer pelvis support: {outerCrest*1000:F2} mm");
+        GD.Print($"FEMALE_FLANK_TROUSER_PASS: actual outer hip section sits {outerCrest*1000:F2} mm inward, with retained thigh taper and boot overlap");
     }
 
     private static void ValidateHipCloth(Vector3[] points,int[] bones,float[] weights,Vector3[][] targets)

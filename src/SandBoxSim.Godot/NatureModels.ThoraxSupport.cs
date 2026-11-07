@@ -51,7 +51,53 @@ internal sealed partial class NatureModels
         float lower=TorsoRamp(.659f,.713f,point.Y)*(1-TorsoRamp(.740f,.794f,point.Y))
             *TorsoRamp(.033f,.068f,MathF.Abs(point.X));
         point.Z+=rear*(.005f*lower-.009f*upper);
-        return point;
+        return FemaleFlankPoint(point);
+    }
+
+    private static Vector3 FemaleFlankPoint(Vector3 point)
+    {
+        float x=MathF.Abs(point.X),y=point.Y,z=point.Z;
+        float lateral=TorsoRamp(.075f,.151f,x);
+        float side=1-TorsoRamp(.035f,.105f,MathF.Abs(z));
+        // Let the oblique plane lead into the pelvis over a wider span.
+        // The top of the outer hip rolls into the thigh below the crest.
+        float oblique=TorsoRamp(.868f,.918f,y)*(1-TorsoRamp(.940f,.995f,y));
+        float crest=TorsoRamp(.786f,.818f,y)*(1-TorsoRamp(.837f,.908f,y));
+        float thigh=TorsoRamp(.650f,.695f,y)*(1-TorsoRamp(.725f,.777f,y));
+        float width=lateral*side*(.006f*oblique-.007f*crest-.006f*thigh);
+        // Roll the diagonal quadrants toward the side, with the abdomen,
+        // central back and inseam outside the depth edit.
+        float quarter=TorsoRamp(.018f,.042f,MathF.Abs(z))*(1-TorsoRamp(.077f,.111f,MathF.Abs(z)));
+        return new(point.X+MathF.Sign(point.X)*width,y,z*(1-.045f*lateral*crest*quarter));
+    }
+
+    private void ValidateFemaleFlankSupport()
+    {
+        var original=FrameRadii("trunk-feminine-cage.json",FemaleTrunkHash,"skinRadii");
+        var fitted=FemaleThoraxSupport();
+        float waist=TrunkSample(fitted,.935f,0)-TrunkSample(original,.935f,0);
+        float crest=TrunkSample(original,.820f,0)-TrunkSample(fitted,.820f,0);
+        if(waist<.0035f||waist>.0095f||crest<.0055f||crest>.0075f)
+            throw new InvalidOperationException($"Female flank loses the waist-to-hip transition: {waist:F4}/{crest:F4} m");
+
+        float minimum=1,maximum=0;
+        for(int row=0;row<=36;row++)for(int col=0;col<=19;col++)for(int depth=-8;depth<=8;depth++)
+        {
+            const float h=.0002f;
+            var p=new Vector3(col*.01f,.645f+row*.01f,depth*.02f);
+            var q=FemaleFlankPoint(p);
+            var mirror=FemaleFlankPoint(new(-p.X,p.Y,p.Z));
+            maximum=MathF.Max(maximum,q.DistanceTo(p));
+            if(q.Y!=p.Y||!mirror.IsEqualApprox(new Vector3(-q.X,q.Y,q.Z))
+                ||(p.X<=.075f||p.Y<=.650f||p.Y>=.995f)&&q!=p)
+                throw new InvalidOperationException("Female flank moves a fixed support or loses symmetry");
+            var dx=(FemaleFlankPoint(p+Vector3.Right*h)-FemaleFlankPoint(p-Vector3.Right*h))/(2*h);
+            var dz=(FemaleFlankPoint(p+Vector3.Back*h)-FemaleFlankPoint(p-Vector3.Back*h))/(2*h);
+            minimum=MathF.Min(minimum,dx.X*dz.Z-dx.Z*dz.X);
+        }
+        if(!float.IsFinite(minimum)||minimum<.78f||maximum>.0073f)
+            throw new InvalidOperationException($"Female flank exceeds the fitted support bound: Jacobian={minimum:F3}, edit={maximum:F4} m");
+        GD.Print($"FEMALE_FLANK_SUPPORT_PASS: lower waist {waist*1000:F2} mm fuller, outer crest {crest*1000:F2} mm inward; fixed rise, symmetric support, minimum Jacobian {minimum:F3}");
     }
 
     // Continuous anterior volume on the existing adult thorax, not attached
