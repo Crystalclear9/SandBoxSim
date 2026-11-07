@@ -176,7 +176,7 @@ public partial class MainGame : Control
             try{if(_selfTest||_benchmarkSeconds>0||_capture.Length>0||_captureFrames.Length>0)throw new ArgumentException("Evaluation cannot be mixed with legacy capture/test modes");LoadEvaluation(evaluationPath.Substring(13));}
             catch(Exception ex){GD.PrintErr("EVALUATION_CONFIG_ERROR "+ex.Message);TraceEvaluationPhase("quit_requested");GetTree().Quit(2);SetProcess(false);return;}
         }
-        if(_selfTest&&OS.GetCmdlineUserArgs().Any(arg=>arg is "--stock-contact-only" or "--work-contact-only" or "--strike-contact-only"))_initialPopulation=0;
+        if(_selfTest&&OS.GetCmdlineUserArgs().Any(arg=>arg is "--stock-contact-only" or "--work-contact-only" or "--strike-contact-only" or "--interaction-contact-only"))_initialPopulation=0;
         NewWorld(_evaluation?.Seed??839102);
         TraceEvaluationPhase("world_initialized");
         if (_previewDays > 0) { AdvanceWorld(_previewDays * Sim.Config.Clock.TicksPerDay); }
@@ -750,11 +750,19 @@ public partial class MainGame : Control
         }
         _history.Text = history.ToString();
     }
+    private void ValidateAcceleratedResidentContact(WorldView3D worldView)
+    {
+        Sim=new Simulation(Sim.Config.Clone(),30,30,13);
+        worldView.ValidateWorldDimensions();
+        SetSpeed(8);
+        worldView.ValidateAcceleratedContact();
+    }
+
     private void RunSelfTest()
     {
         try
         {
-            var focused=OS.GetCmdlineUserArgs().FirstOrDefault(arg=>arg is "--stock-contact-only" or "--work-contact-only" or "--strike-contact-only");
+            var focused=OS.GetCmdlineUserArgs().FirstOrDefault(arg=>arg is "--stock-contact-only" or "--work-contact-only" or "--strike-contact-only" or "--interaction-contact-only");
             if(focused!=null)
             {
                 Sim=new Simulation(Sim.Config.Clone(),30,30,13);
@@ -763,6 +771,11 @@ public partial class MainGame : Control
                 SetSpeed(ObservationSpeed);
                 if(focused=="--work-contact-only")worldView.ValidateWorldWorkContact();
                 else if(focused=="--strike-contact-only")worldView.ValidateWorldToolContact();
+                else if(focused=="--interaction-contact-only")
+                {
+                    worldView.ValidateResidentWorldMotion();
+                    ValidateAcceleratedResidentContact(worldView);
+                }
                 else worldView.ValidateWorldStockContact();
                 GetTree().Quit();
                 return;
@@ -852,7 +865,11 @@ public partial class MainGame : Control
                 ((WorldView3D)_map).ValidateIncrementalBuildings();
                 ValidateInteractiveBudget();
                 int travelSpeed=_speed,travelResume=_resumeSpeed;
-                try{SetSpeed(ObservationSpeed);((WorldView3D)_map).ValidateResidentWorldMotion();}
+                try
+                {
+                    SetSpeed(ObservationSpeed);((WorldView3D)_map).ValidateResidentWorldMotion();
+                    ValidateAcceleratedResidentContact((WorldView3D)_map);
+                }
                 finally{SetSpeed(travelSpeed);_resumeSpeed=travelResume;}
                 var rectangular = new Simulation(Sim.Config.Clone(), 60, 44, 17);
                 string rectangularSave = SaveFile.Encode(rectangular);

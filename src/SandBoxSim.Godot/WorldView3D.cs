@@ -460,7 +460,7 @@ public partial class WorldView3D : MapView
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="wet-bank-mosaic-v7",["sceneryContact"]="solid-scenery-corridors-v3",["habitatDetail"]="responsive-understory-v12",["vegetationSurface"]="engine-faced-v2",
             ["architecture"]="inset-joinery-v13",["garmentMaterial"]="quiet-linen-v18",["trouserSkin"]="guided-knee-v1",["upperArmFlex"]="stable-contour-v3",["shoulderSkin"]="reference-figure-v25",["shoulderMotion"]="source-clavicle-v11",["motionReference"]="cmu-143-30-v1",["shoulderSurface"]="authored-bind-surface-v3",["forearmSkin"]="continuous-elbow-v9",["sleeveFairing"]="rest-detail-v2",["workPose"]="raised-hammer-v1",["reachMotion"]="palm-trajectory-v2",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
-            ["animalPresentation"]="articulated-paws-v12",["animalLocomotion"]="ground-distance-v1",["residentSurface"]="linear-skin-v9",["workEffort"]="overlapping-weight-transfer-v7",["toolMotion"]="socket-relative-stow-v5",["bodySupport"]="planted-spatial-v3",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="tool-surface-v17",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="captured-conversation-v10",["waterSurface"]="shore-activity-v7",["wristContour"]="continuous-source-v2",
+            ["animalPresentation"]="articulated-paws-v12",["animalLocomotion"]="ground-distance-v1",["residentSurface"]="linear-skin-v9",["workEffort"]="overlapping-weight-transfer-v7",["toolMotion"]="socket-relative-stow-v5",["bodySupport"]="planted-spatial-v3",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="scene-contact-v18",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="captured-conversation-v10",["waterSurface"]="shore-activity-v7",["wristContour"]="continuous-source-v2",
             ["hairline"]="framed-source-root-v2",["femaleGroom"]="scalp-guided-plait-v1",["garmentFit"]="continuous-drape-v35",["reedPanicle"]="connected-axis-v1",["bodyPresentation"]="continuous-drape-v29",["bodyFrame"]="reference-contour-physique-v31",["femaleBodyBuild"]="regional-builds-v1",["femaleRearShoulder"]="diffused-yoke-v2",["femaleLowerPanel"]="supported-fall-v1",["neckContour"]="relaxed-neckline-v7",["faceContour"]="balanced-adult-v3",["forearmProfile"]="curvature-flow-v9",["residentLocomotion"]="captured-boot-rockers-v9",["gaitReference"]=ResidentGaitCapture.Version,["actionReference"]=ResidentActionCapture.Version,["armSwing"]="captured-spatial-swing-v8",["motionStyle"]="captured-standing-and-stride-v7",["limbCoordination"]="hinge-carry-v4" };
         quality["taskReference"]=ResidentActionCapture.TaskVersion;
         quality["toolContacts"]="furrow-edge-and-work-stance-v1";
@@ -866,15 +866,15 @@ public partial class WorldView3D : MapView
             var action=sim.Agents.ActionOf(slot);
             var phase=sim.Agents.PhaseOf(slot);
             uint actionRevision=sim.Agents.ActionRevisionOf(slot);
+            bool finishing=phase==ActionPhase.Done&&node.ShowsCompletion(action,actionRevision);
             bool hasTarget=sim.Agents.HasTarget(slot);
             var interest=hasTarget?sim.Agents.TargetOf(slot):new Int2(x,y);
             Vector3? sceneContact=null;
             ResourceKind contactResource=ResourceKind.None;
             ActionSystem.ActionContact site=default;
-            bool candidate=phase==ActionPhase.Executing&&(action is ActionKind.Take or ActionKind.GatherFood)
-                &&sim.Actions.TryGetPickupCandidate(slot,out site);
-            bool resolvedSite=candidate||phase==ActionPhase.Done&&node.ContinuesCompletedAction(action,actionRevision)
-                &&sim.Actions.TryGetCompletedContact(slot,out site);
+            bool candidate=phase==ActionPhase.Executing&&(sim.Actions.TryGetPickupCandidate(slot,out site)
+                ||sim.Actions.TryGetCultivationCandidate(slot,out site));
+            bool resolvedSite=candidate||finishing&&sim.Actions.TryGetCompletedContact(slot,out site);
             if(resolvedSite
                 &&TryActionContact(node,action,site,target,out var contact,out var stand))
             {
@@ -944,7 +944,8 @@ public partial class WorldView3D : MapView
             }
             bool hasInterest=(hasTarget||gathering||sceneContact.HasValue)&&sim.World.IsInBounds(interest);
             var interestPoint=sceneContact??(hasInterest?SceneResourceFocus(interest.X,interest.Y,action):target);
-            bool hasPartner=sim.Actions.TryGetPresentationPartner(slot,out int partner);
+            int partner=-1;
+            bool hasPartner=(phase==ActionPhase.Executing||finishing)&&sim.Actions.TryGetPresentationPartner(slot,out partner);
             long partnerIdentity=0;
             if(hasPartner)
             {
@@ -962,22 +963,25 @@ public partial class WorldView3D : MapView
                 hasInterest=true;
             }
             if(meeting){interestPoint=meetingFacing;hasInterest=true;}
-            if(action==ActionKind.Drink&&(phase==ActionPhase.Executing||phase==ActionPhase.Done&&node.ShowsCompletion(action,actionRevision))
-                &&settled&&TryShoreContact(PositionAt(x,y),out var bank))
-            {interestPoint=bank;hasInterest=true;}
+            bool hasShore=false;
+            if(action==ActionKind.Drink&&(phase==ActionPhase.Executing||finishing))
+            {
+                hasShore=TryShoreContact(PositionAt(x,y),out var bank);
+                if(hasShore){interestPoint=bank;hasInterest=true;}
+            }
             float distanceSquared=cameraPosition.DistanceSquaredTo(rendered);
             var heading=Horizontal(direction);
             if(paced&&travelHeading.LengthSquared()>.001f&&(heading.LengthSquared()<.000001f||
                 heading.Normalized().Dot(travelHeading.Normalized())>.78f))
                 heading=travelHeading;
             bool aimsAtTarget=ResidentRig.UsesInteractionFacing(action);
-            bool interacting=meeting||phase==ActionPhase.Executing||phase==ActionPhase.Done&&hasInterest&&aimsAtTarget;
+            bool interacting=meeting||phase==ActionPhase.Executing||finishing;
             bool followsMovement=(!settled||!interacting)&&heading.LengthSquared()>.000001f;
             float yaw=node.Rotation.Y,headingError=0;
             if(!paused)
             {
                 var facing=Horizontal(interestPoint-rendered);
-                bool faceInterest=hasInterest&&settled&&interacting&&facing.LengthSquared()>.002f;
+                bool faceInterest=hasInterest&&settled&&interacting&&aimsAtTarget&&facing.LengthSquared()>.002f;
                 bool prepareFacing=paced&&distanceSquared<18*18&&interacting&&remaining<.09f
                     &&hasInterest&&facing.LengthSquared()>.0225f;
                 node.PlanArrival(target,prepareFacing?HeadingYaw(facing):null);
@@ -997,9 +1001,10 @@ public partial class WorldView3D : MapView
                 else if(faceInterest)
                 {
                     float goal=HeadingYaw(facing);
-                    if(paced&&distanceSquared<18*18)
+                    if(distanceSquared<18*18)
                     {
-                        if(node.IsPivoting||node.InteractionSettled)yaw=node.AdvancePivot(yaw,goal,delta);
+                        if(node.IsPivoting||node.InteractionSettled&&Horizontal(direction).LengthSquared()<.15f*.15f*delta*delta)
+                            yaw=node.AdvancePivot(yaw,goal,delta);
                     }
                     else
                     {
@@ -1026,17 +1031,30 @@ public partial class WorldView3D : MapView
                     &&sim.World.TileAt(interest).Resource.Amount>0;
             ResidentRig.ToolSurface? toolSurface=null;
             bool requiresSurface=false;
-            if(validStrike&&(phase==ActionPhase.Executing||phase==ActionPhase.Done&&node.ShowsCompletion(action,actionRevision))
+            if(validStrike&&(phase==ActionPhase.Executing||finishing)
                 &&(!ResidentRig.UsesWorksiteReceipt(action)||sceneContact.HasValue)
                 &&TryPlanToolSurface(action,interest.X,interest.Y,target,out var strike,out requiresSurface))toolSurface=strike;
             bool reachable=toolSurface is not {} bound||ReachableToolSurface(node,target,bound);
-            bool waitsForPost=sceneContact.HasValue&&site.Surface==ActionSystem.ContactSurface.BuildingWork
-                &&ResidentRig.ToolFor(action)==ResidentTool.Hammer;
-            bool surfaceReady=toolSurface.HasValue||!requiresSurface&&!waitsForPost;
-            var cue=new PoseCue(action,phase,actionRevision,interactionTarget,true,toolSurface);
+            bool contactReady=validStrike&&reachable&&(!requiresSurface||toolSurface.HasValue);
+            if(phase is ActionPhase.Executing or ActionPhase.Done)
+            {
+                contactReady&=action switch
+                {
+                    ActionKind.Take or ActionKind.GatherFood=>sceneContact.HasValue,
+                    ActionKind.GatherWood or ActionKind.GatherStone or ActionKind.GatherIron when phase==ActionPhase.Done=>sceneContact.HasValue,
+                    ActionKind.Deposit or ActionKind.StoreInBuilding or ActionKind.Farm=>phase==ActionPhase.Done&&sceneContact.HasValue,
+                    ActionKind.BuildHouse or ActionKind.BuildFarm or ActionKind.BuildStorage or ActionKind.BuildMine=>toolSurface.HasValue,
+                    ActionKind.Hunt=>phase==ActionPhase.Executing?preyInRange:sceneContact.HasValue,
+                    ActionKind.Socialize or ActionKind.ShareFood or ActionKind.Attack=>hasPartner,
+                    ActionKind.Drink=>hasShore,
+                    ActionKind.Eat when phase==ActionPhase.Executing=>sim.Agents.InventoryOf(slot,ResourceKind.Food)>0,
+                    _=>true
+                };
+            }
+            var cue=new PoseCue(action,phase,actionRevision,interactionTarget,true,toolSurface,contactReady);
             var facingDirection=Horizontal(interestPoint-rendered);
-            bool aligned=validStrike&&reachable&&surfaceReady&&(!trackingPrey||preyInRange)&&(!aimsAtTarget||!interacting||!hasInterest||InteractionFacingAligned(yaw,facingDirection,
-                _poseSchedule.RetainsFacing(pair.Key,cue)));
+            bool aligned=!aimsAtTarget||!interacting||!hasInterest||InteractionFacingAligned(yaw,facingDirection,
+                _poseSchedule.RetainsFacing(pair.Key,cue));
             cue=cue with {Aligned=aligned};
             bool changed=_poseSchedule.Observe(pair.Key,cue,delta,!paused);
             if(paused||!changed&&(_poseFrame+slot)%stride!=0)continue;
@@ -1058,7 +1076,7 @@ public partial class WorldView3D : MapView
             }
             node.SetWorkCondition(sim.Agents.FatigueOf(slot),sim.Agents.HealthOf(slot));
             if(sceneContact.HasValue&&distanceSquared<18*18&&(action is ActionKind.Take or ActionKind.GatherFood)
-                &&node.ShowsCompletion(action,actionRevision))
+                &&(phase==ActionPhase.Executing||finishing))
             {
                 int pile=site.Surface==ActionSystem.ContactSurface.GroundStock?sim.GroundStocks.FindAt(site.Tile.X,site.Tile.Y):-1;
                 bool sourceVisible=pile>=0&&sim.GroundStocks.AmountOf(pile,site.Resource)>.01f;
@@ -1066,9 +1084,13 @@ public partial class WorldView3D : MapView
             }
             else node.SetPickupPiece(null,false);
             bool completeToolStroke=reachable&&(phase!=ActionPhase.Done||!ResidentRig.UsesWorksiteReceipt(action)||sceneContact.HasValue);
+            bool deferredPost=finishing&&sceneContact.HasValue&&ResidentRig.ToolFor(action)==ResidentTool.Hammer
+                &&(!_buildingVisuals.TryGetValue(sim.World.TileAt(interest.X,interest.Y).BuildingId-1,out var post)
+                    ||post.Generation!=site.BuildingGeneration);
             node.PresentAction(_poseSchedule.Consume(pair.Key),action,phase,false,slot,actionRevision,
                 hasPartner&&action!=ActionKind.ShareFood,aligned,sceneContact,contactResource,interactionTarget,completeToolStroke,
-                awaitToolCommit:phase==ActionPhase.Executing&&(action is ActionKind.Hunt or ActionKind.Attack),toolSurface:toolSurface);
+                awaitToolCommit:phase==ActionPhase.Executing&&(action is ActionKind.Hunt or ActionKind.Attack),toolSurface:toolSurface,
+                contactReady:contactReady,deferContact:deferredPost);
             if(distanceSquared<18*18)
             {
                 if(!paused)ConformFeet(node);

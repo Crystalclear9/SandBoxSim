@@ -35,6 +35,15 @@ internal partial class ResidentRig
             }
             ResetGroundContacts();
         }
+        else if(_pivotProgress<.08f)
+        {
+            // No foot has lifted yet. The gaze can still redirect this step;
+            // once a foot is in flight, finish its current landing first.
+            float corrected=Mathf.AngleDifference(_pivotStartYaw,target);
+            if(MathF.Abs(corrected)<.16f){CancelPivot();return yaw;}
+            _pivotGoalYaw=_pivotStartYaw+Math.Clamp(corrected,-1.19f,1.19f);
+            _pivotLead=corrected>0?0:1;
+        }
         _pivotProgress=Mathf.MoveToward(_pivotProgress,1,delta/_pivotDuration);
         return Mathf.Lerp(_pivotStartYaw,_pivotGoalYaw,ReachEase((_pivotProgress-.08f)/.72f));
     }

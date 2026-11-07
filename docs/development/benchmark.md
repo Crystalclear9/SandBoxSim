@@ -180,7 +180,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `animalLocomotion=ground-distance-v1` 记录鹿狼的距离驱动步态。居民动画时序和画面更新后，相关视觉评测需采集新基线。
 
-`taskReference=cmu-turn-and-dig-v1` 与 `toolContacts=furrow-edge-and-work-stance-v1` 记录捕捉转身、耕作重心和工具姿态。`CULTIVATION_PASS` 使用实际锄刃坐标检查平面与斜面上的拉土、抬刃和胸廓幅度。`WORLD_CULTIVATION_PASS` 在实际地形上通过世界更新检查锄刃贴地距离与显示层的状态纯度。
+`taskReference=cmu-turn-and-dig-v1` 与 `toolContacts=furrow-edge-and-work-stance-v1` 记录捕捉转身、耕作重心和工具姿态。`CULTIVATION_PASS` 使用实际锄刃坐标检查平面与斜面上的拉土、抬刃和胸廓幅度。`WORLD_COMMITTED_WORK_PASS` 在实际农田检查作业前的准备、结算后的锄刃接触和劳动已满时的收势。
 
 `RESIDENT_STATIONS_PASS` 在同一逻辑格放入三位居民，检查显示间距、邻居离开后的站位稳定性与模拟状态摘要。
 
@@ -198,7 +198,9 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `limbCoordination=hinge-carry-v4` 标识肘部屈曲平面、低位携带和按掌柄绑定安排的短柄／长柄朝向；`residentLocomotion=settled-arrival-v3` 增加连续骨盆支撑与局部拾取脚踝求解。`visual-motion`、`visual-social`、`visual-social-side` 的默认采样从第 30 帧开始每 14 帧一次，共 30 帧，冻结模拟而按 60 Hz 推进表现。它们用于观察动作和评测采样链路，不是 RSI 或人体写实程度评分。
 
-`handlingMotion=tool-surface-v17` 覆盖工具准备、表面接触和收势，也保留候选物资准备、抓握和中断回收。`TOOL_PHRASE_PASS` 在 60 Hz 和 24 Hz 下核对五类工具的击打节拍、收势和紧急中断。`TOOL_SURFACE_PASS` 测量斧刃、镐尖和锤面到目标的距离。`WORLD_TOOL_SURFACE_PASS` 在世界居民路径中检查树干接触、目标消失和模拟摘要。`WORLD_COMMITTED_WORK_PASS` 继续检查锄刃与土面的距离。可向引擎传入 `--test-tool-phrases`、`--self-test --strike-contact-only` 或 `--self-test --work-contact-only` 分别复测工具动作、实景挥击或实景耕作。
+`handlingMotion=scene-contact-v18` 覆盖候选准备、握持、场景接触和中断回收。`INTERACTION_READINESS_PASS` 验证两种成人体型的 12 类不可用交互，以及施工模型迟到后的单次挥击和等待超时。`WORLD_ACCELERATED_CONTACT_PASS` 测量加速观察中转身后的伸手，以及物资清空后的中断。可向引擎传入 `--self-test --interaction-contact-only` 复测世界场景。
+
+`TOOL_PHRASE_PASS` 在 60 Hz 和 24 Hz 下核对五类工具的击打节拍、收势和紧急中断。`TOOL_SURFACE_PASS` 测量斧刃、镐尖和锤面到目标的距离。`WORLD_TOOL_SURFACE_PASS` 在世界居民路径中检查树干接触、目标消失和模拟摘要。可向引擎传入 `--test-tool-phrases`、`--self-test --strike-contact-only` 或 `--self-test --work-contact-only` 分别复测工具动作、实景挥击或实景耕作。
 
 `shoulderMotion=source-clavicle-v11` 标识分开的抬臂／轴向旋转、上臂驱动的锁骨弧线与肩胛上旋／后倾、接近伸直的稳定参考和左右独立返回；`limbCoordination=hinge-carry-v4` 包含工具肘平面连续性、真实作业支撑与挥锤朝向。`visual-shoulder-motion.json` 以同衣装的两种成人外观、正面、工作臂侧面和背面观察同一完整挥锤循环；默认从第 30 帧每 14 帧采样，共 30 帧。它冻结模拟，在固定 60 Hz 下推进动作，不构成 RSI 或人体动作质量的客观评分。
 

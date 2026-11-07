@@ -35,11 +35,9 @@ internal partial class ResidentRig
     private bool _finishConsumption,_observedMouthContact;
     internal readonly record struct InteractionTarget(Vector2I? Tile,long Partner,ActionSystem.ActionContact? Pickup);
     private InteractionTarget _interactionTarget;
-    private float _retargetSettle;
-    public bool CompletionVisible=>_finishConsumption||_finishToolStroke||_completionRemaining>0||_placingCargo||_placementPending;
-
-    internal bool ContinuesCompletedAction(ActionKind action,uint revision)
-        =>_sceneContact.HasValue||ShowsCompletion(action,revision);
+    private float _retargetSettle,_contactWait;
+    private bool _awaitingContact;
+    public bool CompletionVisible=>_finishConsumption||_finishToolStroke||_completionRemaining>0||_placingCargo||_placementPending||_awaitingContact;
 
     internal bool ShowsCompletion(ActionKind action,uint revision)
         =>_observedRevision.HasValue&&(revision!=_observedRevision||action!=_observedAction
@@ -49,6 +47,8 @@ internal partial class ResidentRig
     {
         _observedAction=action;_observedPhase=phase;_observedRevision=revision;
         _observedExecution=_completionRemaining=0;
+        _waitingForContact=false;
+        _awaitingContact=false;
         _finishConsumption=_observedMouthContact=false;
         ClearConsumption();
         ClearTransientCargo();
@@ -62,7 +62,7 @@ internal partial class ResidentRig
 
     public void PresentAction(float delta,ActionKind action,ActionPhase phase,bool paused,float identityPhase,uint? revision=null,bool hasPartner=true,bool targetAligned=true,
         Vector3? sceneContact=null,ResourceKind contactResource=ResourceKind.None,InteractionTarget target=default,
-        bool completeToolStroke=true,bool awaitToolCommit=false,ToolSurface? toolSurface=null)
+        bool completeToolStroke=true,bool awaitToolCommit=false,ToolSurface? toolSurface=null,bool contactReady=true,bool deferContact=false)
     {
         if(paused)return;
         bool firstSnapshot=revision.HasValue&&!_observedRevision.HasValue;
@@ -81,9 +81,8 @@ internal partial class ResidentRig
                 ||previousSurface.Normal.Dot(nextSurface.Normal)<.80f);
         bool retargeted=sameExecution&&(changedPartner||changedTile||changedPickup||changedSurface);
         var family=FamilyOf(action);
-        bool lostWorkSurface=ObserveToolSurface(toolSurface,newRun||retargeted);
-        targetAligned&=!lostWorkSurface;
-        completeToolStroke&=!lostWorkSurface;
+        contactReady&=!ObserveToolSurface(toolSurface,newRun||retargeted);
+        completeToolStroke&=contactReady;
         if(newRun||retargeted)
             ResetToolPhrase(retainPose:family==ActionFamily.Tool&&ToolFor(action)==ToolFor(_observedAction));
         if(newRun)_retargetSettle=0;
@@ -95,10 +94,19 @@ internal partial class ResidentRig
         if(newRun||phase!=ActionPhase.Done){_completionRemaining=0;_finishConsumption=_finishToolStroke=false;}
         if(newRun){_observedExecution=0;_observedMouthContact=false;}
         bool partnerAction=RequiresPartner(action);
-        if(partnerAction&&!hasPartner){_completionRemaining=0;_finishToolStroke=false;}
+        if(!contactReady||partnerAction&&!hasPartner)
+        {
+            _completionRemaining=0;
+            _finishConsumption=_finishToolStroke=false;
+        }
         if(!completeToolStroke)_finishToolStroke=false;
         _awaitToolCommit=awaitToolCommit&&phase==ActionPhase.Executing;
-        bool newlyDone=!firstSnapshot&&phase==ActionPhase.Done&&(newRun||_observedPhase!=ActionPhase.Done);
+        bool observedCompletion=!firstSnapshot&&phase==ActionPhase.Done&&(newRun||_observedPhase!=ActionPhase.Done);
+        bool pendingCompletion=!newRun&&phase==ActionPhase.Done&&_awaitingContact&&_contactWait<.80f;
+        if(observedCompletion)_contactWait=0;
+        _awaitingContact=(observedCompletion||pendingCompletion)&&deferContact&&!contactReady&&_contactWait<.80f;
+        if(_awaitingContact)_contactWait+=PresentationDelta(delta);
+        bool newlyDone=observedCompletion||pendingCompletion&&contactReady;
         var nextContact=phase==ActionPhase.Done&&!firstSnapshot||phase==ActionPhase.Executing&&target.Pickup.HasValue?sceneContact:null;
         if(newRun||changedPickup||_sceneContact.HasValue!=nextContact.HasValue)
             ResetScenePickup();
@@ -107,8 +115,8 @@ internal partial class ResidentRig
         _sceneContact=nextContact;
         _scenePickupConfirmed=phase==ActionPhase.Done;
         _interactionTarget=target;
-        ObserveCargoPlacement(action,phase,newlyDone,newRun,contactResource);
-        if(newlyDone&&family==ActionFamily.Consume)
+        ObserveCargoPlacement(action,phase,newlyDone&&contactReady,newRun,contactResource);
+        if(newlyDone&&contactReady&&family==ActionFamily.Consume)
         {
             _completionAge=0;
             _finishConsumption=!_observedMouthContact||ConsumptionOwnsHand;
@@ -120,7 +128,7 @@ internal partial class ResidentRig
             // of an impact already shown. A spare wind-up must not hit again.
             _finishToolStroke=!_toolImpactSeen||_strokePhase>=ToolImpactPhase(ToolFor(action))&&_strokePhase<1;
         }
-        else if(newlyDone&&(!partnerAction||hasPartner)&&(UsesBareHands(family)||family==ActionFamily.Social))
+        else if(newlyDone&&contactReady&&(!partnerAction||hasPartner)&&(UsesBareHands(family)||family==ActionFamily.Social))
         {
             _completionAge=0;
             float minimum=family==ActionFamily.Pickup&&_sceneContact.HasValue?2.5f:1.65f;
@@ -129,7 +137,8 @@ internal partial class ResidentRig
         }
         _observedAction=action;_observedPhase=phase;_observedRevision=revision;
         var visualPhase=partnerAction&&phase==ActionPhase.Executing&&!hasPartner?ActionPhase.Failed:phase;
-        AdvancePose(PresentationDelta(delta),action,visualPhase,identityPhase,true,targetAligned);
+        _waitingForContact=phase==ActionPhase.Executing&&!contactReady||_awaitingContact;
+        AdvancePose(PresentationDelta(delta),action,visualPhase,identityPhase,true,targetAligned&&contactReady);
         PresentPickupPiece(family==ActionFamily.Pickup);
     }
 
@@ -143,7 +152,7 @@ internal partial class ResidentRig
         =>FamilyOf(action) is ActionFamily.Tool or ActionFamily.Pickup or ActionFamily.Transfer or ActionFamily.Social
             ||action==ActionKind.Drink;
 
-    private ActionPhase DisplayedPhase(ActionPhase phase)=>phase==ActionPhase.Done&&CompletionVisible?ActionPhase.Executing:phase;
+    private ActionPhase DisplayedPhase(ActionPhase phase)=>phase==ActionPhase.Done&&CompletionVisible&&!_awaitingContact?ActionPhase.Executing:phase;
 
     private void PresentActionStep(float delta,ActionKind action,ActionPhase phase,float identityPhase,bool targetAligned)
     {

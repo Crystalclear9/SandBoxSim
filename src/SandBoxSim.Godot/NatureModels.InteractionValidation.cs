@@ -13,6 +13,7 @@ internal sealed partial class NatureModels
         ValidateObservedActionHandoffs();
         ValidateConsumptionInterrupts();
         ValidateContactBoundaries();
+        ValidateUnavailableInteractionContacts();
         ValidateActionRetarget();
         ValidatePartnerLoss();
         ValidateSharedParcel();
@@ -130,6 +131,50 @@ internal sealed partial class NatureModels
         }
         if(contactTransfers<20||visibleLoads<100)throw new InvalidOperationException("Interaction checks did not exercise contact changes and carried loads");
         GD.Print($"INTERACTION_SEQUENCE_PASS: two adult frames, all {actions.Length} action kinds, rendered arrival, {contactTransfers} contact ownership changes, {visibleLoads} supported load frames, resource replacement, short completion, cancellation and pause");
+    }
+
+    private void ValidateUnavailableInteractionContacts()
+    {
+        const float delta=1f/60;
+        foreach(int identity in new[]{17,55})
+        {
+            var rig=Resident(identity,false,JobType.Builder);
+            try
+            {
+                uint revision=0;
+                foreach(var action in new[]{ActionKind.Take,ActionKind.GatherFood,ActionKind.Deposit,ActionKind.StoreInBuilding,
+                    ActionKind.Farm,ActionKind.BuildHouse,ActionKind.Drink,ActionKind.Eat,ActionKind.Hunt,ActionKind.Attack,ActionKind.Socialize,ActionKind.ShareFood})
+                {
+                    revision++;
+                    for(int frame=0;frame<120;frame++)
+                    {
+                        rig.PresentAction(delta,action,ActionPhase.Executing,false,0,revision,contactReady:false);
+                        if(rig.GestureEngaged(action)||rig.Cup.Visible||rig.Bite.Visible||rig.PresentedToolImpacts!=0)
+                            throw new InvalidOperationException($"Missing interaction target plays a contact: {action}/{frame}");
+                    }
+                    rig.PresentAction(delta,action,ActionPhase.Failed,false,0,revision);
+                    if(rig.CompletionVisible)throw new InvalidOperationException($"Failed interaction queues a completion: {action}");
+                }
+                foreach(bool appears in new[]{true,false})
+                {
+                    revision++;
+                    rig.PresentAction(delta,ActionKind.BuildHouse,ActionPhase.Executing,false,0,revision,contactReady:false);
+                    for(int frame=0;frame<85;frame++)
+                    {
+                        bool ready=appears&&frame>=15;
+                        rig.PresentAction(delta,ActionKind.BuildHouse,ActionPhase.Done,false,0,revision,
+                            contactReady:ready,deferContact:!ready);
+                        if(!ready&&rig.GestureEngaged(ActionKind.BuildHouse))throw new InvalidOperationException("Hammer swings before its post appears");
+                    }
+                    if(!appears&&rig.CompletionVisible)throw new InvalidOperationException("Unrendered worksite leaves an unbounded wait");
+                    for(int frame=0;frame<350;frame++)rig.PresentAction(delta,ActionKind.BuildHouse,ActionPhase.Done,false,0,revision);
+                    if(rig.PresentedToolImpacts!=1||rig.CompletionVisible)
+                        throw new InvalidOperationException("A delayed worksite loses, repeats or replays an expired stroke");
+                }
+            }
+            finally{rig.Free();}
+        }
+        GD.Print("INTERACTION_READINESS_PASS: 12 unavailable actions on both adult rigs, one delayed construction impact and no expired replay");
     }
 
     private void ValidateActionRetarget()

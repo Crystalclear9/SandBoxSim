@@ -35,7 +35,7 @@ public partial class WorldView3D
         float peak=0,nearestCorner=float.PositiveInfinity,stepLift=0,plantDrift=0,landingTurn=0,landingTransfer=0;
         int pivotFrames=0,preparationFrames=0;
         float departureTransfer=0,departureRootDrift=0,departureFootDrift=0;
-        bool retained=false,startedWork=false;
+        bool retained=false,settledAtGoal=false;
         var previousFeet=new[]{rig.Feet[0].GlobalPosition,rig.Feet[1].GlobalPosition};
         void MoveFor(int frames)
         {
@@ -71,12 +71,11 @@ public partial class WorldView3D
                     plantDrift=MathF.Max(plantDrift,support);
                 }
                 previousFeet[0]=left;previousFeet[1]=right;
-                if(rig.GestureEngaged(ActionKind.Take))
+                if(sim.Agents.ActionOf(slot)==ActionKind.Take)
                 {
-                    if(rig.IsPivoting||Horizontal(rig.Position-goal).Length()>.035f
-                        ||!InteractionFacingAligned(rig.Rotation.Y,Horizontal(corner-rig.Position)))
-                        throw new InvalidOperationException("Resident reaches while travelling or turning");
-                    startedWork=true;
+                    if(rig.GestureEngaged(ActionKind.Take))throw new InvalidOperationException("Resident reaches for a missing pile");
+                    settledAtGoal|=rig.InteractionSettled&&Horizontal(rig.Position-goal).Length()<.035f
+                        &&InteractionFacingAligned(rig.Rotation.Y,Horizontal(corner-rig.Position));
                 }
             }
             if(before!=sim.StateDigestString())throw new InvalidOperationException("Resident playback changed simulation");
@@ -88,14 +87,13 @@ public partial class WorldView3D
 
         float oldPeak=Horizontal(SceneryActorPosition(start,corner,delta,10,false)-start).Length()/delta;
         if(!retained||nearestCorner>.026f||peak>ResidentRig.MaximumGaitSpeed||peak<.9f||oldPeak<5
-            ||landingTurn<.60f||landingTransfer<.018f||pivotFrames<20||stepLift<.017f||plantDrift>.020f||!startedWork)
-            throw new InvalidOperationException($"Resident world route: peak={peak}, corner={nearestCorner}, queue={retained}, landing turn={landingTurn}, pivots={pivotFrames}, lift={stepLift}, drift={plantDrift}, action={startedWork}");
-        GD.Print($"RESIDENT_WORLD_MOTION_PASS: actual world actor, original root peak={oldPeak:F2} m/s, paced={peak:F2} m/s, recorded corner retained, pivot frames={pivotFrames}, foot lift={stepLift:F3} m, planted frame drift={plantDrift:F4} m, arrival then pickup, unchanged simulation");
+            ||landingTurn<.60f||landingTransfer<.018f||pivotFrames<20||stepLift<.017f||plantDrift>.020f||!settledAtGoal)
+            throw new InvalidOperationException($"Resident world route: peak={peak}, corner={nearestCorner}, queue={retained}, landing turn={landingTurn}, pivots={pivotFrames}, lift={stepLift}, drift={plantDrift}, settled={settledAtGoal}");
+        GD.Print($"RESIDENT_WORLD_MOTION_PASS: actual world actor, original root peak={oldPeak:F2} m/s, paced={peak:F2} m/s, recorded corner retained, pivot frames={pivotFrames}, foot lift={stepLift:F3} m, planted frame drift={plantDrift:F4} m, arrival without reaching for missing stock, unchanged simulation");
         GD.Print($"ARRIVAL_TURN_PASS: {Mathf.RadToDeg(landingTurn):F1} degrees and {landingTransfer:F3} m lateral weight transfer during the two landing steps before any additional pivot and pickup");
         if(preparationFrames<6||departureTransfer<.015f||departureRootDrift>.001f||departureFootDrift>.010f)
             throw new InvalidOperationException($"Resident first step: frames={preparationFrames}, pelvis={departureTransfer}, root drift={departureRootDrift}, foot drift={departureFootDrift}");
         GD.Print($"RESIDENT_DEPARTURE_PASS: preparation={preparationFrames} frames, lateral pelvis transfer={departureTransfer:F3} m, root/feet drift={departureRootDrift:F4}/{departureFootDrift:F4} m before the first step");
-        ValidateWorldCultivation(rig,slot,tiles.Goal,delta);
         ValidateResidentStations(tiles.Goal,tiles.Corner,delta);
         ValidateProjectedResidentMotion(delta);
         ValidateSceneHandoff(tiles.Start,tiles.Corner,delta);
@@ -105,6 +103,61 @@ public partial class WorldView3D
     }
 
     internal void ValidateWorldToolContact()=>ValidateWorldToolContact(FindResidentMotionCorner().Goal,1f/60);
+
+    internal void ValidateAcceleratedContact()
+    {
+        if(Game.PacingResidents)throw new InvalidOperationException("Accelerated contact fixture requires a non-paced world");
+        const float delta=1f/60;
+        var sim=Game.Sim;var agents=sim.Agents;
+        var tile=FindResidentMotionCorner().Start;
+        var logical=PositionAt(tile.X,tile.Y);
+        if(sim.InterveneSpawnHumans(tile.X,tile.Y,1,1)!=1)throw new InvalidOperationException("Could not spawn contact fixture");
+        int slot=agents.AliveSlots().Last();
+        agents.SetLifeStage(slot,LifeStage.Adult);
+        foreach(var kind in ResidentRig.CargoKinds)agents.SetInventory(slot,kind,0);
+        agents.SetAction(slot,ActionKind.Take,ActionPhase.Executing);agents.SetTarget(slot,tile.X,tile.Y);
+        SyncEntities();
+        var rig=(ResidentRig)_people[sim.Society.Identity(slot)];
+        _target=logical;_distance=8;_pitch=.62f;UpdateCamera();
+        for(int i=0;i<100;i++)
+        {
+            AnimateActors(delta);
+            if(rig.GestureEngaged(ActionKind.Take))throw new InvalidOperationException("Accelerated resident picks up an empty tile");
+        }
+        float amount=sim.GroundStocks.Deposit(tile.X,tile.Y,ResourceKind.Stone,2,sim.Config.GroundStocks);
+        if(amount<=0||!sim.Actions.TryGetPickupCandidate(slot,out var candidate)
+            ||!TryActionContact(rig,ActionKind.Take,candidate,logical,out var point,out var stand))
+            throw new InvalidOperationException("Accelerated fixture has no supported stock");
+        rig.Position=stand;
+        rig.Rotation=new(0,HeadingYaw(Horizontal(point-stand))+MathF.PI*.84f,0);
+        int pivotFrames=0;
+        float closest=float.PositiveInfinity;
+        string digest=sim.StateDigestString();
+        for(int i=0;i<270;i++)
+        {
+            AnimateActors(delta);
+            if(rig.IsPivoting)
+            {
+                pivotFrames++;
+                if(rig.GestureEngaged(ActionKind.Take))throw new InvalidOperationException("Resident reaches before the turn lands");
+            }
+            if(rig.GestureEngaged(ActionKind.Take))
+                closest=MathF.Min(closest,(rig.HandWorldPose(1)*rig.Grip!.Position).DistanceTo(point));
+            if(rig.ScenePickupPieceVisible)throw new InvalidOperationException("Unconfirmed contact owns a parcel");
+        }
+        if(pivotFrames<25||closest>.085f||sim.StateDigestString()!=digest)
+            throw new InvalidOperationException($"Accelerated contact: pivot frames={pivotFrames}, gap={closest:F3} m, state={rig.Handling}");
+        sim.GroundStocks.Withdraw(tile.X,tile.Y,ResourceKind.Stone,amount);
+        digest=sim.StateDigestString();
+        for(int i=0;i<85;i++)
+        {
+            AnimateActors(delta);
+            if(rig.GestureEngaged(ActionKind.Take)||rig.ScenePickupGrasped||rig.ScenePickupPieceVisible)
+                throw new InvalidOperationException("Depleted stock retains an active reach or parcel");
+        }
+        if(sim.StateDigestString()!=digest)throw new InvalidOperationException("Accelerated contact mutated simulation");
+        GD.Print($"WORLD_ACCELERATED_CONTACT_PASS: {pivotFrames} planted turn frames, prepared gap={closest:F3} m, empty and depleted stock stay untouched");
+    }
 
     private void ValidateWorldToolContact(Vector2I origin,float delta)
     {
@@ -205,6 +258,14 @@ public partial class WorldView3D
                 throw new InvalidOperationException("Farm visit did not finish through the simulation");
         }
         int initial=rig.PresentedToolImpacts;
+        agents.SetAction(slot,ActionKind.Farm,ActionPhase.Executing);
+        agents.SetTarget(slot,tile.X,tile.Y);
+        if(!sim.Actions.TryGetCultivationCandidate(slot,out var plan)||plan.BuildingGeneration!=sim.Buildings.GenerationOf(farm))
+            throw new InvalidOperationException("Active cultivation cannot plan around the field it will visit");
+        string planned=sim.StateDigestString();
+        for(int i=0;i<150;i++)AnimateActors(delta);
+        if(rig.PresentedToolImpacts!=initial||sim.StateDigestString()!=planned)
+            throw new InvalidOperationException("The planned field plays a soil strike before the simulation accepts the work");
         WorkVisit();
         if(!sim.Actions.TryGetCompletedContact(slot,out var receipt)||receipt.Tile!=new Int2(tile.X,tile.Y)
             ||receipt.Surface!=ActionSystem.ContactSurface.BuildingWork||sim.Buildings.LaborOf(farm)<=0)
@@ -546,6 +607,10 @@ public partial class WorldView3D
         sim.Agents.SetAction(slot,ActionKind.Take,ActionPhase.Moving);
         SyncEntities();
         var rig=(ResidentRig)_people[sim.Society.Identity(slot)];
+        float deposited=sim.GroundStocks.Deposit(goal.X,goal.Y,ResourceKind.Food,12,sim.Config.GroundStocks);
+        var stock=new ActionSystem.ActionContact(goal,ResourceKind.Food,ActionSystem.ContactSurface.GroundStock,deposited);
+        if(deposited<=0||!TryActionContact(rig,ActionKind.Take,stock,Place(goal),out _,out var pickupStand))
+            throw new InvalidOperationException("Projected route has no supported pickup stand");
         rig.Rotation=new(0,HeadingYaw(Horizontal(Place(route[1])-Place(start))),0);
         _target=Place(start);_distance=11;UpdateCamera();
 
@@ -616,7 +681,7 @@ public partial class WorldView3D
             if(!ScenerySegmentClear(before,rig.Position)||!SceneryLegSupported(before,rig.Position))
                 throw new InvalidOperationException("Projected travel crossed scenery or lost ground support");
             working=rig.GestureEngaged(ActionKind.Take);
-            if(working&&(!rig.InteractionSettled||Horizontal(rig.Position-Place(goal)).Length()>.04f))
+            if(working&&(!rig.InteractionSettled||Horizontal(rig.Position-pickupStand).Length()>.04f))
                 throw new InvalidOperationException("Projected walker reached for a resource before settling");
         }
         if(crossed!=route.Length-1||!working||projectedFrames<180||preparations!=0||lowCruise<.40f||peak>ResidentRig.MaximumGaitSpeed+.001f)
@@ -665,30 +730,6 @@ public partial class WorldView3D
             }
         }
         throw new InvalidOperationException("No supported multi-tile route with an interior turn");
-    }
-
-    private void ValidateWorldCultivation(ResidentRig rig,int slot,Vector2I tile,float delta)
-    {
-        var sim=Game.Sim;
-        sim.Agents.SetPosition(slot,tile.X,tile.Y);
-        sim.Agents.SetTarget(slot,tile.X,tile.Y);
-        sim.Agents.SetAction(slot,ActionKind.Farm,ActionPhase.Executing);
-        string before=sim.StateDigestString();
-        int contacts=0;
-        float first=float.PositiveInfinity,last=float.NegativeInfinity;
-        for(int frame=0;frame<420;frame++)
-        {
-            AnimateActors(delta);
-            if(frame<160||!rig.GestureEngaged(ActionKind.Farm))continue;
-            var edge=rig.ToolMesh.GlobalTransform*ResidentRig.HoeCuttingEdge;
-            if(MathF.Abs(edge.Y-GroundHeight(edge.X,edge.Z))>.035f)continue;
-            contacts++;
-            float depth=(rig.Transform.AffineInverse()*edge).Z;
-            first=MathF.Min(first,depth);last=MathF.Max(last,depth);
-        }
-        if(contacts<15||last-first<.14f||sim.StateDigestString()!=before)
-            throw new InvalidOperationException($"World cultivation lacks supported soil contact: frames={contacts}, path={last-first}");
-        GD.Print($"WORLD_CULTIVATION_PASS: {contacts} frames near the actual terrain, {last-first:F3} m visible pull, unchanged simulation");
     }
 
     private void ValidateResidentStations(Vector2I tile,Vector2I departure,float delta)

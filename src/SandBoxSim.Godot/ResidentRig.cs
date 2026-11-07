@@ -103,12 +103,12 @@ internal partial class ResidentRig : Node3D
     private float _phase,_activity,_reach,_draw,_workTime,_graspTime,_releaseTime,_workBlend;
     private Vector3 _restPose,_restPoseVelocity;
     internal float RestPoseWeight=>Math.Clamp(_restPose.X,0,1);
-    private bool _carrying,_takingTool,_waitingForFacing;
+    private bool _carrying,_takingTool,_waitingForFacing,_waitingForContact;
     public bool ToolHeld {get;private set;}
     public string Handling => _recoveringPickup?"托住物件 / 收回":HandoffReserved?_handoffReadout:_placingCargo?"双手送稳 / 准备松开":
         _releasedCargo?(_groundPlacement?"物资落地 / 收手":"入库交接 / 收手"):_placementPending?"抱稳物资 / 等待到位":
         ConsumptionOwnsHand?ConsumptionHandling:!InteractionSettled&&(_observedPhase==ActionPhase.Executing||CompletionVisible)?"接近目的地 / 停稳":
-        _waitingForFacing?"转向目标 / 等待接触":ToolHeld ? _returning?"收回工具":_draw<.99f?"取出 / 抬手":_carrying?"手持携带":ToolStrokeHandling : _releaseTime>0?"松开手指":_reach>.01f?(_takingTool?(_reach==1?"合拢握柄":"伸手拿取"):"收回手臂"):CargoMesh.Visible?(_bareBlend>.01f&&CompatibleBareActions(_bareAction,ActionKind.Deposit)?"双手递出":"双手搬运"):_bareBlend>.01f?_bareAction switch {ActionKind.Take or ActionKind.GatherFood=>ScenePickupHandling,_=>"徒手交互"}:_cargoBlend>.01f?(_hasCargo?"托起物资":"放下 / 收手"):_restPose.X>.08f?"休息 / 起身":"双手放松";
+        _waitingForContact?"等待作业条件":_waitingForFacing?"转向目标 / 等待接触":ToolHeld ? _returning?"收回工具":_draw<.99f?"取出 / 抬手":_carrying?"手持携带":ToolStrokeHandling : _releaseTime>0?"松开手指":_reach>.01f?(_takingTool?(_reach==1?"合拢握柄":"伸手拿取"):"收回手臂"):CargoMesh.Visible?(_bareBlend>.01f&&CompatibleBareActions(_bareAction,ActionKind.Deposit)?"双手递出":"双手搬运"):_bareBlend>.01f?_bareAction switch {ActionKind.Take or ActionKind.GatherFood=>ScenePickupHandling,_=>"徒手交互"}:_cargoBlend>.01f?(_hasCargo?"托起物资":"放下 / 收手"):_restPose.X>.08f?"休息 / 起身":"双手放松";
     public static ResidentTool ToolFor(ActionKind action)=>action switch {
         ActionKind.GatherWood=>ResidentTool.Axe,
         ActionKind.GatherStone or ActionKind.GatherIron=>ResidentTool.Pick,
@@ -137,6 +137,7 @@ internal partial class ResidentRig : Node3D
     public void PoseAction(float delta,ActionKind action,ActionPhase phase,bool paused,float identityPhase)
     {
         if(paused)return;
+        _waitingForContact=false;
         AdvancePose(PresentationDelta(delta),action,phase,identityPhase,false);
     }
     private void AdvancePose(float delta,ActionKind action,ActionPhase phase,float identityPhase,bool presented,bool targetAligned=true)

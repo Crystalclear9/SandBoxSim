@@ -573,31 +573,14 @@ public sealed class ActionSystem
         }
 
         Int2 target = _store.TargetOf(slot);
-        if (!_sim.World.IsInBounds(target.X, target.Y))
-        {
-            Fail(slot, ActionFailReason.TargetGone);
-            return;
-        }
-
-        int buildingId = _sim.World.TileAt(target.X, target.Y).BuildingId;
-        if (buildingId <= 0)
-        {
-            Fail(slot, ActionFailReason.TargetGone);
-            return;
-        }
-
-        int index = buildingId - 1;
-        if (!_sim.Buildings.IsAlive(index)
-            || _sim.Buildings.KindOf(index) != BuildingKind.Farm
-            || _sim.Buildings.StateOf(index) != BuildingState.Complete)
+        if (!TryGetCultivationSite(target, out int index))
         {
             Fail(slot, ActionFailReason.TargetGone);
             return;
         }
 
         BuildingConfig cfg = _sim.Config.Buildings;
-        float cap = System.Math.Max(0.01f, cfg.FarmLaborPerDayCap);
-        if (_sim.Buildings.LaborOf(index) < cap)
+        if (FarmNeedsLabor(index))
         {
             _sim.Buildings.AddLabor(index, System.Math.Max(0.01f, cfg.FarmWorkPerAction) * _sim.Diseases.LaborMultiplier(slot));
             FarmVisits++;
@@ -608,6 +591,28 @@ public sealed class ActionSystem
         // 田里今天的活已经满了也走"完成"而不是"失败"：
         // 失败会留下失败原因并触发重决策，看起来像出了问题，其实一切正常。
         Complete(slot, tick);
+    }
+
+    private bool TryGetCultivationSite(Int2 target, out int index)
+    {
+        index = _sim.World.IsInBounds(target) ? _sim.World.TileAt(target.X, target.Y).BuildingId - 1 : -1;
+        return _sim.Buildings.IsAlive(index) && _sim.Buildings.KindOf(index) == BuildingKind.Farm
+            && _sim.Buildings.StateOf(index) == BuildingState.Complete;
+    }
+
+    private bool FarmNeedsLabor(int index)
+        => _sim.Buildings.LaborOf(index) < System.Math.Max(0.01f, _sim.Config.Buildings.FarmLaborPerDayCap);
+
+    /// <summary>Read-only site for aiming. The action must still commit before showing a soil stroke.</summary>
+    public bool TryGetCultivationCandidate(int slot, out ActionContact contact)
+    {
+        contact = default;
+        if (!_store.IsSlotAlive(slot) || _store.ActionOf(slot) != ActionKind.Farm || _store.PhaseOf(slot) != ActionPhase.Executing
+            || !_store.HasTarget(slot)) return false;
+        var target = _store.TargetOf(slot);
+        if (!TryGetCultivationSite(target, out int index) || !FarmNeedsLabor(index)) return false;
+        contact = new(target, ResourceKind.None, ContactSurface.BuildingWork, BuildingGeneration: _sim.Buildings.GenerationOf(index));
+        return true;
     }
 
     /// <summary>累计耕种次数（观测"农业是否真的在运转"）。</summary>

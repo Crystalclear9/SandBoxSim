@@ -11,12 +11,13 @@ internal partial class ResidentRig
     internal Vector3[] BootSoleCurve=Array.Empty<Vector3>();
     private float _gaitCycle,_gaitSpeed,_locomotionSpeed=1.05f,_turnDemand,_gaitTurn,_sampleDistance,_sampleTime,_locomotionScale=1;
     private bool _worldLocomotion,_groundContactSpeed;
-    private float _approachDistance;
+    private float _approachDistance,_observedPlanarSpeed;
     private float _departureProgress,_turnPreview,_sampleLateralDistance,_locomotionLateral,_gaitLateral;
     private int _departureLead;
     private Vector3 _travelWeightShift,_travelWeightVelocity;
     private float _travelPitch;
-    internal bool InteractionSettled=>!_worldLocomotion||(_approachDistance<.035f&&_gaitSpeed<.15f&&!_finishingStep&&!IsPivoting);
+    internal bool InteractionSettled=>!_worldLocomotion||(_approachDistance<.035f&&_observedPlanarSpeed<.15f
+        &&_gaitSpeed<.15f&&!_finishingStep&&!IsPivoting);
     private Vector3 _gaitOffset;
     private Vector3 _capturedChest,_capturedPelvis;
     private Vector3 _capturedWeight,_capturedWeightVelocity;
@@ -68,6 +69,7 @@ internal partial class ResidentRig
         _worldLocomotion=true;
         _locomotionScale=scale;
         float distance=new Vector2(displacement.X,displacement.Z).Length(),speed=distance/delta;
+        _observedPlanarSpeed=float.IsFinite(speed)?speed:float.PositiveInfinity;
         // An adjacent tile's ordinary exponential interpolation can have a
         // high instantaneous speed. Only reject a large spatial jump, or its
         // first frames would incorrectly suppress the starting step.
@@ -88,7 +90,13 @@ internal partial class ResidentRig
 
     private void ConsumeLocomotionSamples()
     {
-        if(_sampleTime<=0){if(_worldLocomotion)_locomotionSpeed=_locomotionLateral=0;return;}
+        if(_sampleTime<=0)
+        {
+            // Standalone previews can stop submitting displacement when
+            // their walking segment ends. An old speed is not a new step.
+            if(_worldLocomotion)_locomotionSpeed=_locomotionLateral=_observedPlanarSpeed=0;
+            return;
+        }
         _locomotionSpeed=_sampleDistance/_sampleTime;
         _locomotionLateral=_sampleLateralDistance/_sampleTime;
         _sampleDistance=_sampleTime=_sampleLateralDistance=0;
