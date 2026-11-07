@@ -15,7 +15,8 @@ internal sealed class ResidentHandoff
     private readonly Vector3 _givingSupport,_receivingSupport;
     private Stage _stage;
     private Basis _basis=Basis.Identity;
-    private Vector3 _transferOffset;
+    private Vector3 _transferOffset,_transferVelocity,_previousReceiverPalm;
+    private Vector3 _returnStart;
     private float _time,_contact;
     private bool _receiverOwns;
 
@@ -61,18 +62,18 @@ internal sealed class ResidentHandoff
         midpoint+=_basis.Z*.09f;
         var offer=_giver.HandoffWaist(GivingHand);
         var receive=_receiver.HandoffWaist(ReceivingHand);
+        float returnWeight=ResidentRig.ReachEase(_time/.46f);
         Vector3? giverTarget=_stage switch
         {
             Stage.Offer=>offer,
             Stage.Meet=>midpoint+_basis*_givingSupport,
-            Stage.Recover when !_receiverOwns=>offer,
+            Stage.Recover when !_receiverOwns=>_returnStart.Lerp(offer,returnWeight),
             _=>null
         };
         Vector3? receiverTarget=_stage switch
         {
             Stage.Meet when _time>=.16f&&ParcelVisible=>ParcelPose*_receivingSupport,
-            Stage.Receive=>receive,
-            Stage.Recover when _receiverOwns=>receive,
+            Stage.Receive or Stage.Recover when _receiverOwns=>_returnStart.Lerp(receive,returnWeight),
             _=>null
         };
         _giver.PlanHandoff(GivingHand,giverTarget,ParcelVisible&&!_receiverOwns?.67f:.10f,
@@ -100,23 +101,32 @@ internal sealed class ResidentHandoff
         int side=_receiverOwns?ReceivingHand:GivingHand;
         var support=_receiverOwns?_receivingSupport:_givingSupport;
         var currentPalm=Palm(holder,side);
-        _transferOffset*=MathF.Exp(-delta*9);
+        var receiverPalm=_receiverOwns?currentPalm:Palm(_receiver,ReceivingHand);
+        var priorParcel=ParcelPose.Origin;
+        if(_receiverOwns)
+            ResidentRig.DampMotion(ref _transferOffset,ref _transferVelocity,Vector3.Zero,.075f,delta);
         ParcelPose=new Transform3D(_basis,currentPalm-_basis*support+_transferOffset);
         _parcel.Transform=holder.HandWorldPose(side).AffineInverse()*ParcelPose;
 
         if(_stage==Stage.Meet)
         {
-            bool bothReady=_giver.HandoffHandReady&&_receiver.HandoffHandReady&&ReceiverGap<.018f;
+            var receiverSupport=ParcelPose*_receivingSupport;
+            bool bothReady=_giver.HandoffHandReady&&_receiver.HandoffHandReady&&receiverPalm.DistanceTo(receiverSupport)<.018f;
             _contact=bothReady?_contact+delta:0;
             if(_contact>=.10f)
             {
-                _transferOffset=ParcelPose*_receivingSupport-Palm(_receiver,ReceivingHand);
+                // Match the parcel's outgoing position and velocity relative
+                // to the receiving palm before fading to its support point.
+                _transferOffset=receiverSupport-receiverPalm;
+                _transferVelocity=((ParcelPose.Origin-priorParcel-receiverPalm+_previousReceiverPalm)/delta).LimitLength(.30f);
+                _returnStart=receiverPalm;
                 _parcel.Reparent(_receiver.Hands[ReceivingHand],false);
                 _parcel.Transform=_receiver.HandWorldPose(ReceivingHand).AffineInverse()*ParcelPose;
                 _receiverOwns=Transferred=true;
                 Next(Stage.Receive);
             }
             else if(_time>=2.5f)Interrupt();
+            _previousReceiverPalm=receiverPalm;
         }
         else if(_stage is Stage.Receive or Stage.Recover)
         {
@@ -129,7 +139,11 @@ internal sealed class ResidentHandoff
     internal void Interrupt()
     {
         if(Finished||_stage==Stage.Recover)return;
-        if(ParcelVisible)Next(Stage.Recover);
+        if(ParcelVisible)
+        {
+            _returnStart=_receiverOwns?Palm(_receiver,ReceivingHand):Palm(_giver,GivingHand);
+            Next(Stage.Recover);
+        }
         else Cancel();
     }
 

@@ -31,7 +31,7 @@ internal partial class ResidentRig
         if(!HandoffHandReady)return;
         var local=(RigWorldSpace*Torso.Transform).AffineInverse()*_handoffPalm!.Value;
         var target=local+CargoPalmBasis*(Grip!.Position-CargoPalmContact);
-        BlendBareHand(_handoffHand,target,CargoPalmBasis,1,eased:true);
+        BlendBareHand(_handoffHand,PalmMotion.Handoff,target,CargoPalmBasis,1,eased:true);
         CurlHand(_handoffHand,_handoffCurl);
     }
 }

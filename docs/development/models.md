@@ -291,6 +291,8 @@
 
 搬运转入需要腾手的动作时，居民沿当前双手姿态把包裹收向腰前，确认双掌到位或达到短时等待上限后才退出搬运姿态。步长、支撑时间和骨盆摆幅跟随手臂承重权重平滑过渡。放货和入库用已确认的交付类型锁定物件模型，等双手托稳、站位和朝向就绪后才下放；松手后再选择剩余库存。即使交付结算早于拿起包裹的画面，也会先托稳并只执行一次放置。腰前收拢表现的是随身物资从手中收起。[动作切换与速度连续性](https://media.gdcvault.com/gdc2018/presentations/bollo_david_inertialization_high_performance.pdf) · [双人递接中的接触和握力实验](https://pmc.ncbi.nlm.nih.gov/articles/PMC7759571/)
 
+`residentActionHandoff=displayed-palm-v1` 在拾取、搬运、进食、交谈、递物与拾取收回之间切换时，从前两次实际显示的掌心位置和朝向估计速度，再由新动作在求解关节前接续。左右手分别记录状态。同一控制器继续沿原轨迹更新，离开视野后丢弃上一段的速度样本。实景和居民观察窗都在库存变化时先将双掌托住的包裹收回腰前，再按最新库存重新托起。递接物件换手时保留位置和有界的相对速度，再逐渐贴合接收者的支撑点。[Gears of War 的动画惯性过渡](https://www.gdcvault.com/play/1025331/Inertialization) · [同步测量双人递接的运动与握力](https://pubmed.ncbi.nlm.nih.gov/38139540/)
+
 世界按居民身份、动作编号、阶段、目标和交互对象安排远近景姿态更新。只在观察状态相同时累计姿态时间，遇到状态变化立即用当前帧更新。拾取、作业和需要面向对象的动作会等角色停稳并转向实际目标。工具可以在走近时预备，工作循环从对准后开始。该拆分借鉴了实时动画从当前姿态过渡到新目标，以及接触保持与过渡分开处理的方法。 [GDC 动画惯性过渡](https://www.gdcvault.com/play/1025331/Inertialization) · [动捕中的足点约束](https://research.cs.wisc.edu/graphics/Gallery/kovar.vol/Cleanup/)
 
 成功取物、采集和存放时，模拟用 `ActionSystem.TryGetCompletedContact` 提供本次结算地点和实际资源。记录绑定居民身份和动作编号，只在当前会话使用。即使取空一整堆，居民也能伸向原来物资的高度。低处取物的屈膝和前倾幅度由目标高度决定，手掌到达并短暂停留后合指，取起的代表物件沿手部移动。可站位置由干地支撑和场景遮挡检查决定。[真人步行与拾取协调实验](https://pubmed.ncbi.nlm.nih.gov/8570350/) · [伸手速度与抓握时序实验](https://pubmed.ncbi.nlm.nih.gov/15151851/)

@@ -111,10 +111,7 @@ internal partial class ResidentRig
             Arms[side].Basis=arm;Arms[side].Position=ShoulderGirdle(side,upper).Origin;
             Elbows[side].Basis=arm.Inverse()*lowerBasis;Hands[side].Basis=lowerBasis.Inverse()*palm;
             _armSolvedThisStep[side]=true;_armReturning[side]=true;
-            var offset=side==1?Grip!.Position:new Vector3(0,-.035f,-.0286f);
-            var hand=Arms[side].Transform*Elbows[side].Transform*Hands[side].Transform;
-            if(_poseStep>0)_bareVelocity[side]=(hand*offset-_previousHands[side]*offset)/_poseStep;
-            _bareAngularVelocity[side]=RotationVelocity(_previousHands[side].Basis,hand.Basis,_poseStep);CurlHand(side,.22f);
+            CurlHand(side,.22f);
         }
     }
     internal void StudyCapturedStretch(float delta,float seconds)

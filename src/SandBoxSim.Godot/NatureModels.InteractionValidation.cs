@@ -10,6 +10,7 @@ internal sealed partial class NatureModels
     private void ValidateInteractionSequencing()
     {
         ValidateCargoPlacement();
+        ValidateObservedCargoStow();
         ValidateObservedActionHandoffs();
         ValidateConsumptionInterrupts();
         ValidateContactBoundaries();
@@ -133,6 +134,73 @@ internal sealed partial class NatureModels
         GD.Print($"INTERACTION_SEQUENCE_PASS: two adult frames, all {actions.Length} action kinds, rendered arrival, {contactTransfers} contact ownership changes, {visibleLoads} supported load frames, resource replacement, short completion, cancellation and pause");
     }
 
+    private void ValidateObservedCargoStow()
+    {
+        float shortestHold=float.PositiveInfinity,maximumStep=0;
+        foreach(int identity in new[]{17,55})
+        foreach(float delta in new[]{1f/60,1f/30})
+        {
+            var rig=Resident(identity,false,JobType.None);
+            try
+            {
+                for(float elapsed=0;elapsed<2;elapsed+=delta)
+                    rig.PresentAction(delta,ActionKind.Wander,ActionPhase.Moving,false,0,1,inventoryCargo:ResourceKind.Wood);
+                if(rig.SupportedCargo!=ResourceKind.Wood)
+                    throw new InvalidOperationException("Cargo stow fixture has no supported wood");
+                var previous=rig.HandWorldPose(1)*rig.CargoMesh.Position;
+                float held=0;
+                bool stowed=false,loaded=false;
+                for(float elapsed=0;elapsed<2;elapsed+=delta)
+                {
+                    rig.PresentAction(delta,ActionKind.Flee,ActionPhase.Moving,false,0,2,inventoryCargo:ResourceKind.Stone);
+                    if(rig.PlacingCargo||rig.ReleasedCargo||rig.CompletionVisible)
+                        throw new InvalidOperationException("Inventory replacement creates a stale placement during departure");
+                    if(rig.SupportedCargo==ResourceKind.Wood)
+                    {
+                        if(stowed)throw new InvalidOperationException("Outgoing parcel appears again after stowing");
+                        held+=delta;
+                        var current=rig.HandWorldPose(1)*rig.CargoMesh.Position;
+                        maximumStep=MathF.Max(maximumStep,current.DistanceTo(previous)/delta);
+                        previous=current;
+                    }
+                    else if(rig.SupportedCargo==ResourceKind.None)stowed=true;
+                    else if(rig.SupportedCargo==ResourceKind.Stone&&stowed){loaded=true;break;}
+                    else throw new InvalidOperationException("Incoming inventory replaces a displayed parcel before stowing");
+                }
+                if(held<.30f||!loaded)
+                    throw new InvalidOperationException($"Walking inventory handoff did not stow and reacquire: {identity}, {delta:F3} s steps, old support {held:F3} s, new load {loaded}");
+                shortestHold=MathF.Min(shortestHold,held);
+
+                for(float elapsed=0;elapsed<1.2f;elapsed+=delta)
+                    rig.PresentAction(delta,ActionKind.Wander,ActionPhase.Moving,false,0,3,inventoryCargo:ResourceKind.Stone);
+                rig.PresentAction(delta,ActionKind.Sleep,ActionPhase.Executing,false,0,4,inventoryCargo:ResourceKind.None);
+                if(rig.SupportedCargo!=ResourceKind.Stone||rig.RestPoseWeight>.01f)
+                    throw new InvalidOperationException("The last parcel vanishes or the resident sits before stowing it");
+                for(float elapsed=0;elapsed<3;elapsed+=delta)
+                    rig.PresentAction(delta,ActionKind.Sleep,ActionPhase.Executing,false,0,4,inventoryCargo:ResourceKind.None);
+                if(rig.CargoMesh.Visible||!rig.GestureEngaged(ActionKind.Sleep))
+                    throw new InvalidOperationException("Parcel stow blocks the next rest action");
+
+                // The isolated portrait receives inventory, but has no scene crate.
+                for(float elapsed=0;elapsed<2;elapsed+=delta)
+                    rig.PresentAction(delta,ActionKind.StoreInBuilding,ActionPhase.Executing,false,0,5,inventoryCargo:ResourceKind.Wood);
+                if(rig.SupportedCargo!=ResourceKind.Wood)
+                    throw new InvalidOperationException("Portrait placement fixture has no supported wood");
+                bool released=false;
+                for(float elapsed=0;elapsed<2;elapsed+=delta)
+                {
+                    rig.PresentAction(delta,ActionKind.StoreInBuilding,ActionPhase.Done,false,0,5,inventoryCargo:ResourceKind.None);
+                    released|=rig.ReleasedCargo;
+                }
+                if(!released||rig.CargoMesh.Visible)
+                    throw new InvalidOperationException("Receipt without a scene crate fails to complete its portrait release");
+            }
+            finally{rig.Free();}
+        }
+        if(maximumStep>1.5f)throw new InvalidOperationException($"Outgoing parcel jerks during stow: peak {maximumStep:F3} m/s");
+        GD.Print($"OBSERVED_CARGO_STOW_PASS: two adult frames at 30/60 Hz, old parcel supported for at least {shortestHold:F3} s, peak {maximumStep:F3} m/s, no release at a stale site, walking and rest resume");
+    }
+
     private void ValidateUnavailableInteractionContacts()
     {
         const float delta=1f/60;
@@ -208,7 +276,7 @@ internal sealed partial class NatureModels
 
     private void ValidateSharedParcel()
     {
-        float worstGrip=0,maxStep=0;
+        float worstGrip=0,maxStep=0,transferVelocityChange=0;
         int overlap=0;
         foreach(bool reversed in new[]{false,true})
         {
@@ -222,6 +290,8 @@ internal sealed partial class NatureModels
                 {
                     var exchange=new ResidentHandoff(giver,receiver);
                     bool sawParcel=false,stopped=false;
+                    bool compareTransferVelocity=false;
+                    Vector3 previousVelocity=Vector3.Zero;
                     for(int frame=0;frame<390&&!exchange.Finished;frame++)
                     {
                         exchange.Prepare();
@@ -229,9 +299,19 @@ internal sealed partial class NatureModels
                         receiver.PresentAction(1f/60,ActionKind.None,ActionPhase.Idle,false,0);
                         var previous=exchange.ParcelPose;
                         bool visible=exchange.ParcelVisible;
+                        bool transferred=exchange.Transferred;
                         exchange.Advance(1f/60);
                         if(!exchange.ParcelVisible)continue;
-                        if(visible)maxStep=MathF.Max(maxStep,previous.Origin.DistanceTo(exchange.ParcelPose.Origin));
+                        if(visible)
+                        {
+                            var step=exchange.ParcelPose.Origin-previous.Origin;
+                            var velocity=step*60;
+                            maxStep=MathF.Max(maxStep,step.Length());
+                            if(compareTransferVelocity)
+                                transferVelocityChange=MathF.Max(transferVelocityChange,velocity.DistanceTo(previousVelocity));
+                            previousVelocity=velocity;
+                            compareTransferVelocity=!transferred&&exchange.Transferred;
+                        }
                         sawParcel=true;
                         worstGrip=MathF.Max(worstGrip,exchange.OwnerGap);
                         if(!exchange.Transferred&&receiver.HandoffHandReady&&exchange.ReceiverGap<.018f)overlap++;
@@ -247,9 +327,9 @@ internal sealed partial class NatureModels
             }
             finally{giver.Free();receiver.Free();}
         }
-        if(overlap<8||worstGrip>.020f||maxStep>.025f)
-            throw new InvalidOperationException($"Parcel contact gap={worstGrip}, step={maxStep}, shared frames={overlap}");
-        GD.Print($"SHARED_PARCEL_PASS: both adult roles, {overlap} receiver contact frames before transfer, maximum owner gap {worstGrip*1000:F1} mm, maximum parcel step {maxStep*1000:F1} mm, interrupt and recovery");
+        if(overlap<8||worstGrip>.020f||maxStep>.025f||transferVelocityChange>.30f)
+            throw new InvalidOperationException($"Parcel contact gap={worstGrip}, step={maxStep}, shared frames={overlap}, speed change={transferVelocityChange:F3} m/s");
+        GD.Print($"SHARED_PARCEL_PASS: both adult roles, {overlap} receiver contact frames before transfer, maximum owner gap {worstGrip*1000:F1} mm, maximum parcel step {maxStep*1000:F1} mm, transfer velocity change {transferVelocityChange:F3} m/s, interrupt and recovery");
     }
 
     private void ValidatePartnerLoss()

@@ -167,10 +167,14 @@ internal partial class ResidentRig : Node3D
     private static float PresentationDelta(float delta)=>float.IsFinite(delta)?Math.Clamp(delta,0,1):0;
     private void PoseActionStep(float delta,ActionKind action,ActionPhase phase,float identityPhase,bool targetAligned=true,uint? revision=null)
     {
+        _previousPoseStep=_poseStep;
         _poseStep=delta;
         var previousCurl=new Vector2(_handCurl[0],_handCurl[1]);
         for(int side=0;side<2;side++)
         {
+            _previousPalmMotion[side]=_palmMotion[side];
+            _palmMotion[side]=PalmMotion.Other;
+            _earlierHands[side]=_previousHands[side];
             if(!_armSolvedThisStep[side])_elbowSwivelVelocity[side]=0;
             _armSolvedThisStep[side]=false;
             _priorArms[side]=Arms[side].Transform;_priorForearms[side]=Elbows[side].Transform;_priorWrists[side]=Hands[side].Transform;
@@ -480,7 +484,7 @@ internal partial class ResidentRig : Node3D
         if(cargoArms)
             for(int i=0;i<2;i++)
             {
-                BlendBareHand(i,CargoSupportTarget(i),PlacementPalmBasis,_cargoBlend);
+                BlendBareHand(i,PalmMotion.Cargo,CargoSupportTarget(i),PlacementPalmBasis,_cargoBlend);
                 float curl=_releasedCargo?Mathf.Lerp(.75f,.10f,ReachEase(_releasedCargoTime/.13f)):.75f;
                 CurlHand(i,Mathf.Lerp(_handCurl[i],curl,Smooth(_cargoBlend)));
             }
@@ -500,14 +504,14 @@ internal partial class ResidentRig : Node3D
                 {
                     float reachWeight=ReachEase(_bareBlend)*Mathf.SmoothStep(.02f,.50f,gatherPose.Reach);
                     var reachPoint=ReachBodyPoint(new(.16f+.023f*gatherPose.Shift,1.00f-.24f*gatherPose.Reach,-.18f-.10f*gatherPose.Reach));
-                    BlendBareHand(1,reachPoint,Basis.FromEuler(new Vector3(.56f+.19f*gatherPose.Reach,0,.10f)),reachWeight,eased:true);
+                    BlendBareHand(1,PalmMotion.Pickup,reachPoint,Basis.FromEuler(new Vector3(.56f+.19f*gatherPose.Reach,0,.10f)),reachWeight,eased:true);
                 }
                 float balance=gatherPose.Balance;
-                BlendBareHand(0,ReachBodyPoint(new(-.235f,.76f+.16f*balance,-.13f-.10f*balance)),
+                BlendBareHand(0,PalmMotion.Pickup,ReachBodyPoint(new(-.235f,.76f+.16f*balance,-.13f-.10f*balance)),
                     Basis.FromEuler(new Vector3(.43f,.18f,-.24f)),ReachEase(_bareBlend)*balance*.68f,eased:true);
             }
             else if(!cargoArms&&_bareAction is ActionKind.Deposit or ActionKind.StoreInBuilding or ActionKind.ShareFood or ActionKind.Trade)
-                for(int i=0;i<2;i++)BlendBareHand(i,BodyPoint(new(i==0?-.12f:.12f,Mathf.Lerp(.85f,.97f,reach),-.30f)),Basis.FromEuler(new Vector3(MathF.PI/2,0,0)));
+                for(int i=0;i<2;i++)BlendBareHand(i,PalmMotion.Transfer,BodyPoint(new(i==0?-.12f:.12f,Mathf.Lerp(.85f,.97f,reach),-.30f)),Basis.FromEuler(new Vector3(MathF.PI/2,0,0)));
             float pickupCurl=scenePickup?ScenePickupCurl:Mathf.SmoothStep(.58f,.96f,gatherPose.Reach)*.76f;
             CurlHand(1,Mathf.Lerp(_handCurl[1],gathering?pickupCurl:.3f,Smooth(_bareBlend)));
         }
@@ -517,7 +521,7 @@ internal partial class ResidentRig : Node3D
             {
                 var gesture=SocialPhrase(side,side==0?socialPose.Left:socialPose.Right);
                 float weight=socialWeight*gesture.Weight;
-                BlendBareHand(side,ReachBodyPoint(gesture.Target),gesture.Palm,weight,eased:true);
+                BlendBareHand(side,PalmMotion.Social,ReachBodyPoint(gesture.Target),gesture.Palm,weight,eased:true);
                 CurlHand(side,Mathf.Lerp(_handCurl[side],.18f,weight));
             }
         }

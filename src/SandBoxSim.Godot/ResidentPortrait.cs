@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Godot;
 using SandBoxSim.Core.Agents;
+using SandBoxSim.Core.Environment;
 
 namespace SandBoxSim.Client;
 
@@ -18,6 +19,7 @@ internal partial class ResidentPortrait : SubViewportContainer
     private float _pitch,_viewDistance=FaceDistance;
     private Vector3 _viewCenter;
     private bool _centerReady;
+    private ResourceKind _inventoryCargo;
     public bool Compact { get; set; }
     internal bool NotebookThumbnail { get; set; }
     private bool IsThumbnail=>Compact&&NotebookThumbnail&&!Expanded;
@@ -131,11 +133,12 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
         if (identity == _identity && child == _child && job == _job) { return; }
         SetOrbiting(false);
         _resident?.QueueFree(); _identity = identity; _child = child; _job = job;
+        _inventoryCargo=ResourceKind.None;
         _resident = _models.Human(identity, slot, child, job); _stage.AddChild(_resident);
         _resident.Rotation = new Vector3(0, IsThumbnail?ThumbnailYaw:_yaw, 0); Aim();
     }
     public bool FinishingGesture=>_resident?.CompletionVisible==true;
-    public void ShowCargo(bool hasCargo, SandBoxSim.Core.Environment.ResourceKind resource) => _resident?.ShowCargo(hasCargo,resource);
+    public void ShowCargo(bool hasCargo,ResourceKind resource)=>_inventoryCargo=hasCargo?resource:ResourceKind.None;
     public void ShowActivity(ActionKind action,ActionPhase phase,bool paused,float fatigue,float health,uint revision,bool hasPartner)
     {
         _action=action;_actionPhase=phase;_actionRevision=revision;_worldPaused=paused;_hasPartner=hasPartner;
@@ -219,7 +222,8 @@ ALBEDO=mix(vec3(.075,.092,.095),vec3(.27,.305,.29),halo);}"}};
                 _resident.ObserveOffscreenAction(_action,_actionPhase,revision);
                 _resyncAction=false;
             }
-            _resident.PresentAction((float)delta, _action, _actionPhase, _worldPaused, (float)(_identity % 11), _actionRevision,_hasPartner);
+            _resident.PresentAction((float)delta, _action, _actionPhase, _worldPaused, (float)(_identity % 11), _actionRevision,
+                _hasPartner,inventoryCargo:_inventoryCargo);
             string handling=(_worldPaused?"已暂停 · ":"实时 · ")+_resident.Handling;
             if(_activityReadout.Text!=handling)_activityReadout.Text=handling;
             string held=_resident.HeldObject;

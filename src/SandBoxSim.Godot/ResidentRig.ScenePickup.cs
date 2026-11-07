@@ -68,7 +68,7 @@ internal partial class ResidentRig
         var reachPoint=chest.AffineInverse()*lifted;
         float reach=ReachEase(_scenePickupAge/.58f)*(1-ReachEase((_scenePickupAge-1.81f)/.49f))*ReachEase(_bareBlend);
         var palm=Torso.Basis.Inverse()*new Basis(Vector3.Right,.55f*(1-lift));
-        BlendBareHand(1,reachPoint,palm,reach,eased:true);
+        BlendBareHand(1,PalmMotion.Pickup,reachPoint,palm,reach,eased:true);
         if(!reaching||!_scenePickupConfirmed||_scenePickupGrasped||_scenePickupAge<.62f||_scenePickupAge>1.37f)return;
         bool touching=(HandWorldPose(1)*Grip!.Position).DistanceSquaredTo(site)<.055f*.055f;
         _scenePickupContact=touching?_scenePickupContact+delta:0;
@@ -88,7 +88,7 @@ internal partial class ResidentRig
         var chest=actor*Torso.Transform;
         var start=chest.AffineInverse()*(actor*_pickupRecoveryStart);
         var target=start.Lerp(pocket,ReachEase(_pickupRecoveryAge/.55f));
-        BlendBareHand(1,target,Basis.FromEuler(new(.67f,0,.13f)),1,eased:true);
+        BlendBareHand(1,PalmMotion.PickupRecovery,target,Basis.FromEuler(new(.67f,0,.13f)),1,eased:true);
         float gap=(HandWorldPose(1)*Grip!.Position).DistanceTo(chest*pocket);
         CurlHand(1,.72f);
         if(_pickupRecoveryAge>=.48f&&gap<.052f||_pickupRecoveryAge>=.96f)

@@ -45,6 +45,8 @@ internal partial class ResidentRig
 
     internal void ObserveOffscreenAction(ActionKind action,ActionPhase phase,uint revision)
     {
+        _poseStep=0;
+        Array.Clear(_palmMotion);
         _observedAction=action;_observedPhase=phase;_observedRevision=revision;
         _observedExecution=_completionRemaining=0;
         _waitingForContact=false;

@@ -15,6 +15,7 @@ internal partial class ResidentRig
     private Vector2 _placementStart;
     private bool _placingCargo;
     private bool _placementPending;
+    private bool _stowingCargo;
     private float _placementWait;
     private ResourceKind _placementResource;
     private bool WaitingForPlacementParcel=>_placementPending&&_placementResource!=_cargoKind;
@@ -50,7 +51,8 @@ internal partial class ResidentRig
         }
         bool matchingParcel=_sceneContact.HasValue&&contactResource==_cargoKind;
         bool confirmedParcel=inventoryCargo.HasValue&&_sceneContact.HasValue&&contactResource!=ResourceKind.None;
-        bool supportedParcel=(!_hasCargo||matchingParcel)&&CargoMesh.Visible&&!_releasedCargo;
+        bool emptyInventory=inventoryCargo.HasValue?inventoryCargo==ResourceKind.None:!_hasCargo;
+        bool supportedParcel=(emptyInventory||matchingParcel)&&CargoMesh.Visible&&!_releasedCargo;
         if(newlyDone&&(!alreadyFinishing||newRun)&&IsPlacement(action)&&(confirmedParcel||supportedParcel))
         {
             _placementPending=true;_placementWait=0;
@@ -58,12 +60,21 @@ internal partial class ResidentRig
             _placementSurface=_sceneContact;
             _placementResource=confirmedParcel?contactResource:_cargoKind;
         }
-        if(WaitingForPlacementParcel&&!_releasedCargo&&!CargoMesh.Visible)
+        if(WaitingForPlacementParcel&&!_releasedCargo&&!_stowingCargo&&!CargoMesh.Visible)
             ShowCargo(true,_placementResource);
         if(inventoryCargo is not {} remaining)return;
+        // A display parcel already supported by both palms keeps its identity
+        // until the hands bring it back to the waist. A new inventory reading
+        // must not replace it in the middle of the reach or the next step.
+        if(!_placingCargo&&!_releasedCargo)
+        {
+            var nextParcel=_placementPending?_placementResource:remaining;
+            if(nextParcel==_cargoKind)_stowingCargo=false;
+            else if(SupportedCargo!=ResourceKind.None)_stowingCargo=true;
+        }
         // A committed parcel can be in the hands after leaving inventory.
         // Keep its mesh through palm support and release, then show the remainder.
-        if(_placementPending||_placingCargo||_releasedCargo)_hasCargo=remaining!=ResourceKind.None;
+        if(_placementPending||_placingCargo||_releasedCargo||_stowingCargo)_hasCargo=remaining!=ResourceKind.None;
         else ShowCargo(remaining!=ResourceKind.None,remaining);
     }
 
@@ -126,18 +137,20 @@ internal partial class ResidentRig
 
     private bool RetainCargoDuringTuck(bool wanted,float delta)
     {
-        if(wanted)
+        if(wanted&&!_stowingCargo)
         {
             _cargoTuck=Mathf.MoveToward(_cargoTuck,0,delta/.32f);
             return true;
         }
-        if(_hasCargo&&SupportedCargo!=ResourceKind.None&&!_placingCargo&&(!_placementPending||WaitingForPlacementParcel))
+        if(_stowingCargo||_hasCargo&&SupportedCargo!=ResourceKind.None&&!_placingCargo&&(!_placementPending||WaitingForPlacementParcel))
         {
             _cargoTuck=MathF.Min(1.6f,_cargoTuck+delta/.38f);
             if(_cargoTuck<1)return true;
             const float handTolerance=.037f;
-            return _cargoTuck<1.6f&&((_previousHands[0]*Grip!.Position).DistanceTo(CargoSupportTarget(0))>handTolerance
-                ||(_previousHands[1]*Grip.Position).DistanceTo(CargoSupportTarget(1))>handTolerance);
+            bool retain=_cargoTuck<1.6f&&((_previousHands[0]*PalmOffset(0)).DistanceTo(CargoSupportTarget(0))>handTolerance
+                ||(_previousHands[1]*PalmOffset(1)).DistanceTo(CargoSupportTarget(1))>handTolerance);
+            if(!retain)_stowingCargo=false;
+            return retain;
         }
         if(_cargoBlend<=.001f)_cargoTuck=0;
         return false;
@@ -177,8 +190,8 @@ internal partial class ResidentRig
         var leftHand=Arms[0].Transform*Elbows[0].Transform*Hands[0].Transform;
         var rightHand=Arms[1].Transform*Elbows[1].Transform*Hands[1].Transform;
         var left=leftHand*CargoPalmContact;var right=rightHand*CargoPalmContact;
-        bool supported=(leftHand*Grip!.Position).DistanceTo(CargoSupportTarget(0))<.025f
-            &&(rightHand*Grip.Position).DistanceTo(CargoSupportTarget(1))<.025f;
+        bool supported=(leftHand*PalmOffset(0)).DistanceTo(CargoSupportTarget(0))<.025f
+            &&(rightHand*PalmOffset(1)).DistanceTo(CargoSupportTarget(1))<.025f;
         var (a,b)=CargoSupports[_cargoKind];
         var palmSpan=right-left;var meshSpan=b-a;
         float error=MathF.Abs(palmSpan.Length()-meshSpan.Length())*.5f;
@@ -267,8 +280,8 @@ internal partial class ResidentRig
 
     internal void ClearTransientCargo()
     {
-        if(_placingCargo||_placementPending||_releasedCargo||_cargoTuck>0)CargoMesh.Visible=false;
-        _placingCargo=_placementPending=_releasedCargo=false;
+        if(_placingCargo||_placementPending||_releasedCargo||_stowingCargo||_cargoTuck>0)CargoMesh.Visible=false;
+        _placingCargo=_placementPending=_releasedCargo=_stowingCargo=false;
         _cargoTuck=0;
     }
 }

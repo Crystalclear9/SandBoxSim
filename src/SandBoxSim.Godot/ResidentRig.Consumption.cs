@@ -79,7 +79,7 @@ internal partial class ResidentRig
         float arc=4*_consumeReach*(1-_consumeReach);
         path+=new Vector3(.032f-.014f*Flow,.033f,-.044f)*arc;
         float handPitch=drink?Mathf.Lerp(2.32f,3.54f,_consumeReach):Mathf.Lerp(1.28f,3.20f,_consumeReach);
-        BlendBareHand(1,path,Basis.FromEuler(new(handPitch,0,.12f+.08f*_consumeReach)),1,eased:true);
+        BlendBareHand(1,PalmMotion.Consume,path,Basis.FromEuler(new(handPitch,0,.12f+.08f*_consumeReach)),1,eased:true);
 
         var hand=Arms[1].Transform*Elbows[1].Transform*Hands[1].Transform;
         float pocketGap=(hand*Grip.Position).DistanceTo(pocket);

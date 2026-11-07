@@ -8,24 +8,41 @@ internal partial class ResidentRig
 {
     private float _bareBlend,_pickupBlend,_pickupTime,_bareTime,_cargoBlend,_supportBlend,_cargoLift;
     private SandBoxSim.Core.Agents.ActionKind _bareAction;
+    private enum PalmMotion { Other, Cargo, Pickup, Transfer, Consume, Social, Handoff, PickupRecovery }
+    private readonly PalmMotion[] _palmMotion=new PalmMotion[2],_previousPalmMotion=new PalmMotion[2];
     private readonly Transform3D[] _previousHands=new Transform3D[2];
+    private readonly Transform3D[] _earlierHands=new Transform3D[2];
     private readonly Vector3[] _previousElbows=new Vector3[2];
-    private float _poseStep;
+    private float _poseStep,_previousPoseStep;
     private readonly float[] _elbowSwivelVelocity=new float[2];
     private readonly Transform3D[] _priorArms=new Transform3D[2],_priorForearms=new Transform3D[2],_priorWrists=new Transform3D[2];
     private bool _hasArmReturn;
     private readonly bool[] _armSolvedThisStep=new bool[2],_armReturning=new bool[2];
     private Transform3D _toolReachRest;
     private readonly Vector3[] _bareVelocity=new Vector3[2],_bareAngularVelocity=new Vector3[2];
-    private void BlendBareHand(int side,Vector3 target,Basis desired,float blend=-1,Vector3? preferredElbow=null,bool eased=false)
+    private Vector3 PalmOffset(int side)=>side==1?Grip!.Position:new(0,-.035f,-.0286f);
+
+    private void BlendBareHand(int side,PalmMotion motion,Vector3 target,Basis desired,float blend=-1,Vector3? preferredElbow=null,bool eased=false)
     {
         float weight=eased?blend:ReachEase(blend<0?_bareBlend:blend);
         var rest=Arms[side].Transform*Elbows[side].Transform*Hands[side].Transform;
-        var offset=side==1?Grip!.Position:new Vector3(0,-.035f,-.0286f);
+        var offset=PalmOffset(side);
+        var previous=_previousHands[side];
+        if(_palmMotion[side]!=motion&&_previousPalmMotion[side]!=motion)
+        {
+            // Carry the last displayed palm tangent across a controller change.
+            // A stored servo velocity can belong to an older task or a target
+            // that the wrist limits did not actually let the hand reach.
+            var earlier=_earlierHands[side];
+            _bareVelocity[side]=_previousPoseStep>0
+                ?((previous*offset-earlier*offset)/_previousPoseStep).LimitLength(.9f):Vector3.Zero;
+            _bareAngularVelocity[side]=RotationVelocity(earlier.Basis,previous.Basis,_previousPoseStep).LimitLength(6);
+        }
+        _palmMotion[side]=motion;
         // Plan the palm path before solving the joints. Interpolating three
         // independent joint rotations makes the hand swing around the target.
         var orientation=rest.Basis.GetRotationQuaternion().Slerp(desired.GetRotationQuaternion(),weight);
-        var previous=_previousHands[side];var priorRotation=previous.Basis.GetRotationQuaternion();
+        var priorRotation=previous.Basis.GetRotationQuaternion();
         orientation=DampRotation(priorRotation,ref _bareAngularVelocity[side],orientation,GestureRotationTime,_poseStep);
         float angle=2*MathF.Acos(Math.Clamp(MathF.Abs(priorRotation.Dot(orientation)),0,1));
         if(angle>6*_poseStep&&angle>0)orientation=priorRotation.Slerp(orientation,6*_poseStep/angle);
@@ -97,7 +114,7 @@ internal partial class ResidentRig
                 MathF.Max(1-MathF.Abs(Elbows[side].Quaternion.Dot(elbowTarget.Basis.GetRotationQuaternion())),1-MathF.Abs(Hands[side].Quaternion.Dot(wristTarget.Basis.GetRotationQuaternion()))));
             _armReturning[side]=remaining>.000001f||position.DistanceTo(armTarget.Origin)>.0001f;
             if(!_armReturning[side])
-            {Arms[side].Transform=armTarget;Elbows[side].Transform=elbowTarget;Hands[side].Transform=wristTarget;_bareVelocity[side]=_bareAngularVelocity[side]=Vector3.Zero;}
+            {Arms[side].Transform=armTarget;Elbows[side].Transform=elbowTarget;Hands[side].Transform=wristTarget;}
             _hasArmReturn|=_armReturning[side];
         }
     }
@@ -223,9 +240,8 @@ internal partial class ResidentRig
     }
     private void SolveHand(int side,Vector3 gripTarget,Basis handBasis,bool bare=false,float carry=0,Vector3? elbowHint=null)
     {
-        if(!bare)_bareVelocity[side]=_bareAngularVelocity[side]=Vector3.Zero;
         _armSolvedThisStep[side]=true;_armReturning[side]=true;
-        Vector3 gripOffset=side==1?Grip!.Position:new(0,-.035f,-.0286f);
+        Vector3 gripOffset=PalmOffset(side);
         Vector3 requestedWrist=gripTarget-handBasis*gripOffset;
         // Seed the shoulder from the displayed upper arm, or an explicit
         // elbow hint. Wrist height includes elbow flexion and must not create
