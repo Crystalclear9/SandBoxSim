@@ -25,6 +25,13 @@ internal struct ResidentTravel
     internal static Vector2 Planar(Vector3 p)=>new(p.X,p.Z);
     internal float Remaining(Vector3 current)=>Planar(_goal-current).Length()+(_queued?Planar(_next-_goal).Length():0);
 
+    internal void HoldForSupport(bool hasRouteProjection)
+    {
+        // Keep route validation live while stopping the departure motor.
+        this=default;
+        Projecting=hasRouteProjection;
+    }
+
     internal bool PlanRedirect(Vector2 heading,float yaw,bool turning)
     {
         var forward=new Vector2(-MathF.Sin(yaw),-MathF.Cos(yaw));

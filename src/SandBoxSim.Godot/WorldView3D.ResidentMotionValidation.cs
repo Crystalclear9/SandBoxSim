@@ -101,6 +101,66 @@ public partial class WorldView3D
         ValidateWorldStockContact(tiles.Start,delta);
         ValidateWorldToolContact(tiles.Goal,delta);
         ValidateCommittedCultivation(tiles.Goal,delta);
+        ValidateSupportRelease(rig,slot,tiles.Start,tiles.Corner);
+    }
+
+    private void ValidateSupportRelease(ResidentRig rig,int slot,Vector2I start,Vector2I destination)
+    {
+        var sim=Game.Sim;var agents=sim.Agents;
+        var origin=PositionAt(start.X,start.Y);
+        var goal=PositionAt(destination.X,destination.Y);
+        _target=origin;_distance=8;UpdateCamera();
+        sim.GroundStocks.Deposit(start.X,start.Y,ResourceKind.Stone,2,sim.Config.GroundStocks);
+        foreach(var (outgoing,incoming,rate) in new[]{
+            (ActionKind.Sleep,ActionKind.Wander,60),(ActionKind.Take,ActionKind.Wander,24),
+            (ActionKind.Sleep,ActionKind.Flee,60)})
+        {
+            float dt=1f/rate;
+            agents.SetPosition(slot,start.X,start.Y);
+            agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
+            agents.ClearTarget(slot);
+            rig.Position=origin;
+            rig.Rotation=new(0,HeadingYaw(Horizontal(goal-origin)),0);
+            rig.Travel=default;
+            for(int frame=0;frame<rate;frame++)AnimateActors(dt);
+            agents.SetAction(slot,outgoing,ActionPhase.Executing);
+            if(outgoing==ActionKind.Take)agents.SetTarget(slot,start.X,start.Y);
+            for(int frame=0;frame<5*rate;frame++)AnimateActors(dt);
+            if(!rig.NeedsSupportRelease||!rig.GestureEngaged(outgoing)||rig.ScenePickupGrasped)
+                throw new InvalidOperationException($"Departure fixture did not establish {outgoing}");
+
+            agents.SetAction(slot,incoming,ActionPhase.Moving);
+            agents.SetPosition(slot,destination.X,destination.Y);
+            agents.ClearTarget(slot);
+            string digest=sim.StateDigestString();
+            var before=rig.Position;
+            float yaw=rig.Rotation.Y;
+            int held=0,started=-1;
+            float footDrift=0;
+            var left=rig.Feet[0].GlobalPosition;var right=rig.Feet[1].GlobalPosition;
+            for(int frame=0;frame<rate*2;frame++)
+            {
+                bool supported=rig.NeedsSupportRelease;
+                AnimateActors(dt);
+                if(rig.ReleasingSupport)
+                {
+                    held++;
+                    footDrift=MathF.Max(footDrift,MathF.Max(Horizontal(rig.Feet[0].GlobalPosition-left).Length(),
+                        Horizontal(rig.Feet[1].GlobalPosition-right).Length()));
+                    if(Horizontal(rig.Position-before).Length()>.001f||MathF.Abs(Mathf.AngleDifference(yaw,rig.Rotation.Y))>.001f)
+                        throw new InvalidOperationException("Root moved while the outgoing pose was reclaiming its support");
+                }
+                if(Horizontal(rig.Position-before).Length()<=.012f)continue;
+                started=frame;
+                if(incoming==ActionKind.Wander&&supported)
+                    throw new InvalidOperationException($"Walking started before the {outgoing} pose recovered");
+                break;
+            }
+            if(started<0||(incoming==ActionKind.Wander?(held<3||started>rate):(held!=0||started>rate/3))
+                ||footDrift>.025f||rig.ScenePickupPieceVisible||sim.StateDigestString()!=digest)
+                throw new InvalidOperationException($"Departure {outgoing} to {incoming}: held={held}, first step={started}, foot drift={footDrift:F3} m at {rate} Hz");
+            GD.Print($"WORLD_SUPPORT_RELEASE_PASS: {outgoing} to {incoming} at {rate} Hz, {held} planted release frames, {footDrift:F3} m sole drift, departure on frame {started}, read-only");
+        }
     }
 
     internal void ValidateWorldToolContact()=>ValidateWorldToolContact(FindResidentMotionCorner().Goal,1f/60);

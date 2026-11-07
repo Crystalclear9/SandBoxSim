@@ -467,6 +467,7 @@ public partial class WorldView3D : MapView
             ["femaleLowerLeg"]="mid-calf-boot-v1",
             ["residentContactContinuity"]="bounded-confirmation-v1",
             ["pairedInteractions"]="confirmed-participants-v1",
+            ["residentSupportRelease"]="planted-departure-v1",
             ["workContactHandoff"]="shared-stroke-phase-v1",
             ["architecture"]="inset-joinery-v13",["garmentMaterial"]="quiet-linen-v19",["trouserSkin"]="guided-knee-v1",["upperArmFlex"]="stable-contour-v3",["shoulderSkin"]="reference-figure-v25",["shoulderMotion"]="source-clavicle-v11",["motionReference"]="cmu-143-30-v1",["shoulderSurface"]="authored-bind-surface-v3",["femaleShoulderLine"]="clavicular-crest-v2",["forearmSkin"]="continuous-elbow-v9",["sleeveFairing"]="rest-detail-v2",["workPose"]="raised-hammer-v1",["reachMotion"]="palm-trajectory-v2",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
             ["animalPresentation"]="articulated-paws-v12",["animalLocomotion"]="ground-distance-v1",["residentSurface"]="linear-skin-v9",["workEffort"]="overlapping-weight-transfer-v7",["toolMotion"]="socket-relative-stow-v5",["bodySupport"]="planted-spatial-v3",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v2",["handlingMotion"]="supported-parcel-v19",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="paired-conversation-v11",["spearMotion"]="guarded-thrust-v1",["waterSurface"]="shore-activity-v7",["wristContour"]="continuous-source-v3",
@@ -932,8 +933,13 @@ public partial class WorldView3D : MapView
             bool redirecting=false;
             float remaining=Horizontal(target-current).Length();
             float anticipatoryTurn=0;
+            bool routeDeparture=paced&&phase==ActionPhase.Moving&&hasTarget&&interest!=new Int2(x,y);
+            bool releaseSupport=usesMotor&&node.Visible&&!bridged&&cameraPosition.DistanceSquaredTo(current)<18*18
+                &&(remaining>.055f||routeDeparture)&&action is not (ActionKind.Flee or ActionKind.Attack or ActionKind.Hunt)
+                &&node.NeedsSupportRelease&&(node.ReleasingSupport||node.ReadyForTravelTurn);
             if(!paused)
             {
+                node.ReleasingSupport=releaseSupport;
                 if(usesMotor)
                 {
                     Vector3 sample=default;
@@ -955,9 +961,14 @@ public partial class WorldView3D : MapView
                         var projectedHeading=Horizontal(sample-current).Normalized();
                         redirectHeading=projectedHeading.Dot(routeHeading)>.25f?projectedHeading:routeHeading;
                     }
-                    redirecting=(projected||canKeepRedirect)&&redirectHeading.LengthSquared()>.5f
+                    redirecting=!releaseSupport&&(projected||canKeepRedirect)&&redirectHeading.LengthSquared()>.5f
                         &&node.Travel.PlanRedirect(redirectHeading,node.Rotation.Y,node.IsPivoting||node.TryGetArrivalFacing(out _));
-                    if(redirecting)
+                    if(releaseSupport)
+                    {
+                        node.Travel.HoldForSupport(projected);
+                        remaining=MathF.Max(projected?routeRemaining:remaining,.055f);
+                    }
+                    else if(redirecting)
                     {
                         // Spend the last bit of momentum along the old
                         // heading, if that ground is still available.
@@ -1076,7 +1087,8 @@ public partial class WorldView3D : MapView
                 bool prepareFacing=usesMotor&&distanceSquared<18*18&&interacting&&aimsAtTarget&&remaining<.09f
                     &&hasInterest&&facing.LengthSquared()>.0225f;
                 node.PlanArrival(redirecting?rendered:target,redirecting?HeadingYaw(travelHeading):prepareFacing?HeadingYaw(facing):null);
-                if(redirecting)
+                if(releaseSupport)node.FadePivot(delta);
+                else if(redirecting)
                 {
                     float goal=HeadingYaw(travelHeading);
                     float frameDistance=Horizontal(direction).LengthSquared();
@@ -1151,8 +1163,8 @@ public partial class WorldView3D : MapView
             }
             var cue=new PoseCue(action,phase,actionRevision,interactionTarget,true,toolSurface,contactReady);
             var facingDirection=Horizontal(interestPoint-rendered);
-            bool aligned=!aimsAtTarget||!interacting||!hasInterest||InteractionFacingAligned(yaw,facingDirection,
-                _poseSchedule.RetainsFacing(pair.Key,cue));
+            bool aligned=!releaseSupport&&(!aimsAtTarget||!interacting||!hasInterest||InteractionFacingAligned(yaw,facingDirection,
+                _poseSchedule.RetainsFacing(pair.Key,cue)));
             cue=cue with {Aligned=aligned};
             bool changed=_poseSchedule.Observe(pair.Key,cue,delta,!paused);
             if(paused||!changed&&(_poseFrame+slot)%stride!=0)continue;

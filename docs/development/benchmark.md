@@ -184,6 +184,8 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `residentContactContinuity=bounded-confirmation-v1` 记录场景在渲染帧错过 `Done` 时的近景接触收尾。`WORLD_CONTACT_BRIDGE_PASS` 在真实地图中让模拟完成取物、放货和进食，再于下一帧前指定后续动作。检查抓握、松手和嘴部接触各发生一次，逃跑或离开原格时取消尚未发生的接触，并核对表现前后的模拟摘要。
 
+`residentSupportRelease=planted-departure-v1` 记录近景动作收势到迈步的衔接。`WORLD_SUPPORT_RELEASE_PASS` 在真实地图中以 60／24 Hz 切换休息或低位取物到移动，检查收势期间的根位移、朝向、脚部锚点的平移和开始迈步的时机。休息切到逃跑时可跳过等待。检查同时核对模拟摘要和未确认物件的可见性。
+
 `pairedInteractions=confirmed-participants-v1` 记录递物和交谈的参与者、准备与收尾规则。`WORLD_HANDOFF_PASS` 检查结算前走近、确认后出现食物、跳过 `Done` 的递接和换手后递出者退出。`WORLD_HANDOFF_RETARGET_PASS` 覆盖接收者忙碌及分享被替换时的回收。`WORLD_CONVERSATION_PASS` 检查空闲状态接续和逃跑中断。三项都核对表现前后的模拟摘要。
 
 `workContactHandoff=shared-stroke-phase-v1` 记录同一接触点的作业衔接和失效接触的取消。`CONTINUOUS_WORK_CONTACT_PASS` 在 60／24 Hz 下测试斧、镐、锤和锄的握持、站姿和挥击相位，以及替换地点、建筑代次或接触丢失后的处理。`WORLD_REPEAT_WORK_PASS` 使用模拟实际采集产生的两次结算，核对同一树干上的连续动作及表现层读取的状态摘要。

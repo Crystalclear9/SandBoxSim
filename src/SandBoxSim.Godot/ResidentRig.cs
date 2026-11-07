@@ -105,8 +105,13 @@ internal partial class ResidentRig : Node3D
     private Vector3 _restPose,_restPoseVelocity;
     internal float RestPoseWeight=>Math.Clamp(_restPose.X,0,1);
     private bool _carrying,_takingTool,_waitingForFacing,_waitingForContact;
+    internal bool ReleasingSupport {get;set;}
+    // A low or loaded pose needs its support back under the hips before
+    // ordinary travel. The upper body can keep recovering during the first steps.
+    internal bool NeedsSupportRelease=>RestPoseWeight>.36f||_floorCrouch>.35f||_scenePickupBend>.26f
+        ||_workStance>.34f||_workSurfaceBend>.055f||_consumeReach>.58f;
     public bool ToolHeld {get;private set;}
-    public string Handling => _recoveringPickup?"托住物件 / 收回":HandoffReserved?_handoffReadout:_placingCargo?"双手送稳 / 准备松开":
+    public string Handling => ReleasingSupport?"收回重心 / 准备迈步":_recoveringPickup?"托住物件 / 收回":HandoffReserved?_handoffReadout:_placingCargo?"双手送稳 / 准备松开":
         _releasedCargo?(_groundPlacement?"物资落地 / 收手":"入库交接 / 收手"):_cargoTuck>0&&SupportedCargo!=ResourceKind.None?"收拢包裹 / 腾手":_placementPending?"抱稳物资 / 等待到位":
         ConsumptionOwnsHand?ConsumptionHandling:!InteractionSettled&&(_observedPhase==ActionPhase.Executing||CompletionVisible)?"接近目的地 / 停稳":
         _conversation is {} conversation&&InteractionSettled?(conversation.Speech>.1f?"交谈 / 说话":"交谈 / 倾听"):
