@@ -70,7 +70,7 @@ public partial class WorldView3D
             foreach(var kind in ResidentRig.CargoKinds)
             {
                 float amount=store.AmountOf(slot,kind);if(amount<=.01f)continue;
-                var key=(slot,kind);live.Add(key);int tier=amount<8?0:amount<40?1:2;
+                var key=(slot,kind);live.Add(key);int tier=NatureModels.GroundPileTier(amount);
                 bool near=entry.Distance<55*55;
                 if(near&&(!_stockVisuals.TryGetValue(key,out var existing)||existing.Tier!=tier)&&creations<4&&creationMs<2)
                 {
@@ -82,13 +82,20 @@ public partial class WorldView3D
                 }
                 if(_stockVisuals.TryGetValue(key,out var visual))
                 {
-                    visual.Node.Position=position+new Vector3(((int)kind%2-.5f)*.65f,0,((int)kind/2%2-.5f)*.65f);
+                    visual.Node.Position=GroundPileOrigin(position,kind);
                     visual.Node.Visible=near;
                 }
             }
         }
         foreach(var key in _stockVisuals.Keys.Where(key=>!live.Contains(key)).ToArray())
         {var node=_stockVisuals[key].Node;_stockRoot.RemoveChild(node);node.QueueFree();_stockVisuals.Remove(key);}
+    }
+
+    private Vector3 GroundPileOrigin(Vector3 tile,ResourceKind kind)
+    {
+        var point=tile+new Vector3(((int)kind%2-.5f)*.65f,0,((int)kind/2%2-.5f)*.65f);
+        point.Y=GroundHeight(point.X,point.Z);
+        return point;
     }
     public void ValidateLivingDetails()
     {
@@ -138,7 +145,7 @@ public partial class WorldView3D
         stocks.Deposit(x+1,y,ResourceKind.Food,5,sim.Config.GroundStocks);Poll();
         int reused=stocks.FindAt(x+1,y);
         var replacement=_stockVisuals[(reused,ResourceKind.Food)].Node;
-        var expected=PositionAt(x+1,y)+new Vector3(.325f,0,-.325f);
+        var expected=GroundPileOrigin(PositionAt(x+1,y),ResourceKind.Food);
         if(replacement.Position.DistanceTo(expected)>.001f)throw new InvalidOperationException("Reused stock has stale position");
         }
         finally

@@ -54,26 +54,52 @@ void fragment(){float weave=sin(UV.x*160.0)*sin(UV.y*140.0);weave/=1.0+pow(lengt
         }
         return root;
     }
+    internal static int GroundPileTier(float amount)=>amount<8?0:amount<40?1:2;
+    private static Vector3 GroundPilePiece(int index)=>new((index%3-1)*.13f,.06f+index/6*.10f,(index/3%2-.5f)*.18f);
+    private static Vector3 GroundPieceGrip(ResourceKind kind)=>new(0,kind==ResourceKind.Food?.13f:kind==ResourceKind.Wood?.05f:.06f,0);
+    internal static Vector3 GroundPileGrip(ResourceKind kind,int tier)
+        =>GroundPilePiece(tier==2?7:1)+GroundPieceGrip(kind);
+
+    private void AddGroundPiece(Node3D root,ResourceKind kind,Vector3 p,int index)
+    {
+        if(kind==ResourceKind.Wood)
+        {
+            Part(root,"cylinder",p,new(.10f,.48f,.10f),0,new(MathF.PI/2,0,0));
+            Part(root,"cylinder",p+new Vector3(0,0,-.242f),new(.095f,.008f,.095f),1,new(MathF.PI/2,0,0));
+        }
+        else if(kind==ResourceKind.Food)
+        {
+            Part(root,"sphere",p+Vector3.Up*.035f,new(.15f,.18f,.14f),8);
+            Part(root,"cylinder",p+Vector3.Up*.12f,new(.052f,.025f,.052f),0);
+        }
+        else Part(root,"rock",p,new(.14f,.12f,.17f),kind==ResourceKind.Iron?7:6,new(0,index*.73f,0));
+    }
+
+    internal Mesh GroundPickupPiece(ResourceKind kind,int tier)
+    {
+        int index=tier==2?7:1;
+        string key=$"stock-piece:{kind}:{index}";
+        if(_meshes.TryGetValue(key,out var mesh))return mesh;
+        var root=new Node3D();
+        AddGroundPiece(root,kind,-GroundPieceGrip(kind),index);
+        if(root.GetChildCount()==1)
+        {
+            var part=root.GetChild<MeshInstance3D>(0);
+            var baked=new ArrayMesh();
+            AppendMergedSurface(baked,part.MaterialOverride,new() {part});
+            _meshes[key]=baked;
+        }
+        else MergeResidentParts(root,key);
+        root.Free();
+        return _meshes[key];
+    }
+
     public Node3D GroundPile(ResourceKind kind,int tier)
     {
         var root=new Node3D {Name="GroundPile"};int count=3+tier*3;
         string key=$"actual-pile:{kind}:{tier}";
         if(_meshes.TryGetValue(key,out var cached)){root.AddChild(new MeshInstance3D {Mesh=cached});return root;}
-        for(int i=0;i<count;i++)
-        {
-            float x=(i%3-1)*.13f,z=(i/3%2-.5f)*.18f,y=.06f+i/6*.10f;
-            if(kind==ResourceKind.Wood)
-            {
-                Part(root,"cylinder",new(x,y,z),new(.10f,.48f,.10f),0,new(MathF.PI/2,0,0));
-                Part(root,"cylinder",new(x,y,z-.242f),new(.095f,.008f,.095f),1,new(MathF.PI/2,0,0));
-            }
-            else if(kind==ResourceKind.Food)
-            {
-                Part(root,"sphere",new(x,y+.035f,z),new(.15f,.18f,.14f),8);
-                Part(root,"cylinder",new(x,y+.12f,z),new(.052f,.025f,.052f),0);
-            }
-            else Part(root,"rock",new(x,y,z),new(.14f,.12f,.17f),kind==ResourceKind.Iron?7:6,new(0,i*.73f,0));
-        }
+        for(int i=0;i<count;i++)AddGroundPiece(root,kind,GroundPilePiece(i),i);
         MergeResidentParts(root,key);return root;
     }
 }

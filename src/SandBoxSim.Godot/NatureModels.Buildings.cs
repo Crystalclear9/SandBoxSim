@@ -12,6 +12,8 @@ internal sealed partial class NatureModels
         identity %= 140;
         return new(3.65f + (identity % 4) * .16f, 3.05f + ((identity / 7) % 4) * .18f);
     }
+    internal static Vector3 StorageCrateTop(float depth)=>new(.39f,.36f,depth/2+.28f);
+
     private Node3D Architecture(BuildingKind kind, bool complete, uint identity)
     {
         identity %= 140;
@@ -53,7 +55,7 @@ internal sealed partial class NatureModels
             Part(model, "box", new(0, 1.10f, 0), new(width, 2.2f, depth), 1);
             Gable(model, width, depth, 2.2f, 2);
             Part(model, "box", new(0, 1.105f, depth / 2 + .04f), new(.95f, 1.85f, .08f), 10);
-            for (int i = 0; i < 3; i++) Part(model, "box", new(-.65f + i * .52f, .18f, depth / 2 + .28f), new(.4f, .36f, .4f), 1);
+            for (int i = 0; i < 3; i++) Part(model, "box", StorageCrateTop(depth)+new Vector3((i-2)*.52f,-.18f,0), new(.4f, .36f, .4f), 1);
             return FinishArchitecture(model, kind, complete, identity, width, depth);
         }
         // Five silhouettes: log cabin, plaster cottage, stone cottage, tall gable, lean-to cottage.

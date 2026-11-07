@@ -1,5 +1,7 @@
 using System;
+using Godot;
 using SandBoxSim.Core.Agents;
+using SandBoxSim.Core.Environment;
 
 namespace SandBoxSim.Client;
 
@@ -32,6 +34,13 @@ internal partial class ResidentRig
     private bool _finishConsumption,_observedMouthContact;
     public bool CompletionVisible=>_finishConsumption||_completionRemaining>0||_placingCargo||_placementPending;
 
+    internal bool ContinuesCompletedAction(ActionKind action,uint revision)
+        =>_sceneContact.HasValue||ShowsCompletion(action,revision);
+
+    internal bool ShowsCompletion(ActionKind action,uint revision)
+        =>_observedRevision.HasValue&&(revision!=_observedRevision||action!=_observedAction
+            ||_observedPhase!=ActionPhase.Done||CompletionVisible);
+
     internal void ObserveOffscreenAction(ActionKind action,ActionPhase phase,uint revision)
     {
         _observedAction=action;_observedPhase=phase;_observedRevision=revision;
@@ -39,9 +48,12 @@ internal partial class ResidentRig
         _finishConsumption=_observedMouthContact=false;
         ClearConsumption();
         ClearTransientCargo();
+        _sceneContact=null;
+        ResetScenePickup();_scenePickupBend=0;
     }
 
-    public void PresentAction(float delta,ActionKind action,ActionPhase phase,bool paused,float identityPhase,uint? revision=null,bool hasPartner=true,bool targetAligned=true)
+    public void PresentAction(float delta,ActionKind action,ActionPhase phase,bool paused,float identityPhase,uint? revision=null,bool hasPartner=true,bool targetAligned=true,
+        Vector3? sceneContact=null,ResourceKind contactResource=ResourceKind.None)
     {
         if(paused)return;
         bool firstSnapshot=revision.HasValue&&!_observedRevision.HasValue;
@@ -53,7 +65,10 @@ internal partial class ResidentRig
         bool partnerAction=RequiresPartner(action);
         if(partnerAction&&!hasPartner)_completionRemaining=0;
         bool newlyDone=!firstSnapshot&&phase==ActionPhase.Done&&(newRun||_observedPhase!=ActionPhase.Done);
-        ObserveCargoPlacement(action,phase,newlyDone,newRun);
+        if(newRun||!_sceneContact.HasValue&&sceneContact.HasValue||phase!=ActionPhase.Done)
+            ResetScenePickup();
+        _sceneContact=phase==ActionPhase.Done&&!firstSnapshot?sceneContact:null;
+        ObserveCargoPlacement(action,phase,newlyDone,newRun,contactResource);
         var family=FamilyOf(action);
         if(newlyDone&&family==ActionFamily.Consume)
         {
@@ -64,13 +79,15 @@ internal partial class ResidentRig
             &&(UsesBareHands(family)||family is ActionFamily.Tool or ActionFamily.Social))
         {
             _completionAge=0;
-            float minimum=family==ActionFamily.Tool?MathF.Max(.9f,WorkPeriod):1.65f;
-            if(!IsPlacement(action)||_hasCargo)
-                _completionRemaining=MathF.Max(0,minimum-_observedExecution);
+            float minimum=family==ActionFamily.Tool?MathF.Max(.9f,WorkPeriod)
+                :family==ActionFamily.Pickup&&_sceneContact.HasValue?2.5f:1.65f;
+            if(!IsPlacement(action)||_hasCargo&&!_placementPending)
+                _completionRemaining=MathF.Max(0,minimum-(family==ActionFamily.Pickup&&_sceneContact.HasValue?0:_observedExecution));
         }
         _observedAction=action;_observedPhase=phase;_observedRevision=revision;
         var visualPhase=partnerAction&&phase==ActionPhase.Executing&&!hasPartner?ActionPhase.Failed:phase;
         AdvancePose(PresentationDelta(delta),action,visualPhase,identityPhase,true,targetAligned);
+        PresentPickupPiece(family==ActionFamily.Pickup);
     }
 
     internal static bool RequiresPartner(ActionKind action)
@@ -101,6 +118,11 @@ internal partial class ResidentRig
         // observation may contain tool stow, arrival and the first gesture.
         if(phase==ActionPhase.Executing&&active)_observedExecution+=delta;
         if(!finishing)return;
+        if(_sceneContact.HasValue&&FamilyOf(action)==ActionFamily.Pickup&&_scenePickupAge>=ScenePickupDuration)
+        {
+            _completionRemaining=0;
+            return;
+        }
         if(active)_completionRemaining=MathF.Max(0,_completionRemaining-delta);
         _completionAge+=delta;
         if(_completionAge>=6)_completionRemaining=0;

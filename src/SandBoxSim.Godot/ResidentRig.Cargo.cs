@@ -17,11 +17,14 @@ internal partial class ResidentRig
     private bool _placementPending;
     private float _placementWait;
     private bool _groundPlacement;
-    private float _floorCrouch,_floorDrop=.46f,_floorLean=.91f,_floorCorrection;
+    private Vector3? _placementSurface;
+    private bool PlacementUsesSurface=>_groundPlacement||_placementSurface.HasValue;
+    private float _floorCrouch,_floorDrop=.46f,_floorLean=.91f;
+    private Vector3 _floorCorrection;
     private Transform3D _floorStart,_floorGoal;
     internal bool PlacingCargo=>_placingCargo;
     private bool _releasedCargo;
-    private bool _releasedToGround;
+    private bool _releasedOntoSurface;
     private Transform3D _releasedCargoPose;
     private float _releasedCargoTime,_releasedCargoFloor,_releasedCargoDuration;
     internal bool ReleasedCargo=>_releasedCargo;
@@ -29,18 +32,22 @@ internal partial class ResidentRig
 
     private static bool IsPlacement(ActionKind action)=>action is ActionKind.Deposit or ActionKind.StoreInBuilding;
 
-    private void ObserveCargoPlacement(ActionKind action,ActionPhase phase,bool newlyDone,bool newRun)
+    private void ObserveCargoPlacement(ActionKind action,ActionPhase phase,bool newlyDone,bool newRun,ResourceKind contactResource)
     {
         bool alreadyFinishing=_placingCargo||_placementPending;
-        if(newRun||!IsPlacement(action)||phase!=ActionPhase.Done||_hasCargo)
+        bool lostSurface=_placementSurface.HasValue&&(!_sceneContact.HasValue
+            ||_placementSurface.Value.DistanceSquaredTo(_sceneContact.Value)>.14f*.14f);
+        if(newRun||!IsPlacement(action)||phase!=ActionPhase.Done||lostSurface)
             _placingCargo=_placementPending=false;
         if(!InteractionSettled)_placingCargo=false;
-        if(newlyDone&&!alreadyFinishing&&IsPlacement(action)&&!_hasCargo&&CargoMesh.Visible&&!_releasedCargo)
+        bool matchingParcel=_sceneContact.HasValue&&contactResource==_cargoKind;
+        if(newlyDone&&(!alreadyFinishing||newRun)&&IsPlacement(action)&&(!_hasCargo||matchingParcel)&&CargoMesh.Visible&&!_releasedCargo)
         {
             // Inventory has already committed. Retain only the parcel
             // already supported by the hands until the actor can set it down.
             _placementPending=true;_placementWait=0;
             _groundPlacement=action==ActionKind.Deposit;
+            _placementSurface=_sceneContact;
         }
     }
 
@@ -48,36 +55,38 @@ internal partial class ResidentRig
     {
         if(!_placementPending)return;
         _placementWait+=delta;
-        if(_placementWait>=2.5f){_placementPending=false;return;}
+        // A rendered warehouse entrance can lie outside the logical building
+        // tile. Allow the same approach budget as other committed gestures.
+        if(_placementWait>=(_placementSurface.HasValue?6f:2.5f)){_placementPending=false;return;}
         if(!targetAligned||!InteractionSettled||HandoffReserved)return;
         _placementPending=false;_placingCargo=true;
         _placementAge=_placementContact=0;
         _placementStart=new(_cargoLift,_cargoDepth);
-        if(_groundPlacement)PlanGroundPlacement();
+        if(PlacementUsesSurface)PlanGroundPlacement();
     }
 
     private void PlanGroundPlacement()
     {
         var actor=RigWorldSpace;
         _floorStart=HandWorldPose(1)*CargoMesh.Transform;
-        var point=actor*new Vector3(0,0,-.54f);
-        var ground=CargoGroundHeight?.Invoke(point.X,point.Z)??actor.Origin.Y;
+        var point=_placementSurface??actor*new Vector3(0,0,-.54f);
+        var ground=_groundPlacement?CargoGroundHeight?.Invoke(point.X,point.Z)??point.Y:point.Y;
         float below=Mathf.Clamp((actor.Origin.Y-ground)/actor.Basis.Y.Length(),0,.14f);
-        _floorDrop=.46f+below*.55f;
-        _floorLean=.91f+below*1.15f;
-        _floorCorrection=0;
-        point.Y=ground-CargoMesh.Mesh.GetAabb().Position.Y*actor.Basis.Y.Length()+.035f;
+        _floorDrop=(_groundPlacement?.46f:.36f)+below*.55f;
+        _floorLean=(_groundPlacement?.91f:.83f)+below*1.15f;
+        _floorCorrection=Vector3.Zero;
+        point.Y=ground-CargoMesh.Mesh.GetAabb().Position.Y*actor.Basis.Y.Length()+(_groundPlacement?.035f:.018f);
         var basis=new Basis(Vector3.Up,actor.Basis.Orthonormalized().GetEuler().Y);
         _floorGoal=new(basis.Scaled(actor.Basis.Scale),point);
     }
 
     private float GroundPlacementBody(float delta)
     {
-        _floorCrouch=Mathf.MoveToward(_floorCrouch,_placingCargo&&_groundPlacement?1:0,delta/.83f);
+        _floorCrouch=Mathf.MoveToward(_floorCrouch,_placingCargo&&PlacementUsesSurface?1:0,delta/.83f);
         return ReachEase(_floorCrouch);
     }
 
-    private Basis PlacementPalmBasis=>_placingCargo&&_groundPlacement
+    private Basis PlacementPalmBasis=>_placingCargo&&PlacementUsesSurface
         ?new Basis(CargoPalmBasis.GetRotationQuaternion().Slerp((Torso.Basis.Inverse()*CargoPalmBasis).GetRotationQuaternion(),Smooth(_floorCrouch)))
         :CargoPalmBasis;
 
@@ -102,11 +111,11 @@ internal partial class ResidentRig
     internal Vector3 CargoSupportTarget(int side)
     {
         var (left,right)=CargoSupports[_cargoKind];
-        if(_placingCargo&&_groundPlacement)
+        if(_placingCargo&&PlacementUsesSurface)
         {
             float descent=ReachEase((_placementAge-.08f)/1.04f);
             var parcel=_floorStart.InterpolateWith(_floorGoal,descent);
-            parcel.Origin+=Vector3.Up*_floorCorrection;
+            parcel.Origin+=_floorCorrection;
             var hand=(RigWorldSpace*Torso.Transform).AffineInverse()*(parcel*(side==0?left:right));
             // Use the last actual wrist basis. The anatomical wrist limit
             // can turn the underside contact away from the desired pose.
@@ -146,33 +155,49 @@ internal partial class ResidentRig
         }
         if(!_placingCargo)return;
         bool onFloor=true;
-        if(_groundPlacement)
+        if(PlacementUsesSurface)
         {
             var pose=HandWorldPose(1)*CargoMesh.Transform;
             var p=pose.Origin;
-            float ground=CargoGroundHeight?.Invoke(p.X,p.Z)??RigWorldSpace.Origin.Y;
+            float ground=_groundPlacement?CargoGroundHeight?.Invoke(p.X,p.Z)??RigWorldSpace.Origin.Y:_placementSurface!.Value.Y;
             float gap=p.Y+CargoMesh.Mesh.GetAabb().Position.Y*pose.Basis.Y.Length()-ground;
             if(CargoMesh.Visible&&(_placementAge>=1.12f||_placementAge>=.86f&&gap<.014f))
-                _floorCorrection=Mathf.Clamp(_floorCorrection+Math.Clamp(.014f-gap,-delta*.13f,delta*.13f),-.09f,.12f);
-            onFloor=gap is >=0 and <=.038f;
+            {
+                float verticalStep=delta*(_groundPlacement?.13f:.19f);
+                _floorCorrection.Y=Mathf.Clamp(_floorCorrection.Y+Math.Clamp(.014f-gap,-verticalStep,verticalStep),_groundPlacement?-.09f:-.14f,.12f);
+                if(_placementSurface.HasValue)
+                {
+                    var offset=_floorGoal.Origin-p;
+                    var planar=new Vector2(_floorCorrection.X,_floorCorrection.Z);
+                    planar=(planar+new Vector2(offset.X,offset.Z).LimitLength(delta*.16f)).LimitLength(.11f);
+                    _floorCorrection.X=planar.X;
+                    _floorCorrection.Z=planar.Y;
+                }
+            }
+            onFloor=gap is >=0 and <=.038f&&(!_placementSurface.HasValue
+                ||new Vector2(p.X-_floorGoal.Origin.X,p.Z-_floorGoal.Origin.Z).LengthSquared()<.065f*.065f);
         }
-        float readyAt=_groundPlacement?1.12f:.52f;
-        _placementContact=supported&&CargoMesh.Visible&&onFloor&&_placementAge>=readyAt?_placementContact+delta:0;
-        if(_placementContact>=.085f||_placementAge>=(_groundPlacement?2.25f:1.25f))
+        float readyAt=PlacementUsesSurface?1.12f:.52f;
+        // The parcel follows the solved palms. During a surface placement,
+        // the span error measures the actual two underside contacts after IK.
+        bool holdingParcel=PlacementUsesSurface?error<.021f:supported;
+        _placementContact=holdingParcel&&CargoMesh.Visible&&onFloor&&_placementAge>=readyAt?_placementContact+delta:0;
+        if(_placementContact>=.085f||_placementAge>=(PlacementUsesSurface?2.25f:1.25f))
         {
             bool releasedAtContact=_placementContact>=.085f;
             _placingCargo=false;
             if(releasedAtContact)
             {
                 _releasedCargo=true;
-                _releasedToGround=_groundPlacement;
+                if(_hasCargo)_cargoBlend=0;
+                _releasedOntoSurface=PlacementUsesSurface;
                 _releasedCargoTime=0;
                 var actor=IsInsideTree()?GlobalTransform:Transform;
                 _releasedCargoPose=actor*Torso.Transform*rightHand*CargoMesh.Transform;
                 var position=_releasedCargoPose.Origin;
-                if(_releasedToGround)
+                if(_releasedOntoSurface)
                 {
-                    float ground=CargoGroundHeight?.Invoke(position.X,position.Z)??actor.Origin.Y;
+                    float ground=_groundPlacement?CargoGroundHeight?.Invoke(position.X,position.Z)??actor.Origin.Y:_placementSurface!.Value.Y;
                     _releasedCargoFloor=ground-CargoMesh.Mesh.GetAabb().Position.Y*_releasedCargoPose.Basis.Y.Length();
                     _releasedCargoDuration=MathF.Sqrt(MathF.Max(0,position.Y-_releasedCargoFloor)/4.9f);
                 }
@@ -188,7 +213,7 @@ internal partial class ResidentRig
         var actor=IsInsideTree()?GlobalTransform:Transform;
         var hand=actor*Torso.Transform*Arms[1].Transform*Elbows[1].Transform*Hands[1].Transform;
         var pose=_releasedCargoPose;
-        if(_releasedToGround)
+        if(_releasedOntoSurface)
         {
             var orientation=pose.Basis.Orthonormalized();
             float yaw=orientation.GetEuler().Y;

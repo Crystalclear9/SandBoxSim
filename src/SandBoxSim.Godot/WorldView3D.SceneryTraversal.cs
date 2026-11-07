@@ -149,9 +149,9 @@ public partial class WorldView3D
         return true;
     }
 
-    private Vector3 SceneryWorkPosition(int x,int y,Vector3 logical,ActionKind action)
+    private Vector3 SceneryWorkPosition(int x,int y,Vector3 logical,ActionKind action,Vector3? recordedPoint=null)
     {
-        var focus=SceneResourceFocus(x,y,action);
+        var focus=recordedPoint??SceneResourceFocus(x,y,action);
         if(focus==logical)return logical;
         var p=Horizontal(focus);
         var corner=new Vector2I((int)MathF.Round(p.X*.5f),(int)MathF.Round(p.Y*.5f));

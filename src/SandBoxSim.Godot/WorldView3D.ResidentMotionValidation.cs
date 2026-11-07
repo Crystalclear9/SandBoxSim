@@ -4,6 +4,7 @@ using Godot;
 using SandBoxSim.Core.Agents;
 using SandBoxSim.Core.Environment;
 using SandBoxSim.Core.Foundation;
+using SandBoxSim.Core.Systems;
 
 namespace SandBoxSim.Client;
 
@@ -98,6 +99,139 @@ public partial class WorldView3D
         ValidateResidentStations(tiles.Goal,tiles.Corner,delta);
         ValidateProjectedResidentMotion(delta);
         ValidateSceneHandoff(tiles.Start,tiles.Corner,delta);
+        ValidateWorldStockContact(tiles.Start,delta);
+    }
+
+    internal void ValidateWorldStockContact()=>ValidateWorldStockContact(FindResidentMotionCorner().Start,1f/60);
+
+    private void ValidateWorldStockContact(Vector2I tile,float delta)
+    {
+        var sim=Game.Sim;var agents=sim.Agents;
+        if(sim.InterveneSpawnHumans(tile.X,tile.Y,1,1)!=1)
+            throw new InvalidOperationException("Stock contact fixture could not spawn a resident");
+        int slot=agents.AliveSlots().Last();
+        agents.SetLifeStage(slot,LifeStage.Adult);
+        agents.SetPosition(slot,tile.X,tile.Y);
+        agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
+        foreach(var kind in ResidentRig.CargoKinds)agents.SetInventory(slot,kind,0);
+        SyncEntities();
+        var rig=(ResidentRig)_people[sim.Society.Identity(slot)];
+        var logical=PositionAt(tile.X,tile.Y);
+        _target=logical;_distance=8;_pitch=.62f;UpdateCamera();
+        for(int i=0;i<3;i++)AnimateActors(delta);
+
+        float amount=Math.Min(2,sim.Config.GroundStocks.TakeAmount);
+        sim.GroundStocks.Deposit(tile.X,tile.Y,ResourceKind.Stone,amount,sim.Config.GroundStocks);
+        agents.SetAction(slot,ActionKind.Take,ActionPhase.Executing);
+        agents.SetTarget(slot,tile.X,tile.Y);
+        sim.Actions.Tick(sim.Clock);
+        if(agents.HasTarget(slot)||!sim.Actions.TryGetCompletedContact(slot,out var taken)
+            ||taken.Surface!=ActionSystem.ContactSurface.GroundStock||taken.Resource!=ResourceKind.Stone||taken.StockAmount!=amount
+            ||!TryActionContact(rig,ActionKind.Take,taken,logical,out var pickup,out var stand))
+            throw new InvalidOperationException("Take lost its actual resource and stock position on completion");
+        string committed=sim.StateDigestString();
+        float nearest=float.PositiveInfinity;
+        bool grasped=false,carrying=false;
+        int supportedLiftFrames=0;
+        for(int i=0;i<430;i++)
+        {
+            AnimateActors(delta);
+            float distance=(rig.HandWorldPose(1)*rig.Grip!.Position).DistanceTo(pickup);
+            nearest=Math.Min(nearest,distance);
+            if(rig.ScenePickupGrasped&&!grasped&&(!rig.InteractionSettled||distance>.067f))
+                throw new InvalidOperationException($"Ground grasp registered before supported contact: {distance:F3} m");
+            grasped|=rig.ScenePickupGrasped;
+            if(grasped&&rig.ScenePickupPieceVisible)supportedLiftFrames++;
+            if(rig.CargoMesh.Visible&&!grasped)throw new InvalidOperationException("New cargo appeared before the pickup hand reached the stock");
+            carrying|=rig.CargoMesh.Visible;
+        }
+        if(!grasped||!carrying||supportedLiftFrames<12||sim.StateDigestString()!=committed)
+            throw new InvalidOperationException($"World pickup failed: contact={nearest:F3} m, lift={supportedLiftFrames} frames, carrying={carrying}, stance={rig.Position.DistanceTo(stand):F3} m");
+
+        agents.SetAction(slot,ActionKind.Deposit,ActionPhase.Executing);
+        if(sim.Actions.TryGetCompletedContact(slot,out _))throw new InvalidOperationException("New action inherits an old stock site");
+        agents.SetTarget(slot,tile.X,tile.Y);
+        sim.Actions.Tick(sim.Clock);
+        if(!sim.Actions.TryGetCompletedContact(slot,out var placed)||placed.Resource!=ResourceKind.Stone
+            ||!TryActionContact(rig,ActionKind.Deposit,placed,logical,out var drop,out var dropStand))
+            throw new InvalidOperationException("Deposit lost its actual stock position on completion");
+        committed=sim.StateDigestString();
+        float release=float.PositiveInfinity;
+        int placementFrames=0,visiblePlacementFrames=0;
+        float closestPlacement=float.PositiveInfinity;
+        for(int i=0;i<360;i++)
+        {
+            AnimateActors(delta);
+            if(rig.PlacingCargo)
+            {
+                placementFrames++;
+                if(rig.CargoMesh.Visible)
+                {
+                    visiblePlacementFrames++;
+                    var pose=rig.HandWorldPose(1)*rig.CargoMesh.Transform;
+                    var basePoint=pose.Origin+Vector3.Up*rig.CargoMesh.Mesh.GetAabb().Position.Y*pose.Basis.Y.Length();
+                    closestPlacement=Math.Min(closestPlacement,basePoint.DistanceTo(drop));
+                }
+            }
+            if(!rig.ReleasedCargo)continue;
+            var parcel=(rig.HandWorldPose(1)*rig.CargoMesh.Transform).Origin;
+            release=Math.Min(release,Horizontal(parcel-drop).Length());
+        }
+        if(release>.067f||sim.StateDigestString()!=committed)
+            throw new InvalidOperationException($"World deposit released {release:F3} m away: placement {visiblePlacementFrames}/{placementFrames} frames, closest={closestPlacement:F3} m, stance={rig.Position.DistanceTo(dropStand):F3} m");
+
+        var warehouse=Enumerable.Range(0,sim.World.Width*sim.World.Height)
+            .Select(index=>new Vector2I(index%sim.World.Width,index/sim.World.Width))
+            .Where(site=>site!=tile&&site.X>=2&&site.Y>=2&&site.X<sim.World.Width-2&&site.Y<sim.World.Height-2
+                &&BuildingStore.CanPlaceAt(sim.World,BuildingKind.Storage,site.X,site.Y))
+            .OrderBy(site=>site.DistanceSquaredTo(tile))
+            .First(site=>SceneryPointClear(PositionAt(site.X,site.Y),1.7f));
+        int storage=sim.Buildings.Place(sim.World,BuildingKind.Storage,warehouse.X,warehouse.Y,10);
+        if(storage<0)throw new InvalidOperationException("Warehouse contact fixture could not place a warehouse");
+        sim.Buildings.MarkComplete(storage,sim.Clock);
+        sim.Storage.SetCapacity(storage,sim.Config.GroundStocks.DropAmount*4);
+        BuildBuildings();
+        var storageTile=PositionAt(warehouse.X,warehouse.Y);
+        agents.SetPosition(slot,warehouse.X,warehouse.Y);
+        agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
+        agents.SetInventory(slot,ResourceKind.Wood,sim.Config.GroundStocks.DropAmount+2);
+        rig.Position=storageTile;
+        _target=storageTile;UpdateCamera();
+        for(int i=0;i<180;i++)AnimateActors(delta);
+        agents.SetAction(slot,ActionKind.StoreInBuilding,ActionPhase.Executing);
+        agents.SetTarget(slot,warehouse.X,warehouse.Y);
+        sim.Actions.Tick(sim.Clock);
+        if(!sim.Actions.TryGetCompletedContact(slot,out var stored)||stored.Surface!=ActionSystem.ContactSurface.Storage
+            ||stored.Resource!=ResourceKind.Wood||agents.InventoryOf(slot,ResourceKind.Wood)<=0
+            ||!TryActionContact(rig,ActionKind.StoreInBuilding,stored,storageTile,out var crate,out var crateStand))
+            throw new InvalidOperationException("Partial warehouse transfer lost its accepted resource or crate");
+        committed=sim.StateDigestString();
+        float crateRelease=float.PositiveInfinity;
+        float closestCrate=float.PositiveInfinity;
+        Vector3 closestOffset=Vector3.Zero;
+        int cratePlacementFrames=0;
+        bool remainingCargoVisible=false;
+        for(int i=0;i<480;i++)
+        {
+            AnimateActors(delta);
+            if(rig.PlacingCargo&&rig.CargoMesh.Visible)
+            {
+                var held=rig.HandWorldPose(1)*rig.CargoMesh.Transform;
+                var offset=held.Origin+Vector3.Up*rig.CargoMesh.Mesh.GetAabb().Position.Y*held.Basis.Y.Length()-crate;
+                if(offset.Length()<closestCrate){closestCrate=offset.Length();closestOffset=offset;}
+                cratePlacementFrames++;
+            }
+            if(rig.ReleasedCargo)
+            {
+                var parcel=rig.HandWorldPose(1)*rig.CargoMesh.Transform;
+                var bottom=parcel.Origin+Vector3.Up*rig.CargoMesh.Mesh.GetAabb().Position.Y*parcel.Basis.Y.Length();
+                crateRelease=Math.Min(crateRelease,bottom.DistanceTo(crate));
+            }
+            else if(float.IsFinite(crateRelease)&&rig.CargoMesh.Visible)remainingCargoVisible=true;
+        }
+        if(crateRelease>.078f||!remainingCargoVisible||sim.StateDigestString()!=committed)
+            throw new InvalidOperationException($"World warehouse release missed its crate: gap={crateRelease:F3} m, closest={closestCrate:F3} m ({closestOffset:F3}) in {cratePlacementFrames} frames, stance={rig.Position.DistanceTo(crateStand):F3} m, remainder visible={remainingCargoVisible}");
+        GD.Print($"WORLD_STOCK_CONTACT_PASS: palm {nearest:F3} m from depleted stock, releases {release:F3} m from pile and {crateRelease:F3} m from crate, partial cargo recovers, presentation is read-only");
     }
 
     private void ValidateSceneHandoff(Vector2I giverTile,Vector2I receiverTile,float delta)

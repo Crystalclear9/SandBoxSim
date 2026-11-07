@@ -8,7 +8,8 @@ namespace SandBoxSim.Client;
 
 internal partial class ModelGallery
 {
-    private readonly List<(ResidentRig Rig,int Sequence,Label Readout,string Title,Camera3D Camera)> _interactionFlow=new();
+    private const float StudyPickupYaw=MathF.PI+.62f;
+    private readonly List<(ResidentRig Rig,int Sequence,Label Readout,string Title,Camera3D Camera,Node3D? Stock,Mesh? Piece)> _interactionFlow=new();
     private sealed class HandoffStudy(ResidentRig giver,ResidentRig receiver,Label readout)
     {
         internal readonly ResidentRig Giver=giver,Receiver=receiver;
@@ -42,15 +43,26 @@ internal partial class ModelGallery
                 new(sequence==1?-2.3f:1.3f,.06f,4),true);
             var column=grid.GetChild<VBoxContainer>(grid.GetChildCount()-1);
             var stage=column.GetChild<SubViewportContainer>(0).GetChild<SubViewport>(0).GetChild<Node3D>(0);
-            _interactionFlow.Add((rig,sequence,column.GetChild<Label>(1),title,stage.GetChild<Camera3D>(stage.GetChildCount()-1)));
+            var camera=stage.GetChild<Camera3D>(stage.GetChildCount()-1);
+            Node3D? stock=null;
+            if(sequence==0)
+            {
+                stock=models.GroundPile(ResourceKind.Stone,0);
+                stage.AddChild(stock);
+                var grip=NatureModels.GroundPileGrip(ResourceKind.Stone,0);
+                stock.Position=new Vector3(0,0,-.47f).Rotated(Vector3.Up,StudyPickupYaw)-new Vector3(grip.X,0,grip.Z);
+            }
+            _interactionFlow.Add((rig,sequence,column.GetChild<Label>(1),title,camera,stock,stock==null?null:models.GroundPickupPiece(ResourceKind.Stone,0)));
         }
     }
     private void AdvanceInteractionFlow(float dt)
     {
         float t=_elapsed%16.5f;
-        foreach(var (rig,sequence,readout,title,camera) in _interactionFlow)
+        foreach(var (rig,sequence,readout,title,camera,stock,piece) in _interactionFlow)
         {
             ActionKind action;ActionPhase phase;uint? revision=null;bool aligned=true;
+            Vector3? contact=null;
+            var resource=ResourceKind.None;
             if(sequence==0)
             {
                 // Take a real return walk so the loop never snaps the root.
@@ -60,23 +72,30 @@ internal partial class ModelGallery
                 var previous=rig.Position;rig.Position=new(0,0,travel-.82f);
                 float remaining=t<7.25f?.82f-travel:travel;
                 float yaw=rig.Rotation.Y;
-                const float pickupYaw=MathF.PI+.62f;
-                rig.PlanArrival(Vector3.Zero,pickup?pickupYaw:null);
+                rig.PlanArrival(Vector3.Zero,pickup?StudyPickupYaw:null);
                 if(pickup&&rig.TryGetArrivalFacing(out float facing))yaw=facing;
-                else if(pickup&&(rig.IsPivoting||rig.InteractionSettled))yaw=rig.AdvancePivot(yaw,pickupYaw,dt);
+                else if(pickup&&(rig.IsPivoting||rig.InteractionSettled))yaw=rig.AdvancePivot(yaw,StudyPickupYaw,dt);
                 else if(t>=5.30f&&t<7.25f||t>=9.20f&&t<11.05f)
                 {
                     if(rig.IsPivoting||rig.InteractionSettled)yaw=rig.AdvancePivot(yaw,t<7.25f?0:MathF.PI,dt);
                 }
                 else rig.FadePivot(dt);
                 rig.Rotation=new(0,yaw,0);
-                aligned=!pickup||MathF.Abs(Mathf.AngleDifference(yaw,pickupYaw))<=.40f;
+                aligned=!pickup||MathF.Abs(Mathf.AngleDifference(yaw,StudyPickupYaw))<=.40f;
                 rig.ObserveLocomotion(rig.Position-previous,dt,0,false,remaining);
                 bool placement=t>=11.05f&&t<15.4f;
-                rig.ShowCargo(t>=11.05f&&t<12.60f,ResourceKind.Wood);
+                bool collected=t>=2.25f&&t<12.60f;
+                rig.ShowCargo(collected,ResourceKind.Stone);
                 action=outbound||returning?ActionKind.Wander:pickup?ActionKind.Take:placement?ActionKind.Deposit:ActionKind.None;
-                phase=outbound||returning?ActionPhase.Moving:pickup||placement&&t<12.60f?ActionPhase.Executing:
-                    placement?ActionPhase.Done:ActionPhase.Idle;
+                phase=outbound||returning?ActionPhase.Moving:pickup&&!collected||placement&&collected?ActionPhase.Executing:
+                    pickup||placement?ActionPhase.Done:ActionPhase.Idle;
+                revision=outbound?1u:pickup?2u:returning?4u:placement?6u:t<7.25f?3u:5u;
+                if(phase==ActionPhase.Done)
+                {
+                    resource=ResourceKind.Stone;
+                    contact=pickup?stock!.Position+NatureModels.GroundPileGrip(resource,0):new Vector3(0,0,-.35f);
+                }
+                rig.SetPickupPiece(pickup?piece:null,true);
             }
             else
             {
@@ -85,13 +104,14 @@ internal partial class ModelGallery
                 revision=t<2.4f?1u:t<4.8f?2u:t<7.75f?3u:t<10.3f?4u:t<13.25f?5u:t<15.1f?6u:7u;
                 phase=revision==3?ActionPhase.Done:t<15.1f?ActionPhase.Executing:ActionPhase.Moving;
             }
-            rig.PresentAction(dt,action,phase,false,0,revision,targetAligned:aligned);
+            rig.PresentAction(dt,action,phase,false,0,revision,targetAligned:aligned,sceneContact:contact,contactResource:resource);
             if(sequence==0)
             {
-                float crouch=Mathf.SmoothStep(.10f,.44f,ResidentRig.HipHeight-rig.Legs[0].Position.Y);
-                var target=new Vector3(0,Mathf.Lerp(.84f,.45f,crouch),rig.Position.Z);
-                camera.Size=Mathf.Lerp(1.86f,.98f,crouch);
-                camera.Position=target+new Vector3(Mathf.Lerp(1.3f,3.7f,crouch),.14f,4);
+                stock!.Visible=t<5.30f&&!rig.ScenePickupGrasped;
+                float crouch=Mathf.SmoothStep(.16f,.45f,ResidentRig.HipHeight-rig.Legs[0].Position.Y);
+                var target=new Vector3(0,Mathf.Lerp(.84f,.52f,crouch),rig.Position.Z);
+                camera.Size=Mathf.Lerp(1.90f,1.16f,crouch);
+                camera.Position=target+new Vector3(Mathf.Lerp(1.8f,3.8f,crouch),.14f,4);
                 camera.LookAt(target);
             }
             string status=title+"\n"+rig.Handling;

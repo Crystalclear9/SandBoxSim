@@ -169,6 +169,7 @@ public partial class MainGame : Control
             try{if(_selfTest||_benchmarkSeconds>0||_capture.Length>0||_captureFrames.Length>0)throw new ArgumentException("Evaluation cannot be mixed with legacy capture/test modes");LoadEvaluation(evaluationPath.Substring(13));}
             catch(Exception ex){GD.PrintErr("EVALUATION_CONFIG_ERROR "+ex.Message);TraceEvaluationPhase("quit_requested");GetTree().Quit(2);SetProcess(false);return;}
         }
+        if(_selfTest&&OS.GetCmdlineUserArgs().Contains("--stock-contact-only"))_initialPopulation=0;
         NewWorld(_evaluation?.Seed??839102);
         TraceEvaluationPhase("world_initialized");
         if (_previewDays > 0) { AdvanceWorld(_previewDays * Sim.Config.Clock.TicksPerDay); }
@@ -746,6 +747,16 @@ public partial class MainGame : Control
     {
         try
         {
+            if(OS.GetCmdlineUserArgs().Contains("--stock-contact-only"))
+            {
+                Sim=new Simulation(Sim.Config.Clone(),30,30,13);
+                var worldView=(WorldView3D)_map;
+                worldView.ValidateWorldDimensions();
+                SetSpeed(ObservationSpeed);
+                worldView.ValidateWorldStockContact();
+                GetTree().Quit();
+                return;
+            }
             ValidateEvaluationContract();
             WorldView3D.ValidateGalleryIsolation(this);
             new NatureModels().ValidateCraftedModels();

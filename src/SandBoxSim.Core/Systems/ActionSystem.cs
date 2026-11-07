@@ -28,6 +28,11 @@ public sealed class ActionSystem
     private float[] _moveProgress = System.Array.Empty<float>();
     private (AgentRef Actor, uint Revision, AgentRef Partner)[] _presentedPartners =
         System.Array.Empty<(AgentRef, uint, AgentRef)>();
+    public enum ContactSurface : byte { GroundStock, NaturalResource, Storage }
+    public readonly record struct ActionContact(Int2 Tile, ResourceKind Resource, ContactSurface Surface, float StockAmount = 0,
+        int BuildingGeneration = 0);
+    private (AgentRef Actor, uint Revision, ActionContact Contact)[] _completedContacts =
+        System.Array.Empty<(AgentRef, uint, ActionContact)>();
 
     /// <summary>
     /// 读取某个个体的小数步进度（存档专用）。
@@ -54,6 +59,7 @@ public sealed class ActionSystem
     {
         for (int i = 0; i < _moveProgress.Length; i++) { _moveProgress[i] = 0f; }
         System.Array.Clear(_presentedPartners);
+        System.Array.Clear(_completedContacts);
     }
 
     /// <summary>本 tick 的移动次数与完成次数（性能与观测量）。</summary>
@@ -109,6 +115,7 @@ public sealed class ActionSystem
         if (_moveProgress.Length >= capacity) { return; }
         System.Array.Resize(ref _moveProgress, capacity);
         System.Array.Resize(ref _presentedPartners, capacity);
+        System.Array.Resize(ref _completedContacts, capacity);
     }
 
     /// <summary>
@@ -454,6 +461,8 @@ public sealed class ActionSystem
         Int2 position = _store.HasTarget(slot) ? _store.TargetOf(slot) : new Int2(_store.XOf(slot), _store.YOf(slot));
 
         float moved = 0f;
+        float largestDeposit = 0f;
+        ResourceKind displayed = ResourceKind.None;
         for (int kind = (int)ResourceKind.Food; kind <= (int)ResourceKind.Iron; kind++)
         {
             ResourceKind resource = (ResourceKind)kind;
@@ -466,6 +475,11 @@ public sealed class ActionSystem
 
             _store.AddInventory(slot, resource, -accepted);
             moved += accepted;
+            if (carried > largestDeposit)
+            {
+                largestDeposit = carried;
+                displayed = resource;
+            }
         }
 
         if (moved <= 0f)
@@ -476,6 +490,7 @@ public sealed class ActionSystem
         }
 
         TotalDeposited += moved;
+        RecordContact(slot, new(position, displayed, ContactSurface.GroundStock));
         _sim.Events.Record(tick, History.WorldEventType.ResourceInjected,
             _store.NameOrOverride(slot) + " 在 " + position + " 存放了 " + moved.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + " 物资",
             History.EventImportance.Minor,
@@ -639,6 +654,8 @@ public sealed class ActionSystem
         }
 
         float moved = 0f;
+        float largestDeposit = 0f;
+        ResourceKind displayed = ResourceKind.None;
         for (int kind = (int)ResourceKind.Food; kind <= (int)ResourceKind.Iron; kind++)
         {
             ResourceKind resource = (ResourceKind)kind;
@@ -651,6 +668,11 @@ public sealed class ActionSystem
 
             _store.AddInventory(slot, resource, -accepted);
             moved += accepted;
+            if (carried > largestDeposit)
+            {
+                largestDeposit = carried;
+                displayed = resource;
+            }
         }
 
         if (moved <= 0f)
@@ -660,6 +682,7 @@ public sealed class ActionSystem
         }
 
         StoresIntoBuilding++;
+        RecordContact(slot, new(position, displayed, ContactSurface.Storage, BuildingGeneration: _sim.Buildings.GenerationOf(buildingIndex)));
         Complete(slot, tick);
     }
 
@@ -671,12 +694,16 @@ public sealed class ActionSystem
         Int2 position = _store.HasTarget(slot) ? _store.TargetOf(slot) : new Int2(_store.XOf(slot), _store.YOf(slot));
 
         float moved = 0f;
+        int pile = stocks.FindAt(position.X, position.Y);
         for (int kind = (int)ResourceKind.Food; kind <= (int)ResourceKind.Iron; kind++)
         {
             ResourceKind resource = (ResourceKind)kind;
             if (_store.InventoryOf(slot, resource) >= config.TakeAmount) { continue; }
 
+            float before = pile >= 0 ? stocks.AmountOf(pile, resource) : 0;
             float taken = stocks.Withdraw(position.X, position.Y, resource, config.TakeAmount);
+            var surface = ContactSurface.GroundStock;
+            int buildingGeneration = 0;
 
             // # 地面堆没有就试**仓库**（M8 取粮链的最后一环）
             //
@@ -695,12 +722,15 @@ public sealed class ActionSystem
                     && _sim.Buildings.StateOf(storageIndex) == BuildingState.Complete)
                 {
                     taken = _sim.Storage.Withdraw(storageIndex, resource, config.TakeAmount);
+                    surface = ContactSurface.Storage;
+                    buildingGeneration = _sim.Buildings.GenerationOf(storageIndex);
                 }
             }
 
             if (taken <= 0f) { continue; }
 
             _store.AddInventory(slot, resource, taken);
+            RecordContact(slot, new(position, resource, surface, before, buildingGeneration));
             moved += taken;
             break;   // 一次只取一种，避免"一次把所有东西都搬空"
         }
@@ -831,6 +861,7 @@ public sealed class ActionSystem
         _store.AddInventory(slot, kind, taken);
         int index = (int)kind;
         if (index >= 0 && index < HarvestedByKind.Length) { HarvestedByKind[index] += taken; }
+        RecordContact(slot, new(target, kind, ContactSurface.NaturalResource));
 
         // 采集动作是"一次结算"：拿完就走，AI 会决定是继续采还是去做别的。
         // 这样行为更容易观察（每次采集都是一条事件），也避免个体在原地站一整天。
@@ -945,6 +976,21 @@ public sealed class ActionSystem
     //   * 重新找则自然表达"我去到那儿，和当时在那儿的人互动"。
     // 代价是同一个人可能在走到半路时换了对象 —— 而那恰恰是真实的行为。
     // ---------------------------------------------------------------------
+
+    private void RecordContact(int slot, ActionContact contact)
+        => _completedContacts[slot] = (_store.RefOf(slot), _store.ActionRevisionOf(slot), contact);
+
+    /// <summary>The site that supplied or received the resource on this completed action. Not saved.</summary>
+    public bool TryGetCompletedContact(int slot, out ActionContact contact)
+    {
+        contact = default;
+        if (!_store.IsSlotAlive(slot) || slot >= _completedContacts.Length || _store.PhaseOf(slot) != ActionPhase.Done)
+            return false;
+        var recorded = _completedContacts[slot];
+        if (!_store.IsValid(recorded.Actor) || recorded.Revision != _store.ActionRevisionOf(slot)) return false;
+        contact = recorded.Contact;
+        return true;
+    }
 
     /// <summary>Read-only current candidate using the execution rules, not a remembered partner or reservation.</summary>
     public bool TryGetInteractionPartner(int slot, out int partner)
