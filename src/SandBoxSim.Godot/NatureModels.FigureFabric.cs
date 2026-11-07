@@ -33,6 +33,15 @@ float stitches=princess*(1.0-smoothstep(top-.02,top,chart.y));
 stitches*=1.0-.85*smoothstep(1.04,1.09,chart.y)*(1.0-smoothstep(1.17,1.22,chart.y));
 outer*=1.0-stitches*.07;
 vec3 surface=mix(mix(linen,outer,panel),outer*1.03,edge*.12);
+// The coat's low collar is part of the sewn opening and follows its rest chart.
+if(cut==2){
+float front=max(0.0,-sin(a)),rear=max(0.0,sin(a));
+float rim=1.281-.0035*front*front+.009*rear*rear+.004*front-.005*cos(a)*cos(a)*(1.0-smoothstep(.10,.80,rear));
+float below=rim-chart.y;
+float facing=1.0-smoothstep(.008-aa,.013+aa,below);
+float folded_edge=1.0-smoothstep(.0006,.0014+aa,abs(below-.009));
+surface=mix(surface,outer*.74,facing*.72)+linen*.12*folded_edge;
+}
 // Placket lies on the skinned fabric chart, with a tapered stitched end.
 float end_height=cut==2?1.041:(cut==0?1.193:1.174);
 float lower_width=cut==2?.010:(cut==0?.0048:.006);

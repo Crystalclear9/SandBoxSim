@@ -158,7 +158,7 @@
 
 女性设计沿用自然匀称、曲线柔和的方向。胸前采用更宽的纵向重分配，来源前向塑形为宽缓的上胸与胸下接续；腰侧适度放松，后腰与后侧骨盆分别建立连续弧线，上腿外侧接入骨盆。关节辅助点固定，统一米制映射的总位移仍限于 18 毫米；来源测试在 1,620 个三维位置检查双侧对称、正向变形及原有 Jacobian 范围，不通过放宽上限获得通过。这里的比例和系数是角色美术选择，不是女性身体或吸引力的统一标准。
 
-`femaleShoulderLine=shared-crest-v1` 将领口往肩头的衣片落势延伸至袖山两侧。共享接缝在静止绑定姿态中一起圆顺，再生成蒙皮和抬臂修形，减少外肩高出台面的轮廓。领口边缘与袖口沿原有接触约束定位。`garmentMaterial=quiet-linen-v19` 将女性上衣的合成纱纹缩小至约毫米尺度，降低扫描纹理的对比和法线扰动，使轮廓与衣料细节分层呈现。[Blender 写实基模与放松绑定姿态](https://studio.blender.org/training/realistic-human-research/use-of-base-meshes/)
+`femaleShoulderLine=clavicular-crest-v2` 将女性成衣领口两侧各收低最多 5 毫米。锁骨到袖山的衣片以实际缝制三角面的水平投影为支撑，拟合局部曲面高度，保留领缘与袖口的接合和较宽的肩部曲率。拟合后再生成蒙皮与抬臂修形。`femaleCoatCollar=sewn-facing-v1` 将商人外套的低领翻边织线落在共用的衣面坐标上，随衣身一起变形。`garmentMaterial=quiet-linen-v19` 使用约毫米尺度的纱纹与低对比扫描纹理。[肩部骨性标志](https://anatomy4sculptors.com/blog/shoulder-bony-landmarks/) · [Blender 写实基模与放松绑定姿态](https://studio.blender.org/training/realistic-human-research/use-of-base-meshes/) · [伦敦博物馆的工作罩衫](https://www.londonmuseum.org.uk/collections/v/object-716265/smock/)
 
 `femaleLowerPanel=grain-fitted-waist-v1` 在同一件成衣上拟合下胸廓、侧腰和侧髋。每款首次建模时沿竖向布纹减小局部曲率，靠近腰带和下摆翻边时逐渐收紧位移范围。人体支撑与裤装的实际外包络限制内收。带下布量按各款剪裁从腰部释放，商人外套保留背面两道浅褶。缓存曲面用于成衣和腰带拟合，动作时由现有蒙皮和姿态修形驱动。[Disney 角色衣装的结构与垂坠](https://media.disneyanimation.com/technology/publications/2021/wrapped-clothing-on-disneys-raya-and-the-last-dragon.pdf)
 

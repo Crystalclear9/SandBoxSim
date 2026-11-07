@@ -187,7 +187,7 @@ internal sealed partial class NatureModels
         rig.Torso.AddChild(new MeshInstance3D { Mesh = Garment(), MaterialOverride = FigureGarmentMaterial(cloth) });
         // Collar, placket and the hem distinguish tailored cloth from the body's silhouette.
         if(!FittedFigure)Sculpt(rig.Torso,TurnedNeckline(),Vector3.Zero,CollarMaterial(cloth));
-        if(_garmentCut==2)foreach(float side in new[]{-1f,1f})
+        if(_garmentCut==2&&!FittedFigure)foreach(float side in new[]{-1f,1f})
             Sculpt(rig.Torso,CollarLeaf(side),Vector3.Zero,CollarMaterial(cloth));
         if(!FittedFigure)
         {

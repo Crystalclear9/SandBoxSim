@@ -119,7 +119,9 @@ internal sealed partial class NatureModels
         float depth=MathF.Sin(angle);
         float front=MathF.Max(0,-depth),rear=MathF.Max(0,depth);
         float cut=_garmentCut==2?.004f:_garmentCut==1?.001f:0;
-        return 1.281f-.0035f*front*front+.009f*rear*rear+cut*front;
+        float sides=MathF.Cos(angle);
+        return 1.281f-.0035f*front*front+.009f*rear*rear+cut*front
+            -.005f*sides*sides*(1-Mathf.SmoothStep(.10f,.80f,rear));
     }
 
     private void ShapeFemaleNeckline(Vector3[] points,int[] indices,Vector2[] pattern)
@@ -214,6 +216,8 @@ internal sealed partial class NatureModels
             clavicularPanel[i]=MathF.Max(clavicularPanel[i],crest);
         }
         FairRestSurface(points,indices,clavicularPanel,.007f,roundRelief:true);
+        foreach(var edge in opening)clavicularPanel[edge.From]=0;
+        FitFemaleClavicularCrest(points,indices,clavicularPanel);
         foreach(var edge in opening)
         {
             var point=points[edge.From];
@@ -228,6 +232,47 @@ internal sealed partial class NatureModels
             if(before.LengthSquared()>1e-20f&&before.Dot(after)<=0)
                 throw new InvalidOperationException("Shaped collar reverses a sewn triangle");
         }
+    }
+
+    private void FitFemaleClavicularCrest(Vector3[] points,int[] indices,float[] freedom)
+    {
+        // The shoulder is a height field over the horizontal plane here.
+        // Fit in that plane so the nearly horizontal fabric has the same
+        // support as the front of the bodice, without sampling through it.
+        var chart=Array.ConvertAll(points,p=>new Vector3(p.X,p.Z,1.20f-p.Y));
+        var heights=(Vector3[])chart.Clone();
+        var areas=new float[points.Length];
+        for(int t=0;t<indices.Length;t+=3)
+        {
+            int a=indices[t],b=indices[t+1],c=indices[t+2];
+            float projected=MathF.Abs((chart[b]-chart[a]).Cross(chart[c]-chart[a]).Z)/6;
+            areas[a]+=projected;areas[b]+=projected;areas[c]+=projected;
+        }
+        var target=new float[points.Length];var correction=new float[points.Length];
+        int count=0;double before=0,after=0;float maximum=0;
+        for(int i=0;i<points.Length;i++)
+        {
+            var point=points[i];
+            // The sewn back panel already has its own longitudinal fit.
+            float blend=freedom[i]*(1-TorsoRamp(.022f,.055f,point.Z)*(1-TorsoRamp(.036f,.080f,MathF.Abs(point.X))));
+            if(blend<=0||!TryBodicePatch(chart,areas,i,out float height))continue;
+            float offset=height-chart[i].Z;
+            correction[i]=Math.Clamp(offset,-.003f,.012f)*blend;
+            if(correction[i]==0)continue;
+            target[i]=height;
+            before+=offset*offset;count++;
+        }
+        ApplyBodiceDepth(heights,chart,indices,correction);
+        for(int i=0;i<points.Length;i++)
+        {
+            if(correction[i]==0)continue;
+            float move=chart[i].Z-heights[i].Z;
+            points[i].Y+=move;maximum=MathF.Max(maximum,MathF.Abs(move));
+            float residual=target[i]-heights[i].Z;after+=residual*residual;
+        }
+        if(count<24||after>=before||maximum<.001f||maximum>.01201f)
+            throw new InvalidOperationException("Clavicular yoke did not reduce the upper garment crest within its fit bounds");
+        GD.Print($"CLAVICULAR_YOKE_PASS: cut={_garmentCut}, {count} actual upper-cloth vertices, height residual {Math.Sqrt(before/count)*1000:F2} → {Math.Sqrt(after/count)*1000:F2} mm, peak edit {maximum*1000:F2} mm, fixed opening");
     }
 
     private static void FoldFemaleNeckline(Godot.Collections.Array arrays,ref Vector3[] points,ref Vector2[] pattern)
