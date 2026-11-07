@@ -160,7 +160,7 @@
 
 `femaleShoulderLine=shared-crest-v1` 将领口往肩头的衣片落势延伸至袖山两侧。共享接缝在静止绑定姿态中一起圆顺，再生成蒙皮和抬臂修形，减少外肩高出台面的轮廓。领口边缘与袖口沿原有接触约束定位。`garmentMaterial=quiet-linen-v19` 将女性上衣的合成纱纹缩小至约毫米尺度，降低扫描纹理的对比和法线扰动，使轮廓与衣料细节分层呈现。[Blender 写实基模与放松绑定姿态](https://studio.blender.org/training/realistic-human-research/use-of-base-meshes/)
 
-`garmentFit=continuous-drape-v38` 的 `femaleLowerPanel=grain-fitted-waist-v1` 在同一件成衣上拟合下胸廓、侧腰和侧髋。每款首次建模时沿竖向布纹减小局部曲率，靠近腰带和下摆翻边时逐渐收紧位移范围。人体支撑与裤装的实际外包络限制内收。带下布量按各款剪裁从腰部释放，商人外套保留背面两道浅褶。缓存曲面用于成衣和腰带拟合，动作时由现有蒙皮和姿态修形驱动。[Disney 角色衣装的结构与垂坠](https://media.disneyanimation.com/technology/publications/2021/wrapped-clothing-on-disneys-raya-and-the-last-dragon.pdf)
+`femaleLowerPanel=grain-fitted-waist-v1` 在同一件成衣上拟合下胸廓、侧腰和侧髋。每款首次建模时沿竖向布纹减小局部曲率，靠近腰带和下摆翻边时逐渐收紧位移范围。人体支撑与裤装的实际外包络限制内收。带下布量按各款剪裁从腰部释放，商人外套保留背面两道浅褶。缓存曲面用于成衣和腰带拟合，动作时由现有蒙皮和姿态修形驱动。[Disney 角色衣装的结构与垂坠](https://media.disneyanimation.com/technology/publications/2021/wrapped-clothing-on-disneys-raya-and-the-last-dragon.pdf)
 
 女性工装与短上衣的前后下摆分别以最多 18／12 毫米圆顺，短上衣下摆最低处为 0.842 米；腰带按来源自然腰线拟合，袖口沿用原有挂点。女性裤装采用低饱和灰橄榄色 `#656356`，配合来源骨盆和腿部截面显示体积；男性裤装保持原染色。
 
@@ -182,7 +182,9 @@
 
 三款女性衣装的后片从肩胛外缘沿袖窿过渡到上臂。拟合时同时比较衣片的朝向、沿袖片的位置及其与身体支撑的距离，让后肩保留应有的活动余量。成品后片、袖根和抬臂形态使用同一个局部圆顺范围，领缘与远端袖口保留原位。近景法线从最终网格计算。
 
-后领至肩胛的蒙皮权重按衣片网格的邻接边平滑过渡。短边两端的权重变化受到更强约束，领缘、袖根接缝和腰部保留各自的固定权重。手臂越过肩高时，后片沿衣片分散相邻点的位移，同时保留大部分静止褶纹。成品修形及其法线在构建网格时缓存。这里借鉴了沿网格扩散蒙皮权重的方法，以及实测抬臂时肩胛的上旋与后倾。 [蒙皮权重扩散](https://dspace.mit.edu/entities/publication/02216671-1424-4552-a2d3-74cec29e2062) · [抬臂中的肩胛运动](https://pmc.ncbi.nlm.nih.gov/articles/PMC2841046/)
+`garmentFit=continuous-drape-v39` 的 `femaleRearShoulder=supported-meridians-v1` 从实际成衣量取 25 条后片剖线，用后领下缘和肩胛附近的切线拟合纵向过渡。向内位移最多 10 毫米，向外最多 3 毫米，修改集中在中央上背，到后领和袖根前逐渐退出。局部回退保持面朝向。成品网格上的后领相对突出量上限为 8 毫米，核对三款衣装和三条中央后片剖线。
+
+后领至肩胛的蒙皮权重按衣片网格的邻接边平滑过渡。短边两端的权重变化受到更强约束，领缘、袖根接缝和腰部保留各自的固定权重。抬臂修形从更新后的成衣网格生成，手臂越过肩高时，后片沿邻接点分散位移。成品修形及其法线在构建网格时缓存。抬臂设计参考实测肩胛上旋和后倾，以及按姿态塑造衣装的方法。 [抬臂时的锁骨和肩胛实测](https://pmc.ncbi.nlm.nih.gov/articles/PMC2657311/) · [Blender Studio 衣装姿态塑形](https://studio.blender.org/training/realistic-human-research/clothing-shapes/)
 
 [肩背图册](../../benchmarks/scenarios/visual-female-shoulders.json) 使用实际居民模型，从背面观察右臂，从后侧观察左臂，分别展示自然垂臂、抬臂 90° 和 135°。衣片设计参考肩缝与袖窿的分区松量实验，以及运动中衣料松量变化的测量。 [缝线三维形态实验](https://doi.org/10.1186/s40691-023-00364-6) · [服装动态松量研究](https://doi.org/10.1177/0040517519832842)
 

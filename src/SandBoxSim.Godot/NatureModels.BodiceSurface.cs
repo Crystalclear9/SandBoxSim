@@ -169,9 +169,54 @@ internal sealed partial class NatureModels
         ApplyBodiceDepth(points,(Vector3[])points.Clone(),indices,delta);
     }
 
+    private static void FitFemaleRearDrape(Vector3[] points,int[] indices,Vector2[] pattern)
+    {
+        const int columns=25;
+        const float spacing=.006f,halfWidth=.072f,probe=.006f;
+        var lower=new Vector2[columns];
+        var upper=new Vector2[columns];
+        var samples=new Vector4[columns];
+        for(int col=0;col<columns;col++)
+        {
+            float x=col*spacing-halfWidth;
+            float shoulder=TorsoRamp(.018f,.120f,MathF.Abs(x));
+            float low=1.169f+.010f*shoulder,high=1.282f-.034f*shoulder;
+            float Depth(float height)=>GarmentDepth(points,indices,x,height,true);
+            lower[col]=new(low,Depth(low));
+            upper[col]=new(high,Depth(high));
+            samples[col]=new(Depth(low-probe),Depth(low+probe),Depth(high-probe),Depth(high+probe));
+        }
+
+        var delta=new float[points.Length];
+        for(int i=0;i<points.Length;i++)
+        {
+            var p=points[i];
+            if(pattern[i].X>=0||p.Z<.020f||MathF.Abs(p.X)>=halfWidth||p.Y<1.169f||p.Y>=1.282f)continue;
+            float column=Math.Clamp((p.X+halfWidth)/spacing,0,columns-1);
+            int col=Math.Min((int)column,columns-2);
+            float fraction=column-col;
+            var a=lower[col].Lerp(lower[col+1],fraction);
+            var b=upper[col].Lerp(upper[col+1],fraction);
+            var depths=samples[col].Lerp(samples[col+1],fraction);
+            if(!a.IsFinite()||!b.IsFinite()||!depths.IsFinite()||p.Y<=a.X||p.Y>=b.X)continue;
+            float length=b.X-a.X,t=(p.Y-a.X)/length,t2=t*t,t3=t2*t;
+            float startSlope=Math.Clamp((depths.Y-depths.X)/(2*probe),-.60f,.38f);
+            float endSlope=Math.Clamp((depths.W-depths.Z)/(2*probe),-.85f,.30f);
+            // Bridge the collar and upper back along the cloth grain, with
+            // tangents from the actual two supports. Keep the sewn neckline
+            // and outer shoulder fixed as the depth fit fades out.
+            float target=(2*t3-3*t2+1)*a.Y+(t3-2*t2+t)*length*startSlope
+                +(-2*t3+3*t2)*b.Y+(t3-t2)*length*endSlope;
+            float band=TorsoRamp(0,.22f,t)*(1-TorsoRamp(.78f,1,t));
+            float side=1-TorsoRamp(.043f,.068f,MathF.Abs(p.X));
+            delta[i]=Math.Clamp(target-p.Z,-.010f,.003f)*band*side*TorsoRamp(.020f,.042f,p.Z);
+        }
+        ApplyBodiceDepth(points,(Vector3[])points.Clone(),indices,delta);
+    }
+
     private static void ApplyBodiceDepth(Vector3[] points,Vector3[] rest,int[] indices,float[] delta)
     {
-        // A slender cap triangle must not undo the whole front-panel edit.
+        // A slender cap triangle must not undo the whole panel edit.
         // Backtrack its own vertices; recheck the boundary on the next pass.
         var gain=new float[points.Length];Array.Fill(gain,1);
         for(int attempt=0;attempt<64;attempt++)

@@ -36,7 +36,7 @@
 |---|---|---|
 | 成人体型与女性衣身 | `visual-body-frames`、`visual-thorax-frames` 第 90 帧。全身图对照腰背、骨盆和上腿。女性近景从正面、三刻面与侧面对照下胸廓至侧髋的垂坠 | [全身三视图](resident-body-frames.png) · [女性衣身近景](resident-thorax-detail.png) |
 | 女性个人身形 | `visual-female-builds` 第 90 帧。同一居民、同一身高和衣装的三种胸腰髋轮廓。正面与侧面采用同一正交尺度，画面覆盖肩部至膝部附近 | [女性身形对照](resident-female-builds.png) |
-| 女性肩背与袖根 | `visual-female-shoulders` 第 90 帧。右肩背面和左肩后侧分别对照自然垂臂、抬臂 90° 和 135° | [女性肩背近景](resident-female-shoulders.png) |
+| 女性肩背与袖根 | `visual-female-shoulders` 第 90 帧。右肩背面和左肩后侧分别对照自然垂臂、抬臂 90° 和 135° 下的后领和肩胛过渡 | [女性肩背近景](resident-female-shoulders.png) |
 | 成人头脸 | `visual-faces`、`visual-face-frames` 第 90 帧 | [三种头脸](resident-face-detail.png) · [成人外观对照](resident-face-frames.png) |
 | 三种职业衣装 | `visual-wardrobe`、`visual-female-wardrobe` 第 90 帧。男性图册展示正背面，女性图册从前侧与后侧观察腰下垂坠、侧髋和下摆翻边 | [男性成衣](wardrobe-detail.png) · [女性成衣](resident-female-wardrobe.png) |
 | 手部、前臂和腕部 | `visual-hands`、`visual-forearm-frames` 第 90 帧，`visual-wrist-motion` 第 150 帧。前臂和腕部图从手背、掌侧与侧面对照女性近腕的曲面和光照过渡 | [握持](resident-hand-detail.png) · [前臂三视图](resident-forearm-frames.png) · [手掌与腕部近景](resident-wrist-motion.png) |
@@ -45,7 +45,7 @@
 | 交谈、递交与进食 | `visual-social` 第 150 帧 | [生活动作](resident-social.png) |
 | 同工具与不同疲劳状态 | `visual-work-effort` 第 180 帧 | [作业姿态](resident-work-effort.png) |
 | 到站、工具与双人递物 | `visual-handling-transitions` 第 126 帧展示两种成人体型的锤头接触木桩后收势，以及接收者伸手。第 222 帧展示手已就位、等待取用的状态，第 822 帧展示双手下放石料袋 | [交互衔接](resident-handling-transitions.png) |
-| 上肢连动与抬手 | `visual-arm-articulation` 第 270 帧，`visual-shoulder-elevation` 第 108 帧对照 135° 高举时的领口、袖根和胸侧，`visual-shoulder-motion` 第 156 帧 | [肩肘腕](resident-arm-junctions.png) · [抬臂近景](resident-shoulder-elevation.png) · [作业肩袖](resident-shoulder-motion.png) |
+| 上肢连动与抬手 | `visual-arm-articulation` 第 270 帧，`visual-shoulder-elevation` 第 126 帧对照 135° 高举时的领口、袖根和胸侧，`visual-shoulder-motion` 第 156 帧 | [肩肘腕](resident-arm-junctions.png) · [抬臂近景](resident-shoulder-elevation.png) · [作业肩袖](resident-shoulder-motion.png) |
 | 空闲伸展、摆臂与屈肘 | `visual-captured-stretch` 第 110 帧，`visual-arm-swing` 第 150 帧，`visual-upper-arm-flex`、`visual-elbow-joint` 第 270 帧 | [伸展](resident-captured-stretch.png) · [摆臂](resident-arm-swing.png) · [上臂](resident-upper-arm-flex.png) · [肘部](resident-elbow-joint.png) |
 | 服装配件、职业动作和左右手 | 客户端预览 `--panel=equipment`、`--panel=actions`、`--panel=forearms`、`--panel=handedness` | [配件](resident-equipment.png) · [职业动作](resident-garment-actions.png) · [前臂](resident-forearm-detail.png) · [左右手](resident-handedness.png) |
 

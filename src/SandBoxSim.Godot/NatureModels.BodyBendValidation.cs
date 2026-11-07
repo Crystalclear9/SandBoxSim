@@ -161,7 +161,7 @@ internal sealed partial class NatureModels
             finally{rig.Free();}
         }
         if(sway<.005f||knee<.05f||knee>.12f)throw new InvalidOperationException("Relaxed stance locks the knees or crouches from the shoe-origin offset");
-        if(backYoke<=0||backYoke>.012f)
+        if(backYoke<=0||backYoke>.008f)
             throw new InvalidOperationException($"Female rear yoke retains a protruding collar shelf: {backYoke*1000:F2} mm");
         if(lumbarSlope<=0||lumbarSlope>.655f)
             throw new InvalidOperationException($"Female rear waist returns too steeply from the upper seat: {lumbarSlope:F3} m/m");

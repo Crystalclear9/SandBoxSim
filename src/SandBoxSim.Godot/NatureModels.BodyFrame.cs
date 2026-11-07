@@ -254,6 +254,7 @@ internal sealed partial class NatureModels
                     ShapeFemaleNeckline(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
                     CompleteBodiceSurface(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
                     FairRearShoulderPanel(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
+                    FitFemaleRearDrape(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
                 }
                 sleeveDistance=SleeveDistances(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
             }
