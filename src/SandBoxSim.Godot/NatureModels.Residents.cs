@@ -261,7 +261,7 @@ internal sealed partial class NatureModels
             var knee = rig.Knees[i] = new Node3D { Name = "Knee", Position = new Vector3(0, -.31f, 0) }; leg.AddChild(knee);
             var shaftLeather=LeatherSurface(FittedFigure?"#493e34":"#514237");
             Sculpt(knee,ResidentBootShaft(),Vector3.Zero,shaftLeather,new(MathF.PI/2,0,0));
-            Sculpt(knee,TurnedBootRim(),Vector3.Zero,shaftLeather);
+            Sculpt(knee,TurnedBootRim(),FittedFigure?new Vector3(0,0,FemaleBootMouthDepth):Vector3.Zero,shaftLeather);
             var foot=rig.Feet[i]=new Node3D {Name="Foot",Position=new(0,-.295f,-.04f)};knee.AddChild(foot);
             Sculpt(foot,BootLast(false),Vector3.Zero,FittedFigure?shaftLeather:LeatherSurface("#423a32"));
             Sculpt(foot,BootLast(true),Vector3.Zero,LeatherSurface("#302e28"));

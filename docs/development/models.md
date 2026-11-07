@@ -913,7 +913,7 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 
 `FRAME_READABILITY_PASS` 测量当前两套成人设计穿衣后的正面骨盆宽度差（至少 14 毫米）与穿衣后的胸廓峰值（高度至少 1.145 米、相对腰部投影至少 8 毫米），同时保留来源间隙、近远景和三款衣装的原有检查。阈值仅用于当前角色轮廓回归，防止衣装拟合抹去设计差异，不作为人体分类或审美分数。实际游戏画面的辨识仍结合正常视距、光照与动作观察。
 
-成年女性的靴筒采用独立版型。宽度与前后深度沿小腿分别变化，后侧在小腿肚较饱满，向踝部连续收窄。靴口前高后低，薄折边跟随相同高度场，靴筒末段逐渐埋入鞋面。鞋面、鞋底、鞋舌、缝线和鞋带共用同一鞋楦映射，前掌缩短 14 毫米，步态继续使用同一组鞋底接触曲线。`FEMALE_BOOT_FIT_PASS` 核对两只靴底及裤脚重叠，`FEMALE_SHAFT_PASS` 从成品网格测量小腿肚到脚踝的变化，并在九种踝部角度检查靴筒末段与鞋面包覆。造型参考小腿后侧向跟腱收窄的结构和皮靴的穿着轮廓。[小腿表面结构](https://www.ncbi.nlm.nih.gov/books/NBK459362/) · [大都会博物馆皮靴藏品](https://www.metmuseum.org/art/collection/search/156205)
+成年女性的 `femaleLowerLeg=mid-calf-boot-v1` 使用前高后低的中筒靴口。原裤管的下段连续伸入靴口，重新拟合小腿前后截面、接缝坐标和蒙皮权重。小腿后侧的体积高于靴缘，前侧沿胫骨收窄，裤脚与靴筒随同一胫骨旋转。靴筒顶缘使用开放的翻边，末段埋入鞋面。鞋面、鞋底、鞋舌、缝线和鞋带共用同一鞋楦映射，步态读取实际鞋底接触曲线。`FEMALE_MID_CALF_PASS` 检查两只靴口的高度、小腿截面和裤脚包覆，`FEMALE_SHAFT_PASS` 在九种踝部角度复核靴筒末段与鞋面接合。[小腿表面形体](https://www.proko.com/course-lesson/how-to-draw-the-lower-leg-anatomy-for-artists) · [步态中的下肢截面变化研究](https://kjournal.co.kr/_common/do.php?a=full&aidx=19566&b=12&bidx=1544) · [博物馆中筒步行靴](https://collectionsportal.northwestmuseum.org/document/woman-s-brown-leather-walking-boots/666c014e2863bc4c5f81def6?pgn=2&pos=36&topics%5B0%5D=Footwear&v=list)
 
 `garmentFit=continuous-drape-v31` 将女性前领中央的修形项最多下移 12 毫米，领缘、门襟与衣身通过共同 `FramePoint` 映射贴合；肩袖、身体来源及头脸颈部保持各自原有来源。前领中央向两侧和上胸连续退出修形，避免独立移动领圈。儿童不应用成人小腿与鞋部修形。
 

@@ -1,6 +1,6 @@
 # SandBoxSim 实机图册
 
-本页配图来自 2026-11-06 的 SandBoxSim 客户端。基础配图对应 `b396be219d860f4997484a092d051009afa97659`，后续批次更新了抬臂、作业肩袖、女性成衣、靴筒与全身图。全身三视图与姿势图包含按腿部截面重塑的女性裤装。各批均使用 Godot 4.7.2 .NET 和 GL Compatibility，静态图默认 1600×1000。地图和人物观察窗使用世界中的实际对象，模型图册使用与世界共用的网格和控制器。帧号为从零开始的表现帧。
+本页配图来自 SandBoxSim 客户端。基础配图对应 `b396be219d860f4997484a092d051009afa97659`，后续批次更新了抬臂、作业肩袖、女性成衣和全身图。全身三视图与姿势图展示女性中筒靴、裤脚和膝下轮廓。各批均使用 Godot 4.7.2 .NET 和 GL Compatibility，静态图默认 1600×1000。地图和人物观察窗使用世界中的实际对象，模型图册使用与世界共用的网格和控制器。帧号为从零开始的表现帧。
 
 ## 世界与操作界面
 
@@ -40,7 +40,7 @@
 | 成人头脸 | `visual-faces`、`visual-face-frames` 第 90 帧 | [三种头脸](resident-face-detail.png) · [成人外观对照](resident-face-frames.png) |
 | 三种职业衣装 | `visual-wardrobe`、`visual-female-wardrobe` 第 90 帧。女性图册展示领口与袖山、低领外套的翻边，以及三个款式的门襟、腰下垂坠和下摆 | [男性成衣](wardrobe-detail.png) · [女性成衣](resident-female-wardrobe.png) |
 | 手部、前臂和腕部 | `visual-hands`、`visual-forearm-frames` 第 90 帧，`visual-wrist-motion` 第 150 帧。前臂和腕部图从手背、掌侧与侧面对照女性近腕的曲面和光照过渡 | [握持](resident-hand-detail.png) · [前臂三视图](resident-forearm-frames.png) · [手掌与腕部近景](resident-wrist-motion.png) |
-| 静立、步行与拾取 | `visual-body-motion` 第 90 帧，可观察弯身时胸廓、骨盆和双膝的配合，以及裤装在屈髋处的变化 | [全身姿势](resident-body-motion.png) |
+| 静立、步行与拾取 | `visual-body-motion` 第 90 帧，展示静立与屈膝时的裤管轮廓、裤脚和靴口接合，以及弯身时胸廓与骨盆的配合 | [全身姿势](resident-body-motion.png) |
 | 同速步行、搬运和持锤 | `visual-locomotion` 第 180 帧 | [步态对照](resident-style-walk.png) |
 | 交谈、递交与进食 | `visual-social` 第 150 帧 | [生活动作](resident-social.png) |
 | 同工具与不同疲劳状态 | `visual-work-effort` 第 180 帧 | [作业姿态](resident-work-effort.png) |

@@ -5,7 +5,7 @@ namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
     // Profiles run along local Z: z, center height, half width, half height.
-    private Mesh Loft(string key, Vector4[] profiles, int sides = 32)
+    private Mesh Loft(string key, Vector4[] profiles, int sides = 32, bool openStart = false)
     {
         if (_meshes.TryGetValue(key, out var cached)) return cached;
         if (profiles[0].X > profiles[^1].X) Array.Reverse(profiles);
@@ -52,7 +52,10 @@ internal sealed partial class NatureModels
         { Vertex(r,c); Vertex(r+1,c); Vertex(r,c+1); Vertex(r,c+1); Vertex(r+1,c); Vertex(r+1,c+1); }
         for(int side=0;side<sides;side++)
         {
-            tool.SetUV(new(.5f,.5f)); tool.AddVertex(new Vector3(0,profiles[0].Y,profiles[0].X)); Vertex(0,side); Vertex(0,side+1);
+            if(!openStart)
+            {
+                tool.SetUV(new(.5f,.5f)); tool.AddVertex(new Vector3(0,profiles[0].Y,profiles[0].X)); Vertex(0,side); Vertex(0,side+1);
+            }
             tool.SetUV(new(.5f,.5f)); tool.AddVertex(new Vector3(0,profiles[^1].Y,profiles[^1].X)); Vertex(profiles.Length-1,side+1); Vertex(profiles.Length-1,side);
         }
         tool.GenerateNormals(); tool.Index(); var mesh = tool.Commit(); _meshes[key] = mesh; return mesh;

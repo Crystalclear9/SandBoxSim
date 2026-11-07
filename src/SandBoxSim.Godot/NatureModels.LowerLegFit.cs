@@ -5,16 +5,18 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
+    private const float FemaleBootMouth=.100f,FemaleBootMouthDepth=.010f;
+
     private Mesh ResidentBootShaft()
     {
         var profile=FittedFigure
-            ?new[]{new Vector4(.019f,0,.047f,.044f),new(.040f,.001f,.048f,.045f),
-                new(.084f,.008f,.051f,.050f),new(.115f,.010f,.051f,.051f),new(.150f,.007f,.046f,.046f),
+            ?new[]{new Vector4(FemaleBootMouth+.003f,FemaleBootMouthDepth,.051f,.050f),
+                new(.119f,.010f,.051f,.051f),new(.150f,.007f,.046f,.046f),
                 new(.200f,-.001f,.039f,.038f),new(.246f,-.010f,.034f,.032f),new(.270f,-.017f,.034f,.035f),
                 new(.293f,-.024f,.032f,.037f),new(.309f,-.031f,.018f,.025f)}
             :new[]{new Vector4(0,0,.047f,.044f),new(.035f,0,.052f,.048f),new(.085f,-.002f,.057f,.052f),
                 new(.15f,-.005f,.052f,.048f),new(.21f,-.010f,.045f,.045f),new(.25f,-.015f,.043f,.044f),new(.28f,-.012f,.047f,.048f)};
-        return FittedFigure?Loft("contoured-resident-boot",profile,40):Loft("resident-boot:False",profile);
+        return FittedFigure?Loft("female-mid-calf-boot",profile,40,openStart:true):Loft("resident-boot:False",profile);
     }
 
     private static Vector3 FemaleBootPoint(Vector3 point,bool shoe)
@@ -26,10 +28,11 @@ internal sealed partial class NatureModels
             float toe=.014f*(1-Mathf.SmoothStep(-.170f,.052f,point.Z));
             return new(point.X*.90f,point.Y,point.Z+toe);
         }
-        // The shaped opening rises at the shin and drops behind the knee.
+        // The shaped opening rises at the shin and drops toward the calf.
         // The same height field carries the rim and outer leather.
-        float opening=1-Mathf.SmoothStep(.025f,.090f,-point.Y);
-        float slope=.003f-.008f*Mathf.SmoothStep(-.038f,.042f,point.Z);
+        float rim=FemaleBootMouth*(ResidentRig.ShinLength/.295f);
+        float opening=1-Mathf.SmoothStep(rim+.008f,rim+.048f,-point.Y);
+        float slope=.003f-.008f*Mathf.SmoothStep(-.038f,.042f,point.Z-FemaleBootMouthDepth);
         return new(point.X,point.Y+opening*slope,point.Z);
     }
 
@@ -38,7 +41,7 @@ internal sealed partial class NatureModels
         if(BodyFrame!=1||rig.IsChild)return;
         Mesh Fit(Mesh source,Transform3D space,bool shoe)
         {
-            string key="female-lower-leg-v3:"+source.GetInstanceId()+":"+space+":"+shoe;
+            string key="female-lower-leg-v4:"+source.GetInstanceId()+":"+space+":"+shoe;
             if(_meshes.TryGetValue(key,out var cached))return cached;
             var mesh=new ArrayMesh();var inverse=space.AffineInverse();
             Vector3 Map(Vector3 p)=>FemaleBootPoint(p,shoe);
@@ -92,20 +95,48 @@ internal sealed partial class NatureModels
                     throw new InvalidOperationException($"Female boot contact sample {i} differs from the rendered outsole: {heights[i]}/{fitted[i].Y}");
             }
         }
-        var trousers=female.Trousers!.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
-        float overlap=float.PositiveInfinity;
+        var cloth=female.Trousers!.Mesh.SurfaceGetArrays(0);
+        var trousers=cloth[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var bones=cloth[(int)Mesh.ArrayType.Bones].AsInt32Array();
+        var weights=cloth[(int)Mesh.ArrayType.Weights].AsFloat32Array();
+        const float kneeHeight=ResidentRig.HipHeight-ResidentRig.ThighLength;
+        const float previousFemaleMouth=.402f;
+        float overlap=float.PositiveInfinity,lowered=float.PositiveInfinity;
         for(int side=0;side<2;side++)
         {
             float bottom=float.PositiveInfinity,top=float.NegativeInfinity;
-            foreach(var point in trousers)if((point.X<0)==(side==0))bottom=MathF.Min(bottom,point.Y);
-            var knee=female.Knees[side];
-            foreach(Node child in knee.GetChildren())if(child is MeshInstance3D part&&part.Mesh!=null)
-                for(int s=0;s<part.Mesh.GetSurfaceCount();s++)
-                    foreach(var point in part.Mesh.SurfaceGetArrays(s)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
-                        top=MathF.Max(top,(part.Transform*point).Y);
-            overlap=MathF.Min(overlap,ResidentRig.HipHeight-ResidentRig.ThighLength+top-bottom);
+            var boot=female.Knees[side].GetChild<MeshInstance3D>(-1);
+            var shaft=boot.Mesh.SurfaceGetArrays(0);
+            var leather=Array.ConvertAll(shaft[(int)Mesh.ArrayType.Vertex].AsVector3Array(),p=>boot.Transform*p);
+            var indices=shaft[(int)Mesh.ArrayType.Index].AsInt32Array();
+            foreach(var point in leather)top=MathF.Max(top,point.Y);
+            int tucked=0;
+            for(int i=0;i<trousers.Length;i++)
+            {
+                var p=trousers[i];
+                if((p.X<0)!=(side==0))continue;
+                bottom=MathF.Min(bottom,p.Y);
+                if(p.Y>.295f)continue;
+                float kneeWeight=0;
+                for(int j=i*4;j<i*4+4;j++)if(bones[j]==side+3)kneeWeight+=weights[j];
+                float x=p.X-female.Legs[side].Position.X,y=p.Y-kneeHeight;
+                float front=GarmentDepth(leather,indices,x,y,false),rear=GarmentDepth(leather,indices,x,y,true);
+                if(!float.IsFinite(front)||!float.IsFinite(rear)||p.Z<front+.001f||p.Z>rear-.001f||kneeWeight<.9999f)
+                    throw new InvalidOperationException($"Boot and cuff lose their shared shin contact at {p}: leather={front:F4}/{rear:F4}, shin={kneeWeight:F4}");
+                tucked++;
+            }
+            if(tucked<12)throw new InvalidOperationException("Insufficient actual tucked shin samples");
+            lowered=MathF.Min(lowered,previousFemaleMouth-kneeHeight-top);
+            overlap=MathF.Min(overlap,kneeHeight+top-bottom);
         }
-        if(!float.IsFinite(overlap)||overlap<.008f||overlap>.025f)throw new InvalidOperationException($"Female boot shaft loses the fitted trouser overlap: {overlap}");
+        if(!float.IsFinite(overlap)||overlap<.008f||overlap>.025f||lowered<.092f||lowered>.110f)
+            throw new InvalidOperationException($"Female boot shaft loses the mid-calf fit: overlap={overlap:F4}, drop={lowered:F4}");
+        var sections=MeasureTrouserSections(trousers,cloth[(int)Mesh.ArrayType.Index].AsInt32Array(),.29f);
+        var calf=SampleTrouserSection(sections,.35f,.29f);
+        var cuff=SampleTrouserSection(sections,.30f,.29f);
+        if(calf.Max.Y-cuff.Max.Y<.008f||calf.Radius.X-cuff.Radius.X<.004f)
+            throw new InvalidOperationException("Visible calf loses its posterior and lateral fullness");
+        GD.Print($"FEMALE_MID_CALF_PASS: opening lowered {lowered*1000:F1} mm relative to high boot, calf rear depth rises {(calf.Max.Y-cuff.Max.Y)*1000:F1} mm, tucked cloth shares shin weights");
         GD.Print($"FEMALE_BOOT_FIT_PASS: 14 mm shorter forepart, same heel and vertical contact profile, two actual soles within {maximum*1000:F2} mm, trouser overlap={overlap*1000:F1} mm");
         ValidateFemaleBootShaft(female);
     }
@@ -119,7 +150,7 @@ internal sealed partial class NatureModels
             var boot=shaft.Mesh.SurfaceGetArrays(0);
             var points=Array.ConvertAll(boot[(int)Mesh.ArrayType.Vertex].AsVector3Array(),p=>shaft.Transform*p);
             var triangles=boot[(int)Mesh.ArrayType.Index].AsInt32Array();
-            float calf=GarmentDepth(points,triangles,0,-.123f,true);
+            float calf=GarmentDepth(points,triangles,0,-.145f,true);
             float ankle=GarmentDepth(points,triangles,0,-.298f,true);
             smallestTaper=MathF.Min(smallestTaper,calf-ankle);
             float end=float.PositiveInfinity;

@@ -55,9 +55,10 @@ internal sealed partial class NatureModels
             new(.0435f,-.242f,.0415f),new(.0435f,-.266f,.0415f)});
     private Mesh TurnedBootRim()
     {
-        return FittedFigure?FabricFacing("contoured-boot-rim",new[]{
-            new Vector3(.0478f,-.034f,.0451f),new(.0490f,-.030f,.0462f),new(.0488f,-.023f,.0460f),
-            new(.0473f,-.018f,.0445f),new(.0455f,-.019f,.0428f),new(.0457f,-.031f,.0431f)})
+        return FittedFigure?FabricFacing("female-mid-calf-rim",new[]{
+            new Vector3(.0509f,-FemaleBootMouth-.016f,.0502f),new(.0528f,-FemaleBootMouth-.012f,.0520f),
+            new(.0525f,-FemaleBootMouth-.004f,.0517f),new(.0510f,-FemaleBootMouth,.0500f),
+            new(.0474f,-FemaleBootMouth-.001f,.0467f),new(.0470f,-FemaleBootMouth-.013f,.0463f)})
             :FabricFacing("turned-boot-rim:False",new[]{
             new Vector3(.050f,-.047f,.047f),new(.053f,-.039f,.050f),new(.051f,-.028f,.048f),
             new(.047f,-.024f,.044f),new(.045f,-.028f,.042f),new(.046f,-.042f,.043f)});

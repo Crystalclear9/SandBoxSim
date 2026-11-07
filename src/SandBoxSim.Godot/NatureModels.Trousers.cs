@@ -76,17 +76,19 @@ internal sealed partial class NatureModels
             // as one surface, before baking the pose-dependent cloth folds.
             FairRestSurface(points,ids,freedom,.006f,roundRelief:true);
             TransportFairingNormals(rest,points,normals,ids,freedom);
+            FitFemaleTrouserShins(points,normals,coords,ids,b,w);
         }
         var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);
         var seam=new Vector2[count];
-        var sections=BodyFrame==1?MeasureTrouserSections(points,ids):null;
+        const float femaleSeamBottom=.29f;
+        var sections=BodyFrame==1?MeasureTrouserSections(points,ids,femaleSeamBottom):null;
         for(int i=0;i<count;i++)
         {
             var point=points[i];
             // A metric coordinate keeps the inseam continuous across the
             // angular wrap. Both seam lines follow the shaped leg in rest space.
             float seamDistance=sections==null?MathF.Atan2(point.Z,MathF.Abs(point.X)-.10f)
-                :point.Z-SampleTrouserSection(sections,point.Y).Centre.Y;
+                :point.Z-SampleTrouserSection(sections,point.Y,femaleSeamBottom).Centre.Y;
             seam[i]=new(seamDistance,point.Y);
         }
         arrays[(int)Mesh.ArrayType.Vertex]=points;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.TexUV]=coords;arrays[(int)Mesh.ArrayType.TexUV2]=seam;
@@ -119,12 +121,12 @@ internal sealed partial class NatureModels
         public Vector2 Radius=>(Max-Min)*.5f;
     }
 
-    private static TrouserSection[] MeasureTrouserSections(Vector3[] points,int[] ids)
+    private static TrouserSection[] MeasureTrouserSections(Vector3[] points,int[] ids,float bottom=TrouserSectionBottom)
     {
-        var sections=new TrouserSection[54];
+        var sections=new TrouserSection[1+(int)MathF.Round((.93f-bottom)/TrouserSectionStep)];
         for(int row=0;row<sections.Length;row++)
         {
-            float height=TrouserSectionBottom+row*TrouserSectionStep;
+            float height=bottom+row*TrouserSectionStep;
             var min=new Vector2(float.PositiveInfinity,float.PositiveInfinity);
             var max=new Vector2(float.NegativeInfinity,float.NegativeInfinity);
             for(int t=0;t<ids.Length;t+=3)for(int edge=0;edge<3;edge++)
@@ -142,9 +144,9 @@ internal sealed partial class NatureModels
         return sections;
     }
 
-    private static TrouserSection SampleTrouserSection(TrouserSection[] sections,float height)
+    private static TrouserSection SampleTrouserSection(TrouserSection[] sections,float height,float bottom=TrouserSectionBottom)
     {
-        float row=Math.Clamp((height-TrouserSectionBottom)/TrouserSectionStep,0,sections.Length-1);
+        float row=Math.Clamp((height-bottom)/TrouserSectionStep,0,sections.Length-1);
         int i=Math.Min((int)row,sections.Length-2);
         float t=row-i;
         var a=sections[Math.Max(0,i-1)];var b=sections[i];
@@ -192,6 +194,43 @@ internal sealed partial class NatureModels
             if(before.LengthSquared()>1e-20f&&before.Dot(after)<=0)
                 throw new InvalidOperationException("Trouser tailoring reverses a source triangle");
         }
+    }
+
+    private static void FitFemaleTrouserShins(Vector3[] points,Vector3[] normals,Vector2[] uv,int[] indices,int[] bones,float[] weights)
+    {
+        const float oldCuff=.385f,upperJoin=.463f,drop=.098f;
+        var rest=(Vector3[])points.Clone();
+        var sections=MeasureTrouserSections(rest,indices);
+        var freedom=new float[points.Length];
+        for(int i=0;i<points.Length;i++)
+        {
+            var p=rest[i];
+            if(p.Y>=upperJoin)continue;
+            int side=p.X<0?0:1;
+            float sign=side==0?-1:1;
+            float height=p.Y-drop*(1-TorsoRamp(oldCuff,upperJoin,p.Y));
+            var section=SampleTrouserSection(sections,p.Y);
+            var direction=((new Vector2(MathF.Abs(p.X),p.Z)-section.Centre)/section.Radius).Normalized();
+            float free=TorsoRamp(.304f,.334f,height);
+            float calf=TorsoRamp(.302f,.348f,height)*(1-TorsoRamp(.357f,.421f,height));
+            float medial=MathF.Max(0,-direction.X);
+            float width=.0435f+.003f*free+(.007f+.001f*medial)*calf;
+            float depth=direction.Y<0?.040f+.0025f*free+.0015f*calf
+                :.042f+.004f*free+(.010f+.0015f*medial)*calf;
+            float centerX=ResidentRig.NeutralHipHalfWidth-.003f*calf;
+            float centerZ=FemaleBootMouthDepth*(1-TorsoRamp(.352f,.433f,height));
+            float fit=1-TorsoRamp(.391f,upperJoin,height);
+            points[i]=new(Mathf.Lerp(p.X,sign*(centerX+width*direction.X),fit),height,Mathf.Lerp(p.Z,centerZ+depth*direction.Y,fit));
+            uv[i].Y+=3*(height-p.Y);
+            freedom[i]=1-TorsoRamp(.426f,upperJoin,height);
+            // The extended lower panel follows the same shin as the boot.
+            // Restore the original knee blend as the trousers reach the joint.
+            float shin=1-TorsoRamp(.400f,.452f,height);
+            for(int slot=i*4;slot<i*4+4;slot++)
+                weights[slot]=Mathf.Lerp(weights[slot],bones[slot]==side+3?1:0,shin);
+        }
+        ValidateTrouserWinding(rest,points,indices);
+        TransportFairingNormals(rest,points,normals,indices,freedom);
     }
 
     private static Vector3 FemaleHipTransition(Vector3 p)
@@ -528,7 +567,6 @@ internal sealed partial class NatureModels
             var p=original[i];
             if(MathF.Abs(p.X)<.025f&&p.Y>.720f&&p.Y<.755f&&p.Z<-.04f)
                 rise=MathF.Max(rise,p.Y-points[i].Y);
-            if(p.Y<=.409f&&p!=points[i])throw new InvalidOperationException("Leg tailoring moves the fixed boot overlap");
         }
         if(kneeWidthEase<.001f||kneeWidthEase>.004f||kneeFrontEase<.006f||kneeFrontEase>.009f
             ||thighWidthEase<.007f||thighWidthEase>.013f||thighFrontEase<.007f||thighFrontEase>.012f
