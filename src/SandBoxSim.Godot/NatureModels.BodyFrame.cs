@@ -120,18 +120,9 @@ internal sealed partial class NatureModels
             // outside the unclothed source. This includes a coat's lower skirt.
             if(feminine&&panelHeight<.990f)
             {
-                // The top of the trousers ends below the natural waist.
-                // Continue the last fitted contour under the shirt across
-                // the lumbar and upper-hip transition. A narrow falloff at
-                // the waistband made the rear panel hinge at one height.
-                // At the front, taper the sampling rate to zero before
-                // holding the last supported ring so its tangent stays soft.
-                float band=Math.Clamp((panelHeight-.924f)/.022f,0,1);
-                float taperedHeight=MathF.Min(panelHeight,.924f)+.022f*band*(1-.5f*band);
-                float layerHeight=Mathf.Lerp(MathF.Min(panelHeight,.935f),taperedHeight,TorsoRamp(.50f,.93f,front));
-                float trousers=TrouserLayerRadius(layerHeight,angle);
-                target=Mathf.Lerp(BlendOuterLayer(target,trousers),target,TorsoRamp(.928f,.990f,panelHeight));
-                if(tailored)target+=FemaleLowerPanelEase(panelHeight,angle);
+                target=FemaleOuterLayer(target,panelHeight,angle,front,out float trousers);
+                if(tailored)
+                    target=FairFemalePanelFall(support,target,trousers,panelHeight,angle,front)+FemaleLowerPanelEase(panelHeight,angle);
             }
             else if(panelHeight<.94f)
             {
@@ -256,12 +247,16 @@ internal sealed partial class NatureModels
             }
             var bones=arrays[(int)Mesh.ArrayType.Bones].VariantType==Variant.Type.Nil?Array.Empty<int>():arrays[(int)Mesh.ArrayType.Bones].AsInt32Array();
             var weights=arrays[(int)Mesh.ArrayType.Weights].VariantType==Variant.Type.Nil?Array.Empty<float>():arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();
+            int[]? femaleHem=null;
             var sleeveDistance=bones.Length==points.Length*4&&pattern.Length==points.Length
                 ?SleeveDistances(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern):Array.Empty<float>();
             if(tailored&&sleeveDistance.Length==points.Length)
             {
                 if(s==0&&BodyFrame==1)
-                    FitFemaleHemFacing(points,FindFemaleHem(arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array()));
+                {
+                    femaleHem=FindFemaleHem(arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array());
+                    FitFemaleHemFacing(points,femaleHem);
+                }
                 FitUpperArmSupport(points,pattern,sleeveDistance);
                 FitShoulderSurface(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern,sleeveDistance);
                 FairGarmentRest(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern,source.SurfaceGetMaterial(s)?.HasMeta("FittedBodice")==true);
@@ -369,10 +364,10 @@ internal sealed partial class NatureModels
                     float amount=weights[i*4]*lower;weights[i*4]-=amount;bones[i*4+3]=3;weights[i*4+3]=amount;
                 }
             if(bones.Length>0){arrays[(int)Mesh.ArrayType.Bones]=bones;arrays[(int)Mesh.ArrayType.Weights]=weights;}
-            if(tailored&&s==0&&source.SurfaceGetMaterial(s)?.HasMeta("FittedBodice")==true)
+            if(femaleHem!=null&&source.SurfaceGetMaterial(s)?.HasMeta("FittedBodice")==true)
             {
                 FoldFemaleNeckline(arrays,ref points,ref pattern);
-                arrays[(int)Mesh.ArrayType.Color]=FemaleHemFinishCoordinates(points,pattern);
+                arrays[(int)Mesh.ArrayType.Color]=FemaleHemFinishCoordinates(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),femaleHem);
             }
             // Pattern coordinates are a surface parameter, not a spatial Y
             // function. Rebuild the sewn panel normals from final triangles;

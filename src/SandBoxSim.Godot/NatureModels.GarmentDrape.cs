@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Godot;
 
 namespace SandBoxSim.Client;
@@ -226,46 +227,97 @@ internal sealed partial class NatureModels
         }
     }
 
+    private float FemaleOuterLayer(float cloth,float height,float angle,float front,out float trousers)
+    {
+        // Continue the waistband's last supported ring into the waist.
+        // Slow the front sample smoothly before it reaches the end.
+        float band=Math.Clamp((height-.924f)/.022f,0,1);
+        float tapered=MathF.Min(height,.924f)+.022f*band*(1-.5f*band);
+        float station=Mathf.Lerp(MathF.Min(height,.935f),tapered,TorsoRamp(.50f,.93f,front));
+        trousers=TrouserLayerRadius(station,angle);
+        return Mathf.Lerp(BlendOuterLayer(cloth,trousers),cloth,TorsoRamp(.928f,.990f,height));
+    }
+
+    private float FairFemalePanelFall(float[] support,float radius,float trousers,float height,float angle,float front)
+    {
+        float hem=FinishedGarmentHem+FemaleHemOffset(MathF.Sin(angle));
+        float active=TorsoRamp(hem-.006f,hem+.033f,height)*(1-TorsoRamp(.914f,.967f,height));
+        if(active==0)return radius;
+        // A hanging panel bridges small changes in the cross-section
+        // underneath it. Use two supports on each side along the grain, with
+        // the real trouser envelope as the lower bound at this station.
+        float Supported(float y)
+        {
+            float cloth=ClothEnvelope(support,MathF.Max(TrunkLow,y),angle)
+                +.003f*front*(1-Mathf.SmoothStep(.80f,.94f,y))+GarmentDrapeDetail(y,angle);
+            return FemaleOuterLayer(cloth,y,angle,front,out _);
+        }
+        float fall=(Supported(height-.032f)+4*Supported(height-.016f)+6*radius
+            +4*Supported(height+.016f)+Supported(height+.032f))/16;
+        float clearance=MathF.Min(radius,trousers-.0015f);
+        return MathF.Max(clearance,radius+Math.Clamp(fall-radius,-.005f,.004f)*active);
+    }
+
     private float FemaleLowerPanelEase(float height,float angle)
     {
         float depth=MathF.Sin(angle),side=MathF.Abs(MathF.Cos(angle));
         float belt=FinishedBeltHeight(angle),hem=FinishedGarmentHem+FemaleHemOffset(depth);
         float t=Math.Clamp((belt-height)/(belt-hem),0,1);
-        float release=TorsoRamp(.08f,.91f,t);
+        float release=TorsoRamp(.13f,.84f,t);
         float outseam=side*side*side;
         float frontQuarter=TorsoRamp(.12f,.48f,-depth)*(1-TorsoRamp(.71f,.97f,-depth));
         float backQuarter=TorsoRamp(.16f,.56f,depth)*(1-TorsoRamp(.83f,1,depth));
         float towardWaist=TorsoRamp(.887f,.923f,height);
-        float waistAllowance=(1-Mathf.SmoothStep(.80f,.935f,height))*(_garmentCut switch
+        float fall=_garmentCut switch
         {
-            0=>.005f*side*side,
-            1=>0,
-            _=>.004f+.010f*side*side
-        });
-        // Release the linen in the direction it hangs from the belt.
-        // Travel cloth keeps more room behind the hip than at centre front.
-        float hemAllowance=release*(_garmentCut switch
-        {
-            0=>.0013f+.0048f*outseam+.0023f*frontQuarter,
-            1=>.0011f+.0024f*outseam+.0015f*frontQuarter,
-            _=>.0028f+.0067f*outseam+.0058f*backQuarter+.0020f*frontQuarter
-        });
-        return Mathf.Lerp(hemAllowance,waistAllowance,towardWaist);
+            0=>.0012f+.0024f*outseam+.0019f*frontQuarter+.0022f*backQuarter,
+            1=>.0014f+.0061f*outseam+.0008f*frontQuarter+.0045f*backQuarter,
+            _=>.0028f+.0056f*outseam+.0013f*frontQuarter+.0085f*backQuarter
+        };
+        // Release the two folds from the back of the belt. Their crests
+        // diverge toward the hip and fade before the turned lower edge.
+        float rear=TorsoRamp(.56f,.88f,depth);
+        float separation=Mathf.Lerp(.14f,.31f,release);
+        float shape=(side-separation)/(_garmentCut==2?.16f:.20f);
+        float fold=(_garmentCut switch {0=>.0022f,1=>.0068f,_=>.015f})
+            *MathF.Exp(-shape*shape)*rear*TorsoRamp(.24f,.68f,t)*(1-TorsoRamp(.86f,1.02f,t));
+        float waistAllowance=(1-TorsoRamp(.80f,.935f,height))*(_garmentCut==2?.004f+.010f*side*side:0);
+        return Mathf.Lerp(release*fall+fold,waistAllowance,towardWaist);
     }
 
-    private Color[] FemaleHemFinishCoordinates(Vector3[] points,Vector2[] pattern)
+    private static Color[] FemaleHemFinishCoordinates(Vector3[] points,int[] triangles,int[] hem)
     {
-        // Keep the finish in bind space so it travels with the skirt. Alpha
-        // stores a metric, while RGB remains available for the distant dye.
+        // Measure the sewn edge on the finished surface, including the
+        // turned facing. A vertical distance made the line drift around a
+        // curved hem or through a fitted lower panel.
+        const float finishWidth=.024f;
+        var neighbours=new HashSet<int>[points.Length];
+        for(int i=0;i<points.Length;i++)neighbours[i]=new();
+        for(int i=0;i<triangles.Length;i+=3)for(int j=0;j<3;j++)
+        {
+            int a=triangles[i+j],b=triangles[i+(j+1)%3];
+            neighbours[a].Add(b);neighbours[b].Add(a);
+        }
+        var distances=new float[points.Length];Array.Fill(distances,finishWidth);
+        var pending=new PriorityQueue<int,float>();
+        for(int col=0;col<SewnPanelColumns;col++)
+        {
+            int rim=hem[col];
+            distances[rim]=0;pending.Enqueue(rim,0);
+        }
+        while(pending.TryDequeue(out int point,out float distance))
+        {
+            if(distance>distances[point])continue;
+            foreach(int next in neighbours[point])
+            {
+                float candidate=distance+points[point].DistanceTo(points[next]);
+                if(candidate>=distances[next])continue;
+                distances[next]=candidate;pending.Enqueue(next,candidate);
+            }
+        }
         var chart=new Color[points.Length];
         for(int i=0;i<points.Length;i++)
-        {
-            var p=points[i];
-            float depth=p.Z/MathF.Max(.001f,new Vector2(p.X,p.Z).Length());
-            float hem=FinishedGarmentHem+FemaleHemOffset(depth);
-            float fromEdge=pattern[i].X<0?Math.Clamp((p.Y-hem)/.024f,0,1):1;
-            chart[i]=new(1,1,1,fromEdge);
-        }
+            chart[i]=new(1,1,1,distances[i]/finishWidth);
         return chart;
     }
 

@@ -34,7 +34,7 @@ internal partial class ModelGallery : PanelContainer
         body.AddChild(HudStyle.Heading(Collection=="hands" ? "手掌与握柄 · 实际指节与接触" : Collection is "actions" or "motion" or "grip" ? "居民动作 · 取出、握持、使用与收回" : Collection=="equipment" ? "配件与衣装 · 实际挂点与姿态" : Collection=="architecture" ? "木作与砌筑 · 实际建筑模型" : Collection is "characters" or "faces" ? Collection=="faces" ? "面部与衣领 · 实际人物模型" : "人物与动物 · 实际角色模型" : "地表与植被 · 实际场景模型",22));
         var grid=new GridContainer { Columns=3,SizeFlagsVertical=SizeFlags.ExpandFill };
         if(Collection=="model-details")body.GetChild<Label>(0).Text="造型与材质近景 · 世界实际网格";
-        if(Collection is "wardrobe" or "female-wardrobe")body.GetChild<Label>(0).Text=Collection=="female-wardrobe"?"女性衣装 · 三种剪裁的实际正面与背面":"衣装剪裁 · 实际职业模型的正面与背面";
+        if(Collection is "wardrobe" or "female-wardrobe")body.GetChild<Label>(0).Text=Collection=="female-wardrobe"?"女性衣装 · 腰线、侧髋与后衣片":"衣装剪裁 · 实际职业模型的正面与背面";
         grid.AddThemeConstantOverride("h_separation",12); grid.AddThemeConstantOverride("v_separation",12); body.AddChild(grid);
         var models=new NatureModels();
         if(Collection=="wrist-motion")BuildWristStudy(models,grid,body.GetChild<Label>(0));
@@ -163,8 +163,20 @@ internal partial class ModelGallery : PanelContainer
         {
             var jobs=new[]{JobType.Farmer,JobType.Gatherer,JobType.Trader};
             var names=new[]{"工作长衫 · 农夫","短上衣 · 采集者","较长外衣 · 商人"};
+            bool female=Collection=="female-wardrobe";
             for(int row=0;row<2;row++)for(int i=0;i<3;i++)
-                Closeup(grid,names[i]+(row==0?" · 正面":" · 背面"),models.Resident(Collection=="female-wardrobe"?55:17,false,jobs[i]),.88f,new(0,1.13f,0),new(.10f,.035f,3),row==0);
+            {
+                var rig=models.Resident(female?55:17,false,jobs[i]);
+                if(female)
+                {
+                    rig.DefaultTool=ResidentTool.None;
+                    rig.SelectTool(ResidentTool.None);
+                }
+                var direction=female?new Vector3(row==0?1.7f:2.3f,.12f,3):new Vector3(.10f,.035f,3);
+                Closeup(grid,names[i]+(female?(row==0?" · 前侧":" · 后侧"):(row==0?" · 正面":" · 背面")),rig,
+                    female?.66f:.88f,new(0,female?.99f:1.13f,0),direction,row==0);
+                if(female)_studioFloors[^1].Visible=false;
+            }
         }
         else if(Collection=="animal-heads")
         {

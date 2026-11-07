@@ -213,17 +213,19 @@
 
 女性折领按体型与款式分别缓存。前领开口向颈部收拢，两侧略放宽，后领放低，锁骨到肩头的鞍形过渡同时用于静止支撑面和抬臂修正。衣摆与裤腰之间使用平滑的外层包络，取裤腰顶部附近的有效截面向上渐隐，降低两层支撑交接处的硬折。[Blender Studio 衣装姿态设计](https://studio.blender.org/training/realistic-human-research/clothing-shapes/) · [TailorNet 的形体与服装版型研究](https://openaccess.thecvf.com/content_CVPR_2020/html/Patel_TailorNet_Predicting_Clothing_in_3D_as_a_Function_of_Human_CVPR_2020_paper.html)
 
-女性三款成衣的下摆使用成品外层截面拟合。拟合时剔除内侧翻边三角面，沿最低实测外层截面的切向补足采样边界。翻边的两圈顶点随后从外层下缘和上一排重新定位，分别向内收 2.4 与 3.2 毫米。近景网格重算法线，远景从同一静止衣面生成。裤装与下摆的重叠在拾取、工作和步行姿态下通过蒙皮后的表面检查。
+女性三款成衣的下摆使用成品外层截面拟合。拟合时剔除内侧翻边三角面，沿最低实测外层截面的切向补足采样边界。翻边的两圈顶点随后从外层下缘和上一排重新定位，分别向内收 2.8 与 3.9 毫米。近景网格重算法线，远景从同一静止衣面生成。裤装与下摆的重叠在拾取、工作和步行姿态下通过蒙皮后的表面检查。
 
-三款女性成衣各自使用下摆高度曲线。工作衫沿侧腰放出少量活动余量，下缘接近平直。采集短衣在侧髋抬高，前后保留弧线。商人外套由腰向下逐渐展开，后片比前片更长。余量从已覆盖裤装的外层衣面向外加，接近腰带前逐渐归零。三款染色分别向亚麻褐、灰绿和暖赭调整，混合居民原有颜色。正背面可直接比较同一居民换装后的效果。[女性成衣图册](../images/resident-female-wardrobe.png) · [Colonial Williamsburg 工作短衣藏品](https://emuseum.colonialwilliamsburg.org/objects/7862/jacket) · [腰下展开版型藏品](https://emuseum.colonialwilliamsburg.org/objects/503/jacket)
+三款女性成衣各自使用下摆高度曲线。工作衫收顺侧边，下缘接近平直。采集短衣在抬高的侧髋留出活动余量，前后保留弧线。商人外套的后片更长，腰带以下的两道褶逐渐分开，在翻边前回收。形体先沿布料纵向跨过短距离的截面起伏，再叠加各剪裁的松量，并依据实际裤装包络限制内收。三款染色分别偏亚麻褐、灰绿和暖赭。 [工作短衣藏品](https://emuseum.colonialwilliamsburg.org/objects/7862/jacket) · [后片褶裥藏品](https://emuseum.colonialwilliamsburg.org/objects/503/jacket) · [服装分区松量研究](https://theses.lib.polyu.edu.hk/handle/200/2765)
 
-三款女性衣装的腰下褶线从腰带往髋侧逐渐张开，短衣和长外套分别留出不同的衣量。采集者与猎人的背包贴合实际后衣片，双肩带沿衣面穿过肩部，并绕回背包的上下挂点。商人的薄皮袋用两条翻折挂袢固定在左后腰。`FEMALE_CARRY_GEAR_PASS` 检查背带挂点和蒙皮，以及走路、拾取、交易、交谈和进食时手臂中线相对皮袋包围盒的净空。[工作短衣藏品](https://emuseum.colonialwilliamsburg.org/objects/7862/jacket) · [皮袋与皮质挂点藏品](https://postalmuseum.si.edu/object/npm_2004.2004.17)
+下摆的外缘、内折和针脚共用成品网格上的沿面距离。材质从实际缝边定位针脚，近景和远景都使用相同的布面坐标。
+
+采集者与猎人的背包贴合实际后衣片，双肩带沿衣面穿过肩部，并绕回背包的上下挂点。商人的薄皮袋用两条翻折挂袢固定在左后腰。`FEMALE_CARRY_GEAR_PASS` 检查背带挂点和蒙皮，以及走路、拾取、交易、交谈和进食时手臂中线相对皮袋包围盒的净空。 [皮袋与皮质挂点藏品](https://postalmuseum.si.edu/object/npm_2004.2004.17)
 
 女性裤装沿高度每隔 10 毫米读取实际截面。大腿外侧、内缝、膝前和膝后各自分配衣量，前裆到内缝的转折下放最多 8 毫米，靴内的裤脚与髋关节支撑继续使用对应的成品网格。裤缝以到截面中线的有符号距离定位，内外缝跟随实际腿型，针脚细节随距离平滑过渡。静止造型与弯身、行走使用同一网格，髋、膝各自响应姿态。`FEMALE_TROUSER_DRAPE_PASS` 检查成品膝前与膝侧余量、大腿横向余量、前裆曲面和固定裤脚。[女裤三维合体研究](https://journals.sagepub.com/doi/10.1177/0887302X07309479) · [站姿与坐姿下身截面研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC8464815/)
 
 女性后领与上背之间采用局部深度修形。肩袖拟合完成后，后片超出目标弧面的部分逐渐向内收，修形在领口和袖窿前退出。几何法线从成品网格重建，近远景使用相同的静止轮廓。后育克的弧形针脚由衣面的静止坐标驱动，随肩背弯曲。三款衣装的实际成品在背中线及左右 25 毫米的截面上检查后领下方的外突量。造型参考肩颈与肩胛之间的宽缓连接，以及服装在肩部活动时的拉伸与压缩。[肩颈表面结构](https://elsevier-elibrary.com/contents/fullcontent/58090/epubcontent_v2/OEBPS/B9780443069529000126A.htm) · [Blender Studio 衣装形体](https://studio.blender.org/training/realistic-human-research/clothing-shapes/)
 
-[女性三款衣装实机配图](../images/resident-female-wardrobe.png)展示相同身份的正面与背面。女性三款衣装可通过 [公开衣装场景](../../benchmarks/scenarios/visual-female-wardrobe.json) 复现，同镜头比较正面与背面，完整身体仍看 `visual-body-frames`／`visual-body-motion`。结构调研参考 [Proko 的前胸形体常见错误](https://www.proko.com/course-lesson/common-mistakes-of-drawing-breasts)和 [Blender Studio 角色制作流程](https://studio.blender.org/training/realistic-human-research/)；当前是穿衣曲面与有限姿态修正，不是新的裸身扫描或软组织仿真。
+女性成衣图册用前侧和后侧近景展示同一居民的三套衣装。预览收起手持工具，保留腰带、背包和腰包，便于观察腰线、侧髋和翻边。完整身体可在 `visual-body-frames`／`visual-body-motion` 中观察。 [实机配图](../images/resident-female-wardrobe.png) · [公开衣装场景](../../benchmarks/scenarios/visual-female-wardrobe.json)
 
 腰侧和骨盆的结构还参考 [Proko 腰侧形体](https://www.proko.com/course-lesson/how-to-draw-obliques-form)与[骨盆结构](https://www.proko.com/course-lesson/anatomy-of-the-pelvis)：区分骨性边界和柔和表面，先检查正侧背面的连续体积。角色采用自然匀称的美术方向，不用固定腰臀比或局部尺寸定义吸引力。
 

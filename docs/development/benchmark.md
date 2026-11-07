@@ -292,7 +292,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `reference-contour-physique-v31` 重建十份共同来源支撑，`continuous-drape-v29`／`continuous-drape-v31`／`reference-figure-v25` 标识新的成品形体与衣料跨度、染色和肩袖缓存。肩、手、骨架和 HTTP 协议保持各自合同；视觉输入、冷启动构建及缓存会改变，效率对照必须重新冻结源码、资产、动作、人数、LOD 与采样条件。体型宽深、衣料接续和来源 Jacobian 的回归结果只用于确认输入有效，不作为 RSI 或吸引力评分。
 
-`visual-female-wardrobe.json`／`female-wardrobe` 为成人女性三种实际职业剪裁的六区域静态入口，上排正面、下排背面；不替换原男性 `wardrobe` 场景。当前的中线来源场、上胸／共享袖根整理、姿态末端拟合及领口映射改变像素和缓存构建；比较效率时须重新冻结源码、资产、动作与镜头。几何回归只用于实验输入有效性，不证明吸引力或 RSI 能力。
+`femaleLowerPanel=supported-fall-v1` 标识三款女性衣装的腰下曲面、后褶和沿布面测得的下摆翻边距离。`visual-female-wardrobe` 以 0.66 米正交尺度从前侧和后侧观察同一居民的三套成衣。图册收起手持工具，以便比较衣片轮廓。镜头、衣料曲面和缝线参数会改变像素及构建成本，跨版本对照需使用相同的标识与参数。
 
 `reference-contour-physique-v31`／`continuous-drape-v29`／`continuous-drape-v31`／`reference-figure-v25` 同时区分腰侧、小腹、后腰／臀腿轮廓、较低的前胸重分配和女性衣摆／裤装染色。来源 Jacobian 与位移预算不变；原生身材、上肢和微动作测试仍分别执行。这些是视觉输入身份及几何约束，不是 RSI 或审美评分；性能实验需要重新冻结当前完整输入。
 

@@ -10,10 +10,11 @@ internal sealed partial class NatureModels
     private const string FigureFabricFunctions=@"float figure_hem_finish(float hem_metric,float angle){
 float metres=hem_metric*.024;
 float aa=max(.0002,fwidth(metres));
-float facing=1.0-smoothstep(.006-aa,.009+aa,metres);
-float thread=1.0-smoothstep(.00055,.0011+aa,abs(metres-.008));
+float facing=1.0-smoothstep(.007-aa,.010+aa,metres);
+float fold_edge=1.0-smoothstep(.0007,.0015+aa,abs(metres-.0035));
+float thread=1.0-smoothstep(.00055,.0012+aa,abs(metres-.0085));
 float stitches=mix(.68,.68+.32*cos(angle*96.0),1.0-smoothstep(.01,.04,fwidth(angle)));
-return 1.0-.14*facing+.11*thread*stitches;
+return 1.0-.13*facing-.05*fold_edge+.14*thread*stitches;
 }
 vec3 figure_colour(vec3 dye,vec2 chart,bool enabled,float torso_weight){
 if(!enabled)return dye;

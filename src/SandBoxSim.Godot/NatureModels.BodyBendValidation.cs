@@ -243,7 +243,7 @@ internal sealed partial class NatureModels
         for(int i=0;i<points.Length;i++)if(colours[i].A<.999f)
         {
             distances[points[i]]=colours[i].A;
-            if(colours[i].A<.08f)edge++;
+            if(colours[i].A==0)edge++;
         }
         int shared=0;
         for(int i=0;i<farPoints.Length;i++)if(chart[i].X>.5f&&chart[i].Y<.999f)
@@ -254,7 +254,7 @@ internal sealed partial class NatureModels
         }
         if(edge<SewnPanelColumns||shared<distances.Count)
             throw new InvalidOperationException($"Hem finish does not cover the sewn edge: {edge} edge vertices, {shared}/{distances.Count} shared positions");
-        GD.Print($"FEMALE_HEM_FINISH_PASS: {edge} edge vertices and {shared} matching distant coordinates");
+        GD.Print($"FEMALE_HEM_FINISH_PASS: {edge} exact rim anchors and {shared} matching distant surface-distance coordinates");
     }
 
     private static (float Left,float Right,float Front,float Back) HemExtents(Vector3[] points)
