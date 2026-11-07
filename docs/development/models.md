@@ -271,7 +271,7 @@
 
 世界画面和居民观察窗使用 `ActionSystem.TryGetPresentationPartner`。执行阶段读取按当前规则选出的候选，结算后读取这次动作真正影响的居民。角色到站后朝向该对象，目标离开范围、死亡或槽位被复用时收势。结算对象记录绑定本次动作编号和双方身份，只用于表现。测试检查结算后附近出现更合适的候选时仍保留原对象，以及超出范围、动作编号变化和状态摘要的处理。
 
-`handlingMotion=tool-phrase-v16` 按到站、转向、伸手、确认握持、使用工具和收势的条件衔接。模拟独立负责目标、库存、伤害和需求结算，表现读取这些结果。
+`handlingMotion=tool-surface-v17` 按到站、转向、伸手、确认握持、接触场景和收势的条件衔接。模拟独立负责目标、库存、伤害和需求结算，表现读取这些结果。
 
 世界按居民身份、动作编号、阶段、目标和交互对象安排远近景姿态更新。只在观察状态相同时累计姿态时间，遇到状态变化立即用当前帧更新。拾取、作业和需要面向对象的动作会等角色停稳并转向实际目标。工具可以在走近时预备，工作循环从对准后开始。该拆分借鉴了实时动画从当前姿态过渡到新目标，以及接触保持与过渡分开处理的方法。 [GDC 动画惯性过渡](https://www.gdcvault.com/play/1025331/Inertialization) · [动捕中的足点约束](https://research.cs.wisc.edu/graphics/Gallery/kovar.vol/Cleanup/)
 
@@ -302,6 +302,8 @@
 工具握点在 IK 前跟踪速度，并以实际接触转移归属。交谈和收手由各自姿态驱动，杯沿和食物各有嘴边接近阈值。这些距离、角度与时长用于游戏表现。
 
 斧头沿身体前方横向扫过，镐头从较高、较窄的轨迹落下。建造开工和农田接受劳动时会记录实际场地和建筑代次。工地呈现朝向作业点的手锤动作，锄头沿农田行向取样并拉过可见的土面。农田劳动已满或两侧土面都超出锄刃可及范围时，省去补播的锄地动作。狩猎跟随当前猎物，长矛保持预备姿态，等模拟确认后完成刺击。猎物离开时会重新寻找目标或收势。工具击打节拍用于表现，地面锄刃接触另有实景回归。[真人锤击运动实验](https://pmc.ncbi.nlm.nih.gov/articles/PMC5447007/) · [工具打击的关节协调研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC8923818/) · [Godot 动画状态过渡](https://docs.godotengine.org/en/stable/tutorials/animation/animation_tree.html)
+
+砍伐和采矿在树干、岩石的渲染网格上按击打高度缓存截面，从站位方向选取可见的第一处表面。建造使用木桩正面。斧刃、镐尖和锤面的接触点与各自工具模型共用局部坐标，接近挥击末段时调整手部轨迹，低处目标会带动身体屈膝。表面变动后重新对准，超出可及范围或失去表面时，角色会收势。接触提示依据逆运动学求解后的工具端点距离和入面深度。[运动轨迹约束研究](https://homes.cs.washington.edu/~zoran/warpage/warpage.pdf) · [场景接触与角色逆运动学研究](https://stevetonneau.fr/files/publications/cg/C_G_tonneau.pdf)
 
 设计参考[单手与双手抓取实验](https://pubmed.ncbi.nlm.nih.gov/9224856/)中运输与手形的协调、[联合搬举实验](https://www.nature.com/articles/s41598-019-48758-1)对伸手、接触、抓握和抬起阶段的区分，以及[行走搬运实验](https://pubmed.ncbi.nlm.nih.gov/12632239/)中的负荷与步态协调。工程上参考 [Godot 动画状态过渡](https://docs.godotengine.org/en/stable/tutorials/animation/animation_tree.html)的条件、同步与退出语义；当前仍使用程序姿态控制器，没有改成 AnimationTree 或导入实验动作数据。
 

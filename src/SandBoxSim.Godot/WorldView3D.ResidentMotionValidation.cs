@@ -100,7 +100,68 @@ public partial class WorldView3D
         ValidateProjectedResidentMotion(delta);
         ValidateSceneHandoff(tiles.Start,tiles.Corner,delta);
         ValidateWorldStockContact(tiles.Start,delta);
+        ValidateWorldToolContact(tiles.Goal,delta);
         ValidateCommittedCultivation(tiles.Goal,delta);
+    }
+
+    internal void ValidateWorldToolContact()=>ValidateWorldToolContact(FindResidentMotionCorner().Goal,1f/60);
+
+    private void ValidateWorldToolContact(Vector2I origin,float delta)
+    {
+        var sim=Game.Sim;var agents=sim.Agents;
+        var tile=Enumerable.Range(0,sim.World.Width*sim.World.Height)
+            .Select(index=>new Vector2I(index%sim.World.Width,index/sim.World.Width))
+            .Where(p=>p.X>1&&p.Y>1&&p.X<sim.World.Width-2&&p.Y<sim.World.Height-2
+                &&sim.World.TileAt(p.X,p.Y).BuildingId==0)
+            .OrderBy(p=>p.DistanceSquaredTo(origin))
+            .First(p=>DryActorTarget(PositionAt(p.X,p.Y))&&SceneryPointClear(PositionAt(p.X,p.Y),.75f)
+                &&ActorFootSupport(PositionAt(p.X,p.Y)));
+        var stand=PositionAt(tile.X,tile.Y);
+        var tree=new Transform3D(new Basis(Vector3.Up,.37f),stand+Vector3.Forward*.69f);
+        var prop=new MeshInstance3D {Name="WorkContactFixtureTree",Mesh=_models.Shape("broad-tree"),Transform=tree};
+        _props.AddChild(prop);
+        try
+        {
+            sim.World.SetResource(tile.X,tile.Y,new ResourceNode {Kind=ResourceKind.Wood,Amount=30,Capacity=30});
+            RegisterSceneResource(tile.X,tile.Y,ResourceKind.Wood,tree.Origin+Vector3.Up*.85f,"broad-tree",tree);
+            if(sim.InterveneSpawnHumans(tile.X,tile.Y,1,1)!=1)
+                throw new InvalidOperationException("Strike fixture could not spawn a resident");
+            int slot=agents.AliveSlots().Last();
+            agents.SetLifeStage(slot,LifeStage.Adult);
+            agents.SetPosition(slot,tile.X,tile.Y);
+            agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
+            SyncEntities();
+            var rig=(ResidentRig)_people[sim.Society.Identity(slot)];
+            rig.Position=stand;rig.Rotation=Vector3.Zero;
+            _target=stand;_distance=8;_pitch=.62f;UpdateCamera();
+            AnimateActors(delta);
+            agents.SetAction(slot,ActionKind.GatherWood,ActionPhase.Executing);
+            agents.SetTarget(slot,tile.X,tile.Y);
+            if(!TryPlanToolSurface(ActionKind.GatherWood,tile.X,tile.Y,stand,out var strike,out bool requiresSurface)
+                ||!requiresSurface||!ReachableToolSurface(rig,stand,strike))
+                throw new InvalidOperationException("Tree contact fixture has no reachable front surface");
+            string committed=sim.StateDigestString();
+            float closest=float.PositiveInfinity;
+            for(int i=0;i<300;i++)
+            {
+                AnimateActors(delta);
+                if(rig.ToolHeld)closest=MathF.Min(closest,rig.WorldToolTip.DistanceTo(strike.Point));
+            }
+            int contacts=rig.PresentedSurfaceContacts;
+            if(contacts==0||closest>.060f||sim.StateDigestString()!=committed)
+                throw new InvalidOperationException($"World axe does not touch the transformed tree: gap={closest:F3} m, contacts={contacts}, stand={rig.Position.DistanceTo(stand):F3}");
+            sim.World.ClearResource(tile.X,tile.Y);
+            committed=sim.StateDigestString();
+            for(int i=0;i<75;i++)AnimateActors(delta);
+            if(rig.GestureEngaged(ActionKind.GatherWood)||rig.PresentedSurfaceContacts!=contacts||sim.StateDigestString()!=committed)
+                throw new InvalidOperationException("Removing the active tree leaves a stale swing or changes the simulation");
+            GD.Print($"WORLD_TOOL_SURFACE_PASS: axe reaches actual transformed trunk within {closest:F3} m, {contacts} contacts, depletion stops the strike");
+        }
+        finally
+        {
+            _sceneResourceAnchors.Remove(tile.Y*sim.World.Width+tile.X);
+            _props.RemoveChild(prop);prop.QueueFree();
+        }
     }
 
     private void ValidateCommittedCultivation(Vector2I origin,float delta)

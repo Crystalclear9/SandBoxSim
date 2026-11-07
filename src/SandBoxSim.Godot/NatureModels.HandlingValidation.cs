@@ -470,6 +470,55 @@ internal sealed partial class NatureModels
             finally{rig.Free();}
         }
         GD.Print($"TOOL_PHRASE_PASS: five tool families at 60/24 Hz, single impact, natural completion, suppressed work, urgent cancellation, hunt wait and thrust, max wrist step {biggestInterruption:F3} m");
+        ValidateToolSurfaceTracking();
+    }
+
+    private void ValidateToolSurfaceTracking()
+    {
+        const float dt=1f/60;
+        float worstGap=0,worstStep=0;
+        foreach(int identity in new[]{17,55})
+        foreach(var (action,shape,height,depth) in new[]
+        {
+            (ActionKind.GatherWood,"broad-tree",.85f,.69f),
+            (ActionKind.GatherWood,"conifer-tree",.48f,.69f),
+            (ActionKind.GatherStone,"boulder",.49f,1.10f),
+            (ActionKind.BuildHouse,"post",1.13f,.49f)
+        })
+        {
+            var rig=Resident(identity,false,JobType.None);
+            try
+            {
+                var placement=new Transform3D(new Basis(Vector3.Up,.37f),new(0,0,-depth));
+                var contact=new ResidentRig.ToolSurface(new(0,height,-depth),Vector3.Back);
+                if(shape!="post"&&!TryWorkSurface(shape,placement,Vector3.Zero,height,out contact))
+                    throw new InvalidOperationException($"Tool fixture cannot find its rendered surface: {shape}");
+                float nearest=float.PositiveInfinity;
+                float deepest=0;
+                Vector3 closestOffset=default;
+                var before=rig.HandWorldPose(1).Origin;
+                for(int i=0;i<330;i++)
+                {
+                    rig.PresentAction(dt,action,ActionPhase.Executing,false,0,2,toolSurface:contact);
+                    var after=rig.HandWorldPose(1).Origin;
+                    if(rig.GestureEngaged(action)&&rig.ToolStrokePhase>.55f)worstStep=MathF.Max(worstStep,before.DistanceTo(after));
+                    before=after;
+                    if(!rig.GestureEngaged(action)||rig.ToolStrokePhase is <.65f or >.99f)continue;
+                    var offset=rig.WorldToolTip-contact.Point;
+                    if(offset.Length()<nearest){nearest=offset.Length();closestOffset=offset;}
+                    if(offset.Length()<.10f)deepest=MathF.Min(deepest,offset.Dot(contact.Normal));
+                }
+                if(nearest>.060f||rig.PresentedSurfaceContacts==0||deepest<-.075f||worstStep>.080f)
+                    throw new InvalidOperationException($"Work tool misses or clips its surface: {shape}/{identity}, point={contact.Point}, gap={nearest:F3} ({closestOffset}), penetration={deepest:F3}, contacts={rig.PresentedSurfaceContacts}, wrist={worstStep:F3}");
+                worstGap=MathF.Max(worstGap,nearest);
+                int hits=rig.PresentedSurfaceContacts;
+                for(int i=0;i<105;i++)rig.PresentAction(dt,action,ActionPhase.Executing,false,0,2);
+                if(rig.PresentedSurfaceContacts!=hits||rig.GestureEngaged(action))
+                    throw new InvalidOperationException($"Removed work surface keeps an active strike: {shape}");
+            }
+            finally{rig.Free();}
+        }
+        GD.Print($"TOOL_SURFACE_PASS: two adult frames, real trunk/rock sections and post face, worst closest approach {worstGap:F3} m, max wrist step {worstStep:F3} m, vanished target stops work");
     }
     private void ValidateBareTransitions()
     {

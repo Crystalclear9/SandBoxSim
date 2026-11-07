@@ -460,7 +460,7 @@ public partial class WorldView3D : MapView
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="wet-bank-mosaic-v7",["sceneryContact"]="solid-scenery-corridors-v3",["habitatDetail"]="responsive-understory-v12",["vegetationSurface"]="engine-faced-v2",
             ["architecture"]="inset-joinery-v13",["garmentMaterial"]="quiet-linen-v18",["trouserSkin"]="guided-knee-v1",["upperArmFlex"]="stable-contour-v3",["shoulderSkin"]="reference-figure-v25",["shoulderMotion"]="source-clavicle-v11",["motionReference"]="cmu-143-30-v1",["shoulderSurface"]="authored-bind-surface-v3",["forearmSkin"]="continuous-elbow-v9",["sleeveFairing"]="rest-detail-v2",["workPose"]="raised-hammer-v1",["reachMotion"]="palm-trajectory-v2",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
-            ["animalPresentation"]="articulated-paws-v12",["animalLocomotion"]="ground-distance-v1",["residentSurface"]="linear-skin-v9",["workEffort"]="overlapping-weight-transfer-v7",["toolMotion"]="socket-relative-stow-v5",["bodySupport"]="planted-spatial-v3",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="tool-phrase-v16",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="captured-conversation-v10",["waterSurface"]="shore-activity-v7",["wristContour"]="continuous-source-v2",
+            ["animalPresentation"]="articulated-paws-v12",["animalLocomotion"]="ground-distance-v1",["residentSurface"]="linear-skin-v9",["workEffort"]="overlapping-weight-transfer-v7",["toolMotion"]="socket-relative-stow-v5",["bodySupport"]="planted-spatial-v3",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="tool-surface-v17",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="captured-conversation-v10",["waterSurface"]="shore-activity-v7",["wristContour"]="continuous-source-v2",
             ["hairline"]="framed-source-root-v2",["femaleGroom"]="scalp-guided-plait-v1",["garmentFit"]="continuous-drape-v35",["reedPanicle"]="connected-axis-v1",["bodyPresentation"]="continuous-drape-v29",["bodyFrame"]="reference-contour-physique-v31",["femaleBodyBuild"]="regional-builds-v1",["femaleRearShoulder"]="diffused-yoke-v2",["femaleLowerPanel"]="supported-fall-v1",["neckContour"]="relaxed-neckline-v7",["faceContour"]="balanced-adult-v3",["forearmProfile"]="curvature-flow-v9",["residentLocomotion"]="captured-boot-rockers-v9",["gaitReference"]=ResidentGaitCapture.Version,["actionReference"]=ResidentActionCapture.Version,["armSwing"]="captured-spatial-swing-v8",["motionStyle"]="captured-standing-and-stride-v7",["limbCoordination"]="hinge-carry-v4" };
         quality["taskReference"]=ResidentActionCapture.TaskVersion;
         quality["toolContacts"]="furrow-edge-and-work-stance-v1";
@@ -1020,9 +1020,22 @@ public partial class WorldView3D : MapView
             var targetTile=hasTarget||sceneContact.HasValue||preyInRange?new Vector2I(interest.X,interest.Y):(Vector2I?)null;
             var interactionTarget=new ResidentRig.InteractionTarget(targetTile,partnerIdentity,
                 sceneContact.HasValue&&(action is ActionKind.Take or ActionKind.GatherFood)?site with {StockAmount=0}:null);
-            var cue=new PoseCue(action,phase,actionRevision,interactionTarget,true);
+            var strikeResource=StrikeResource(action);
+            bool validStrike=phase!=ActionPhase.Executing||strikeResource==ResourceKind.None
+                ||sim.World.IsInBounds(interest)&&sim.World.TileAt(interest).Resource.Kind==strikeResource
+                    &&sim.World.TileAt(interest).Resource.Amount>0;
+            ResidentRig.ToolSurface? toolSurface=null;
+            bool requiresSurface=false;
+            if(validStrike&&(phase==ActionPhase.Executing||phase==ActionPhase.Done&&node.ShowsCompletion(action,actionRevision))
+                &&(!ResidentRig.UsesWorksiteReceipt(action)||sceneContact.HasValue)
+                &&TryPlanToolSurface(action,interest.X,interest.Y,target,out var strike,out requiresSurface))toolSurface=strike;
+            bool reachable=toolSurface is not {} bound||ReachableToolSurface(node,target,bound);
+            bool waitsForPost=sceneContact.HasValue&&site.Surface==ActionSystem.ContactSurface.BuildingWork
+                &&ResidentRig.ToolFor(action)==ResidentTool.Hammer;
+            bool surfaceReady=toolSurface.HasValue||!requiresSurface&&!waitsForPost;
+            var cue=new PoseCue(action,phase,actionRevision,interactionTarget,true,toolSurface);
             var facingDirection=Horizontal(interestPoint-rendered);
-            bool aligned=(!trackingPrey||preyInRange)&&(!aimsAtTarget||!interacting||!hasInterest||InteractionFacingAligned(yaw,facingDirection,
+            bool aligned=validStrike&&reachable&&surfaceReady&&(!trackingPrey||preyInRange)&&(!aimsAtTarget||!interacting||!hasInterest||InteractionFacingAligned(yaw,facingDirection,
                 _poseSchedule.RetainsFacing(pair.Key,cue)));
             cue=cue with {Aligned=aligned};
             bool changed=_poseSchedule.Observe(pair.Key,cue,delta,!paused);
@@ -1052,10 +1065,10 @@ public partial class WorldView3D : MapView
                 node.SetPickupPiece(_models.GroundPickupPiece(site.Resource,NatureModels.GroundPileTier(site.StockAmount)),sourceVisible);
             }
             else node.SetPickupPiece(null,false);
-            bool completeToolStroke=phase!=ActionPhase.Done||!ResidentRig.UsesWorksiteReceipt(action)||sceneContact.HasValue;
+            bool completeToolStroke=reachable&&(phase!=ActionPhase.Done||!ResidentRig.UsesWorksiteReceipt(action)||sceneContact.HasValue);
             node.PresentAction(_poseSchedule.Consume(pair.Key),action,phase,false,slot,actionRevision,
                 hasPartner&&action!=ActionKind.ShareFood,aligned,sceneContact,contactResource,interactionTarget,completeToolStroke,
-                awaitToolCommit:phase==ActionPhase.Executing&&(action is ActionKind.Hunt or ActionKind.Attack));
+                awaitToolCommit:phase==ActionPhase.Executing&&(action is ActionKind.Hunt or ActionKind.Attack),toolSurface:toolSurface);
             if(distanceSquared<18*18)
             {
                 if(!paused)ConformFeet(node);

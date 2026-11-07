@@ -53,6 +53,8 @@ internal partial class ResidentRig
         ClearConsumption();
         ClearTransientCargo();
         ResetToolPhrase(retainPose:false);
+        ObserveToolSurface(null,reset:true);
+        _workSurfaceBend=0;
         _interactionTarget=default;_retargetSettle=0;
         _sceneContact=null;
         ResetScenePickup(discard:true);_scenePickupBend=0;
@@ -60,7 +62,7 @@ internal partial class ResidentRig
 
     public void PresentAction(float delta,ActionKind action,ActionPhase phase,bool paused,float identityPhase,uint? revision=null,bool hasPartner=true,bool targetAligned=true,
         Vector3? sceneContact=null,ResourceKind contactResource=ResourceKind.None,InteractionTarget target=default,
-        bool completeToolStroke=true,bool awaitToolCommit=false)
+        bool completeToolStroke=true,bool awaitToolCommit=false,ToolSurface? toolSurface=null)
     {
         if(paused)return;
         bool firstSnapshot=revision.HasValue&&!_observedRevision.HasValue;
@@ -74,8 +76,14 @@ internal partial class ResidentRig
             &&target.Partner!=_interactionTarget.Partner;
         bool changedTile=target.Tile.HasValue&&_interactionTarget.Tile.HasValue&&target.Tile!=_interactionTarget.Tile;
         bool changedPickup=target.Pickup!=_interactionTarget.Pickup;
-        bool retargeted=sameExecution&&(changedPartner||changedTile||changedPickup);
+        bool changedSurface=_toolSurface is {} previousSurface&&toolSurface is {} nextSurface
+            &&(previousSurface.Point.DistanceSquaredTo(nextSurface.Point)>.09f*.09f
+                ||previousSurface.Normal.Dot(nextSurface.Normal)<.80f);
+        bool retargeted=sameExecution&&(changedPartner||changedTile||changedPickup||changedSurface);
         var family=FamilyOf(action);
+        bool lostWorkSurface=ObserveToolSurface(toolSurface,newRun||retargeted);
+        targetAligned&=!lostWorkSurface;
+        completeToolStroke&=!lostWorkSurface;
         if(newRun||retargeted)
             ResetToolPhrase(retainPose:family==ActionFamily.Tool&&ToolFor(action)==ToolFor(_observedAction));
         if(newRun)_retargetSettle=0;

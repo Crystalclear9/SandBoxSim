@@ -35,7 +35,8 @@ internal partial class ResidentRig
     {
         ResidentTool.Hoe=>_strokePhase<.29f?"落锄":_strokePhase<.54f?"沿土面回拉":"抬刃 / 收势",
         ResidentTool.Spear=>_awaitToolCommit&&_strokePhase>=.47f?"瞄准 / 等待时机":_strokePhase<.61f?"蓄力 / 前刺":"收矛 / 复位",
-        _=>_strokePhase<WorkPreparation?"抬起工具":_strokePhase<ToolImpactPhase(CurrentTool)?"向目标挥下":"卸力 / 收势"
+        _=>_strokePhase<WorkPreparation?"抬起工具":_surfaceTouched?"触及表面 / 收势":
+            _strokePhase<ToolImpactPhase(CurrentTool)?"向目标挥下":"卸力 / 收势"
     };
 
     private void ResetToolPhrase(bool retainPose)

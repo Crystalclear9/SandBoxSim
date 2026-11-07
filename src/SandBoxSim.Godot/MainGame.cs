@@ -176,7 +176,7 @@ public partial class MainGame : Control
             try{if(_selfTest||_benchmarkSeconds>0||_capture.Length>0||_captureFrames.Length>0)throw new ArgumentException("Evaluation cannot be mixed with legacy capture/test modes");LoadEvaluation(evaluationPath.Substring(13));}
             catch(Exception ex){GD.PrintErr("EVALUATION_CONFIG_ERROR "+ex.Message);TraceEvaluationPhase("quit_requested");GetTree().Quit(2);SetProcess(false);return;}
         }
-        if(_selfTest&&OS.GetCmdlineUserArgs().Any(arg=>arg is "--stock-contact-only" or "--work-contact-only"))_initialPopulation=0;
+        if(_selfTest&&OS.GetCmdlineUserArgs().Any(arg=>arg is "--stock-contact-only" or "--work-contact-only" or "--strike-contact-only"))_initialPopulation=0;
         NewWorld(_evaluation?.Seed??839102);
         TraceEvaluationPhase("world_initialized");
         if (_previewDays > 0) { AdvanceWorld(_previewDays * Sim.Config.Clock.TicksPerDay); }
@@ -754,7 +754,7 @@ public partial class MainGame : Control
     {
         try
         {
-            var focused=OS.GetCmdlineUserArgs().FirstOrDefault(arg=>arg is "--stock-contact-only" or "--work-contact-only");
+            var focused=OS.GetCmdlineUserArgs().FirstOrDefault(arg=>arg is "--stock-contact-only" or "--work-contact-only" or "--strike-contact-only");
             if(focused!=null)
             {
                 Sim=new Simulation(Sim.Config.Clone(),30,30,13);
@@ -762,6 +762,7 @@ public partial class MainGame : Control
                 worldView.ValidateWorldDimensions();
                 SetSpeed(ObservationSpeed);
                 if(focused=="--work-contact-only")worldView.ValidateWorldWorkContact();
+                else if(focused=="--strike-contact-only")worldView.ValidateWorldToolContact();
                 else worldView.ValidateWorldStockContact();
                 GetTree().Quit();
                 return;

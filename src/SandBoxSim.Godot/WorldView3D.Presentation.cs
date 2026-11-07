@@ -8,7 +8,7 @@ namespace SandBoxSim.Client;
 public partial class WorldView3D
 {
     private readonly PoseSchedule _poseSchedule=new();
-    private readonly record struct PoseCue(ActionKind Action,ActionPhase Phase,uint Revision,ResidentRig.InteractionTarget Target,bool Aligned);
+    private readonly record struct PoseCue(ActionKind Action,ActionPhase Phase,uint Revision,ResidentRig.InteractionTarget Target,bool Aligned,ResidentRig.ToolSurface? Surface=null);
     /// <summary>Accumulate time only while the observed action and its contacts are current.</summary>
     private sealed class PoseSchedule
     {
@@ -56,6 +56,7 @@ public partial class WorldView3D
         consumed+=schedule.Consume(actor);
         if(MathF.Abs(actual-consumed)>.00001f)throw new InvalidOperationException("Stride change loses or duplicates pending animation time");
         foreach(var next in new[]{cue with {Phase=ActionPhase.Done},cue with {Revision=13},
+            cue with {Surface=new(new(.2f,.8f,-.5f),Vector3.Back)},
             cue with {Target=cue.Target with {Tile=new Vector2I(4,3)}},cue with {Target=cue.Target with {Partner=51}},
             cue with {Target=cue.Target with {Pickup=new(new(2,3),SandBoxSim.Core.Environment.ResourceKind.Stone,
                 SandBoxSim.Core.Systems.ActionSystem.ContactSurface.GroundStock)}},cue with {Aligned=false},cue with {Action=ActionKind.Flee}})

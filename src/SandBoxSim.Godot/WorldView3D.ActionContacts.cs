@@ -7,6 +7,43 @@ namespace SandBoxSim.Client;
 
 public partial class WorldView3D
 {
+    private static ResourceKind StrikeResource(ActionKind action)=>action switch
+    {
+        ActionKind.GatherWood=>ResourceKind.Wood,
+        ActionKind.GatherStone=>ResourceKind.Stone,
+        ActionKind.GatherIron=>ResourceKind.Iron,
+        _=>ResourceKind.None
+    };
+
+    private bool TryPlanToolSurface(ActionKind action,int x,int y,Vector3 stand,out ResidentRig.ToolSurface contact,out bool requiresSurface)
+    {
+        contact=default;
+        requiresSurface=false;
+        var world=Game.Sim.World;
+        if(!world.IsInBounds(x,y))return false;
+        var resource=StrikeResource(action);
+        if(resource!=ResourceKind.None)
+        {
+            if(!_sceneResourceAnchors.TryGetValue(y*world.Width+x,out var anchor)||anchor.Kind!=resource||anchor.WorkShape is not {} shape)
+                return false;
+            requiresSurface=true;
+            float height=shape switch {"conifer-tree"=>.48f,"broad-tree"=>.85f,_=>.49f};
+            return SceneryPointClear(stand,SceneryClearance)&&_models.TryWorkSurface(shape,anchor.Placement,stand,height,out contact);
+        }
+        if(ResidentRig.ToolFor(action)!=ResidentTool.Hammer)return false;
+        int index=world.TileAt(x,y).BuildingId-1;
+        if(!_buildingVisuals.TryGetValue(index,out var structure)||structure.Complete||!Game.Sim.Buildings.IsAlive(index)
+            ||structure.Generation!=Game.Sim.Buildings.GenerationOf(index))return false;
+        contact=new(structure.Root.Transform*NatureModels.ConstructionPostFace(structure.Identity),structure.Root.Basis.Z.Normalized());
+        return true;
+    }
+
+    private static bool ReachableToolSurface(ResidentRig rig,Vector3 stand,ResidentRig.ToolSurface surface)
+    {
+        var offset=(surface.Point-stand)/rig.Scale.X;
+        return offset.Y is >=.22f and <=1.42f&&Horizontal(offset).LengthSquared() is >=.25f*.25f and <=.84f*.84f;
+    }
+
     private float CultivationSurfaceHeight(Vector3 point,int x,int y)
     {
         float terrain=GroundHeight(point.X,point.Z);
@@ -56,14 +93,13 @@ public partial class WorldView3D
                     }
                     return false;
                 }
+                if(Game.Sim.Buildings.StateOf(workplace)==BuildingState.Complete)return false;
                 if(!_buildingVisuals.TryGetValue(workplace,out var construction)||construction.Generation!=site.BuildingGeneration)
                 {
                     point=tile;
                     return true;
                 }
-                var footprint=NatureModels.BuildingFootprint(construction.Identity);
-                var post=new Vector3(footprint.X*.5f,.77f,footprint.Y*.5f);
-                point=construction.Root.Transform*post;
+                point=construction.Root.Transform*NatureModels.ConstructionPostFace(construction.Identity);
                 outward=construction.Root.Basis.Z;
                 break;
             case ActionSystem.ContactSurface.NaturalResource:

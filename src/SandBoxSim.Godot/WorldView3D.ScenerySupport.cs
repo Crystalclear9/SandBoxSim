@@ -10,7 +10,7 @@ namespace SandBoxSim.Client;
 public partial class WorldView3D
 {
     private readonly List<(string Shape,Transform3D Placement,float Embed)> _groundedStones=new();
-    private readonly Dictionary<int,(ResourceKind Kind,Vector3 Point)> _sceneResourceAnchors=new();
+    private readonly Dictionary<int,(ResourceKind Kind,Vector3 Point,string? WorkShape,Transform3D Placement)> _sceneResourceAnchors=new();
     private Transform3D GroundedStone(string shape,Vector3 point,Vector3 scale,Vector3 rotation,float embed)
     {
         var basis=Basis.FromEuler(rotation)*Basis.FromScale(scale);
@@ -23,17 +23,16 @@ public partial class WorldView3D
         var placement=new Transform3D(basis,new(point.X,y-embed,point.Z));
         _groundedStones.Add((shape,placement,embed));return placement;
     }
-    private void RegisterSceneResource(int x,int y,ResourceKind kind,Vector3 point)
+    private void RegisterSceneResource(int x,int y,ResourceKind kind,Vector3 point,string? workShape=null,Transform3D placement=default)
     {
         if(kind is not (ResourceKind.Wood or ResourceKind.Stone or ResourceKind.Iron or ResourceKind.Food))return;
         var world=Game.Sim.World;
-        if(world.TileAt(x,y).Resource.Kind==kind)_sceneResourceAnchors[y*world.Width+x]=(kind,point);
+        if(world.TileAt(x,y).Resource.Kind==kind)_sceneResourceAnchors[y*world.Width+x]=(kind,point,workShape,placement);
     }
     private Vector3 SceneResourceFocus(int x,int y,ActionKind action)
     {
         var world=Game.Sim.World;int index=y*world.Width+x;
-        var expected=action switch {ActionKind.GatherWood=>ResourceKind.Wood,ActionKind.GatherStone=>ResourceKind.Stone,
-            ActionKind.GatherIron=>ResourceKind.Iron,ActionKind.GatherFood=>ResourceKind.Food,_=>ResourceKind.None};
+        var expected=action==ActionKind.GatherFood?ResourceKind.Food:StrikeResource(action);
         if(_sceneResourceAnchors.TryGetValue(index,out var anchor)&&expected==anchor.Kind
             &&world.Tiles[index].Resource.Kind==expected&&world.Tiles[index].Resource.Amount>0)return anchor.Point;
         return PositionAt(x,y);

@@ -8,6 +8,62 @@ internal sealed partial class NatureModels
 {
     private readonly Dictionary<string,Vector3[]> _stoneBases=new();
     private readonly Dictionary<string,float> _solidRadii=new();
+    private readonly Dictionary<(string Shape,float Height),(Vector2 A,Vector2 B)[]> _workSections=new();
+
+    private (Vector2 A,Vector2 B)[] WorkSection(string shape,float height)
+    {
+        if(_workSections.TryGetValue((shape,height),out var cached))return cached;
+        var mesh=Shape(shape);
+        int surface=shape=="boulder"?0:_environmentRootSurfaces[shape=="broad-tree"?"tree_small_02":"fir_sapling"];
+        var data=mesh.SurfaceGetArrays(surface);
+        var vertices=data[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var indices=data[(int)Mesh.ArrayType.Index].AsInt32Array();
+        var sections=new List<(Vector2,Vector2)>();
+        for(int i=0;i<indices.Length;i+=3)
+        {
+            Vector2 first=default;bool found=false;
+            for(int edge=0;edge<3;edge++)
+            {
+                var a=vertices[indices[i+edge]];
+                var b=vertices[indices[i+(edge+1)%3]];
+                if((a.Y<height)==(b.Y<height))continue;
+                var hit=a.Lerp(b,(height-a.Y)/(b.Y-a.Y));
+                var point=new Vector2(hit.X,hit.Z);
+                if(found&&first.DistanceSquaredTo(point)>1e-10f)sections.Add((first,point));
+                first=point;found=true;
+            }
+        }
+        return _workSections[(shape,height)]=sections.ToArray();
+    }
+
+    internal bool TryWorkSurface(string shape,Transform3D placement,Vector3 stand,float height,out ResidentRig.ToolSurface contact)
+    {
+        contact=default;
+        var from=placement.AffineInverse()*stand;
+        var start=new Vector2(from.X,from.Z);
+        if(start.LengthSquared()<.005f)return false;
+        var direction=-start.Normalized();
+        float closest=float.PositiveInfinity;
+        Vector2 outward=default;
+        foreach(var (a,b) in WorkSection(shape,height))
+        {
+            var segment=b-a;
+            float divider=direction.Cross(segment);
+            if(Mathf.Abs(divider)<1e-7f)continue;
+            var offset=a-start;
+            float distance=offset.Cross(segment)/divider;
+            float portion=offset.Cross(direction)/divider;
+            if(distance<0||distance>=closest||portion is <0 or >1)continue;
+            closest=distance;
+            outward=new Vector2(-segment.Y,segment.X).Normalized();
+            if(outward.Dot(direction)>0)outward=-outward;
+        }
+        if(!float.IsFinite(closest))return false;
+        var pointAtHeight=start+direction*closest;
+        var normal=(placement.Basis.Inverse().Transposed()*new Vector3(outward.X,0,outward.Y)).Normalized();
+        contact=new(placement*new Vector3(pointAtHeight.X,height,pointAtHeight.Y),normal);
+        return true;
+    }
 
     internal float SolidSceneryRadius(string shape)
     {

@@ -67,11 +67,12 @@ public partial class WorldView3D
             {
                 bool fir=hash%3==0;
                 float scale=.76f+(hash%17)*.035f;
-                float radius=_models.SolidSceneryRadius(fir?"conifer-tree":"broad-tree")*scale;
+                string shape=fir?"conifer-tree":"broad-tree";
+                float radius=_models.SolidSceneryRadius(shape)*scale;
                 if(!TrySolidSite(x,y,hash,radius,out var stem))continue;
                 var tree=NatureModels.Transform(stem-Vector3.Up*.045f,Vector3.One*scale,new Vector3(0,hash%17,0));
                 (fir?pines:leaves).Add(tree);
-                RegisterSceneResource(x,y,ResourceKind.Wood,tree.Origin+Vector3.Up*(.85f*scale));
+                RegisterSceneResource(x,y,ResourceKind.Wood,tree.Origin+Vector3.Up*(.85f*scale),shape,tree);
             }
             else if(tile.Terrain==TerrainKind.Mountain&&hash%9==0)
             {
@@ -81,7 +82,7 @@ public partial class WorldView3D
                 var rock=GroundedStone("boulder",point,new Vector3(.82f+(hash%3)*.09f,.79f+(hash%5)*.07f,1)*scale,
                     new Vector3(0,hash%31,0),.045f);
                 (tile.Resource.Kind==ResourceKind.Iron?ores:rocks).Add(rock);
-                RegisterSceneResource(x,y,tile.Resource.Kind,rock.Origin+Vector3.Up*(.49f*rock.Basis.Y.Length()));
+                RegisterSceneResource(x,y,tile.Resource.Kind,rock.Origin+Vector3.Up*(.49f*rock.Basis.Y.Length()),"boulder",rock);
                 AddScreeFan(point,hash,scree);
             }
         }

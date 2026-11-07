@@ -246,6 +246,8 @@ internal partial class ResidentRig : Node3D
         var stance=WorkSupport(delta,executing&&usingTool&&ToolHeld&&wanted==CurrentTool&&!_carrying,
             (1-_activity)*(1-pickupWeight));
         float workBlend=Smooth(_workBlend);
+        float surfaceBend=AdvanceWorkSurfaceBend(delta,working,workBlend);
+        stance+=new Vector3(0,-surfaceBend,-surfaceBend*.28f);
         bool socialReady=upperReady&&family==ActionFamily.Social&&handsFree&&!_hasCargo&&_bareBlend==0&&_cargoBlend<=.05f;
         if(socialReady&&_socialBlend==0)_socialTime=0;
         _socialBlend=Mathf.MoveToward(_socialBlend,socialReady?1:0,delta/.70f);
@@ -286,7 +288,7 @@ internal partial class ResidentRig : Node3D
         var socialChest=SocialChest(socialPose)*socialWeight;
         var idleChest=new Vector3(.011f*breath,.013f*MathF.Sin(_phase*.31f+identityPhase+.8f),-1.25f*restSupport.X)*idleWeight;
         var travelShift=_travelWeightShift*(1-pickupWeight)*(1-restWeight);
-        var chestTarget=new Vector3(desiredLean+reachLean+sip.Y*.028f+_travelPitch*(1-pickupWeight),
+        var chestTarget=new Vector3(desiredLean+reachLean+sip.Y*.028f+_travelPitch*(1-pickupWeight)-surfaceBend,
             reachTurn+_gaitTurn*TurnChestShare*gaitWeight+.053f*gatherPose.Turn*pickupWeight,0);
         var turningChest=new Vector3(-.018f*MathF.Abs(pivotAmount),.085f*pivot.Chest*pivotAmount+.115f*arrival.Look,
             .065f*pivot.Roll*pivotAmount-.57f*arrival.Shift.X);
@@ -379,10 +381,12 @@ internal partial class ResidentRig : Node3D
             }
             var active=(carry.Item1.Lerp(work.Item1,workBlend),new Basis(carry.Item2.GetRotationQuaternion().Slerp(work.Item2.GetRotationQuaternion(),workBlend)));
             var (target,basis)=_returning?(_returnPosition,_returnBasis):active;
+            if(working&&!cultivating)(target,basis)=GuideWorkTool(target,basis,workBlend);
             var filtered=FilterHeldTool(Holster.Position.Lerp(target,ReachEase(_draw)),new Basis(Holster.Basis.GetRotationQuaternion().Slerp(basis.GetRotationQuaternion(),ReachEase(_draw))));
             if(cultivating&&!_returning&&_draw>=.99f)
                 filtered.Position=GuideCultivationEdge(filtered.Position,filtered.Basis,_strokePhase,workBlend);
             SolveHand(1,filtered.Position,filtered.Basis*Grip!.Basis.Inverse(),false,(1-_workBlend)*Smooth(_draw));
+            MeasureWorkContact(working);
             CurlHand(1,1);
             if(CurrentTool is ResidentTool.Axe or ResidentTool.Pick or ResidentTool.Hoe or ResidentTool.Spear)
             {

@@ -7,6 +7,7 @@ namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
     internal const float FarmBedHeight=.12f,FarmBedHalfWidth=1.10f;
+    internal const float ConstructionPostHalfWidth=.05f,ConstructionPostHeight=1.70f;
     // Shared by the shell, domestic props and terrain skirt. Openings stay human-sized.
     internal static Vector2 BuildingFootprint(uint identity)
     {
@@ -14,6 +15,11 @@ internal sealed partial class NatureModels
         return new(3.65f + (identity % 4) * .16f, 3.05f + ((identity / 7) % 4) * .18f);
     }
     internal static Vector3 StorageCrateTop(float depth)=>new(.39f,.36f,depth/2+.28f);
+    internal static Vector3 ConstructionPostFace(uint identity)
+    {
+        var footprint=BuildingFootprint(identity);
+        return new(footprint.X*.5f,1.13f,footprint.Y*.5f+ConstructionPostHalfWidth);
+    }
 
     private Node3D Architecture(BuildingKind kind, bool complete, uint identity)
     {
@@ -29,7 +35,7 @@ internal sealed partial class NatureModels
         {
             Part(model, "box", new(0, .09f, 0), new(width, .18f, depth), 6);
             foreach (float x in new[] { -width / 2, width / 2 }) foreach (float z in new[] { -depth / 2, depth / 2 })
-                Part(model, "box", new(x, .85f, z), new(.1f, 1.7f, .1f), 0);
+                Part(model, "box", new(x, ConstructionPostHeight*.5f, z), new(ConstructionPostHalfWidth*2,ConstructionPostHeight,ConstructionPostHalfWidth*2), 0);
             Part(model, "box", new(0, 1.65f, depth / 2), new(width + .2f, .1f, .1f), 0);
             for (int i = 0; i < 3; i++) Part(model, "box", new(-.3f, .2f + i * .12f, .2f), new(.9f, .09f, .18f), 1);
             return FinishArchitecture(model, kind, complete, identity, width, depth);

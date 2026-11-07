@@ -10,7 +10,7 @@ namespace SandBoxSim.Client;
 internal partial class ModelGallery
 {
     private const float StudyPickupYaw=MathF.PI+.62f;
-    private readonly List<(ResidentRig Rig,int Sequence,Label Readout,string Title,Camera3D Camera,Node3D? Stock,Mesh? Piece)> _interactionFlow=new();
+    private readonly List<(ResidentRig Rig,int Sequence,Label Readout,string Title,Camera3D Camera,Node3D Prop,Mesh? Piece)> _interactionFlow=new();
     private sealed class HandoffStudy(ResidentRig giver,ResidentRig receiver,Label readout)
     {
         internal readonly ResidentRig Giver=giver,Receiver=receiver;
@@ -45,26 +45,36 @@ internal partial class ModelGallery
             var column=grid.GetChild<VBoxContainer>(grid.GetChildCount()-1);
             var stage=column.GetChild<SubViewportContainer>(0).GetChild<SubViewport>(0).GetChild<Node3D>(0);
             var camera=stage.GetChild<Camera3D>(stage.GetChildCount()-1);
-            Node3D? stock=null;
+            Node3D prop;
+            Mesh? piece=null;
             if(sequence==0)
             {
-                stock=models.GroundPile(ResourceKind.Stone,0);
-                stage.AddChild(stock);
+                prop=models.GroundPile(ResourceKind.Stone,0);
+                piece=models.GroundPickupPiece(ResourceKind.Stone,0);
                 var grip=NatureModels.GroundPileGrip(ResourceKind.Stone,0);
-                stock.Position=new Vector3(0,0,-.47f).Rotated(Vector3.Up,StudyPickupYaw)-new Vector3(grip.X,0,grip.Z);
+                prop.Position=new Vector3(0,0,-.47f).Rotated(Vector3.Up,StudyPickupYaw)-new Vector3(grip.X,0,grip.Z);
             }
-            _interactionFlow.Add((rig,sequence,column.GetChild<Label>(1),title,camera,stock,stock==null?null:models.GroundPickupPiece(ResourceKind.Stone,0)));
+            else
+            {
+                const float width=NatureModels.ConstructionPostHalfWidth*2;
+                prop=new MeshInstance3D {Name="ConstructionPost",MaterialOverride=models.Material(0),
+                    Mesh=new BoxMesh {Size=new(width,NatureModels.ConstructionPostHeight,width)},
+                    Position=-rig.Basis.Z*.54f+Vector3.Up*(NatureModels.ConstructionPostHeight*.5f)};
+            }
+            stage.AddChild(prop);
+            _interactionFlow.Add((rig,sequence,column.GetChild<Label>(1),title,camera,prop,piece));
         }
     }
     private void AdvanceInteractionFlow(float dt)
     {
         float t=_elapsed%16.5f;
-        foreach(var (rig,sequence,readout,title,camera,stock,piece) in _interactionFlow)
+        foreach(var (rig,sequence,readout,title,camera,prop,piece) in _interactionFlow)
         {
             ActionKind action;ActionPhase phase;uint? revision=null;bool aligned=true;
             Vector3? contact=null;
             var resource=ResourceKind.None;
             ResidentRig.InteractionTarget focus=default;
+            ResidentRig.ToolSurface? toolSurface=null;
             if(sequence==0)
             {
                 // Take a real return walk so the loop never snaps the root.
@@ -95,7 +105,7 @@ internal partial class ModelGallery
                 if(pickup||phase==ActionPhase.Done)
                 {
                     resource=ResourceKind.Stone;
-                    contact=pickup?stock!.Position+NatureModels.GroundPileGrip(resource,0):new Vector3(0,0,-.35f);
+                    contact=pickup?prop.Position+NatureModels.GroundPileGrip(resource,0):new Vector3(0,0,-.35f);
                     if(pickup)focus=new(Vector2I.Zero,0,new ActionSystem.ActionContact(new(0,0),resource,ActionSystem.ContactSurface.GroundStock));
                 }
                 rig.SetPickupPiece(pickup?piece:null,true);
@@ -107,11 +117,18 @@ internal partial class ModelGallery
                 revision=t<2.4f?1u:t<4.8f?2u:t<7.75f?3u:t<10.3f?4u:t<13.25f?5u:t<15.1f?6u:7u;
                 phase=revision==3||revision==1&&t>=1.05f||revision==5&&t>=11.36f?ActionPhase.Done:
                     t<15.1f?ActionPhase.Executing:ActionPhase.Moving;
+                prop.Visible=action==ActionKind.BuildHouse;
+                if(prop.Visible)
+                {
+                    var surface=prop.Position+rig.Basis.Z*NatureModels.ConstructionPostHalfWidth;
+                    surface.Y=NatureModels.ConstructionPostFace(0).Y;
+                    toolSurface=new(surface,rig.Basis.Z.Normalized());
+                }
             }
-            rig.PresentAction(dt,action,phase,false,0,revision,targetAligned:aligned,sceneContact:contact,contactResource:resource,target:focus);
+            rig.PresentAction(dt,action,phase,false,0,revision,targetAligned:aligned,sceneContact:contact,contactResource:resource,target:focus,toolSurface:toolSurface);
             if(sequence==0)
             {
-                stock!.Visible=t<5.30f&&!rig.ScenePickupGrasped;
+                prop.Visible=t<5.30f&&!rig.ScenePickupGrasped;
                 float crouch=Mathf.SmoothStep(.16f,.45f,ResidentRig.HipHeight-rig.Legs[0].Position.Y);
                 var target=new Vector3(0,Mathf.Lerp(.84f,.52f,crouch),rig.Position.Z);
                 camera.Size=Mathf.Lerp(1.90f,1.16f,crouch);
