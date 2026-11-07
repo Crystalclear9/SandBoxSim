@@ -8,6 +8,8 @@ namespace SandBoxSim.Client;
 
 public partial class WorldView3D
 {
+    private const uint MaxContactRevisionGap=3;
+
     private bool TryBridgeResidentContact(ResidentRig resident,int slot,ActionKind next,ActionPhase phase,uint revision,
         Int2 origin,Int2 interest,Vector3 logical,float distanceSquared,float delta,
         out ActionSystem.ContactCompletion completion,out Vector3 point,out Vector3 stand)
@@ -16,27 +18,38 @@ public partial class WorldView3D
         var sim=Game.Sim;
         if(!resident.Visible||distanceSquared>=18*18||phase==ActionPhase.Failed
             ||next is ActionKind.Flee or ActionKind.Attack or ActionKind.Hunt or ActionKind.ShareFood or ActionKind.Socialize
-            ||!sim.Actions.TryGetLatestContactCompletion(slot,out completion)||completion.Origin!=origin
-            ||unchecked(completion.Revision+1)!=revision)
+            ||!sim.Actions.TryGetLatestContactCompletion(slot,out completion)||completion.Origin!=origin)
+            return false;
+        uint revisionGap=unchecked(revision-completion.Revision);
+        if(revisionGap==0||revisionGap>MaxContactRevisionGap)
             return false;
         // Consecutive work at the same site already shares a stroke in the rig.
         if(completion.Site is {} work&&next==completion.Action&&phase==ActionPhase.Executing
             &&interest==work.Tile&&ResidentRig.ToolFor(next)!=ResidentTool.None)return false;
         long age=sim.Clock-completion.Tick;
-        if(!resident.BridgeContact(completion,delta,age>=0&&age<=sim.Config.Clock.MaxCatchUpTicksPerFrame))return false;
+        if(!resident.CanBridgeContact(completion,age>=0&&age<=sim.Config.Clock.MaxCatchUpTicksPerFrame))return false;
         if(completion.Site is {} site)
         {
             if(!TryActionContact(resident,completion.Action,site,logical,out point,out stand)
-                ||Horizontal(resident.Position-stand).LengthSquared()>.20f*.20f)
+                ||site.Surface!=ActionSystem.ContactSurface.Hunt&&Horizontal(resident.Position-stand).LengthSquared()>.20f*.20f)
                 return false;
+            if(site.Surface==ActionSystem.ContactSurface.Hunt
+                &&(RecallHuntPoint(resident,completion.Revision,site) is not {} aim
+                    ||!TrySpearSurface(resident,resident.Position,aim,out _)))return false;
             if((StrikeResource(completion.Action)!=ResourceKind.None||ResidentRig.ToolFor(completion.Action)==ResidentTool.Hammer)
                 &&(!TryPlanToolSurface(completion.Action,site.Tile.X,site.Tile.Y,stand,out var strike,out _)
                     ||!ReachableToolSurface(resident,stand,strike)))
                 return false;
         }
         else if(completion.Action==ActionKind.Drink&&!TryResidentWaterContact(slot,logical,out _))return false;
-        return true;
+        // Only claim the receipt after the live scene still supports it.
+        // A missing surface cannot start a playback window that outlives freshness.
+        return resident.AdvanceContactBridge(completion,delta);
     }
+
+    private Vector3? RecallHuntPoint(ResidentRig resident,uint revision,ActionSystem.ActionContact site)
+        =>resident.PreparedHuntPoint(revision,site.TargetIdentity) is {} point
+            &&Horizontal(point-PositionAt(site.Tile.X,site.Tile.Y)).LengthSquared()<1.50f*1.50f?point:null;
 
     private static ResourceKind StrikeResource(ActionKind action)=>action switch
     {

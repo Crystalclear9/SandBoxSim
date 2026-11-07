@@ -466,6 +466,7 @@ public partial class WorldView3D : MapView
             ["femaleRibDrape"]="coupled-bending-v1",
             ["femaleLowerLeg"]="mid-calf-boot-v1",
             ["residentContactContinuity"]="bounded-confirmation-v1",
+            ["residentContactHandoff"]="bounded-revision-window-v1",
             ["pickupCarryContinuity"]="palm-supported-transfer-v1",
             ["caravanHandling"]="ledger-supported-cargo-v1",
             ["residentConsumption"]="confirmed-mouth-contact-v1",
@@ -1062,9 +1063,7 @@ public partial class WorldView3D : MapView
             else if(action==ActionKind.Hunt&&finishing&&site.Surface==ActionSystem.ContactSurface.Hunt)
             {
                 partnerIdentity=site.TargetIdentity;
-                if(node.PreparedHuntPoint(actionRevision,partnerIdentity) is {} lastPoint
-                    &&Horizontal(lastPoint-PositionAt(site.Tile.X,site.Tile.Y)).LengthSquared()<1.50f*1.50f)
-                    spearPoint=lastPoint;
+                spearPoint=RecallHuntPoint(node,actionRevision,site);
             }
             if(meeting){interestPoint=meetingFacing;hasInterest=true;}
             else if(conversation!=null)
@@ -1171,7 +1170,8 @@ public partial class WorldView3D : MapView
             var targetTile=!preyInRange&&(hasTarget||sceneContact.HasValue)?new Vector2I(interest.X,interest.Y):(Vector2I?)null;
             var interactionTarget=new ResidentRig.InteractionTarget(targetTile,partnerIdentity,
                 sceneContact.HasValue&&(action is ActionKind.Take or ActionKind.GatherFood)?site with {StockAmount=0}:null,
-                sceneContact.HasValue&&site.Surface==ActionSystem.ContactSurface.BuildingWork?site:null);
+                sceneContact.HasValue&&site.Surface==ActionSystem.ContactSurface.BuildingWork?site:null,
+                sceneContact.HasValue&&(action is ActionKind.Deposit or ActionKind.StoreInBuilding)?site:null);
             bool reachable=spear||toolSurface is not {} bound||ReachableToolSurface(node,target,bound);
             bool contactReady=validStrike&&reachable&&(!requiresSurface||toolSurface.HasValue);
             bool consuming=action is ActionKind.Eat or ActionKind.Drink;

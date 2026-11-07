@@ -34,7 +34,7 @@ internal partial class ResidentRig
     private float _observedExecution,_completionRemaining,_completionAge;
     private bool _finishConsumption,_observedMouthContact;
     internal readonly record struct InteractionTarget(Vector2I? Tile,long Partner,ActionSystem.ActionContact? Pickup,
-        ActionSystem.ActionContact? Worksite=null);
+        ActionSystem.ActionContact? Worksite=null,ActionSystem.ActionContact? Placement=null);
     private InteractionTarget _interactionTarget;
     private bool _observedContactReady;
     private float _retargetSettle,_contactWait;
@@ -51,14 +51,27 @@ internal partial class ResidentRig
         =>_observedRevision.HasValue&&(revision!=_observedRevision||action!=_observedAction
             ||_observedPhase!=ActionPhase.Done||CompletionVisible);
 
-    internal bool BridgeContact(ActionSystem.ContactCompletion completion,float delta,bool recent)
+    internal bool CanBridgeContact(ActionSystem.ContactCompletion completion,bool recent)
     {
-        if(_observedRevision!=completion.Revision||_observedAction!=completion.Action||HandoffReserved)return false;
+        if(_observedRevision!=completion.Revision||_observedAction!=completion.Action||HandoffReserved
+            ||_bridgedRevision!=completion.Revision&&!recent)return false;
         var family=FamilyOf(completion.Action);
         bool placement=IsPlacement(completion.Action);
-        if(completion.Site is {} site&&(_interactionTarget.Tile!=new Vector2I(site.Tile.X,site.Tile.Y)
-            ||family==ActionFamily.Pickup&&_interactionTarget.Pickup!=site with {StockAmount=0}))return false;
-        bool ready=_observedPhase switch
+        if(completion.Site is {} site)
+        {
+            if(site.Surface==ActionSystem.ContactSurface.Hunt)
+            {
+                if(!PreparedHuntPoint(completion.Revision,site.TargetIdentity).HasValue)return false;
+            }
+            else
+            {
+                if(_interactionTarget.Tile!=new Vector2I(site.Tile.X,site.Tile.Y))return false;
+                var prepared=family==ActionFamily.Pickup?_interactionTarget.Pickup:placement?_interactionTarget.Placement:
+                    site.Surface==ActionSystem.ContactSurface.BuildingWork?_interactionTarget.Worksite:site;
+                if(prepared!=site with {StockAmount=0})return false;
+            }
+        }
+        return _observedPhase switch
         {
             ActionPhase.Executing=>InteractionSettled&&(family switch
             {
@@ -72,16 +85,18 @@ internal partial class ResidentRig
             ActionPhase.Done=>CompletionVisible&&!(placement&&ReleasedCargo)&&!(family==ActionFamily.Consume&&_observedMouthContact),
             _=>false
         };
-        if(!ready)return false;
+    }
+
+    internal bool AdvanceContactBridge(ActionSystem.ContactCompletion completion,float delta)
+    {
         if(_bridgedRevision!=completion.Revision)
         {
-            if(!recent)return false;
             _bridgedRevision=completion.Revision;_bridgeAge=0;
         }
         // Finish the nearby physical contact. Longer follow-through belongs
         // to the normal pose transitions into the new action.
         _bridgeAge+=PresentationDelta(delta);
-        return _bridgeAge<=(placement?1.60f:family==ActionFamily.Consume?1.40f:.64f);
+        return _bridgeAge<=(IsPlacement(completion.Action)?1.60f:FamilyOf(completion.Action)==ActionFamily.Consume?1.40f:.64f);
     }
 
     internal void ObserveOffscreenAction(ActionKind action,ActionPhase phase,uint revision)

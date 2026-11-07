@@ -312,10 +312,12 @@ public partial class WorldView3D
         var huntPoint=rig.PreparedHuntPoint(agents.ActionRevisionOf(hunter),PreyIdentity(committed))
             ??throw new InvalidOperationException("Hunt fixture has no live aim point");
         CommitHunt(committed);
+        agents.SetAction(hunter,ActionKind.Wander,ActionPhase.Moving);
+        agents.SetAction(hunter,ActionKind.None,ActionPhase.Idle);
         float huntGap=Play(115,()=>huntPoint);
         if(rig.PresentedToolImpacts!=2||rig.PresentedSurfaceContacts!=2)
             throw new InvalidOperationException($"The committed hunt loses the last actual aim: strikes={rig.PresentedToolImpacts}, contacts={rig.PresentedSurfaceContacts}, nearest={huntGap:F3} m");
-        GD.Print($"WORLD_SPEAR_TARGET_PASS: distant and occluded strikes suppressed; one contact on the resident ({attackGap:F3} m), one on the confirmed prey ({huntGap:F3} m), replaced prey rejected, read-only");
+        GD.Print($"WORLD_SPEAR_TARGET_PASS: distant and occluded strikes suppressed; one contact on the resident ({attackGap:F3} m), one on the confirmed prey across skipped decisions ({huntGap:F3} m), replaced prey rejected, read-only");
     }
 
     private void ValidateSupportRelease(ResidentRig rig,int slot,Vector2I start,Vector2I destination)
@@ -837,9 +839,54 @@ public partial class WorldView3D
             throw new InvalidOperationException($"World warehouse release missed its crate: gap={crateRelease:F3} m, closest={closestCrate:F3} m ({closestOffset:F3}) in {cratePlacementFrames} frames, stance={rig.Position.DistanceTo(crateStand):F3} m, remainder visible={remainingCargoVisible}");
         GD.Print($"WORLD_STOCK_CONTACT_PASS: palm {nearest:F3} m from depleted stock, releases {release:F3} m from pile and {crateRelease:F3} m from crate, wood stays wood until release before remaining stone appears, read-only");
         ValidateRapidWarehousePlacement(rig,slot,warehouse,delta);
+        ValidateReplacedWarehouseContact(rig,slot,warehouse,delta);
         ValidateInterruptedPickup(rig,slot,tile,logical,delta);
         ValidateSkippedContact(rig,slot,tile,logical,delta);
         GD.Print($"WORLD_PICKUP_INTENT_PASS: candidate reached within {preparedGap:F3} m, confirmed after {confirmationFrames} frames without a second reach");
+    }
+
+    private void ValidateReplacedWarehouseContact(ResidentRig rig,int slot,Vector2I tile,float delta)
+    {
+        var sim=Game.Sim;var agents=sim.Agents;
+        agents.SetInventory(slot,ResourceKind.Wood,1);
+        agents.SetAction(slot,ActionKind.StoreInBuilding,ActionPhase.Executing);
+        agents.SetTarget(slot,tile.X,tile.Y);
+        if(!sim.Actions.TryGetPlacementCandidate(slot,out var planned)
+            ||!TryActionContact(rig,ActionKind.StoreInBuilding,planned,PositionAt(tile.X,tile.Y),out var crate,out var stand))
+            throw new InvalidOperationException("The original warehouse has no prepared destination");
+        rig.Position=stand;rig.Travel=default;
+        rig.Rotation=new(0,HeadingYaw(Horizontal(crate-stand)),0);
+        _target=stand;UpdateCamera();
+        for(int frame=0;frame<240;frame++)AnimateActors(delta);
+        if(!rig.InteractionSettled||rig.SupportedCargo!=ResourceKind.Wood)
+            throw new InvalidOperationException($"The old warehouse fixture has no settled parcel: {rig.SupportedCargo}, {rig.Position.DistanceTo(stand):F3} m, {rig.Handling}");
+        int old=sim.World.TileAt(tile.X,tile.Y).BuildingId-1;
+        sim.Buildings.Demolish(sim.World,old);
+        int replacement=sim.Buildings.Place(sim.World,BuildingKind.Storage,tile.X,tile.Y,10);
+        if(replacement!=old)throw new InvalidOperationException("Warehouse fixture did not reuse the original building slot");
+        sim.Buildings.MarkComplete(replacement,sim.Clock);
+        sim.Storage.SetCapacity(replacement,sim.Config.GroundStocks.DropAmount*4);
+        sim.Storage.Withdraw(replacement,ResourceKind.Wood,float.MaxValue);
+        BuildBuildings();
+        sim.Actions.Tick(sim.Clock);
+        if(!sim.Actions.TryGetLatestContactCompletion(slot,out var receipt)||receipt.Action!=ActionKind.StoreInBuilding
+            ||receipt.Site is not {} site||site.BuildingGeneration==planned.BuildingGeneration
+            ||sim.Storage.AmountOf(replacement,ResourceKind.Wood)<=0)
+            throw new InvalidOperationException("The new warehouse did not accept the committed parcel");
+        var matching=receipt with {Site=planned};
+        if(!rig.CanBridgeContact(matching,recent:true)||rig.CanBridgeContact(matching,recent:false))
+            throw new InvalidOperationException("The warehouse pose does not distinguish fresh and expired receipts");
+        if(rig.CanBridgeContact(receipt,recent:true))
+            throw new InvalidOperationException("An old warehouse pose can claim a different building generation");
+        agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
+        string digest=sim.StateDigestString();
+        for(int frame=0;frame<130;frame++)
+        {
+            AnimateActors(delta);
+            if(rig.PlacingCargo||rig.ReleasedCargo)throw new InvalidOperationException("A replaced warehouse inherits the old deposit pose");
+        }
+        if(sim.StateDigestString()!=digest)throw new InvalidOperationException("Warehouse playback changes committed stock");
+        GD.Print("WORLD_CONTACT_SITE_REPLACED_PASS: a reused warehouse slot accepts real stock but never inherits the old presentation contact, read-only");
     }
 
     private void ValidateRapidWarehousePlacement(ResidentRig rig,int slot,Vector2I tile,float delta)
@@ -930,7 +977,7 @@ public partial class WorldView3D
     private void ValidateSkippedContact(ResidentRig rig,int slot,Vector2I tile,Vector3 logical,float delta)
     {
         var sim=Game.Sim;var agents=sim.Agents;
-        foreach(var (urgent,moved) in new[]{(false,false),(true,false),(false,true)})
+        foreach(var (urgent,moved,skipped) in new[]{(false,false,2),(true,false,0),(false,true,0),(false,false,3)})
         {
             foreach(var kind in ResidentRig.CargoKinds)
             {
@@ -949,6 +996,7 @@ public partial class WorldView3D
                 throw new InvalidOperationException("Skipped contact fixture failed to prepare its pickup");
 
             sim.Actions.Tick(sim.Clock);
+            for(int i=0;i<skipped;i++)agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
             agents.SetAction(slot,urgent?ActionKind.Flee:ActionKind.Wander,ActionPhase.Moving);
             agents.SetTarget(slot,tile.X+1,tile.Y);
             if(moved)agents.SetPosition(slot,tile.X+1,tile.Y);
@@ -957,7 +1005,7 @@ public partial class WorldView3D
                 throw new InvalidOperationException("The skipped pickup did not retain its own committed resource");
             string digest=sim.StateDigestString();
             int grasps=0;bool grasped=false;
-            bool interrupted=urgent||moved;
+            bool interrupted=urgent||moved||skipped==3;
             for(int i=0;i<160;i++)
             {
                 AnimateActors(delta);
@@ -974,6 +1022,7 @@ public partial class WorldView3D
             for(int i=0;i<210;i++)AnimateActors(delta);
             if(rig.SupportedCargo!=ResourceKind.Stone)throw new InvalidOperationException("Skipped placement has no supported load");
             sim.Actions.Tick(sim.Clock);
+            agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
             agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
             digest=sim.StateDigestString();
             int releases=0;bool released=false;
@@ -1010,6 +1059,8 @@ public partial class WorldView3D
             throw new InvalidOperationException($"The unconfirmed meal cannot wait with the food in hand: {gap:F3} m, {rig.Handling}");
         sim.Actions.Tick(sim.Clock);
         agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
+        agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
+        agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
         if(!sim.Actions.TryGetLatestContactCompletion(slot,out var meal)||meal.Action!=ActionKind.Eat||meal.Site.HasValue)
             throw new InvalidOperationException("The completed meal did not retain its own contact");
         string afterMeal=sim.StateDigestString();
@@ -1021,7 +1072,7 @@ public partial class WorldView3D
         }
         if(rig.ConsumeContacts!=previousContacts+1||chew<.055f||rig.Bite.Visible||sim.StateDigestString()!=afterMeal)
             throw new InvalidOperationException($"Skipped meal did not reach the mouth once and recover: contacts={rig.ConsumeContacts-previousContacts}, {rig.Handling}");
-        GD.Print("WORLD_CONTACT_BRIDGE_PASS: prepared pickup, deposit and meal survive a skipped Done once, flight and tile changes cancel, read-only");
+        GD.Print("WORLD_CONTACT_BRIDGE_PASS: prepared pickup, deposit and meal survive two or three decisions once; flight, tile changes and older decisions cancel, read-only");
         ValidateConfirmedDrink(rig,slot,delta);
     }
 
