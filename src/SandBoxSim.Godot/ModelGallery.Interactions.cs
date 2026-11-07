@@ -50,7 +50,7 @@ internal partial class ModelGallery
         float t=_elapsed%16.5f;
         foreach(var (rig,sequence,readout,title,camera) in _interactionFlow)
         {
-            ActionKind action;ActionPhase phase;
+            ActionKind action;ActionPhase phase;uint? revision=null;bool aligned=true;
             if(sequence==0)
             {
                 // Take a real return walk so the loop never snaps the root.
@@ -60,14 +60,17 @@ internal partial class ModelGallery
                 var previous=rig.Position;rig.Position=new(0,0,travel-.82f);
                 float remaining=t<7.25f?.82f-travel:travel;
                 float yaw=rig.Rotation.Y;
-                rig.PlanArrival(Vector3.Zero,pickup?MathF.PI+.62f:null);
+                const float pickupYaw=MathF.PI+.62f;
+                rig.PlanArrival(Vector3.Zero,pickup?pickupYaw:null);
                 if(pickup&&rig.TryGetArrivalFacing(out float facing))yaw=facing;
+                else if(pickup&&(rig.IsPivoting||rig.InteractionSettled))yaw=rig.AdvancePivot(yaw,pickupYaw,dt);
                 else if(t>=5.30f&&t<7.25f||t>=9.20f&&t<11.05f)
                 {
                     if(rig.IsPivoting||rig.InteractionSettled)yaw=rig.AdvancePivot(yaw,t<7.25f?0:MathF.PI,dt);
                 }
                 else rig.FadePivot(dt);
                 rig.Rotation=new(0,yaw,0);
+                aligned=!pickup||MathF.Abs(Mathf.AngleDifference(yaw,pickupYaw))<=.40f;
                 rig.ObserveLocomotion(rig.Position-previous,dt,0,false,remaining);
                 bool placement=t>=11.05f&&t<15.4f;
                 rig.ShowCargo(t>=11.05f&&t<12.60f,ResourceKind.Wood);
@@ -77,11 +80,12 @@ internal partial class ModelGallery
             }
             else
             {
-                action=t<2.4f?ActionKind.BuildHouse:t<6.2f?ActionKind.Drink:t<9.25f?ActionKind.Eat:
-                    t<12.3f?ActionKind.Farm:t<14.65f?ActionKind.Sleep:ActionKind.Flee;
-                phase=t<14.65f?ActionPhase.Executing:ActionPhase.Moving;
+                action=t<2.4f?ActionKind.BuildHouse:t<7.75f?ActionKind.Drink:t<10.3f?ActionKind.Eat:
+                    t<13.25f?ActionKind.Farm:t<15.1f?ActionKind.Sleep:ActionKind.Flee;
+                revision=t<2.4f?1u:t<4.8f?2u:t<7.75f?3u:t<10.3f?4u:t<13.25f?5u:t<15.1f?6u:7u;
+                phase=revision==3?ActionPhase.Done:t<15.1f?ActionPhase.Executing:ActionPhase.Moving;
             }
-            rig.PresentAction(dt,action,phase,false,0);
+            rig.PresentAction(dt,action,phase,false,0,revision,targetAligned:aligned);
             if(sequence==0)
             {
                 float crouch=Mathf.SmoothStep(.10f,.44f,ResidentRig.HipHeight-rig.Legs[0].Position.Y);

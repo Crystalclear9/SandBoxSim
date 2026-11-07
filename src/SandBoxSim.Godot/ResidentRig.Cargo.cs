@@ -14,11 +14,14 @@ internal partial class ResidentRig
     private float _cargoDepth,_placementAge,_placementContact;
     private Vector2 _placementStart;
     private bool _placingCargo;
+    private bool _placementPending;
+    private float _placementWait;
     private bool _groundPlacement;
     private float _floorCrouch,_floorDrop=.46f,_floorLean=.91f,_floorCorrection;
     private Transform3D _floorStart,_floorGoal;
     internal bool PlacingCargo=>_placingCargo;
     private bool _releasedCargo;
+    private bool _releasedToGround;
     private Transform3D _releasedCargoPose;
     private float _releasedCargoTime,_releasedCargoFloor,_releasedCargoDuration;
     internal bool ReleasedCargo=>_releasedCargo;
@@ -28,19 +31,29 @@ internal partial class ResidentRig
 
     private void ObserveCargoPlacement(ActionKind action,ActionPhase phase,bool newlyDone,bool newRun)
     {
-        bool wasPlacing=_placingCargo;
-        if(newRun||!IsPlacement(action)||phase!=ActionPhase.Done||_hasCargo||!InteractionSettled)
-            _placingCargo=false;
-        if(newlyDone&&!wasPlacing&&IsPlacement(action)&&!_hasCargo&&CargoMesh.Visible&&!_releasedCargo&&InteractionSettled)
+        bool alreadyFinishing=_placingCargo||_placementPending;
+        if(newRun||!IsPlacement(action)||phase!=ActionPhase.Done||_hasCargo)
+            _placingCargo=_placementPending=false;
+        if(!InteractionSettled)_placingCargo=false;
+        if(newlyDone&&!alreadyFinishing&&IsPlacement(action)&&!_hasCargo&&CargoMesh.Visible&&!_releasedCargo)
         {
-            // Inventory has already committed. Keep only the already
-            // displayed parcel, for the time needed to finish its set-down.
-            _placingCargo=true;
-            _placementAge=_placementContact=0;
-            _placementStart=new(_cargoLift,_cargoDepth);
+            // Inventory has already committed. Retain only the parcel
+            // already supported by the hands until the actor can set it down.
+            _placementPending=true;_placementWait=0;
             _groundPlacement=action==ActionKind.Deposit;
-            if(_groundPlacement)PlanGroundPlacement();
         }
+    }
+
+    private void AdvancePendingPlacement(float delta,bool targetAligned)
+    {
+        if(!_placementPending)return;
+        _placementWait+=delta;
+        if(_placementWait>=2.5f){_placementPending=false;return;}
+        if(!targetAligned||!InteractionSettled||HandoffReserved)return;
+        _placementPending=false;_placingCargo=true;
+        _placementAge=_placementContact=0;
+        _placementStart=new(_cargoLift,_cargoDepth);
+        if(_groundPlacement)PlanGroundPlacement();
     }
 
     private void PlanGroundPlacement()
@@ -152,13 +165,18 @@ internal partial class ResidentRig
             if(releasedAtContact)
             {
                 _releasedCargo=true;
+                _releasedToGround=_groundPlacement;
                 _releasedCargoTime=0;
                 var actor=IsInsideTree()?GlobalTransform:Transform;
                 _releasedCargoPose=actor*Torso.Transform*rightHand*CargoMesh.Transform;
                 var position=_releasedCargoPose.Origin;
-                float ground=CargoGroundHeight?.Invoke(position.X,position.Z)??actor.Origin.Y;
-                _releasedCargoFloor=ground-CargoMesh.Mesh.GetAabb().Position.Y*_releasedCargoPose.Basis.Y.Length();
-                _releasedCargoDuration=MathF.Sqrt(MathF.Max(0,position.Y-_releasedCargoFloor)/4.9f);
+                if(_releasedToGround)
+                {
+                    float ground=CargoGroundHeight?.Invoke(position.X,position.Z)??actor.Origin.Y;
+                    _releasedCargoFloor=ground-CargoMesh.Mesh.GetAabb().Position.Y*_releasedCargoPose.Basis.Y.Length();
+                    _releasedCargoDuration=MathF.Sqrt(MathF.Max(0,position.Y-_releasedCargoFloor)/4.9f);
+                }
+                else _releasedCargoDuration=.08f;
             }
             else CargoMesh.Visible=false;
         }
@@ -170,12 +188,17 @@ internal partial class ResidentRig
         var actor=IsInsideTree()?GlobalTransform:Transform;
         var hand=actor*Torso.Transform*Arms[1].Transform*Elbows[1].Transform*Hands[1].Transform;
         var pose=_releasedCargoPose;
-        var orientation=pose.Basis.Orthonormalized();
-        float yaw=orientation.GetEuler().Y;
-        var grounded=new Basis(Vector3.Up,yaw);
-        pose.Basis=orientation.Slerp(grounded,ReachEase(_releasedCargoTime/.27f))*Basis.FromScale(pose.Basis.Scale);
-        float height=pose.Origin.Y-4.9f*_releasedCargoTime*_releasedCargoTime;
-        pose.Origin=new(pose.Origin.X,MathF.Max(_releasedCargoFloor,height),pose.Origin.Z);
+        if(_releasedToGround)
+        {
+            var orientation=pose.Basis.Orthonormalized();
+            float yaw=orientation.GetEuler().Y;
+            var grounded=new Basis(Vector3.Up,yaw);
+            pose.Basis=orientation.Slerp(grounded,ReachEase(_releasedCargoTime/.27f))*Basis.FromScale(pose.Basis.Scale);
+            float height=pose.Origin.Y-4.9f*_releasedCargoTime*_releasedCargoTime;
+            pose.Origin=new(pose.Origin.X,MathF.Max(_releasedCargoFloor,height),pose.Origin.Z);
+        }
+        // A warehouse handover has already been accepted by the inventory.
+        // Keep the parcel on its release pose for the visual handoff.
         CargoMesh.Transform=hand.AffineInverse()*pose;
         CargoMesh.Visible=_releasedCargoTime<_releasedCargoDuration+.12f;
         if(!CargoMesh.Visible)_releasedCargo=false;
@@ -183,7 +206,7 @@ internal partial class ResidentRig
 
     internal void ClearTransientCargo()
     {
-        if(_placingCargo||_releasedCargo)CargoMesh.Visible=false;
-        _placingCargo=_releasedCargo=false;
+        if(_placingCargo||_placementPending||_releasedCargo)CargoMesh.Visible=false;
+        _placingCargo=_placementPending=_releasedCargo=false;
     }
 }

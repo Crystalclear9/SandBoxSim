@@ -30,7 +30,7 @@ internal partial class ResidentRig
     private uint? _observedRevision;
     private float _observedExecution,_completionRemaining,_completionAge;
     private bool _finishConsumption,_observedMouthContact;
-    public bool CompletionVisible=>_finishConsumption||_completionRemaining>0||_placingCargo;
+    public bool CompletionVisible=>_finishConsumption||_completionRemaining>0||_placingCargo||_placementPending;
 
     internal void ObserveOffscreenAction(ActionKind action,ActionPhase phase,uint revision)
     {
@@ -41,7 +41,7 @@ internal partial class ResidentRig
         ClearTransientCargo();
     }
 
-    public void PresentAction(float delta,ActionKind action,ActionPhase phase,bool paused,float identityPhase,uint? revision=null,bool hasPartner=true)
+    public void PresentAction(float delta,ActionKind action,ActionPhase phase,bool paused,float identityPhase,uint? revision=null,bool hasPartner=true,bool targetAligned=true)
     {
         if(paused)return;
         bool firstSnapshot=revision.HasValue&&!_observedRevision.HasValue;
@@ -70,22 +70,27 @@ internal partial class ResidentRig
         }
         _observedAction=action;_observedPhase=phase;_observedRevision=revision;
         var visualPhase=partnerAction&&phase==ActionPhase.Executing&&!hasPartner?ActionPhase.Failed:phase;
-        AdvancePose(PresentationDelta(delta),action,visualPhase,identityPhase,true);
+        AdvancePose(PresentationDelta(delta),action,visualPhase,identityPhase,true,targetAligned);
     }
 
     internal static bool RequiresPartner(ActionKind action)
         =>action is ActionKind.Socialize or ActionKind.ShareFood or ActionKind.Attack;
 
+    internal static bool UsesInteractionFacing(ActionKind action)
+        =>FamilyOf(action) is ActionFamily.Tool or ActionFamily.Pickup or ActionFamily.Transfer or ActionFamily.Social
+            ||action==ActionKind.Drink;
+
     private ActionPhase DisplayedPhase(ActionPhase phase)=>phase==ActionPhase.Done&&CompletionVisible?ActionPhase.Executing:phase;
 
-    private void PresentActionStep(float delta,ActionKind action,ActionPhase phase,float identityPhase)
+    private void PresentActionStep(float delta,ActionKind action,ActionPhase phase,float identityPhase,bool targetAligned)
     {
+        AdvancePendingPlacement(delta,targetAligned);
         bool finishing=_completionRemaining>0;
         var displayed=DisplayedPhase(phase);
-        bool alreadyEngaged=displayed==ActionPhase.Executing&&GestureEngaged(action);
+        bool alreadyEngaged=targetAligned&&displayed==ActionPhase.Executing&&GestureEngaged(action);
         int previousContacts=_consumeContacts;
-        PoseActionStep(delta,action,displayed,identityPhase);
-        if(_consumeContacts!=previousContacts&&_consumeAction==action)_observedMouthContact=true;
+        PoseActionStep(delta,action,displayed,identityPhase,targetAligned,_observedRevision);
+        if(_consumeContacts!=previousContacts&&_consumeAction==action&&_consumeRevision==_observedRevision)_observedMouthContact=true;
         if(_finishConsumption)
         {
             _completionAge+=delta;

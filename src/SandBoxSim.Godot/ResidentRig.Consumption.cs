@@ -10,6 +10,7 @@ internal partial class ResidentRig
 
     private ConsumeStage _consumeStage;
     private ActionKind _consumeAction;
+    private uint? _consumeRevision;
     private float _consumeReach,_consumeTime,_consumeContactTime,_consumeReturnStart;
     private int _consumeContacts;
     internal MeshInstance3D Cup=null!,Bite=null!;
@@ -45,15 +46,15 @@ internal partial class ResidentRig
         _consumeTime=_consumeContactTime=0;
     }
 
-    private void PoseConsumption(float delta,ActionKind request)
+    private void PoseConsumption(float delta,ActionKind request,uint? revision)
     {
         if(!ConsumptionOwnsHand)
         {
             if(request==ActionKind.None)return;
-            _consumeStage=ConsumeStage.Reach;_consumeAction=request;
+            _consumeStage=ConsumeStage.Reach;_consumeAction=request;_consumeRevision=revision;
             _consumeTime=_consumeContactTime=0;
         }
-        if(request!=_consumeAction&&_consumeStage!=ConsumeStage.Return)
+        if((request!=_consumeAction||revision!=_consumeRevision)&&_consumeStage!=ConsumeStage.Return)
         {
             if(_consumeStage==ConsumeStage.Reach){ClearConsumption();return;}
             ReturnConsumption();

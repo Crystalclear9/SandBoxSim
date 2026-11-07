@@ -44,7 +44,7 @@
 | 同速步行、搬运和持锤 | `visual-locomotion` 第 180 帧 | [步态对照](resident-style-walk.png) |
 | 交谈、递交与进食 | `visual-social` 第 150 帧 | [生活动作](resident-social.png) |
 | 同工具与不同疲劳状态 | `visual-work-effort` 第 180 帧 | [作业姿态](resident-work-effort.png) |
-| 到站、存放与双人递物 | `visual-handling-transitions` 第 822 帧可近看放下木捆时的衣摆、膝部和靴口。第 810 帧可见接收方托住同一个食物包，第 306 帧可见饮水 | [交互衔接](resident-handling-transitions.png) |
+| 到站、存放与双人递物 | `visual-handling-transitions` 第 822 帧展示放下木捆与接收食物包。第 300 帧可见上一轮杯子放低，第 350 帧展示新一轮举杯 | [交互衔接](resident-handling-transitions.png) |
 | 上肢连动与抬手 | `visual-arm-articulation` 第 270 帧，`visual-shoulder-elevation` 第 108 帧对照 135° 高举时的领口、袖根和胸侧，`visual-shoulder-motion` 第 156 帧 | [肩肘腕](resident-arm-junctions.png) · [抬臂近景](resident-shoulder-elevation.png) · [作业肩袖](resident-shoulder-motion.png) |
 | 空闲伸展、摆臂与屈肘 | `visual-captured-stretch` 第 110 帧，`visual-arm-swing` 第 150 帧，`visual-upper-arm-flex`、`visual-elbow-joint` 第 270 帧 | [伸展](resident-captured-stretch.png) · [摆臂](resident-arm-swing.png) · [上臂](resident-upper-arm-flex.png) · [肘部](resident-elbow-joint.png) |
 | 服装配件、职业动作和左右手 | 客户端预览 `--panel=equipment`、`--panel=actions`、`--panel=forearms`、`--panel=handedness` | [配件](resident-equipment.png) · [职业动作](resident-garment-actions.png) · [前臂](resident-forearm-detail.png) · [左右手](resident-handedness.png) |

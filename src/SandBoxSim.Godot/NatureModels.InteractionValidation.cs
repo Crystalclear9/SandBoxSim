@@ -12,6 +12,7 @@ internal sealed partial class NatureModels
         ValidateCargoPlacement();
         ValidateObservedActionHandoffs();
         ValidateConsumptionInterrupts();
+        ValidateContactBoundaries();
         ValidatePartnerLoss();
         ValidateSharedParcel();
         var actions=Enum.GetValues<ActionKind>();
@@ -291,6 +292,73 @@ internal sealed partial class NatureModels
         GD.Print($"OBSERVED_HANDOFF_PASS: two adult frames, repeat completions, pause, offscreen expiry, tool release before rest, rise before pickup; 60 Hz/5 Hz duration difference {largestCadenceDifference:F3} s");
     }
 
+    private void ValidateContactBoundaries()
+    {
+        const float step=1f/60;
+        foreach(int identity in new[]{17,55})
+        {
+            var rig=Resident(identity,false,JobType.None);
+            try
+            {
+                foreach(var action in new[]{ActionKind.Take,ActionKind.BuildHouse,ActionKind.Socialize})
+                {
+                    for(int frame=0;frame<120;frame++)
+                        rig.PresentAction(step,action,ActionPhase.Executing,false,0,targetAligned:false);
+                    if(rig.GestureEngaged(action))throw new InvalidOperationException($"Contact begins before facing the target: {action}");
+                    for(int frame=0;frame<240;frame++)
+                        rig.PresentAction(step,action,ActionPhase.Executing,false,0);
+                    if(!rig.GestureEngaged(action))throw new InvalidOperationException($"Contact does not resume once facing the target: {action}");
+                }
+                rig.ShowCargo(true,ResourceKind.Wood);
+                for(int frame=0;frame<150;frame++)
+                    rig.PresentAction(step,ActionKind.Deposit,ActionPhase.Executing,false,0,11);
+                if(!rig.CargoMesh.Visible)throw new InvalidOperationException("Deferred placement fixture has no supported load");
+                rig.ShowCargo(false,ResourceKind.Wood);
+                for(int frame=0;frame<14;frame++)
+                {
+                    rig.ObserveLocomotion(new(0,0,-.6f*step),step,0,false,.22f);
+                    rig.PresentAction(step,ActionKind.Deposit,ActionPhase.Done,false,0,11,targetAligned:false);
+                    if(rig.PlacingCargo||!rig.CompletionVisible||!rig.CargoMesh.Visible)
+                        throw new InvalidOperationException("Completed deposit either loses the held parcel or lowers it while approaching");
+                }
+                for(int frame=0;frame<48;frame++)
+                {
+                    rig.ObserveLocomotion(Vector3.Zero,step,0,false);
+                    rig.PresentAction(step,ActionKind.Deposit,ActionPhase.Done,false,0,11,targetAligned:false);
+                }
+                if(!rig.InteractionSettled||rig.PlacingCargo||!rig.CargoMesh.Visible)
+                    throw new InvalidOperationException("A settled but misaligned deposit releases its parcel");
+                rig.PresentAction(step,ActionKind.Deposit,ActionPhase.Done,false,0,11);
+                if(!rig.PlacingCargo)throw new InvalidOperationException("Aligned arrival does not resume its deferred placement");
+                rig.PresentAction(step,ActionKind.Flee,ActionPhase.Moving,false,0,12);
+                if(rig.CompletionVisible||rig.CargoMesh.Visible)
+                    throw new InvalidOperationException("Flee leaves an uncommitted display parcel on the previous action");
+
+                for(int frame=0;frame<180&&!rig.Cup.Visible;frame++)
+                    rig.PresentAction(step,ActionKind.Drink,ActionPhase.Executing,false,0,13);
+                if(!rig.Cup.Visible)throw new InvalidOperationException("Repeated-drink fixture does not hold the outgoing cup");
+                for(int frame=0;frame<18;frame++)rig.PresentAction(step,ActionKind.Drink,ActionPhase.Executing,false,0,13);
+                int before=rig.ConsumeContacts;
+                rig.PresentAction(step,ActionKind.Drink,ActionPhase.Executing,false,0,14);
+                if(!rig.Cup.Visible||rig.Handling!="放低杯子 / 收手")
+                    throw new InvalidOperationException("A repeated drink reuses or instantly removes its outgoing cup");
+                bool released=false;
+                for(int frame=0;frame<360;frame++)
+                {
+                    rig.PresentAction(step,ActionKind.Drink,ActionPhase.Done,false,0,14);
+                    if(!released&&rig.ConsumeContacts!=before)
+                        throw new InvalidOperationException("An outgoing cup's contact is charged to a new drink");
+                    released|=!rig.Cup.Visible;
+                    if(released&&!rig.CompletionVisible)break;
+                }
+                if(!released||rig.ConsumeContacts!=before+1||rig.Cup.Visible||rig.CompletionVisible)
+                    throw new InvalidOperationException("Repeated drinking does not finish exactly one new contact");
+            }
+            finally{rig.Free();}
+        }
+        GD.Print("CONTACT_BOUNDARIES_PASS: both adult frames, delayed target-facing contact, deferred deposit, and distinct same-kind drink release");
+    }
+
     private float MealCompletionTime(int identity,float delta)
     {
         var rig=Resident(identity,false,JobType.Builder);
@@ -371,6 +439,8 @@ internal sealed partial class NatureModels
                         throw new InvalidOperationException($"Ground placement releases away from the support: {heightAtRelease} m");
                     largestReleaseHeight=MathF.Max(largestReleaseHeight,heightAtRelease);
                 }
+                else if(release.Y+bottom-ground<.20f)
+                    throw new InvalidOperationException("Warehouse handoff releases at ground height");
                 rig.PresentAction(.5f,ActionKind.None,ActionPhase.Idle,true,0);
                 if(rig.Transform*InTorso(rig.CargoMesh,rig)!=releasePose)
                     throw new InvalidOperationException("Pause moves a released parcel");
@@ -380,10 +450,11 @@ internal sealed partial class NatureModels
                     rig.Position+=new Vector3(.006f,0,0);
                     rig.PresentAction(1f/60,ActionKind.None,ActionPhase.Idle,false,0);
                     var current=(rig.Transform*InTorso(rig.CargoMesh,rig)).Origin;
-                    if(MathF.Abs(current.X-release.X)>.0001f||MathF.Abs(current.Z-release.Z)>.0001f||
-                        current.Y>height+.0001f||current.Y+bottom<ground-.0001f||rig.HeldObject.Length!=0)
-                        throw new InvalidOperationException("A released parcel follows the hand, rises, or penetrates the ground");
-                    landed|=MathF.Abs(current.Y+bottom-ground)<.0001f&&rig.CargoMesh.Visible;
+                    bool vertical=floor?current.Y<=height+.0001f&&current.Y+bottom>=ground-.0001f
+                        :MathF.Abs(current.Y-release.Y)<=.0001f;
+                    if(MathF.Abs(current.X-release.X)>.0001f||MathF.Abs(current.Z-release.Z)>.0001f||!vertical||rig.HeldObject.Length!=0)
+                        throw new InvalidOperationException("A released parcel follows the hand or leaves its expected support height");
+                    landed|=rig.CargoMesh.Visible&&(!floor||MathF.Abs(current.Y+bottom-ground)<.0001f);
                     height=current.Y;
                 }
                 if(!landed||rig.ReleasedCargo||rig.CargoMesh.Visible)
@@ -398,6 +469,6 @@ internal sealed partial class NatureModels
             }
             finally{rig.Free();}
         }
-        GD.Print($"CARGO_PLACEMENT_PASS: two adult frames, four cargo meshes, {supportedFrames} placed frames, worst palm gap={largestGap*1000:F1} mm, ground release height <= {largestReleaseHeight*1000:F1} mm; pause and interruption");
+        GD.Print($"CARGO_PLACEMENT_PASS: two adult frames, four cargo meshes, {supportedFrames} placed frames, worst palm gap={largestGap*1000:F1} mm, ground release height <= {largestReleaseHeight*1000:F1} mm; warehouse handoff holds its height; pause and interruption");
     }
 }

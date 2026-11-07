@@ -72,7 +72,8 @@ public partial class WorldView3D
                 previousFeet[0]=left;previousFeet[1]=right;
                 if(rig.GestureEngaged(ActionKind.Take))
                 {
-                    if(rig.IsPivoting||Horizontal(rig.Position-goal).Length()>.035f)
+                    if(rig.IsPivoting||Horizontal(rig.Position-goal).Length()>.035f
+                        ||!InteractionFacingAligned(rig.Rotation.Y,Horizontal(corner-rig.Position)))
                         throw new InvalidOperationException("Resident reaches while travelling or turning");
                     startedWork=true;
                 }
