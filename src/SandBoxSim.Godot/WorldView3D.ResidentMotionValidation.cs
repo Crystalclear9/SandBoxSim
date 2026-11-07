@@ -157,6 +157,38 @@ public partial class WorldView3D
         }
         if(sim.StateDigestString()!=digest)throw new InvalidOperationException("Accelerated contact mutated simulation");
         GD.Print($"WORLD_ACCELERATED_CONTACT_PASS: {pivotFrames} planted turn frames, prepared gap={closest:F3} m, empty and depleted stock stay untouched");
+
+        agents.SetInventory(slot,ResourceKind.Stone,2);
+        agents.SetAction(slot,ActionKind.Deposit,ActionPhase.Executing);
+        agents.SetTarget(slot,tile.X,tile.Y);
+        if(!sim.Actions.TryGetPlacementCandidate(slot,out var destination)
+            ||!TryActionContact(rig,ActionKind.Deposit,destination,logical,out var drop,out var dropStand))
+            throw new InvalidOperationException("Accelerated deposit fixture has no supported destination");
+        var start=Enumerable.Range(0,8).Select(side=>logical+Vector3.Forward.Rotated(Vector3.Up,side*MathF.PI/4)*.55f)
+            .First(point=>Horizontal(dropStand-point).Length()>.30f&&SceneryPointClear(point,SceneryClearance)
+                &&ScenerySegmentClear(point,dropStand)&&SceneryLegSupported(point,dropStand));
+        start.Y=GroundHeight(start.X,start.Z);
+        rig.Position=start;
+        rig.Rotation=new(0,HeadingYaw(Horizontal(dropStand-start)),0);
+        digest=sim.StateDigestString();
+        float speed=0,peakAcceleration=0;
+        int preparing=0;
+        for(int frame=0;frame<260;frame++)
+        {
+            var before=rig.Position;
+            AnimateActors(delta);
+            float nextSpeed=Horizontal(rig.Position-before).Length()/delta;
+            peakAcceleration=MathF.Max(peakAcceleration,(nextSpeed-speed)/delta);
+            speed=nextSpeed;
+            if(rig.Travel.Preparation>0&&nextSpeed<.001f)preparing++;
+            if(rig.PlacingCargo||rig.ReleasedCargo)
+                throw new InvalidOperationException("Accelerated deposit released cargo before its receipt");
+        }
+        if(preparing<4||peakAcceleration>4.2f||!rig.InteractionSettled
+            ||Horizontal(rig.Position-dropStand).Length()>.035f
+            ||!InteractionFacingAligned(rig.Rotation.Y,Horizontal(drop-rig.Position))||sim.StateDigestString()!=digest)
+            throw new InvalidOperationException($"Accelerated deposit approach: preparation={preparing}, acceleration={peakAcceleration:F2}, stance={rig.Position.DistanceTo(dropStand):F3}");
+        GD.Print($"WORLD_ACCELERATED_APPROACH_PASS: {preparing} stationary preparation frames, peak acceleration={peakAcceleration:F2} m/s², settled and facing the pile with no premature release");
     }
 
     private void ValidateWorldToolContact(Vector2I origin,float delta)
@@ -176,7 +208,6 @@ public partial class WorldView3D
         try
         {
             sim.World.SetResource(tile.X,tile.Y,new ResourceNode {Kind=ResourceKind.Wood,Amount=30,Capacity=30});
-            RegisterSceneResource(tile.X,tile.Y,ResourceKind.Wood,tree.Origin+Vector3.Up*.85f,"broad-tree",tree);
             if(sim.InterveneSpawnHumans(tile.X,tile.Y,1,1)!=1)
                 throw new InvalidOperationException("Strike fixture could not spawn a resident");
             int slot=agents.AliveSlots().Last();
@@ -190,6 +221,11 @@ public partial class WorldView3D
             AnimateActors(delta);
             agents.SetAction(slot,ActionKind.GatherWood,ActionPhase.Executing);
             agents.SetTarget(slot,tile.X,tile.Y);
+            _sceneResourceAnchors.Remove(tile.Y*sim.World.Width+tile.X);
+            for(int frame=0;frame<180;frame++)AnimateActors(delta);
+            if(rig.GestureEngaged(ActionKind.GatherWood)||rig.PresentedToolImpacts!=0)
+                throw new InvalidOperationException("A logical wood resource without a rendered strike surface allows a stroke");
+            RegisterSceneResource(tile.X,tile.Y,ResourceKind.Wood,tree.Origin+Vector3.Up*.85f,"broad-tree",tree);
             if(!TryPlanToolSurface(ActionKind.GatherWood,tile.X,tile.Y,stand,out var strike,out bool requiresSurface)
                 ||!requiresSurface||!ReachableToolSurface(rig,stand,strike))
                 throw new InvalidOperationException("Tree contact fixture has no reachable front surface");
@@ -208,7 +244,7 @@ public partial class WorldView3D
             for(int i=0;i<75;i++)AnimateActors(delta);
             if(rig.GestureEngaged(ActionKind.GatherWood)||rig.PresentedSurfaceContacts!=contacts||sim.StateDigestString()!=committed)
                 throw new InvalidOperationException("Removing the active tree leaves a stale swing or changes the simulation");
-            GD.Print($"WORLD_TOOL_SURFACE_PASS: axe reaches actual transformed trunk within {closest:F3} m, {contacts} contacts, depletion stops the strike");
+            GD.Print($"WORLD_TOOL_SURFACE_PASS: axe reaches actual transformed trunk within {closest:F3} m, {contacts} contacts, missing and depleted surfaces suppress strikes");
         }
         finally
         {
@@ -420,10 +456,23 @@ public partial class WorldView3D
         if(rig.SupportedCargo!=ResourceKind.Wood)throw new InvalidOperationException("A newly dominant resource replaces a supported parcel");
         agents.SetAction(slot,ActionKind.StoreInBuilding,ActionPhase.Executing);
         agents.SetTarget(slot,warehouse.X,warehouse.Y);
+        if(!sim.Actions.TryGetPlacementCandidate(slot,out var plannedStore)||plannedStore.Resource!=ResourceKind.Wood
+            ||!TryActionContact(rig,ActionKind.StoreInBuilding,plannedStore,storageTile,out _,out var plannedCrateStand))
+            throw new InvalidOperationException("Warehouse approach did not select the actual crate and an accepted resource");
+        string warehouseBefore=sim.StateDigestString();
+        for(int frame=0;frame<300;frame++)
+        {
+            AnimateActors(delta);
+            if(rig.PlacingCargo||rig.ReleasedCargo||rig.SupportedCargo!=ResourceKind.Wood)
+                throw new InvalidOperationException("Warehouse preparation switched or released the carried parcel");
+        }
+        if(!rig.InteractionSettled||Horizontal(rig.Position-plannedCrateStand).Length()>.035f||sim.StateDigestString()!=warehouseBefore)
+            throw new InvalidOperationException("Warehouse approach failed to settle before the simulation receipt");
         sim.Actions.Tick(sim.Clock);
         if(!sim.Actions.TryGetCompletedContact(slot,out var stored)||stored.Surface!=ActionSystem.ContactSurface.Storage
             ||stored.Resource!=ResourceKind.Wood||agents.InventoryOf(slot,ResourceKind.Wood)<=0||agents.InventoryOf(slot,ResourceKind.Stone)!=stone
-            ||!TryActionContact(rig,ActionKind.StoreInBuilding,stored,storageTile,out var crate,out var crateStand))
+            ||!TryActionContact(rig,ActionKind.StoreInBuilding,stored,storageTile,out var crate,out var crateStand)
+            ||crateStand.DistanceSquaredTo(plannedCrateStand)>.001f*.001f)
             throw new InvalidOperationException("Partial warehouse transfer lost its accepted resource or crate");
         committed=sim.StateDigestString();
         float crateRelease=float.PositiveInfinity;

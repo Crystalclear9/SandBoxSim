@@ -455,7 +455,7 @@ public partial class WorldView3D : MapView
     }
     internal object RenderQualityState(object[]? galleries=null,object? portrait=null)
     {
-        var quality=new Dictionary<string,object> { ["worldPresentationEnabled"]=WorldPresentationEnabled,["residentTravel"]=ResidentTravel.Version,["pacedResidentTravel"]=Game.PacingResidents,["shadowMode"]=_sunlight.DirectionalShadowMode.ToString(),
+        var quality=new Dictionary<string,object> { ["worldPresentationEnabled"]=WorldPresentationEnabled,["residentTravel"]=ResidentTravel.Version,["residentContactApproach"]="supported-contact-v1",["pacedResidentTravel"]=Game.PacingResidents,["shadowMode"]=_sunlight.DirectionalShadowMode.ToString(),
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="wet-bank-mosaic-v7",["sceneryContact"]="solid-scenery-corridors-v3",["habitatDetail"]="responsive-understory-v12",["vegetationSurface"]="engine-faced-v2",
@@ -877,7 +877,7 @@ public partial class WorldView3D : MapView
             ResourceKind contactResource=ResourceKind.None;
             ActionSystem.ActionContact site=default;
             bool candidate=phase==ActionPhase.Executing&&(sim.Actions.TryGetPickupCandidate(slot,out site)
-                ||sim.Actions.TryGetCultivationCandidate(slot,out site));
+                ||sim.Actions.TryGetCultivationCandidate(slot,out site)||sim.Actions.TryGetPlacementCandidate(slot,out site));
             bool resolvedSite=candidate||finishing&&sim.Actions.TryGetCompletedContact(slot,out site);
             if(resolvedSite
                 &&TryActionContact(node,action,site,target,out var contact,out var stand))
@@ -899,18 +899,20 @@ public partial class WorldView3D : MapView
             bool initiates=conversation?.Initiator==pair.Key;
             var talkStand=initiates?conversation?.FirstStand:conversation?.SecondStand;
             if(!meeting&&talkStand.HasValue)target=talkStand.Value;
-            // A local interaction approach has time for actual steps.
-            // Keep catch-up for long routes and accelerated world travel.
-            bool localApproach=phase!=ActionPhase.Moving&&Horizontal(target-current).LengthSquared()<.85f*.85f;
+            // Even at accelerated simulation speeds, a nearby contact needs
+            // a real departure and landing. Keep catch-up for distant travel.
+            bool localApproach=phase!=ActionPhase.Moving&&(meeting||talkStand.HasValue||sceneContact.HasValue||gathering)
+                &&Horizontal(target-current).LengthSquared()<2.35f*2.35f;
+            bool usesMotor=paced||localApproach;
             Vector3 rendered=current;
             Vector2 travelHeading=Vector2.Zero;
             float remaining=Horizontal(target-current).Length();
             float anticipatoryTurn=0;
             if(!paused)
             {
-                if(paced)
+                if(usesMotor)
                 {
-                    if(phase==ActionPhase.Moving&&hasTarget&&node.Visible&&cameraPosition.DistanceSquaredTo(current)<54*54
+                    if(paced&&phase==ActionPhase.Moving&&hasTarget&&node.Visible&&cameraPosition.DistanceSquaredTo(current)<54*54
                         &&TryProjectResidentRoute(node,slot,new(x,y),interest,tickFraction,ref routeSearches,
                             out var sample,out var routeRemaining,out var turn,out var limit))
                     {
@@ -932,8 +934,9 @@ public partial class WorldView3D : MapView
                 else
                 {
                     node.Travel=default;
+                    bool localStep=phase!=ActionPhase.Moving&&remaining<.85f;
                     rendered=SceneryActorPosition(current,target,delta,10,false,
-                        localApproach?ResidentRig.MaximumGaitSpeed:float.PositiveInfinity);
+                        localStep?ResidentRig.MaximumGaitSpeed:float.PositiveInfinity);
                     remaining=Horizontal(target-rendered).Length();
                 }
             }
@@ -985,9 +988,23 @@ public partial class WorldView3D : MapView
                 hasShore=TryShoreContact(PositionAt(x,y),out var bank);
                 if(hasShore){interestPoint=bank;hasInterest=true;}
             }
+            var strikeResource=StrikeResource(action);
+            bool validStrike=phase!=ActionPhase.Executing||strikeResource==ResourceKind.None
+                ||sim.World.IsInBounds(interest)&&sim.World.TileAt(interest).Resource.Kind==strikeResource
+                    &&sim.World.TileAt(interest).Resource.Amount>0;
+            ResidentRig.ToolSurface? toolSurface=null;
+            bool requiresSurface=false;
+            if(validStrike&&(phase==ActionPhase.Executing||finishing)
+                &&(!ResidentRig.UsesWorksiteReceipt(action)||sceneContact.HasValue)
+                &&TryPlanToolSurface(action,interest.X,interest.Y,target,out var strike,out requiresSurface))
+            {
+                toolSurface=strike;
+                interestPoint=strike.Point;
+                hasInterest=true;
+            }
             float distanceSquared=cameraPosition.DistanceSquaredTo(rendered);
             var heading=Horizontal(direction);
-            if(paced&&travelHeading.LengthSquared()>.001f&&(heading.LengthSquared()<.000001f||
+            if(usesMotor&&travelHeading.LengthSquared()>.001f&&(heading.LengthSquared()<.000001f||
                 heading.Normalized().Dot(travelHeading.Normalized())>.78f))
                 heading=travelHeading;
             bool aimsAtTarget=conversation!=null||ResidentRig.UsesInteractionFacing(action);
@@ -998,10 +1015,10 @@ public partial class WorldView3D : MapView
             {
                 var facing=Horizontal(interestPoint-rendered);
                 bool faceInterest=hasInterest&&settled&&interacting&&aimsAtTarget&&facing.LengthSquared()>.002f;
-                bool prepareFacing=paced&&distanceSquared<18*18&&interacting&&remaining<.09f
+                bool prepareFacing=usesMotor&&distanceSquared<18*18&&interacting&&aimsAtTarget&&remaining<.09f
                     &&hasInterest&&facing.LengthSquared()>.0225f;
                 node.PlanArrival(target,prepareFacing?HeadingYaw(facing):null);
-                if(paced&&distanceSquared<18*18&&remaining<.09f&&Horizontal(direction).LengthSquared()<.20f*.20f*delta*delta
+                if(usesMotor&&distanceSquared<18*18&&remaining<.09f&&Horizontal(direction).LengthSquared()<.20f*.20f*delta*delta
                     &&node.TryGetArrivalFacing(out float landingYaw))
                 {
                     yaw=landingYaw;
@@ -1010,7 +1027,7 @@ public partial class WorldView3D : MapView
                 else if(followsMovement)
                 {
                     float goal=HeadingYaw(heading);
-                    yaw=paced?TurnResident(yaw,goal,delta,3.2f):Mathf.LerpAngle(yaw,goal,1-MathF.Exp(-delta*12));
+                    yaw=usesMotor?TurnResident(yaw,goal,delta,3.2f):Mathf.LerpAngle(yaw,goal,1-MathF.Exp(-delta*12));
                     headingError=Mathf.AngleDifference(yaw,goal);
                     node.FadePivot(delta);
                 }
@@ -1034,22 +1051,13 @@ public partial class WorldView3D : MapView
             // Keep position interpolation every frame; distant joint poses need fewer updates.
             float fullRate=paced?18:12;
             int stride=node.HandoffReserved||conversation!=null?1:distanceSquared>45*45?8:distanceSquared>30*30?6:distanceSquared>fullRate*fullRate?2:1;
-            if(!paused)node.ObserveDeparture(paced?node.Travel.Preparation:0);
-            float lateralDistance=paced?direction.X*MathF.Cos(yaw)-direction.Z*MathF.Sin(yaw):0;
-            node.ObserveLocomotion(direction,delta,headingError,paused,remaining,paced?node.Scale.X:1,anticipatoryTurn,lateralDistance);
+            if(!paused)node.ObserveDeparture(usesMotor?node.Travel.Preparation:0);
+            float lateralDistance=usesMotor?direction.X*MathF.Cos(yaw)-direction.Z*MathF.Sin(yaw):0;
+            node.ObserveLocomotion(direction,delta,headingError,paused,remaining,usesMotor?node.Scale.X:1,anticipatoryTurn,lateralDistance);
             node.UpdateDistanceDetail(distanceSquared);
             var targetTile=!preyInRange&&(hasTarget||sceneContact.HasValue)?new Vector2I(interest.X,interest.Y):(Vector2I?)null;
             var interactionTarget=new ResidentRig.InteractionTarget(targetTile,partnerIdentity,
                 sceneContact.HasValue&&(action is ActionKind.Take or ActionKind.GatherFood)?site with {StockAmount=0}:null);
-            var strikeResource=StrikeResource(action);
-            bool validStrike=phase!=ActionPhase.Executing||strikeResource==ResourceKind.None
-                ||sim.World.IsInBounds(interest)&&sim.World.TileAt(interest).Resource.Kind==strikeResource
-                    &&sim.World.TileAt(interest).Resource.Amount>0;
-            ResidentRig.ToolSurface? toolSurface=null;
-            bool requiresSurface=false;
-            if(validStrike&&(phase==ActionPhase.Executing||finishing)
-                &&(!ResidentRig.UsesWorksiteReceipt(action)||sceneContact.HasValue)
-                &&TryPlanToolSurface(action,interest.X,interest.Y,target,out var strike,out requiresSurface))toolSurface=strike;
             bool reachable=toolSurface is not {} bound||ReachableToolSurface(node,target,bound);
             bool contactReady=validStrike&&reachable&&(!requiresSurface||toolSurface.HasValue);
             if(phase is ActionPhase.Executing or ActionPhase.Done)

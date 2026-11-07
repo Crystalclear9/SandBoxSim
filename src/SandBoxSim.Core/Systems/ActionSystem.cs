@@ -638,26 +638,8 @@ public sealed class ActionSystem
             return;
         }
 
-        Int2 position = _store.HasTarget(slot) ? _store.TargetOf(slot) : new Int2(_store.XOf(slot), _store.YOf(slot));
-
-        // 用"目标格"上的建筑：这比重新搜一遍更可靠（选靶与执行用的是同一个坐标）
-        if (!_sim.World.IsInBounds(position.X, position.Y))
-        {
-            Fail(slot, ActionFailReason.TargetGone);
-            return;
-        }
-
-        int buildingId = _sim.World.TileAt(position.X, position.Y).BuildingId;
-        if (buildingId <= 0)
-        {
-            Fail(slot, ActionFailReason.TargetGone);
-            return;
-        }
-
-        int buildingIndex = buildingId - 1;
-        if (!_sim.Buildings.IsAlive(buildingIndex)
-            || _sim.Buildings.KindOf(buildingIndex) != BuildingKind.Storage
-            || _sim.Buildings.StateOf(buildingIndex) != BuildingState.Complete)
+        Int2 position = ActionTile(slot);
+        if (!TryGetStorageDestination(position, out int buildingIndex))
         {
             Fail(slot, ActionFailReason.TargetGone);
             return;
@@ -694,6 +676,13 @@ public sealed class ActionSystem
         StoresIntoBuilding++;
         RecordContact(slot, new(position, displayed, ContactSurface.Storage, BuildingGeneration: _sim.Buildings.GenerationOf(buildingIndex)));
         Complete(slot, tick);
+    }
+
+    private bool TryGetStorageDestination(Int2 tile, out int index)
+    {
+        index = _sim.World.IsInBounds(tile) ? _sim.World.TileAt(tile.X, tile.Y).BuildingId - 1 : -1;
+        return _sim.Buildings.IsAlive(index) && _sim.Buildings.KindOf(index) == BuildingKind.Storage
+            && _sim.Buildings.StateOf(index) == BuildingState.Complete;
     }
 
     /// <summary>取回物资：从地面堆里取自己最缺的东西（食物优先）。</summary>
@@ -998,6 +987,44 @@ public sealed class ActionSystem
         var resource = _sim.World.TileAt(tile.X, tile.Y).Resource;
         if (resource.Kind != ResourceKind.Food || resource.Amount <= 0f) return false;
         contact = new(tile, ResourceKind.Food, ContactSurface.NaturalResource);
+        return true;
+    }
+
+    /// <summary>Read-only destination for carrying and turning before a transfer commits.</summary>
+    public bool TryGetPlacementCandidate(int slot, out ActionContact contact)
+    {
+        contact = default;
+        if (!_store.IsSlotAlive(slot) || _store.PhaseOf(slot) != ActionPhase.Executing) return false;
+        var action = _store.ActionOf(slot);
+        if (action is not (ActionKind.Deposit or ActionKind.StoreInBuilding) || _config.GroundStocks.DropAmount <= 0) return false;
+
+        var tile = ActionTile(slot);
+        if (!_sim.World.IsInBounds(tile)) return false;
+        bool warehouse = action == ActionKind.StoreInBuilding;
+        int index;
+        if (warehouse)
+        {
+            if (!TryGetStorageDestination(tile, out index)) return false;
+        }
+        else index = _sim.GroundStocks.FindAt(tile.X, tile.Y);
+        float capacity = warehouse ? _sim.Storage.CapacityOf(index) : _config.GroundStocks.CapacityPerKind;
+
+        ResourceKind displayed = ResourceKind.None;
+        float largest = 0;
+        for (int kind = (int)ResourceKind.Food; kind <= (int)ResourceKind.Iron; kind++)
+        {
+            var resource = (ResourceKind)kind;
+            float carried = _store.InventoryOf(slot, resource);
+            if (carried <= largest) continue;
+            float stored = warehouse ? _sim.Storage.AmountOf(index, resource) :
+                index < 0 ? 0 : _sim.GroundStocks.AmountOf(index, resource);
+            if (stored >= capacity) continue;
+            largest = carried;
+            displayed = resource;
+        }
+        if (displayed == ResourceKind.None) return false;
+        contact = new(tile, displayed, warehouse ? ContactSurface.Storage : ContactSurface.GroundStock,
+            BuildingGeneration: warehouse ? _sim.Buildings.GenerationOf(index) : 0);
         return true;
     }
 

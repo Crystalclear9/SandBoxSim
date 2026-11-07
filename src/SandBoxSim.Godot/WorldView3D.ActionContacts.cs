@@ -24,9 +24,9 @@ public partial class WorldView3D
         var resource=StrikeResource(action);
         if(resource!=ResourceKind.None)
         {
+            requiresSurface=true;
             if(!_sceneResourceAnchors.TryGetValue(y*world.Width+x,out var anchor)||anchor.Kind!=resource||anchor.WorkShape is not {} shape)
                 return false;
-            requiresSurface=true;
             float height=shape switch {"conifer-tree"=>.48f,"broad-tree"=>.85f,_=>.49f};
             return SceneryPointClear(stand,SceneryClearance)&&_models.TryWorkSurface(shape,anchor.Placement,stand,height,out contact);
         }
