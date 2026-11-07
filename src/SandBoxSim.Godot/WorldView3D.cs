@@ -467,6 +467,7 @@ public partial class WorldView3D : MapView
             ["femaleLowerLeg"]="mid-calf-boot-v1",
             ["residentContactContinuity"]="bounded-confirmation-v1",
             ["pickupCarryContinuity"]="palm-supported-transfer-v1",
+            ["caravanHandling"]="ledger-supported-cargo-v1",
             ["pairedInteractions"]="confirmed-participants-v1",
             ["residentSupportRelease"]="planted-departure-v1",
             ["spearTargeting"]="bounded-live-contact-v1",
@@ -817,6 +818,8 @@ public partial class WorldView3D : MapView
             long id = sim.Society.Identity(slot); live.Add(id);
             bool child = sim.Agents.LifeStageOf(slot) == LifeStage.Child; JobType job = sim.Agents.JobOf(slot);
             bool exists=_people.TryGetValue(id,out var old);
+            if(old is ResidentRig {Visible:true,SupportingCaravanCargo:true}&&_personModels[id]==(child,JobType.Trader)&&job!=JobType.Trader)
+                continue; // Let the loaded rig finish stowing before its outfit is replaced.
             if (!exists||_personModels[id]!=(child,job))
             {
                 var person=_models.Human(id,slot,child,job);_actors.AddChild(person);
@@ -869,6 +872,7 @@ public partial class WorldView3D : MapView
         if(paced&&!paused)UpdateResidentStations(delta);
         if(!paused)
         {
+            ObserveCaravanLoads();
             PrepareResidentHandoffs(cameraPosition);
             PrepareResidentConversations(delta,cameraPosition);
         }
@@ -1192,8 +1196,9 @@ public partial class WorldView3D : MapView
             cue=cue with {Aligned=aligned};
             bool changed=_poseSchedule.Observe(pair.Key,cue,delta,!paused);
             if(paused||!changed&&(_poseFrame+slot)%stride!=0)continue;
-            var cargoKind=node.SupportedCargo;
-            if(cargoKind==ResourceKind.None||sim.Agents.InventoryOf(slot,cargoKind)<=.01f)
+            var caravanCargo=action==ActionKind.Trade?_caravanLoads.GetValueOrDefault(pair.Key):ResourceKind.None;
+            var cargoKind=caravanCargo!=ResourceKind.None?caravanCargo:node.SupportedCargo;
+            if(caravanCargo==ResourceKind.None&&(cargoKind==ResourceKind.None||sim.Agents.InventoryOf(slot,cargoKind)<=.01f))
             {
                 cargoKind=ResourceKind.None;float cargoAmount=.01f;
                 foreach(var resource in ResidentRig.CargoKinds)
@@ -1228,7 +1233,7 @@ public partial class WorldView3D : MapView
                 hasPartner&&action!=ActionKind.ShareFood,aligned,sceneContact,contactResource,interactionTarget,completeToolStroke,
                 awaitToolCommit:phase==ActionPhase.Executing&&(action is ActionKind.Hunt or ActionKind.Attack),toolSurface:toolSurface,
                 contactReady:contactReady,deferContact:deferredPost,inventoryCargo:cargoKind,
-                conversation:conversation==null?null:ConversationBeat(conversation,initiates));
+                conversation:conversation==null?null:ConversationBeat(conversation,initiates),fromCaravan:caravanCargo!=ResourceKind.None);
             if(distanceSquared<18*18)
             {
                 if(!paused)ConformFeet(node);

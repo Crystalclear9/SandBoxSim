@@ -277,6 +277,8 @@
 
 #### 交互阶段与中断
 
+`caravanHandling=ledger-supported-cargo-v1` 根据商队账目显示去程货物和回程报酬。报酬随队启运后才显示，商人休息时仍按个人库存选择道具。旧载物先收至腰前并释放双手，新载物等双掌托稳后才出现。职业服装在商队载物收完后再切换。搬运动作使用双手托举和负重步态，包裹代表物资类别。 [双手负重对胸廓和骨盆协同的影响](https://pubmed.ncbi.nlm.nih.gov/32932627/)
+
 `pickupCarryContinuity=palm-supported-transfer-v1` 把拾取抬手与双手搬运接起来。拾取的小件在右手里随掌面移动，左手与右手建立对同类载物的支撑后，才在同一帧切换显示为库存载物。没有同类载物、动作被打断或双手未能及时托稳时，右手保留小件并完成收手。 [场景交互中的持物接触点](https://www.ipab.inf.ed.ac.uk/cgvu/nsm.pdf)
 
 `spearTargeting=bounded-live-contact-v1` 让长矛用场景中对方的躯干和实际站位瞄准。相同目标在可及范围内移动时延续已经蓄好的动作，结算后才进入前刺。矛尖按当前瞄准点转向，并在伸出阶段检查接触。目标离开可及距离或被遮挡时取消前刺，前刺未接触时也会及时收势。狩猎结算会记录猎物槽位和代次，使已移出画面的猎物能保留对应的最后瞄准点。接触检查采用躯干表面近似点与场景障碍，模拟伤害和狩猎收益仍按各自的范围结算。[Witkin 和 Popović 的动作重定向研究](https://publications.ri.cmu.edu/motion-warping) · [Epic 的动态目标约束](https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/MotionWarpingComponent?application_version=5.6)

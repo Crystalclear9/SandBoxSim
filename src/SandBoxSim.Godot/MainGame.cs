@@ -176,7 +176,7 @@ public partial class MainGame : Control
             try{if(_selfTest||_benchmarkSeconds>0||_capture.Length>0||_captureFrames.Length>0)throw new ArgumentException("Evaluation cannot be mixed with legacy capture/test modes");LoadEvaluation(evaluationPath.Substring(13));}
             catch(Exception ex){GD.PrintErr("EVALUATION_CONFIG_ERROR "+ex.Message);TraceEvaluationPhase("quit_requested");GetTree().Quit(2);SetProcess(false);return;}
         }
-        if(_selfTest&&OS.GetCmdlineUserArgs().Any(arg=>arg is "--stock-contact-only" or "--work-contact-only" or "--strike-contact-only" or "--interaction-contact-only" or "--conversation-only"))_initialPopulation=0;
+        if(_selfTest&&OS.GetCmdlineUserArgs().Any(arg=>arg is "--stock-contact-only" or "--work-contact-only" or "--strike-contact-only" or "--interaction-contact-only" or "--conversation-only" or "--caravan-only"))_initialPopulation=0;
         NewWorld(_evaluation?.Seed??839102);
         TraceEvaluationPhase("world_initialized");
         if (_previewDays > 0) { AdvanceWorld(_previewDays * Sim.Config.Clock.TicksPerDay); }
@@ -760,9 +760,21 @@ public partial class MainGame : Control
 
     private void RunSelfTest()
     {
+        void ValidateCaravanWorld()
+        {
+            Sim=new Simulation(Sim.Config.Clone(),60,44,7111);
+            SetSpeed(ObservationSpeed);
+            ((WorldView3D)_map).ValidateCaravanPresentation();
+        }
         try
         {
-            var focused=OS.GetCmdlineUserArgs().FirstOrDefault(arg=>arg is "--stock-contact-only" or "--work-contact-only" or "--strike-contact-only" or "--interaction-contact-only" or "--conversation-only");
+            var focused=OS.GetCmdlineUserArgs().FirstOrDefault(arg=>arg is "--stock-contact-only" or "--work-contact-only" or "--strike-contact-only" or "--interaction-contact-only" or "--conversation-only" or "--caravan-only");
+            if(focused=="--caravan-only")
+            {
+                ValidateCaravanWorld();
+                GetTree().Quit();
+                return;
+            }
             if(focused!=null)
             {
                 Sim=new Simulation(Sim.Config.Clone(),30,30,13);
@@ -877,6 +889,7 @@ public partial class MainGame : Control
                     Sim=new Simulation(Sim.Config.Clone(),30,30,13);
                     ((WorldView3D)_map).ValidateWorldDimensions();SetSpeed(ObservationSpeed);
                     ((WorldView3D)_map).ValidateSceneConversation();
+                    ValidateCaravanWorld();
                 }
                 finally{SetSpeed(travelSpeed);_resumeSpeed=travelResume;}
                 var rectangular = new Simulation(Sim.Config.Clone(), 60, 44, 17);

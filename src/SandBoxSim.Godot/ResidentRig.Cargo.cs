@@ -16,9 +16,10 @@ internal partial class ResidentRig
     private bool _placingCargo;
     private bool _placementPending;
     private bool _stowingCargo;
+    private bool _cargoFromCaravan;
     private float _placementWait;
     private ResourceKind _placementResource;
-    private bool WaitingForPlacementParcel=>_placementPending&&_placementResource!=_cargoKind;
+    private bool WaitingForPlacementParcel=>_placementPending&&(_placementResource!=_cargoKind||_cargoFromCaravan);
     private bool _groundPlacement;
     private Vector3? _placementSurface;
     private bool PlacementUsesSurface=>_groundPlacement||_placementSurface.HasValue;
@@ -32,12 +33,13 @@ internal partial class ResidentRig
     private float _releasedCargoTime,_releasedCargoFloor,_releasedCargoDuration;
     internal bool ReleasedCargo=>_releasedCargo;
     internal ResourceKind SupportedCargo=>CargoMesh.Visible&&!_releasedCargo?_cargoKind:ResourceKind.None;
+    internal bool SupportingCaravanCargo=>_cargoFromCaravan&&SupportedCargo!=ResourceKind.None;
     internal Func<float,float,float>? CargoGroundHeight;
 
     private static bool IsPlacement(ActionKind action)=>action is ActionKind.Deposit or ActionKind.StoreInBuilding;
 
     private void ObserveCargoPlacement(ActionKind action,ActionPhase phase,bool newlyDone,bool newRun,ResourceKind contactResource,
-        ResourceKind? inventoryCargo)
+        ResourceKind? inventoryCargo,bool fromCaravan)
     {
         bool alreadyFinishing=_placingCargo||_placementPending;
         bool lostSurface=_placementSurface.HasValue&&(!_sceneContact.HasValue
@@ -64,13 +66,14 @@ internal partial class ResidentRig
         if(!_placingCargo&&!_releasedCargo)
         {
             var nextParcel=_placementPending?_placementResource:remaining;
-            if(nextParcel==_cargoKind)_stowingCargo=false;
+            bool nextFromCaravan=fromCaravan&&!_placementPending;
+            if(nextParcel==_cargoKind&&nextFromCaravan==_cargoFromCaravan)_stowingCargo=false;
             else if(SupportedCargo!=ResourceKind.None)_stowingCargo=true;
         }
         // A committed parcel can be in the hands after leaving inventory.
         // Keep its mesh through palm support and release, then show the remainder.
         if(_placementPending||_placingCargo||_releasedCargo||_stowingCargo)_hasCargo=remaining!=ResourceKind.None;
-        else ShowCargo(remaining!=ResourceKind.None,remaining);
+        else ShowCargo(remaining!=ResourceKind.None,remaining,fromCaravan);
     }
 
     private void AdvancePendingPlacement(float delta,bool targetAligned)

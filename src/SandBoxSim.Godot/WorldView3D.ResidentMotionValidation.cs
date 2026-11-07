@@ -10,6 +10,86 @@ namespace SandBoxSim.Client;
 
 public partial class WorldView3D
 {
+    internal void ValidateCaravanPresentation()
+    {
+        var sim=Game.Sim;var agents=sim.Agents;
+        var from=new Vector2I(10,22);var to=new Vector2I(48,22);
+        for(int y=0;y<sim.World.Height;y++)for(int x=0;x<sim.World.Width;x++)
+            sim.World.SetTerrain(x,y,TerrainKind.Grass);
+        sim.World.RefreshSpatialIndex();
+        int Warehouse(Vector2I centre,int id)
+        {
+            if(sim.InterveneSpawnHumans(centre.X,centre.Y,8,0)!=8)
+                throw new InvalidOperationException("Caravan fixture could not populate a settlement");
+            sim.Settlements.Restore(id,centre.X,centre.Y,SettlementTier.Village,8,2,1,0,0,false);
+            int building=sim.Buildings.Place(sim.World,BuildingKind.Storage,centre.X,centre.Y+1,1);
+            if(building<0)throw new InvalidOperationException("Caravan fixture could not place a warehouse");
+            sim.Buildings.MarkComplete(building,0);sim.Storage.SetCapacity(building,600);
+            return building;
+        }
+        int seller=Warehouse(from,1),buyer=Warehouse(to,2);
+        sim.Society.TickDay(0);sim.Civilizations.TickDay(0);
+        sim.Storage.Deposit(seller,ResourceKind.Food,200);sim.Storage.Deposit(buyer,ResourceKind.Wood,300);
+        if(!sim.Civilizations.TryDispatch(1,2))throw new InvalidOperationException("Caravan fixture did not dispatch from real inventory");
+        var caravan=sim.Civilizations.Caravans.Single();
+        int slot=unchecked((int)caravan.Merchant);
+        agents.SetLifeStage(slot,LifeStage.Adult);
+        foreach(var kind in ResidentRig.CargoKinds)agents.SetInventory(slot,kind,0);
+        ValidateWorldDimensions();SyncEntities();
+        var rig=(ResidentRig)_people[caravan.Merchant];
+        const float dt=1f/60;
+        void LookAtMerchant()
+        {
+            _target=rig.Position;_distance=8;_pitch=.62f;UpdateCamera();
+        }
+        void Play(int frames)
+        {
+            string digest=sim.StateDigestString();
+            for(int i=0;i<frames;i++)AnimateActors(dt);
+            if(sim.StateDigestString()!=digest)throw new InvalidOperationException("Caravan playback changed the ledger");
+        }
+        void JumpToStop(Vector2I tile)
+        {
+            agents.SetPosition(slot,tile.X,tile.Y);
+            rig.Position=PositionAt(tile.X,tile.Y);rig.Travel=default;
+            LookAtMerchant();
+        }
+
+        LookAtMerchant();Play(90);
+        if(rig.SupportedCargo!=ResourceKind.Food||!rig.SupportingCaravanCargo||agents.InventoryOf(slot,ResourceKind.Food)>0)
+            throw new InvalidOperationException("Outbound caravan does not show its actual reserved food");
+        var before=rig.Position;
+        sim.Civilizations.TickFast(1);Play(75);
+        if(Horizontal(rig.Position-before).Length()<.12f||!rig.SupportingCaravanCargo)
+            throw new InvalidOperationException("The outbound merchant does not carry the parcel during actual travel");
+
+        agents.SetInventory(slot,ResourceKind.Food,1);agents.SetHunger(slot,.80f);
+        sim.Civilizations.TickFast(2);Play(1);
+        if(agents.ActionOf(slot)!=ActionKind.None||!rig.SupportingCaravanCargo)
+            throw new InvalidOperationException("A needs break removes the shipment before the merchant can stow it");
+        Play(120);
+        if(rig.SupportingCaravanCargo||rig.SupportedCargo!=ResourceKind.Food||caravan.Cargo<=0)
+            throw new InvalidOperationException("Personal food and the reserved shipment are treated as the same load");
+        agents.SetHunger(slot,0);sim.Civilizations.TickFast(3);Play(120);
+        if(!rig.SupportingCaravanCargo||rig.SupportedCargo!=ResourceKind.Food)
+            throw new InvalidOperationException("Resuming trade does not restore the reserved shipment");
+
+        JumpToStop(to);sim.Civilizations.TickFast(4);Play(1);
+        if(!caravan.Returning||!caravan.PaymentInTransit||rig.SupportedCargo!=ResourceKind.Food)
+            throw new InvalidOperationException("Buyer settlement replaces the held parcel before stowing");
+        Play(120);
+        if(!rig.SupportingCaravanCargo||rig.SupportedCargo!=ResourceKind.Wood||agents.InventoryOf(slot,ResourceKind.Wood)>0)
+            throw new InvalidOperationException("The return leg does not show its actual payment");
+        JumpToStop(from);sim.Civilizations.TickFast(5);SyncEntities();
+        if(!caravan.Delivered||_people[caravan.Merchant]!=rig||!rig.SupportingCaravanCargo)
+            throw new InvalidOperationException("Returning merchant changes outfit before recovering its parcel");
+        Play(120);SyncEntities();
+        if(_people[caravan.Merchant]==rig||sim.Civilizations.Relation(1,2).Trades!=1
+            ||sim.Storage.AmountOf(buyer,ResourceKind.Food)<=0||sim.Storage.AmountOf(seller,ResourceKind.Wood)<=0)
+            throw new InvalidOperationException("The completed caravan remains visible or lost its actual delivery");
+        GD.Print("WORLD_CARAVAN_LOAD_PASS: dispatched food on actual walk, same-kind personal load during break, reserved cargo restored, paid wood on return, stow before outfit, read-only");
+    }
+
     // Runs on the disposable world created by MainGame's self-test.
     internal void ValidateResidentWorldMotion()
     {

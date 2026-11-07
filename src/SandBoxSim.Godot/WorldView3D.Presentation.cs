@@ -2,12 +2,30 @@ using System;
 using System.Collections.Generic;
 using Godot;
 using SandBoxSim.Core.Agents;
+using SandBoxSim.Core.Environment;
 
 namespace SandBoxSim.Client;
 
 public partial class WorldView3D
 {
     private readonly PoseSchedule _poseSchedule=new();
+    private readonly Dictionary<long,ResourceKind> _caravanLoads=new();
+
+    private void ObserveCaravanLoads()
+    {
+        _caravanLoads.Clear();
+        foreach(var caravan in Game.Sim.Civilizations.Caravans)
+        {
+            if(caravan.Delivered)continue;
+            // Escrow at the buyer is only merchandise on the return leg.
+            bool payment=caravan.Returning&&!caravan.Aborted&&caravan.PaymentInTransit;
+            int kind=payment?caravan.Payment:caravan.Resource;
+            float amount=payment?caravan.PaymentCargo:caravan.Cargo;
+            if(kind is >=(int)ResourceKind.Food and <=(int)ResourceKind.Iron&&float.IsFinite(amount)&&amount>.01f)
+                _caravanLoads.TryAdd(caravan.Merchant,(ResourceKind)kind);
+        }
+    }
+
     private readonly record struct PoseCue(ActionKind Action,ActionPhase Phase,uint Revision,ResidentRig.InteractionTarget Target,bool Aligned,
         ResidentRig.ToolSurface? Surface=null,bool ContactReady=true);
     /// <summary>Accumulate time only while the observed action and its contacts are current.</summary>

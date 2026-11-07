@@ -114,6 +114,7 @@ internal partial class ResidentRig : Node3D
     public string Handling => ReleasingSupport?"收回重心 / 准备迈步":_recoveringPickup?"托住物件 / 收回":PickupCarryPending?"抬起物件 / 双手接稳":HandoffReserved?_handoffReadout:_placingCargo?"双手送稳 / 准备松开":
         _releasedCargo?(_groundPlacement?"物资落地 / 收手":"入库交接 / 收手"):_cargoTuck>0&&SupportedCargo!=ResourceKind.None?"收拢包裹 / 腾手":_placementPending?"抱稳物资 / 等待到位":
         ConsumptionOwnsHand?ConsumptionHandling:!InteractionSettled&&(_observedPhase==ActionPhase.Executing||CompletionVisible)?"接近目的地 / 停稳":
+        SupportingCaravanCargo?"商队载货 / 双手托稳":
         _conversation is {} conversation&&InteractionSettled?(conversation.Speech>.1f?"交谈 / 说话":"交谈 / 倾听"):
         _waitingForContact?"等待作业条件":_waitingForFacing?"转向目标 / 等待接触":ToolHeld ? _returning?"收回工具":_draw<.99f?"取出 / 抬手":_carrying?"手持携带":ToolStrokeHandling : _releaseTime>0?"松开手指":_reach>.01f?(_takingTool?(_reach==1?"合拢握柄":"伸手拿取"):"收回手臂"):CargoMesh.Visible?(_bareBlend>.01f&&CompatibleBareActions(_bareAction,ActionKind.Deposit)?"双手递出":"双手搬运"):_bareBlend>.01f?_bareAction switch {ActionKind.Take or ActionKind.GatherFood=>ScenePickupHandling,_=>"徒手交互"}:_cargoBlend>.01f?(_hasCargo?"托起物资":"放下 / 收手"):_restPose.X>.08f?"休息 / 起身":"双手放松";
     public static ResidentTool ToolFor(ActionKind action)=>action switch {
@@ -560,8 +561,9 @@ internal partial class ResidentRig : Node3D
     private static float AdvanceFingerCurl(float previous,float target,float delta)
         =>Mathf.MoveToward(previous,target,delta*(target>previous?10f:7.5f));
     private static float Smooth(float t)=>t*t*(3-2*t);
-    public void ShowCargo(bool hasCargo,ResourceKind resource)
+    public void ShowCargo(bool hasCargo,ResourceKind resource,bool fromCaravan=false)
     {
+        _cargoFromCaravan=hasCargo&&fromCaravan;
         if(!hasCargo){_hasCargo=false;return;}
         if(_releasedCargo&&resource!=_cargoKind)ClearTransientCargo();
         if((_hasCargo||CargoMesh.Visible)&&resource!=_cargoKind){CargoMesh.Visible=false;_cargoBlend=0;}
