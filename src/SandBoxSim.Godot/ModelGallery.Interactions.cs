@@ -105,7 +105,8 @@ internal partial class ModelGallery
                 action=t<2.4f?ActionKind.BuildHouse:t<7.75f?ActionKind.Drink:t<10.3f?ActionKind.Eat:
                     t<13.25f?ActionKind.Farm:t<15.1f?ActionKind.Sleep:ActionKind.Flee;
                 revision=t<2.4f?1u:t<4.8f?2u:t<7.75f?3u:t<10.3f?4u:t<13.25f?5u:t<15.1f?6u:7u;
-                phase=revision==3?ActionPhase.Done:t<15.1f?ActionPhase.Executing:ActionPhase.Moving;
+                phase=revision==3||revision==1&&t>=1.05f||revision==5&&t>=11.36f?ActionPhase.Done:
+                    t<15.1f?ActionPhase.Executing:ActionPhase.Moving;
             }
             rig.PresentAction(dt,action,phase,false,0,revision,targetAligned:aligned,sceneContact:contact,contactResource:resource,target:focus);
             if(sequence==0)

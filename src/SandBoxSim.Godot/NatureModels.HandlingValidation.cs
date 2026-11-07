@@ -165,6 +165,7 @@ internal sealed partial class NatureModels
     }
     private void ValidateHandling()
     {
+        ValidateCommittedToolPhrases();
         ValidateCultivation();ValidateForearmSurfaces();ValidateHandLaterality(17);ValidateHandLaterality(55);ValidateSocialGesture();ValidatePresentationCadence();ValidateLocomotion();ValidateWalkingArms();ValidateReachTrajectories();ValidateEffortPresentation();ValidateMotionContinuity();ValidateWorkSupport();ValidateCarrying();ValidateAnimalContacts();ValidateBareTransitions();
         foreach(var action in new[]{ActionKind.GatherWood,ActionKind.GatherIron,ActionKind.Farm,ActionKind.BuildHouse})
         {
@@ -402,6 +403,73 @@ internal sealed partial class NatureModels
         for(int i=0;i<100;i++)child.PoseAction(1f/60,ActionKind.Farm,ActionPhase.Executing,false,0);
         if(child.ToolHeld||child.ToolMesh.Visible)throw new InvalidOperationException("Child received adult tool");child.Free();
         GD.Print("HANDLING_PASS: take/use/stow continuity, action-specific tools, three phalanges, shaft clearance, wrist limits, mirrored support, IK, switching, cargo, child policy, LOD and pause");
+    }
+
+    internal void ValidateCommittedToolPhrases()
+    {
+        var actions=new[]{ActionKind.BuildHouse,ActionKind.GatherWood,ActionKind.GatherStone,ActionKind.Farm,ActionKind.Attack};
+        float biggestInterruption=0;
+        foreach(int identity in new[]{17,55})
+        foreach(var action in actions)
+        {
+            var rig=Resident(identity,false,JobType.None);
+            try
+            {
+                const float dt=1f/60;
+                float cadence=identity==17?dt:1f/24;
+                rig.PresentAction(dt,ActionKind.None,ActionPhase.Idle,false,0,1);
+                for(int i=0;i<MathF.Ceiling(7/cadence);i++)
+                    rig.PresentAction(cadence,action,ActionPhase.Done,false,0,2);
+                if(rig.PresentedToolImpacts!=1||rig.CompletionVisible||rig.ToolStrokePhase!=1)
+                    throw new InvalidOperationException($"Short completion must play exactly one stroke and its recovery: {action}/{identity}, impacts={rig.PresentedToolImpacts}, phase={rig.ToolStrokePhase:F3}");
+
+                for(int i=0;i<360&&rig.PresentedToolImpacts<2;i++)
+                    rig.PresentAction(dt,action,ActionPhase.Executing,false,0,3);
+                if(rig.PresentedToolImpacts!=2)throw new InvalidOperationException("Executed tool phrase never reaches its impact landmark");
+                for(int i=0;i<240;i++)rig.PresentAction(dt,action,ActionPhase.Done,false,0,3);
+                if(rig.PresentedToolImpacts!=2||rig.CompletionVisible||rig.ToolStrokePhase!=1)
+                    throw new InvalidOperationException($"Already shown work replays a strike or loses recovery: {action}");
+
+                bool nextWindup=false;
+                for(int i=0;i<420;i++)
+                {
+                    rig.PresentAction(dt,action,ActionPhase.Executing,false,0,4);
+                    nextWindup=rig.PresentedToolImpacts==3&&rig.ToolStrokePhase is >=.18f and <=.23f;
+                    if(nextWindup)break;
+                }
+                if(!nextWindup)throw new InvalidOperationException($"Spare wind-up fixture never reaches a new cycle: {action}");
+                for(int i=0;i<180;i++)rig.PresentAction(dt,action,ActionPhase.Done,false,0,4);
+                if(rig.PresentedToolImpacts!=3||rig.CompletionVisible)
+                    throw new InvalidOperationException($"A spare wind-up strikes after its work is already shown: {action}");
+
+                for(int i=0;i<120;i++)rig.PresentAction(dt,action,ActionPhase.Done,false,0,5,completeToolStroke:false);
+                if(rig.PresentedToolImpacts!=3||rig.CompletionVisible)
+                    throw new InvalidOperationException("A completion without committed work starts a new stroke");
+
+                for(int i=0;i<360&&rig.ToolStrokePhase<.21f;i++)
+                    rig.PresentAction(dt,action,ActionPhase.Executing,false,0,6);
+                if(rig.ToolStrokePhase<.21f||rig.ToolStrokePhase>.34f||!rig.ToolHeld)
+                    throw new InvalidOperationException($"Interruption fixture did not enter the pre-impact stroke: {action}");
+                var wrist=rig.HandWorldPose(1).Origin;
+                rig.PresentAction(dt,ActionKind.Flee,ActionPhase.Moving,false,0,7);
+                biggestInterruption=Math.Max(biggestInterruption,wrist.DistanceTo(rig.HandWorldPose(1).Origin));
+                for(int i=0;i<130;i++)rig.PresentAction(dt,ActionKind.Flee,ActionPhase.Moving,false,0,7);
+                if(rig.PresentedToolImpacts!=3||rig.ToolHeld||rig.CompletionVisible||biggestInterruption>.065f)
+                    throw new InvalidOperationException($"Emergency movement adds a phantom impact, snaps the wrist or fails to stow: {action}/{identity}, step={biggestInterruption:F3}");
+
+                if(action==ActionKind.Attack)
+                {
+                    for(int i=0;i<310;i++)rig.PresentAction(dt,ActionKind.Hunt,ActionPhase.Executing,false,0,8,awaitToolCommit:true);
+                    if(rig.PresentedToolImpacts!=3||rig.ToolStrokePhase<.45f)
+                        throw new InvalidOperationException("A hunter cannot hold a prepared spear before the hunt result");
+                    for(int i=0;i<280;i++)rig.PresentAction(dt,ActionKind.Hunt,ActionPhase.Done,false,0,8);
+                    if(rig.PresentedToolImpacts!=4||rig.CompletionVisible)
+                        throw new InvalidOperationException("A confirmed hunt does not finish exactly one thrust");
+                }
+            }
+            finally{rig.Free();}
+        }
+        GD.Print($"TOOL_PHRASE_PASS: five tool families at 60/24 Hz, single impact, natural completion, suppressed work, urgent cancellation, hunt wait and thrust, max wrist step {biggestInterruption:F3} m");
     }
     private void ValidateBareTransitions()
     {

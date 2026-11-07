@@ -36,7 +36,7 @@ internal partial class ResidentRig
     internal readonly record struct InteractionTarget(Vector2I? Tile,long Partner,ActionSystem.ActionContact? Pickup);
     private InteractionTarget _interactionTarget;
     private float _retargetSettle;
-    public bool CompletionVisible=>_finishConsumption||_completionRemaining>0||_placingCargo||_placementPending;
+    public bool CompletionVisible=>_finishConsumption||_finishToolStroke||_completionRemaining>0||_placingCargo||_placementPending;
 
     internal bool ContinuesCompletedAction(ActionKind action,uint revision)
         =>_sceneContact.HasValue||ShowsCompletion(action,revision);
@@ -52,13 +52,15 @@ internal partial class ResidentRig
         _finishConsumption=_observedMouthContact=false;
         ClearConsumption();
         ClearTransientCargo();
+        ResetToolPhrase(retainPose:false);
         _interactionTarget=default;_retargetSettle=0;
         _sceneContact=null;
         ResetScenePickup(discard:true);_scenePickupBend=0;
     }
 
     public void PresentAction(float delta,ActionKind action,ActionPhase phase,bool paused,float identityPhase,uint? revision=null,bool hasPartner=true,bool targetAligned=true,
-        Vector3? sceneContact=null,ResourceKind contactResource=ResourceKind.None,InteractionTarget target=default)
+        Vector3? sceneContact=null,ResourceKind contactResource=ResourceKind.None,InteractionTarget target=default,
+        bool completeToolStroke=true,bool awaitToolCommit=false)
     {
         if(paused)return;
         bool firstSnapshot=revision.HasValue&&!_observedRevision.HasValue;
@@ -66,20 +68,28 @@ internal partial class ResidentRig
             ||phase==ActionPhase.Moving&&_observedPhase!=ActionPhase.Moving
             ||phase==ActionPhase.Executing&&_observedPhase is ActionPhase.Done or ActionPhase.Idle or ActionPhase.Failed;
         bool sameExecution=!newRun&&_observedPhase==ActionPhase.Executing&&phase is ActionPhase.Executing or ActionPhase.Done;
-        bool changedPartner=RequiresPartner(action)&&target.Partner!=_interactionTarget.Partner;
+        // The active hunt tracks a live animal. Its committed receipt keeps
+        // the last position after that animal leaves the live render set.
+        bool changedPartner=(RequiresPartner(action)||action==ActionKind.Hunt&&phase==ActionPhase.Executing)
+            &&target.Partner!=_interactionTarget.Partner;
         bool changedTile=target.Tile.HasValue&&_interactionTarget.Tile.HasValue&&target.Tile!=_interactionTarget.Tile;
         bool changedPickup=target.Pickup!=_interactionTarget.Pickup;
         bool retargeted=sameExecution&&(changedPartner||changedTile||changedPickup);
+        var family=FamilyOf(action);
+        if(newRun||retargeted)
+            ResetToolPhrase(retainPose:family==ActionFamily.Tool&&ToolFor(action)==ToolFor(_observedAction));
         if(newRun)_retargetSettle=0;
         if(retargeted)
         {
             _retargetSettle=.13f;
             _observedExecution=0;
         }
-        if(newRun||phase!=ActionPhase.Done){_completionRemaining=0;_finishConsumption=false;}
+        if(newRun||phase!=ActionPhase.Done){_completionRemaining=0;_finishConsumption=_finishToolStroke=false;}
         if(newRun){_observedExecution=0;_observedMouthContact=false;}
         bool partnerAction=RequiresPartner(action);
-        if(partnerAction&&!hasPartner)_completionRemaining=0;
+        if(partnerAction&&!hasPartner){_completionRemaining=0;_finishToolStroke=false;}
+        if(!completeToolStroke)_finishToolStroke=false;
+        _awaitToolCommit=awaitToolCommit&&phase==ActionPhase.Executing;
         bool newlyDone=!firstSnapshot&&phase==ActionPhase.Done&&(newRun||_observedPhase!=ActionPhase.Done);
         var nextContact=phase==ActionPhase.Done&&!firstSnapshot||phase==ActionPhase.Executing&&target.Pickup.HasValue?sceneContact:null;
         if(newRun||changedPickup||_sceneContact.HasValue!=nextContact.HasValue)
@@ -90,18 +100,22 @@ internal partial class ResidentRig
         _scenePickupConfirmed=phase==ActionPhase.Done;
         _interactionTarget=target;
         ObserveCargoPlacement(action,phase,newlyDone,newRun,contactResource);
-        var family=FamilyOf(action);
         if(newlyDone&&family==ActionFamily.Consume)
         {
             _completionAge=0;
             _finishConsumption=!_observedMouthContact||ConsumptionOwnsHand;
         }
-        else if(newlyDone&&(!partnerAction||hasPartner)
-            &&(UsesBareHands(family)||family is ActionFamily.Tool or ActionFamily.Social))
+        else if(newlyDone&&family==ActionFamily.Tool&&completeToolStroke&&(!partnerAction||hasPartner)&&!IsChild)
         {
             _completionAge=0;
-            float minimum=family==ActionFamily.Tool?MathF.Max(.9f,WorkPeriod)
-                :family==ActionFamily.Pickup&&_sceneContact.HasValue?2.5f:1.65f;
+            // A confirmed action can finish its first stroke or the recovery
+            // of an impact already shown. A spare wind-up must not hit again.
+            _finishToolStroke=!_toolImpactSeen||_strokePhase>=ToolImpactPhase(ToolFor(action))&&_strokePhase<1;
+        }
+        else if(newlyDone&&(!partnerAction||hasPartner)&&(UsesBareHands(family)||family==ActionFamily.Social))
+        {
+            _completionAge=0;
+            float minimum=family==ActionFamily.Pickup&&_sceneContact.HasValue?2.5f:1.65f;
             if(!IsPlacement(action)||_hasCargo&&!_placementPending)
                 _completionRemaining=MathF.Max(0,minimum-(family==ActionFamily.Pickup&&_sceneContact.HasValue?0:_observedExecution));
         }
@@ -113,6 +127,9 @@ internal partial class ResidentRig
 
     internal static bool RequiresPartner(ActionKind action)
         =>action is ActionKind.Socialize or ActionKind.ShareFood or ActionKind.Attack;
+
+    internal static bool UsesWorksiteReceipt(ActionKind action)
+        =>action is ActionKind.Farm or ActionKind.BuildHouse or ActionKind.BuildStorage or ActionKind.BuildFarm or ActionKind.BuildMine or ActionKind.Hunt;
 
     internal static bool UsesInteractionFacing(ActionKind action)
         =>FamilyOf(action) is ActionFamily.Tool or ActionFamily.Pickup or ActionFamily.Transfer or ActionFamily.Social
@@ -135,6 +152,11 @@ internal partial class ResidentRig
         {
             _completionAge+=delta;
             if(_observedMouthContact&&!ConsumptionOwnsHand||_completionAge>=6)_finishConsumption=false;
+        }
+        if(_finishToolStroke)
+        {
+            _completionAge+=delta;
+            if(_completionAge>=6)_finishToolStroke=false;
         }
         bool active=alreadyEngaged&&GestureEngaged(action);
         // Charge time only to substeps actually spent engaged. A coarse

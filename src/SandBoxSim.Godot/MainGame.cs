@@ -99,6 +99,13 @@ public partial class MainGame : Control
             catch(Exception exception){GD.PushError(exception.ToString());GetTree().Quit(1);}
             return;
         }
+        if(OS.GetCmdlineUserArgs().Contains("--test-tool-phrases"))
+        {
+            SetProcess(false);SetPhysicsProcess(false);SetProcessInput(false);
+            try{new NatureModels().ValidateCommittedToolPhrases();GetTree().Quit();}
+            catch(Exception exception){GD.PushError(exception.ToString());GetTree().Quit(1);}
+            return;
+        }
         if(OS.GetCmdlineUserArgs().Contains("--test-hand-continuity"))
         {
             SetProcess(false);SetPhysicsProcess(false);SetProcessInput(false);
@@ -169,7 +176,7 @@ public partial class MainGame : Control
             try{if(_selfTest||_benchmarkSeconds>0||_capture.Length>0||_captureFrames.Length>0)throw new ArgumentException("Evaluation cannot be mixed with legacy capture/test modes");LoadEvaluation(evaluationPath.Substring(13));}
             catch(Exception ex){GD.PrintErr("EVALUATION_CONFIG_ERROR "+ex.Message);TraceEvaluationPhase("quit_requested");GetTree().Quit(2);SetProcess(false);return;}
         }
-        if(_selfTest&&OS.GetCmdlineUserArgs().Contains("--stock-contact-only"))_initialPopulation=0;
+        if(_selfTest&&OS.GetCmdlineUserArgs().Any(arg=>arg is "--stock-contact-only" or "--work-contact-only"))_initialPopulation=0;
         NewWorld(_evaluation?.Seed??839102);
         TraceEvaluationPhase("world_initialized");
         if (_previewDays > 0) { AdvanceWorld(_previewDays * Sim.Config.Clock.TicksPerDay); }
@@ -747,13 +754,15 @@ public partial class MainGame : Control
     {
         try
         {
-            if(OS.GetCmdlineUserArgs().Contains("--stock-contact-only"))
+            var focused=OS.GetCmdlineUserArgs().FirstOrDefault(arg=>arg is "--stock-contact-only" or "--work-contact-only");
+            if(focused!=null)
             {
                 Sim=new Simulation(Sim.Config.Clone(),30,30,13);
                 var worldView=(WorldView3D)_map;
                 worldView.ValidateWorldDimensions();
                 SetSpeed(ObservationSpeed);
-                worldView.ValidateWorldStockContact();
+                if(focused=="--work-contact-only")worldView.ValidateWorldWorkContact();
+                else worldView.ValidateWorldStockContact();
                 GetTree().Quit();
                 return;
             }

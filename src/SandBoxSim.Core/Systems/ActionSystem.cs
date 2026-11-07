@@ -28,7 +28,7 @@ public sealed class ActionSystem
     private float[] _moveProgress = System.Array.Empty<float>();
     private (AgentRef Actor, uint Revision, AgentRef Partner)[] _presentedPartners =
         System.Array.Empty<(AgentRef, uint, AgentRef)>();
-    public enum ContactSurface : byte { GroundStock, NaturalResource, Storage }
+    public enum ContactSurface : byte { GroundStock, NaturalResource, Storage, BuildingWork, Hunt }
     public readonly record struct ActionContact(Int2 Tile, ResourceKind Resource, ContactSurface Surface, float StockAmount = 0,
         int BuildingGeneration = 0);
     private (AgentRef Actor, uint Revision, ActionContact Contact)[] _completedContacts =
@@ -429,6 +429,7 @@ public sealed class ActionSystem
             return;
         }
 
+        Int2 preyTile = new(wildlife.XOf(prey), wildlife.YOf(prey));
         float food = _sim.WildlifeSystem.Hunt(x, y);
         if (food <= 0f)
         {
@@ -441,6 +442,7 @@ public sealed class ActionSystem
         TotalHuntedFood += food;
         int index = (int)ResourceKind.Food;
         HarvestedByKind[index] += food;
+        RecordContact(slot, new(preyTile, ResourceKind.Food, ContactSurface.Hunt));
 
         _sim.Events.Record(tick, History.WorldEventType.AgentAte,
             _store.NameOrOverride(slot) + " 猎获一只动物（+" + food.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + " 食物）",
@@ -546,7 +548,8 @@ public sealed class ActionSystem
         }
 
         BuildsStarted++;
-        _ = buildingIndex;
+        RecordContact(slot, new(site, ResourceKind.None, ContactSurface.BuildingWork,
+            BuildingGeneration: _sim.Buildings.GenerationOf(buildingIndex)));
         Complete(slot, tick);
     }
 
@@ -598,6 +601,8 @@ public sealed class ActionSystem
         {
             _sim.Buildings.AddLabor(index, System.Math.Max(0.01f, cfg.FarmWorkPerAction) * _sim.Diseases.LaborMultiplier(slot));
             FarmVisits++;
+            RecordContact(slot, new(target, ResourceKind.None, ContactSurface.BuildingWork,
+                BuildingGeneration: _sim.Buildings.GenerationOf(index)));
         }
 
         // 田里今天的活已经满了也走"完成"而不是"失败"：
@@ -989,6 +994,14 @@ public sealed class ActionSystem
         if (resource.Kind != ResourceKind.Food || resource.Amount <= 0f) return false;
         contact = new(tile, ResourceKind.Food, ContactSurface.NaturalResource);
         return true;
+    }
+
+    /// <summary>The same nearby prey search used while an active hunter is aiming.</summary>
+    public bool TryGetHuntTarget(int slot, out int prey)
+    {
+        prey = -1;
+        return _store.IsSlotAlive(slot) && _store.ActionOf(slot) == ActionKind.Hunt && _store.PhaseOf(slot) == ActionPhase.Executing
+            && _sim.Wildlife.TryFindNearest(_store.XOf(slot), _store.YOf(slot), _config.Wildlife.HuntRange, out prey, out _);
     }
 
     /// <summary>The site that supplied or received the resource on this completed action. Not saved.</summary>

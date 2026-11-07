@@ -7,6 +7,18 @@ namespace SandBoxSim.Client;
 
 public partial class WorldView3D
 {
+    private float CultivationSurfaceHeight(Vector3 point,int x,int y)
+    {
+        float terrain=GroundHeight(point.X,point.Z);
+        var world=Game.Sim.World;
+        if(!world.IsInBounds(x,y))return terrain;
+        int index=world.TileAt(x,y).BuildingId-1;
+        if(!_buildingVisuals.TryGetValue(index,out var farm)||!farm.Complete||farm.Kind!=BuildingKind.Farm)return terrain;
+        var local=farm.Root.Transform.AffineInverse()*point;
+        if(Mathf.Abs(local.X)>NatureModels.FarmBedHalfWidth||Mathf.Abs(local.Z)>NatureModels.FarmBedHalfWidth)return terrain;
+        return Mathf.Max(terrain,(farm.Root.Transform*new Vector3(local.X,NatureModels.FarmBedHeight,local.Z)).Y);
+    }
+
     private bool TryActionContact(ResidentRig resident, ActionKind action, ActionSystem.ActionContact site,
         Vector3 logical, out Vector3 point, out Vector3 stand)
     {
@@ -20,6 +32,40 @@ public partial class WorldView3D
         Vector3 outward;
         switch(site.Surface)
         {
+            case ActionSystem.ContactSurface.Hunt:
+                point=tile;
+                return true;
+            case ActionSystem.ContactSurface.BuildingWork:
+                int workplace=world.TileAt(x,y).BuildingId-1;
+                if(!Game.Sim.Buildings.IsAlive(workplace)||Game.Sim.Buildings.GenerationOf(workplace)!=site.BuildingGeneration)
+                    return false;
+                if(action==ActionKind.Farm)
+                {
+                    // Furrow probes still sample the actual ground from the
+                    // resident's feet, along the farm's rendered row direction.
+                    var forward=_buildingVisuals.TryGetValue(workplace,out var farm)?-farm.Root.Basis.Z.Normalized():Vector3.Forward;
+                    for(int side=0;side<2;side++,forward=-forward)
+                    {
+                        var far=logical+forward*(-ResidentRig.FurrowStart*resident.Scale.X);
+                        var near=logical+forward*(-ResidentRig.FurrowEnd*resident.Scale.X);
+                        float high= CultivationSurfaceHeight(far,x,y)-logical.Y;
+                        float low= CultivationSurfaceHeight(near,x,y)-logical.Y;
+                        if(Mathf.Abs(high)>.17f||Mathf.Abs(low)>.17f)continue;
+                        point=logical+forward*.68f;
+                        return true;
+                    }
+                    return false;
+                }
+                if(!_buildingVisuals.TryGetValue(workplace,out var construction)||construction.Generation!=site.BuildingGeneration)
+                {
+                    point=tile;
+                    return true;
+                }
+                var footprint=NatureModels.BuildingFootprint(construction.Identity);
+                var post=new Vector3(footprint.X*.5f,.77f,footprint.Y*.5f);
+                point=construction.Root.Transform*post;
+                outward=construction.Root.Basis.Z;
+                break;
             case ActionSystem.ContactSurface.NaturalResource:
                 if(!_sceneResourceAnchors.TryGetValue(y*world.Width+x,out var anchor)||anchor.Kind!=site.Resource)return false;
                 point=anchor.Point;

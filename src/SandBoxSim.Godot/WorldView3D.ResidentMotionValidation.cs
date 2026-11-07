@@ -100,9 +100,87 @@ public partial class WorldView3D
         ValidateProjectedResidentMotion(delta);
         ValidateSceneHandoff(tiles.Start,tiles.Corner,delta);
         ValidateWorldStockContact(tiles.Start,delta);
+        ValidateCommittedCultivation(tiles.Goal,delta);
+    }
+
+    private void ValidateCommittedCultivation(Vector2I origin,float delta)
+    {
+        var sim=Game.Sim;var agents=sim.Agents;
+        var tile=Enumerable.Range(0,sim.World.Width*sim.World.Height)
+            .Select(index=>new Vector2I(index%sim.World.Width,index/sim.World.Width))
+            .Where(p=>p.X>1&&p.Y>1&&p.X<sim.World.Width-2&&p.Y<sim.World.Height-2
+                &&sim.World.TileAt(p.X,p.Y).BuildingId==0&&sim.World.TileAt(p.X+1,p.Y).BuildingId==0
+                &&sim.World.TileAt(p.X,p.Y+1).BuildingId==0)
+            .OrderBy(p=>p.DistanceSquaredTo(origin))
+            .First(p=>DryActorTarget(PositionAt(p.X,p.Y))&&SceneryPointClear(PositionAt(p.X,p.Y),.72f)
+                &&ActorFootSupport(PositionAt(p.X,p.Y)));
+        // Keep the irrigation fixture independent of the procedural shore.
+        for(int y=tile.Y-2;y<=tile.Y+2;y++)for(int x=tile.X-2;x<=tile.X+2;x++)
+        {
+            sim.World.SetTerrain(x,y,TerrainKind.Grass);
+            sim.World.Tiles[y*sim.World.Width+x].Height=.34f;
+        }
+        sim.World.SetTerrain(tile.X+1,tile.Y,TerrainKind.Water);
+        sim.World.SetTerrain(tile.X,tile.Y+1,TerrainKind.Road);
+        int farm=sim.Buildings.Place(sim.World,BuildingKind.Farm,tile.X,tile.Y,10);
+        if(farm<0)throw new InvalidOperationException("Cultivation receipt fixture could not place a farm");
+        sim.Buildings.MarkComplete(farm,sim.Clock);CheckTerrain();BuildBuildings();
+        if(sim.InterveneSpawnHumans(tile.X,tile.Y,1,1)!=1)
+            throw new InvalidOperationException("Cultivation receipt fixture could not spawn a resident");
+        int slot=agents.AliveSlots().Last();
+        agents.SetLifeStage(slot,LifeStage.Adult);
+        agents.SetPosition(slot,tile.X,tile.Y);
+        agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
+        SyncEntities();
+        var rig=(ResidentRig)_people[sim.Society.Identity(slot)];
+        _target=PositionAt(tile.X,tile.Y);_distance=9;_pitch=.62f;UpdateCamera();
+        AnimateActors(delta);
+        void WorkVisit()
+        {
+            agents.SetAction(slot,ActionKind.Farm,ActionPhase.Executing);
+            agents.SetTarget(slot,tile.X,tile.Y);
+            sim.Actions.Tick(sim.Clock);
+            if(agents.PhaseOf(slot)!=ActionPhase.Done||agents.HasTarget(slot))
+                throw new InvalidOperationException("Farm visit did not finish through the simulation");
+        }
+        int initial=rig.PresentedToolImpacts;
+        WorkVisit();
+        if(!sim.Actions.TryGetCompletedContact(slot,out var receipt)||receipt.Tile!=new Int2(tile.X,tile.Y)
+            ||receipt.Surface!=ActionSystem.ContactSurface.BuildingWork||sim.Buildings.LaborOf(farm)<=0)
+            throw new InvalidOperationException("Completed cultivation loses the actual farm after the action clears its target");
+        string committed=sim.StateDigestString();
+        int soilContact=0;
+        float closest=float.PositiveInfinity;
+        string closestPose="";
+        for(int i=0;i<360;i++)
+        {
+            AnimateActors(delta);
+            if(!rig.ToolHeld||rig.CurrentTool!=ResidentTool.Hoe||rig.ToolStrokePhase is <.28f or >.58f)continue;
+            var edge=rig.ToolMesh.GlobalTransform*ResidentRig.HoeCuttingEdge;
+            float height=CultivationSurfaceHeight(edge,tile.X,tile.Y);
+            float gap=MathF.Abs(edge.Y-height);
+            if(gap<closest)
+            {
+                closest=gap;
+                closestPose=$"phase={rig.ToolStrokePhase:F2}, edge={rig.RigWorldSpace.AffineInverse()*edge}, bed={height-rig.Position.Y:F3}, actor={rig.Position}, field={_buildingVisuals[farm].Root.Position}";
+            }
+            if(gap<.040f)soilContact++;
+        }
+        if(rig.PresentedToolImpacts!=initial+1||soilContact<5||rig.CompletionVisible||sim.StateDigestString()!=committed)
+            throw new InvalidOperationException($"Committed farm misses its soil stroke: impacts={rig.PresentedToolImpacts-initial}, contact frames={soilContact}, closest={closest:F3} m ({closestPose})");
+
+        sim.Buildings.AddLabor(farm,sim.Config.Buildings.FarmLaborPerDayCap);
+        WorkVisit();
+        if(sim.Actions.TryGetCompletedContact(slot,out _))throw new InvalidOperationException("A full farm reports nonexistent work");
+        committed=sim.StateDigestString();
+        for(int i=0;i<220;i++)AnimateActors(delta);
+        if(rig.PresentedToolImpacts!=initial+1||rig.CompletionVisible||sim.StateDigestString()!=committed)
+            throw new InvalidOperationException("A full farm plays another stroke or changes simulation state");
+        GD.Print($"WORLD_COMMITTED_WORK_PASS: actual farm survives target clearing, {soilContact} soil-contact frames, a full farm plays no extra stroke");
     }
 
     internal void ValidateWorldStockContact()=>ValidateWorldStockContact(FindResidentMotionCorner().Start,1f/60);
+    internal void ValidateWorldWorkContact()=>ValidateCommittedCultivation(FindResidentMotionCorner().Goal,1f/60);
 
     private void ValidateWorldStockContact(Vector2I tile,float delta)
     {

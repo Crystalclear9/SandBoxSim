@@ -162,7 +162,15 @@ internal partial class ResidentRig
         float height=.92f+lift*(kind==ResidentTool.Hammer?.46f:.26f);
         float lateral=kind==ResidentTool.Hammer?.26f:.10f;
         var windup=ToolWindup(lift,arc)*(kind==ResidentTool.Hammer?1:.60f);
-        return (new Vector3(lateral,height,depth)+windup+recovery,rotation);
+        // The axe sweeps across the torso as the edge comes down. The pick
+        // follows a taller, narrower track so its point approaches from above.
+        var toolPath=kind switch
+        {
+            ResidentTool.Axe=>new Vector3(.055f*lift-.054f*recovery.Length()/.020f,.015f*lift,-.035f*arc),
+            ResidentTool.Pick=>new Vector3(-.026f*lift,.095f*lift,-.025f*lift),
+            _=>Vector3.Zero
+        };
+        return (new Vector3(lateral,height,depth)+windup+recovery+toolPath,rotation);
     }
     // Zero velocity and acceleration at both ends of an intentional reach.
     internal static float ReachEase(float t){t=Math.Clamp(t,0,1);return t*t*t*(10+t*(-15+6*t));}

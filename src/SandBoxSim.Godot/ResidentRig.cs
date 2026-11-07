@@ -108,7 +108,7 @@ internal partial class ResidentRig : Node3D
     public string Handling => _recoveringPickup?"托住物件 / 收回":HandoffReserved?_handoffReadout:_placingCargo?"双手送稳 / 准备松开":
         _releasedCargo?(_groundPlacement?"物资落地 / 收手":"入库交接 / 收手"):_placementPending?"抱稳物资 / 等待到位":
         ConsumptionOwnsHand?ConsumptionHandling:!InteractionSettled&&(_observedPhase==ActionPhase.Executing||CompletionVisible)?"接近目的地 / 停稳":
-        _waitingForFacing?"转向目标 / 等待接触":ToolHeld ? _returning?"收回工具":_draw<.99f?"取出 / 抬手":_carrying?"手持携带":"使用工具" : _releaseTime>0?"松开手指":_reach>.01f?(_takingTool?(_reach==1?"合拢握柄":"伸手拿取"):"收回手臂"):CargoMesh.Visible?(_bareBlend>.01f&&CompatibleBareActions(_bareAction,ActionKind.Deposit)?"双手递出":"双手搬运"):_bareBlend>.01f?_bareAction switch {ActionKind.Take or ActionKind.GatherFood=>ScenePickupHandling,_=>"徒手交互"}:_cargoBlend>.01f?(_hasCargo?"托起物资":"放下 / 收手"):_restPose.X>.08f?"休息 / 起身":"双手放松";
+        _waitingForFacing?"转向目标 / 等待接触":ToolHeld ? _returning?"收回工具":_draw<.99f?"取出 / 抬手":_carrying?"手持携带":ToolStrokeHandling : _releaseTime>0?"松开手指":_reach>.01f?(_takingTool?(_reach==1?"合拢握柄":"伸手拿取"):"收回手臂"):CargoMesh.Visible?(_bareBlend>.01f&&CompatibleBareActions(_bareAction,ActionKind.Deposit)?"双手递出":"双手搬运"):_bareBlend>.01f?_bareAction switch {ActionKind.Take or ActionKind.GatherFood=>ScenePickupHandling,_=>"徒手交互"}:_cargoBlend>.01f?(_hasCargo?"托起物资":"放下 / 收手"):_restPose.X>.08f?"休息 / 起身":"双手放松";
     public static ResidentTool ToolFor(ActionKind action)=>action switch {
         ActionKind.GatherWood=>ResidentTool.Axe,
         ActionKind.GatherStone or ActionKind.GatherIron=>ResidentTool.Pick,
@@ -210,7 +210,8 @@ internal partial class ResidentRig : Node3D
         // Prepare the working pose during the lift after a secure grasp. The
         // stroke clock below still waits for the lift to finish; waiting to
         // prepare until then would make the support hand chase the first hit.
-        _workBlend=Mathf.MoveToward(_workBlend,executing&&ToolHeld&&CurrentTool==wanted&&_draw>=.25f&&ToolFor(action)!=ResidentTool.None?1:0,delta/.40f);
+        if(_rearmToolStroke&&_workBlend<=.001f){_rearmToolStroke=false;_strokePhase=0;}
+        _workBlend=Mathf.MoveToward(_workBlend,executing&&!_rearmToolStroke&&ToolHeld&&CurrentTool==wanted&&_draw>=.25f&&ToolFor(action)!=ResidentTool.None?1:0,delta/.40f);
         bool usingTool=wanted!=ResidentTool.None;
         _takingTool=usingTool&&!ToolHeld;
         _phase+=delta*Mathf.Lerp(1.8f,7.5f,_activity);_workTime+=delta;
@@ -239,9 +240,9 @@ internal partial class ResidentRig : Node3D
         pickupShift+=new Vector3(0,-(.12f+.37f*_scenePickupDepth)*_scenePickupBend,-.055f*_scenePickupBend);
         float vertical=breath*.003f*(1-_activity)*(1-pickupWeight)*(1-restWeight);
         float gaitWeight=_activity*(1-pickupWeight)*(1-restWeight)*(1-.65f*_arrivalWeight*ReachEase(_arrivalTime/(2*LandingDuration)));
-        bool working=executing&&usingTool&&ToolHeld&&wanted==CurrentTool&&!_carrying;
+        bool working=executing&&!_rearmToolStroke&&usingTool&&ToolHeld&&wanted==CurrentTool&&!_carrying;
         AdvanceWorkStance(delta,working&&UsesStagedStance&&_draw>=.25f);
-        if(working&&_draw>=.99f&&(!UsesStagedStance||WorkStanceSettled))_strokePhase=Mathf.PosMod(_strokePhase+delta/WorkPeriod,1);
+        if(working&&_draw>=.99f&&(!UsesStagedStance||WorkStanceSettled))AdvanceWorkStroke(delta);
         var stance=WorkSupport(delta,executing&&usingTool&&ToolHeld&&wanted==CurrentTool&&!_carrying,
             (1-_activity)*(1-pickupWeight));
         float workBlend=Smooth(_workBlend);

@@ -6,6 +6,7 @@ using SandBoxSim.Core.Environment;
 namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
+    internal const float FarmBedHeight=.12f,FarmBedHalfWidth=1.10f;
     // Shared by the shell, domestic props and terrain skirt. Openings stay human-sized.
     internal static Vector2 BuildingFootprint(uint identity)
     {
@@ -35,7 +36,7 @@ internal sealed partial class NatureModels
         }
         if (kind == BuildingKind.Farm)
         {
-            Part(model, "box", new(0, .06f, 0), new(2.2f, .12f, 2.2f), 1);
+            Part(model, "box", new(0, FarmBedHeight*.5f, 0), new(FarmBedHalfWidth*2,FarmBedHeight,FarmBedHalfWidth*2), 1);
             Part(model, "box", new(1.05f, .3f, 0), new(.06f, .06f, 2.2f), 0); return FinishArchitecture(model, kind, complete, identity, width, depth);
         }
         if (kind == BuildingKind.Mine)
