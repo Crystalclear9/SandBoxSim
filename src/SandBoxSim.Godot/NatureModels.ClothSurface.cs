@@ -16,6 +16,7 @@ uniform bool sleeve_details=false;
 uniform bool trouser_details=false;
 uniform bool tailored_trousers=false;
 uniform bool fitted_bodice=false;
+uniform int garment_cut=0;
 varying vec3 cloth_position;varying vec3 cloth_normal;varying float torso_weight;
 varying vec3 cloth_axis_x;varying vec3 cloth_axis_y;varying vec3 cloth_axis_z;
 void vertex(){ torso_weight=UV2.x < -1.1 ? 1.0 : 0.0;cloth_position = VERTEX;cloth_normal=NORMAL;
@@ -40,7 +41,7 @@ float thread=dot(cx*w.x+cy*w.y+cz*w.z,vec3(.2126,.7152,.0722));
 // same colour space as texture sampling, retaining its photographed weave.
 float thread_contrast=fitted_bodice?.46:(tailored_trousers?1.0:2.0);
 float textile=clamp(1.0+(thread-.3962)*thread_contrast/.3962,fitted_bodice?.88:.65,fitted_bodice?1.10:1.25);
-ALBEDO=figure_colour(dye.rgb,UV,fitted_bodice,torso_weight)*.68*(textile+yarn*.018+twill*.008+slub+dye_variation);
+ALBEDO=figure_colour(dye.rgb,UV,fitted_bodice,torso_weight,garment_cut)*.68*(textile+yarn*.018+twill*.008+slub+dye_variation);
 if(fitted_bodice)ALBEDO*=figure_hem_finish(COLOR.a,(-UV.x-2.0)*6.2831853);
 // On the actual sewn sleeve UV2 stores rest-space metric distances. These
 // subdued stitch lines follow skinning, rather than floating above the cloth.

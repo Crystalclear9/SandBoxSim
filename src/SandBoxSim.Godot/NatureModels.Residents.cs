@@ -294,7 +294,7 @@ internal sealed partial class NatureModels
                 rig.DistantBodyMesh=ShapeFemaleMesh(rig.DistantBodyMesh,build,useSleevePattern:true);
                 rig.Holster.Position=FemaleBuildPoint(rig.Holster.Position,build);
             }
-            AddFittedPlacketButtons(rig);
+            AddFittedPlacketButtons(rig,build);
             AddFemaleCarryGear(rig,job,build);
         }
         if(!child)rig.CaptureBodyMounts();

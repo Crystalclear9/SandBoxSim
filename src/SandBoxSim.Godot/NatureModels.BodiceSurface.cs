@@ -114,6 +114,7 @@ internal sealed partial class NatureModels
         var skin=FemaleThoraxSupport();
         var section=new Vector2[TrunkColumns];
         var before=new float[rows*columns];var lower=new float[before.Length];var upper=new float[before.Length];
+        var tailored=new float[before.Length];
         for(int r=0;r<rows;r++)
         {
             float y=bottom+r*step;
@@ -137,7 +138,9 @@ internal sealed partial class NatureModels
                 float mask=TorsoRamp(1.035f,1.063f,y)*(1-TorsoRamp(1.170f,1.197f,y))
                     *(1-TorsoRamp(.076f,.098f,MathF.Abs(x)));
                 lower[i]=MathF.Max(MathF.Min(depth,skinDepth+.002f),depth-.005f*mask);
-                upper[i]=depth+.004f*mask;
+                float ease=FrontCutEase(y,MathF.Abs(x));
+                upper[i]=depth+MathF.Max(.004f,ease+.001f)*mask;
+                tailored[i]=Math.Clamp(depth+ease*mask,lower[i],upper[i]);
             }
         }
         var fitted=(float[])before.Clone();
@@ -149,7 +152,7 @@ internal sealed partial class NatureModels
             if(lower[i]>=upper[i])continue;
             float neighbour=4*(fitted[i-1]+fitted[i+1]+fitted[i-columns]+fitted[i+columns]);
             float second=fitted[i-2]+fitted[i+2]+fitted[i-2*columns]+fitted[i+2*columns];
-            fitted[i]=Math.Clamp((before[i]+bending*(neighbour-second))/(1+12*bending),lower[i],upper[i]);
+            fitted[i]=Math.Clamp((tailored[i]+bending*(neighbour-second))/(1+12*bending),lower[i],upper[i]);
         }
         var delta=new float[points.Length];
         for(int i=0;i<points.Length;i++)
@@ -167,6 +170,26 @@ internal sealed partial class NatureModels
             delta[i]=(original-Sample(fitted))*exterior;
         }
         ApplyBodiceDepth(points,(Vector3[])points.Clone(),indices,delta);
+    }
+
+    private float FrontCutEase(float height,float lateral)
+    {
+        // The bust and belt support the panel at either end. Lower-rib ease
+        // varies between cuts and leaves the central button stand aligned.
+        float length=TorsoRamp(1.038f,1.070f,height)*(1-TorsoRamp(1.092f,1.143f,height));
+        float band=TorsoRamp(.016f,.047f,lateral)*(1-TorsoRamp(.075f,.101f,lateral));
+        float line=lateral-(.049f+.36f*(height-1.075f));
+        float gather=MathF.Exp(-MathF.Pow(line/.019f,2));
+        return _garmentCut switch
+        {
+            // The work shirt returns toward the ribs with a shallow gather
+            // leading into the belt instead of carrying a rigid convex shell.
+            0=>length*band*(-.0035f+.0015f*gather),
+            // Leave a long diagonal of free cloth beneath the pack straps.
+            1=>length*band*(.0045f+.0040f*gather),
+            // The thicker coat bridges this section with one broad panel.
+            _=>length*band*.0041f
+        };
     }
 
     private static void FitFemaleRearDrape(Vector3[] points,int[] indices,Vector2[] pattern)

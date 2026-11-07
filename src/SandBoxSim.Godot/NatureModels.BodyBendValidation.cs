@@ -9,6 +9,7 @@ internal sealed partial class NatureModels
     private void ValidateLumbarClothing()
     {
         int probes=0,frontWaistProbes=0;float excursion=0,backYoke=0,lumbarSlope=0,frontWaistReversal=0;
+        var lowerRibDepth=new float[3];
         foreach(int identity in new[]{17,55})
         foreach(var job in new[]{JobType.Farmer,JobType.Gatherer,JobType.Trader})
         {
@@ -25,6 +26,10 @@ internal sealed partial class NatureModels
                     backYoke=MathF.Max(backYoke,MeasureRearCollarProjection(p,ids));
                     lumbarSlope=MathF.Max(lumbarSlope,MeasureLumbarSlope(p,ids));
                     frontWaistReversal=MathF.Max(frontWaistReversal,MeasureFrontWaistReversal(p,ids));
+                    foreach(float x in new[]{-.065f,-.050f,.050f,.065f})
+                    foreach(float y in new[]{1.072f,1.082f,1.092f})
+                        lowerRibDepth[_garmentCut]-=GarmentDepth(p,ids,x,y,false)/12;
+                    ValidateFittedPlacket(rig,_garmentCut,p,ids);
                     ValidateFemaleHemCut(p);
                     ValidateFemaleHemFinish(rig.DetailedBodyMesh,rig.DistantBodyMesh);
                 }
@@ -65,6 +70,8 @@ internal sealed partial class NatureModels
                             excursion=MathF.Max(excursion,v.DistanceTo(chest*p[i]));
                         }
                     }
+                    if(FittedFigure&&_garmentCut==2&&action==ActionKind.Take&&f==59)
+                        ValidateFittedPlacket(rig,_garmentCut,p,ids,posed,transforms);
                     if(MathF.Abs(rig.Holster.Basis.Determinant()-1)>.0001f)throw new InvalidOperationException("Lumbar bending stretches the mounted tool");
                     var trouserTransforms=new[]{rig.LowerGarmentFrame,rig.Legs[0].Transform*rig.Trousers.Skin.GetBindPose(1),rig.Legs[1].Transform*rig.Trousers.Skin.GetBindPose(2),
                         rig.Legs[0].Transform*rig.Knees[0].Transform*rig.Trousers.Skin.GetBindPose(3),rig.Legs[1].Transform*rig.Knees[1].Transform*rig.Trousers.Skin.GetBindPose(4)};
@@ -170,6 +177,10 @@ internal sealed partial class NatureModels
         GD.Print($"FEMALE_BACK_YOKE_PASS: actual exterior depth, 3 cuts and 3 rear meridians, maximum collar-relative projection={backYoke*1000:F2} mm");
         GD.Print($"FEMALE_LUMBAR_PROFILE_PASS: 3 cuts and 3 rear meridians, steepest waist transition={lumbarSlope:F3} m/m");
         GD.Print($"FEMALE_FRONT_WAIST_PASS: 3 cuts, 5 anterior meridians, maximum contour reversal={frontWaistReversal*1000:F2} mm; {frontWaistProbes} posed waistband rays");
+        float gathererEase=lowerRibDepth[1]-lowerRibDepth[0],coatEase=lowerRibDepth[2]-lowerRibDepth[0];
+        if(!float.IsFinite(gathererEase)||!float.IsFinite(coatEase)||gathererEase<.0035f||coatEase<.002f||coatEase>=gathererEase)
+            throw new InvalidOperationException($"Finished lower-rib panels lose their cut-specific ease: {gathererEase}/{coatEase}");
+        GD.Print($"FEMALE_FRONT_CUTS_PASS: mean gatherer/coat depth above the work shirt={1000*gathererEase:F2}/{1000*coatEase:F2} mm, 12 finished samples per cut");
         GD.Print($"LUMBAR_CLOTH_PASS: 2 frames/3 cuts, 3 actions, {probes} actual posed trouser-clearance rays; pelvic/chest excursion={excursion:F3} m, rigid mounts and pause");
         GD.Print($"RELAXED_STANCE_PASS: 2 frames/480 steps, planted level soles after 0.35s entry, entry drift={entryDrift:F4} m, fixed thigh lengths, sway={sway:F3} m, knee={knee:F3} rad and pause");
     }

@@ -302,33 +302,80 @@ internal sealed partial class NatureModels
                     throw new InvalidOperationException("The two sides of the neckline fold use different skin weights");
         }
         GD.Print($"FOLDED_NECKLINE_PASS: {count} joined edge pairs, one open throat, shared skin weights and rounded return in the continuous garment");
-        var buttonMesh=female.Torso.GetNode<MeshInstance3D>("FittedPlacketButtons").Mesh;
-        var buttons=buttonMesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
-        for(int row=0;row<3;row++)
+    }
+
+    private static int PlacketButtonCount(int cut)=>cut==2?5:cut==0?2:3;
+    private static float PlacketButtonHeight(int cut,int row)=>1.258f-row*(cut==2?.046f:cut==0?.039f:.034f);
+
+    private static void ValidateFittedPlacket(ResidentRig rig,int cut,Vector3[] points,int[] indices,
+        Vector3[]? posedCloth=null,Transform3D[]? pose=null)
+    {
+        var data=rig.PlacketButtons!.Mesh.SurfaceGetArrays(0);
+        var buttons=data[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var bones=data[(int)Mesh.ArrayType.Bones].AsInt32Array();
+        var weights=data[(int)Mesh.ArrayType.Weights].AsFloat32Array();
+        for(int row=0;row<PlacketButtonCount(cut);row++)
         {
-            float y=1.258f-row*.034f,front=float.NegativeInfinity,back=float.PositiveInfinity;
-            foreach(var point in buttons)
+            float y=PlacketButtonHeight(cut,row),front=float.NegativeInfinity,back=float.PositiveInfinity;
+            if(pose!=null&&ResidentRig.PelvicClothWeight(y)==0)continue;
+            for(int i=0;i<buttons.Length;i++)
             {
+                var point=buttons[i];
                 if(MathF.Abs(point.Y-y)>.005f)continue;
-                float gap=GarmentDepth(p,indices,point.X,point.Y,false)-point.Z;
+                float z=GarmentDepth(points,indices,point.X,point.Y,false,out int triangle,out var coordinates);
+                float gap=z-point.Z;
+                if(pose!=null&&posedCloth!=null&&triangle>=0)
+                {
+                    int a=indices[triangle],b=indices[triangle+1],c=indices[triangle+2];
+                    var restNormal=(points[b]-points[a]).Cross(points[c]-points[a]);
+                    var movedNormal=(posedCloth[b]-posedCloth[a]).Cross(posedCloth[c]-posedCloth[a]).Normalized();
+                    if(restNormal.Z>0)movedNormal=-movedNormal;
+                    var panel=posedCloth[a]*coordinates.X+posedCloth[b]*coordinates.Y+posedCloth[c]*coordinates.Z;
+                    point=Vector3.Zero;
+                    for(int j=0;j<4;j++)point+=pose[bones[i*4+j]]*buttons[i]*weights[i*4+j];
+                    gap=movedNormal.Dot(point-panel);
+                }
                 if(!float.IsFinite(gap)||MathF.Abs(gap)>.008f)
-                    throw new InvalidOperationException("Fitted placket button loses contact with the actual front panel");
+                    throw new InvalidOperationException($"Fitted placket button loses front-panel contact: cut={cut}, row={row}, y={point.Y:F3}, gap={gap:F4}");
                 front=MathF.Max(front,gap);
                 back=MathF.Min(back,gap);
             }
             if(front<.0005f||back>-.0005f)throw new InvalidOperationException("Fitted placket button has no visible face or embedded base");
         }
-        GD.Print("FITTED_PLACKET_PASS: three buttons have visible faces and embedded bases on the actual sewn surface");
+        if(rig.DetailedBodyMesh.SurfaceGetMaterial(0) is not ShaderMaterial near||
+            rig.DistantBodyMesh.SurfaceGetMaterial(0) is not ShaderMaterial far||
+            near.GetShaderParameter("garment_cut").AsInt32()!=cut||far.GetShaderParameter("garment_cut").AsInt32()!=cut)
+            throw new InvalidOperationException("The fitted placket changes cut with detail level");
+        if(pose==null)
+        {
+            rig.SetHandDetail(false);
+            bool staticButtons=rig.PlacketButtons.Skin==null&&rig.PlacketButtons.Skeleton.IsEmpty;
+            rig.SetHandDetail(true);
+            if(!staticButtons||rig.PlacketButtons.Skin!=rig.DetailedBodySkin||rig.PlacketButtons.Skeleton!=rig.BodySkin.Skeleton)
+                throw new InvalidOperationException("The placket and cloth use different bindings after detail switching");
+        }
+        GD.Print(pose==null
+            ?$"FITTED_PLACKET_PASS: cut={cut}, {PlacketButtonCount(cut)} buttons seated in the rest front panel, same cut at both detail levels"
+            :$"FITTED_PLACKET_BEND_PASS: cut={cut}, lower closure remains seated on the posed front panel");
     }
 
-    private void AddFittedPlacketButtons(ResidentRig rig)
+    private void AddFittedPlacketButtons(ResidentRig rig,FemaleBuild build)
     {
-        string key="fitted-placket-buttons:"+_garmentCut;
+        string key="fitted-placket-buttons:"+_garmentCut+":"+build;
         if(!_meshes.TryGetValue(key,out var mesh))
         {
             var cloth=rig.DetailedBodyMesh.SurfaceGetArrays(0);
             var clothPoints=cloth[(int)Mesh.ArrayType.Vertex].AsVector3Array();
             var clothIndices=cloth[(int)Mesh.ArrayType.Index].AsInt32Array();
+            var clothBones=cloth[(int)Mesh.ArrayType.Bones].AsInt32Array();
+            var clothWeights=cloth[(int)Mesh.ArrayType.Weights].AsFloat32Array();
+            float PelvicInfluence(int vertex)
+            {
+                float influence=0;
+                for(int slot=0;slot<4;slot++)
+                    if(clothBones[vertex*4+slot]==3)influence+=clothWeights[vertex*4+slot];
+                return influence;
+            }
             var button=SewnButton().SurfaceGetArrays(0);
             var points=button[(int)Mesh.ArrayType.Vertex].AsVector3Array();
             var normals=button[(int)Mesh.ArrayType.Normal].AsVector3Array();
@@ -337,23 +384,31 @@ internal sealed partial class NatureModels
             using var surface=new SurfaceTool();
             surface.Begin(Mesh.PrimitiveType.Triangles);
             surface.SetMaterial(ResidentMaterial("#514237"));
-            for(int row=0;row<3;row++)
+            for(int row=0;row<PlacketButtonCount(_garmentCut);row++)
             {
                 const float x=.002f;
-                float y=1.258f-row*.034f;
-                float z=GarmentDepth(clothPoints,clothIndices,x,y,false);
-                if(!float.IsFinite(z))throw new InvalidOperationException("Fitted placket button misses the final front panel");
+                float y=PlacketButtonHeight(_garmentCut,row);
+                float z=GarmentDepth(clothPoints,clothIndices,x,y,false,out int triangle,out var coordinates);
+                if(triangle<0)throw new InvalidOperationException("Fitted placket button misses the final front panel");
+                float pelvis=coordinates.X*PelvicInfluence(clothIndices[triangle])
+                    +coordinates.Y*PelvicInfluence(clothIndices[triangle+1])
+                    +coordinates.Z*PelvicInfluence(clothIndices[triangle+2]);
                 var anchor=new Vector3(x,y,z+.0007f);
                 foreach(int i in indices)
                 {
+                    var point=anchor+axis*points[i];
+                    surface.SetBones(new[]{0,3,0,0});
+                    surface.SetWeights(new[]{1-pelvis,pelvis,0f,0f});
                     surface.SetNormal(axis*normals[i]);
-                    surface.AddVertex(anchor+axis*points[i]);
+                    surface.AddVertex(point);
                 }
             }
             surface.Index();
             _meshes[key]=mesh=WithScreenLods(surface.Commit());
         }
-        rig.Torso.AddChild(new MeshInstance3D {Name="FittedPlacketButtons",Mesh=mesh});
+        rig.PlacketButtons=new MeshInstance3D {Name="FittedPlacketButtons",Mesh=mesh,
+            Skin=rig.DetailedBodySkin,Skeleton=new NodePath("../ShoulderSkeleton")};
+        rig.Torso.AddChild(rig.PlacketButtons);
     }
     private Material CollarMaterial(string cloth)
     {

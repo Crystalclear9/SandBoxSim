@@ -24,6 +24,7 @@ internal partial class ResidentRig : Node3D
     public readonly MeshInstance3D[] HandProxies=new MeshInstance3D[2],HandSkins=new MeshInstance3D[2];
     public readonly Mesh[] HandOpen=new Mesh[2],HandClosed=new Mesh[2];
     public MeshInstance3D HeadSkin=null!,HeadProxy=null!,BodySkin=null!,ShoulderBridge=null!;
+    internal MeshInstance3D? PlacketButtons;
     public Skeleton3D ShoulderSkeleton=null!;
     internal bool HasShoulderSupports;
     internal const int SleeveSpans=6;
@@ -558,6 +559,11 @@ internal partial class ResidentRig : Node3D
         if(_detailedHands==detailed)return;_detailedHands=detailed;
         foreach(var part in _distanceMeshes)part.Node.Mesh=detailed?part.Near:part.Far;
         BodySkin.Mesh=detailed?DetailedBodyMesh:DistantBodyMesh;BodySkin.Skin=detailed?DetailedBodySkin:null!;BodySkin.Skeleton=new NodePath(detailed?"../ShoulderSkeleton":"");
+        if(PlacketButtons!=null)
+        {
+            PlacketButtons.Skin=BodySkin.Skin;
+            PlacketButtons.Skeleton=BodySkin.Skeleton;
+        }
         ShoulderSkeleton.ProcessMode=detailed?ProcessModeEnum.Inherit:ProcessModeEnum.Disabled;
         if(detailed)for(int side=0;side<2;side++)
         {

@@ -29,7 +29,13 @@ internal sealed partial class NatureModels
         var result=new Vector3(x,y,z+(back?offset:-offset));_garmentSamples[sampleKey]=result;return result;
     }
     private static float GarmentDepth(Vector3[] vertices,int[] indices,float x,float y,bool back)
+        => GarmentDepth(vertices,indices,x,y,back,out _,out _);
+
+    private static float GarmentDepth(Vector3[] vertices,int[] indices,float x,float y,bool back,
+        out int triangle,out Vector3 coordinates)
     {
+        triangle=-1;
+        coordinates=Vector3.Zero;
         float z = back ? float.NegativeInfinity : float.PositiveInfinity;
         for (int i = 0; i < indices.Length; i += 3)
         {
@@ -41,7 +47,12 @@ internal sealed partial class NatureModels
             float v = ((c.Y-a.Y)*(x-c.X)+(a.X-c.X)*(y-c.Y))/divisor;
             if (u < -.00001f || v < -.00001f || u+v > 1.00001f) continue;
             float hit = u*a.Z+v*b.Z+(1-u-v)*c.Z;
-            z = back ? MathF.Max(z,hit) : MathF.Min(z,hit);
+            if(back?hit>z:hit<z)
+            {
+                z=hit;
+                triangle=i;
+                coordinates=new Vector3(u,v,1-u-v);
+            }
         }
         return z;
     }

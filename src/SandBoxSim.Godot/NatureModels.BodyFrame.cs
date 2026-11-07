@@ -374,7 +374,7 @@ internal sealed partial class NatureModels
                 // supplies continuous torso colour coordinates on both panels.
                 var colourChart=new Vector2[points.Length];
                 for(int i=0;i<points.Length;i++)colourChart[i]=new(-2-MathF.Atan2(points[i].Z,points[i].X)/Mathf.Tau,points[i].Y);
-                if(source.SurfaceGetMaterial(s)!=_fittedDistantMaterial&&source.SurfaceGetMaterial(s)!=_distantColorMaterial)
+                if(source.SurfaceGetMaterial(s)!=_fittedDistantMaterials[_garmentCut]&&source.SurfaceGetMaterial(s)!=_distantColorMaterial)
                     arrays[(int)Mesh.ArrayType.TexUV]=colourChart;
             }
             arrays[(int)Mesh.ArrayType.Vertex]=points;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.Tangent]=default(Variant);

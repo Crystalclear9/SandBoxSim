@@ -38,7 +38,7 @@
 | 女性个人身形 | `visual-female-builds` 第 90 帧。同一居民、同一身高和衣装的三种胸腰髋轮廓。正面与侧面采用同一正交尺度，画面覆盖肩部至膝部附近 | [女性身形对照](resident-female-builds.png) |
 | 女性肩背与袖根 | `visual-female-shoulders` 第 90 帧。右肩背面和左肩后侧分别对照自然垂臂、抬臂 90° 和 135° 下的后领和肩胛过渡 | [女性肩背近景](resident-female-shoulders.png) |
 | 成人头脸 | `visual-faces`、`visual-face-frames` 第 90 帧 | [三种头脸](resident-face-detail.png) · [成人外观对照](resident-face-frames.png) |
-| 三种职业衣装 | `visual-wardrobe`、`visual-female-wardrobe` 第 90 帧。男性图册展示正背面，女性图册从前侧与后侧观察腰下垂坠、侧髋和下摆翻边 | [男性成衣](wardrobe-detail.png) · [女性成衣](resident-female-wardrobe.png) |
+| 三种职业衣装 | `visual-wardrobe`、`visual-female-wardrobe` 第 90 帧。男性图册展示正背面。女性图册前侧对照下肋布量和两、三、五枚纽扣的门襟，后侧展示腰下垂坠和下摆翻边 | [男性成衣](wardrobe-detail.png) · [女性成衣](resident-female-wardrobe.png) |
 | 手部、前臂和腕部 | `visual-hands`、`visual-forearm-frames` 第 90 帧，`visual-wrist-motion` 第 150 帧。前臂和腕部图从手背、掌侧与侧面对照女性近腕的曲面和光照过渡 | [握持](resident-hand-detail.png) · [前臂三视图](resident-forearm-frames.png) · [手掌与腕部近景](resident-wrist-motion.png) |
 | 静立、步行与拾取 | `visual-body-motion` 第 90 帧，可观察弯身时胸廓、骨盆和双膝的配合，以及裤装在屈髋处的变化 | [全身姿势](resident-body-motion.png) |
 | 同速步行、搬运和持锤 | `visual-locomotion` 第 180 帧 | [步态对照](resident-style-walk.png) |
