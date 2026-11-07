@@ -184,6 +184,8 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `residentContactContinuity=bounded-confirmation-v1` 记录场景在渲染帧错过 `Done` 时的近景接触收尾。`WORLD_CONTACT_BRIDGE_PASS` 在真实地图中让模拟完成取物、放货和进食，再于下一帧前指定后续动作。检查抓握、松手和嘴部接触各发生一次，逃跑或离开原格时取消尚未发生的接触，并核对表现前后的模拟摘要。
 
+`pickupCarryContinuity=palm-supported-transfer-v1` 记录拾取与搬运之间的载物交接。`WORLD_PICKUP_CARRY_PASS` 在真实地面物资堆检查从抓握到同类载物托稳期间只有一个可见物件，测量拾取小件的逐帧位移并核对模拟摘要。`POSE_SCHEDULER_PASS` 验证同一猎物移动时保留动作时钟和朝向迟滞，目标代次变化后只计入新时间。
+
 `residentSupportRelease=planted-departure-v1` 记录近景动作收势到迈步的衔接。`WORLD_SUPPORT_RELEASE_PASS` 在真实地图中以 60／24 Hz 切换休息或低位取物到移动，检查收势期间的根位移、朝向、脚部锚点的平移和开始迈步的时机。休息切到逃跑时可跳过等待。检查同时核对模拟摘要和未确认物件的可见性。
 
 `spearTargeting=bounded-live-contact-v1` 记录长矛对活动目标的可及范围、场景遮挡和结算约束。`WORLD_SPEAR_TARGET_PASS` 对比远处与受遮挡的攻击、同一对象移动后的瞄准、可接触的攻击和狩猎，以及同槽位更换猎物后的取消。通过实际显示的工具尖端记录接触，并核对每段播放前后的模拟摘要。

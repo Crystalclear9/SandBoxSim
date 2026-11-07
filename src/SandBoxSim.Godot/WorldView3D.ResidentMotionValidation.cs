@@ -608,6 +608,8 @@ public partial class WorldView3D
         float nearest=float.PositiveInfinity;
         bool grasped=false,carrying=false;
         int supportedLiftFrames=0,confirmationFrames=-1;
+        float pickupStep=0;
+        Vector3? previousPiece=null;
         for(int i=0;i<430;i++)
         {
             AnimateActors(delta);
@@ -617,12 +619,25 @@ public partial class WorldView3D
                 throw new InvalidOperationException($"Ground grasp registered before supported contact: {distance:F3} m");
             if(rig.ScenePickupGrasped&&!grasped)confirmationFrames=i;
             grasped|=rig.ScenePickupGrasped;
-            if(grasped&&rig.ScenePickupPieceVisible)supportedLiftFrames++;
+            if(grasped&&!carrying)
+            {
+                if(rig.CargoMesh.Visible==rig.ScenePickupPieceVisible)
+                    throw new InvalidOperationException("Pickup to carry shows two parcels or leaves both hands empty");
+                if(rig.ScenePickupPiecePose is {} piece)
+                {
+                    supportedLiftFrames++;
+                    if(previousPiece is {} previous)pickupStep=MathF.Max(pickupStep,piece.Origin.DistanceTo(previous));
+                    previousPiece=piece.Origin;
+                }
+                else if(rig.SupportedCargo!=ResourceKind.Stone)
+                    throw new InvalidOperationException("Pickup to carry switches to a different resource");
+            }
             if(rig.CargoMesh.Visible&&!grasped)throw new InvalidOperationException("New cargo appeared before the pickup hand reached the stock");
             carrying|=rig.CargoMesh.Visible;
         }
-        if(!grasped||!carrying||supportedLiftFrames<12||confirmationFrames>22||sim.StateDigestString()!=committed)
+        if(!grasped||!carrying||supportedLiftFrames<12||pickupStep>.075f||confirmationFrames>22||sim.StateDigestString()!=committed)
             throw new InvalidOperationException($"World pickup failed: contact={nearest:F3} m, lift={supportedLiftFrames} frames, carrying={carrying}, stance={rig.Position.DistanceTo(stand):F3} m");
+        GD.Print($"WORLD_PICKUP_CARRY_PASS: {supportedLiftFrames} continuously held pickup frames, {pickupStep:F3} m maximum piece step, no blank or duplicate frame at two-hand support, read-only");
 
         agents.SetAction(slot,ActionKind.Deposit,ActionPhase.Executing);
         if(sim.Actions.TryGetCompletedContact(slot,out _))throw new InvalidOperationException("New action inherits an old stock site");

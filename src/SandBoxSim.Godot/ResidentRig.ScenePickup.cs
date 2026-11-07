@@ -1,4 +1,5 @@
 using Godot;
+using SandBoxSim.Core.Environment;
 
 namespace SandBoxSim.Client;
 
@@ -13,6 +14,8 @@ internal partial class ResidentRig
     private bool _scenePickupMissed;
     private Vector3 _scenePickupGripSite;
     private bool _recoveringPickup;
+    private ResourceKind _pickupCarryResource;
+    private float _pickupCarryAge;
     private float _pickupRecoveryAge;
     private Vector3 _pickupRecoveryStart;
     private MeshInstance3D? _pickupPiece;
@@ -23,6 +26,7 @@ internal partial class ResidentRig
     internal bool ScenePickupPieceVisible=>_pickupPiece?.Visible==true;
     internal Transform3D? ScenePickupPiecePose=>ScenePickupPieceVisible?RigWorldSpace*_pickupPiece!.Transform:null;
     internal bool RecoveringPickup=>_recoveringPickup;
+    private bool PickupCarryPending=>_pickupCarryResource!=ResourceKind.None;
     private bool ScenePickupFinished=>_scenePickupMissed||_scenePickupAge>=ScenePickupDuration;
     private Vector3 ScenePickupSite=>_scenePickupGrasped?_scenePickupGripSite:_sceneContact!.Value;
     private string ScenePickupHandling=>!_sceneContact.HasValue?"弯身取物":_scenePickupGrasped?"握稳 / 抬起"
@@ -36,17 +40,44 @@ internal partial class ResidentRig
 
     private void ResetScenePickup(bool discard=false)
     {
+        _pickupCarryResource=ResourceKind.None;
         if(discard){_recoveringPickup=false;_plannedPickup=false;}
         else if(!_recoveringPickup&&_scenePickupGrasped&&ScenePickupPieceVisible)
-        {
-            _recoveringPickup=true;
-            _pickupRecoveryAge=0;
-            _pickupRecoveryStart=RigWorldSpace.AffineInverse()*(HandWorldPose(1)*Grip!.Position);
-        }
+            BeginPickupRecovery();
         _scenePickupAge=_scenePickupContact=_scenePickupWait=0;
         _scenePickupGrasped=_scenePickupMissed=false;
         _heldPickupMesh=null;
         if(!_recoveringPickup&&_pickupPiece!=null)_pickupPiece.Visible=false;
+    }
+
+    private void BeginPickupRecovery()
+    {
+        _recoveringPickup=true;
+        _pickupRecoveryAge=0;
+        _pickupRecoveryStart=RigWorldSpace.AffineInverse()*(HandWorldPose(1)*Grip!.Position);
+    }
+
+    private void PreparePickupCarry(float delta,bool scenePickup)
+    {
+        if(PickupCarryPending)
+        {
+            _pickupCarryAge+=delta;
+            if(_pickupCarryAge<1.40f&&_hasCargo&&_cargoKind==_pickupCarryResource)return;
+            _pickupCarryResource=ResourceKind.None;
+            BeginPickupRecovery();
+        }
+        else if(scenePickup&&!_recoveringPickup&&_scenePickupGrasped&&ScenePickupPieceVisible&&_scenePickupAge>=2.04f)
+        {
+            _scenePickupAge=ScenePickupDuration;
+            if(_interactionTarget.Pickup is {} source&&_hasCargo&&_cargoKind==source.Resource)
+            {
+                // The same right hand carries the picked piece until the
+                // larger inventory parcel has actual support from both palms.
+                _pickupCarryResource=source.Resource;
+                _pickupCarryAge=0;
+            }
+            else BeginPickupRecovery();
+        }
     }
 
     private void AdvanceScenePickup(float delta,bool active,bool reaching)
@@ -127,14 +158,20 @@ internal partial class ResidentRig
 
     private void PresentPickupPiece(bool pickup)
     {
-        if(_recoveringPickup)
+        if(PickupCarryPending&&SupportedCargo==_pickupCarryResource)
+        {
+            _pickupCarryResource=ResourceKind.None;
+            _pickupPiece!.Visible=false;
+            return;
+        }
+        if(_recoveringPickup||PickupCarryPending)
         {
             _pickupPiece!.Transform=RigWorldSpace.AffineInverse()*(HandWorldPose(1)*_pickupPieceInHand);
             return;
         }
         var mesh=_scenePickupGrasped?_heldPickupMesh:_pickupPieceMesh;
         if(!pickup||mesh==null||!_sceneContact.HasValue||!CompletionVisible||_scenePickupMissed
-            ||_scenePickupAge>=2.04f||_pickupSourceVisible&&!_scenePickupGrasped)
+            ||_pickupSourceVisible&&!_scenePickupGrasped)
         {
             if(_pickupPiece!=null)_pickupPiece.Visible=false;
             return;

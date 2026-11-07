@@ -466,6 +466,7 @@ public partial class WorldView3D : MapView
             ["femaleRibDrape"]="coupled-bending-v1",
             ["femaleLowerLeg"]="mid-calf-boot-v1",
             ["residentContactContinuity"]="bounded-confirmation-v1",
+            ["pickupCarryContinuity"]="palm-supported-transfer-v1",
             ["pairedInteractions"]="confirmed-participants-v1",
             ["residentSupportRelease"]="planted-departure-v1",
             ["spearTargeting"]="bounded-live-contact-v1",

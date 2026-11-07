@@ -111,7 +111,7 @@ internal partial class ResidentRig : Node3D
     internal bool NeedsSupportRelease=>RestPoseWeight>.36f||_floorCrouch>.35f||_scenePickupBend>.26f
         ||_workStance>.34f||_workSurfaceBend>.055f||_consumeReach>.58f;
     public bool ToolHeld {get;private set;}
-    public string Handling => ReleasingSupport?"收回重心 / 准备迈步":_recoveringPickup?"托住物件 / 收回":HandoffReserved?_handoffReadout:_placingCargo?"双手送稳 / 准备松开":
+    public string Handling => ReleasingSupport?"收回重心 / 准备迈步":_recoveringPickup?"托住物件 / 收回":PickupCarryPending?"抬起物件 / 双手接稳":HandoffReserved?_handoffReadout:_placingCargo?"双手送稳 / 准备松开":
         _releasedCargo?(_groundPlacement?"物资落地 / 收手":"入库交接 / 收手"):_cargoTuck>0&&SupportedCargo!=ResourceKind.None?"收拢包裹 / 腾手":_placementPending?"抱稳物资 / 等待到位":
         ConsumptionOwnsHand?ConsumptionHandling:!InteractionSettled&&(_observedPhase==ActionPhase.Executing||CompletionVisible)?"接近目的地 / 停稳":
         _conversation is {} conversation&&InteractionSettled?(conversation.Speech>.1f?"交谈 / 说话":"交谈 / 倾听"):
@@ -188,6 +188,8 @@ internal partial class ResidentRig : Node3D
             _previousElbows[side]=Arms[side].Transform*Elbows[side].Position;
         }
         var family=FamilyOf(action);
+        bool scenePickup=_sceneContact.HasValue&&family==ActionFamily.Pickup&&revision.HasValue;
+        PreparePickupCarry(delta,scenePickup);
         bool moving=phase==ActionPhase.Moving||_worldLocomotion&&_locomotionSpeed>.04f;
         _waitingForFacing=phase==ActionPhase.Executing&&!targetAligned;
         bool executing=phase==ActionPhase.Executing&&InteractionSettled&&targetAligned;
@@ -234,7 +236,6 @@ internal partial class ResidentRig : Node3D
         AdvanceMotionReference(delta,action,phase,identityPhase);
         float gaitPhase=_gaitCycle*Mathf.Tau;
         float breath=MathF.Sin(_phase*.5f+identityPhase);
-        bool scenePickup=_sceneContact.HasValue&&family==ActionFamily.Pickup&&revision.HasValue;
         bool pickupRequested=upperReady&&family==ActionFamily.Pickup
             &&(scenePickup?!ScenePickupFinished:!_plannedPickup);
         bool pickup=pickupRequested&&handsFree&&cargoReleased&&_socialBlend<=.10f
@@ -539,6 +540,7 @@ internal partial class ResidentRig : Node3D
         PosePickupRecovery(delta);
         FinishArmReturns();
         UpdateCarriedObject(delta,cargoWanted);
+        if(PickupCarryPending&&!CargoMesh.Visible)CurlHand(1,.72f);
         // Hand ownership can change in one step. Keep finger flexion
         // continuous across that boundary, while a held tool stays gripped.
         _handCurl[0]=AdvanceFingerCurl(previousCurl.X,_handCurl[0],delta);

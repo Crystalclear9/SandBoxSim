@@ -16,11 +16,22 @@ public partial class WorldView3D
         private readonly Dictionary<long,(PoseCue Cue,float Time)> _elapsed=new();
         public int Count=>_elapsed.Count;
         public bool RetainsFacing(long identity,PoseCue cue)
-            =>_elapsed.TryGetValue(identity,out var pending)&&pending.Cue==(cue with {Aligned=true});
+            =>_elapsed.TryGetValue(identity,out var pending)&&SameInteraction(pending.Cue,cue with {Aligned=true});
+
+        private static bool SameInteraction(PoseCue previous,PoseCue current)
+        {
+            // A moving body updates the aim continuously. Its identity and
+            // eligibility still decide whether old presentation time applies.
+            if((current.Action is ActionKind.Attack or ActionKind.Hunt)&&previous.Surface.HasValue&&current.Surface.HasValue
+                &&previous.Target.Partner==current.Target.Partner)
+                previous=previous with {Surface=current.Surface,Target=previous.Target with {Tile=current.Target.Tile}};
+            return previous==current;
+        }
+
         public bool Observe(long identity,PoseCue cue,float delta,bool active)
         {
             if(!active){Forget(identity);return false;}
-            bool changed=!_elapsed.TryGetValue(identity,out var pending)||pending.Cue!=cue;
+            bool changed=!_elapsed.TryGetValue(identity,out var pending)||!SameInteraction(pending.Cue,cue);
             float time=float.IsFinite(delta)&&delta>0?delta:0;
             // The world already advanced its target, inventory and contacts.
             // Applying prior time to this pose would skip the new approach or
@@ -73,6 +84,18 @@ public partial class WorldView3D
                 ||schedule.Observe(actor,next,.016f,true))
                 throw new InvalidOperationException("An interaction boundary defers the next pose or applies superseded time to it");
         }
+        var tracking=cue with {Action=ActionKind.Hunt,Surface=new(new(.2f,.8f,-.5f),Vector3.Back)};
+        var moving=tracking with {Surface=new(new(.3f,.8f,-.5f),Vector3.Back),
+            Target=tracking.Target with {Tile=new Vector2I(3,3)}};
+        schedule.Observe(actor,tracking,.021f,true);
+        if(!schedule.RetainsFacing(actor,moving)||schedule.Observe(actor,moving,.030f,true)
+            ||MathF.Abs(schedule.Consume(actor)-.051f)>.00001f)
+            throw new InvalidOperationException("The same moving prey loses its facing latch or accumulated pose time");
+        schedule.Observe(actor,moving,.032f,true);
+        var replaced=moving with {Target=moving.Target with {Partner=1L<<32}};
+        if(schedule.RetainsFacing(actor,replaced)||!schedule.Observe(actor,replaced,.016f,true)
+            ||MathF.Abs(schedule.Consume(actor)-.016f)>.00001f)
+            throw new InvalidOperationException("A different prey generation inherits the previous target's pose time");
         schedule.Observe(actor,cue,.08f,true);schedule.Observe(actor,cue,.1f,false);
         if(schedule.Consume(actor)!=0)throw new InvalidOperationException("Paused or hidden resident retains pose catch-up debt");
         schedule.Observe(actor,cue,.04f,true);schedule.Forget(actor);
@@ -82,6 +105,6 @@ public partial class WorldView3D
         if(schedule.Consume(successor)!=0||schedule.Count!=0)throw new InvalidOperationException("World replacement retains pose scheduling state");
         schedule.Observe(actor,cue,10,true);
         if(schedule.Consume(actor)!=1)throw new InvalidOperationException("Long render stalls exceed the bounded pose catch-up budget");
-        GD.Print("POSE_SCHEDULER_PASS: variable intervals and stride, immediate action/phase/revision/target/partner/facing boundaries, no stale pose time, pause and identity reuse");
+        GD.Print("POSE_SCHEDULER_PASS: variable intervals and stride, moving aim preserves timing, immediate action/phase/revision/target/partner/facing boundaries, no stale pose time, pause and identity reuse");
     }
 }

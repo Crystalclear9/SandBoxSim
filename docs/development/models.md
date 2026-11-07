@@ -277,7 +277,11 @@
 
 #### 交互阶段与中断
 
+`pickupCarryContinuity=palm-supported-transfer-v1` 把拾取抬手与双手搬运接起来。拾取的小件在右手里随掌面移动，左手与右手建立对同类载物的支撑后，才在同一帧切换显示为库存载物。没有同类载物、动作被打断或双手未能及时托稳时，右手保留小件并完成收手。 [场景交互中的持物接触点](https://www.ipab.inf.ed.ac.uk/cgvu/nsm.pdf)
+
 `spearTargeting=bounded-live-contact-v1` 让长矛用场景中对方的躯干和实际站位瞄准。相同目标在可及范围内移动时延续已经蓄好的动作，结算后才进入前刺。矛尖按当前瞄准点转向，并在伸出阶段检查接触。目标离开可及距离或被遮挡时取消前刺，前刺未接触时也会及时收势。狩猎结算会记录猎物槽位和代次，使已移出画面的猎物能保留对应的最后瞄准点。接触检查采用躯干表面近似点与场景障碍，模拟伤害和狩猎收益仍按各自的范围结算。[Witkin 和 Popović 的动作重定向研究](https://publications.ri.cmu.edu/motion-warping) · [Epic 的动态目标约束](https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/MotionWarpingComponent?application_version=5.6)
+
+长矛瞄准点每帧更新，动作调度按目标身份保留尚未消费的动画时间与朝向阈值。同一目标经过格线时仍沿用当前动作。更换目标、接触失效或进入新阶段时，以新状态重新计时。
 
 拾取／采食和存放／分享／交易分别共用手部轨迹与混合量。进食和饮水也共用手部控制，但先把前一件道具放低再换取下一件。暂停冻结道具与手部，物资的状态区分托举和递出。
 

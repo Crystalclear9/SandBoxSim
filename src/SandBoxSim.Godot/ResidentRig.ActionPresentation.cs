@@ -41,7 +41,7 @@ internal partial class ResidentRig
     private bool _awaitingContact;
     private uint? _bridgedRevision;
     private float _bridgeAge;
-    public bool CompletionVisible=>_finishConsumption||_finishToolStroke||_completionRemaining>0||_placingCargo||_placementPending||_awaitingContact;
+    public bool CompletionVisible=>_finishConsumption||_finishToolStroke||_completionRemaining>0||_placingCargo||_placementPending||_awaitingContact||PickupCarryPending;
 
     internal Vector3? PreparedHuntPoint(uint revision,long prey)
         =>_observedAction==ActionKind.Hunt&&_observedRevision==revision&&_interactionTarget.Partner==prey
