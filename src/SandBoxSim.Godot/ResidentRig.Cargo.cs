@@ -11,11 +11,13 @@ internal partial class ResidentRig
     internal readonly Dictionary<ResourceKind,(Vector3 Left,Vector3 Right)> CargoSupports=new();
     internal static readonly Vector3 CargoPalmContact=new(0,-.029f,-.010f);
     private static readonly Basis CargoPalmBasis=new(Vector3.Right,MathF.PI/2);
-    private float _cargoDepth,_placementAge,_placementContact;
+    private float _cargoDepth,_cargoTuck,_placementAge,_placementContact;
     private Vector2 _placementStart;
     private bool _placingCargo;
     private bool _placementPending;
     private float _placementWait;
+    private ResourceKind _placementResource;
+    private bool WaitingForPlacementParcel=>_placementPending&&_placementResource!=_cargoKind;
     private bool _groundPlacement;
     private Vector3? _placementSurface;
     private bool PlacementUsesSurface=>_groundPlacement||_placementSurface.HasValue;
@@ -28,27 +30,41 @@ internal partial class ResidentRig
     private Transform3D _releasedCargoPose;
     private float _releasedCargoTime,_releasedCargoFloor,_releasedCargoDuration;
     internal bool ReleasedCargo=>_releasedCargo;
+    internal ResourceKind SupportedCargo=>CargoMesh.Visible&&!_releasedCargo?_cargoKind:ResourceKind.None;
     internal Func<float,float,float>? CargoGroundHeight;
 
     private static bool IsPlacement(ActionKind action)=>action is ActionKind.Deposit or ActionKind.StoreInBuilding;
 
-    private void ObserveCargoPlacement(ActionKind action,ActionPhase phase,bool newlyDone,bool newRun,ResourceKind contactResource)
+    private void ObserveCargoPlacement(ActionKind action,ActionPhase phase,bool newlyDone,bool newRun,ResourceKind contactResource,
+        ResourceKind? inventoryCargo)
     {
         bool alreadyFinishing=_placingCargo||_placementPending;
         bool lostSurface=_placementSurface.HasValue&&(!_sceneContact.HasValue
             ||_placementSurface.Value.DistanceSquaredTo(_sceneContact.Value)>.14f*.14f);
         if(newRun||!IsPlacement(action)||phase!=ActionPhase.Done||lostSurface)
             _placingCargo=_placementPending=false;
-        if(!InteractionSettled)_placingCargo=false;
-        bool matchingParcel=_sceneContact.HasValue&&contactResource==_cargoKind;
-        if(newlyDone&&(!alreadyFinishing||newRun)&&IsPlacement(action)&&(!_hasCargo||matchingParcel)&&CargoMesh.Visible&&!_releasedCargo)
+        if(_placingCargo&&!InteractionSettled)
         {
-            // Inventory has already committed. Retain only the parcel
-            // already supported by the hands until the actor can set it down.
+            _placingCargo=false;
+            _placementPending=true;
+        }
+        bool matchingParcel=_sceneContact.HasValue&&contactResource==_cargoKind;
+        bool confirmedParcel=inventoryCargo.HasValue&&_sceneContact.HasValue&&contactResource!=ResourceKind.None;
+        bool supportedParcel=(!_hasCargo||matchingParcel)&&CargoMesh.Visible&&!_releasedCargo;
+        if(newlyDone&&(!alreadyFinishing||newRun)&&IsPlacement(action)&&(confirmedParcel||supportedParcel))
+        {
             _placementPending=true;_placementWait=0;
             _groundPlacement=action==ActionKind.Deposit;
             _placementSurface=_sceneContact;
+            _placementResource=confirmedParcel?contactResource:_cargoKind;
         }
+        if(WaitingForPlacementParcel&&!_releasedCargo&&!CargoMesh.Visible)
+            ShowCargo(true,_placementResource);
+        if(inventoryCargo is not {} remaining)return;
+        // A committed parcel can be in the hands after leaving inventory.
+        // Keep its mesh through palm support and release, then show the remainder.
+        if(_placementPending||_placingCargo||_releasedCargo)_hasCargo=remaining!=ResourceKind.None;
+        else ShowCargo(remaining!=ResourceKind.None,remaining);
     }
 
     private void AdvancePendingPlacement(float delta,bool targetAligned)
@@ -58,7 +74,7 @@ internal partial class ResidentRig
         // A rendered warehouse entrance can lie outside the logical building
         // tile. Allow the same approach budget as other committed gestures.
         if(_placementWait>=(_placementSurface.HasValue?6f:2.5f)){_placementPending=false;return;}
-        if(!targetAligned||!InteractionSettled||HandoffReserved)return;
+        if(!targetAligned||!InteractionSettled||HandoffReserved||_releasedCargo||!CargoMesh.Visible||WaitingForPlacementParcel)return;
         _placementPending=false;_placingCargo=true;
         _placementAge=_placementContact=0;
         _placementStart=new(_cargoLift,_cargoDepth);
@@ -108,6 +124,25 @@ internal partial class ResidentRig
         }
     }
 
+    private bool RetainCargoDuringTuck(bool wanted,float delta)
+    {
+        if(wanted)
+        {
+            _cargoTuck=Mathf.MoveToward(_cargoTuck,0,delta/.32f);
+            return true;
+        }
+        if(_hasCargo&&SupportedCargo!=ResourceKind.None&&!_placingCargo&&(!_placementPending||WaitingForPlacementParcel))
+        {
+            _cargoTuck=MathF.Min(1.6f,_cargoTuck+delta/.38f);
+            if(_cargoTuck<1)return true;
+            const float handTolerance=.037f;
+            return _cargoTuck<1.6f&&((_previousHands[0]*Grip!.Position).DistanceTo(CargoSupportTarget(0))>handTolerance
+                ||(_previousHands[1]*Grip.Position).DistanceTo(CargoSupportTarget(1))>handTolerance);
+        }
+        if(_cargoBlend<=.001f)_cargoTuck=0;
+        return false;
+    }
+
     internal Vector3 CargoSupportTarget(int side)
     {
         var (left,right)=CargoSupports[_cargoKind];
@@ -121,7 +156,8 @@ internal partial class ResidentRig
             // can turn the underside contact away from the desired pose.
             return hand+_previousHands[side].Basis*(Grip!.Position-CargoPalmContact);
         }
-        var centre=BodyPoint(new(0,.887f+_cargoLift,-.292f-_cargoDepth));
+        float tuck=ReachEase(_cargoTuck);
+        var centre=BodyPoint(new(0,.887f+_cargoLift-.087f*tuck,-.292f-_cargoDepth+.074f*tuck));
         var support=(side==0?left:right)-(left+right)*.5f;
         return centre+support+CargoPalmBasis*(Grip!.Position-CargoPalmContact);
     }
@@ -231,7 +267,8 @@ internal partial class ResidentRig
 
     internal void ClearTransientCargo()
     {
-        if(_placingCargo||_placementPending||_releasedCargo)CargoMesh.Visible=false;
+        if(_placingCargo||_placementPending||_releasedCargo||_cargoTuck>0)CargoMesh.Visible=false;
         _placingCargo=_placementPending=_releasedCargo=false;
+        _cargoTuck=0;
     }
 }

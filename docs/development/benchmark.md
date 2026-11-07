@@ -198,7 +198,9 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `limbCoordination=hinge-carry-v4` 标识肘部屈曲平面、低位携带和按掌柄绑定安排的短柄／长柄朝向；`residentLocomotion=settled-arrival-v3` 增加连续骨盆支撑与局部拾取脚踝求解。`visual-motion`、`visual-social`、`visual-social-side` 的默认采样从第 30 帧开始每 14 帧一次，共 30 帧，冻结模拟而按 60 Hz 推进表现。它们用于观察动作和评测采样链路，不是 RSI 或人体写实程度评分。
 
-`handlingMotion=scene-contact-v18` 覆盖候选准备、握持、场景接触和中断回收。`INTERACTION_READINESS_PASS` 验证两种成人体型的 12 类不可用交互，以及施工模型迟到后的单次挥击和等待超时。`WORLD_ACCELERATED_CONTACT_PASS` 测量加速观察中转身后的伸手，以及物资清空后的中断。可向引擎传入 `--self-test --interaction-contact-only` 复测世界场景。
+`handlingMotion=supported-parcel-v19` 覆盖候选准备、握持、场景接触和中断回收。`INTERACTION_READINESS_PASS` 验证两种成人体型的 12 类不可用交互，以及施工模型迟到后的单次挥击和等待超时。`WORLD_ACCELERATED_CONTACT_PASS` 测量加速观察中转身后的伸手，以及物资清空后的中断。可向引擎传入 `--self-test --interaction-contact-only` 复测世界场景。
+
+`CARGO_TRANSITIONS_PASS` 测量搬运转入进食、饮水、取物、耕作、攻击与休息时的包裹位移和相邻帧步长，并检查下一动作拿起道具时的手部占用。`WORLD_STOCK_CONTACT_PASS` 检查交付木材时余量更多的石料不会替换木捆。`WORLD_RAPID_DELIVERY_PASS` 检查首帧前结算完的铁料仍经历双手承重与一次松手。两个世界测试都可以通过 `--self-test --stock-contact-only` 运行。
 
 `TOOL_PHRASE_PASS` 在 60 Hz 和 24 Hz 下核对五类工具的击打节拍、收势和紧急中断。`TOOL_SURFACE_PASS` 测量斧刃、镐尖和锤面到目标的距离。`WORLD_TOOL_SURFACE_PASS` 在世界居民路径中检查树干接触、目标消失和模拟摘要。可向引擎传入 `--test-tool-phrases`、`--self-test --strike-contact-only` 或 `--self-test --work-contact-only` 分别复测工具动作、实景挥击或实景耕作。
 

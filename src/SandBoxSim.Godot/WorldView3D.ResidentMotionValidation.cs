@@ -413,11 +413,16 @@ public partial class WorldView3D
         rig.Position=storageTile;
         _target=storageTile;UpdateCamera();
         for(int i=0;i<180;i++)AnimateActors(delta);
+        float stone=sim.Config.GroundStocks.DropAmount+3;
+        agents.SetInventory(slot,ResourceKind.Stone,stone);
+        sim.Storage.Deposit(storage,ResourceKind.Stone,sim.Storage.CapacityOf(storage));
+        AnimateActors(delta);
+        if(rig.SupportedCargo!=ResourceKind.Wood)throw new InvalidOperationException("A newly dominant resource replaces a supported parcel");
         agents.SetAction(slot,ActionKind.StoreInBuilding,ActionPhase.Executing);
         agents.SetTarget(slot,warehouse.X,warehouse.Y);
         sim.Actions.Tick(sim.Clock);
         if(!sim.Actions.TryGetCompletedContact(slot,out var stored)||stored.Surface!=ActionSystem.ContactSurface.Storage
-            ||stored.Resource!=ResourceKind.Wood||agents.InventoryOf(slot,ResourceKind.Wood)<=0
+            ||stored.Resource!=ResourceKind.Wood||agents.InventoryOf(slot,ResourceKind.Wood)<=0||agents.InventoryOf(slot,ResourceKind.Stone)!=stone
             ||!TryActionContact(rig,ActionKind.StoreInBuilding,stored,storageTile,out var crate,out var crateStand))
             throw new InvalidOperationException("Partial warehouse transfer lost its accepted resource or crate");
         committed=sim.StateDigestString();
@@ -438,17 +443,52 @@ public partial class WorldView3D
             }
             if(rig.ReleasedCargo)
             {
+                if(rig.CargoMesh.Mesh!=rig.CargoMeshes[ResourceKind.Wood])throw new InvalidOperationException("Remaining inventory replaces the released warehouse parcel");
                 var parcel=rig.HandWorldPose(1)*rig.CargoMesh.Transform;
                 var bottom=parcel.Origin+Vector3.Up*rig.CargoMesh.Mesh.GetAabb().Position.Y*parcel.Basis.Y.Length();
                 crateRelease=Math.Min(crateRelease,bottom.DistanceTo(crate));
             }
-            else if(float.IsFinite(crateRelease)&&rig.CargoMesh.Visible)remainingCargoVisible=true;
+            else if(float.IsFinite(crateRelease)&&rig.SupportedCargo==ResourceKind.Stone)remainingCargoVisible=true;
         }
         if(crateRelease>.078f||!remainingCargoVisible||sim.StateDigestString()!=committed)
             throw new InvalidOperationException($"World warehouse release missed its crate: gap={crateRelease:F3} m, closest={closestCrate:F3} m ({closestOffset:F3}) in {cratePlacementFrames} frames, stance={rig.Position.DistanceTo(crateStand):F3} m, remainder visible={remainingCargoVisible}");
-        GD.Print($"WORLD_STOCK_CONTACT_PASS: palm {nearest:F3} m from depleted stock, releases {release:F3} m from pile and {crateRelease:F3} m from crate, partial cargo recovers, presentation is read-only");
+        GD.Print($"WORLD_STOCK_CONTACT_PASS: palm {nearest:F3} m from depleted stock, releases {release:F3} m from pile and {crateRelease:F3} m from crate, wood stays wood until release before remaining stone appears, read-only");
+        ValidateRapidWarehousePlacement(rig,slot,warehouse,delta);
         ValidateInterruptedPickup(rig,slot,tile,logical,delta);
         GD.Print($"WORLD_PICKUP_INTENT_PASS: candidate reached within {preparedGap:F3} m, confirmed after {confirmationFrames} frames without a second reach");
+    }
+
+    private void ValidateRapidWarehousePlacement(ResidentRig rig,int slot,Vector2I tile,float delta)
+    {
+        var sim=Game.Sim;var agents=sim.Agents;
+        foreach(var kind in ResidentRig.CargoKinds)agents.SetInventory(slot,kind,0);
+        agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
+        for(int frame=0;frame<60;frame++)AnimateActors(delta);
+        if(rig.CargoMesh.Visible)throw new InvalidOperationException("Rapid warehouse fixture starts with a displayed load");
+        agents.SetInventory(slot,ResourceKind.Iron,1);
+        agents.SetAction(slot,ActionKind.StoreInBuilding,ActionPhase.Executing);
+        agents.SetTarget(slot,tile.X,tile.Y);
+        sim.Actions.Tick(sim.Clock);
+        if(!sim.Actions.TryGetCompletedContact(slot,out var receipt)||receipt.Resource!=ResourceKind.Iron||agents.InventoryOf(slot,ResourceKind.Iron)>0)
+            throw new InvalidOperationException("Rapid warehouse fixture did not commit all iron before the first visual frame");
+        string digest=sim.StateDigestString();
+        int held=0,releases=0;
+        bool released=false;
+        for(int frame=0;frame<420;frame++)
+        {
+            AnimateActors(delta);
+            if(rig.SupportedCargo==ResourceKind.Iron)held++;
+            if(rig.ReleasedCargo&&!released)
+            {
+                if(held<12||rig.CargoMesh.Mesh!=rig.CargoMeshes[ResourceKind.Iron])
+                    throw new InvalidOperationException("Rapid delivery releases a parcel without establishing two-handed support");
+                releases++;
+            }
+            released=rig.ReleasedCargo;
+        }
+        if(releases!=1||rig.CargoMesh.Visible||sim.StateDigestString()!=digest)
+            throw new InvalidOperationException($"Rapid delivery: held frames={held}, releases={releases}, state={rig.Handling}");
+        GD.Print($"WORLD_RAPID_DELIVERY_PASS: committed without a shown load, {held} supported iron frames and one release, read-only");
     }
 
     private void ValidateInterruptedPickup(ResidentRig rig,int slot,Vector2I tile,Vector3 logical,float delta)

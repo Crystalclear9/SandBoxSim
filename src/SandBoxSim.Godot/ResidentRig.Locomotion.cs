@@ -53,12 +53,13 @@ internal partial class ResidentRig
         }
         _departureProgress=progress;
     }
-    internal float GaitSupport=>.632f-.055f*Flow+.02f*_workFatigue+(_hasCargo?.025f:0);
+    private float _gaitLoad;
+    internal float GaitSupport=>.632f-.055f*Flow+.02f*_workFatigue+.025f*_gaitLoad;
     private float GaitFootHalfWidth=>MathF.Max(.048f,HipHalfWidth+.026f-.062f*Flow);
     // Phase is distance driven. Scale the foot's stance travel by the very
     // same cycle length so a quicker cadence does not increase ground speed.
     private float GaitCycleLength(float speed)=>(.76f+.10f*MathF.Min(1.7f,speed))*(1.13f-.26f*Flow)
-        *(1-.10f*_workFatigue)*(_hasCargo?.93f:1);
+        *(1-.10f*_workFatigue)*(1-.07f*_gaitLoad);
 
     // Called every rendered world frame, before the distance pose scheduler.
     // Discontinuous tile resynchronisation is not interpreted as a sprint.
@@ -107,6 +108,9 @@ internal partial class ResidentRig
         // The rendered root can still approach its tile after the simulation
         // enters Executing. Keep stepping until that actual movement settles.
         float wanted=_worldLocomotion?_locomotionSpeed:moving?1.05f*(1-.12f*_workFatigue):0;
+        // Follow the load actually supported by the hands. Inventory can
+        // change by several units before the pose has acquired or set it down.
+        _gaitLoad=Mathf.Lerp(_gaitLoad,Smooth(_cargoBlend),1-MathF.Exp(-dt*8));
         // Preparatory weight transfer precedes the first full step; use the
         // exact exponential integral so accumulated distant updates keep time.
         float rate=wanted>_gaitSpeed?5:9,decay=MathF.Exp(-rate*dt),before=_gaitSpeed;
@@ -133,7 +137,7 @@ internal partial class ResidentRig
         _activity=Mathf.SmoothStep(0,.80f,_gaitSpeed);
         if(!moving&&_gaitSpeed<.00001f){_gaitSpeed=0;_activity=0;}
         _gaitTurn=Mathf.Lerp(_gaitTurn,moving?_turnDemand:0,1-MathF.Exp(-dt*7));
-        float a=_gaitCycle*MathF.Tau,load=_hasCargo?.72f:1;
+        float a=_gaitCycle*MathF.Tau,load=1-.28f*_gaitLoad;
         if(_activity<=0)
         {
             _gaitOffset=_capturedChest=_capturedPelvis=Vector3.Zero;

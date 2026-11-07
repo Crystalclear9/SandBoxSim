@@ -557,10 +557,24 @@ internal sealed partial class NatureModels
             if(rig.CargoMesh.Visible)throw new InvalidOperationException("Cargo appears before hands arrive");
             for(int i=0;i<60;i++)rig.PoseAction(1f/60,ActionKind.Wander,ActionPhase.Moving,false,0);
             if(!rig.CargoMesh.Visible||rig.HeldObject!="木材捆")throw new InvalidOperationException("Supported cargo or UI identity missing");
-            foreach(var action in new[]{ActionKind.Eat,ActionKind.Drink})
+            foreach(var action in new[]{ActionKind.Eat,ActionKind.Drink,ActionKind.Take,ActionKind.Farm,ActionKind.Attack,ActionKind.Sleep})
             {
-                for(int i=0;i<90;i++)rig.PoseAction(1f/60,action,ActionPhase.Executing,false,0);
-                if(rig.CargoMesh.Visible||rig.HeldObject=="木材捆")throw new InvalidOperationException("Eating/drinking lifts the entire cargo bundle");
+                for(int i=0;i<180;i++)rig.PoseAction(1f/60,ActionKind.Wander,ActionPhase.Moving,false,0);
+                var start=InTorso(rig.CargoMesh,rig.Torso).Origin;
+                var previous=start;
+                int tuckFrames=0;
+                float travel=0,step=0;
+                for(int i=0;i<260;i++)
+                {
+                    rig.PoseAction(1f/60,action,ActionPhase.Executing,false,0);
+                    if(!rig.CargoMesh.Visible)continue;
+                    var now=InTorso(rig.CargoMesh,rig.Torso).Origin;
+                    travel=MathF.Max(travel,now.DistanceTo(start));step=MathF.Max(step,now.DistanceTo(previous));previous=now;
+                    if(rig.Cup.Visible||rig.Bite.Visible||rig.ToolHeld)throw new InvalidOperationException("Cargo and the next action own the same hands");
+                    tuckFrames++;
+                }
+                if(tuckFrames<12||travel<.048f||step>.040f||rig.CargoMesh.Visible||!rig.GestureEngaged(action))
+                    throw new InvalidOperationException($"Cargo does not hand off to {action}: tuck={tuckFrames}, travel={travel:F3} m, step={step:F3} m, {rig.Handling}");
             }
             for(int i=0;i<180;i++)rig.PoseAction(1f/60,ActionKind.Deposit,ActionPhase.Executing,false,0);
             if(!rig.CargoMesh.Visible)throw new InvalidOperationException("Transfer loses existing cargo");
@@ -573,7 +587,7 @@ internal sealed partial class NatureModels
             if(rig.Handling!="双手放松")throw new InvalidOperationException("Cargo release never settles");
         }
         finally{rig.Free();}
-        GD.Print("CARGO_TRANSITIONS_PASS: supported appearance, consume/transfer priority, held-object identity, pause and authoritative removal");
+        GD.Print("CARGO_TRANSITIONS_PASS: continuous two-handed tuck before six actions, supported appearance, priority, pause and authoritative removal");
     }
     private void ValidateCarrying()
     {

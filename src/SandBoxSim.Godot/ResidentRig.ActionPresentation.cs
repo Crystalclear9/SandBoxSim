@@ -62,7 +62,8 @@ internal partial class ResidentRig
 
     public void PresentAction(float delta,ActionKind action,ActionPhase phase,bool paused,float identityPhase,uint? revision=null,bool hasPartner=true,bool targetAligned=true,
         Vector3? sceneContact=null,ResourceKind contactResource=ResourceKind.None,InteractionTarget target=default,
-        bool completeToolStroke=true,bool awaitToolCommit=false,ToolSurface? toolSurface=null,bool contactReady=true,bool deferContact=false)
+        bool completeToolStroke=true,bool awaitToolCommit=false,ToolSurface? toolSurface=null,bool contactReady=true,bool deferContact=false,
+        ResourceKind? inventoryCargo=null)
     {
         if(paused)return;
         bool firstSnapshot=revision.HasValue&&!_observedRevision.HasValue;
@@ -115,7 +116,7 @@ internal partial class ResidentRig
         _sceneContact=nextContact;
         _scenePickupConfirmed=phase==ActionPhase.Done;
         _interactionTarget=target;
-        ObserveCargoPlacement(action,phase,newlyDone&&contactReady,newRun,contactResource);
+        ObserveCargoPlacement(action,phase,newlyDone&&contactReady,newRun,contactResource,inventoryCargo);
         if(newlyDone&&contactReady&&family==ActionFamily.Consume)
         {
             _completionAge=0;
