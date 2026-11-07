@@ -136,9 +136,11 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 ## 当前渲染版本
 
-当前渲染元数据为 `animalPresentation=articulated-paws-v12`、`interface=resident-framing-memory-v28`、`architecture=inset-joinery-v13`、`garmentMaterial=quiet-linen-v18`、`landscapeSurface=wet-bank-mosaic-v7`、`habitatDetail=responsive-understory-v12`。另外记录 `residentSurface=linear-skin-v9`、`vegetationSurface=engine-faced-v2`、`wildFlora=arched-bramble-v1`、`waterSurface=shore-activity-v7`、`wristContour=continuous-source-v2`、`hairline=framed-source-root-v2`、`femaleGroom=scalp-guided-plait-v1`、`reedPanicle=connected-axis-v1` 和 `handSurface=anatomical-regions-v1`。人物肖像的 `renderQuality.portrait.studio=continuous-inspector-v9`，并记录实际 `thumbnail` 布尔值。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。衣装领口与肩袖、人物布光、动物足部、建筑门窗接合及连续观察控件已改变，需重采相同场景的视觉和耗时基线；不能把不同像素覆盖与布局造成的耗时变化算作代码优化收益。`renderQuality.fontProfile=noto-packaged-v1` 记录随包字库策略，字体变化需要新视觉与耗时基线。`renderQuality.interfaceVisible` 标识界面是否显示，公开评测场景默认显示；沉浸观察不会自动成为新的评测指令。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
+当前渲染元数据为 `animalPresentation=articulated-paws-v12`、`interface=resident-framing-memory-v28`、`architecture=inset-joinery-v13`、`garmentMaterial=quiet-linen-v19`、`landscapeSurface=wet-bank-mosaic-v7`、`habitatDetail=responsive-understory-v12`。另外记录 `residentSurface=linear-skin-v9`、`vegetationSurface=engine-faced-v2`、`wildFlora=arched-bramble-v1`、`waterSurface=shore-activity-v7`、`wristContour=continuous-source-v2`、`hairline=framed-source-root-v2`、`femaleGroom=scalp-guided-plait-v1`、`reedPanicle=connected-axis-v1` 和 `handSurface=anatomical-regions-v1`。人物肖像的 `renderQuality.portrait.studio=continuous-inspector-v9`，并记录实际 `thumbnail` 布尔值。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。衣装领口与肩袖、人物布光、动物足部、建筑门窗接合及连续观察控件已改变，需重采相同场景的视觉和耗时基线；不能把不同像素覆盖与布局造成的耗时变化算作代码优化收益。`renderQuality.fontProfile=noto-packaged-v1` 记录随包字库策略，字体变化需要新视觉与耗时基线。`renderQuality.interfaceVisible` 标识界面是否显示，公开评测场景默认显示；沉浸观察不会自动成为新的评测指令。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
 
 `reachMotion=palm-trajectory-v2` 记录手掌轨迹过渡、朝向插值、错开的社交手势与循环进食表现。动作轨迹改变需要重采相同场景的视觉及耗时基线，不能与旧动作混作效率对照。
+
+`garmentFit=continuous-drape-v37`、`femaleTrouserFit=supported-thigh-v1` 记录女性裤装的髋腿轮廓与据此生成的屈髋、屈膝目标。比较 `female-builds` 时应重新采集同一分辨率的图像，该图册的视野已向下覆盖到膝部。`body-motion` 使用原相机复核静立、步行与拾取。
 
 `bodyFrame=reference-contour-physique-v31`、`faceContour=balanced-adult-v3` 和 `forearmProfile=curvature-flow-v9` 记录完整来源躯干、头脸区域与小臂体积拟合。它们改变轮廓和模型构建成本，视觉及性能对照须使用同一版本、居民身份与近远景条件。
 

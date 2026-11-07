@@ -87,7 +87,7 @@ internal partial class ModelGallery : PanelContainer
             var names=new[]{"均衡轮廓","较直腰线","圆润髋线"};
             for(int view=0;view<2;view++)for(int i=0;i<builds.Length;i++)
                 Closeup(grid,names[i]+(view==0?" · 正面":" · 侧面"),models.Resident(55,false,JobType.None,builds[i]),
-                    .87f,new(0,.98f,0),view==0?new(0,.025f,4):new(4,.025f,0),true);
+                    .87f,new(0,.92f,0),view==0?new(0,.025f,4):new(4,.025f,0),true);
         }
         else if(Collection=="body-frames")
         {

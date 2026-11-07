@@ -35,7 +35,7 @@
 | 内容 | 采样入口 | 配图 |
 |---|---|---|
 | 成人体型与女性衣身 | `visual-body-frames`、`visual-thorax-frames` 第 90 帧。全身图对照腰背、骨盆和上腿。女性近景更新为共享肩线、袖山和较细亚麻纹理，从正面、三刻面与侧面对照衣身 | [全身三视图](resident-body-frames.png) · [女性衣身近景](resident-thorax-detail.png) |
-| 女性个人身形 | `visual-female-builds` 第 90 帧。同一居民、同一身高和衣装的三种腰髋轮廓，正面和侧面采用相同的正交尺度 | [女性身形对照](resident-female-builds.png) |
+| 女性个人身形 | `visual-female-builds` 第 90 帧。同一居民、同一身高和衣装的三种腰髋轮廓。正面与侧面采用同一正交尺度，画面覆盖肩部至膝部附近 | [女性身形对照](resident-female-builds.png) |
 | 女性肩背与袖根 | `visual-female-shoulders` 第 90 帧。右肩背面和左肩后侧分别对照自然垂臂、抬臂 90° 和 135° | [女性肩背近景](resident-female-shoulders.png) |
 | 成人头脸 | `visual-faces`、`visual-face-frames` 第 90 帧 | [三种头脸](resident-face-detail.png) · [成人外观对照](resident-face-frames.png) |
 | 三种职业衣装 | `visual-wardrobe`、`visual-female-wardrobe` 第 90 帧。男性图册展示正背面，女性图册从前侧与后侧观察腰下垂坠、侧髋和下摆翻边 | [男性成衣](wardrobe-detail.png) · [女性成衣](resident-female-wardrobe.png) |

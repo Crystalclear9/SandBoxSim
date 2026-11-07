@@ -158,9 +158,9 @@
 
 女性设计沿用自然匀称、曲线柔和的方向。胸前采用更宽的纵向重分配，来源前向塑形为宽缓的上胸与胸下接续；腰侧适度放松，后腰与后侧骨盆分别建立连续弧线，上腿外侧接入骨盆。关节辅助点固定，统一米制映射的总位移仍限于 18 毫米；来源测试在 1,620 个三维位置检查双侧对称、正向变形及原有 Jacobian 范围，不通过放宽上限获得通过。这里的比例和系数是角色美术选择，不是女性身体或吸引力的统一标准。
 
-`femaleShoulderLine=shared-crest-v1` 将领口往肩头的衣片落势延伸至袖山两侧。共享接缝在静止绑定姿态中一起圆顺，再生成蒙皮和抬臂修形，减少外肩高出台面的轮廓。领口边缘与袖口沿原有接触约束定位。`femaleLowerPanel=supported-fall-v2` 沿腰下布纹以 24 毫米间隔采样，形成较长的侧髋过渡，并用实际裤装表面限制内收。`garmentMaterial=quiet-linen-v19` 将女性上衣的合成纱纹缩小至约毫米尺度，降低扫描纹理的对比和法线扰动，使轮廓与衣料细节分层呈现。当前衣装标识为 `garmentFit=continuous-drape-v36`。[Blender 写实基模与放松绑定姿态](https://studio.blender.org/training/realistic-human-research/use-of-base-meshes/) · [MakeHuman 的比例与体态调节](https://static.makehumancommunity.org/makehuman/docs/modeling_the_body.html)
+`femaleShoulderLine=shared-crest-v1` 将领口往肩头的衣片落势延伸至袖山两侧。共享接缝在静止绑定姿态中一起圆顺，再生成蒙皮和抬臂修形，减少外肩高出台面的轮廓。领口边缘与袖口沿原有接触约束定位。`femaleLowerPanel=supported-fall-v2` 沿腰下布纹以 24 毫米间隔采样，形成较长的侧髋过渡，并用实际裤装表面限制内收。`garmentMaterial=quiet-linen-v19` 将女性上衣的合成纱纹缩小至约毫米尺度，降低扫描纹理的对比和法线扰动，使轮廓与衣料细节分层呈现。当前衣装标识为 `garmentFit=continuous-drape-v37`。[Blender 写实基模与放松绑定姿态](https://studio.blender.org/training/realistic-human-research/use-of-base-meshes/) · [MakeHuman 的比例与体态调节](https://static.makehumancommunity.org/makehuman/docs/modeling_the_body.html)
 
-女性工装与短上衣的前后下摆分别以最多 18／12 毫米圆顺，短上衣下摆最低处为 0.842 米；腰带按来源自然腰线拟合，袖口沿用原有挂点。女性裤装采用低饱和灰橄榄色 `#747264`，配合来源骨盆和腿部截面显示体积；男性裤装保持原染色。
+女性工装与短上衣的前后下摆分别以最多 18／12 毫米圆顺，短上衣下摆最低处为 0.842 米；腰带按来源自然腰线拟合，袖口沿用原有挂点。女性裤装采用低饱和灰橄榄色 `#656356`，配合来源骨盆和腿部截面显示体积；男性裤装保持原染色。
 
 ![成人身体正侧背面](../images/resident-body-frames.png)
 
@@ -989,7 +989,9 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 
 `bodyPresentation=continuous-drape-v29` 还包含男性肩袖最多 3 毫米的双向表面圆顺，以及女性腰胯到上腿最多 2 毫米的有界圆顺；后者在高度 0.58–0.64 米接入、0.80–0.87 米退出，横向 70–110 毫米之外逐步生效，保留腰口、裤裆和靴口。原有女性肩袖拟合保持独立，法线从实际成品网格更新，来源资产和许可不变。
 
-女性裤装在静止时额外圆顺裤裆缝两侧至上腿内侧的凹折。该修形限制在离中线 12–95 毫米、高度 0.64–0.84 米的区域，最大位移 6 毫米。上腿外侧的修形保留骨盆宽度，在下方逐渐收进，前侧的修形将大腿上缘接回骨盆前片。两个方向的局部位移各在约 4 毫米以内。`FEMALE_HIP_TRANSITION_PASS` 测量 0.69 米与 0.78 米两处成品截面的半宽差。区域划分参考同一组女性在站立、行走、上台阶和坐姿下的下肢扫描。[不同姿势的女性下肢扫描](https://kjournal.co.kr/_common/do.php?a=full&aidx=19566&b=12&bidx=1544)
+女性裤装以 `femaleTrouserFit=supported-thigh-v1` 标识。先圆顺裆缝两侧，再分别塑形前裆、上腿前片和臀下后片。前裆在中线附近增加落量，前片收顺大腿上缘的凸折，后片把臀下余量分散到大腿上段。外侧在骨盆最宽处下方逐渐收进，裤腰、内腿下段和靴口保留接合位置。修形作用于现有网格，重算局部法线并从同一静止网格生成两侧屈髋和屈膝目标。三种女性身形分别映射静止网格和姿态目标。[Blender Studio 写实角色雕塑](https://studio.blender.org/training/realistic-human-research/design-sculpting/) · [体形与姿态变形分离研究](https://graphics.stanford.edu/courses/cs468-05-fall/Papers/p408-anguelov.pdf) · [站姿与坐姿下的骨盆与皮肤表面扫描](https://pmc.ncbi.nlm.nih.gov/articles/PMC8464815/)
+
+`FEMALE_TROUSER_DRAPE_PASS` 测量成品前裆落量、上腿的宽度和前后余量，并检查靴口。`FEMALE_HIP_TRANSITION_PASS` 对照 0.69 米与 0.78 米两处成品截面的半宽。步行、作业和拾取检查沿用实际蒙皮矩阵核对裤腰、靴口、布面拉伸及左右独立屈髋。
 
 前屈时，左右裤片分别按大腿相对骨盆的实际角度混合预烘焙形状。前片由内向外斜落的浅褶旁有一道回收，后侧圆弧支撑延伸至外侧，减轻弯曲时臀腿连接处的折瘪。两侧共享一张连续五骨网格，中线、裤腰和靴口保留原绑定。`FEMALE_HIP_FOLD_PASS` 检查前片褶峰和回收的相反深度，`FEMALE_HIP_FLEX_PASS` 检查两条腿独立驱动、形变范围、静止边界和暂停状态。走路、施工和拾取的网格拉伸检查包含混合后的实际顶点。[Blender Studio 衣装姿态塑形](https://studio.blender.org/training/realistic-human-research/clothing-shapes/)
 
