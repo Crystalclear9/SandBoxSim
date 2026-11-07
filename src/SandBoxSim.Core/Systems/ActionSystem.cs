@@ -26,8 +26,9 @@ public sealed class ActionSystem
 
     /// <summary>小数步进度（槽位 → 剩余步数）。用数组而不是字典，避免迭代顺序问题。</summary>
     private float[] _moveProgress = System.Array.Empty<float>();
-    private (AgentRef Actor, uint Revision, AgentRef Partner)[] _presentedPartners =
-        System.Array.Empty<(AgentRef, uint, AgentRef)>();
+    public readonly record struct PartnerCompletion(ActionKind Action, uint Revision, long Tick, AgentRef Partner);
+    private (AgentRef Actor, PartnerCompletion Completion)[] _presentedPartners =
+        System.Array.Empty<(AgentRef, PartnerCompletion)>();
     public enum ContactSurface : byte { GroundStock, NaturalResource, Storage, BuildingWork, Hunt }
     public readonly record struct ActionContact(Int2 Tile, ResourceKind Resource, ContactSurface Surface, float StockAmount = 0,
         int BuildingGeneration = 0);
@@ -906,14 +907,13 @@ public sealed class ActionSystem
     private void Complete(int slot, long tick, int partner = -1)
     {
         if (partner >= 0)
-            _presentedPartners[slot] = (_store.RefOf(slot), _store.ActionRevisionOf(slot), _store.RefOf(partner));
+            _presentedPartners[slot] = (_store.RefOf(slot), new(_store.ActionOf(slot), _store.ActionRevisionOf(slot), tick, _store.RefOf(partner)));
         _store.SetPhase(slot, ActionPhase.Done);
         _store.SetState(slot, AgentState.Idle);
         _store.ClearTarget(slot);
         _moveProgress[slot] = 0f;
         CompletedThisTick++;
         TotalCompleted++;
-        _ = tick;
     }
 
     private void Fail(int slot, ActionFailReason reason)
@@ -1080,11 +1080,8 @@ public sealed class ActionSystem
     public bool TryGetPresentationPartner(int slot, out int partner)
     {
         if (TryGetInteractionPartner(slot, out partner)) return true;
-        if (!_store.IsSlotAlive(slot) || _store.PhaseOf(slot) != ActionPhase.Done
-            || slot >= _presentedPartners.Length) return false;
-        var recorded = _presentedPartners[slot];
-        if (recorded.Revision != _store.ActionRevisionOf(slot) || !_store.IsValid(recorded.Actor)
-            || !_store.IsValid(recorded.Partner) || recorded.Partner.Slot == slot) return false;
+        if (!TryGetLatestPartnerCompletion(slot, out var recorded) || _store.PhaseOf(slot) != ActionPhase.Done
+            || recorded.Revision != _store.ActionRevisionOf(slot)) return false;
         float radius = _store.ActionOf(slot) switch
         {
             ActionKind.Socialize or ActionKind.ShareFood => _config.Relationship.SocializeRadius,
@@ -1095,6 +1092,18 @@ public sealed class ActionSystem
         float dy = _store.YOf(slot) - _store.YOf(recorded.Partner.Slot);
         if (radius <= 0 || dx * dx + dy * dy > radius * radius) return false;
         partner = recorded.Partner.Slot;
+        return true;
+    }
+
+    /// <summary>Latest actual partner, retained across decisions for presentation. Callers check the revision and freshness.</summary>
+    public bool TryGetLatestPartnerCompletion(int slot, out PartnerCompletion completion)
+    {
+        completion = default;
+        if ((uint)slot >= (uint)_presentedPartners.Length || !_store.IsSlotAlive(slot)) return false;
+        var recorded = _presentedPartners[slot];
+        if (!_store.IsValid(recorded.Actor) || !_store.IsValid(recorded.Completion.Partner)
+            || recorded.Completion.Partner.Slot == slot) return false;
+        completion = recorded.Completion;
         return true;
     }
 

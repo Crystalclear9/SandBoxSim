@@ -8,10 +8,13 @@ namespace SandBoxSim.Client;
 
 public partial class WorldView3D
 {
-    private sealed class SceneConversation(long initiator,long recipient,uint revision,Vector3? firstStand,Vector3? secondStand)
+    private sealed class SceneConversation(long initiator,long recipient,uint revision,uint recipientRevision,
+        Vector2I initiatorTile,Vector2I recipientTile,Vector3? firstStand,Vector3? secondStand)
     {
         internal readonly long Initiator=initiator,Recipient=recipient;
         internal readonly uint Revision=revision;
+        internal readonly uint RecipientRevision=recipientRevision;
+        internal readonly Vector2I InitiatorTile=initiatorTile,RecipientTile=recipientTile;
         internal readonly Vector3? FirstStand=firstStand,SecondStand=secondStand;
         internal float Time,Waiting;
     }
@@ -38,8 +41,9 @@ public partial class WorldView3D
             var pair=_residentConversations[i];
             int first=unchecked((int)pair.Initiator),second=unchecked((int)pair.Recipient);
             if(!TrySceneResident(pair.Initiator,out var a)||!TrySceneResident(pair.Recipient,out var b)
-                ||agents.ActionOf(first)!=ActionKind.Socialize||agents.ActionRevisionOf(first)!=pair.Revision
-                ||!sim.Actions.TryGetPresentationPartner(first,out int actual)||actual!=second
+                ||!PairInitiatorAvailable(first,second,ActionKind.Socialize,pair.Revision)
+                ||agents.ActionRevisionOf(second)!=pair.RecipientRevision
+                ||HandoffTile(first)!=pair.InitiatorTile||HandoffTile(second)!=pair.RecipientTile
                 ||!CanConverse(first,second,a)||!CanConverse(second,first,b)
                 ||a.Position.DistanceSquaredTo(camera)>19*19||b.Position.DistanceSquaredTo(camera)>19*19
                 ||!ConversationPathClear(a.Position,b.Position)
@@ -68,6 +72,7 @@ public partial class WorldView3D
             long otherId=sim.Society.Identity(other);
             uint revision=agents.ActionRevisionOf(slot);
             if(a.LastConversation==(revision,otherId)||FindConversation(id)!=null||FindConversation(otherId)!=null
+                ||agents.PhaseOf(slot)==ActionPhase.Done&&!HasPairReceipt(slot,other,ActionKind.Socialize,revision,fresh:true)
                 ||!TrySceneResident(otherId,out var b)||!CanConverse(slot,other,a)||!CanConverse(other,slot,b)
                 ||b.Position.DistanceSquaredTo(camera)>17*17||!ConversationPathClear(a.Position,b.Position))continue;
             Vector3? aStand=null,bStand=null;
@@ -79,7 +84,7 @@ public partial class WorldView3D
             a.LastConversation=(revision,otherId);
             if(agents.ActionOf(other)==ActionKind.Socialize&&sim.Actions.TryGetPresentationPartner(other,out int reciprocal)&&reciprocal==slot)
                 b.LastConversation=(agents.ActionRevisionOf(other),id);
-            _residentConversations.Add(new(id,otherId,revision,aStand,bStand));
+            _residentConversations.Add(new(id,otherId,revision,agents.ActionRevisionOf(other),HandoffTile(slot),HandoffTile(other),aStand,bStand));
             if(_residentConversations.Count>=4)break;
         }
     }
@@ -142,6 +147,11 @@ public partial class WorldView3D
             bool speaksA=a.ConversationMouth>.12f,speaksB=b.ConversationMouth>.12f;
             if(speaksA&&speaksB||speaksB&&speechA<30)throw new InvalidOperationException("Paired speech overlaps or replies before the opening phrase");
             if(speaksA)speechA++;
+            if(speaksA&&speechA==20)
+            {
+                agents.SetAction(first,ActionKind.None,ActionPhase.Idle);
+                digest=sim.StateDigestString();
+            }
             if(speaksB)speechB++;
             if(speechA>0&&speechB==0&&!speaksA)gap++;
             if(speaksA||speaksB)
@@ -162,6 +172,6 @@ public partial class WorldView3D
         for(int frame=0;frame<60;frame++)AnimateActors(dt);
         if(_residentConversations.Count!=0||a.ConversationMouth>.02f||b.ConversationMouth>.02f||sim.StateDigestString()!=digest)
             throw new InvalidOperationException("Interrupted conversation keeps talking or alters simulation");
-        GD.Print($"WORLD_CONVERSATION_PASS: {speechA}/{speechB} speech frames, {gap} silent frames at handoff, both nod, no overlap, flee cancels, read-only");
+        GD.Print($"WORLD_CONVERSATION_PASS: {speechA}/{speechB} speech frames across idle successor, {gap} silent frames at handoff, both nod, flee cancels, read-only");
     }
 }

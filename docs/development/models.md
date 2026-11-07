@@ -309,7 +309,7 @@
 
 `residentContactApproach=supported-contact-v1` 让近距离的物资交互、作业和双人会合在加速模式下共用步行控制。重心先转移，再迈步接近目标。剩余距离进入刹停区间时减速，最后两次落脚可以带入一部分目标转角。砍伐、采矿与施工面向工具实际接触的树干、岩面或木桩位置。距离过大时按世界原有的远距离同步规则追上逻辑位置。[Sumo Digital 的落脚预判与地面适配](https://www.unrealengine.com/tech-blog/sumo-digital-shares-how-it-created-spyder-s-sophisticated-animation-systems) · [足点保持研究](https://pages.cs.wisc.edu/~kovar/footskateCleanup.pdf)
 
-近景分享读取实际结算对象。两人都可参与且附近有可站立的地面时，沿短距离走到同一个递物点，交出方先托起一件食物。接收者的掌面持续到达另一处支撑点后，同一个物件保留当前位置并转到接收者手上。有人离场、原站位受阻或分享动作已被替换时，当前持物方收回物件。相隔过远、遮挡或忙于其他动作的交接直接由模拟结算。独立人物观察窗显示行为和库存，双人交接在场景中观察。[双人握力与松手实验](https://pubmed.ncbi.nlm.nih.gov/33361768/) · [递物位置与距离实验](https://pmc.ncbi.nlm.nih.gov/articles/PMC6588208/)
+近景分享先按当前候选接收者走近并朝向对方。双方落脚且模拟确认同一个接收者后，交出方才托起物品。接收者掌面持续到达支撑点时，同一个物件保留运动轨迹并转到接收者手上。换手或中断后，只有持物方继续收手。接收者暂时忙碌时，仍处于短时有效期内的分享可以等对方空闲再开始。站位、目标和双方的动作编号参与校验。递物与交谈都可在紧接的空闲状态中完成已确认的表现，新的主动行为或离开原格会接管。库存和关系按模拟步结算。[双人握力与松手实验](https://pubmed.ncbi.nlm.nih.gov/33361768/) · [配对动作时序与接触约束研究](https://research.cs.wisc.edu/graphics/Gallery/kovar.vol/RegistrationCurves/)
 
 | 环节 | 当前条件与行为 |
 |---|---|

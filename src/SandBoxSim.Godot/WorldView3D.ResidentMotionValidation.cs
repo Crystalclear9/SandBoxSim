@@ -746,16 +746,13 @@ public partial class WorldView3D
         agents.SetAction(receiverSlot,ActionKind.None,ActionPhase.Idle);agents.SetHunger(receiverSlot,.92f);
         agents.SetInventory(giverSlot,ResourceKind.Food,sim.Config.Relationship.ShareFoodAmount);
         agents.SetAction(giverSlot,ActionKind.ShareFood,ActionPhase.Executing);
-        sim.Actions.Tick(sim.Clock);
-        if(!sim.Actions.TryGetPresentationPartner(giverSlot,out int actual)||actual!=receiverSlot)
-            throw new InvalidOperationException("World fixture does not have a committed food exchange");
 
         SyncEntities();
         long giverId=sim.Society.Identity(giverSlot),receiverId=sim.Society.Identity(receiverSlot);
         var giver=(ResidentRig)_people[giverId];var receiver=(ResidentRig)_people[receiverId];
         var start=giver.Position;var end=receiver.Position;
-        giver.Rotation=new(0,HeadingYaw(Horizontal(end-start)),0);
-        receiver.Rotation=new(0,HeadingYaw(Horizontal(start-end)),0);
+        giver.Rotation=new(0,HeadingYaw(Horizontal(end-start))+.9f,0);
+        receiver.Rotation=new(0,HeadingYaw(Horizontal(start-end))-.9f,0);
         if(!HandoffStands(giver,receiver,out var give,out var take))
             throw new InvalidOperationException("Adjacent fixture has no safe handoff placement");
         var midpoint=Horizontal((give+take)*.5f);
@@ -773,31 +770,56 @@ public partial class WorldView3D
             else _scenerySolids.Remove(obstacleKey);
         }
         _target=(start+end)*.5f;_distance=9;_pitch=.62f;UpdateCamera();
-        string committed=sim.StateDigestString();
+        string pending=sim.StateDigestString();
         ResidentHandoff? motion=null;
-        int parcelFrames=0;
         float approach=0;
-        for(int i=0;i<490;i++)
+        bool faced=false;
+        for(int i=0;i<200;i++)
         {
             AnimateActors(delta);
             if(motion==null&&_residentHandoffs.Count>0)motion=_residentHandoffs[0].Motion;
+            if(motion?.ParcelVisible==true)throw new InvalidOperationException("A proposed handoff shows food before simulation commits");
+            if(motion?.UsesMeeting!=true)continue;
+            approach=MathF.Max(approach,Horizontal(giver.Position-start).Length());
+            var line=Horizontal(receiver.Position-giver.Position);
+            faced=giver.InteractionSettled&&receiver.InteractionSettled&&InteractionFacingAligned(giver.Rotation.Y,line)
+                &&InteractionFacingAligned(receiver.Rotation.Y,-line);
+            if(faced)break;
+        }
+        if(motion==null||!faced||approach<.20f||pending!=sim.StateDigestString())
+            throw new InvalidOperationException($"Uncommitted handoff fails to approach and face the actual partner: {approach:F3} m, faced={faced}");
+        uint revision=agents.ActionRevisionOf(giverSlot);
+        sim.Actions.Tick(sim.Clock);
+        agents.SetAction(giverSlot,ActionKind.None,ActionPhase.Idle);
+        if(sim.Actions.TryGetPresentationPartner(giverSlot,out _)||!HasPairReceipt(giverSlot,receiverSlot,ActionKind.ShareFood,revision))
+            throw new InvalidOperationException("World fixture does not have a committed food exchange across the skipped phase");
+        string committed=sim.StateDigestString();
+        int parcelFrames=0;
+        for(int i=0;i<490;i++)
+        {
+            AnimateActors(delta);
             if(motion?.ParcelVisible==true)
             {
                 parcelFrames++;
                 if(!motion.Transferred&&(!giver.InteractionSettled||!receiver.InteractionSettled))
                     throw new InvalidOperationException("Parcel appears before both world residents settle");
+                if(motion.Transferred&&(giver.HandoffReserved||motion.UsesMeeting||!receiver.HandoffReserved))
+                    throw new InvalidOperationException("Released giver still waits while the receiver draws the parcel back");
             }
-            if(motion?.UsesMeeting==true)approach=MathF.Max(approach,Horizontal(giver.Position-start).Length());
         }
         if(motion==null||!motion.Transferred||!motion.Finished||approach<.20f||parcelFrames<18
             ||_residentHandoffs.Count!=0||sim.StateDigestString()!=committed)
             throw new InvalidOperationException($"World handoff misses approach, transfer or one-shot cleanup: distance={approach}, frames={parcelFrames}, transferred={motion?.Transferred}");
-        GD.Print($"WORLD_HANDOFF_PASS: committed adjacent-tile recipient, {approach:F3} m visual approach, {parcelFrames} supported frames, obstruction rejected and read-only playback");
+        GD.Print($"WORLD_HANDOFF_PASS: prepared adjacent-tile recipient, {approach:F3} m visual approach, {parcelFrames} supported frames, skipped Done, independent giver release and read-only playback");
 
         agents.SetInventory(giverSlot,ResourceKind.Food,sim.Config.Relationship.ShareFoodAmount);
         agents.SetHunger(receiverSlot,.92f);
         agents.SetAction(giverSlot,ActionKind.ShareFood,ActionPhase.Executing);
+        agents.SetAction(receiverSlot,ActionKind.Sleep,ActionPhase.Executing);
         sim.Actions.Tick(sim.Clock);
+        AnimateActors(delta);
+        if(_residentHandoffs.Count!=0)throw new InvalidOperationException("A committed exchange steals an occupied receiver");
+        agents.SetAction(receiverSlot,ActionKind.None,ActionPhase.Idle);
         ResidentHandoff? outgoing=null;
         for(int i=0;i<360;i++)
         {
@@ -810,11 +832,12 @@ public partial class WorldView3D
         agents.SetAction(giverSlot,ActionKind.ShareFood,ActionPhase.Done);
         committed=sim.StateDigestString();
         AnimateActors(delta);
-        if(outgoing.UsesMeeting||!outgoing.ParcelVisible)throw new InvalidOperationException("Superseded handoff failed to return its parcel to the current holder");
+        if(outgoing.UsesMeeting||!outgoing.ParcelVisible||receiver.HandoffReserved)
+            throw new InvalidOperationException("Superseded handoff keeps the released receiver or fails to recover the parcel");
         for(int i=0;i<120;i++)AnimateActors(delta);
         if(outgoing.Transferred||!outgoing.Finished||_residentHandoffs.Count!=0||sim.StateDigestString()!=committed)
             throw new InvalidOperationException("Superseded handoff reaches the old recipient or leaves a parcel");
-        GD.Print("WORLD_HANDOFF_RETARGET_PASS: superseded same-kind share recovers its parcel without transferring to the old recipient");
+        GD.Print("WORLD_HANDOFF_RETARGET_PASS: occupied receiver can join after becoming free, superseded share releases that receiver and recovers its parcel");
     }
 
     private void ValidateProjectedResidentMotion(float delta)

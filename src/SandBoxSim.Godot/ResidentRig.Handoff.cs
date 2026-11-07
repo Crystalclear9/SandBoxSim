@@ -11,7 +11,7 @@ internal partial class ResidentRig
     private string _handoffReadout="";
     internal bool HandoffReserved=>_handoffHand>=0;
     internal bool HandoffHandReady {get;private set;}
-    internal uint? LastSharePresentation;
+    internal (uint Revision,long Receiver)? LastSharePresentation;
 
     internal Transform3D RigWorldSpace=>IsInsideTree()?GlobalTransform:Transform;
     internal Transform3D HandWorldPose(int side)
