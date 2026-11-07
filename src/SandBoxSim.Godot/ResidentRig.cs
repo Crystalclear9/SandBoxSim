@@ -105,7 +105,7 @@ internal partial class ResidentRig : Node3D
     internal float RestPoseWeight=>Math.Clamp(_restPose.X,0,1);
     private bool _carrying,_takingTool,_waitingForFacing;
     public bool ToolHeld {get;private set;}
-    public string Handling => HandoffReserved?_handoffReadout:_placingCargo?"双手送稳 / 准备松开":
+    public string Handling => _recoveringPickup?"托住物件 / 收回":HandoffReserved?_handoffReadout:_placingCargo?"双手送稳 / 准备松开":
         _releasedCargo?(_groundPlacement?"物资落地 / 收手":"入库交接 / 收手"):_placementPending?"抱稳物资 / 等待到位":
         ConsumptionOwnsHand?ConsumptionHandling:!InteractionSettled&&(_observedPhase==ActionPhase.Executing||CompletionVisible)?"接近目的地 / 停稳":
         _waitingForFacing?"转向目标 / 等待接触":ToolHeld ? _returning?"收回工具":_draw<.99f?"取出 / 抬手":_carrying?"手持携带":"使用工具" : _releaseTime>0?"松开手指":_reach>.01f?(_takingTool?(_reach==1?"合拢握柄":"伸手拿取"):"收回手臂"):CargoMesh.Visible?(_bareBlend>.01f&&CompatibleBareActions(_bareAction,ActionKind.Deposit)?"双手递出":"双手搬运"):_bareBlend>.01f?_bareAction switch {ActionKind.Take or ActionKind.GatherFood=>ScenePickupHandling,_=>"徒手交互"}:_cargoBlend>.01f?(_hasCargo?"托起物资":"放下 / 收手"):_restPose.X>.08f?"休息 / 起身":"双手放松";
@@ -180,7 +180,7 @@ internal partial class ResidentRig : Node3D
         bool reserved=HandoffReserved;
         bool risingFromPlacement=!_placingCargo&&_floorCrouch>.18f;
         bool restRequested=!reserved&&!risingFromPlacement&&executing&&family==ActionFamily.Rest;
-        bool handsFree=!ToolHeld&&_reach==0&&_releaseTime==0&&!ConsumptionOwnsHand;
+        bool handsFree=!ToolHeld&&_reach==0&&_releaseTime==0&&!ConsumptionOwnsHand&&!_recoveringPickup;
         bool cargoReleased=_cargoBlend<=.001f;
         // Give outgoing hand owners time to release before lowering the
         // pelvis. On exit the legs can start walking while work and reaches
@@ -188,7 +188,7 @@ internal partial class ResidentRig : Node3D
         bool resting=restRequested&&handsFree&&cargoReleased&&_bareBlend<=.001f&&_socialBlend<=.001f;
         DampMotion(ref _restPose,ref _restPoseVelocity,resting?Vector3.Right:Vector3.Zero,.17f,delta);
         float restWeight=RestPoseWeight;
-        bool upperReady=!reserved&&!risingFromPlacement&&executing&&restWeight<.20f;
+        bool upperReady=!reserved&&!risingFromPlacement&&!_recoveringPickup&&executing&&restWeight<.20f;
         if((_lastAction!=action||_lastPhase!=phase)&&executing)
         {
             _workTime=0;
@@ -198,7 +198,7 @@ internal partial class ResidentRig : Node3D
         // while its resident is still finishing the approach.
         _lastAction=action;_lastPhase=phase==ActionPhase.Executing&&!executing?ActionPhase.Moving:phase;
         bool toolRequested=!reserved&&!IsChild&&family==ActionFamily.Tool&&(phase==ActionPhase.Moving||phase==ActionPhase.Executing);
-        bool gestureReleased=_bareBlend<=.10f&&_socialBlend<=.10f&&!ConsumptionOwnsHand;
+        bool gestureReleased=_bareBlend<=.10f&&_socialBlend<=.10f&&!ConsumptionOwnsHand&&!_recoveringPickup;
         var wanted=toolRequested&&!risingFromPlacement&&cargoReleased&&gestureReleased&&restWeight<.20f?ToolFor(action):ResidentTool.None;
         // A long tool is carried in the hand during idle/wandering, rather than
         // hanging diagonally from an invisible waist socket. Bare-hand actions
@@ -220,7 +220,8 @@ internal partial class ResidentRig : Node3D
         float gaitPhase=_gaitCycle*Mathf.Tau;
         float breath=MathF.Sin(_phase*.5f+identityPhase);
         bool scenePickup=_sceneContact.HasValue&&family==ActionFamily.Pickup&&revision.HasValue;
-        bool pickupRequested=upperReady&&family==ActionFamily.Pickup&&(!scenePickup||_scenePickupAge<ScenePickupDuration);
+        bool pickupRequested=upperReady&&family==ActionFamily.Pickup
+            &&(scenePickup?_scenePickupAge<ScenePickupDuration:!_plannedPickup);
         bool pickup=pickupRequested&&handsFree&&cargoReleased&&_socialBlend<=.10f
             &&(_bareBlend==0||FamilyOf(_bareAction)==ActionFamily.Pickup);
         if(pickup)
@@ -234,7 +235,7 @@ internal partial class ResidentRig : Node3D
         AdvanceScenePickup(delta,scenePickup,pickup);
         float transfer=Mathf.SmoothStep(0,.16f,gatherPose.Drop);
         var pickupShift=new Vector3(gatherPose.Shift*.019f*transfer,-gatherPose.Drop*(.086f+.010f*Flow),gatherPose.Drop*.019f)*pickupWeight;
-        if(scenePickup)pickupShift=Vector3.Zero;
+        if(scenePickup||_scenePickupBend>0)pickupShift=Vector3.Zero;
         pickupShift+=new Vector3(0,-(.12f+.37f*_scenePickupDepth)*_scenePickupBend,-.055f*_scenePickupBend);
         float vertical=breath*.003f*(1-_activity)*(1-pickupWeight)*(1-restWeight);
         float gaitWeight=_activity*(1-pickupWeight)*(1-restWeight)*(1-.65f*_arrivalWeight*ReachEase(_arrivalTime/(2*LandingDuration)));
@@ -261,7 +262,7 @@ internal partial class ResidentRig : Node3D
         float toolLean=-.035f-(.097f-.041f*Flow)*workBlend-effort;
         float freeLean=-(.033f+.018f*_gaitSpeed)*_activity+.007f*MathF.Sin(_phase*.53f+identityPhase)*(1-_activity);
         float pickupLean=(-.61f+.055f*Flow)*gatherPose.Bend;
-        if(scenePickup)pickupLean=0;
+        if(scenePickup||_scenePickupBend>0)pickupLean=0;
         float groundPlacement=GroundPlacementBody(delta);
         float placementLean=-_floorLean*groundPlacement+(_placingCargo&&!PlacementUsesSurface?-.14f*ReachEase(_placementAge/.52f):0);
         float desiredLean=Mathf.Lerp(Mathf.Lerp(usingTool?toolLean:freeLean,pickupLean,pickupWeight),-.16f,restWeight)
@@ -444,7 +445,7 @@ internal partial class ResidentRig : Node3D
         }
         bool consumeRequested=upperReady&&family==ActionFamily.Consume;
         bool preparingScenePickup=scenePickup&&CompletionVisible&&_scenePickupAge<ScenePickupDuration;
-        bool cargoWanted=!reserved&&(_hasCargo||_placingCargo||_placementPending)&&!toolRequested&&!usingTool&&!ToolHeld&&!ConsumptionOwnsHand
+        bool cargoWanted=!reserved&&!_recoveringPickup&&(_hasCargo||_placingCargo||_placementPending)&&!toolRequested&&!usingTool&&!ToolHeld&&!ConsumptionOwnsHand
             &&!restRequested&&!pickupRequested&&!preparingScenePickup&&!consumeRequested&&_reach==0;
         _cargoBlend=Mathf.MoveToward(_cargoBlend,cargoWanted?1:0,delta/.40f);
         bool bareActive=upperReady&&!usingTool&&!ToolHeld&&_reach==0&&_releaseTime==0&&_socialBlend<=.10f&&UsesBareHands(family)
@@ -473,7 +474,7 @@ internal partial class ResidentRig : Node3D
         var requestedUse=bareActive&&family==ActionFamily.Consume&&consuming&&(!_finishConsumption||!_observedMouthContact)
             ?action:ActionKind.None;
         PoseConsumption(delta,requestedUse,revision);
-        if(_bareBlend>0&&!consuming&&!ConsumptionOwnsHand&&!cargoArms&&!usingTool&&!ToolHeld&&_reach==0)
+        if(_bareBlend>0&&!consuming&&!ConsumptionOwnsHand&&!_recoveringPickup&&!cargoArms&&!usingTool&&!ToolHeld&&_reach==0)
         {
             float cycle=(_bareTime%1.8f)/1.8f;
             float reach=ReachPulse(cycle);
@@ -481,7 +482,7 @@ internal partial class ResidentRig : Node3D
             if(gathering)
             {
                 if(scenePickup)PoseScenePickupHand(delta,pickup);
-                else
+                else if(!_plannedPickup)
                 {
                     float reachWeight=ReachEase(_bareBlend)*Mathf.SmoothStep(.02f,.50f,gatherPose.Reach);
                     var reachPoint=ReachBodyPoint(new(.16f+.023f*gatherPose.Shift,1.00f-.24f*gatherPose.Reach,-.18f-.10f*gatherPose.Reach));
@@ -507,8 +508,9 @@ internal partial class ResidentRig : Node3D
             }
         }
         ApplyMotionReference();
-        PoseHandoff(!ToolHeld&&_reach==0&&_releaseTime==0&&!ConsumptionOwnsHand
+        PoseHandoff(!ToolHeld&&_reach==0&&_releaseTime==0&&!ConsumptionOwnsHand&&!_recoveringPickup
             &&_cargoBlend<=.001f&&_bareBlend==0&&_socialBlend==0&&restWeight<.20f&&groundPlacement<.15f);
+        PosePickupRecovery(delta);
         FinishArmReturns();
         UpdateCarriedObject(delta,cargoWanted);
         // Hand ownership can change in one step. Keep finger flexion

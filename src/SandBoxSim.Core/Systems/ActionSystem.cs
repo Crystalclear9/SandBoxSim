@@ -689,60 +689,53 @@ public sealed class ActionSystem
     /// <summary>取回物资：从地面堆里取自己最缺的东西（食物优先）。</summary>
     private void TickTake(int slot, long tick)
     {
-        GroundStockConfig config = _config.GroundStocks;
-        GroundStockStore stocks = _sim.GroundStocks;
-        Int2 position = _store.HasTarget(slot) ? _store.TargetOf(slot) : new Int2(_store.XOf(slot), _store.YOf(slot));
-
-        float moved = 0f;
-        int pile = stocks.FindAt(position.X, position.Y);
-        for (int kind = (int)ResourceKind.Food; kind <= (int)ResourceKind.Iron; kind++)
+        if (!FindTakeContact(slot, out var contact, out int storageIndex))
         {
-            ResourceKind resource = (ResourceKind)kind;
-            if (_store.InventoryOf(slot, resource) >= config.TakeAmount) { continue; }
-
-            float before = pile >= 0 ? stocks.AmountOf(pile, resource) : 0;
-            float taken = stocks.Withdraw(position.X, position.Y, resource, config.TakeAmount);
-            var surface = ContactSurface.GroundStock;
-            int buildingGeneration = 0;
-
-            // # 地面堆没有就试**仓库**（M8 取粮链的最后一环）
-            //
-            // 这一条原先缺着：`TakeAction.SelectTarget` 已经把目标指向了仓库，
-            // 而**执行阶段仍然只从地面堆取** —— 于是个体走到仓库面前、取不到东西、失败。
-            // 症状就是"瞄准修好了、执行没修"：选靶断言通过，取回量却是 0。
-            //
-            // 这类半成品失效在本项目里出现过不止一次（M4 的 BuildFarm 只注册了 Describe、
-            // M7 的仓库造出来容量却是 0）——**共同特征是"两半之中只做了一半"，
-            // 而两半都可以单独看起来是对的。**
-            if (taken <= 0f && _sim.World.IsInBounds(position.X, position.Y))
-            {
-                int storageIndex = _sim.World.TileAt(position.X, position.Y).BuildingId - 1;
-                if (_sim.Buildings.IsAlive(storageIndex)
-                    && _sim.Buildings.KindOf(storageIndex) == BuildingKind.Storage
-                    && _sim.Buildings.StateOf(storageIndex) == BuildingState.Complete)
-                {
-                    taken = _sim.Storage.Withdraw(storageIndex, resource, config.TakeAmount);
-                    surface = ContactSurface.Storage;
-                    buildingGeneration = _sim.Buildings.GenerationOf(storageIndex);
-                }
-            }
-
-            if (taken <= 0f) { continue; }
-
-            _store.AddInventory(slot, resource, taken);
-            RecordContact(slot, new(position, resource, surface, before, buildingGeneration));
-            moved += taken;
-            break;   // 一次只取一种，避免"一次把所有东西都搬空"
+            Fail(slot, ActionFailReason.TargetGone);
+            return;
         }
-
+        float limit = _config.GroundStocks.TakeAmount;
+        float moved = contact.Surface == ContactSurface.GroundStock
+            ? _sim.GroundStocks.Withdraw(contact.Tile.X, contact.Tile.Y, contact.Resource, limit)
+            : _sim.Storage.Withdraw(storageIndex, contact.Resource, limit);
         if (moved <= 0f)
         {
             Fail(slot, ActionFailReason.TargetGone);
             return;
         }
-
+        _store.AddInventory(slot, contact.Resource, moved);
+        RecordContact(slot, contact);
         TotalTaken += moved;
         Complete(slot, tick);
+    }
+
+    private bool FindTakeContact(int slot, out ActionContact contact, out int storageIndex)
+    {
+        contact = default;
+        storageIndex = -1;
+        float limit = _config.GroundStocks.TakeAmount;
+        Int2 position = ActionTile(slot);
+        if (limit <= 0f) return false;
+        var stocks = _sim.GroundStocks;
+        int pile = stocks.FindAt(position.X, position.Y);
+        int building = _sim.World.IsInBounds(position) ? _sim.World.TileAt(position.X, position.Y).BuildingId - 1 : -1;
+        bool storage = _sim.Buildings.IsAlive(building) && _sim.Buildings.KindOf(building) == BuildingKind.Storage
+            && _sim.Buildings.StateOf(building) == BuildingState.Complete;
+        foreach (ResourceKind resource in ResourceInfo.All)
+        {
+            if (_store.InventoryOf(slot, resource) >= limit) continue;
+            float amount = pile >= 0 ? stocks.AmountOf(pile, resource) : 0;
+            if (amount > 0f)
+            {
+                contact = new(position, resource, ContactSurface.GroundStock, amount);
+                return true;
+            }
+            if (!storage || _sim.Storage.AmountOf(building, resource) <= 0f) continue;
+            storageIndex = building;
+            contact = new(position, resource, ContactSurface.Storage, BuildingGeneration: _sim.Buildings.GenerationOf(building));
+            return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -979,6 +972,24 @@ public sealed class ActionSystem
 
     private void RecordContact(int slot, ActionContact contact)
         => _completedContacts[slot] = (_store.RefOf(slot), _store.ActionRevisionOf(slot), contact);
+
+    private Int2 ActionTile(int slot)
+        => _store.HasTarget(slot) ? _store.TargetOf(slot) : new(_store.XOf(slot), _store.YOf(slot));
+
+    /// <summary>Read-only reach candidate. Only execution can confirm a pickup.</summary>
+    public bool TryGetPickupCandidate(int slot, out ActionContact contact)
+    {
+        contact = default;
+        if (!_store.IsSlotAlive(slot) || _store.PhaseOf(slot) != ActionPhase.Executing) return false;
+        if (_store.ActionOf(slot) == ActionKind.Take) return FindTakeContact(slot, out contact, out _);
+        if (_store.ActionOf(slot) != ActionKind.GatherFood) return false;
+        var tile = ActionTile(slot);
+        if (!_sim.World.IsInBounds(tile)) return false;
+        var resource = _sim.World.TileAt(tile.X, tile.Y).Resource;
+        if (resource.Kind != ResourceKind.Food || resource.Amount <= 0f) return false;
+        contact = new(tile, ResourceKind.Food, ContactSurface.NaturalResource);
+        return true;
+    }
 
     /// <summary>The site that supplied or received the resource on this completed action. Not saved.</summary>
     public bool TryGetCompletedContact(int slot, out ActionContact contact)

@@ -7,14 +7,20 @@ internal partial class ResidentRig
     private const float ScenePickupDuration=2.25f;
     private Vector3? _sceneContact;
     private float _scenePickupAge,_scenePickupContact,_scenePickupBend,_scenePickupDepth;
-    private bool _scenePickupGrasped;
+    private bool _scenePickupGrasped,_scenePickupConfirmed,_plannedPickup;
+    private bool _recoveringPickup;
+    private float _pickupRecoveryAge;
+    private Vector3 _pickupRecoveryStart;
     private MeshInstance3D? _pickupPiece;
     private Mesh? _pickupPieceMesh;
     private bool _pickupSourceVisible;
     private Transform3D _pickupPieceInHand;
     internal bool ScenePickupGrasped=>_scenePickupGrasped;
     internal bool ScenePickupPieceVisible=>_pickupPiece?.Visible==true;
-    private string ScenePickupHandling=>!_sceneContact.HasValue?"弯身取物":_scenePickupGrasped?"握稳 / 抬起":"伸手接近物件";
+    internal Transform3D? ScenePickupPiecePose=>ScenePickupPieceVisible?RigWorldSpace*_pickupPiece!.Transform:null;
+    internal bool RecoveringPickup=>_recoveringPickup;
+    private string ScenePickupHandling=>!_sceneContact.HasValue?"弯身取物":_scenePickupGrasped?"握稳 / 抬起"
+        :!_scenePickupConfirmed&&_scenePickupAge>=.80f?"手已就位 / 等待取用":"伸手接近物件";
 
     internal void SetPickupPiece(Mesh? mesh,bool sourceVisible)
     {
@@ -22,18 +28,25 @@ internal partial class ResidentRig
         _pickupSourceVisible=sourceVisible;
     }
 
-    private void ResetScenePickup()
+    private void ResetScenePickup(bool discard=false)
     {
+        if(discard){_recoveringPickup=false;_plannedPickup=false;}
+        else if(!_recoveringPickup&&_scenePickupGrasped&&ScenePickupPieceVisible)
+        {
+            _recoveringPickup=true;
+            _pickupRecoveryAge=0;
+            _pickupRecoveryStart=RigWorldSpace.AffineInverse()*(HandWorldPose(1)*Grip!.Position);
+        }
         _scenePickupAge=_scenePickupContact=0;
         _scenePickupGrasped=false;
-        if(_pickupPiece!=null)_pickupPiece.Visible=false;
+        if(!_recoveringPickup&&_pickupPiece!=null)_pickupPiece.Visible=false;
     }
 
     private void AdvanceScenePickup(float delta,bool active,bool reaching)
     {
         if(active&&reaching)
         {
-            _scenePickupAge+=delta;
+            _scenePickupAge=_scenePickupConfirmed?_scenePickupAge+delta:Mathf.Min(_scenePickupAge+delta,.93f);
             _scenePickupBend=ReachEase(_scenePickupAge/.76f)*(1-ReachEase((_scenePickupAge-1.18f)/.96f));
             float height=(RigWorldSpace.AffineInverse()*_sceneContact!.Value).Y;
             _scenePickupDepth=Mathf.Clamp((.69f-height)/.60f,0,1);
@@ -56,7 +69,7 @@ internal partial class ResidentRig
         float reach=ReachEase(_scenePickupAge/.58f)*(1-ReachEase((_scenePickupAge-1.81f)/.49f))*ReachEase(_bareBlend);
         var palm=Torso.Basis.Inverse()*new Basis(Vector3.Right,.55f*(1-lift));
         BlendBareHand(1,reachPoint,palm,reach,eased:true);
-        if(!reaching||_scenePickupGrasped||_scenePickupAge<.62f||_scenePickupAge>1.37f)return;
+        if(!reaching||!_scenePickupConfirmed||_scenePickupGrasped||_scenePickupAge<.62f||_scenePickupAge>1.37f)return;
         bool touching=(HandWorldPose(1)*Grip!.Position).DistanceSquaredTo(site)<.055f*.055f;
         _scenePickupContact=touching?_scenePickupContact+delta:0;
         _scenePickupGrasped=_scenePickupContact>=.045f;
@@ -66,8 +79,32 @@ internal partial class ResidentRig
     private float ScenePickupCurl=>_scenePickupGrasped?.72f
         :Mathf.Lerp(.12f,.37f,Mathf.Clamp(_scenePickupContact/.045f,0,1));
 
+    private void PosePickupRecovery(float delta)
+    {
+        if(!_recoveringPickup)return;
+        _pickupRecoveryAge+=delta;
+        var pocket=ReachBodyPoint(new Vector3(.22f,.84f,-.23f));
+        var actor=RigWorldSpace;
+        var chest=actor*Torso.Transform;
+        var start=chest.AffineInverse()*(actor*_pickupRecoveryStart);
+        var target=start.Lerp(pocket,ReachEase(_pickupRecoveryAge/.55f));
+        BlendBareHand(1,target,Basis.FromEuler(new(.67f,0,.13f)),1,eased:true);
+        float gap=(HandWorldPose(1)*Grip!.Position).DistanceTo(chest*pocket);
+        CurlHand(1,.72f);
+        if(_pickupRecoveryAge>=.48f&&gap<.052f||_pickupRecoveryAge>=.96f)
+        {
+            _recoveringPickup=false;
+            if(_pickupPiece!=null)_pickupPiece.Visible=false;
+        }
+    }
+
     private void PresentPickupPiece(bool pickup)
     {
+        if(_recoveringPickup)
+        {
+            _pickupPiece!.Transform=RigWorldSpace.AffineInverse()*(HandWorldPose(1)*_pickupPieceInHand);
+            return;
+        }
         if(!pickup||_pickupPieceMesh==null||!_sceneContact.HasValue||!CompletionVisible
             ||_scenePickupAge>=2.04f||_pickupSourceVisible&&!_scenePickupGrasped)
         {

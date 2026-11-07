@@ -460,7 +460,7 @@ public partial class WorldView3D : MapView
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="wet-bank-mosaic-v7",["sceneryContact"]="solid-scenery-corridors-v3",["habitatDetail"]="responsive-understory-v12",["vegetationSurface"]="engine-faced-v2",
             ["architecture"]="inset-joinery-v13",["garmentMaterial"]="quiet-linen-v18",["trouserSkin"]="guided-knee-v1",["upperArmFlex"]="stable-contour-v3",["shoulderSkin"]="reference-figure-v25",["shoulderMotion"]="source-clavicle-v11",["motionReference"]="cmu-143-30-v1",["shoulderSurface"]="authored-bind-surface-v3",["forearmSkin"]="continuous-elbow-v9",["sleeveFairing"]="rest-detail-v2",["workPose"]="raised-hammer-v1",["reachMotion"]="palm-trajectory-v2",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
-            ["animalPresentation"]="articulated-paws-v12",["animalLocomotion"]="ground-distance-v1",["residentSurface"]="linear-skin-v9",["workEffort"]="overlapping-weight-transfer-v7",["toolMotion"]="socket-relative-stow-v5",["bodySupport"]="planted-spatial-v3",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="scene-contact-v14",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="captured-conversation-v10",["waterSurface"]="shore-activity-v7",["wristContour"]="continuous-source-v2",
+            ["animalPresentation"]="articulated-paws-v12",["animalLocomotion"]="ground-distance-v1",["residentSurface"]="linear-skin-v9",["workEffort"]="overlapping-weight-transfer-v7",["toolMotion"]="socket-relative-stow-v5",["bodySupport"]="planted-spatial-v3",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="intent-recovery-v15",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="captured-conversation-v10",["waterSurface"]="shore-activity-v7",["wristContour"]="continuous-source-v2",
             ["hairline"]="framed-source-root-v2",["femaleGroom"]="scalp-guided-plait-v1",["garmentFit"]="continuous-drape-v35",["reedPanicle"]="connected-axis-v1",["bodyPresentation"]="continuous-drape-v29",["bodyFrame"]="reference-contour-physique-v31",["femaleBodyBuild"]="regional-builds-v1",["femaleRearShoulder"]="diffused-yoke-v2",["femaleLowerPanel"]="supported-fall-v1",["neckContour"]="relaxed-neckline-v7",["faceContour"]="balanced-adult-v3",["forearmProfile"]="curvature-flow-v9",["residentLocomotion"]="captured-boot-rockers-v9",["gaitReference"]=ResidentGaitCapture.Version,["actionReference"]=ResidentActionCapture.Version,["armSwing"]="captured-spatial-swing-v8",["motionStyle"]="captured-standing-and-stride-v7",["limbCoordination"]="hinge-carry-v4" };
         quality["taskReference"]=ResidentActionCapture.TaskVersion;
         quality["toolContacts"]="furrow-edge-and-work-stance-v1";
@@ -871,8 +871,11 @@ public partial class WorldView3D : MapView
             Vector3? sceneContact=null;
             ResourceKind contactResource=ResourceKind.None;
             ActionSystem.ActionContact site=default;
-            bool contactEligible=node.ContinuesCompletedAction(action,actionRevision);
-            if(contactEligible&&sim.Actions.TryGetCompletedContact(slot,out site)
+            bool candidate=phase==ActionPhase.Executing&&(action is ActionKind.Take or ActionKind.GatherFood)
+                &&sim.Actions.TryGetPickupCandidate(slot,out site);
+            bool resolvedSite=candidate||phase==ActionPhase.Done&&node.ContinuesCompletedAction(action,actionRevision)
+                &&sim.Actions.TryGetCompletedContact(slot,out site);
+            if(resolvedSite
                 &&TryActionContact(node,action,site,target,out var contact,out var stand))
             {
                 sceneContact=contact;contactResource=site.Resource;target=stand;interest=site.Tile;
@@ -1004,9 +1007,14 @@ public partial class WorldView3D : MapView
             float lateralDistance=paced?direction.X*MathF.Cos(yaw)-direction.Z*MathF.Sin(yaw):0;
             node.ObserveLocomotion(direction,delta,headingError,paused,remaining,paced?node.Scale.X:1,anticipatoryTurn,lateralDistance);
             node.UpdateDistanceDetail(distanceSquared);
+            var targetTile=hasTarget||sceneContact.HasValue?new Vector2I(interest.X,interest.Y):(Vector2I?)null;
+            var interactionTarget=new ResidentRig.InteractionTarget(targetTile,partnerIdentity,
+                sceneContact.HasValue&&(action is ActionKind.Take or ActionKind.GatherFood)?site with {StockAmount=0}:null);
+            var cue=new PoseCue(action,phase,actionRevision,interactionTarget,true);
             var facingDirection=Horizontal(interestPoint-rendered);
-            bool aligned=!aimsAtTarget||!interacting||!hasInterest||InteractionFacingAligned(yaw,facingDirection);
-            var cue=new PoseCue(action,phase,actionRevision,hasTarget||sceneContact.HasValue?new Vector2I(interest.X,interest.Y):null,partnerIdentity,aligned);
+            bool aligned=!aimsAtTarget||!interacting||!hasInterest||InteractionFacingAligned(yaw,facingDirection,
+                _poseSchedule.RetainsFacing(pair.Key,cue));
+            cue=cue with {Aligned=aligned};
             bool changed=_poseSchedule.Observe(pair.Key,cue,delta,!paused);
             if(paused||!changed&&(_poseFrame+slot)%stride!=0)continue;
             var cargoKind=ResourceKind.Food;float cargoAmount=0;
@@ -1034,7 +1042,8 @@ public partial class WorldView3D : MapView
                 node.SetPickupPiece(_models.GroundPickupPiece(site.Resource,NatureModels.GroundPileTier(site.StockAmount)),sourceVisible);
             }
             else node.SetPickupPiece(null,false);
-            node.PresentAction(_poseSchedule.Consume(pair.Key),action,phase,false,slot,actionRevision,hasPartner&&action!=ActionKind.ShareFood,aligned,sceneContact,contactResource);
+            node.PresentAction(_poseSchedule.Consume(pair.Key),action,phase,false,slot,actionRevision,
+                hasPartner&&action!=ActionKind.ShareFood,aligned,sceneContact,contactResource,interactionTarget);
             if(distanceSquared<18*18)
             {
                 if(!paused)ConformFeet(node);
@@ -1048,8 +1057,8 @@ public partial class WorldView3D : MapView
         EndVegetationContacts();EndWaterContacts();
     }
     private static float HeadingYaw(Vector2 direction)=>MathF.Atan2(direction.X,direction.Y)+MathF.PI;
-    private static bool InteractionFacingAligned(float yaw,Vector2 direction)
-        =>direction.LengthSquared()<=.15f*.15f||MathF.Abs(Mathf.AngleDifference(yaw,HeadingYaw(direction)))<=.40f;
+    private static bool InteractionFacingAligned(float yaw,Vector2 direction,bool previouslyAligned=false)
+        =>direction.LengthSquared()<=.15f*.15f||MathF.Abs(Mathf.AngleDifference(yaw,HeadingYaw(direction)))<=(previouslyAligned?.53f:.40f);
     private static float TurnResident(float from,float to,float delta,float rate)
         =>from+Math.Clamp(Mathf.AngleDifference(from,to),-rate*delta,rate*delta);
     private void MoveAnimal(AnimalRig node, Vector3 target, float delta,ActionKind action=ActionKind.None)

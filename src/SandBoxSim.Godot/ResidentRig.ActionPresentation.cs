@@ -2,6 +2,7 @@ using System;
 using Godot;
 using SandBoxSim.Core.Agents;
 using SandBoxSim.Core.Environment;
+using SandBoxSim.Core.Systems;
 
 namespace SandBoxSim.Client;
 
@@ -32,6 +33,9 @@ internal partial class ResidentRig
     private uint? _observedRevision;
     private float _observedExecution,_completionRemaining,_completionAge;
     private bool _finishConsumption,_observedMouthContact;
+    internal readonly record struct InteractionTarget(Vector2I? Tile,long Partner,ActionSystem.ActionContact? Pickup);
+    private InteractionTarget _interactionTarget;
+    private float _retargetSettle;
     public bool CompletionVisible=>_finishConsumption||_completionRemaining>0||_placingCargo||_placementPending;
 
     internal bool ContinuesCompletedAction(ActionKind action,uint revision)
@@ -48,26 +52,43 @@ internal partial class ResidentRig
         _finishConsumption=_observedMouthContact=false;
         ClearConsumption();
         ClearTransientCargo();
+        _interactionTarget=default;_retargetSettle=0;
         _sceneContact=null;
-        ResetScenePickup();_scenePickupBend=0;
+        ResetScenePickup(discard:true);_scenePickupBend=0;
     }
 
     public void PresentAction(float delta,ActionKind action,ActionPhase phase,bool paused,float identityPhase,uint? revision=null,bool hasPartner=true,bool targetAligned=true,
-        Vector3? sceneContact=null,ResourceKind contactResource=ResourceKind.None)
+        Vector3? sceneContact=null,ResourceKind contactResource=ResourceKind.None,InteractionTarget target=default)
     {
         if(paused)return;
         bool firstSnapshot=revision.HasValue&&!_observedRevision.HasValue;
         bool newRun=action!=_observedAction||revision!=_observedRevision
             ||phase==ActionPhase.Moving&&_observedPhase!=ActionPhase.Moving
             ||phase==ActionPhase.Executing&&_observedPhase is ActionPhase.Done or ActionPhase.Idle or ActionPhase.Failed;
+        bool sameExecution=!newRun&&_observedPhase==ActionPhase.Executing&&phase is ActionPhase.Executing or ActionPhase.Done;
+        bool changedPartner=RequiresPartner(action)&&target.Partner!=_interactionTarget.Partner;
+        bool changedTile=target.Tile.HasValue&&_interactionTarget.Tile.HasValue&&target.Tile!=_interactionTarget.Tile;
+        bool changedPickup=target.Pickup!=_interactionTarget.Pickup;
+        bool retargeted=sameExecution&&(changedPartner||changedTile||changedPickup);
+        if(newRun)_retargetSettle=0;
+        if(retargeted)
+        {
+            _retargetSettle=.13f;
+            _observedExecution=0;
+        }
         if(newRun||phase!=ActionPhase.Done){_completionRemaining=0;_finishConsumption=false;}
         if(newRun){_observedExecution=0;_observedMouthContact=false;}
         bool partnerAction=RequiresPartner(action);
         if(partnerAction&&!hasPartner)_completionRemaining=0;
         bool newlyDone=!firstSnapshot&&phase==ActionPhase.Done&&(newRun||_observedPhase!=ActionPhase.Done);
-        if(newRun||!_sceneContact.HasValue&&sceneContact.HasValue||phase!=ActionPhase.Done)
+        var nextContact=phase==ActionPhase.Done&&!firstSnapshot||phase==ActionPhase.Executing&&target.Pickup.HasValue?sceneContact:null;
+        if(newRun||changedPickup||_sceneContact.HasValue!=nextContact.HasValue)
             ResetScenePickup();
-        _sceneContact=phase==ActionPhase.Done&&!firstSnapshot?sceneContact:null;
+        if(newRun)_plannedPickup=false;
+        _plannedPickup|=target.Pickup.HasValue;
+        _sceneContact=nextContact;
+        _scenePickupConfirmed=phase==ActionPhase.Done;
+        _interactionTarget=target;
         ObserveCargoPlacement(action,phase,newlyDone,newRun,contactResource);
         var family=FamilyOf(action);
         if(newlyDone&&family==ActionFamily.Consume)
@@ -101,6 +122,8 @@ internal partial class ResidentRig
 
     private void PresentActionStep(float delta,ActionKind action,ActionPhase phase,float identityPhase,bool targetAligned)
     {
+        _retargetSettle=MathF.Max(0,_retargetSettle-delta);
+        targetAligned&=_retargetSettle<=0;
         AdvancePendingPlacement(delta,targetAligned);
         bool finishing=_completionRemaining>0;
         var displayed=DisplayedPhase(phase);

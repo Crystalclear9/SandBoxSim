@@ -13,6 +13,7 @@ internal sealed partial class NatureModels
         ValidateObservedActionHandoffs();
         ValidateConsumptionInterrupts();
         ValidateContactBoundaries();
+        ValidateActionRetarget();
         ValidatePartnerLoss();
         ValidateSharedParcel();
         var actions=Enum.GetValues<ActionKind>();
@@ -129,6 +130,35 @@ internal sealed partial class NatureModels
         }
         if(contactTransfers<20||visibleLoads<100)throw new InvalidOperationException("Interaction checks did not exercise contact changes and carried loads");
         GD.Print($"INTERACTION_SEQUENCE_PASS: two adult frames, all {actions.Length} action kinds, rendered arrival, {contactTransfers} contact ownership changes, {visibleLoads} supported load frames, resource replacement, short completion, cancellation and pause");
+    }
+
+    private void ValidateActionRetarget()
+    {
+        const float delta=1f/60;
+        foreach(int identity in new[]{17,55})
+        {
+            var rig=Resident(identity,false,JobType.None);
+            try
+            {
+                var old=new ResidentRig.InteractionTarget(null,11,null);
+                var next=old with {Partner=21};
+                for(int i=0;i<240;i++)rig.PresentAction(delta,ActionKind.Socialize,ActionPhase.Executing,false,0,8,target:old);
+                if(!rig.GestureEngaged(ActionKind.Socialize))throw new InvalidOperationException("Social retarget fixture did not engage its first partner");
+                var before=rig.HandWorldPose(1).Origin;
+                for(int i=0;i<6;i++)
+                {
+                    rig.PresentAction(delta,ActionKind.Socialize,ActionPhase.Executing,false,0,8,target:next);
+                    if(rig.GestureEngaged(ActionKind.Socialize))throw new InvalidOperationException("A different partner inherits an active gesture");
+                    var after=rig.HandWorldPose(1).Origin;
+                    if(before.DistanceTo(after)>.035f)throw new InvalidOperationException("Retarget snaps the outgoing hand");
+                    before=after;
+                }
+                for(int i=0;i<120;i++)rig.PresentAction(delta,ActionKind.Socialize,ActionPhase.Executing,false,0,8,target:next);
+                if(!rig.GestureEngaged(ActionKind.Socialize))throw new InvalidOperationException("Social contact does not recover on the new partner");
+            }
+            finally{rig.Free();}
+        }
+        GD.Print("INTERACTION_RETARGET_PASS: both adult rigs release a superseded social target with bounded wrist movement and engage the new target");
     }
 
     private void ValidateSharedParcel()

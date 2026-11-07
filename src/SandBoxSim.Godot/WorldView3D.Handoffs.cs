@@ -6,7 +6,7 @@ namespace SandBoxSim.Client;
 
 public partial class WorldView3D
 {
-    private sealed record SceneHandoff(long Giver,long Receiver,Vector2I GiverTile,Vector2I ReceiverTile,
+    private sealed record SceneHandoff(long Giver,long Receiver,uint Revision,Vector2I GiverTile,Vector2I ReceiverTile,
         Vector3 GiverStand,Vector3 ReceiverStand,ResidentHandoff Motion);
     private readonly List<SceneHandoff> _residentHandoffs=new();
 
@@ -56,14 +56,18 @@ public partial class WorldView3D
         for(int i=_residentHandoffs.Count-1;i>=0;i--)
         {
             var pair=_residentHandoffs[i];
+            int giverSlot=unchecked((int)pair.Giver),receiverSlot=unchecked((int)pair.Receiver);
             if(!TrySceneResident(pair.Giver,out var giver)||!TrySceneResident(pair.Receiver,out var receiver)
                 ||!giver.Visible||!receiver.Visible||giver.Position.DistanceSquaredTo(camera)>22*22
                 ||receiver.Position.DistanceSquaredTo(camera)>22*22)
             {
                 pair.Motion.Cancel();
             }
-            else if(!CanJoinHandoff(unchecked((int)pair.Giver))||!CanJoinHandoff(unchecked((int)pair.Receiver))
-                ||HandoffTile(unchecked((int)pair.Giver))!=pair.GiverTile||HandoffTile(unchecked((int)pair.Receiver))!=pair.ReceiverTile)
+            else if(agents.ActionOf(giverSlot)!=ActionKind.ShareFood||agents.ActionRevisionOf(giverSlot)!=pair.Revision
+                ||!CanJoinHandoff(giverSlot)||!CanJoinHandoff(receiverSlot)
+                ||HandoffTile(giverSlot)!=pair.GiverTile||HandoffTile(receiverSlot)!=pair.ReceiverTile
+                ||pair.Motion.UsesMeeting&&(!ValidHandoffStand(giver.Position,pair.GiverStand)
+                    ||!ValidHandoffStand(receiver.Position,pair.ReceiverStand)||!ScenerySegmentClear(pair.GiverStand,pair.ReceiverStand)))
             {
                 pair.Motion.Interrupt();
             }
@@ -78,14 +82,14 @@ public partial class WorldView3D
             if(!agents.IsSlotAlive(slot)||sim.Society.Identity(slot)!=identity
                 ||agents.ActionOf(slot)!=ActionKind.ShareFood||agents.PhaseOf(slot)!=ActionPhase.Done)continue;
             uint revision=agents.ActionRevisionOf(slot);
-            if(giver.LastSharePresentation==revision)continue;
+            if(giver.LastSharePresentation==revision||giver.HandoffReserved||giver.RecoveringPickup)continue;
             giver.LastSharePresentation=revision;
-            if(giver.HandoffReserved||giver.IsChild||!giver.Visible||giver.Position.DistanceSquaredTo(camera)>18*18
+            if(giver.IsChild||!giver.Visible||giver.Position.DistanceSquaredTo(camera)>18*18
                 ||!sim.Actions.TryGetPresentationPartner(slot,out int other)||!CanJoinHandoff(other))continue;
             long receiverId=sim.Society.Identity(other);
             if(!TrySceneResident(receiverId,out var receiver)||receiver.HandoffReserved||receiver.IsChild||!receiver.Visible
                 ||receiver.Position.DistanceSquaredTo(camera)>18*18||!HandoffStands(giver,receiver,out var give,out var take))continue;
-            _residentHandoffs.Add(new(identity,receiverId,HandoffTile(slot),HandoffTile(other),give,take,new(giver,receiver)));
+            _residentHandoffs.Add(new(identity,receiverId,revision,HandoffTile(slot),HandoffTile(other),give,take,new(giver,receiver)));
             if(_residentHandoffs.Count>=4)break;
         }
     }

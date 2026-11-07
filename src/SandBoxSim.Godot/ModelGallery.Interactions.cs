@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Godot;
 using SandBoxSim.Core.Agents;
 using SandBoxSim.Core.Environment;
+using SandBoxSim.Core.Systems;
 
 namespace SandBoxSim.Client;
 
@@ -63,6 +64,7 @@ internal partial class ModelGallery
             ActionKind action;ActionPhase phase;uint? revision=null;bool aligned=true;
             Vector3? contact=null;
             var resource=ResourceKind.None;
+            ResidentRig.InteractionTarget focus=default;
             if(sequence==0)
             {
                 // Take a real return walk so the loop never snaps the root.
@@ -84,16 +86,17 @@ internal partial class ModelGallery
                 aligned=!pickup||MathF.Abs(Mathf.AngleDifference(yaw,StudyPickupYaw))<=.40f;
                 rig.ObserveLocomotion(rig.Position-previous,dt,0,false,remaining);
                 bool placement=t>=11.05f&&t<15.4f;
-                bool collected=t>=2.25f&&t<12.60f;
+                bool collected=t>=3.78f&&t<12.60f;
                 rig.ShowCargo(collected,ResourceKind.Stone);
                 action=outbound||returning?ActionKind.Wander:pickup?ActionKind.Take:placement?ActionKind.Deposit:ActionKind.None;
                 phase=outbound||returning?ActionPhase.Moving:pickup&&!collected||placement&&collected?ActionPhase.Executing:
                     pickup||placement?ActionPhase.Done:ActionPhase.Idle;
                 revision=outbound?1u:pickup?2u:returning?4u:placement?6u:t<7.25f?3u:5u;
-                if(phase==ActionPhase.Done)
+                if(pickup||phase==ActionPhase.Done)
                 {
                     resource=ResourceKind.Stone;
                     contact=pickup?stock!.Position+NatureModels.GroundPileGrip(resource,0):new Vector3(0,0,-.35f);
+                    if(pickup)focus=new(Vector2I.Zero,0,new ActionSystem.ActionContact(new(0,0),resource,ActionSystem.ContactSurface.GroundStock));
                 }
                 rig.SetPickupPiece(pickup?piece:null,true);
             }
@@ -104,7 +107,7 @@ internal partial class ModelGallery
                 revision=t<2.4f?1u:t<4.8f?2u:t<7.75f?3u:t<10.3f?4u:t<13.25f?5u:t<15.1f?6u:7u;
                 phase=revision==3?ActionPhase.Done:t<15.1f?ActionPhase.Executing:ActionPhase.Moving;
             }
-            rig.PresentAction(dt,action,phase,false,0,revision,targetAligned:aligned,sceneContact:contact,contactResource:resource);
+            rig.PresentAction(dt,action,phase,false,0,revision,targetAligned:aligned,sceneContact:contact,contactResource:resource,target:focus);
             if(sequence==0)
             {
                 stock!.Visible=t<5.30f&&!rig.ScenePickupGrasped;

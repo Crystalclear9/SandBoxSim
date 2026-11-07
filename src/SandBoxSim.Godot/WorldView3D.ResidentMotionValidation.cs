@@ -124,6 +124,20 @@ public partial class WorldView3D
         sim.GroundStocks.Deposit(tile.X,tile.Y,ResourceKind.Stone,amount,sim.Config.GroundStocks);
         agents.SetAction(slot,ActionKind.Take,ActionPhase.Executing);
         agents.SetTarget(slot,tile.X,tile.Y);
+        string pending=sim.StateDigestString();
+        if(!sim.Actions.TryGetPickupCandidate(slot,out var planned)
+            ||!TryActionContact(rig,ActionKind.Take,planned,logical,out var plannedPoint,out _))
+            throw new InvalidOperationException("World pickup cannot prepare at the actual stock");
+        float preparedGap=float.PositiveInfinity;
+        for(int i=0;i<240;i++)
+        {
+            AnimateActors(delta);
+            if(rig.ScenePickupGrasped||rig.ScenePickupPieceVisible||rig.CargoMesh.Visible)
+                throw new InvalidOperationException("Pending pickup shows an accepted object before simulation confirmation");
+            preparedGap=Math.Min(preparedGap,(rig.HandWorldPose(1)*rig.Grip!.Position).DistanceTo(plannedPoint));
+        }
+        if(preparedGap>.085f||sim.StateDigestString()!=pending)
+            throw new InvalidOperationException($"World pickup preparation misses its candidate: {preparedGap:F3} m");
         sim.Actions.Tick(sim.Clock);
         if(agents.HasTarget(slot)||!sim.Actions.TryGetCompletedContact(slot,out var taken)
             ||taken.Surface!=ActionSystem.ContactSurface.GroundStock||taken.Resource!=ResourceKind.Stone||taken.StockAmount!=amount
@@ -132,7 +146,7 @@ public partial class WorldView3D
         string committed=sim.StateDigestString();
         float nearest=float.PositiveInfinity;
         bool grasped=false,carrying=false;
-        int supportedLiftFrames=0;
+        int supportedLiftFrames=0,confirmationFrames=-1;
         for(int i=0;i<430;i++)
         {
             AnimateActors(delta);
@@ -140,12 +154,13 @@ public partial class WorldView3D
             nearest=Math.Min(nearest,distance);
             if(rig.ScenePickupGrasped&&!grasped&&(!rig.InteractionSettled||distance>.067f))
                 throw new InvalidOperationException($"Ground grasp registered before supported contact: {distance:F3} m");
+            if(rig.ScenePickupGrasped&&!grasped)confirmationFrames=i;
             grasped|=rig.ScenePickupGrasped;
             if(grasped&&rig.ScenePickupPieceVisible)supportedLiftFrames++;
             if(rig.CargoMesh.Visible&&!grasped)throw new InvalidOperationException("New cargo appeared before the pickup hand reached the stock");
             carrying|=rig.CargoMesh.Visible;
         }
-        if(!grasped||!carrying||supportedLiftFrames<12||sim.StateDigestString()!=committed)
+        if(!grasped||!carrying||supportedLiftFrames<12||confirmationFrames>22||sim.StateDigestString()!=committed)
             throw new InvalidOperationException($"World pickup failed: contact={nearest:F3} m, lift={supportedLiftFrames} frames, carrying={carrying}, stance={rig.Position.DistanceTo(stand):F3} m");
 
         agents.SetAction(slot,ActionKind.Deposit,ActionPhase.Executing);
@@ -232,6 +247,60 @@ public partial class WorldView3D
         if(crateRelease>.078f||!remainingCargoVisible||sim.StateDigestString()!=committed)
             throw new InvalidOperationException($"World warehouse release missed its crate: gap={crateRelease:F3} m, closest={closestCrate:F3} m ({closestOffset:F3}) in {cratePlacementFrames} frames, stance={rig.Position.DistanceTo(crateStand):F3} m, remainder visible={remainingCargoVisible}");
         GD.Print($"WORLD_STOCK_CONTACT_PASS: palm {nearest:F3} m from depleted stock, releases {release:F3} m from pile and {crateRelease:F3} m from crate, partial cargo recovers, presentation is read-only");
+        ValidateInterruptedPickup(rig,slot,tile,logical,delta);
+        GD.Print($"WORLD_PICKUP_INTENT_PASS: candidate reached within {preparedGap:F3} m, confirmed after {confirmationFrames} frames without a second reach");
+    }
+
+    private void ValidateInterruptedPickup(ResidentRig rig,int slot,Vector2I tile,Vector3 logical,float delta)
+    {
+        var sim=Game.Sim;var agents=sim.Agents;
+        foreach(var kind in ResidentRig.CargoKinds)agents.SetInventory(slot,kind,0);
+        agents.SetPosition(slot,tile.X,tile.Y);
+        agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
+        rig.Position=logical;_target=logical;UpdateCamera();
+        for(int i=0;i<150;i++)AnimateActors(delta);
+        agents.SetAction(slot,ActionKind.Take,ActionPhase.Executing);
+        agents.SetTarget(slot,tile.X,tile.Y);
+        for(int i=0;i<230;i++)AnimateActors(delta);
+        if(!rig.GestureEngaged(ActionKind.Take)||rig.ScenePickupGrasped)
+            throw new InvalidOperationException("Lost-source fixture did not prepare its original reach");
+        float removed=sim.GroundStocks.Withdraw(tile.X,tile.Y,ResourceKind.Stone,float.MaxValue);
+        string lost=sim.StateDigestString();
+        for(int i=0;i<45;i++)
+        {
+            AnimateActors(delta);
+            if(rig.GestureEngaged(ActionKind.Take)||rig.ScenePickupGrasped||rig.ScenePickupPieceVisible)
+                throw new InvalidOperationException("Resident keeps reaching for depleted stock");
+        }
+        if(removed<=0||sim.StateDigestString()!=lost)throw new InvalidOperationException("Source loss was not a read-only presentation change");
+        sim.GroundStocks.Deposit(tile.X,tile.Y,ResourceKind.Stone,removed,sim.Config.GroundStocks);
+        sim.Actions.Tick(sim.Clock);
+        for(int i=0;i<290&&!rig.ScenePickupGrasped;i++)AnimateActors(delta);
+        if(!rig.ScenePickupGrasped||!rig.ScenePickupPieceVisible||rig.ScenePickupPiecePose is not {} before)
+            throw new InvalidOperationException("Interruption fixture did not reach the held-object stage");
+
+        agents.SetAction(slot,ActionKind.Flee,ActionPhase.Moving);
+        agents.SetPosition(slot,tile.X+1,tile.Y);
+        agents.ClearTarget(slot);
+        string committed=sim.StateDigestString();
+        AnimateActors(delta);
+        var after=rig.ScenePickupPiecePose;
+        float firstStep=after.HasValue?before.Origin.DistanceTo(after.Value.Origin):float.PositiveInfinity;
+        if(!rig.RecoveringPickup||firstStep>.040f)
+            throw new InvalidOperationException($"Interrupted pickup lost the object or jumped {firstStep:F3} m (recovery={rig.RecoveringPickup}, visible={rig.Visible})");
+        int held=0;
+        float travel=0,step=0;
+        var start=rig.Position;
+        for(int i=0;i<90;i++)
+        {
+            AnimateActors(delta);
+            if(rig.ScenePickupPiecePose is not {} current)continue;
+            held++;travel=Math.Max(travel,Horizontal(rig.Position-start).Length());
+            step=Math.Max(step,current.Origin.DistanceTo(after!.Value.Origin));after=current;
+        }
+        if(held<20||travel<.03f||step>.060f||rig.RecoveringPickup||rig.ScenePickupPieceVisible||sim.StateDigestString()!=committed)
+            throw new InvalidOperationException($"Pickup recovery loses continuity: held={held}, travel={travel:F3}, step={step:F3}");
+        GD.Print($"WORLD_PICKUP_INTERRUPT_PASS: abandoned depleted source, kept confirmed object for {held} departure frames, max step {step:F3} m, no stale object or simulation write");
     }
 
     private void ValidateSceneHandoff(Vector2I giverTile,Vector2I receiverTile,float delta)
@@ -300,6 +369,28 @@ public partial class WorldView3D
             ||_residentHandoffs.Count!=0||sim.StateDigestString()!=committed)
             throw new InvalidOperationException($"World handoff misses approach, transfer or one-shot cleanup: distance={approach}, frames={parcelFrames}, transferred={motion?.Transferred}");
         GD.Print($"WORLD_HANDOFF_PASS: committed adjacent-tile recipient, {approach:F3} m visual approach, {parcelFrames} supported frames, obstruction rejected and read-only playback");
+
+        agents.SetInventory(giverSlot,ResourceKind.Food,sim.Config.Relationship.ShareFoodAmount);
+        agents.SetHunger(receiverSlot,.92f);
+        agents.SetAction(giverSlot,ActionKind.ShareFood,ActionPhase.Executing);
+        sim.Actions.Tick(sim.Clock);
+        ResidentHandoff? outgoing=null;
+        for(int i=0;i<360;i++)
+        {
+            AnimateActors(delta);
+            if(_residentHandoffs.Count==0||!_residentHandoffs[0].Motion.ParcelVisible)continue;
+            outgoing=_residentHandoffs[0].Motion;
+            break;
+        }
+        if(outgoing==null||outgoing.Transferred)throw new InvalidOperationException("Handoff revision fixture did not reach an untransferred offer");
+        agents.SetAction(giverSlot,ActionKind.ShareFood,ActionPhase.Done);
+        committed=sim.StateDigestString();
+        AnimateActors(delta);
+        if(outgoing.UsesMeeting||!outgoing.ParcelVisible)throw new InvalidOperationException("Superseded handoff failed to return its parcel to the current holder");
+        for(int i=0;i<120;i++)AnimateActors(delta);
+        if(outgoing.Transferred||!outgoing.Finished||_residentHandoffs.Count!=0||sim.StateDigestString()!=committed)
+            throw new InvalidOperationException("Superseded handoff reaches the old recipient or leaves a parcel");
+        GD.Print("WORLD_HANDOFF_RETARGET_PASS: superseded same-kind share recovers its parcel without transferring to the old recipient");
     }
 
     private void ValidateProjectedResidentMotion(float delta)

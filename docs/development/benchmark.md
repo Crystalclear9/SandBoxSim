@@ -198,7 +198,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `limbCoordination=hinge-carry-v4` 标识肘部屈曲平面、低位携带和按掌柄绑定安排的短柄／长柄朝向；`residentLocomotion=settled-arrival-v3` 增加连续骨盆支撑与局部拾取脚踝求解。`visual-motion`、`visual-social`、`visual-social-side` 的默认采样从第 30 帧开始每 14 帧一次，共 30 帧，冻结模拟而按 60 Hz 推进表现。它们用于观察动作和评测采样链路，不是 RSI 或人体写实程度评分。
 
-`handlingMotion=scene-contact-v14` 包含动作或目标变化时立即调度、到站后的转向确认、拾取时手掌与物件的实际接触，以及地面堆和仓库木箱的松手条件。近景和稀疏更新共用最高 120 Hz 的局部约束步长。`WORLD_STOCK_CONTACT_PASS` 测量世界居民的掌心距离、落点误差和部分入库后的余料表现，并核对表现播放前后的模拟摘要。可以向引擎传入 `--self-test --stock-contact-only` 单独运行实景物资交互回归。`POSE_SCHEDULER_PASS` 检查动作边界的时间归属，`CONTACT_BOUNDARIES_PASS`、`REACH_TRAJECTORY_PASS` 和 `CONSUMPTION_CONTACT_PASS` 检查转向、手部轨迹与饮食接触。
+`handlingMotion=intent-recovery-v15` 覆盖候选物资准备、实际抓握、动作替换后的接触更新和持物收回。近景和稀疏更新共用最高 120 Hz 的局部约束步长。`WORLD_PICKUP_INTENT_PASS` 测量准备距离和结算后确认所需帧数。`WORLD_PICKUP_INTERRUPT_PASS` 记录紧急起步时物件的连续性。`WORLD_HANDOFF_RETARGET_PASS` 检查原递物动作被同名动作替换后的收回。`WORLD_STOCK_CONTACT_PASS` 继续测量地面、仓库落点和余料搬运。向引擎传入 `--self-test --stock-contact-only` 可单独运行实景物资交互回归。
 
 `shoulderMotion=source-clavicle-v11` 标识分开的抬臂／轴向旋转、上臂驱动的锁骨弧线与肩胛上旋／后倾、接近伸直的稳定参考和左右独立返回；`limbCoordination=hinge-carry-v4` 包含工具肘平面连续性、真实作业支撑与挥锤朝向。`visual-shoulder-motion.json` 以同衣装的两种成人外观、正面、工作臂侧面和背面观察同一完整挥锤循环；默认从第 30 帧每 14 帧采样，共 30 帧。它冻结模拟，在固定 60 Hz 下推进动作，不构成 RSI 或人体动作质量的客观评分。
 
