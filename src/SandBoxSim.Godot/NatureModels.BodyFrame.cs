@@ -106,24 +106,10 @@ internal sealed partial class NatureModels
             // Sample the anatomy where the finished panel actually lands.
             // Using its pre-shortening height inflated the upper hip/hem and
             // hid the natural waist-to-pelvis transition under a straight box.
-            float supportY=MathF.Max(TrunkLow,panelHeight);
-            float target=ClothEnvelope(support,supportY,angle);
-            // Fit one clothing envelope. The finished trousers below provide
-            // the outer-layer clearance; adding another lumbar pad here
-            // counted that same movement allowance twice.
-            // The source already contains the thorax, waist and pelvic form.
-            // Garment ease is added by ClothEnvelope; applying another chest
-            // bulge or carved waist here duplicates those anatomical features.
-            target+=.003f*front*(1-Mathf.SmoothStep(.80f,.94f,panelHeight));
-            target+=GarmentDrapeDetail(panelHeight,angle);
-            // The shirt is outside the actual finished trousers, not only
-            // outside the unclothed source. This includes a coat's lower skirt.
-            if(feminine&&panelHeight<.990f)
-            {
-                target=FemaleOuterLayer(target,panelHeight,angle,front,out float trousers);
-                if(tailored)
-                    target=FairFemalePanelFall(support,target,trousers,panelHeight,angle,front)+FemaleLowerPanelEase(panelHeight,angle);
-            }
+            float target=GarmentPanelRadius(support,panelHeight,angle,front);
+            if(feminine)
+                target=tailored?FemaleTailoredPanel(support,target,panelHeight,angle,front)
+                    :FemaleOuterLayer(target,panelHeight,angle,front,out _);
             else if(panelHeight<.94f)
             {
                 float trousers=TrouserLayerRadius(panelHeight,angle);

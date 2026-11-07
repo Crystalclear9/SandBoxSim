@@ -227,8 +227,14 @@ internal sealed partial class NatureModels
         }
     }
 
+    private float GarmentPanelRadius(float[] support,float height,float angle,float front)=>
+        ClothEnvelope(support,MathF.Max(TrunkLow,height),angle)
+        +.003f*front*(1-Mathf.SmoothStep(.80f,.94f,height))+GarmentDrapeDetail(height,angle);
+
     private float FemaleOuterLayer(float cloth,float height,float angle,float front,out float trousers)
     {
+        trousers=0;
+        if(height>=.990f)return cloth;
         // Continue the waistband's last supported ring into the waist.
         // Slow the front sample smoothly before it reaches the end.
         float band=Math.Clamp((height-.924f)/.022f,0,1);
@@ -238,24 +244,58 @@ internal sealed partial class NatureModels
         return Mathf.Lerp(BlendOuterLayer(cloth,trousers),cloth,TorsoRamp(.928f,.990f,height));
     }
 
-    private float FairFemalePanelFall(float[] support,float radius,float trousers,float height,float angle,float front)
+    private readonly float[][] _femalePanelOffsets=new float[3][];
+
+    private float FemaleTailoredPanel(float[] support,float radius,float height,float angle,float front)
     {
-        float hem=FinishedGarmentHem+FemaleHemOffset(MathF.Sin(angle));
-        float active=TorsoRamp(hem-.006f,hem+.033f,height)*(1-TorsoRamp(.914f,.967f,height));
-        if(active==0)return radius;
-        // A hanging panel bridges small changes in the cross-section
-        // underneath it. Use two supports on each side along the grain, with
-        // the real trouser envelope as the lower bound at this station.
-        float Supported(float y)
+        radius=FemaleOuterLayer(radius,height,angle,front,out _)+FemaleLowerPanelEase(height,angle);
+        // The cubic sampler reaches at most two rows beyond the fit window.
+        if(height<=.80f||height>=1.12f)return radius;
+        var offsets=_femalePanelOffsets[_garmentCut]??=BuildFemalePanelOffsets(support);
+        return radius+ClothEnvelopeSample(offsets,height,angle);
+    }
+
+    private float[] BuildFemalePanelOffsets(float[] support)
+    {
+        var original=new float[TrunkRows*TrunkColumns];
+        var lower=new float[original.Length];
+        var upper=new float[original.Length];
+        for(int col=0;col<TrunkColumns;col++)
         {
-            float cloth=ClothEnvelope(support,MathF.Max(TrunkLow,y),angle)
-                +.003f*front*(1-Mathf.SmoothStep(.80f,.94f,y))+GarmentDrapeDetail(y,angle);
-            return FemaleOuterLayer(cloth,y,angle,front,out _);
+            float angle=col*Mathf.Tau/TrunkColumns,depth=MathF.Sin(angle);
+            float front=MathF.Max(0,-depth),side=MathF.Abs(MathF.Cos(angle));
+            float belt=FinishedBeltHeight(angle),hem=FinishedGarmentHem+FemaleHemOffset(depth);
+            for(int row=0;row<TrunkRows;row++)
+            {
+                int i=row*TrunkColumns+col;
+                float y=TrunkLow+row*.005f;
+                float baseRadius=GarmentPanelRadius(support,y,angle,front);
+                float radius=FemaleOuterLayer(baseRadius,y,angle,front,out float trousers)+FemaleLowerPanelEase(y,angle);
+                original[i]=radius;
+                // Free the flank along the grain, hold the belt and facing,
+                // and fade the fit before it reaches the chest and armhole.
+                float span=TorsoRamp(MathF.Max(.810f,hem+.009f),MathF.Max(.862f,hem+.040f),y)
+                    *(1-TorsoRamp(1.061f,1.110f,y));
+                float pin=TorsoRamp(.009f,.042f,MathF.Abs(y-belt));
+                float limit=.009f*span*pin*Mathf.Lerp(.32f,1,TorsoRamp(.18f,.78f,side));
+                float contact=MathF.Max(TrunkSample(support,y,angle)+.0025f,trousers-.0015f);
+                lower[i]=MathF.Max(radius-limit,MathF.Min(radius,contact));
+                upper[i]=radius+limit;
+            }
         }
-        float fall=(Supported(height-.048f)+4*Supported(height-.024f)+6*radius
-            +4*Supported(height+.024f)+Supported(height+.048f))/16;
-        float clearance=MathF.Min(radius,trousers-.0015f);
-        return MathF.Max(clearance,radius+Math.Clamp(fall-radius,-.007f,.004f)*active);
+        var fitted=(float[])original.Clone();
+        const float bending=1200;
+        for(int pass=0;pass<96;pass++)for(int sweep=0;sweep<2;sweep++)
+        for(int r=2;r<TrunkRows-2;r++)for(int col=0;col<TrunkColumns;col++)
+        {
+            int row=sweep==0?r:TrunkRows-1-r,i=row*TrunkColumns+col;
+            if(lower[i]>=upper[i])continue;
+            float near=fitted[i-TrunkColumns]+fitted[i+TrunkColumns];
+            float far=fitted[i-2*TrunkColumns]+fitted[i+2*TrunkColumns];
+            fitted[i]=Math.Clamp((original[i]+bending*(4*near-far))/(1+6*bending),lower[i],upper[i]);
+        }
+        for(int i=0;i<fitted.Length;i++)fitted[i]-=original[i];
+        return fitted;
     }
 
     private float FemaleLowerPanelEase(float height,float angle)
@@ -263,11 +303,10 @@ internal sealed partial class NatureModels
         float depth=MathF.Sin(angle),side=MathF.Abs(MathF.Cos(angle));
         float belt=FinishedBeltHeight(angle),hem=FinishedGarmentHem+FemaleHemOffset(depth);
         float t=Math.Clamp((belt-height)/(belt-hem),0,1);
-        float release=TorsoRamp(.13f,.84f,t);
+        float release=TorsoRamp(.12f,.94f,t);
         float outseam=side*side*side;
         float frontQuarter=TorsoRamp(.12f,.48f,-depth)*(1-TorsoRamp(.71f,.97f,-depth));
         float backQuarter=TorsoRamp(.16f,.56f,depth)*(1-TorsoRamp(.83f,1,depth));
-        float towardWaist=TorsoRamp(.887f,.923f,height);
         float fall=_garmentCut switch
         {
             0=>.0012f+.0024f*outseam+.0019f*frontQuarter+.0022f*backQuarter,
@@ -281,8 +320,10 @@ internal sealed partial class NatureModels
         float shape=(side-separation)/(_garmentCut==2?.16f:.20f);
         float fold=(_garmentCut switch {0=>.0022f,1=>.0068f,_=>.015f})
             *MathF.Exp(-shape*shape)*rear*TorsoRamp(.24f,.68f,t)*(1-TorsoRamp(.86f,1.02f,t));
-        float waistAllowance=(1-TorsoRamp(.80f,.935f,height))*(_garmentCut==2?.004f+.010f*side*side:0);
-        return Mathf.Lerp(release*fall+fold,waistAllowance,towardWaist);
+        // The trousers already carry the seat volume. Trim the added
+        // cloth allowance there, blending it back into the lumbar span.
+        float seat=rear*(1-TorsoRamp(.914f,.968f,height));
+        return (release*fall+fold)*(1-.40f*seat);
     }
 
     private static Color[] FemaleHemFinishCoordinates(Vector3[] points,int[] triangles,int[] hem)
@@ -357,18 +398,8 @@ internal sealed partial class NatureModels
         if(FittedFigure)
         {
             backPleat*=.65f;
-            // Keep the two broad hanging folds distinct from the structural
-            // ease of each cut. Stop before they can scallop the turned hem.
-            float edge=FinishedGarmentHem+FemaleHemOffset(MathF.Sin(angle));
-            float release=TorsoRamp(.025f,.105f,-above)*TorsoRamp(.002f,.030f,height-edge);
-            float flank=MathF.Abs(x),grain=Mathf.Lerp(.48f,.66f,release);
-            float fall=Bell(flank-grain,.15f)*front*front+Bell(flank-.52f,.20f)*back*back;
-            float edgeFold=(_garmentCut==2?.0035f:.0024f)*release*fall;
-            float waistRelease=TorsoRamp(.023f,.120f,-above)*TorsoRamp(.760f,.835f,height);
-            float waistFold=(_garmentCut==2?.0045f:_garmentCut==1?.0027f:.0020f)*waistRelease
-                *(Bell(flank-Mathf.Lerp(.43f,.62f,waistRelease),.135f)*front*front
-                    +Bell(flank-(.56f-.11f*waistRelease),.17f)*back*back);
-            hem=Mathf.Lerp(edgeFold,waistFold,TorsoRamp(.887f,.923f,height));
+            // Below the belt, only the cut's hanging panels add folds.
+            hem=0;
         }
         float clearNeck=1-Mathf.SmoothStep(1.18f,1.22f,height);
         float sideSeam=1-Mathf.SmoothStep(.90f,1,MathF.Abs(x));

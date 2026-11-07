@@ -158,7 +158,9 @@
 
 女性设计沿用自然匀称、曲线柔和的方向。胸前采用更宽的纵向重分配，来源前向塑形为宽缓的上胸与胸下接续；腰侧适度放松，后腰与后侧骨盆分别建立连续弧线，上腿外侧接入骨盆。关节辅助点固定，统一米制映射的总位移仍限于 18 毫米；来源测试在 1,620 个三维位置检查双侧对称、正向变形及原有 Jacobian 范围，不通过放宽上限获得通过。这里的比例和系数是角色美术选择，不是女性身体或吸引力的统一标准。
 
-`femaleShoulderLine=shared-crest-v1` 将领口往肩头的衣片落势延伸至袖山两侧。共享接缝在静止绑定姿态中一起圆顺，再生成蒙皮和抬臂修形，减少外肩高出台面的轮廓。领口边缘与袖口沿原有接触约束定位。`femaleLowerPanel=supported-fall-v2` 沿腰下布纹以 24 毫米间隔采样，形成较长的侧髋过渡，并用实际裤装表面限制内收。`garmentMaterial=quiet-linen-v19` 将女性上衣的合成纱纹缩小至约毫米尺度，降低扫描纹理的对比和法线扰动，使轮廓与衣料细节分层呈现。当前衣装标识为 `garmentFit=continuous-drape-v37`。[Blender 写实基模与放松绑定姿态](https://studio.blender.org/training/realistic-human-research/use-of-base-meshes/) · [MakeHuman 的比例与体态调节](https://static.makehumancommunity.org/makehuman/docs/modeling_the_body.html)
+`femaleShoulderLine=shared-crest-v1` 将领口往肩头的衣片落势延伸至袖山两侧。共享接缝在静止绑定姿态中一起圆顺，再生成蒙皮和抬臂修形，减少外肩高出台面的轮廓。领口边缘与袖口沿原有接触约束定位。`garmentMaterial=quiet-linen-v19` 将女性上衣的合成纱纹缩小至约毫米尺度，降低扫描纹理的对比和法线扰动，使轮廓与衣料细节分层呈现。[Blender 写实基模与放松绑定姿态](https://studio.blender.org/training/realistic-human-research/use-of-base-meshes/)
+
+`garmentFit=continuous-drape-v38` 的 `femaleLowerPanel=grain-fitted-waist-v1` 在同一件成衣上拟合下胸廓、侧腰和侧髋。每款首次建模时沿竖向布纹减小局部曲率，靠近腰带和下摆翻边时逐渐收紧位移范围。人体支撑与裤装的实际外包络限制内收。带下布量按各款剪裁从腰部释放，商人外套保留背面两道浅褶。缓存曲面用于成衣和腰带拟合，动作时由现有蒙皮和姿态修形驱动。[Disney 角色衣装的结构与垂坠](https://media.disneyanimation.com/technology/publications/2021/wrapped-clothing-on-disneys-raya-and-the-last-dragon.pdf)
 
 女性工装与短上衣的前后下摆分别以最多 18／12 毫米圆顺，短上衣下摆最低处为 0.842 米；腰带按来源自然腰线拟合，袖口沿用原有挂点。女性裤装采用低饱和灰橄榄色 `#656356`，配合来源骨盆和腿部截面显示体积；男性裤装保持原染色。
 
@@ -166,7 +168,7 @@
 
 ### 女性居民的个人身形
 
-`femaleBodyBuild=regional-builds-v1` 为成年女性居民提供三种穿衣身形。均衡轮廓使用调整过下腹支撑的基础版；较直腰线在侧腰留出更多宽度，髋部略收；圆润髋线增加外髋、后髋和上腿的体积，腰线相对收束。三种上衣和裤腰共用下腹支撑，腰带以下的正面在侧视图中逐渐回收。
+`femaleBodyBuild=regional-builds-v2` 为成年女性居民提供三种穿衣身形。均衡轮廓使用基础版。较直腰线配合较宽、较浅的下胸廓和略收的髋部。圆润髋线增加外髋、后髋和上腿的体积，配合相对收束的腰线和较窄、较深的下胸廓。形体差异从腰部连续过渡，并在肩领下方退出。成品截面分别检查横向宽度和前后深度，腰带、背带与衣面随各身形重新贴合。[女性躯干三维扫描研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC13392141/) · [Cornell 腰髋曲线研究](https://bodyscan.human.cornell.edu/currentPrint.html)
 
 世界模型和居民详情使用同一个稳定居民 ID 选择身形，换职业时沿用同一身形并重新贴合对应衣装。区域形变同时应用到上衣、裤装、腰带、工具挂点和各自的姿态修形。背包与腰包按成衣表面定位。袖口、头肩骨架与膝下区域保留原有坐标，空手下垂间隙按实际裤装计算。变形网格按身形与衣装缓存，动作使用原有蒙皮流程。
 

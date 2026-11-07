@@ -188,9 +188,9 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `bodyFrame=reference-contour-physique-v31` 标识胸廓、短上衣、实际骨盆／臀腿裤装及衣袖排除区的当前造型；`visual-body-frames` 的正／侧／背对照与 `visual-body-motion` 的动作对照使用实际居民网格。髋部截面取上衣及裤装的可见外包络，不能把衣摆宽度当作人体围度，也不是性别分类或 RSI 分数。
 
-`femaleBodyBuild=regional-builds-v1` 标识世界与居民详情使用的三种成年女性身形。`visual-female-builds` 以正交尺寸 0.87、目标 (0, 0.98, 0) 记录同一居民的正面与侧面。对照固定身高、衣装和姿态，检查腰髋几何与近远景一致性。
+`femaleBodyBuild=regional-builds-v2` 标识世界与居民详情使用的三种成年女性身形。`visual-female-builds` 以正交尺寸 0.87、目标 (0, 0.92, 0) 记录同一居民的正面与侧面。对照固定身高、衣装和姿态，核对胸廓宽深、腰髋几何与近远景一致性。
 
-`femaleShoulderLine=shared-crest-v1`、`femaleLowerPanel=supported-fall-v2` 和 `garmentFit=continuous-drape-v36` 标记共享肩峰、袖山以及侧髋衣料的当前曲面。`garmentMaterial=quiet-linen-v19` 还改变女性上衣的纱纹频率、扫描对比和细节法线强度。视觉对照使用当前 `visual-thorax-frames`、`visual-female-wardrobe`、`visual-female-shoulders` 和 `visual-female-builds`；动态兼容由既有衣装、领口间隙、抬臂和近远景检查覆盖。
+`femaleShoulderLine=shared-crest-v1`、`femaleLowerPanel=grain-fitted-waist-v1` 和 `garmentFit=continuous-drape-v38` 记录共享肩峰、袖山以及下胸廓到侧髋的曲面。`garmentMaterial=quiet-linen-v19` 记录女性上衣的纱纹频率、扫描对比和细节法线强度。视觉对照使用 `visual-thorax-frames`、`visual-female-wardrobe` 和 `visual-female-builds`。冷启动耗时比较须固定款式和身形缓存状态。
 
 `femaleRearShoulder=diffused-yoke-v2` 标识后领与肩胛之间的蒙皮权重过渡、抬臂修形和法线。`visual-female-shoulders` 以 0.52 米正交尺寸从背面及后侧记录 0°、90°、135° 三种姿态。`FEMALE_OVERHEAD_YOKE_PASS` 在三款衣装上分别测量左右臂举至 135° 时，后肩区域中面夹角超过 55° 的内部边长占比。
 
