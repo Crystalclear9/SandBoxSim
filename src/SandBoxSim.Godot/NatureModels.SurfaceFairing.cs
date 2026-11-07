@@ -252,6 +252,7 @@ internal sealed partial class NatureModels
     private void FairForearmRest(Vector3[] points,Vector3[] normals,int[] indices,int frame,string source)
     {
         bool wristJoin=frame==1&&source!="hand-lod";
+        bool connectedWrist=frame==1&&source=="hand";
         bool femalePalm=frame==1&&(source is "hand" or "hand-lod");
         source=frame+":"+source;
         if(_forearmFairings.TryGetValue(source,out var cached))
@@ -262,14 +263,15 @@ internal sealed partial class NatureModels
         for(int i=0;i<points.Length;i++)freedom[i]=Mathf.SmoothStep(.055f,.095f,points[i].Y)*(1-Mathf.SmoothStep(.225f,.250f,points[i].Y));
         FairRestSurface(points,indices,freedom,frame==1?.0008f:.00065f);
         TransportFairingNormals(rest,points,normals,indices,freedom);
-        if(wristJoin)BlendFemaleForearmJoin(points,normals,indices);
+        if(wristJoin)BlendFemaleForearmJoin(points,normals,indices,connectedWrist);
         if(femalePalm)FitFemalePalm(points,normals,indices);
         _forearmFairings[source]=((Vector3[])points.Clone(),(Vector3[])normals.Clone());
     }
 
-    private static void BlendFemaleForearmJoin(Vector3[] points,Vector3[] normals,int[] indices)
+    private static void BlendFemaleForearmJoin(Vector3[] points,Vector3[] normals,int[] indices,bool connected)
     {
-        const float low=.053f,high=.099f,step=.006f,centreZ=.004f;
+        const float step=.006f,centreZ=.004f;
+        float low=connected?.026f:.053f,high=connected?.109f:.099f;
         const int columns=64;
         float[] Section(float y)
         {
@@ -324,13 +326,57 @@ internal sealed partial class NatureModels
                 +(-2*t3+3*t2)*b+(t3-t2)*(Sample(after)-b)*d;
             // Match actual cross-sections on both sides of the original
             // seam instead of smoothing one tessellation ring in isolation.
-            float mask=Mathf.SmoothStep(low,.067f,p.Y)*(1-Mathf.SmoothStep(.083f,high,p.Y));
-            float edit=Math.Clamp(target-radial.Length(),-.0014f,.0014f)*mask;
+            float mask=connected
+                ?TorsoRamp(low,.041f,p.Y)*(1-TorsoRamp(.077f,high,p.Y))
+                :Mathf.SmoothStep(low,.067f,p.Y)*(1-Mathf.SmoothStep(.083f,high,p.Y));
+            float limit=connected?.00085f:.0014f;
+            float edit=Math.Clamp(target-radial.Length(),-limit,limit)*mask;
             var offset=radial.Normalized()*edit;
             points[i]+=new Vector3(offset.X,0,offset.Y);
             freedom[i]=edit==0?0:1;
         }
+        if(connected)
+            for(int t=0;t<indices.Length;t+=3)
+            {
+                int a=indices[t],b=indices[t+1],c=indices[t+2];
+                var sourceFace=(original[b]-original[a]).Cross(original[c]-original[a]);
+                var fittedFace=(points[b]-points[a]).Cross(points[c]-points[a]);
+                if(sourceFace.LengthSquared()>1e-20f&&sourceFace.Dot(fittedFace)<=0)
+                    throw new InvalidOperationException("Wrist transition reverses a source face");
+            }
         TransportFairingNormals(original,points,normals,indices,freedom);
+        if(!connected)return;
+
+        // Both ends of the transition loft have different triangle spacing.
+        // Use a common exterior chart and a centred stencil across each end.
+        const int rows=27;
+        const float chartLow=.0117f,chartStep=.004f,arcStep=Mathf.Tau/columns;
+        var radii=new float[rows][];
+        for(int row=0;row<rows;row++)radii[row]=Section(chartLow+row*chartStep);
+        var chart=new Vector3[rows*columns];
+        for(int row=2;row<rows-2;row++)for(int col=0;col<columns;col++)
+        {
+            float theta=col*arcStep,sin=MathF.Sin(theta),cos=MathF.Cos(theta);
+            float radius=radii[row][col];
+            float along=(radii[row+2][col]-radii[row-2][col])/(4*chartStep);
+            float around=(radii[row][(col+2)%columns]-radii[row][(col+columns-2)%columns])/(4*arcStep);
+            var meridian=new Vector3(cos*along,1,sin*along);
+            var hoop=new Vector3(cos*around-sin*radius,0,sin*around+cos*radius);
+            chart[row*columns+col]=meridian.Cross(hoop).Normalized();
+        }
+        for(int i=0;i<points.Length;i++)
+        {
+            var p=points[i];
+            float weight=TorsoRamp(.023f,.039f,p.Y)*(1-TorsoRamp(.081f,.103f,p.Y));
+            if(weight<=0)continue;
+            float height=(p.Y-chartLow)/chartStep;
+            float angle=Mathf.PosMod(MathF.Atan2(p.Z-centreZ,p.X),Mathf.Tau)/arcStep;
+            int row=(int)height,col=(int)angle%columns,next=(col+1)%columns;
+            float v=height-row,u=angle-MathF.Floor(angle);
+            var a=chart[row*columns+col].Lerp(chart[row*columns+next],u);
+            var b=chart[(row+1)*columns+col].Lerp(chart[(row+1)*columns+next],u);
+            normals[i]=normals[i].Slerp(a.Lerp(b,v).Normalized(),weight).Normalized();
+        }
     }
     private static void TransportFairingNormals(Vector3[] rest,Vector3[] points,Vector3[] normals,int[] indices,float[] freedom)
     {

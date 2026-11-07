@@ -867,6 +867,8 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 
 腕部近景入口为 `--panel=wrist-motion`，公开采样配置为 `benchmarks/scenarios/visual-wrist-motion.json`。八秒周期依次展示屈伸、侧偏、旋腕及握拳，动作段使用端点缓入缓出的时间曲线；镜头分别沿实际前臂坐标观察手背、掌侧和侧面。`./tools/godot.ps1 -Mode test -HandContinuityOnly` 检查实际蒙皮体积、接缝、来源截面与原有工具接触／取放，不推进世界模拟。
 
+`handSurface=anatomical-regions-v2` 使用乘法计算掌纹、指节和甲缘的带符号距离平方，滤波宽度在逐像素的细节覆盖判断前计算。这样掌纹和肤色能沿整张蒙皮连续过渡，近景手掌保留掌纹及指根的细节。低细节材质共用肤色配方。[Khronos GLSL 规范](https://registry.khronos.org/OpenGL/specs/gl/GLSLangSpec.4.60.html)
+
 腕部旋转混合的收缩问题参考 [Blender 的骨架体积保持说明](https://docs.blender.org/manual/en/latest/modeling/modifiers/deform/armature.html)。当前运行时仍使用引擎原有蒙皮，通过分段四元数支撑减小相邻旋转差，并检查最终蒙皮矩阵的体积与接缝；没有将整个 Godot 角色改为双四元数蒙皮。
 
 当前腕部的[静态近景](../images/resident-wrist-motion.png)与[八秒连续回放](../images/resident-wrist-motion.webp)均来自游戏原生视口。
@@ -985,7 +987,7 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 
 `forearmProfile=curvature-flow-v9` 将局部前臂表面圆顺扩展到男女两套体型，分别以体型／来源网格为缓存键；男性位移上限 0.65 毫米、女性 0.8 毫米，腕口、手掌、手指、握柄及隐藏肘口保留各自约束。体型截面拟合延续到 0.275 米隐藏肘口，在 0.275–0.290 米的网格外区域退出；原来在 0.245–0.275 米退回通用雕刻尺寸的做法会重新放大近肘肌腹。前臂静态图册重置肘腕参考后刷新皮肤，避免展示已脱离原关节姿态的旧补偿。
 
-成人女性的宽度拟合从绑定坐标 −14 毫米的掌根开始，经 49 毫米的五次过渡接入前臂来源截面。掌侧深度保留独立的来源拟合，手指、甲面、拇指关节及握柄坐标固定。原腕臂接合带从上下实际网格取四组截面，用带端部切线的曲线圆顺径向轮廓，位移限于 1.4 毫米，并从修改后的表面运输法线。`FEMALE_WRIST_TAPER_PASS` 逐段核对两手的成品宽度和相邻截面差。女性袖口使用单层翻边，近远景核对同一袖缘的覆盖。形体参照按前臂截面理解肌腹和腕部的过渡。[前臂横断面 MRI 研究](https://pubmed.ncbi.nlm.nih.gov/9438504/)
+成人女性的宽度拟合从绑定坐标 −14 毫米的掌根开始，经 49 毫米的五次过渡接入前臂来源截面。掌侧深度保留独立的来源拟合，手指、甲面、拇指关节及握柄坐标固定。`wristContour=continuous-source-v3` 在近景连体网格的 26–109 毫米段重拟合径向轮廓，跨过掌侧与前臂侧两道来源接环。位移限于 0.85 毫米，并核对三角面朝向。法线在成品表面按 27 个轴向截面与 64 个环向采样求得，向两侧接回原皮肤法线。曲面和法线随网格缓存，蒙皮时沿用原腕部支撑。`FEMALE_WRIST_TAPER_PASS` 逐段核对两手的成品宽度和相邻截面差。[前臂截面与姿态扫描研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC8079810/) · [Blender Studio 关节姿态修形](https://studio.blender.org/blog/rig-with-shape-keys-like-never-before/)
 
 女性手掌在腕部与指根之间使用局部曲面修形。小指侧逐渐收窄，掌背靠腕的隆起平缓接入腕口。拇指根、掌心深侧的握持面、指端和甲面保留原有形体。近景蒙皮和远景手掌使用同一曲面，并在统一的手坐标下生成左右镜像。`FEMALE_PALM_PASS` 在实际近远景网格上测掌根截面，并检查指端和甲面。幅度按当前居民的手型选定。[女性手型三维扫描研究](https://www.nature.com/articles/s41598-026-43547-z) · [数字化手与前臂解剖研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC6183001/)
 

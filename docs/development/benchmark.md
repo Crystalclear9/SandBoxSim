@@ -136,7 +136,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 ## 当前渲染版本
 
-当前渲染元数据为 `animalPresentation=articulated-paws-v12`、`interface=resident-framing-memory-v28`、`architecture=inset-joinery-v13`、`garmentMaterial=quiet-linen-v19`、`landscapeSurface=wet-bank-mosaic-v7`、`habitatDetail=responsive-understory-v12`。另外记录 `residentSurface=linear-skin-v9`、`vegetationSurface=engine-faced-v2`、`wildFlora=arched-bramble-v1`、`waterSurface=shore-activity-v7`、`wristContour=continuous-source-v2`、`hairline=framed-source-root-v2`、`femaleGroom=scalp-guided-plait-v1`、`reedPanicle=connected-axis-v1` 和 `handSurface=anatomical-regions-v1`。人物肖像的 `renderQuality.portrait.studio=continuous-inspector-v9`，并记录实际 `thumbnail` 布尔值。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。衣装领口与肩袖、人物布光、动物足部、建筑门窗接合及连续观察控件已改变，需重采相同场景的视觉和耗时基线；不能把不同像素覆盖与布局造成的耗时变化算作代码优化收益。`renderQuality.fontProfile=noto-packaged-v1` 记录随包字库策略，字体变化需要新视觉与耗时基线。`renderQuality.interfaceVisible` 标识界面是否显示，公开评测场景默认显示；沉浸观察不会自动成为新的评测指令。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
+当前渲染元数据为 `animalPresentation=articulated-paws-v12`、`interface=resident-framing-memory-v28`、`architecture=inset-joinery-v13`、`garmentMaterial=quiet-linen-v19`、`landscapeSurface=wet-bank-mosaic-v7`、`habitatDetail=responsive-understory-v12`。另外记录 `residentSurface=linear-skin-v9`、`vegetationSurface=engine-faced-v2`、`wildFlora=arched-bramble-v1`、`waterSurface=shore-activity-v7`、`wristContour=continuous-source-v3`、`hairline=framed-source-root-v2`、`femaleGroom=scalp-guided-plait-v1`、`reedPanicle=connected-axis-v1` 和 `handSurface=anatomical-regions-v2`。人物肖像的 `renderQuality.portrait.studio=continuous-inspector-v9`，并记录实际 `thumbnail` 布尔值。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。衣装领口与肩袖、人物布光、动物足部、建筑门窗接合及连续观察控件已改变，需重采相同场景的视觉和耗时基线；不能把不同像素覆盖与布局造成的耗时变化算作代码优化收益。`renderQuality.fontProfile=noto-packaged-v1` 记录随包字库策略，字体变化需要新视觉与耗时基线。`renderQuality.interfaceVisible` 标识界面是否显示，公开评测场景默认显示；沉浸观察不会自动成为新的评测指令。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
 
 `reachMotion=palm-trajectory-v2` 记录手掌轨迹过渡、朝向插值、错开的社交手势与循环进食表现。动作轨迹改变需要重采相同场景的视觉及耗时基线，不能与旧动作混作效率对照。
 
@@ -254,7 +254,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 成人锁骨内端取自转移后体型的 `joint-l-clavicle`，再镜像到另一侧；`source-clavicle-v11` 将这一来源支点用于肩带弧线，避免较窄肩点继续绕固定旧支点旋转。肩胛旋转、腕部接触和衣袖边长约束继续独立验证。
 
-`wristContour=continuous-source-v2`、`forearmProfile=curvature-flow-v9` 与 `forearmSkin=continuous-elbow-v9` 分别标记连续腕臂截面、中心线拟合与腕部渐进蒙皮。新增公开 `wrist-motion` 面板及 `visual-wrist-motion.json`，在冻结模拟、固定 60 Hz 下，对照两种成人外观的手背、掌侧和侧面，循环观察屈伸、侧偏、前臂旋转和握拳。它使用真实居民网格与骨架，不测量人体医学能力，也不作为 RSI 分数。新的连接拓扑、56 骨近手与腕部支撑会改变构建和动画成本，效率对照必须冻结同一素材、渲染版本、输入及源码。
+`wristContour=continuous-source-v3`、`forearmProfile=curvature-flow-v9` 与 `forearmSkin=continuous-elbow-v9` 分别标记连体腕臂曲面、来源中心线拟合与腕部渐进蒙皮。`visual-wrist-motion.json` 在冻结模拟、固定 60 Hz 下，从手背、掌侧和侧面观察屈伸、侧偏、前臂旋转和握拳。比较接缝光照时使用同一视角、同一光照及帧号。冷启动比较需固定近手网格缓存状态。
 
 `garmentFit=continuous-drape-v35`、`forearmProfile=curvature-flow-v9`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2` 区分衣片拟合和姿态形态、女性前臂表面、成人脸部比例、额前发根和静止眼睑。视觉与效率比较须同时冻结这些标识、输入和源码。身体配方 `reference-contour-physique-v31` 的两种成人参考转移权重均为 1.0，五类身体支撑共享同一配方哈希。固定点、体积、截面与三角形检查用于几何回归。
 
