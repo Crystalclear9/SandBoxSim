@@ -42,6 +42,7 @@ internal partial class ModelGallery : PanelContainer
         else if(Collection is "upper-arm-flex" or "elbow-joint")BuildUpperArmFlex(models,grid,body.GetChild<Label>(0));
         else if(Collection=="captured-stretch")BuildCapturedStudy(models,grid,body.GetChild<Label>(0));
         else if(Collection=="shoulder-elevation")BuildElevationStudy(models,grid,body.GetChild<Label>(0));
+        else if(Collection=="female-shoulders")BuildFemaleShoulderStudy(models,grid,body.GetChild<Label>(0));
         else if(Collection=="handling-transitions")BuildInteractionFlow(models,grid,body.GetChild<Label>(0));
         else if(Collection=="shoulder-motion")
         {
@@ -404,7 +405,7 @@ internal partial class ModelGallery : PanelContainer
         if(model is AnimalRig creature){_animals.Add(creature);viewport.RenderTargetUpdateMode=SubViewport.UpdateMode.WhenVisible;}
         if(model is ResidentRig resident&&Collection!="equipment")
         {
-            if(Collection!="wrist-motion")Animate(resident,ActionKind.None);
+            if(Collection is not ("wrist-motion" or "female-shoulders"))Animate(resident,ActionKind.None);
             viewport.RenderTargetUpdateMode=SubViewport.UpdateMode.WhenVisible;
         }
         stage.AddChild(model); model.Rotation=new(0,(animal ? Mathf.Pi : 0)-.60f,0);

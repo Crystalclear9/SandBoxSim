@@ -8,7 +8,7 @@ internal sealed partial class NatureModels
 {
     // Cached rest-surface fairing. Positive/negative passes suppress small
     // ridges without using a uniformly shrinking Laplacian on the silhouette.
-    private static void FairRestSurface(Vector3[] points,int[] triangles,float[] freedom,float limit,bool bridgeHollows=false,bool roundRelief=false)
+    private static void FairRestSurface(Vector3[] points,int[] triangles,float[] freedom,float limit,bool bridgeHollows=false,bool roundRelief=false,int passes=20)
     {
         var rest=(Vector3[])points.Clone();
         var neighbours=new HashSet<int>[points.Length];
@@ -19,7 +19,7 @@ internal sealed partial class NatureModels
         }
         for(int i=0;i<points.Length;i++)if(neighbours[i].Count==0)freedom[i]=0;
         var normals=FairingNormals(rest,triangles,freedom);
-        for(int pass=0;pass<20;pass++)
+        for(int pass=0;pass<passes;pass++)
         {
             var old=(Vector3[])points.Clone();float gain=bridgeHollows||roundRelief?.46f:pass%2==0?.46f:-.47f;
             for(int i=0;i<points.Length;i++)if(freedom[i]>0&&neighbours[i].Count>0)

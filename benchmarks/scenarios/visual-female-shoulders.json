@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "visual-female-shoulders",
+  "seed": 839102,
+  "agents": 0,
+  "previewDays": 0,
+  "panel": "female-shoulders",
+  "warmupFrames": 60,
+  "measuredFrames": 120,
+  "ticksPerFrame": 0,
+  "minimumFps": 0,
+  "captureFrames": [90]
+}

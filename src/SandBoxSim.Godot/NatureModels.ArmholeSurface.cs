@@ -18,6 +18,8 @@ internal sealed partial class NatureModels
         {Array.Copy(cached.Result,points,points.Length);return;}
         var cage=ShoulderSurface();var rest=(Vector3[])points.Clone();var goal=(Vector3[])points.Clone();
         var free=new float[points.Length];var adjacent=new HashSet<int>[points.Length];
+        var posterior=FittedFigure?new float[points.Length]:Array.Empty<float>();
+        var restNormals=FittedFigure?ClothSurfaceNormals(rest,triangles):Array.Empty<Vector3>();
         for(int i=0;i<points.Length;i++)adjacent[i]=new();
         for(int t=0;t<triangles.Length;t+=3)for(int k=0;k<3;k++)
         {int a=triangles[t+k],b=triangles[t+(k+1)%3];adjacent[a].Add(b);adjacent[b].Add(a);}
@@ -42,20 +44,38 @@ internal sealed partial class NatureModels
                 *Mathf.SmoothStep(1.02f,1.08f,points[i].Y)*(1-Mathf.SmoothStep(1.29f,1.33f,points[i].Y));
             if(free[i]<=0)continue;
             var p=new Vector3(MathF.Abs(points[i].X),points[i].Y,points[i].Z);
-            float nearest=.07f*.07f;Vector3 hit=p,normal=Vector3.Zero;
+            float sign=points[i].X<0?-1:1;
+            float rear=FittedFigure?RearShoulderPanel(p,along):0;
+            if(FittedFigure)posterior[i]=rear;
+            var panelNormal=rear>0?new Vector3(restNormals[i].X*sign,restNormals[i].Y,restNormals[i].Z):Vector3.Zero;
+            float nearest=float.PositiveInfinity;Vector3 hit=p,normal=Vector3.Zero;
             for(int t=0;t<cage.Triangles.Length;t+=3)
             {
                 int ia=cage.Triangles[t],ib=cage.Triangles[t+1],ic=cage.Triangles[t+2];
-                if(along>.045f&&(cage.Weights[ia].Y+cage.Weights[ib].Y+cage.Weights[ic].Y)/3<.20f)continue;
+                float arm=(cage.Weights[ia].Y+cage.Weights[ib].Y+cage.Weights[ic].Y)/3;
+                if(rear==0&&along>.045f&&arm<.20f)continue;
                 var a=cage.Points[ia];var b=cage.Points[ib];var c=cage.Points[ic];
-                if((c-a).Cross(b-a).LengthSquared()<1e-12f)continue;
+                var face=(c-a).Cross(b-a);
+                if(face.LengthSquared()<1e-12f)continue;
                 var q=ClosestShoulderPoint(p,a,b,c);float distance=p.DistanceSquaredTo(q);
-                if(distance>=nearest)continue;
-                nearest=distance;hit=q;normal=(c-a).Cross(b-a).Normalized();
+                if(distance>=.07f*.07f)continue;
+                var n=face.Normalized();
+                // A rear sleeve vertex lies close to the scapula and upper
+                // arm at once. Prefer the surface facing its sewn panel and
+                // fade in the arm preference across the join.
+                float normalMismatch=1-MathF.Max(0,panelNormal.Dot(n));
+                float armMismatch=MathF.Max(0,.32f-arm)*TorsoRamp(.012f,.060f,along);
+                float score=distance+rear*(.0016f*normalMismatch*normalMismatch+.006f*armMismatch*armMismatch);
+                if(score>=nearest)continue;
+                nearest=score;hit=q;normal=n;
             }
             if(normal.LengthSquared()<.5f){free[i]=0;continue;}
             var g=hit+normal*(BodyFrame==1?.006f:.008f);
-            goal[i]=new(g.X*(points[i].X<0?-1:1),g.Y,g.Z);
+            // A normal offset keeps the posterior cloth's in-plane spacing.
+            // Leave part of the closest-point pull for actual cap rounding.
+            var normalTarget=p+panelNormal*Math.Clamp((g-p).Dot(panelNormal),-.020f,.020f);
+            g=g.Lerp(normalTarget,.83f*rear);
+            goal[i]=new(g.X*sign,g.Y,g.Z);
             points[i]=points[i].Lerp(goal[i],.75f*free[i]);
         }
         var next=new Vector3[points.Length];
@@ -65,7 +85,8 @@ internal sealed partial class NatureModels
             {
                 next[i]=points[i];if(free[i]<=0||adjacent[i].Count==0)continue;
                 var mean=Vector3.Zero;foreach(int j in adjacent[i])mean+=points[j];mean/=adjacent[i].Count;
-                var candidate=points[i].Lerp(mean,.45f*free[i]).Lerp(goal[i],.02f*free[i]);
+                float rear=FittedFigure?posterior[i]:0;
+                var candidate=points[i].Lerp(mean,.45f*free[i]).Lerp(goal[i],Mathf.Lerp(.02f,.007f,rear)*free[i]);
                 // The rib panel owns the trunk exterior even beside a deep
                 // axilla. A shoulder-only source must not pull cloth into it.
                 if(pattern[i].X<=0&&candidate.Y<1.20f)
@@ -95,6 +116,25 @@ internal sealed partial class NatureModels
         GD.Print($"ARMHOLE_REST_FLOW: frame={BodyFrame}, cut={_garmentCut}, edges={after.Edges}, sharp before/after={before.Sharp}/{after.Sharp}, maximum edit={maximumEdit:F5} m; shared seam relaxed, neck/centre/waist/cuff fixed");
 
     }
+
+    private static float RearShoulderPanel(Vector3 point,float along)
+    {
+        float x=MathF.Abs(point.X);
+        return TorsoRamp(.006f,.029f,point.Z)*TorsoRamp(.059f,.093f,x)*(1-TorsoRamp(.155f,.192f,x))
+            *TorsoRamp(1.092f,1.145f,point.Y)*(1-TorsoRamp(1.273f,1.305f,point.Y))
+            *(1-TorsoRamp(.108f,.167f,along));
+    }
+
+    private static void FairRearShoulderPanel(Vector3[] points,int[] indices,Vector2[] pattern,
+        Vector3[]? canonical=null,float[]? participation=null)
+    {
+        var rest=canonical??points;
+        var freedom=new float[points.Length];
+        for(int i=0;i<points.Length;i++)
+            freedom[i]=RearShoulderPanel(rest[i],pattern[i].X)*(participation==null?1:Math.Clamp(participation[i]*2,0,1));
+        FairRestSurface(points,indices,freedom,.009f,roundRelief:true,passes:8);
+    }
+
     private static (int Edges,int Sharp,float LongestInnerFold) ArmholeCreases(Vector3[] points,int[] triangles,Vector2[] pattern,Vector3[]? rest=null,int raisedSide=-1)
     {
         var normals=new Vector3[triangles.Length/3];var edges=new Dictionary<(int,int),List<int>>();

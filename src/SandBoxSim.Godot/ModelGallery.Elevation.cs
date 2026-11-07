@@ -9,6 +9,20 @@ internal partial class ModelGallery
 {
     private readonly List<ResidentRig> _elevationStudies=new();
     private Label? _elevationReadout;
+    private void BuildFemaleShoulderStudy(NatureModels models,GridContainer grid,Label heading)
+    {
+        heading.Text="女性肩背 · 后衣片、肩胛到袖根";
+        for(int view=0;view<2;view++)foreach(int angle in new[]{0,45,100})
+        {
+            var rig=models.Resident(55,false,JobType.None);
+            string pose=angle==0?"自然垂臂":$"抬臂 {angle}°";
+            Closeup(grid,pose+(view==0?" · 背面":" · 后侧"),rig,.52f,new(0,1.26f,0),
+                view==0?new(0,.04f,-4):new(2.8f,.07f,-3),true);
+            _studioLights[^1].RotationDegrees=new(-34,150,0);
+            for(int frame=0;frame<150;frame++)rig.StudyArmElevation(1f/60,Mathf.DegToRad(angle),Mathf.DegToRad(30));
+        }
+    }
+
     private void BuildElevationStudy(NatureModels models,GridContainer grid,Label heading)
     {
         grid.Columns=3;_elevationReadout=heading;

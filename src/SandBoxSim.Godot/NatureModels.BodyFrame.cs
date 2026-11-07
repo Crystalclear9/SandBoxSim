@@ -272,6 +272,7 @@ internal sealed partial class NatureModels
                         if(pattern[i].X<0)points[i]=FemaleBackYokePoint(points[i]);
                     ShapeFemaleNeckline(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
                     CompleteBodiceSurface(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
+                    FairRearShoulderPanel(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
                 }
                 sleeveDistance=SleeveDistances(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),pattern);
             }

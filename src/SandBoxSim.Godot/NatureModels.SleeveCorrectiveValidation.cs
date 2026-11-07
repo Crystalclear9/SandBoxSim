@@ -76,6 +76,15 @@ internal sealed partial class NatureModels
                 var restNormals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();var local=CorrectedSleeveSource(rig,source);var posed=new Vector3[source.Length];
                 for(int i=0;i<posed.Length;i++)for(int j=0;j<4;j++)posed[i]+=skin[boneIds[i*4+j]]*local[i]*boneWeights[i*4+j];
                 var geometric=ClothSurfaceNormals(posed,arrays[(int)Mesh.ArrayType.Index].AsInt32Array());
+                if(FittedFigure)
+                {
+                    var triangles=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+                    float restTurn=RearShoulderSharpLength(source,source,triangles);
+                    float raisedTurn=RearShoulderSharpLength(source,posed,triangles);
+                    if(restTurn>.041f||raisedTurn>.041f)
+                        throw new InvalidOperationException($"Excess sharp folds across the rear shoulder in {job}: {restTurn:P2}/{raisedTurn:P2}");
+                    GD.Print($"FEMALE_REAR_SHOULDER_PASS: {job}, sharp rear seam length at rest and 100 degrees={restTurn:P2}/{raisedTurn:P2}");
+                }
                 using(var baked=rig.BodySkin.BakeMeshFromCurrentBlendShapeMix())
                 {
                     var current=baked.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Normal].AsVector3Array();
@@ -106,5 +115,31 @@ internal sealed partial class NatureModels
         GD.Print($"PROTRUDING_CAP_PASS: samples={_protrudingCapSamples}, full source distance={_protrudingCapBefore/Math.Max(1,_protrudingCapSamples):F5} -> {_protrudingCapAfter/Math.Max(1,_protrudingCapSamples):F5} m; includes cap ridges outside the former normal-fit radius");
         if(_protrudingCapSamples==0||_protrudingCapAfter>=_protrudingCapBefore*.9)throw new InvalidOperationException("Distant cap ridges are skipped or retained by shoulder fitting");
         if(newNormalError>=oldNormalError)throw new InvalidOperationException("Pose normals do not improve agreement with the actual deformed surface");
+    }
+
+    private static float RearShoulderSharpLength(Vector3[] rest,Vector3[] surface,int[] indices)
+    {
+        var faces=new Dictionary<(int,int),Vector3>();
+        float total=0,sharp=0;
+        for(int t=0;t<indices.Length;t+=3)
+        {
+            var a=surface[indices[t]];var b=surface[indices[t+1]];var c=surface[indices[t+2]];
+            var normal=(c-a).Cross(b-a).Normalized();
+            for(int side=0;side<3;side++)
+            {
+                int u=indices[t+side],v=indices[t+(side+1)%3];
+                var centre=(rest[u]+rest[v])*.5f;
+                // Sample the raised side in the fixed rest chart so the
+                // rotating shoulder cannot escape the measurement region.
+                if(centre.X<=.065f||centre.X>=.18f||centre.Y<=1.145f||centre.Y>=1.295f||centre.Z<=.015f)continue;
+                var edge=u<v?(u,v):(v,u);
+                if(faces.TryAdd(edge,normal))continue;
+                float length=surface[u].DistanceTo(surface[v]);
+                total+=length;
+                if(faces[edge].Dot(normal)<.57357644f)sharp+=length; // 55 degrees
+            }
+        }
+        if(total<=1)throw new InvalidOperationException("Rear shoulder has no continuous cloth to measure");
+        return sharp/total;
     }
 }
