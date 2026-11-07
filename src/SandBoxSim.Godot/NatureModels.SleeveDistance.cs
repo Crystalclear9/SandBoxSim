@@ -88,7 +88,43 @@ internal sealed partial class NatureModels
             if(collarDistance!=null)
                 result[i]*=TorsoRamp(.010f,.072f,collarDistance[i]);
         }
+        if(collarDistance!=null)
+            BlendRearYokeWeights(points,pattern,neighbours,collarDistance,result);
         return result;
+    }
+
+    private static void BlendRearYokeWeights(Vector3[] points,Vector2[] pattern,HashSet<int>[] neighbours,float[] collar,float[] weights)
+    {
+        var original=(float[])weights.Clone();
+        var mobility=new float[points.Length];
+        for(int i=0;i<points.Length;i++)
+        {
+            var p=points[i];
+            if(pattern[i].X>=0||collar[i]<=.010f)continue;
+            // Diffuse the shoulder-blade influence along the actual sewn
+            // upper back. Preserve the rim, waist and shared sleeve seam.
+            mobility[i]=TorsoRamp(.005f,.025f,p.Z)*TorsoRamp(1.175f,1.226f,p.Y)
+                *TorsoRamp(.043f,.067f,MathF.Abs(p.X))*(1-TorsoRamp(.126f,.174f,MathF.Abs(p.X)))
+                *TorsoRamp(.010f,.023f,collar[i]);
+        }
+        var next=(float[])weights.Clone();
+        for(int pass=0;pass<30;pass++)
+        {
+            for(int i=0;i<points.Length;i++)
+            {
+                if(mobility[i]<=0)continue;
+                float sum=0,total=0;
+                foreach(int j in neighbours[i])
+                {
+                    float edge=1/MathF.Max(.0005f,points[i].DistanceTo(points[j]));
+                    sum+=weights[j]*edge;total+=edge;
+                }
+                if(total<=0)continue;
+                float target=Mathf.Lerp(sum/total,original[i],.10f);
+                next[i]=Mathf.Lerp(weights[i],target,mobility[i]*.78f);
+            }
+            Array.Copy(next,weights,weights.Length);
+        }
     }
     private static float[] SleeveInfluences(Vector3[] points,int[] indices,Vector2[] pattern,float[] seamDistance)
     {

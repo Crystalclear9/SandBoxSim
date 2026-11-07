@@ -126,13 +126,67 @@ internal sealed partial class NatureModels
     }
 
     private static void FairRearShoulderPanel(Vector3[] points,int[] indices,Vector2[] pattern,
-        Vector3[]? canonical=null,float[]? participation=null)
+        Vector3[]? canonical=null,float[]? participation=null,float yokeTurn=0)
     {
         var rest=canonical??points;
         var freedom=new float[points.Length];
         for(int i=0;i<points.Length;i++)
-            freedom[i]=RearShoulderPanel(rest[i],pattern[i].X)*(participation==null?1:Math.Clamp(participation[i]*2,0,1));
+        {
+            float support=participation==null?1:Math.Clamp(participation[i]*2,0,1);
+            if(participation!=null&&pattern[i].X<0)
+            {
+                // The upper rear panel still needs some room to turn just
+                // outside its pinned collar as the arm crosses shoulder
+                // height. Leave the rim and fully raised yoke on their binds.
+                float upper=TorsoRamp(1.210f,1.254f,rest[i].Y);
+                support=Mathf.Lerp(support,TorsoRamp(.020f,.210f,participation[i]),upper*yokeTurn);
+            }
+            freedom[i]=RearShoulderPanel(rest[i],pattern[i].X)*support;
+        }
         FairRestSurface(points,indices,freedom,.009f,roundRelief:true,passes:8);
+    }
+
+    private static void BlendOverheadYokeMotion(Vector3[] posed,Vector3[] rest,Vector2[] pattern,
+        HashSet<int>[] neighbours,float[] active,float elevation)
+    {
+        float raised=TorsoRamp(68,120,elevation);
+        if(raised<=0)return;
+        var mobility=new float[posed.Length];
+        var motion=new Vector3[posed.Length];
+        for(int i=0;i<posed.Length;i++)
+        {
+            motion[i]=posed[i]-rest[i];
+            if(pattern[i].X>=0)continue;
+            var p=rest[i];
+            mobility[i]=raised*TorsoRamp(0,.038f,active[i])*TorsoRamp(1.196f,1.238f,p.Y)
+                *RearShoulderPanel(p,pattern[i].X);
+        }
+        var current=(Vector3[])motion.Clone();var next=new Vector3[motion.Length];
+        for(int pass=0;pass<10;pass++)
+        {
+            for(int i=0;i<current.Length;i++)
+            {
+                next[i]=current[i];
+                float free=mobility[i];
+                if(free<=0||neighbours[i].Count==0)continue;
+                // Smooth the motion field rather than sanding away the
+                // resting cloth and its sewn details. Share the displacement
+                // over short neighbouring edges beside the anchored neck.
+                var sum=Vector3.Zero;float total=0;
+                foreach(int j in neighbours[i])
+                {
+                    var restEdge=rest[j]-rest[i];
+                    float edge=1/MathF.Max(.0005f,restEdge.Length());
+                    // Keep most of the original relief, but allow a narrow
+                    // standing fold to open as the upper yoke is tensioned.
+                    sum+=(current[j]+restEdge*.35f)*edge;total+=edge;
+                }
+                var displacement=current[i].Lerp(sum/total,.62f*free)-motion[i];
+                next[i]=motion[i]+displacement.LimitLength(.008f*free);
+            }
+            (current,next)=(next,current);
+        }
+        for(int i=0;i<posed.Length;i++)if(mobility[i]>0)posed[i]+=current[i]-motion[i];
     }
 
     private static (int Edges,int Sharp,float LongestInnerFold) ArmholeCreases(Vector3[] points,int[] triangles,Vector2[] pattern,Vector3[]? rest=null,int raisedSide=-1)

@@ -175,13 +175,16 @@ internal sealed partial class NatureModels
             for(int i=0;i<source.Length;i++){points[i]+=offsets[i];target[i]=blends[i]*points[i];}
             if(FittedFigure)
             {
-                float overhead=TorsoRamp(45,125,(height+1)*45);
+                float elevation=(height+1)*45;
+                float overhead=TorsoRamp(45,125,elevation);
                 RelaxRaisedInnerSleeve(target,patches,active,innerSleeve,overhead,shoulder,direction);
                 for(int i=0;i<source.Length;i++)
                     if(active[i]>0&&uv[i].X<0)
                         target[i]=ReturnFemaleAxillaryWall(source[i],target[i],overhead);
                 CompleteBodiceSurface(target,ids,uv,source,active);
-                FairRearShoulderPanel(target,ids,uv,source,active);
+                float yokeTurn=overhead*(1-TorsoRamp(95,130,elevation));
+                FairRearShoulderPanel(target,ids,uv,source,active,yokeTurn);
+                BlendOverheadYokeMotion(target,source,uv,adjacent,active,elevation);
                 for(int i=0;i<source.Length;i++)points[i]=inverseBlends[i]*target[i];
             }
             for(int i=0;i<source.Length;i++)if(anatomy.Active[i]>.5f)

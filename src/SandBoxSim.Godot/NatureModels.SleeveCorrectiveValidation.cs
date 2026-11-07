@@ -71,14 +71,21 @@ internal sealed partial class NatureModels
                 for(int shape=0;shape<ResidentRig.SleevePoseCount;shape++)rig.BodySkin.SetBlendShapeValue(shape,0);
                 for(int frame=0;frame<150;frame++)rig.StudyArmElevation(1f/60,Mathf.DegToRad(100),Mathf.DegToRad(45));
                 var skin=new Transform3D[ResidentRig.SupportedBodyBones];
-                for(int b=0;b<skin.Length;b++)skin[b]=rig.ShoulderSkeleton.GetBonePose(b)*rig.DetailedBodySkin.GetBindPose(b);
                 var boneIds=arrays[(int)Mesh.ArrayType.Bones].AsInt32Array();var boneWeights=arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();
-                var restNormals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();var local=CorrectedSleeveSource(rig,source);var posed=new Vector3[source.Length];
-                for(int i=0;i<posed.Length;i++)for(int j=0;j<4;j++)posed[i]+=skin[boneIds[i*4+j]]*local[i]*boneWeights[i*4+j];
-                var geometric=ClothSurfaceNormals(posed,arrays[(int)Mesh.ArrayType.Index].AsInt32Array());
+                var restNormals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
+                var triangles=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+                Vector3[] PosedCloth()
+                {
+                    for(int b=0;b<skin.Length;b++)skin[b]=rig.ShoulderSkeleton.GetBonePose(b)*rig.DetailedBodySkin.GetBindPose(b);
+                    var local=CorrectedSleeveSource(rig,source);var surface=new Vector3[source.Length];
+                    for(int i=0;i<surface.Length;i++)for(int j=0;j<4;j++)
+                        surface[i]+=skin[boneIds[i*4+j]]*local[i]*boneWeights[i*4+j];
+                    return surface;
+                }
+                var posed=PosedCloth();
+                var geometric=ClothSurfaceNormals(posed,triangles);
                 if(FittedFigure)
                 {
-                    var triangles=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
                     float restTurn=RearShoulderSharpLength(source,source,triangles);
                     float raisedTurn=RearShoulderSharpLength(source,posed,triangles);
                     if(restTurn>.041f||raisedTurn>.041f)
@@ -96,6 +103,18 @@ internal sealed partial class NatureModels
                         oldNormalError+=MathF.Acos(Math.Clamp(before.Normalized().Dot(geometric[i]),-1,1));
                         newNormalError+=MathF.Acos(Math.Clamp(after.Normalized().Dot(geometric[i]),-1,1));normalSamples++;
                     }
+                }
+                if(FittedFigure)
+                {
+                    float maximum=0;
+                    for(int side=0;side<2;side++)
+                    {
+                        for(int frame=0;frame<90;frame++)rig.StudyArmElevation(1f/60,Mathf.DegToRad(135),Mathf.DegToRad(30),side);
+                        maximum=MathF.Max(maximum,RearShoulderSharpLength(source,PosedCloth(),triangles,side));
+                    }
+                    if(maximum>(job==JobType.Farmer?.011f:.035f))
+                        throw new InvalidOperationException($"Female collar-to-shoulder seam folds overhead in {job}: {maximum:P2}");
+                    GD.Print($"FEMALE_OVERHEAD_YOKE_PASS: {job}, 135 degrees, maximum sharp seam fraction across both sides={maximum:P2}");
                 }
                 rig.SetHandDetail(false);rig.StudyArmElevation(1f/60,1.5f,.4f);rig.SetHandDetail(true);
                 float total=0;
@@ -117,7 +136,7 @@ internal sealed partial class NatureModels
         if(newNormalError>=oldNormalError)throw new InvalidOperationException("Pose normals do not improve agreement with the actual deformed surface");
     }
 
-    private static float RearShoulderSharpLength(Vector3[] rest,Vector3[] surface,int[] indices)
+    private static float RearShoulderSharpLength(Vector3[] rest,Vector3[] surface,int[] indices,int raisedSide=1)
     {
         var faces=new Dictionary<(int,int),Vector3>();
         float total=0,sharp=0;
@@ -131,7 +150,8 @@ internal sealed partial class NatureModels
                 var centre=(rest[u]+rest[v])*.5f;
                 // Sample the raised side in the fixed rest chart so the
                 // rotating shoulder cannot escape the measurement region.
-                if(centre.X<=.065f||centre.X>=.18f||centre.Y<=1.145f||centre.Y>=1.295f||centre.Z<=.015f)continue;
+                float lateral=centre.X*(raisedSide==0?-1:1);
+                if(lateral<=.065f||lateral>=.18f||centre.Y<=1.145f||centre.Y>=1.295f||centre.Z<=.015f)continue;
                 var edge=u<v?(u,v):(v,u);
                 if(faces.TryAdd(edge,normal))continue;
                 float length=surface[u].DistanceTo(surface[v]);
