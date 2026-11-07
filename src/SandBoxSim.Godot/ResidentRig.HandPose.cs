@@ -146,7 +146,15 @@ internal partial class ResidentRig
     {
         float lift=WorkLift(phase);
         var recovery=StrokeFollowThrough(phase);
-        if(kind==ResidentTool.Spear)return (new(.10f,.99f,-.24f-lift*.12f),Basis.FromEuler(new Vector3(-1.1f,0,.45f)));
+        if(kind==ResidentTool.Spear)
+        {
+            // Load behind the guard, extend after confirmation, then recover.
+            // The spear head is on +Y in tool space.
+            float guard=ReachEase(phase/.37f)*(1-ReachEase((phase-.81f)/.19f));
+            float thrust=ReachEase((phase-.48f)/.20f)*(1-ReachEase((phase-.73f)/.25f));
+            return (new(.13f-.035f*thrust,.96f+.047f*guard+.015f*thrust,-.28f+.055f*guard-.235f*thrust),
+                Basis.FromEuler(new(-1.12f-.38f*guard,.03f,.31f-.13f*guard)));
+        }
         float prepare=WorkPreparation;
         float arc=phase<prepare?MathF.Sin(MathF.PI*ReachEase(phase/prepare)):0;
         // Tool X is the hand's long axis through the quarter-turn grip.

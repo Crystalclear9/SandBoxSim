@@ -6,6 +6,12 @@ namespace SandBoxSim.Client;
 
 internal partial class ResidentRig
 {
+    internal readonly record struct ConversationBeat(float Speech,float Nod);
+    internal (uint Revision,long Partner)? LastConversation;
+    private ConversationBeat? _conversation;
+    internal float ConversationMouth=>_mouthAmount;
+    internal float ConversationNod {get;private set;}
+
     internal float RestLid;
     internal static float FaceBlink(float time,float identity)
     {

@@ -358,7 +358,7 @@ public partial class WorldView3D : MapView
         if (!WorldPresentationEnabled) { return; }
         CancelPointerGesture();
         _pickMeshes.Clear();_brushTile=new(-1,-1);_pendingTerrain=_pendingNature=_pendingBuildings=false;
-        _world = Game.Sim; _follow = -1; ClearResidentHandoffs(); Clear(_terrainRoot); Clear(_props); Clear(_actors);
+        _world = Game.Sim; _follow = -1; ClearResidentHandoffs(); _residentConversations.Clear(); Clear(_terrainRoot); Clear(_props); Clear(_actors);
         _vegetationContactClock=0;_vegetationContactCount=0;Array.Clear(_vegetationContacts);
         _models.BindMeadowContacts(_vegetationContacts,0);
         _shoreContacts.Clear();_waterContactCount=0;Array.Clear(_waterContacts);EndWaterContacts();
@@ -460,7 +460,7 @@ public partial class WorldView3D : MapView
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="wet-bank-mosaic-v7",["sceneryContact"]="solid-scenery-corridors-v3",["habitatDetail"]="responsive-understory-v12",["vegetationSurface"]="engine-faced-v2",
             ["architecture"]="inset-joinery-v13",["garmentMaterial"]="quiet-linen-v18",["trouserSkin"]="guided-knee-v1",["upperArmFlex"]="stable-contour-v3",["shoulderSkin"]="reference-figure-v25",["shoulderMotion"]="source-clavicle-v11",["motionReference"]="cmu-143-30-v1",["shoulderSurface"]="authored-bind-surface-v3",["forearmSkin"]="continuous-elbow-v9",["sleeveFairing"]="rest-detail-v2",["workPose"]="raised-hammer-v1",["reachMotion"]="palm-trajectory-v2",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
-            ["animalPresentation"]="articulated-paws-v12",["animalLocomotion"]="ground-distance-v1",["residentSurface"]="linear-skin-v9",["workEffort"]="overlapping-weight-transfer-v7",["toolMotion"]="socket-relative-stow-v5",["bodySupport"]="planted-spatial-v3",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="supported-parcel-v19",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="captured-conversation-v10",["waterSurface"]="shore-activity-v7",["wristContour"]="continuous-source-v2",
+            ["animalPresentation"]="articulated-paws-v12",["animalLocomotion"]="ground-distance-v1",["residentSurface"]="linear-skin-v9",["workEffort"]="overlapping-weight-transfer-v7",["toolMotion"]="socket-relative-stow-v5",["bodySupport"]="planted-spatial-v3",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v1",["handlingMotion"]="supported-parcel-v19",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="paired-conversation-v11",["spearMotion"]="guarded-thrust-v1",["waterSurface"]="shore-activity-v7",["wristContour"]="continuous-source-v2",
             ["hairline"]="framed-source-root-v2",["femaleGroom"]="scalp-guided-plait-v1",["garmentFit"]="continuous-drape-v35",["reedPanicle"]="connected-axis-v1",["bodyPresentation"]="continuous-drape-v29",["bodyFrame"]="reference-contour-physique-v31",["femaleBodyBuild"]="regional-builds-v1",["femaleRearShoulder"]="diffused-yoke-v2",["femaleLowerPanel"]="supported-fall-v1",["neckContour"]="relaxed-neckline-v7",["faceContour"]="balanced-adult-v3",["forearmProfile"]="curvature-flow-v9",["residentLocomotion"]="captured-boot-rockers-v9",["gaitReference"]=ResidentGaitCapture.Version,["actionReference"]=ResidentActionCapture.Version,["armSwing"]="captured-spatial-swing-v8",["motionStyle"]="captured-standing-and-stride-v7",["limbCoordination"]="hinge-carry-v4" };
         quality["taskReference"]=ResidentActionCapture.TaskVersion;
         quality["toolContacts"]="furrow-edge-and-work-stance-v1";
@@ -855,7 +855,11 @@ public partial class WorldView3D : MapView
         float tickFraction=observationTickFraction??Game.ObservationTickFraction;
         int routeSearches=2;
         if(paced&&!paused)UpdateResidentStations(delta);
-        if(!paused)PrepareResidentHandoffs(cameraPosition);
+        if(!paused)
+        {
+            PrepareResidentHandoffs(cameraPosition);
+            PrepareResidentConversations(delta,cameraPosition);
+        }
         foreach (var pair in _people)
         {
             int slot = (int)(pair.Key & uint.MaxValue); if (!sim.Agents.IsSlotAlive(slot) || sim.Society.Identity(slot) != pair.Key) { _poseSchedule.Forget(pair.Key);continue; }
@@ -891,6 +895,10 @@ public partial class WorldView3D : MapView
             }
             bool meeting=TryHandoffMeeting(pair.Key,out var meetingStand,out var meetingFacing);
             if(meeting)target=meetingStand;
+            var conversation=FindConversation(pair.Key);
+            bool initiates=conversation?.Initiator==pair.Key;
+            var talkStand=initiates?conversation?.FirstStand:conversation?.SecondStand;
+            if(!meeting&&talkStand.HasValue)target=talkStand.Value;
             // A local interaction approach has time for actual steps.
             // Keep catch-up for long routes and accelerated world travel.
             bool localApproach=phase!=ActionPhase.Moving&&Horizontal(target-current).LengthSquared()<.85f*.85f;
@@ -945,7 +953,8 @@ public partial class WorldView3D : MapView
             bool hasInterest=(hasTarget||gathering||sceneContact.HasValue)&&sim.World.IsInBounds(interest);
             var interestPoint=sceneContact??(hasInterest?SceneResourceFocus(interest.X,interest.Y,action):target);
             int partner=-1;
-            bool hasPartner=(phase==ActionPhase.Executing||finishing)&&sim.Actions.TryGetPresentationPartner(slot,out partner);
+            bool hasPartner=action!=ActionKind.Socialize&&(phase==ActionPhase.Executing||finishing)
+                &&sim.Actions.TryGetPresentationPartner(slot,out partner);
             long partnerIdentity=0;
             if(hasPartner)
             {
@@ -963,6 +972,13 @@ public partial class WorldView3D : MapView
                 hasInterest=true;
             }
             if(meeting){interestPoint=meetingFacing;hasInterest=true;}
+            else if(conversation!=null)
+            {
+                hasPartner=true;
+                partnerIdentity=initiates?conversation.Recipient:conversation.Initiator;
+                interestPoint=_people[partnerIdentity].Position;
+                hasInterest=true;
+            }
             bool hasShore=false;
             if(action==ActionKind.Drink&&(phase==ActionPhase.Executing||finishing))
             {
@@ -974,8 +990,8 @@ public partial class WorldView3D : MapView
             if(paced&&travelHeading.LengthSquared()>.001f&&(heading.LengthSquared()<.000001f||
                 heading.Normalized().Dot(travelHeading.Normalized())>.78f))
                 heading=travelHeading;
-            bool aimsAtTarget=ResidentRig.UsesInteractionFacing(action);
-            bool interacting=meeting||phase==ActionPhase.Executing||finishing;
+            bool aimsAtTarget=conversation!=null||ResidentRig.UsesInteractionFacing(action);
+            bool interacting=meeting||conversation!=null||phase==ActionPhase.Executing||finishing;
             bool followsMovement=(!settled||!interacting)&&heading.LengthSquared()>.000001f;
             float yaw=node.Rotation.Y,headingError=0;
             if(!paused)
@@ -1017,12 +1033,12 @@ public partial class WorldView3D : MapView
             }
             // Keep position interpolation every frame; distant joint poses need fewer updates.
             float fullRate=paced?18:12;
-            int stride=node.HandoffReserved?1:distanceSquared>45*45?8:distanceSquared>30*30?6:distanceSquared>fullRate*fullRate?2:1;
+            int stride=node.HandoffReserved||conversation!=null?1:distanceSquared>45*45?8:distanceSquared>30*30?6:distanceSquared>fullRate*fullRate?2:1;
             if(!paused)node.ObserveDeparture(paced?node.Travel.Preparation:0);
             float lateralDistance=paced?direction.X*MathF.Cos(yaw)-direction.Z*MathF.Sin(yaw):0;
             node.ObserveLocomotion(direction,delta,headingError,paused,remaining,paced?node.Scale.X:1,anticipatoryTurn,lateralDistance);
             node.UpdateDistanceDetail(distanceSquared);
-            var targetTile=hasTarget||sceneContact.HasValue||preyInRange?new Vector2I(interest.X,interest.Y):(Vector2I?)null;
+            var targetTile=!preyInRange&&(hasTarget||sceneContact.HasValue)?new Vector2I(interest.X,interest.Y):(Vector2I?)null;
             var interactionTarget=new ResidentRig.InteractionTarget(targetTile,partnerIdentity,
                 sceneContact.HasValue&&(action is ActionKind.Take or ActionKind.GatherFood)?site with {StockAmount=0}:null);
             var strikeResource=StrikeResource(action);
@@ -1045,7 +1061,8 @@ public partial class WorldView3D : MapView
                     ActionKind.Deposit or ActionKind.StoreInBuilding or ActionKind.Farm=>phase==ActionPhase.Done&&sceneContact.HasValue,
                     ActionKind.BuildHouse or ActionKind.BuildFarm or ActionKind.BuildStorage or ActionKind.BuildMine=>toolSurface.HasValue,
                     ActionKind.Hunt=>phase==ActionPhase.Executing?preyInRange:sceneContact.HasValue,
-                    ActionKind.Socialize or ActionKind.ShareFood or ActionKind.Attack=>hasPartner,
+                    ActionKind.Socialize=>conversation!=null,
+                    ActionKind.ShareFood or ActionKind.Attack=>hasPartner,
                     ActionKind.Drink=>hasShore,
                     ActionKind.Eat when phase==ActionPhase.Executing=>sim.Agents.InventoryOf(slot,ResourceKind.Food)>0,
                     _=>true
@@ -1093,7 +1110,8 @@ public partial class WorldView3D : MapView
             node.PresentAction(_poseSchedule.Consume(pair.Key),action,phase,false,slot,actionRevision,
                 hasPartner&&action!=ActionKind.ShareFood,aligned,sceneContact,contactResource,interactionTarget,completeToolStroke,
                 awaitToolCommit:phase==ActionPhase.Executing&&(action is ActionKind.Hunt or ActionKind.Attack),toolSurface:toolSurface,
-                contactReady:contactReady,deferContact:deferredPost,inventoryCargo:cargoKind);
+                contactReady:contactReady,deferContact:deferredPost,inventoryCargo:cargoKind,
+                conversation:conversation==null?null:ConversationBeat(conversation,initiates));
             if(distanceSquared<18*18)
             {
                 if(!paused)ConformFeet(node);

@@ -49,6 +49,9 @@ internal partial class ResidentRig
         _observedExecution=_completionRemaining=0;
         _waitingForContact=false;
         _awaitingContact=false;
+        _conversation=null;
+        ConversationNod=0;
+        _mouthAmount=0;
         _finishConsumption=_observedMouthContact=false;
         ClearConsumption();
         ClearTransientCargo();
@@ -63,9 +66,10 @@ internal partial class ResidentRig
     public void PresentAction(float delta,ActionKind action,ActionPhase phase,bool paused,float identityPhase,uint? revision=null,bool hasPartner=true,bool targetAligned=true,
         Vector3? sceneContact=null,ResourceKind contactResource=ResourceKind.None,InteractionTarget target=default,
         bool completeToolStroke=true,bool awaitToolCommit=false,ToolSurface? toolSurface=null,bool contactReady=true,bool deferContact=false,
-        ResourceKind? inventoryCargo=null)
+        ResourceKind? inventoryCargo=null,ConversationBeat? conversation=null)
     {
         if(paused)return;
+        _conversation=conversation;
         bool firstSnapshot=revision.HasValue&&!_observedRevision.HasValue;
         bool newRun=action!=_observedAction||revision!=_observedRevision
             ||phase==ActionPhase.Moving&&_observedPhase!=ActionPhase.Moving
@@ -75,7 +79,9 @@ internal partial class ResidentRig
         // the last position after that animal leaves the live render set.
         bool changedPartner=(RequiresPartner(action)||action==ActionKind.Hunt&&phase==ActionPhase.Executing)
             &&target.Partner!=_interactionTarget.Partner;
-        bool changedTile=target.Tile.HasValue&&_interactionTarget.Tile.HasValue&&target.Tile!=_interactionTarget.Tile;
+        // A moving animal or person does not become a new target on a tile boundary.
+        bool trackingIdentity=target.Partner!=0&&(RequiresPartner(action)||action==ActionKind.Hunt);
+        bool changedTile=!trackingIdentity&&target.Tile.HasValue&&_interactionTarget.Tile.HasValue&&target.Tile!=_interactionTarget.Tile;
         bool changedPickup=target.Pickup!=_interactionTarget.Pickup;
         bool changedSurface=_toolSurface is {} previousSurface&&toolSurface is {} nextSurface
             &&(previousSurface.Point.DistanceSquaredTo(nextSurface.Point)>.09f*.09f
@@ -129,7 +135,7 @@ internal partial class ResidentRig
             // of an impact already shown. A spare wind-up must not hit again.
             _finishToolStroke=!_toolImpactSeen||_strokePhase>=ToolImpactPhase(ToolFor(action))&&_strokePhase<1;
         }
-        else if(newlyDone&&contactReady&&(!partnerAction||hasPartner)&&(UsesBareHands(family)||family==ActionFamily.Social))
+        else if(newlyDone&&contactReady&&(!partnerAction||hasPartner)&&(UsesBareHands(family)||family==ActionFamily.Social&&!conversation.HasValue))
         {
             _completionAge=0;
             float minimum=family==ActionFamily.Pickup&&_sceneContact.HasValue?2.5f:1.65f;

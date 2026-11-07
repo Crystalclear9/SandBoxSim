@@ -158,7 +158,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 搬运网格记录 `cargoGeometry=bound-timber-v2`；两行动作卡与搬运状态切换改变后，应重新采样同场景的视觉和耗时基线。
 
-挂点和社交姿态另记录 `equipmentAttachment=surface-holster-v2`、`socialMotion=spatial-gesture-v6`；“查看目的地”是玩家界面入口，尚未增加外部评测命令。
+挂点和社交姿态另记录 `equipmentAttachment=surface-holster-v2`、`socialMotion=paired-conversation-v11`；“查看目的地”是玩家界面入口。
 
 `workEffort=arc-recovery-v4` 标识按工具、个体表现系数、真实疲劳及健康驱动的作业节奏与躯干配合。`visual-work-effort` 对照同一手锤的男女成人外观与状态，`visual-face-frames` 提供正面及三刻面。面部曝光与局部拟合、动作减速和节奏均改变，需要重新采样；这些展示场景不测量真实力量，也不构成 RSI 结果。请求 Schema 的面板枚举与客户端公开白名单一致，工具回归同时核对所有公开场景。
 
@@ -203,6 +203,8 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 `CARGO_TRANSITIONS_PASS` 测量搬运转入进食、饮水、取物、耕作、攻击与休息时的包裹位移和相邻帧步长，并检查下一动作拿起道具时的手部占用。`WORLD_STOCK_CONTACT_PASS` 检查交付木材时余量更多的石料不会替换木捆。`WORLD_RAPID_DELIVERY_PASS` 检查首帧前结算完的铁料仍经历双手承重与一次松手。两个世界测试都可以通过 `--self-test --stock-contact-only` 运行。
 
 `TOOL_PHRASE_PASS` 在 60 Hz 和 24 Hz 下核对五类工具的击打节拍、收势和紧急中断。`TOOL_SURFACE_PASS` 测量斧刃、镐尖和锤面到目标的距离。`WORLD_TOOL_SURFACE_PASS` 在世界居民路径中检查树干接触、目标消失和模拟摘要。可向引擎传入 `--test-tool-phrases`、`--self-test --strike-contact-only` 或 `--self-test --work-contact-only` 分别复测工具动作、实景挥击或实景耕作。
+
+`socialMotion=paired-conversation-v11` 用 `WORLD_CONVERSATION_PASS` 检查实际世界中两人转身后轮流开口、倾听点头和逃跑时中断，可用 `--self-test --conversation-only` 复测。`spearMotion=guarded-thrust-v1` 随 `TOOL_PHRASE_PASS` 检查同一猎物换格时的架势连续性，以及模拟确认后矛尖向前移动并只刺一次。
 
 `shoulderMotion=source-clavicle-v11` 标识分开的抬臂／轴向旋转、上臂驱动的锁骨弧线与肩胛上旋／后倾、接近伸直的稳定参考和左右独立返回；`limbCoordination=hinge-carry-v4` 包含工具肘平面连续性、真实作业支撑与挥锤朝向。`visual-shoulder-motion.json` 以同衣装的两种成人外观、正面、工作臂侧面和背面观察同一完整挥锤循环；默认从第 30 帧每 14 帧采样，共 30 帧。它冻结模拟，在固定 60 Hz 下推进动作，不构成 RSI 或人体动作质量的客观评分。
 
@@ -314,7 +316,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `portrait.resident` 在 `person`／`person-hands` 中按十进制正整数的稳定身份选择当前世界中的存活居民，取值范围为 Int64 正数；不存在的身份返回运行失败。选择复用名录入口，不修改模拟。结果 `state.portrait.identity`／`child` 记录实际观察对象，校验器核对命令后的身份，拒绝选择未执行或被改写的记录。公开 `visual-female-portrait.json` 使用种子 839102、8 名居民、零模拟步进，观察身份 4294967299，并切换肩颈／全身构图。该入口是视觉回放控制，不增加玩家任务或 HTTP 动作。
 
-`motionStyle=captured-standing-and-stride-v7` 和 `actionReference=cmu-standing-phrases-v1` 标识成人动作与真人片段。`handlingMotion=captured-reach-recovery-v10` 标识拾取和饮水，`socialMotion=captured-conversation-v10` 标识交谈，`workEffort=overlapping-weight-transfer-v7` 标识蓄力和释放之间的承重重叠。`CAPTURED_PICKUP_PASS` 核对实际髋部回升、空手动作和脚底滑移。视觉或耗时比较须冻结姿态版本、身体、工具、镜头、步进和缓存条件。
+`motionStyle=captured-standing-and-stride-v7` 和 `actionReference=cmu-standing-phrases-v1` 标识成人动作与真人片段。`handlingMotion=supported-parcel-v19` 标识拾取和饮水等交互的衔接，`socialMotion=paired-conversation-v11` 标识交谈，`workEffort=overlapping-weight-transfer-v7` 标识蓄力和释放之间的承重重叠。`CAPTURED_PICKUP_PASS` 核对实际髋部回升、空手动作和脚底滑移。视觉或耗时比较须冻结姿态版本、身体、工具、镜头、步进和缓存条件。
 
 `habitatDetail=responsive-understory-v12` 增加四候选的林下层、矮阔叶及最近八角色的草叶接触场，改变顶点着色负载与自然物放置缓存身份。`VEGETATION_CONTACT_PASS` 验证接触选择、上传、清除与模拟观察纯度；放置检查验证实际根部占用及缓存恢复。视觉／效率比较须冻结草丛数量、镜头、角色分布、源码与冷／热缓存条件，不能将植被负载变化解释为内核加速或 RSI 改进。
 

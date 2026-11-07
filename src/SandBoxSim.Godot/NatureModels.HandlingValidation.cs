@@ -459,12 +459,22 @@ internal sealed partial class NatureModels
 
                 if(action==ActionKind.Attack)
                 {
-                    for(int i=0;i<310;i++)rig.PresentAction(dt,ActionKind.Hunt,ActionPhase.Executing,false,0,8,awaitToolCommit:true);
+                    var prey=new ResidentRig.InteractionTarget(new Vector2I(2,3),41,null);
+                    for(int i=0;i<310;i++)rig.PresentAction(dt,ActionKind.Hunt,ActionPhase.Executing,false,0,8,target:prey,awaitToolCommit:true);
                     if(rig.PresentedToolImpacts!=3||rig.ToolStrokePhase<.45f)
                         throw new InvalidOperationException("A hunter cannot hold a prepared spear before the hunt result");
-                    for(int i=0;i<280;i++)rig.PresentAction(dt,ActionKind.Hunt,ActionPhase.Done,false,0,8);
-                    if(rig.PresentedToolImpacts!=4||rig.CompletionVisible)
-                        throw new InvalidOperationException("A confirmed hunt does not finish exactly one thrust");
+                    rig.PresentAction(dt,ActionKind.Hunt,ActionPhase.Executing,false,0,8,target:prey with {Tile=new Vector2I(3,3)},awaitToolCommit:true);
+                    if(rig.ToolStrokePhase<.45f)throw new InvalidOperationException("The same prey crossing a tile resets the guard");
+                    var tip=new Vector3(0,1.11f,0);
+                    float aim=(InTorso(rig.ToolMesh,rig)*tip).Z,extension=0;
+                    for(int i=0;i<280;i++)
+                    {
+                        rig.PresentAction(dt,ActionKind.Hunt,ActionPhase.Done,false,0,8);
+                        if(rig.ToolHeld&&rig.ToolStrokePhase is >.56f and <.94f)
+                            extension=MathF.Max(extension,aim-(InTorso(rig.ToolMesh,rig)*tip).Z);
+                    }
+                    if(rig.PresentedToolImpacts!=4||rig.CompletionVisible||extension<.095f)
+                        throw new InvalidOperationException($"A confirmed hunt needs one forward thrust, extension={extension:F3} m");
                 }
             }
             finally{rig.Free();}

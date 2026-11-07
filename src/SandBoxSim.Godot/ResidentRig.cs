@@ -108,6 +108,7 @@ internal partial class ResidentRig : Node3D
     public string Handling => _recoveringPickup?"托住物件 / 收回":HandoffReserved?_handoffReadout:_placingCargo?"双手送稳 / 准备松开":
         _releasedCargo?(_groundPlacement?"物资落地 / 收手":"入库交接 / 收手"):_cargoTuck>0&&SupportedCargo!=ResourceKind.None?"收拢包裹 / 腾手":_placementPending?"抱稳物资 / 等待到位":
         ConsumptionOwnsHand?ConsumptionHandling:!InteractionSettled&&(_observedPhase==ActionPhase.Executing||CompletionVisible)?"接近目的地 / 停稳":
+        _conversation is {} conversation&&InteractionSettled?(conversation.Speech>.1f?"交谈 / 说话":"交谈 / 倾听"):
         _waitingForContact?"等待作业条件":_waitingForFacing?"转向目标 / 等待接触":ToolHeld ? _returning?"收回工具":_draw<.99f?"取出 / 抬手":_carrying?"手持携带":ToolStrokeHandling : _releaseTime>0?"松开手指":_reach>.01f?(_takingTool?(_reach==1?"合拢握柄":"伸手拿取"):"收回手臂"):CargoMesh.Visible?(_bareBlend>.01f&&CompatibleBareActions(_bareAction,ActionKind.Deposit)?"双手递出":"双手搬运"):_bareBlend>.01f?_bareAction switch {ActionKind.Take or ActionKind.GatherFood=>ScenePickupHandling,_=>"徒手交互"}:_cargoBlend>.01f?(_hasCargo?"托起物资":"放下 / 收手"):_restPose.X>.08f?"休息 / 起身":"双手放松";
     public static ResidentTool ToolFor(ActionKind action)=>action switch {
         ActionKind.GatherWood=>ResidentTool.Axe,
@@ -138,6 +139,7 @@ internal partial class ResidentRig : Node3D
     {
         if(paused)return;
         _waitingForContact=false;
+        _conversation=null;
         AdvancePose(PresentationDelta(delta),action,phase,identityPhase,false);
     }
     private void AdvancePose(float delta,ActionKind action,ActionPhase phase,float identityPhase,bool presented,bool targetAligned=true)
@@ -204,7 +206,7 @@ internal partial class ResidentRig : Node3D
         // A long tool is carried in the hand during idle/wandering, rather than
         // hanging diagonally from an invisible waist socket. Bare-hand actions
         // and cargo retain priority and go through the complete stow transition.
-        if(!reserved&&!risingFromPlacement&&wanted==ResidentTool.None&&!IsChild&&!_hasCargo&&!_placingCargo&&!_placementPending&&!_releasedCargo&&!restRequested&&cargoReleased&&gestureReleased&&restWeight<.20f&&
+        if(!reserved&&!_conversation.HasValue&&!risingFromPlacement&&wanted==ResidentTool.None&&!IsChild&&!_hasCargo&&!_placingCargo&&!_placementPending&&!_releasedCargo&&!restRequested&&cargoReleased&&gestureReleased&&restWeight<.20f&&
             (action is ActionKind.None or ActionKind.Wander||phase is ActionPhase.Idle or ActionPhase.Done))
             wanted=DefaultTool;
         _carrying=wanted!=ResidentTool.None&&(!executing||ToolFor(action)==ResidentTool.None);
@@ -249,7 +251,11 @@ internal partial class ResidentRig : Node3D
         float workBlend=Smooth(_workBlend);
         float surfaceBend=AdvanceWorkSurfaceBend(delta,working,workBlend);
         stance+=new Vector3(0,-surfaceBend,-surfaceBend*.28f);
-        bool socialReady=upperReady&&family==ActionFamily.Social&&handsFree&&!_hasCargo&&_bareBlend==0&&_cargoBlend<=.05f;
+        var conversation=InteractionSettled&&!reserved?_conversation:null;
+        float pairedSpeech=conversation?.Speech??0;
+        ConversationNod=Mathf.Lerp(ConversationNod,conversation?.Nod??0,1-MathF.Exp(-delta*16));
+        bool socialReady=(_conversation.HasValue?pairedSpeech>.04f:upperReady&&family==ActionFamily.Social)
+            &&handsFree&&!_hasCargo&&_bareBlend==0&&_cargoBlend<=.05f&&restWeight<.20f;
         if(socialReady&&_socialBlend==0)_socialTime=0;
         _socialBlend=Mathf.MoveToward(_socialBlend,socialReady?1:0,delta/.70f);
         if(_socialBlend>0)_socialTime+=delta;
@@ -312,7 +318,7 @@ internal partial class ResidentRig : Node3D
             :ReachPulse(Mathf.PosMod(_workTime/3.2f+expressionPhase*.1f,1));
         var headTarget=new Vector3(
             Mathf.Lerp(usingTool?-.045f-effort*.4f+(.105f*dig.Head+.12f)*workBlend*(cultivating?1:0):breath*.018f+socialPose.Head*.087f*socialWeight+sip.X*.19f,
-                .14f+.095f*gatherPose.Head,gatherPose.Bend*pickupWeight),
+                .14f+.095f*gatherPose.Head,gatherPose.Bend*pickupWeight)+.18f*ConversationNod,
             MathF.Sin(_phase*.32f+identityPhase)*.045f*(1-_activity)+Math.Clamp(_attentionYaw+.24f*pivot.Look*pivotAmount+.22f*arrival.Look,-.59f,.59f)+_gaitTurn*TurnHeadShare*gaitWeight-walkingChest.Y*.55f,
             -.36f*socialChest.Z-walkingChest.Z*.55f+restSupport.X*.6f*idleWeight);
         Head.Quaternion=DampRotation(Head.Quaternion,ref _headVelocity,Basis.FromEuler(headTarget).GetRotationQuaternion(),.075f,delta);
@@ -355,7 +361,7 @@ internal partial class ResidentRig : Node3D
                 Eyes[eye].Scale=HasAnatomicalEyes?Vector3.One:new(1,MathF.Max(.02f,1-blink),1);
                 Eyes[eye].Rotation=HasAnatomicalEyes?new Vector3(_gaze.Y,_gaze.X,0):Vector3.Zero;
             }
-            float speech=executing?MouthActivity(action,phraseEmphasis):0;
+            float speech=_conversation.HasValue?pairedSpeech*(.54f+.32f*MathF.Abs(MathF.Sin(_phase*9))):executing?MouthActivity(action,phraseEmphasis):0;
             _mouthAmount=Mathf.Lerp(_mouthAmount,speech,1-MathF.Exp(-delta*24));
             Mouth.Position=MouthRest;Mouth.Scale=Vector3.One;MouthMaterial.SetShaderParameter("speech",_mouthAmount);
         }
