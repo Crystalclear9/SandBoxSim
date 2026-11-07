@@ -188,17 +188,30 @@ internal sealed partial class NatureModels
             // Give the shoulder-facing cloth a graded fall from the sewn rim.
             // Soften the high spots of the yoke without flattening the lower
             // cloth, changing the opening itself, or lowering the placket.
-            float yoke=TorsoRamp(.002f,.012f,spread)*(1-TorsoRamp(.035f,.073f,spread))*(1-front*front);
-            float fall=height+rimOffset-spread*Mathf.Lerp(.36f,.68f,side);
+            // Continue the fall across the whole shoulder-facing panel.
+            // Ending the blend halfway to the sleeve left a flat outer shelf.
+            float yoke=TorsoRamp(.002f,.015f,spread)*(1-TorsoRamp(.080f,.125f,spread))*(1-front*front);
+            float fall=height+rimOffset-spread*Mathf.Lerp(.24f,.52f,side);
             float excess=MathF.Max(0,fitted.Y-fall);
-            fitted.Y-=MathF.Min(.010f,excess)*yoke;
+            fitted.Y-=MathF.Min(.012f,excess)*yoke;
             points[i]=fitted;
             float lateral=MathF.Abs(point.X);
             // Round the cloth below the sides of the opening. Keep the rim
             // itself and the far shoulder as the two fixed supports.
             clavicularPanel[i]=TorsoRamp(.005f,.017f,distance)*(1-TorsoRamp(.048f,.078f,distance))
-                *TorsoRamp(.034f,.063f,lateral)*(1-TorsoRamp(.109f,.150f,lateral))
+                *TorsoRamp(.034f,.063f,lateral)*(1-TorsoRamp(.140f,.185f,lateral))
                 *TorsoRamp(1.221f,1.249f,point.Y);
+        }
+        for(int i=0;i<points.Length;i++)
+        {
+            // Round the shared shoulder crest on both sides of the sewn seam.
+            // Fairing the torso alone left the adjacent sleeve cap standing up.
+            var point=rest[i];
+            float crest=TorsoRamp(.080f,.115f,MathF.Abs(point.X))
+                *(1-TorsoRamp(.180f,.225f,MathF.Abs(point.X)))
+                *TorsoRamp(1.215f,1.248f,point.Y)
+                *(1-TorsoRamp(.060f,.125f,MathF.Max(0,pattern[i].X)));
+            clavicularPanel[i]=MathF.Max(clavicularPanel[i],crest);
         }
         FairRestSurface(points,indices,clavicularPanel,.007f,roundRelief:true);
         foreach(var edge in opening)

@@ -188,6 +188,8 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `femaleBodyBuild=regional-builds-v1` 标识世界与居民详情使用的三种成年女性身形。`visual-female-builds` 以正交尺寸 0.87、目标 (0, 0.98, 0) 记录同一居民的正面与侧面。对照固定身高、衣装和姿态，检查腰髋几何与近远景一致性。
 
+`femaleShoulderLine=shared-crest-v1`、`femaleLowerPanel=supported-fall-v2` 和 `garmentFit=continuous-drape-v36` 标记共享肩峰、袖山以及侧髋衣料的当前曲面。`garmentMaterial=quiet-linen-v19` 还改变女性上衣的纱纹频率、扫描对比和细节法线强度。视觉对照使用当前 `visual-thorax-frames`、`visual-female-wardrobe`、`visual-female-shoulders` 和 `visual-female-builds`；动态兼容由既有衣装、领口间隙、抬臂和近远景检查覆盖。
+
 `femaleRearShoulder=diffused-yoke-v2` 标识后领与肩胛之间的蒙皮权重过渡、抬臂修形和法线。`visual-female-shoulders` 以 0.52 米正交尺寸从背面及后侧记录 0°、90°、135° 三种姿态。`FEMALE_OVERHEAD_YOKE_PASS` 在三款衣装上分别测量左右臂举至 135° 时，后肩区域中面夹角超过 55° 的内部边长占比。
 
 `armSwing=elliptic-countermotion-v4` 标识掌面朝内的空手基础姿态、肩肘相位、前臂轴向及独立阻尼目标。`visual-arm-swing` 使用实际网格和控制器，包含正侧面及掌腕近景；人物造型与模拟输入保持独立，图片不是医学步态、视觉真实感或 RSI 分数。

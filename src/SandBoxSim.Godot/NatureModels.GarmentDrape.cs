@@ -252,10 +252,10 @@ internal sealed partial class NatureModels
                 +.003f*front*(1-Mathf.SmoothStep(.80f,.94f,y))+GarmentDrapeDetail(y,angle);
             return FemaleOuterLayer(cloth,y,angle,front,out _);
         }
-        float fall=(Supported(height-.032f)+4*Supported(height-.016f)+6*radius
-            +4*Supported(height+.016f)+Supported(height+.032f))/16;
+        float fall=(Supported(height-.048f)+4*Supported(height-.024f)+6*radius
+            +4*Supported(height+.024f)+Supported(height+.048f))/16;
         float clearance=MathF.Min(radius,trousers-.0015f);
-        return MathF.Max(clearance,radius+Math.Clamp(fall-radius,-.005f,.004f)*active);
+        return MathF.Max(clearance,radius+Math.Clamp(fall-radius,-.007f,.004f)*active);
     }
 
     private float FemaleLowerPanelEase(float height,float angle)

@@ -21,7 +21,7 @@ varying vec3 cloth_axis_x;varying vec3 cloth_axis_y;varying vec3 cloth_axis_z;
 void vertex(){ torso_weight=UV2.x < -1.1 ? 1.0 : 0.0;cloth_position = VERTEX;cloth_normal=NORMAL;
 cloth_axis_x=MODELVIEW_NORMAL_MATRIX[0];cloth_axis_y=MODELVIEW_NORMAL_MATRIX[1];cloth_axis_z=MODELVIEW_NORMAL_MATRIX[2]; }
 void fragment(){
-vec2 weave=vec2(cloth_position.x+cloth_position.z,cloth_position.y)*920.0;
+vec2 weave=vec2(cloth_position.x+cloth_position.z,cloth_position.y)*(fitted_bodice?5400.0:920.0);
 float footprint=max(length(dFdx(weave)),length(dFdy(weave)));
 float yarn=(sin(weave.x)+sin(weave.y+sin(weave.x)*.22))/(2.0+footprint*footprint);
 float twill=sin((weave.x-weave.y)*.25)/(1.0+footprint*footprint*.15);
@@ -38,7 +38,7 @@ vec3 nx=texture(fibre_map,vec2(p.z,p.y*side.x)).rgb,ny=texture(fibre_map,p.xz).r
 float thread=dot(cx*w.x+cy*w.y+cz*w.z,vec3(.2126,.7152,.0722));
 // The pinned linen map has mean linear luminance .3962. Normalize in the
 // same colour space as texture sampling, retaining its photographed weave.
-float thread_contrast=fitted_bodice?.65:(tailored_trousers?1.0:2.0);
+float thread_contrast=fitted_bodice?.46:(tailored_trousers?1.0:2.0);
 float textile=clamp(1.0+(thread-.3962)*thread_contrast/.3962,fitted_bodice?.88:.65,fitted_bodice?1.10:1.25);
 ALBEDO=figure_colour(dye.rgb,UV,fitted_bodice,torso_weight)*.68*(textile+yarn*.018+twill*.008+slub+dye_variation);
 if(fitted_bodice)ALBEDO*=figure_hem_finish(COLOR.a,(-UV.x-2.0)*6.2831853);
@@ -84,7 +84,7 @@ if(tailored_trousers){
 }
 vec3 grain=vec3(0,(nx.g*2.0-1.0)*side.x,nx.r*2.0-1.0)*w.x+vec3(ny.r*2.0-1.0,0,ny.g*2.0-1.0)*w.y+vec3(nz.r*2.0-1.0,(nz.g*2.0-1.0)*-side.z,0)*w.z;
 grain-=base*dot(grain,base);
-float fibre_strength=fitted_bodice?.10:(tailored_trousers?.18:.35);
+float fibre_strength=fitted_bodice?.08:(tailored_trousers?.18:.35);
 NORMAL=normalize(NORMAL+(cloth_axis_x*grain.x+cloth_axis_y*grain.y+cloth_axis_z*grain.z)*fibre_strength);
 ROUGHNESS=clamp(nx.b*w.x+ny.b*w.y+nz.b*w.z,.78,.96);SPECULAR=.21;RIM=.10;RIM_TINT=.72;
 }" };

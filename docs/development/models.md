@@ -158,6 +158,8 @@
 
 女性设计沿用自然匀称、曲线柔和的方向。胸前采用更宽的纵向重分配，来源前向塑形为宽缓的上胸与胸下接续；腰侧适度放松，后腰与后侧骨盆分别建立连续弧线，上腿外侧接入骨盆。关节辅助点固定，统一米制映射的总位移仍限于 18 毫米；来源测试在 1,620 个三维位置检查双侧对称、正向变形及原有 Jacobian 范围，不通过放宽上限获得通过。这里的比例和系数是角色美术选择，不是女性身体或吸引力的统一标准。
 
+`femaleShoulderLine=shared-crest-v1` 将领口往肩头的衣片落势延伸至袖山两侧。共享接缝在静止绑定姿态中一起圆顺，再生成蒙皮和抬臂修形，减少外肩高出台面的轮廓。领口边缘与袖口沿原有接触约束定位。`femaleLowerPanel=supported-fall-v2` 沿腰下布纹以 24 毫米间隔采样，形成较长的侧髋过渡，并用实际裤装表面限制内收。`garmentMaterial=quiet-linen-v19` 将女性上衣的合成纱纹缩小至约毫米尺度，降低扫描纹理的对比和法线扰动，使轮廓与衣料细节分层呈现。当前衣装标识为 `garmentFit=continuous-drape-v36`。[Blender 写实基模与放松绑定姿态](https://studio.blender.org/training/realistic-human-research/use-of-base-meshes/) · [MakeHuman 的比例与体态调节](https://static.makehumancommunity.org/makehuman/docs/modeling_the_body.html)
+
 女性工装与短上衣的前后下摆分别以最多 18／12 毫米圆顺，短上衣下摆最低处为 0.842 米；腰带按来源自然腰线拟合，袖口沿用原有挂点。女性裤装采用低饱和灰橄榄色 `#747264`，配合来源骨盆和腿部截面显示体积；男性裤装保持原染色。
 
 ![成人身体正侧背面](../images/resident-body-frames.png)
