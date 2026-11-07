@@ -1,12 +1,43 @@
 using Godot;
 using SandBoxSim.Core.Agents;
 using SandBoxSim.Core.Environment;
+using SandBoxSim.Core.Foundation;
 using SandBoxSim.Core.Systems;
 
 namespace SandBoxSim.Client;
 
 public partial class WorldView3D
 {
+    private bool TryBridgeResidentContact(ResidentRig resident,int slot,ActionKind next,ActionPhase phase,uint revision,
+        Int2 origin,Int2 interest,Vector3 logical,float distanceSquared,float delta,
+        out ActionSystem.ContactCompletion completion,out Vector3 point,out Vector3 stand)
+    {
+        completion=default;point=stand=logical;
+        var sim=Game.Sim;
+        if(!resident.Visible||distanceSquared>=18*18||phase==ActionPhase.Failed
+            ||next is ActionKind.Flee or ActionKind.Attack or ActionKind.Hunt or ActionKind.ShareFood or ActionKind.Socialize
+            ||!sim.Actions.TryGetLatestContactCompletion(slot,out completion)||completion.Origin!=origin
+            ||unchecked(completion.Revision+1)!=revision)
+            return false;
+        // Consecutive work at the same site already shares a stroke in the rig.
+        if(completion.Site is {} work&&next==completion.Action&&phase==ActionPhase.Executing
+            &&interest==work.Tile&&ResidentRig.ToolFor(next)!=ResidentTool.None)return false;
+        long age=sim.Clock-completion.Tick;
+        if(!resident.BridgeContact(completion,delta,age>=0&&age<=sim.Config.Clock.MaxCatchUpTicksPerFrame))return false;
+        if(completion.Site is {} site)
+        {
+            if(!TryActionContact(resident,completion.Action,site,logical,out point,out stand)
+                ||Horizontal(resident.Position-stand).LengthSquared()>.20f*.20f)
+                return false;
+            if((StrikeResource(completion.Action)!=ResourceKind.None||ResidentRig.ToolFor(completion.Action)==ResidentTool.Hammer)
+                &&(!TryPlanToolSurface(completion.Action,site.Tile.X,site.Tile.Y,stand,out var strike,out _)
+                    ||!ReachableToolSurface(resident,stand,strike)))
+                return false;
+        }
+        else if(completion.Action==ActionKind.Drink&&!TryShoreContact(logical,out _))return false;
+        return true;
+    }
+
     private static ResourceKind StrikeResource(ActionKind action)=>action switch
     {
         ActionKind.GatherWood=>ResourceKind.Wood,

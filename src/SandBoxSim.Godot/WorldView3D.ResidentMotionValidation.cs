@@ -549,6 +549,7 @@ public partial class WorldView3D
         GD.Print($"WORLD_STOCK_CONTACT_PASS: palm {nearest:F3} m from depleted stock, releases {release:F3} m from pile and {crateRelease:F3} m from crate, wood stays wood until release before remaining stone appears, read-only");
         ValidateRapidWarehousePlacement(rig,slot,warehouse,delta);
         ValidateInterruptedPickup(rig,slot,tile,logical,delta);
+        ValidateSkippedContact(rig,slot,tile,logical,delta);
         GD.Print($"WORLD_PICKUP_INTENT_PASS: candidate reached within {preparedGap:F3} m, confirmed after {confirmationFrames} frames without a second reach");
     }
 
@@ -635,6 +636,95 @@ public partial class WorldView3D
         if(held<20||travel<.03f||step>.060f||rig.RecoveringPickup||rig.ScenePickupPieceVisible||sim.StateDigestString()!=committed)
             throw new InvalidOperationException($"Pickup recovery loses continuity: held={held}, travel={travel:F3}, step={step:F3}");
         GD.Print($"WORLD_PICKUP_INTERRUPT_PASS: abandoned depleted source, kept confirmed object for {held} departure frames, max step {step:F3} m, no stale object or simulation write");
+    }
+
+    private void ValidateSkippedContact(ResidentRig rig,int slot,Vector2I tile,Vector3 logical,float delta)
+    {
+        var sim=Game.Sim;var agents=sim.Agents;
+        foreach(var (urgent,moved) in new[]{(false,false),(true,false),(false,true)})
+        {
+            foreach(var kind in ResidentRig.CargoKinds)
+            {
+                agents.SetInventory(slot,kind,0);
+                sim.GroundStocks.Withdraw(tile.X,tile.Y,kind,float.MaxValue);
+            }
+            agents.SetPosition(slot,tile.X,tile.Y);
+            agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
+            rig.Position=logical;_target=logical;UpdateCamera();
+            for(int i=0;i<150;i++)AnimateActors(delta);
+            sim.GroundStocks.Deposit(tile.X,tile.Y,ResourceKind.Stone,1,sim.Config.GroundStocks);
+            agents.SetAction(slot,ActionKind.Take,ActionPhase.Executing);
+            agents.SetTarget(slot,tile.X,tile.Y);
+            for(int i=0;i<230;i++)AnimateActors(delta);
+            if(!rig.GestureEngaged(ActionKind.Take)||rig.ScenePickupGrasped)
+                throw new InvalidOperationException("Skipped contact fixture failed to prepare its pickup");
+
+            sim.Actions.Tick(sim.Clock);
+            agents.SetAction(slot,urgent?ActionKind.Flee:ActionKind.Wander,ActionPhase.Moving);
+            agents.SetTarget(slot,tile.X+1,tile.Y);
+            if(moved)agents.SetPosition(slot,tile.X+1,tile.Y);
+            if(sim.Actions.TryGetCompletedContact(slot,out _)||!sim.Actions.TryGetLatestContactCompletion(slot,out var pickup)
+                ||pickup.Action!=ActionKind.Take||pickup.Site?.Resource!=ResourceKind.Stone)
+                throw new InvalidOperationException("The skipped pickup did not retain its own committed resource");
+            string digest=sim.StateDigestString();
+            int grasps=0;bool grasped=false;
+            bool interrupted=urgent||moved;
+            for(int i=0;i<160;i++)
+            {
+                AnimateActors(delta);
+                if(rig.ScenePickupGrasped&&!grasped)grasps++;
+                grasped=rig.ScenePickupGrasped;
+                if(interrupted&&rig.ScenePickupPieceVisible)throw new InvalidOperationException("Departure waits for an unshown grasp");
+            }
+            if(grasps!=(interrupted?0:1)||rig.ScenePickupPieceVisible||sim.StateDigestString()!=digest)
+                throw new InvalidOperationException($"Skipped pickup was missed or replayed: urgent={urgent}, moved={moved}, grasps={grasps}, {rig.Handling}");
+
+            if(interrupted)continue;
+            agents.SetAction(slot,ActionKind.Deposit,ActionPhase.Executing);
+            agents.SetTarget(slot,tile.X,tile.Y);
+            for(int i=0;i<210;i++)AnimateActors(delta);
+            if(rig.SupportedCargo!=ResourceKind.Stone)throw new InvalidOperationException("Skipped placement has no supported load");
+            sim.Actions.Tick(sim.Clock);
+            agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
+            digest=sim.StateDigestString();
+            int releases=0;bool released=false;
+            for(int i=0;i<190;i++)
+            {
+                AnimateActors(delta);
+                if(rig.ReleasedCargo&&!released)releases++;
+                released=rig.ReleasedCargo;
+            }
+            if(releases!=1||rig.CargoMesh.Visible||sim.StateDigestString()!=digest)
+                throw new InvalidOperationException($"Skipped placement was missed or replayed: releases={releases}, {rig.Handling}");
+        }
+        agents.SetPosition(slot,tile.X,tile.Y);
+        agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
+        agents.SetInventory(slot,ResourceKind.Stone,0);
+        agents.ClearTarget(slot);
+        for(int i=0;i<120;i++)AnimateActors(delta);
+        agents.SetAction(slot,ActionKind.Eat,ActionPhase.Executing);
+        agents.SetInventory(slot,ResourceKind.Food,.2f);
+        agents.SetHunger(slot,.18f);
+        agents.ClearTarget(slot);
+        int previousContacts=rig.ConsumeContacts;
+        float gap=float.PositiveInfinity;
+        for(int i=0;i<210&&gap>.032f;i++)
+        {
+            AnimateActors(delta);
+            if(rig.Bite.Visible)gap=(rig.HandWorldPose(1)*ResidentRig.BiteCentre)
+                .DistanceTo(rig.RigWorldSpace*rig.Torso.Transform*rig.MouthContact)/rig.Scale.X;
+        }
+        if(gap>.032f||!rig.Bite.Visible||rig.ConsumeContacts!=previousContacts)
+            throw new InvalidOperationException($"Skipped meal fixture did not approach the mouth before contact: {gap:F3} m, {rig.Handling}");
+        sim.Actions.Tick(sim.Clock);
+        agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
+        if(!sim.Actions.TryGetLatestContactCompletion(slot,out var meal)||meal.Action!=ActionKind.Eat||meal.Site.HasValue)
+            throw new InvalidOperationException("The completed meal did not retain its own contact");
+        string afterMeal=sim.StateDigestString();
+        for(int i=0;i<150;i++)AnimateActors(delta);
+        if(rig.ConsumeContacts!=previousContacts+1||rig.Bite.Visible||sim.StateDigestString()!=afterMeal)
+            throw new InvalidOperationException($"Skipped meal did not reach the mouth once and recover: contacts={rig.ConsumeContacts-previousContacts}, {rig.Handling}");
+        GD.Print("WORLD_CONTACT_BRIDGE_PASS: prepared pickup, deposit and meal survive a skipped Done once, flight and tile changes cancel, read-only");
     }
 
     private void ValidateSceneHandoff(Vector2I giverTile,Vector2I receiverTile,float delta)

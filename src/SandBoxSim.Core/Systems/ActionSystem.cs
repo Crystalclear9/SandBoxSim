@@ -31,8 +31,9 @@ public sealed class ActionSystem
     public enum ContactSurface : byte { GroundStock, NaturalResource, Storage, BuildingWork, Hunt }
     public readonly record struct ActionContact(Int2 Tile, ResourceKind Resource, ContactSurface Surface, float StockAmount = 0,
         int BuildingGeneration = 0);
-    private (AgentRef Actor, uint Revision, ActionContact Contact)[] _completedContacts =
-        System.Array.Empty<(AgentRef, uint, ActionContact)>();
+    public readonly record struct ContactCompletion(ActionKind Action, uint Revision, long Tick, Int2 Origin, ActionContact? Site);
+    private (AgentRef Actor, ContactCompletion Completion)[] _completedContacts =
+        System.Array.Empty<(AgentRef, ContactCompletion)>();
 
     /// <summary>
     /// 读取某个个体的小数步进度（存档专用）。
@@ -779,6 +780,7 @@ public sealed class ActionSystem
 
         if (_store.HungerOf(slot) <= 0.05f || _store.InventoryOf(slot, ResourceKind.Food) <= 0f)
         {
+            RecordContact(slot, null);
             Complete(slot, _sim.World.Tick);
         }
     }
@@ -792,10 +794,12 @@ public sealed class ActionSystem
             return;
         }
 
+        float thirst = _store.ThirstOf(slot);
         _store.AddNeed(slot, NeedIndex.Thirst, -0.35f);
 
         if (_store.ThirstOf(slot) <= 0.05f)
         {
+            if (thirst > _store.ThirstOf(slot)) RecordContact(slot, null);
             Complete(slot, _sim.World.Tick);
         }
     }
@@ -969,8 +973,9 @@ public sealed class ActionSystem
     // 代价是同一个人可能在走到半路时换了对象 —— 而那恰恰是真实的行为。
     // ---------------------------------------------------------------------
 
-    private void RecordContact(int slot, ActionContact contact)
-        => _completedContacts[slot] = (_store.RefOf(slot), _store.ActionRevisionOf(slot), contact);
+    private void RecordContact(int slot, ActionContact? contact)
+        => _completedContacts[slot] = (_store.RefOf(slot), new(_store.ActionOf(slot), _store.ActionRevisionOf(slot),
+            _sim.World.Tick, new(_store.XOf(slot), _store.YOf(slot)), contact));
 
     private Int2 ActionTile(int slot)
         => _store.HasTarget(slot) ? _store.TargetOf(slot) : new(_store.XOf(slot), _store.YOf(slot));
@@ -1040,11 +1045,20 @@ public sealed class ActionSystem
     public bool TryGetCompletedContact(int slot, out ActionContact contact)
     {
         contact = default;
-        if (!_store.IsSlotAlive(slot) || slot >= _completedContacts.Length || _store.PhaseOf(slot) != ActionPhase.Done)
-            return false;
+        if (!TryGetLatestContactCompletion(slot, out var completion) || _store.PhaseOf(slot) != ActionPhase.Done
+            || completion.Revision != _store.ActionRevisionOf(slot) || completion.Site is not { } site) return false;
+        contact = site;
+        return true;
+    }
+
+    /// <summary>Last committed physical interaction. Presentation checks its age and revision. Not saved.</summary>
+    public bool TryGetLatestContactCompletion(int slot, out ContactCompletion completion)
+    {
+        completion = default;
+        if ((uint)slot >= (uint)_completedContacts.Length || !_store.IsSlotAlive(slot)) return false;
         var recorded = _completedContacts[slot];
-        if (!_store.IsValid(recorded.Actor) || recorded.Revision != _store.ActionRevisionOf(slot)) return false;
-        contact = recorded.Contact;
+        if (!_store.IsValid(recorded.Actor)) return false;
+        completion = recorded.Completion;
         return true;
     }
 

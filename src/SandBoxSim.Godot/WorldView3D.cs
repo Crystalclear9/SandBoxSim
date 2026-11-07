@@ -461,6 +461,7 @@ public partial class WorldView3D : MapView
             ["landscapeSurface"]="wet-bank-mosaic-v7",["sceneryContact"]="solid-scenery-corridors-v3",["habitatDetail"]="responsive-understory-v12",["vegetationSurface"]="engine-faced-v2",
             ["residentActionHandoff"]="displayed-palm-v1",
             ["residentObjectContact"]="confirmed-support-v1",
+            ["residentContactContinuity"]="bounded-confirmation-v1",
             ["workContactHandoff"]="shared-stroke-phase-v1",
             ["architecture"]="inset-joinery-v13",["garmentMaterial"]="quiet-linen-v19",["trouserSkin"]="guided-knee-v1",["upperArmFlex"]="stable-contour-v3",["shoulderSkin"]="reference-figure-v25",["shoulderMotion"]="source-clavicle-v11",["motionReference"]="cmu-143-30-v1",["shoulderSurface"]="authored-bind-surface-v3",["femaleShoulderLine"]="shared-crest-v1",["forearmSkin"]="continuous-elbow-v9",["sleeveFairing"]="rest-detail-v2",["workPose"]="raised-hammer-v1",["reachMotion"]="palm-trajectory-v2",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
             ["animalPresentation"]="articulated-paws-v12",["animalLocomotion"]="ground-distance-v1",["residentSurface"]="linear-skin-v9",["workEffort"]="overlapping-weight-transfer-v7",["toolMotion"]="socket-relative-stow-v5",["bodySupport"]="planted-spatial-v3",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v2",["handlingMotion"]="supported-parcel-v19",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="paired-conversation-v11",["spearMotion"]="guarded-thrust-v1",["waterSurface"]="shore-activity-v7",["wristContour"]="continuous-source-v3",
@@ -873,19 +874,33 @@ public partial class WorldView3D : MapView
             var action=sim.Agents.ActionOf(slot);
             var phase=sim.Agents.PhaseOf(slot);
             uint actionRevision=sim.Agents.ActionRevisionOf(slot);
-            bool finishing=phase==ActionPhase.Done&&node.ShowsCompletion(action,actionRevision);
             bool hasTarget=sim.Agents.HasTarget(slot);
             var interest=hasTarget?sim.Agents.TargetOf(slot):new Int2(x,y);
             Vector3? sceneContact=null;
             ResourceKind contactResource=ResourceKind.None;
             ActionSystem.ActionContact site=default;
-            bool candidate=phase==ActionPhase.Executing&&(sim.Actions.TryGetPickupCandidate(slot,out site)
-                ||sim.Actions.TryGetCultivationCandidate(slot,out site)||sim.Actions.TryGetPlacementCandidate(slot,out site));
-            bool resolvedSite=candidate||finishing&&sim.Actions.TryGetCompletedContact(slot,out site);
-            if(resolvedSite
-                &&TryActionContact(node,action,site,target,out var contact,out var stand))
+            bool bridged=TryBridgeResidentContact(node,slot,action,phase,actionRevision,new(x,y),interest,target,
+                cameraPosition.DistanceSquaredTo(current),paused?0:delta,out var completion,out var bridgeContact,out var bridgeStand);
+            if(bridged)
             {
-                sceneContact=contact;contactResource=site.Resource;target=stand;interest=site.Tile;
+                action=completion.Action;phase=ActionPhase.Done;actionRevision=completion.Revision;
+                hasTarget=false;interest=completion.Origin;
+                if(completion.Site is {} committedSite)
+                {
+                    site=committedSite;sceneContact=bridgeContact;target=bridgeStand;
+                    contactResource=site.Resource;interest=site.Tile;
+                }
+            }
+            bool finishing=phase==ActionPhase.Done&&node.ShowsCompletion(action,actionRevision);
+            if(!bridged)
+            {
+                bool resolvedSite=phase==ActionPhase.Executing&&(sim.Actions.TryGetPickupCandidate(slot,out site)
+                    ||sim.Actions.TryGetCultivationCandidate(slot,out site)||sim.Actions.TryGetPlacementCandidate(slot,out site))
+                    ||finishing&&sim.Actions.TryGetCompletedContact(slot,out site);
+                if(resolvedSite&&TryActionContact(node,action,site,target,out var contact,out var stand))
+                {
+                    sceneContact=contact;contactResource=site.Resource;target=stand;interest=site.Tile;
+                }
             }
             bool gathering=phase==ActionPhase.Executing&&(action is ActionKind.GatherWood or ActionKind.GatherStone or ActionKind.GatherIron);
             if(!sceneContact.HasValue&&gathering&&interest.X==x&&interest.Y==y&&(int)MathF.Floor(current.X*.5f)==x&&(int)MathF.Floor(current.Z*.5f)==y)
@@ -988,7 +1003,7 @@ public partial class WorldView3D : MapView
             {
                 _poseSchedule.Forget(pair.Key);
                 node.ResetGroundContacts();node.CancelPivot();
-                if(!paused)node.ObserveOffscreenAction(action,phase,actionRevision);
+                if(!paused)node.ObserveOffscreenAction(sim.Agents.ActionOf(slot),sim.Agents.PhaseOf(slot),sim.Agents.ActionRevisionOf(slot));
                 continue;
             }
             bool hasInterest=(hasTarget||gathering||sceneContact.HasValue)&&sim.World.IsInBounds(interest);

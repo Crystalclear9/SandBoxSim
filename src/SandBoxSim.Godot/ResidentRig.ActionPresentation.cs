@@ -39,15 +39,51 @@ internal partial class ResidentRig
     private bool _observedContactReady;
     private float _retargetSettle,_contactWait;
     private bool _awaitingContact;
+    private uint? _bridgedRevision;
+    private float _bridgeAge;
     public bool CompletionVisible=>_finishConsumption||_finishToolStroke||_completionRemaining>0||_placingCargo||_placementPending||_awaitingContact;
 
     internal bool ShowsCompletion(ActionKind action,uint revision)
         =>_observedRevision.HasValue&&(revision!=_observedRevision||action!=_observedAction
             ||_observedPhase!=ActionPhase.Done||CompletionVisible);
 
+    internal bool BridgeContact(ActionSystem.ContactCompletion completion,float delta,bool recent)
+    {
+        if(_observedRevision!=completion.Revision||_observedAction!=completion.Action||HandoffReserved)return false;
+        var family=FamilyOf(completion.Action);
+        bool placement=IsPlacement(completion.Action);
+        if(completion.Site is {} site&&(_interactionTarget.Tile!=new Vector2I(site.Tile.X,site.Tile.Y)
+            ||family==ActionFamily.Pickup&&_interactionTarget.Pickup!=site with {StockAmount=0}))return false;
+        bool ready=_observedPhase switch
+        {
+            ActionPhase.Executing=>InteractionSettled&&(family switch
+            {
+                ActionFamily.Pickup=>_observedContactReady&&_scenePickupAge>=.62f,
+                ActionFamily.Transfer=>placement&&SupportedCargo==completion.Site?.Resource,
+                ActionFamily.Consume=>_observedContactReady&&(_consumeStage==ConsumeStage.Use
+                    ||_consumeStage==ConsumeStage.Lift&&_consumeReach>.45f),
+                ActionFamily.Tool=>_observedContactReady&&GestureEngaged(completion.Action),
+                _=>false
+            }),
+            ActionPhase.Done=>CompletionVisible&&!(placement&&ReleasedCargo),
+            _=>false
+        };
+        if(!ready)return false;
+        if(_bridgedRevision!=completion.Revision)
+        {
+            if(!recent)return false;
+            _bridgedRevision=completion.Revision;_bridgeAge=0;
+        }
+        // Finish the nearby physical contact. Longer follow-through belongs
+        // to the normal pose transitions into the new action.
+        _bridgeAge+=PresentationDelta(delta);
+        return _bridgeAge<=(placement?1.60f:.64f);
+    }
+
     internal void ObserveOffscreenAction(ActionKind action,ActionPhase phase,uint revision)
     {
         _poseStep=0;
+        _bridgedRevision=null;
         Array.Clear(_palmMotion);
         _observedAction=action;_observedPhase=phase;_observedRevision=revision;
         _observedExecution=_completionRemaining=0;
