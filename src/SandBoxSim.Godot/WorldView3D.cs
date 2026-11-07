@@ -463,6 +463,7 @@ public partial class WorldView3D : MapView
             ["residentObjectContact"]="confirmed-support-v1",
             ["femaleCoatCollar"]="sewn-facing-v1",
             ["femaleFlankShape"]="continuous-flank-v1",
+            ["femaleRibDrape"]="coupled-bending-v1",
             ["residentContactContinuity"]="bounded-confirmation-v1",
             ["workContactHandoff"]="shared-stroke-phase-v1",
             ["architecture"]="inset-joinery-v13",["garmentMaterial"]="quiet-linen-v19",["trouserSkin"]="guided-knee-v1",["upperArmFlex"]="stable-contour-v3",["shoulderSkin"]="reference-figure-v25",["shoulderMotion"]="source-clavicle-v11",["motionReference"]="cmu-143-30-v1",["shoulderSurface"]="authored-bind-surface-v3",["femaleShoulderLine"]="clavicular-crest-v2",["forearmSkin"]="continuous-elbow-v9",["sleeveFairing"]="rest-detail-v2",["workPose"]="raised-hammer-v1",["reachMotion"]="palm-trajectory-v2",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,

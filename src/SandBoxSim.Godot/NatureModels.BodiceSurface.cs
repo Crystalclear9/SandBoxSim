@@ -108,13 +108,13 @@ internal sealed partial class NatureModels
     {
         // Solve on the sewn exterior in X/Y metres. Rays in the input
         // envelope have unequal spacing across the chest and side wall.
-        const int firstRow=58,rows=37,columns=41; // 1.030–1.210 m above the sole
-        const float step=.005f,halfWidth=.100f;
+        const int firstRow=58,rows=37,columns=45; // 1.030–1.210 m above the sole
+        const float step=.005f,halfWidth=.110f;
         float bottom=TrunkLow+firstRow*step;
         var skin=FemaleThoraxSupport();
         var section=new Vector2[TrunkColumns];
         var before=new float[rows*columns];var lower=new float[before.Length];var upper=new float[before.Length];
-        var tailored=new float[before.Length];
+        var tailored=new float[before.Length];var fitted=new float[before.Length];
         for(int r=0;r<rows;r++)
         {
             float y=bottom+r*step;
@@ -135,24 +135,36 @@ internal sealed partial class NatureModels
                     if((x-a.X)*(x-b.X)>0||MathF.Abs(b.X-a.X)<1e-8f)continue;
                     skinDepth=MathF.Max(skinDepth,-Mathf.Lerp(a.Y,b.Y,(x-a.X)/(b.X-a.X)));
                 }
-                float mask=TorsoRamp(1.035f,1.063f,y)*(1-TorsoRamp(1.170f,1.197f,y))
-                    *(1-TorsoRamp(.076f,.098f,MathF.Abs(x)));
+                float lateral=MathF.Abs(x);
+                float mask=TorsoRamp(1.035f,1.063f,y)*(1-TorsoRamp(1.175f,1.203f,y))
+                    *(1-TorsoRamp(.078f,.109f,lateral));
                 lower[i]=MathF.Max(MathF.Min(depth,skinDepth+.002f),depth-.005f*mask);
-                float ease=FrontCutEase(y,MathF.Abs(x));
-                upper[i]=depth+MathF.Max(.004f,ease+.001f)*mask;
+                float ribReturn=TorsoRamp(.062f,.084f,lateral)*(1-TorsoRamp(.094f,.109f,lateral))
+                    *TorsoRamp(1.095f,1.118f,y)*(1-TorsoRamp(1.145f,1.176f,y));
+                float ease=FrontCutEase(y,lateral)-.0035f*ribReturn;
+                float sideWall=TorsoRamp(.070f,.096f,lateral)*TorsoRamp(1.105f,1.135f,y)*(1-TorsoRamp(1.175f,1.200f,y));
+                // Limit unsupported forward ease as the cloth turns toward
+                // the side. Skin clearance remains the hard lower bound.
+                float forward=Mathf.Lerp(MathF.Max(.004f,ease+.001f),-.0015f,sideWall);
+                upper[i]=MathF.Max(lower[i],depth+forward*mask);
                 tailored[i]=Math.Clamp(depth+ease*mask,lower[i],upper[i]);
+                fitted[i]=Math.Clamp(depth,lower[i],upper[i]);
             }
         }
-        var fitted=(float[])before.Clone();
-        const float bending=36;
+        // Mixed curvature couples both grain directions. The diagonal term
+        // penalizes a ridge turning across the ribs even when each axial
+        // section alone is acceptably smooth.
+        const float bending=36,mixed=.65f;
         for(int pass=0;pass<80;pass++)for(int sweep=0;sweep<2;sweep++)
         for(int y=2;y<rows-2;y++)for(int x=2;x<columns-2;x++)
         {
             int r=sweep==0?y:rows-1-y,c=sweep==0?x:columns-1-x,i=r*columns+c;
             if(lower[i]>=upper[i])continue;
-            float neighbour=4*(fitted[i-1]+fitted[i+1]+fitted[i-columns]+fitted[i+columns]);
+            float neighbour=fitted[i-1]+fitted[i+1]+fitted[i-columns]+fitted[i+columns];
+            float diagonal=fitted[i-columns-1]+fitted[i-columns+1]+fitted[i+columns-1]+fitted[i+columns+1];
             float second=fitted[i-2]+fitted[i+2]+fitted[i-2*columns]+fitted[i+2*columns];
-            fitted[i]=Math.Clamp((tailored[i]+bending*(neighbour-second))/(1+12*bending),lower[i],upper[i]);
+            float smooth=(4+4*mixed)*neighbour-2*mixed*diagonal-second;
+            fitted[i]=Math.Clamp((tailored[i]+bending*smooth)/(1+(12+8*mixed)*bending),lower[i],upper[i]);
         }
         var delta=new float[points.Length];
         for(int i=0;i<points.Length;i++)

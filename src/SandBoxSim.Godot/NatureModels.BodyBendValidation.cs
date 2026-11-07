@@ -30,6 +30,7 @@ internal sealed partial class NatureModels
                     foreach(float y in new[]{1.072f,1.082f,1.092f})
                         lowerRibDepth[_garmentCut]-=GarmentDepth(p,ids,x,y,false)/12;
                     ValidateFittedPlacket(rig,_garmentCut,p,ids);
+                    ValidateRibDrape(p,ids);
                     ValidateFemaleHemCut(p);
                     ValidateFemaleHemFinish(rig.DetailedBodyMesh,rig.DistantBodyMesh);
                 }
@@ -183,6 +184,24 @@ internal sealed partial class NatureModels
         GD.Print($"FEMALE_FRONT_CUTS_PASS: mean gatherer/coat depth above the work shirt={1000*gathererEase:F2}/{1000*coatEase:F2} mm, 12 finished samples per cut");
         GD.Print($"LUMBAR_CLOTH_PASS: 2 frames/3 cuts, 3 actions, {probes} actual posed trouser-clearance rays; pelvic/chest excursion={excursion:F3} m, rigid mounts and pause");
         GD.Print($"RELAXED_STANCE_PASS: 2 frames/480 steps, planted level soles after 0.35s entry, entry drift={entryDrift:F4} m, fixed thigh lengths, sway={sway:F3} m, knee={knee:F3} rad and pause");
+    }
+
+    private void ValidateRibDrape(Vector3[] points,int[] indices)
+    {
+        double squared=0;float peak=0;int count=0;
+        foreach(int side in new[]{-1,1})
+        for(int row=0;row<16;row++)for(int column=0;column<7;column++)
+        {
+            float x=side*(.065f+column*.005f),y=1.10f+row*.005f;
+            float Slope(float lateral)=>GarmentDepth(points,indices,lateral,y+.005f,false)
+                -GarmentDepth(points,indices,lateral,y-.005f,false);
+            float difference=MathF.Abs(Slope(x+.005f)-Slope(x-.005f))*.25f;
+            squared+=difference*difference;peak=MathF.Max(peak,difference);count++;
+        }
+        double rms=Math.Sqrt(squared/count);
+        if(!double.IsFinite(rms)||_garmentCut==0&&(rms>.00025||peak>.00051f))
+            throw new InvalidOperationException($"Rib drape retains an oblique ridge: cut={_garmentCut}, RMS={rms*1000:F3} mm, peak={peak*1000:F3} mm");
+        GD.Print($"FEMALE_RIB_DRAPE_PASS: cut={_garmentCut}, {count} actual front-panel samples, diagonal depth RMS={rms*1000:F3} mm, peak={peak*1000:F3} mm");
     }
 
     private static float MeasureFrontWaistReversal(Vector3[] points,int[] indices)

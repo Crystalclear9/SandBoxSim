@@ -933,6 +933,8 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 
 `CHEST_PANEL_PASS` 测量最终女性衣装在九个胸高、十五个横向位置的实际三角面；中线凹陷按同高度的身体皮肤截面约束，最多为来源凹陷加 1.5 毫米且总量不超过 5 毫米；成衣不得侵入来源皮肤超过 1 毫米采样容差，近远景前面偏差不得超过 1 毫米。检查衣料连续性与距离转换，不把形体参数解释为医学标准或审美分数。肩袖动画、固定支持、衣料体积、腰带接触与来源胸廓投影检查继续独立运行。
 
+`femaleRibDrape=coupled-bending-v1` 将胸外侧的身体支撑沿肋缘斜向分布，在胸骨、外侧连接及肩领前淡出。三款上衣在同一前衣片的实际截面上拟合布量，同时约束纵向、横向与混合弯曲。衣片靠近侧胸时逐渐收紧可用的前向布量，身体截面约束向内的位移。这样可以顺着肋缘收掉突兀的斜侧凸折，并保留胸部起伏。拟合在建立网格缓存时完成。[胸壁前表面研究](https://pubmed.ncbi.nlm.nih.gov/17589265/) · [Pixar 的布料垂坠方法](https://graphics.pixar.com/library/BlendedUVs/paper.pdf)
+
 前胸设计将胸廓与局部体积共同观察，参考 [RBSM 研究对胸部与周围胸廓耦合的说明](https://rbsm.re-mic.de/explicit/)、[Blender Studio 衣装形变流程](https://studio.blender.org/training/realistic-human-research/clothing-shapes/)与 [MakeHuman 的身体／衣装辅助网格适配说明](https://www.makehumancommunity.org/assets/creatingassets/maketarget/targetsv2.html)。研究资料用于形态与流程参考；项目运行素材仍使用已有 CC0 来源，没有引入 RBSM 数据或权重。
 
 横向拟合后，女性前胸还有最多 3 毫米的双向法线平滑，用同一活动区处理整个前胸，保持领口、腰部和袖管固定，并保留三角形方向检查。成人静态远景从最终近景的静止衣面生成，位置一致并保留衣片与染色标记，再建立屏幕索引 LOD；不再独立投射成人前胸或恢复旧肩部代理。`MatchDistantFrontPanel` 保留为兼容工具，不能将它解释成当前成人远景路径。普通帧不执行衣面拟合。

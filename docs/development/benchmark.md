@@ -202,6 +202,8 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `femaleFlankShape=continuous-flank-v1` 标识共用的下腰、外髋与上腿形体及衣面。`FEMALE_FLANK_SUPPORT_PASS` 检查身体截面的位移、对称性、固定区及局部雅可比，`FEMALE_FLANK_TROUSER_PASS` 核对实际裤装的外髋截面和上腿过渡。服装动态对照使用 `visual-body-motion`，同时检查拾取、作业及步行中上衣与裤装的覆盖。
 
+`femaleRibDrape=coupled-bending-v1` 标识女性前衣片的斜向约束和外侧松量。`FEMALE_RIB_DRAPE_PASS` 在每款成衣的实际前片读取 224 个双侧样本，用 5 毫米间隔测量纵向斜率随横向位置的变化。`CHEST_PANEL_PASS`、`CHEST_LATERAL_PASS` 和 `CHEST_VOLUME_PASS` 分别复核皮肤间隙、外侧宽度及纵向起伏。视觉对照使用 `visual-thorax-frames`。
+
 `femaleShoulderLine=clavicular-crest-v2` 记录领口、锁骨到袖山的高度拟合。`CLAVICULAR_YOKE_PASS` 比较三款成衣的实际顶点到局部曲面的高度残差，并约束位移和领缘。`femaleCoatCollar=sewn-facing-v1` 记录随衣身蒙皮的外套低领翻边。`femaleLowerPanel=grain-fitted-waist-v1`、`garmentFit=continuous-drape-v40` 和 `femaleFrontCut=supported-closure-v1` 区分三款衣装的下肋松量、门襟与纽扣。`garmentMaterial=quiet-linen-v19` 记录纱纹和细节法线。视觉对照使用 `visual-female-shoulders`、`visual-female-wardrobe` 与 `visual-female-builds`。冷启动耗时比较须固定款式和身形缓存状态。
 
 `femaleRearShoulder=supported-meridians-v1` 标识后领到肩胛的成衣剖面拟合及高举时的后片修形。`visual-female-shoulders` 以 0.52 米正交尺寸从背面及后侧记录 0°、90°、135° 三种姿态。`FEMALE_BACK_YOKE_PASS` 检查静止后衣片相对领缘的突出量。`FEMALE_OVERHEAD_YOKE_PASS` 在三款衣装上分别测量左右臂举至 135° 时，后肩区域中面夹角超过 55° 的内部边长占比。

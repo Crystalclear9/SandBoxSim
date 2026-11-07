@@ -106,9 +106,12 @@ internal sealed partial class NatureModels
     {
         float x=MathF.Abs(p.X);
         float height=TorsoRamp(1.075f,1.105f,p.Y)*(1-TorsoRamp(1.195f,1.235f,p.Y));
-        float root=TorsoRamp(.008f,.028f,x)*(1-TorsoRamp(.085f,.115f,x));
-        float upper=MathF.Exp(-MathF.Pow((x-.047f)/.056f,2)-MathF.Pow((p.Y-1.165f)/.053f,2));
-        float lower=MathF.Exp(-MathF.Pow((x-.071f)/.043f,2)-MathF.Pow((p.Y-1.113f)/.029f,2));
+        float root=TorsoRamp(.008f,.028f,x)*(1-TorsoRamp(.091f,.115f,x));
+        float upper=MathF.Exp(-MathF.Pow((x-.047f)/.060f,2)-MathF.Pow((p.Y-1.165f)/.053f,2));
+        // The lower root climbs toward the side wall with the rib cage.
+        // Spread the return along this diagonal to support a smooth cloth span.
+        float ribRoot=1.114f+.19f*(x-.050f);
+        float lower=MathF.Exp(-MathF.Pow((x-.081f)/.046f,2)-MathF.Pow((p.Y-ribRoot)/.031f,2));
         float front=TorsoRamp(.040f,.100f,-p.Z);
         // Retain the upper thoracic slope while blending the lower, outer
         // surface back into the ribs. Both lobes use the same bound mesh.
