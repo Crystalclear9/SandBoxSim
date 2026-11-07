@@ -96,6 +96,7 @@ public partial class WorldView3D
         GD.Print($"RESIDENT_DEPARTURE_PASS: preparation={preparationFrames} frames, lateral pelvis transfer={departureTransfer:F3} m, root/feet drift={departureRootDrift:F4}/{departureFootDrift:F4} m before the first step");
         ValidateResidentStations(tiles.Goal,tiles.Corner,delta);
         ValidateProjectedResidentMotion(delta);
+        ValidateRedirectedResident(delta);
         ValidateSceneHandoff(tiles.Start,tiles.Corner,delta);
         ValidateWorldStockContact(tiles.Start,delta);
         ValidateWorldToolContact(tiles.Goal,delta);
@@ -849,6 +850,110 @@ public partial class WorldView3D
             }
         }
         throw new InvalidOperationException("No supported multi-tile route with an interior turn");
+    }
+
+    private void ValidateRedirectedResident(float delta)
+    {
+        var sim=Game.Sim;
+        var agents=sim.Agents;
+        bool Straight(Int2 start,int direction)
+        {
+            var path=_observerPaths.FindPath(start.X,start.Y,start.X+2*direction,start.Y,_observedRoute);
+            return path.Success&&path.Length==3&&_observedRoute[1]==new Int2(start.X+direction,start.Y);
+        }
+        var tile=Enumerable.Range(0,sim.World.Width*sim.World.Height)
+            .Select(i=>new Int2(i%sim.World.Width,i/sim.World.Width))
+            .First(p=>p.X>=3&&p.X<sim.World.Width-3&&p.Y>=2&&p.Y<sim.World.Height-2
+                &&Enumerable.Range(-2,4).All(dx=>ResidentRouteLegClear(new(p.X+dx,p.Y),new(p.X+dx+1,p.Y)))
+                &&Straight(p,1)&&Straight(p,-1));
+        var origin=PositionAt(tile.X,tile.Y);
+        if(sim.InterveneSpawnHumans(tile.X,tile.Y,1,1)!=1)
+            throw new InvalidOperationException("Redirect fixture could not spawn a walker");
+        int slot=agents.AliveSlots().Last();
+        agents.SetPosition(slot,tile.X,tile.Y);
+        agents.SetLifeStage(slot,LifeStage.Adult);
+        agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
+        agents.SetInventory(slot,ResourceKind.Wood,4);
+        SyncEntities();
+        var rig=(ResidentRig)_people[sim.Society.Identity(slot)];
+        var forward=Horizontal(PositionAt(tile.X+1,tile.Y)-origin).Normalized();
+        rig.Rotation=new(0,HeadingYaw(forward),0);
+        _target=origin;_distance=9;_pitch=.62f;UpdateCamera();
+        for(int frame=0;frame<130;frame++)AnimateActors(delta);
+        if(rig.SupportedCargo!=ResourceKind.Wood)
+            throw new InvalidOperationException("Redirect fixture cannot support its load");
+
+        double ticks=0;
+        long tick=sim.Clock;
+        void Advance()
+        {
+            ticks+=delta*Game.ObservationTickRate;
+            while(ticks>=1){ticks--;sim.Actions.Tick(++tick);}
+            _target=rig.Position;UpdateCamera();
+            string digest=sim.StateDigestString();
+            AnimateActors(delta,(float)ticks);
+            if(sim.StateDigestString()!=digest)
+                throw new InvalidOperationException("A rendered redirect changes simulation state");
+        }
+
+        agents.SetAction(slot,ActionKind.Wander,ActionPhase.Moving);
+        agents.SetTarget(slot,tile.X+2,tile.Y);
+        float entrySpeed=0;
+        for(int frame=0;frame<160;frame++)
+        {
+            var prior=rig.Position;
+            Advance();
+            entrySpeed=Horizontal(rig.Position-prior).Dot(forward)/delta;
+            if(entrySpeed>.80f&&Horizontal(rig.Position-origin).Dot(forward)>.40f)break;
+        }
+        if(entrySpeed<=.80f||agents.XOf(slot)!=tile.X||agents.YOf(slot)!=tile.Y||!rig.Travel.Projecting)
+            throw new InvalidOperationException($"Redirect fixture never reaches a projected forward step: speed={entrySpeed:F3}");
+
+        agents.SetAction(slot,ActionKind.Flee,ActionPhase.Moving);
+        agents.SetTarget(slot,tile.X-2,tile.Y);
+        sim.Actions.ClearMoveProgress(slot);
+        float previousSpeed=entrySpeed,brakeDistance=0,brakingPeak=0,pivotDrift=0,soleDrift=0,reverseDistance=0;
+        int redirectFrames=0,pivotFrames=0;
+        Vector3 Sole(int side)=>rig.Feet[side].GlobalTransform*rig.BootSoleCurve[12];
+        for(int frame=0;frame<230&&reverseDistance<.25f;frame++)
+        {
+            var prior=rig.Position;
+            var left=Sole(0);
+            var right=Sole(1);
+            Advance();
+            var movement=Horizontal(rig.Position-prior);
+            float signedStep=movement.Dot(forward),speed=signedStep/delta;
+            if(movement.Length()>ResidentRig.MaximumGaitSpeed*delta+.001f
+                ||!ScenerySegmentClear(prior,rig.Position)||!SceneryLegSupported(prior,rig.Position))
+                throw new InvalidOperationException("Redirect braking crosses unsupported ground");
+            if(rig.SupportedCargo!=ResourceKind.Wood||rig.ReleasedCargo)
+                throw new InvalidOperationException("Redirect drops or replaces the carried parcel");
+            if(rig.Travel.Redirecting)
+            {
+                redirectFrames++;
+                brakeDistance+=MathF.Max(0,signedStep);
+                brakingPeak=MathF.Max(brakingPeak,(previousSpeed-speed)/delta);
+                if(signedStep<-.001f)throw new InvalidOperationException("Resident reverses translation before planting and turning");
+            }
+            if(rig.IsPivoting)
+            {
+                pivotFrames++;
+                pivotDrift=MathF.Max(pivotDrift,movement.Length());
+                soleDrift=MathF.Max(soleDrift,MathF.Min(Horizontal(Sole(0)-left).Length(),
+                    Horizontal(Sole(1)-right).Length()));
+            }
+            if(signedStep<-.001f)
+            {
+                if(!InteractionFacingAligned(rig.Rotation.Y,movement.Normalized()))
+                    throw new InvalidOperationException($"Reverse step starts before facing the new route: frame={frame}, yaw={rig.Rotation.Y:F3}/{HeadingYaw(movement):F3}, step={signedStep:F4}, projected={rig.Travel.Projecting}, redirect={redirectFrames}, pivot={pivotFrames}");
+                reverseDistance-=signedStep;
+            }
+            previousSpeed=speed;
+        }
+        if(redirectFrames<24||pivotFrames<14||brakeDistance<.035f||brakeDistance>.33f||brakingPeak>4.7f
+            ||pivotDrift>.003f||soleDrift>.022f||reverseDistance<.25f)
+            throw new InvalidOperationException($"World redirect: frames={redirectFrames}/{pivotFrames}, braking distance={brakeDistance:F3}, peak braking={brakingPeak:F2}, root/sole drift={pivotDrift:F4}/{soleDrift:F4}, resumed={reverseDistance:F3}");
+        GD.Print($"WORLD_REDIRECT_PASS: {entrySpeed:F2} m/s entry, {brakeDistance:F3} m forward braking, {pivotFrames} pivot frames, root/sole drift={pivotDrift:F4}/{soleDrift:F4} m, reversed with load and unchanged simulation");
     }
 
     private void ValidateResidentStations(Vector2I tile,Vector2I departure,float delta)

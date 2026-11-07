@@ -174,7 +174,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `residentLocomotion=captured-boot-rockers-v9` 和 `gaitReference=cmu-contact-curves-v2` 标识摆脚、鞋底俯仰和骨盆重心轨迹。`armSwing=captured-spatial-swing-v8` 加入双侧上臂的外摆采样。`visual-locomotion` 使用同速度成人外观、双手搬运及持锤行走到作业的对照，冻结模拟并推进动画。`BOOT_ROCKER_PASS` 在两种体型的稳定步行中比较实际鞋底承重点与去除补偿后的纵向滑移。
 
-`residentTravel=projected-resident-route-v3` 标识实景的近景路线预判、起步重心转移与换脚转身。`pacedResidentTravel` 记录当前是否启用实景步速。评测配置固定 `ticksPerFrame` 大于零时按该配置推进。`RESIDENT_ROUTE_PROJECTION_PASS` 由模拟动作系统推进实际地形上的多格路线，测量过格时的根节点速度与重复起步，核对转弯支撑、到站拾取、拓扑失效和模拟搜索计数。`RESIDENT_WORLD_MOTION_PASS` 继续检查只收到已确认格点时的步行与转身。`RESIDENT_DEPARTURE_PASS` 同时检查双足与根节点在起步准备期的位置，以及骨盆的侧移。
+`residentTravel=projected-resident-route-v4` 标识实景的近景路线预判、起步重心转移与换脚转身。`pacedResidentTravel` 记录当前是否启用实景步速。评测配置固定 `ticksPerFrame` 大于零时按该配置推进。`RESIDENT_ROUTE_PROJECTION_PASS` 由模拟动作系统推进实际地形上的多格路线，测量过格时的根节点速度与重复起步，核对转弯支撑、到站拾取、拓扑失效和模拟搜索计数。`RESIDENT_WORLD_MOTION_PASS` 检查只收到已确认格点时的步行与转身。`RESIDENT_DEPARTURE_PASS` 检查起步准备期双足、根节点和骨盆。`WORLD_REDIRECT_PASS` 在实际地形上从向前搬运切换到反向逃离，记录刹停距离、承重脚和根节点漂移，并核对物件支撑与模拟摘要。
 
 `residentContactApproach=supported-contact-v1` 标识加速下的近距离接近、结算前的搬运站位和工具朝向。`WORLD_ACCELERATED_APPROACH_PASS` 测量同一实际堆位的起步准备与峰值加速度，并检查站稳、转向和结算前的物品归属。`WORLD_STOCK_CONTACT_PASS` 同时核对仓库候选与结算后的站位，以及部分入库时的物资类型。
 

@@ -908,21 +908,56 @@ public partial class WorldView3D : MapView
             bool usesMotor=paced||localApproach;
             Vector3 rendered=current;
             Vector2 travelHeading=Vector2.Zero;
+            bool redirecting=false;
             float remaining=Horizontal(target-current).Length();
             float anticipatoryTurn=0;
             if(!paused)
             {
                 if(usesMotor)
                 {
-                    if(paced&&phase==ActionPhase.Moving&&hasTarget&&node.Visible&&cameraPosition.DistanceSquaredTo(current)<54*54
+                    Vector3 sample=default;
+                    Vector2 routeHeading=default;
+                    float routeRemaining=0,turn=0,limit=0;
+                    bool projected=paced&&phase==ActionPhase.Moving&&hasTarget&&node.Visible&&cameraPosition.DistanceSquaredTo(current)<54*54
                         &&TryProjectResidentRoute(node,slot,new(x,y),interest,tickFraction,ref routeSearches,
-                            out var sample,out var routeRemaining,out var turn,out var limit))
+                            out sample,out routeHeading,out routeRemaining,out turn,out limit);
+                    bool followsRoute=phase==ActionPhase.Moving&&hasTarget;
+                    bool canKeepRedirect=node.Visible&&(node.Travel.Redirecting||paced&&followsRoute&&node.Travel.Projecting)
+                        &&(!hasTarget||sim.World.IsInBounds(interest)&&sim.World.TileAt(interest).Walkable);
+                    // A search may be deferred by the per-frame budget. Use
+                    // the destination rather than the old logical tile to
+                    // preserve the turn while its next route leg is pending.
+                    var redirectGoal=canKeepRedirect&&followsRoute?PositionAt(interest.X,interest.Y):target;
+                    var redirectHeading=Horizontal(redirectGoal-current).Normalized();
+                    if(projected)
+                    {
+                        var projectedHeading=Horizontal(sample-current).Normalized();
+                        redirectHeading=projectedHeading.Dot(routeHeading)>.25f?projectedHeading:routeHeading;
+                    }
+                    redirecting=(projected||canKeepRedirect)&&redirectHeading.LengthSquared()>.5f
+                        &&node.Travel.PlanRedirect(redirectHeading,node.Rotation.Y,node.IsPivoting||node.TryGetArrivalFacing(out _));
+                    if(redirecting)
+                    {
+                        // Spend the last bit of momentum along the old
+                        // heading, if that ground is still available.
+                        rendered=node.Travel.BrakeForRedirect(current,delta,projected);
+                        if(rendered!=current&&(!ScenerySegmentClear(current,rendered)||!SceneryLegSupported(current,rendered)))
+                        {
+                            node.Travel.StopProjectedMomentum();
+                            rendered=current;
+                        }
+                        rendered.Y=GroundHeight(rendered.X,rendered.Z);
+                        travelHeading=redirectHeading;
+                        anticipatoryTurn=Mathf.AngleDifference(node.Rotation.Y,HeadingYaw(redirectHeading))*.6f;
+                        remaining=projected?routeRemaining:Horizontal(target-rendered).Length();
+                    }
+                    else if(projected)
                     {
                         rendered=node.Travel.ProjectedStep(current,sample,node.Rotation.Y,limit,delta);
                         rendered.Y=GroundHeight(rendered.X,rendered.Z);
                         travelHeading=Horizontal(sample-current);
-                        remaining=routeRemaining;
                         anticipatoryTurn=turn;
+                        remaining=routeRemaining;
                     }
                     else
                     {
@@ -1019,8 +1054,22 @@ public partial class WorldView3D : MapView
                 bool faceInterest=hasInterest&&settled&&interacting&&aimsAtTarget&&facing.LengthSquared()>.002f;
                 bool prepareFacing=usesMotor&&distanceSquared<18*18&&interacting&&aimsAtTarget&&remaining<.09f
                     &&hasInterest&&facing.LengthSquared()>.0225f;
-                node.PlanArrival(target,prepareFacing?HeadingYaw(facing):null);
-                if(usesMotor&&distanceSquared<18*18&&remaining<.09f&&Horizontal(direction).LengthSquared()<.20f*.20f*delta*delta
+                node.PlanArrival(redirecting?rendered:target,redirecting?HeadingYaw(travelHeading):prepareFacing?HeadingYaw(facing):null);
+                if(redirecting)
+                {
+                    float goal=HeadingYaw(travelHeading);
+                    float frameDistance=Horizontal(direction).LengthSquared();
+                    if(distanceSquared<18*18)
+                    {
+                        if(frameDistance<.20f*.20f*delta*delta&&node.TryGetArrivalFacing(out float redirectYaw))
+                            yaw=redirectYaw;
+                        else if(frameDistance<.15f*.15f*delta*delta&&(node.IsPivoting||node.ReadyForTravelTurn))
+                            yaw=node.AdvancePivot(yaw,goal,delta);
+                    }
+                    else if(frameDistance<.15f*.15f*delta*delta)
+                        yaw=TurnResident(yaw,goal,delta,3.2f);
+                }
+                else if(usesMotor&&distanceSquared<18*18&&remaining<.09f&&Horizontal(direction).LengthSquared()<.20f*.20f*delta*delta
                     &&node.TryGetArrivalFacing(out float landingYaw))
                 {
                     yaw=landingYaw;
@@ -1055,7 +1104,7 @@ public partial class WorldView3D : MapView
             int stride=node.HandoffReserved||conversation!=null?1:distanceSquared>45*45?8:distanceSquared>30*30?6:distanceSquared>fullRate*fullRate?2:1;
             if(!paused)node.ObserveDeparture(usesMotor?node.Travel.Preparation:0);
             float lateralDistance=usesMotor?direction.X*MathF.Cos(yaw)-direction.Z*MathF.Sin(yaw):0;
-            node.ObserveLocomotion(direction,delta,headingError,paused,remaining,usesMotor?node.Scale.X:1,anticipatoryTurn,lateralDistance);
+            node.ObserveLocomotion(direction,delta,headingError,paused,remaining,usesMotor?node.Scale.X:1,anticipatoryTurn,lateralDistance,redirecting);
             node.UpdateDistanceDetail(distanceSquared);
             var targetTile=!preyInRange&&(hasTarget||sceneContact.HasValue)?new Vector2I(interest.X,interest.Y):(Vector2I?)null;
             var interactionTarget=new ResidentRig.InteractionTarget(targetTile,partnerIdentity,
@@ -1093,8 +1142,8 @@ public partial class WorldView3D : MapView
                 foreach(var resource in ResidentRig.CargoKinds)
                 {float amount=sim.Agents.InventoryOf(slot,resource);if(amount>cargoAmount){cargoAmount=amount;cargoKind=resource;}}
             }
-            var attention=hasInterest?interestPoint-rendered:Vector3.Zero;
-            float anticipation=node.Travel.Projecting
+            var attention=redirecting?new Vector3(travelHeading.X,0,travelHeading.Y):hasInterest?interestPoint-rendered:Vector3.Zero;
+            float anticipation=redirecting?1:node.Travel.Projecting
                 ?(action==ActionKind.Wander?0:1-Mathf.SmoothStep(.24f,.85f,remaining))
                 :1;
             node.Attend(node.Basis.Inverse()*attention,anticipation);

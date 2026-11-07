@@ -1089,7 +1089,9 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 
 ### 成人动作风格
 
-世界中的居民在“实景”节奏使用 `residentTravel=projected-resident-route-v3`。世界时钟根据模拟的单 tick 移动预算调节到约每秒 0.52 格。视野中距镜头 54 米内的行走居民用观察器的 A* 缓冲取得接下来的两段路线，结合已累积的移动预算和当前 tick 的小数时间计算画面位置。连续经过格心时步态沿实际位移推进，临近转角时头胸和骨盆预先调整。路线缓存随起点、目标、通行拓扑或搜索上限变化失效，每帧最多刷新两条。两段路径和实际接近轨迹须通过地形支撑与树石净空检查。暂时缺少可用路线时，画面沿已确认的格点追赶。模拟照常在 tick 中寻路、移动和结算，表现搜索使用独立缓冲与计数。转角预判参考真人在转向前一步的姿态调整和 Ubisoft 的未来路径采样。[步行转向实验](https://pubmed.ncbi.nlm.nih.gov/15262627/) · [Ubisoft 动画研究](https://www.ubisoft.com/en-us/studio/laforge/news/6xXL85Q3bF2vEj76xmnmIu/introducing-learned-motion-matching)
+世界中的居民在“实景”节奏使用 `residentTravel=projected-resident-route-v4`。世界时钟根据模拟的单 tick 移动预算调节到约每秒 0.52 格。视野中距镜头 54 米内的行走居民用观察器的 A* 缓冲取得接下来的两段路线，结合已累积的移动预算和当前 tick 的小数时间计算画面位置。连续经过格心时步态沿实际位移推进，临近转角时头胸和骨盆预先调整。路线缓存随起点、目标、通行拓扑或搜索上限变化失效，每帧最多刷新两条。两段路径和实际接近轨迹须通过地形支撑与树石净空检查。暂时缺少可用路线时，画面沿已确认的格点追赶。模拟照常在 tick 中寻路、移动和结算，表现搜索使用独立缓冲与计数。转角预判参考真人在转向前一步的姿态调整和 Ubisoft 的未来路径采样。[步行转向实验](https://pubmed.ncbi.nlm.nih.gov/15262627/) · [Ubisoft 动画研究](https://www.ubisoft.com/en-us/studio/laforge/news/6xXL85Q3bF2vEj76xmnmIu/introducing-learned-motion-matching)
+
+新路线方向与角色当前朝向相差约 112° 以上时，进入急转。角色在仍有地面支撑的方向上消化原有速度，最后两步带入一部分转角，再用交替承重的转身完成剩余角度。身体对准后才向新路线移动。双手托物、手持工具以及从拾取中断时的收回动作仍由各自的手部控制器驱动。近景在两步落脚和换脚转身期间保留实际足点，较远处使用低成本转向。处理中的急转可在路线暂时失去投影时沿已确认格点继续。[改变计划落脚点的人体实验](https://pmc.ncbi.nlm.nih.gov/articles/PMC10864096/) · [弯道步行中的头部、躯干与重心](https://pubmed.ncbi.nlm.nih.gov/12859351/)
 
 已站定的居民在较长一段新路前有约 0.16 秒的准备动作。近景双脚保持原站位，骨盆朝初始支撑腿侧移，卸重侧接入第一步。胸廓与骨盆通过阻尼响应加速和制动。持工具步行的握柄沿带相位延迟的弧线移动，锤的摆幅比长柄工具大，手与工具沿用同一个握持约束。起步和摆臂的协调参考[真人起步准备实验](https://pmc.ncbi.nlm.nih.gov/articles/PMC5546309/)和[步行中躯干与手臂的耦合实验](https://pubmed.ncbi.nlm.nih.gov/19181900/)。
 

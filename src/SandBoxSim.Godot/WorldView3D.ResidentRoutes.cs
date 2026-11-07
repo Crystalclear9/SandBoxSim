@@ -14,9 +14,9 @@ public partial class WorldView3D
     }
 
     private bool TryProjectResidentRoute(ResidentRig rig,int slot,Int2 tile,Int2 destination,
-        float tickFraction,ref int searches,out Vector3 sample,out float remaining,out float turn,out float speedLimit)
+        float tickFraction,ref int searches,out Vector3 sample,out Vector2 heading,out float remaining,out float turn,out float speedLimit)
     {
-        sample=default;remaining=turn=speedLimit=0;
+        sample=default;heading=default;remaining=turn=speedLimit=0;
         var sim=Game.Sim;
         float step=sim.Config.Ai.MoveSpeedPerTick;
         if(tile==destination||step<=0||sim.Civilizations.IsTransporting(slot))return false;
@@ -44,6 +44,7 @@ public partial class WorldView3D
         var next=PositionAt(route.Next.X,route.Next.Y);
         float progress=sim.Actions.MoveProgressOf(slot)+tickFraction*step;
         var first=Horizontal(next-origin);
+        heading=first.Normalized();
         sample=origin.Lerp(next,Math.Clamp(progress,0,1));
         remaining=Horizontal(next-rig.Position).Length();
         float metresPerTile=first.Length();
@@ -57,6 +58,7 @@ public partial class WorldView3D
                 // Keep that fraction continuous on the adjoining leg.
                 sample=next.Lerp(following,Math.Clamp(progress-1,0,.5f));
                 metresPerTile=second.Length();
+                heading=second.Normalized();
             }
             else turn=.72f*Mathf.AngleDifference(HeadingYaw(first),HeadingYaw(second))
                 *Mathf.SmoothStep(.44f,.92f,progress);
@@ -64,7 +66,10 @@ public partial class WorldView3D
         }
         speedLimit=MathF.Min(ResidentRig.MaximumGaitSpeed,(float)Game.ObservationTickRate*step*metresPerTile+.30f);
         var current=rig.Position;
-        return Horizontal(sample-current).LengthSquared()<MaximumAdjacentPresentationStep*MaximumAdjacentPresentationStep
+        // A supported turn can outlast a logical tile step. Keep the bounded
+        // motor while catching up across a directly verified corridor.
+        float projectionRange=rig.Travel.CatchingUpFromRedirect?4.35f:MaximumAdjacentPresentationStep;
+        return Horizontal(sample-current).LengthSquared()<projectionRange*projectionRange
             &&ScenerySegmentClear(current,sample)&&SceneryLegSupported(current,sample);
     }
 

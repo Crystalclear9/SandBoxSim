@@ -12,12 +12,13 @@ internal partial class ResidentRig
     private float _gaitCycle,_gaitSpeed,_locomotionSpeed=1.05f,_turnDemand,_gaitTurn,_sampleDistance,_sampleTime,_locomotionScale=1;
     private bool _worldLocomotion,_groundContactSpeed;
     private float _approachDistance,_observedPlanarSpeed;
+    private bool _redirectLanding;
     private float _departureProgress,_turnPreview,_sampleLateralDistance,_locomotionLateral,_gaitLateral;
     private int _departureLead;
     private Vector3 _travelWeightShift,_travelWeightVelocity;
     private float _travelPitch;
-    internal bool InteractionSettled=>!_worldLocomotion||(_approachDistance<.035f&&_observedPlanarSpeed<.15f
-        &&_gaitSpeed<.15f&&!_finishingStep&&!IsPivoting);
+    internal bool ReadyForTravelTurn=>_observedPlanarSpeed<.15f&&_gaitSpeed<.15f&&!_finishingStep;
+    internal bool InteractionSettled=>!_worldLocomotion||(_approachDistance<.035f&&ReadyForTravelTurn&&!IsPivoting&&!_redirectLanding);
     private Vector3 _gaitOffset;
     private Vector3 _capturedChest,_capturedPelvis;
     private Vector3 _capturedWeight,_capturedWeightVelocity;
@@ -64,10 +65,11 @@ internal partial class ResidentRig
     // Called every rendered world frame, before the distance pose scheduler.
     // Discontinuous tile resynchronisation is not interpreted as a sprint.
     public void ObserveLocomotion(Vector3 displacement,float delta,float headingError,bool paused,float remainingDistance=0,float scale=1,
-        float turnPreview=0,float lateralDistance=0)
+        float turnPreview=0,float lateralDistance=0,bool redirectLanding=false)
     {
         if(paused||!float.IsFinite(delta)||delta<=0)return;
         _worldLocomotion=true;
+        _redirectLanding=redirectLanding;
         _locomotionScale=scale;
         float distance=new Vector2(displacement.X,displacement.Z).Length(),speed=distance/delta;
         _observedPlanarSpeed=float.IsFinite(speed)?speed:float.PositiveInfinity;
@@ -115,7 +117,7 @@ internal partial class ResidentRig
         // exact exponential integral so accumulated distant updates keep time.
         float rate=wanted>_gaitSpeed?5:9,decay=MathF.Exp(-rate*dt),before=_gaitSpeed;
         _gaitSpeed=wanted+(before-wanted)*decay;
-        AdvanceArrival(dt,wanted,canFinishStep);
+        AdvanceArrival(dt,wanted,canFinishStep||_redirectLanding);
         float acceleration=dt>0?Math.Clamp((_gaitSpeed-before)/dt,-4,4):0;
         float preload=ReachEase(_departureProgress);
         float supportSide=_departureLead==0?1:-1;
@@ -322,7 +324,7 @@ internal partial class ResidentRig
     {
         // Read the final pose from the preceding step, including world IK.
         // The scene may already have advanced the root for the new frame.
-        if(!_worldLocomotion||_approachDistance>.40f||!_arrivalArmed&&_locomotionSpeed<=.22f)
+        if(!_worldLocomotion||_approachDistance>.40f&&!_redirectLanding||!_arrivalArmed&&_locomotionSpeed<=.22f)
         {
             _footHistoryStep=0;
             return;
@@ -341,7 +343,7 @@ internal partial class ResidentRig
     {
         if(!_worldLocomotion)return;
         if(wanted>.35f)_arrivalArmed=true;
-        if(!canFinishStep||wanted>.22f||_approachDistance>.07f)
+        if(!canFinishStep||wanted>.22f||_approachDistance>.07f&&!_redirectLanding)
         {
             _finishingStep=false;
             _arrivalWeight=Mathf.MoveToward(_arrivalWeight,0,delta/.14f);
