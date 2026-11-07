@@ -239,12 +239,42 @@ public partial class WorldView3D
             int contacts=rig.PresentedSurfaceContacts;
             if(contacts==0||closest>.060f||sim.StateDigestString()!=committed)
                 throw new InvalidOperationException($"World axe does not touch the transformed tree: gap={closest:F3} m, contacts={contacts}, stand={rig.Position.DistanceTo(stand):F3}");
+
+            int impacts=rig.PresentedToolImpacts;
+            for(int frame=0;frame<150&&rig.PresentedToolImpacts==impacts;frame++)AnimateActors(delta);
+            if(rig.PresentedToolImpacts!=impacts+1)
+                throw new InvalidOperationException("Tree fixture did not reach its last executing strike");
+            sim.Actions.Tick(sim.Clock);
+            if(!sim.Actions.TryGetCompletedContact(slot,out var firstReceipt))
+                throw new InvalidOperationException("The first harvest did not record its tree");
+            AnimateActors(delta);
+            float recovery=rig.ToolStrokePhase;
+            uint previousRevision=agents.ActionRevisionOf(slot);
+            agents.SetAction(slot,ActionKind.GatherWood,ActionPhase.Executing);
+            agents.SetTarget(slot,tile.X,tile.Y);
+            sim.Actions.Tick(sim.Clock);
+            if(agents.ActionRevisionOf(slot)==previousRevision||!sim.Actions.TryGetCompletedContact(slot,out var secondReceipt)
+                ||secondReceipt!=firstReceipt)
+                throw new InvalidOperationException("The second harvest did not commit to the same tree");
+            committed=sim.StateDigestString();
+            AnimateActors(delta);
+            float recoveryStep=rig.ToolStrokePhase-recovery;
+            if(!rig.GestureEngaged(ActionKind.GatherWood)||recoveryStep<=0||recoveryStep>.04f
+                ||rig.PresentedToolImpacts!=impacts+1)
+                throw new InvalidOperationException($"The second world harvest restarts the ongoing recovery: phase step={recoveryStep:F3}, state={rig.Handling}");
+            for(int frame=0;frame<210;frame++)AnimateActors(delta);
+            if(rig.PresentedToolImpacts!=impacts+2||rig.CompletionVisible||sim.StateDigestString()!=committed)
+                throw new InvalidOperationException("Consecutive world harvests do not produce exactly one new visible strike");
+            contacts=rig.PresentedSurfaceContacts;
             sim.World.ClearResource(tile.X,tile.Y);
+            agents.SetAction(slot,ActionKind.GatherWood,ActionPhase.Executing);
+            agents.SetTarget(slot,tile.X,tile.Y);
             committed=sim.StateDigestString();
             for(int i=0;i<75;i++)AnimateActors(delta);
             if(rig.GestureEngaged(ActionKind.GatherWood)||rig.PresentedSurfaceContacts!=contacts||sim.StateDigestString()!=committed)
                 throw new InvalidOperationException("Removing the active tree leaves a stale swing or changes the simulation");
             GD.Print($"WORLD_TOOL_SURFACE_PASS: axe reaches actual transformed trunk within {closest:F3} m, {contacts} contacts, missing and depleted surfaces suppress strikes");
+            GD.Print($"WORLD_REPEAT_WORK_PASS: two harvest receipts at the same rendered tree, recovery advances by {recoveryStep:F3}, one new strike and unchanged simulation during playback");
         }
         finally
         {

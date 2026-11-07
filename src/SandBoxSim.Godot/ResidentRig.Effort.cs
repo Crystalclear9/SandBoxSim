@@ -39,9 +39,10 @@ internal partial class ResidentRig
             _strokePhase<ToolImpactPhase(CurrentTool)?"向目标挥下":"卸力 / 收势"
     };
 
-    private void ResetToolPhrase(bool retainPose)
+    private void ResetToolPhrase(bool retainPose,bool keepImpact=false)
     {
-        _finishToolStroke=_toolImpactSeen=_awaitToolCommit=false;
+        _finishToolStroke=_awaitToolCommit=false;
+        if(!keepImpact)_toolImpactSeen=false;
         _rearmToolStroke=retainPose&&_workBlend>.025f;
         if(!_rearmToolStroke)_strokePhase=0;
     }
@@ -57,7 +58,9 @@ internal partial class ResidentRig
             _toolImpactSeen=true;
             PresentedToolImpacts++;
         }
-        if(_finishToolStroke&&next>=1)
+        // A new receipt can arrive while the previous stroke is recovering.
+        // Finish this receipt only after an impact in its own stroke.
+        if(_finishToolStroke&&_toolImpactSeen&&next>=1)
         {
             _strokePhase=1;
             _finishToolStroke=false;

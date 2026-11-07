@@ -33,8 +33,10 @@ internal partial class ResidentRig
     private uint? _observedRevision;
     private float _observedExecution,_completionRemaining,_completionAge;
     private bool _finishConsumption,_observedMouthContact;
-    internal readonly record struct InteractionTarget(Vector2I? Tile,long Partner,ActionSystem.ActionContact? Pickup);
+    internal readonly record struct InteractionTarget(Vector2I? Tile,long Partner,ActionSystem.ActionContact? Pickup,
+        ActionSystem.ActionContact? Worksite=null);
     private InteractionTarget _interactionTarget;
+    private bool _observedContactReady;
     private float _retargetSettle,_contactWait;
     private bool _awaitingContact;
     public bool CompletionVisible=>_finishConsumption||_finishToolStroke||_completionRemaining>0||_placingCargo||_placementPending||_awaitingContact;
@@ -50,6 +52,7 @@ internal partial class ResidentRig
         _observedAction=action;_observedPhase=phase;_observedRevision=revision;
         _observedExecution=_completionRemaining=0;
         _waitingForContact=false;
+        _observedContactReady=false;
         _awaitingContact=false;
         _conversation=null;
         ConversationNod=0;
@@ -85,15 +88,33 @@ internal partial class ResidentRig
         bool trackingIdentity=target.Partner!=0&&(RequiresPartner(action)||action==ActionKind.Hunt);
         bool changedTile=!trackingIdentity&&target.Tile.HasValue&&_interactionTarget.Tile.HasValue&&target.Tile!=_interactionTarget.Tile;
         bool changedPickup=target.Pickup!=_interactionTarget.Pickup;
+        bool changedWorksite=target.Worksite.HasValue&&_interactionTarget.Worksite.HasValue
+            &&target.Worksite!=_interactionTarget.Worksite;
         bool changedSurface=_toolSurface is {} previousSurface&&toolSurface is {} nextSurface
             &&(previousSurface.Point.DistanceSquaredTo(nextSurface.Point)>.09f*.09f
                 ||previousSurface.Normal.Dot(nextSurface.Normal)<.80f);
-        bool retargeted=sameExecution&&(changedPartner||changedTile||changedPickup||changedSurface);
+        bool changedWorkContact=changedPartner||changedTile||changedWorksite||changedSurface;
+        bool replacedCommittedWork=!newRun&&phase==ActionPhase.Done&&_observedPhase==ActionPhase.Done&&_finishToolStroke
+            &&changedWorkContact;
+        bool retargeted=replacedCommittedWork||sameExecution&&(changedWorkContact||changedPickup);
         var family=FamilyOf(action);
-        contactReady&=!ObserveToolSurface(toolSurface,newRun||retargeted);
+        bool continuesWork=newRun&&_observedRevision.HasValue&&revision.HasValue&&revision!=_observedRevision
+            &&action==_observedAction&&family==ActionFamily.Tool&&CurrentTool!=ResidentTool.Spear
+            &&(phase==ActionPhase.Executing||phase==ActionPhase.Done&&completeToolStroke)
+            &&_observedContactReady&&contactReady&&targetAligned&&_strokePhase<1&&GestureEngaged(action)
+            &&SameWorkContact(target,toolSurface,sceneContact);
+        contactReady&=!ObserveToolSurface(toolSurface,(newRun&&!continuesWork)||retargeted);
+        contactReady&=!replacedCommittedWork;
         completeToolStroke&=contactReady;
-        if(newRun||retargeted)
-            ResetToolPhrase(retainPose:family==ActionFamily.Tool&&ToolFor(action)==ToolFor(_observedAction));
+        bool lostToolContact=sameExecution&&phase==ActionPhase.Executing&&family==ActionFamily.Tool
+            &&_observedContactReady&&!contactReady;
+        // Keep the visible stroke and its contact marker, but give the
+        // incoming revision its own impact. Recovery belongs to the old one.
+        if(continuesWork)
+            _toolImpactSeen=false;
+        else if(newRun||retargeted||lostToolContact)
+            ResetToolPhrase(retainPose:family==ActionFamily.Tool&&ToolFor(action)==ToolFor(_observedAction),
+                keepImpact:lostToolContact&&!retargeted);
         if(newRun)_retargetSettle=0;
         if(retargeted)
         {
@@ -144,11 +165,22 @@ internal partial class ResidentRig
             if(!IsPlacement(action)||_hasCargo&&!_placementPending)
                 _completionRemaining=MathF.Max(0,minimum-(family==ActionFamily.Pickup&&_sceneContact.HasValue?0:_observedExecution));
         }
-        _observedAction=action;_observedPhase=phase;_observedRevision=revision;
+        _observedAction=action;_observedPhase=phase;_observedRevision=revision;_observedContactReady=contactReady;
         var visualPhase=partnerAction&&phase==ActionPhase.Executing&&!hasPartner?ActionPhase.Failed:phase;
         _waitingForContact=phase==ActionPhase.Executing&&!contactReady||_awaitingContact;
         AdvancePose(PresentationDelta(delta),action,visualPhase,identityPhase,true,targetAligned&&contactReady);
         PresentPickupPiece(family==ActionFamily.Pickup);
+    }
+
+    private bool SameWorkContact(InteractionTarget target,ToolSurface? surface,Vector3? point)
+    {
+        if(!target.Tile.HasValue||target.Tile!=_interactionTarget.Tile||target.Worksite!=_interactionTarget.Worksite)
+            return false;
+        const float toleranceSquared=.025f*.025f;
+        if(surface is {} current&&_toolSurface is {} previous)
+            return current.Point.DistanceSquaredTo(previous.Point)<=toleranceSquared&&current.Normal.Dot(previous.Normal)>=.96f;
+        return CurrentTool==ResidentTool.Hoe&&target.Worksite.HasValue&&point is {} soil&&_sceneContact is {} priorSoil
+            &&soil.DistanceSquaredTo(priorSoil)<=toleranceSquared;
     }
 
     internal static bool RequiresPartner(ActionKind action)
@@ -205,7 +237,8 @@ internal partial class ResidentRig
         var family=FamilyOf(action);
         return family switch
         {
-            ActionFamily.Tool=>ToolHeld&&CurrentTool==ToolFor(action)&&!_returning&&_draw>=.99f&&_workBlend>.9f&&(!UsesStagedStance||WorkStanceSettled),
+            ActionFamily.Tool=>ToolHeld&&CurrentTool==ToolFor(action)&&!_returning&&!_rearmToolStroke
+                &&_draw>=.99f&&_workBlend>.9f&&(!UsesStagedStance||WorkStanceSettled),
             ActionFamily.Social=>_socialBlend>.9f||_hasCargo&&CargoMesh.Visible&&!ToolHeld,
             ActionFamily.Rest=>_restPose.X>.9f,
             _=>UsesBareHands(family)&&_bareAction==action&&_bareBlend>.9f

@@ -61,7 +61,10 @@ public partial class WorldView3D
             cue with {ContactReady=false},
             cue with {Target=cue.Target with {Tile=new Vector2I(4,3)}},cue with {Target=cue.Target with {Partner=51}},
             cue with {Target=cue.Target with {Pickup=new(new(2,3),SandBoxSim.Core.Environment.ResourceKind.Stone,
-                SandBoxSim.Core.Systems.ActionSystem.ContactSurface.GroundStock)}},cue with {Aligned=false},cue with {Action=ActionKind.Flee}})
+                SandBoxSim.Core.Systems.ActionSystem.ContactSurface.GroundStock)}},
+            cue with {Target=cue.Target with {Worksite=new(new(2,3),SandBoxSim.Core.Environment.ResourceKind.None,
+                SandBoxSim.Core.Systems.ActionSystem.ContactSurface.BuildingWork,BuildingGeneration:4)}},
+            cue with {Aligned=false},cue with {Action=ActionKind.Flee}})
         {
             schedule.Observe(actor,cue,.14f,true);
             if(!schedule.RetainsFacing(actor,cue)||next.Aligned&&schedule.RetainsFacing(actor,next))

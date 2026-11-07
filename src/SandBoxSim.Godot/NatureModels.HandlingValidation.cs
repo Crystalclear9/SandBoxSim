@@ -2,6 +2,7 @@ using System;
 using Godot;
 using SandBoxSim.Core.Agents;
 using SandBoxSim.Core.Environment;
+using SandBoxSim.Core.Systems;
 namespace SandBoxSim.Client;
 internal sealed partial class NatureModels
 {
@@ -480,7 +481,97 @@ internal sealed partial class NatureModels
             finally{rig.Free();}
         }
         GD.Print($"TOOL_PHRASE_PASS: five tool families at 60/24 Hz, single impact, natural completion, suppressed work, urgent cancellation, hunt wait and thrust, max wrist step {biggestInterruption:F3} m");
+        ValidateContinuousWorkContact();
         ValidateToolSurfaceTracking();
+    }
+
+    private void ValidateContinuousWorkContact()
+    {
+        float maximumPhaseStep=0,maximumWristStep=0;
+        int continued=0,restarted=0;
+        foreach(int identity in new[]{17,55})
+        foreach(var (action,point,worksite) in new[]
+        {
+            (ActionKind.GatherWood,new Vector3(0,.85f,-.53f),false),
+            (ActionKind.GatherStone,new Vector3(0,.49f,-.70f),false),
+            (ActionKind.BuildHouse,new Vector3(0,1.13f,-.49f),true),
+            (ActionKind.Farm,new Vector3(0,0,-.68f),true)
+        })
+        {
+            var rig=Resident(identity,false,JobType.None);
+            try
+            {
+                float delta=identity==17?1f/60:1f/24;
+                bool hoe=action==ActionKind.Farm;
+                var target=new ResidentRig.InteractionTarget(new(2,3),0,null,
+                    worksite?new(new(2,3),ResourceKind.None,ActionSystem.ContactSurface.BuildingWork,BuildingGeneration:3):null);
+                ResidentRig.ToolSurface? surface=hoe?null:new(point,Vector3.Back);
+                var originalPhase=hoe||identity==17?ActionPhase.Done:ActionPhase.Executing;
+                rig.PresentAction(delta,ActionKind.None,ActionPhase.Idle,false,0,1);
+                for(int i=0;i<360&&rig.PresentedToolImpacts==0;i++)
+                    rig.PresentAction(delta,action,originalPhase,false,0,2,target:target,toolSurface:surface,sceneContact:point);
+                if(rig.PresentedToolImpacts!=1||!rig.GestureEngaged(action))
+                    throw new InvalidOperationException($"Continuous work fixture failed to reach its first strike: {identity}/{action}");
+
+                // A receipt is visible during the old impact's follow-through.
+                rig.PresentAction(delta,action,ActionPhase.Done,false,0,2,target:target,toolSurface:surface,sceneContact:point);
+                float before=rig.ToolStrokePhase;
+                var wrist=rig.HandWorldPose(1).Origin;
+                var incoming=identity==17||hoe?ActionPhase.Done:ActionPhase.Executing;
+                rig.PresentAction(delta,action,incoming,false,0,3,target:target,toolSurface:surface,sceneContact:point);
+                float step=rig.ToolStrokePhase-before;
+                maximumPhaseStep=MathF.Max(maximumPhaseStep,step);
+                maximumWristStep=MathF.Max(maximumWristStep,rig.HandWorldPose(1).Origin.DistanceTo(wrist));
+                if(step<=0||step>.06f||!rig.GestureEngaged(action)||rig.PresentedToolImpacts!=1)
+                    throw new InvalidOperationException($"Same-site work drops the stroke or double-counts it: {identity}/{action}, phase step={step:F3}");
+                for(int i=0;i<300&&rig.PresentedToolImpacts==1;i++)
+                {
+                    rig.PresentAction(delta,action,incoming,false,0,3,target:target,toolSurface:surface,sceneContact:point);
+                    if(!rig.GestureEngaged(action))throw new InvalidOperationException($"Same-site work drops its grip or stance: {identity}/{action}");
+                }
+                if(rig.PresentedToolImpacts!=2)throw new InvalidOperationException($"New receipt has no distinct impact: {identity}/{action}");
+                continued++;
+
+                var relocated=worksite?target with {Worksite=target.Worksite!.Value with {BuildingGeneration=4}}
+                    :target with {Tile=new Vector2I(3,3)};
+                rig.PresentAction(delta,action,ActionPhase.Done,false,0,4,target:relocated,toolSurface:surface,sceneContact:point);
+                if(rig.GestureEngaged(action)||rig.PresentedToolImpacts!=2)
+                    throw new InvalidOperationException($"New worksite inherits the old strike: {identity}/{action}");
+                for(int i=0;i<300;i++)
+                    rig.PresentAction(delta,action,ActionPhase.Done,false,0,4,target:relocated,toolSurface:surface,sceneContact:point);
+                if(rig.PresentedToolImpacts!=3||rig.CompletionVisible)
+                    throw new InvalidOperationException($"New worksite never completes exactly one stroke: {identity}/{action}");
+                restarted++;
+
+                for(int i=0;i<300&&!(rig.GestureEngaged(action)&&rig.ToolStrokePhase is >.15f and <.30f);i++)
+                    rig.PresentAction(delta,action,ActionPhase.Done,false,0,5,target:relocated,toolSurface:surface,sceneContact:point);
+                if(!rig.GestureEngaged(action)||rig.PresentedToolImpacts!=3)
+                    throw new InvalidOperationException($"Pending completion never reaches a cancellable windup: {identity}/{action}");
+                for(int i=0;i<160;i++)
+                    rig.PresentAction(delta,action,ActionPhase.Done,false,0,5,target:target,toolSurface:surface,sceneContact:point);
+                if(rig.PresentedToolImpacts!=3||rig.CompletionVisible)
+                    throw new InvalidOperationException($"A committed stroke follows its replaced worksite: {identity}/{action}");
+
+                if(hoe)continue;
+                for(int i=0;i<300&&!(rig.GestureEngaged(action)&&rig.ToolStrokePhase is >.74f and <.83f);i++)
+                    rig.PresentAction(delta,action,ActionPhase.Executing,false,0,6,target:relocated,toolSurface:surface);
+                if(!rig.GestureEngaged(action)||rig.ToolStrokePhase is <=.74f or >=.83f)
+                    throw new InvalidOperationException($"Contact loss fixture did not enter a prepared swing: {identity}/{action}");
+                int hits=rig.PresentedToolImpacts;
+                rig.PresentAction(delta,action,ActionPhase.Executing,false,0,6,target:relocated,contactReady:false);
+                bool newWindup=false;
+                for(int i=0;i<300&&rig.PresentedToolImpacts==hits;i++)
+                {
+                    rig.PresentAction(delta,action,ActionPhase.Executing,false,0,6,target:relocated,toolSurface:surface);
+                    newWindup|=rig.GestureEngaged(action)&&rig.ToolStrokePhase<.30f;
+                }
+                if(!newWindup||rig.PresentedToolImpacts!=hits+1)
+                    throw new InvalidOperationException($"Reacquired target resumes an old impact: {identity}/{action}");
+            }
+            finally{rig.Free();}
+        }
+        if(maximumWristStep>.06f)throw new InvalidOperationException($"Repeated work jerks the wrist by {maximumWristStep:F3} m");
+        GD.Print($"CONTINUOUS_WORK_CONTACT_PASS: {continued} same-site handoffs and {restarted} site replacements at 60/24 Hz, max phase step={maximumPhaseStep:F3}, max wrist step={maximumWristStep:F3} m; stale receipts cancel and interrupted windups restart");
     }
 
     private void ValidateToolSurfaceTracking()

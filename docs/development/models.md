@@ -329,6 +329,8 @@
 
 砍伐和采矿在树干、岩石的渲染网格上按击打高度缓存截面，从站位方向选取可见的第一处表面。建造使用木桩正面。斧刃、镐尖和锤面的接触点与各自工具模型共用局部坐标，接近挥击末段时调整手部轨迹，低处目标会带动身体屈膝。表面变动后重新对准，超出可及范围或失去表面时，角色会收势。接触提示依据逆运动学求解后的工具端点距离和入面深度。[运动轨迹约束研究](https://homes.cs.washington.edu/~zoran/warpage/warpage.pdf) · [场景接触与角色逆运动学研究](https://stevetonneau.fr/files/publications/cg/C_G_tonneau.pdf)
 
+`workContactHandoff=shared-stroke-phase-v1` 让同一位置上的连续砍伐、采矿、敲击与耕种接续已有挥击相位。下一次作业抵达时，居民须站稳、面向目标并保持原工具握持。地面位置、接触点和朝向要吻合，建筑作业还要核对建筑代次。当前挥击的收势继续完成，下一次结算只认它自己的击打。接触消失会中止旧蓄力，目标恢复后重新准备。已确认但尚未落下的挥击遇到目标替换时取消。长矛继续通过活体对象和结算控制瞄准与刺击。[动作时序与接触约束的配准研究](https://graphics.cs.wisc.edu/Papers/2003/KG03/)
+
 设计参考[单手与双手抓取实验](https://pubmed.ncbi.nlm.nih.gov/9224856/)中运输与手形的协调、[联合搬举实验](https://www.nature.com/articles/s41598-019-48758-1)对伸手、接触、抓握和抬起阶段的区分，以及[行走搬运实验](https://pubmed.ncbi.nlm.nih.gov/12632239/)中的负荷与步态协调。工程上参考 [Godot 动画状态过渡](https://docs.godotengine.org/en/stable/tutorials/animation/animation_tree.html)的条件、同步与退出语义；当前仍使用程序姿态控制器，没有改成 AnimationTree 或导入实验动作数据。
 
 公开 `visual-handling-transitions.json` 固定 60 Hz 和零模拟步进，左列展示到站拾取与屈膝放下，中列展示作业、连续饮水、进食和中断，右列展示双人递物。`INTERACTION_SEQUENCE_PASS` 遍历居民动作枚举，`CONTACT_BOUNDARIES_PASS` 检查转向门槛、延迟放置和连续同名饮水。`WORLD_STOCK_CONTACT_PASS` 在实际世界检查清空物资堆后的拾取、贴地放置和部分入库。`SHARED_PARCEL_PASS` 和 `WORLD_HANDOFF_PASS` 检查双人接触与归属切换。`CARGO_PLACEMENT_PASS` 测量四类物资的双手支撑与松手。

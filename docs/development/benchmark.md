@@ -180,6 +180,8 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `residentActionHandoff=displayed-palm-v1` 记录手部接续、库存变动后的包裹收回和双人递接的速度过渡。`OBSERVED_CARGO_STOW_PASS` 在两种成年体型的 30／60 Hz 轨迹中检查旧包裹的可见支撑与新包裹的上手顺序。`SHARED_PARCEL_PASS` 同时记录换手后一帧的物件速度变化。
 
+`workContactHandoff=shared-stroke-phase-v1` 记录同一接触点的作业衔接和失效接触的取消。`CONTINUOUS_WORK_CONTACT_PASS` 在 60／24 Hz 下测试斧、镐、锤和锄的握持、站姿和挥击相位，以及替换地点、建筑代次或接触丢失后的处理。`WORLD_REPEAT_WORK_PASS` 使用模拟实际采集产生的两次结算，核对同一树干上的连续动作及表现层读取的状态摘要。
+
 `WORLD_OUTSOLE_PASS` 在近景跟随距离测量同一条多格路线的起步加速度、承重中段每帧平面漂移、鞋底对地的最低间隙，以及摆动期离地高度。采样点来自成品鞋底轮廓，地形高度与世界角色共用。相邻帧须同处同一只脚的承重中段才计入漂移。
 
 `ARRIVAL_TURN_PASS` 测量最后两步的转角和骨盆侧向位移，并与到站拾取、额外换脚转向及支撑脚漂移一起检查。`WORK_SUPPORT_PASS` 包含持锤和持锄开工时的左右重心转移。`REST_TRANSFER_PASS` 测量两套成人外观的休息姿态下降、起身与脚底漂移。
