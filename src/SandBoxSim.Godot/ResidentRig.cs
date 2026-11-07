@@ -155,6 +155,7 @@ internal partial class ResidentRig : Node3D
         // beyond .1 seconds. A long host stall still has a one-second budget.
         var family=FamilyOf(action);
         bool fineReach=HandoffReserved||_referencePlaying||_referenceWeight>0||_hasArmReturn||_reach>0||_releaseTime>0||ToolHeld&&(_draw<.99f||_returning)||!ToolHeld&&family==ActionFamily.Tool||_cargoBlend>0||_releasedCargo||_socialBlend>.001f||_restPose.X>.001f||UsesBareHands(family)||family is ActionFamily.Social or ActionFamily.Rest;
+        fineReach|=CurrentTool==ResidentTool.Spear&&_toolSurface.HasValue;
         ConsumeLocomotionSamples();
         // Mouth approaches combine wrist orientation limits and a very short
         // target distance. Resolve those constraints at one shared cadence so
@@ -402,6 +403,8 @@ internal partial class ResidentRig : Node3D
             var filtered=FilterHeldTool(Holster.Position.Lerp(target,ReachEase(_draw)),new Basis(Holster.Basis.GetRotationQuaternion().Slerp(basis.GetRotationQuaternion(),ReachEase(_draw))));
             if(cultivating&&!_returning&&_draw>=.99f)
                 filtered.Position=GuideCultivationEdge(filtered.Position,filtered.Basis,_strokePhase,workBlend);
+            if(working&&CurrentTool==ResidentTool.Spear)
+                filtered.Position=GuideSpearTip(filtered.Position,filtered.Basis);
             SolveHand(1,filtered.Position,filtered.Basis*Grip!.Basis.Inverse(),false,(1-_workBlend)*Smooth(_draw));
             MeasureWorkContact(working);
             CurlHand(1,1);

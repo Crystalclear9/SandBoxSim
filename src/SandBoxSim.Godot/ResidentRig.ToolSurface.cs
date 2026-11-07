@@ -12,6 +12,7 @@ internal partial class ResidentRig
         ResidentTool.Axe=>new(0,-.28f,-.10f),
         ResidentTool.Pick=>new(0,-.342f,-.17f),
         ResidentTool.Hammer=>new(-.0665f,-.30f,0),
+        ResidentTool.Spear=>new(0,1.11f,0),
         _=>Vector3.Zero
     };
 
@@ -65,6 +66,17 @@ internal partial class ResidentRig
         var chest=RigWorldSpace*Torso.Transform;
         var inverse=chest.AffineInverse();
         var contact=surface.Point+surface.Normal*.010f;
+        if(CurrentTool==ResidentTool.Spear)
+        {
+            // Steer the shaft from the guard during extension. Leaving a
+            // live aim point unfiltered would move the tip with the target.
+            var aim=(inverse*contact-grip).Normalized();
+            if(aim.LengthSquared()>.5f)
+            {
+                var pointed=new Quaternion(basis.Y,aim)*basis.GetRotationQuaternion();
+                basis=new Basis(basis.GetRotationQuaternion().Slerp(pointed,weight));
+            }
+        }
         var wanted=inverse*contact-basis*tip;
         return (grip+(wanted-grip).LimitLength(.42f)*weight,basis);
     }
@@ -74,10 +86,24 @@ internal partial class ResidentRig
         if(_strokePhase<_surfacePhase)_surfaceTouched=false;
         _surfacePhase=_strokePhase;
         if(!working||_surfaceTouched||_toolSurface is not {} surface||_draw<.99f
+            ||CurrentTool==ResidentTool.Spear&&_awaitToolCommit
             ||Mathf.Abs(_strokePhase-ToolImpactPhase(CurrentTool))>.105f)return;
         var offset=WorldToolTip-surface.Point;
         if(offset.LengthSquared()>.060f*.060f||offset.Dot(surface.Normal)<-.035f)return;
         _surfaceTouched=true;
         PresentedSurfaceContacts++;
+        if(CurrentTool==ResidentTool.Spear)PresentedToolImpacts++;
+    }
+
+    private Vector3 GuideSpearTip(Vector3 grip,Basis filteredBasis)
+    {
+        if(_toolSurface is not {} surface||_awaitToolCommit||_draw<.99f)return grip;
+        float weight=ReachEase((_strokePhase-.55f)/.12f)*(1-ReachEase((_strokePhase-.70f)/.17f));
+        if(weight<=0)return grip;
+        // Use the filtered shaft direction when locating the grip. At the
+        // end of a long lever a few degrees of lag can miss the surface.
+        var target=(RigWorldSpace*Torso.Transform).AffineInverse()*(surface.Point+surface.Normal*.010f);
+        var correction=target-(grip+filteredBasis*StrikingPoint(ResidentTool.Spear));
+        return grip+correction.LimitLength(.14f)*weight;
     }
 }

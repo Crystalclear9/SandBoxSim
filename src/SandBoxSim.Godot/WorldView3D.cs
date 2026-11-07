@@ -468,6 +468,7 @@ public partial class WorldView3D : MapView
             ["residentContactContinuity"]="bounded-confirmation-v1",
             ["pairedInteractions"]="confirmed-participants-v1",
             ["residentSupportRelease"]="planted-departure-v1",
+            ["spearTargeting"]="bounded-live-contact-v1",
             ["workContactHandoff"]="shared-stroke-phase-v1",
             ["architecture"]="inset-joinery-v13",["garmentMaterial"]="quiet-linen-v19",["trouserSkin"]="guided-knee-v1",["upperArmFlex"]="stable-contour-v3",["shoulderSkin"]="reference-figure-v25",["shoulderMotion"]="source-clavicle-v11",["motionReference"]="cmu-143-30-v1",["shoulderSurface"]="authored-bind-surface-v3",["femaleShoulderLine"]="clavicular-crest-v2",["forearmSkin"]="continuous-elbow-v9",["sleeveFairing"]="rest-detail-v2",["workPose"]="raised-hammer-v1",["reachMotion"]="palm-trajectory-v2",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
             ["animalPresentation"]="articulated-paws-v12",["animalLocomotion"]="ground-distance-v1",["residentSurface"]="linear-skin-v9",["workEffort"]="overlapping-weight-transfer-v7",["toolMotion"]="socket-relative-stow-v5",["bodySupport"]="planted-spatial-v3",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v2",["handlingMotion"]="supported-parcel-v19",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="paired-conversation-v11",["spearMotion"]="guarded-thrust-v1",["waterSurface"]="shore-activity-v7",["wristContour"]="continuous-source-v3",
@@ -911,7 +912,8 @@ public partial class WorldView3D : MapView
             bool gathering=phase==ActionPhase.Executing&&(action is ActionKind.GatherWood or ActionKind.GatherStone or ActionKind.GatherIron);
             if(!sceneContact.HasValue&&gathering&&interest.X==x&&interest.Y==y&&(int)MathF.Floor(current.X*.5f)==x&&(int)MathF.Floor(current.Z*.5f)==y)
                 target=SceneryWorkPosition(x,y,target,action);
-            else if(!sceneContact.HasValue&&paced&&!gathering&&phase!=ActionPhase.Moving&&node.StationSlot>0&&node.StationTile==new Vector2I(x,y))
+            else if((!sceneContact.HasValue||site.Surface==ActionSystem.ContactSurface.Hunt)
+                &&paced&&!gathering&&phase!=ActionPhase.Moving&&node.StationSlot>0&&node.StationTile==new Vector2I(x,y))
             {
                 var offset=ResidentStationOffsets[node.StationSlot];
                 target+=new Vector3(offset.X,0,offset.Y);
@@ -1028,10 +1030,16 @@ public partial class WorldView3D : MapView
             bool hasPartner=action!=ActionKind.Socialize&&(phase==ActionPhase.Executing||finishing)
                 &&sim.Actions.TryGetPresentationPartner(slot,out partner);
             long partnerIdentity=0;
+            Vector3? spearPoint=null;
             if(hasPartner)
             {
                 partnerIdentity=sim.Society.Identity(partner);
                 interestPoint=_people.TryGetValue(partnerIdentity,out var other)?other.Position:PositionAt(sim.Agents.XOf(partner),sim.Agents.YOf(partner));hasInterest=true;
+                if(action==ActionKind.Attack&&other is ResidentRig victim&&victim.Visible)
+                {
+                    var centre=victim.RigWorldSpace*victim.Torso.Transform*new Vector3(0,1.09f,0);
+                    spearPoint=NearBodyPoint(rendered,centre,.13f*victim.Scale.X);
+                }
             }
             bool trackingPrey=action==ActionKind.Hunt&&phase==ActionPhase.Executing;
             int preySlot=-1;
@@ -1042,6 +1050,15 @@ public partial class WorldView3D : MapView
                 partnerIdentity=((long)sim.Wildlife.GenerationOf(preySlot)<<32)|(uint)preySlot;
                 interestPoint=_deer.TryGetValue(partnerIdentity,out var deer)?deer.Position:PositionAt(interest.X,interest.Y);
                 hasInterest=true;
+                if(deer!=null&&deer.Visible)
+                    spearPoint=NearBodyPoint(rendered,deer.Position+Vector3.Up*.90f,.17f);
+            }
+            else if(action==ActionKind.Hunt&&finishing&&site.Surface==ActionSystem.ContactSurface.Hunt)
+            {
+                partnerIdentity=site.TargetIdentity;
+                if(node.PreparedHuntPoint(actionRevision,partnerIdentity) is {} lastPoint
+                    &&Horizontal(lastPoint-PositionAt(site.Tile.X,site.Tile.Y)).LengthSquared()<1.50f*1.50f)
+                    spearPoint=lastPoint;
             }
             if(meeting){interestPoint=meetingFacing;hasInterest=true;}
             else if(conversation!=null)
@@ -1062,8 +1079,14 @@ public partial class WorldView3D : MapView
                 ||sim.World.IsInBounds(interest)&&sim.World.TileAt(interest).Resource.Kind==strikeResource
                     &&sim.World.TileAt(interest).Resource.Amount>0;
             ResidentRig.ToolSurface? toolSurface=null;
-            bool requiresSurface=false;
-            if(validStrike&&(phase==ActionPhase.Executing||finishing)
+            bool spear=action is ActionKind.Hunt or ActionKind.Attack;
+            bool requiresSurface=spear;
+            if(spearPoint is {} aim)
+            {
+                interestPoint=aim;hasInterest=true;
+                if(TrySpearSurface(node,rendered,aim,out var thrust))toolSurface=thrust;
+            }
+            else if(!spear&&validStrike&&(phase==ActionPhase.Executing||finishing)
                 &&(!ResidentRig.UsesWorksiteReceipt(action)||sceneContact.HasValue)
                 &&TryPlanToolSurface(action,interest.X,interest.Y,target,out var strike,out requiresSurface))
             {
@@ -1143,7 +1166,7 @@ public partial class WorldView3D : MapView
             var interactionTarget=new ResidentRig.InteractionTarget(targetTile,partnerIdentity,
                 sceneContact.HasValue&&(action is ActionKind.Take or ActionKind.GatherFood)?site with {StockAmount=0}:null,
                 sceneContact.HasValue&&site.Surface==ActionSystem.ContactSurface.BuildingWork?site:null);
-            bool reachable=toolSurface is not {} bound||ReachableToolSurface(node,target,bound);
+            bool reachable=spear||toolSurface is not {} bound||ReachableToolSurface(node,target,bound);
             bool contactReady=validStrike&&reachable&&(!requiresSurface||toolSurface.HasValue);
             if(phase is ActionPhase.Executing or ActionPhase.Done)
             {

@@ -102,6 +102,140 @@ public partial class WorldView3D
         ValidateWorldToolContact(tiles.Goal,delta);
         ValidateCommittedCultivation(tiles.Goal,delta);
         ValidateSupportRelease(rig,slot,tiles.Start,tiles.Corner);
+        ValidateSceneSpear();
+    }
+
+    internal void ValidateSceneSpear()
+    {
+        var sim=Game.Sim;var agents=sim.Agents;
+        var tile=Enumerable.Range(0,sim.World.Width*sim.World.Height)
+            .Select(i=>new Vector2I(i%sim.World.Width,i/sim.World.Width))
+            .First(p=>p.X>=3&&p.Y>=3&&p.X<sim.World.Width-4&&p.Y<sim.World.Height-3
+                &&!sim.Wildlife.HasPreyNearby(p.X,p.Y,3)
+                &&TryResidentStation(p,1,out var west)&&TryResidentStation(p,2,out var east)
+                &&ScenerySegmentClear(west,east)&&SceneryLegSupported(east,PositionAt(p.X+1,p.Y))
+                &&ScenerySegmentClear(east,PositionAt(p.X+1,p.Y))&&!ActorNearShore(PositionAt(p.X+1,p.Y)));
+        if(sim.InterveneSpawnHumans(tile.X,tile.Y,2,1)!=2)
+            throw new InvalidOperationException("Spear fixture could not spawn two residents");
+        var slots=agents.AliveSlots().TakeLast(2).ToArray();
+        int hunter=slots[0],opponent=slots[1];
+        foreach(int slot in slots)
+        {
+            agents.SetLifeStage(slot,LifeStage.Adult);
+            agents.SetPosition(slot,tile.X,tile.Y);
+            agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
+        }
+        sim.Relationships.Interact(hunter,opponent,-1,sim.Clock);
+        SyncEntities();
+        var rig=(ResidentRig)_people[sim.Society.Identity(hunter)];
+        var victim=(ResidentRig)_people[sim.Society.Identity(opponent)];
+        void Station(ResidentRig resident,int index)
+        {
+            TryResidentStation(tile,index,out var place);
+            resident.StationTile=tile;resident.StationSlot=index;resident.Position=place;resident.Travel=default;
+        }
+        Station(rig,1);Station(victim,2);
+        _target=PositionAt(tile.X,tile.Y);_distance=8;_pitch=.62f;UpdateCamera();
+        const float delta=1f/60;
+        float Play(int frames,Func<Vector3>? aim=null)
+        {
+            string digest=sim.StateDigestString();
+            float gap=float.PositiveInfinity;
+            Vector3? previousTip=null;
+            for(int i=0;i<frames;i++)
+            {
+                AnimateActors(delta);
+                if(aim!=null&&rig.ToolHeld&&rig.ToolStrokePhase is >.57f and <.81f)
+                {
+                    var tip=rig.WorldToolTip;
+                    if(previousTip is {} previous&&tip.DistanceTo(previous)>.14f)
+                        throw new InvalidOperationException("The spear tip jumps during extension or recovery");
+                    previousTip=tip;
+                    gap=MathF.Min(gap,tip.DistanceTo(aim()));
+                }
+                else previousTip=null;
+            }
+            if(sim.StateDigestString()!=digest)throw new InvalidOperationException("Spear playback changed simulation");
+            return gap;
+        }
+        void Guard(ActionKind action)
+        {
+            rig.Rotation=new(0,HeadingYaw(Horizontal(Vector3.Right)),0);
+            agents.SetAction(hunter,action,ActionPhase.Executing);
+            Play(230);
+            if(!rig.GestureEngaged(action)||MathF.Abs(rig.ToolStrokePhase-.48f)>.001f)
+                throw new InvalidOperationException($"{action} did not hold its loaded guard: {rig.Handling}, phase={rig.ToolStrokePhase:F3}");
+        }
+
+        // The engine's abstract combat radius is deliberately larger than a spear.
+        agents.SetPosition(opponent,tile.X+2,tile.Y);
+        victim.Position=PositionAt(tile.X+2,tile.Y);
+        agents.SetAction(hunter,ActionKind.Attack,ActionPhase.Executing);
+        float health=agents.HealthOf(opponent);
+        sim.Actions.Tick(sim.Clock);Play(125);
+        if(agents.HealthOf(opponent)>=health||rig.PresentedToolImpacts!=0)
+            throw new InvalidOperationException("An abstract distant attack either failed to settle or displayed a thrust");
+
+        agents.SetPosition(opponent,tile.X,tile.Y);
+        Station(victim,2);Play(12);
+        Guard(ActionKind.Attack);
+        if(rig.PresentedSurfaceContacts!=0)
+            throw new InvalidOperationException("The loaded guard makes contact before confirmation");
+        var standing=victim.Position;
+        victim.Position+=Vector3.Back*.14f;
+        Play(1);
+        if(!rig.GestureEngaged(ActionKind.Attack)||rig.ToolStrokePhase<.479f)
+            throw new InvalidOperationException("The same moving resident resets an already loaded guard");
+        victim.Position=standing;
+        var middle=Horizontal((rig.Position+victim.Position)*.5f);
+        var key=new Vector2I((int)MathF.Round(middle.X*.5f),(int)MathF.Round(middle.Y*.5f));
+        bool hadSolid=_scenerySolids.TryGetValue(key,out var prior);
+        try
+        {
+            _scenerySolids[key]=(middle,.10f);
+            sim.Actions.Tick(sim.Clock);Play(100);
+            if(rig.PresentedToolImpacts!=0)throw new InvalidOperationException("The confirmed thrust crosses an obstruction");
+        }
+        finally
+        {
+            if(hadSolid)_scenerySolids[key]=prior;
+            else _scenerySolids.Remove(key);
+        }
+        Guard(ActionKind.Attack);
+        sim.Actions.Tick(sim.Clock);
+        float attackGap=Play(115,()=>NearBodyPoint(rig.Position,
+            victim.RigWorldSpace*victim.Torso.Transform*new Vector3(0,1.09f,0),.13f*victim.Scale.X));
+        if(rig.PresentedToolImpacts!=1||rig.PresentedSurfaceContacts!=1)
+            throw new InvalidOperationException($"A reachable attack missed its rendered body point: strikes={rig.PresentedToolImpacts}, contacts={rig.PresentedSurfaceContacts}, nearest={attackGap:F3} m");
+
+        Station(rig,2);
+        int SpawnPrey()=>sim.Wildlife.Add(sim.World,tile.X+1,tile.Y,0,sim.Random.Get(RngStream.Events));
+        long PreyIdentity(int prey)=>((long)sim.Wildlife.GenerationOf(prey)<<32)|(uint)prey;
+        void CommitHunt(int prey)
+        {
+            long identity=PreyIdentity(prey);
+            for(int i=0;i<sim.Config.Wildlife.HuntTicks;i++)agents.IncrementActionTicks(hunter);
+            sim.Actions.Tick(sim.Clock);SyncEntities();
+            if(sim.Wildlife.IsAlive(prey)||!sim.Actions.TryGetCompletedContact(hunter,out var receipt)||receipt.TargetIdentity!=identity)
+                throw new InvalidOperationException("Hunt did not record the committed prey generation");
+        }
+        int original=SpawnPrey();SyncEntities();Station(rig,2);Guard(ActionKind.Hunt);
+        long originalIdentity=PreyIdentity(original);
+        sim.Wildlife.Kill(original,hunted:false);
+        int replacement=SpawnPrey();
+        if(replacement!=original||PreyIdentity(replacement)==originalIdentity)
+            throw new InvalidOperationException("Hunt fixture did not reuse the prey slot with a different generation");
+        CommitHunt(replacement);Play(100);
+        if(rig.PresentedToolImpacts!=1)
+            throw new InvalidOperationException("A replaced prey inherited the prior animal's guarded contact");
+        int committed=SpawnPrey();SyncEntities();Station(rig,2);Guard(ActionKind.Hunt);
+        var huntPoint=rig.PreparedHuntPoint(agents.ActionRevisionOf(hunter),PreyIdentity(committed))
+            ??throw new InvalidOperationException("Hunt fixture has no live aim point");
+        CommitHunt(committed);
+        float huntGap=Play(115,()=>huntPoint);
+        if(rig.PresentedToolImpacts!=2||rig.PresentedSurfaceContacts!=2)
+            throw new InvalidOperationException($"The committed hunt loses the last actual aim: strikes={rig.PresentedToolImpacts}, contacts={rig.PresentedSurfaceContacts}, nearest={huntGap:F3} m");
+        GD.Print($"WORLD_SPEAR_TARGET_PASS: distant and occluded strikes suppressed; one contact on the resident ({attackGap:F3} m), one on the confirmed prey ({huntGap:F3} m), replaced prey rejected, read-only");
     }
 
     private void ValidateSupportRelease(ResidentRig rig,int slot,Vector2I start,Vector2I destination)

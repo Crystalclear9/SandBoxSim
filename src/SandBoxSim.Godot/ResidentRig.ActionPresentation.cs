@@ -43,6 +43,10 @@ internal partial class ResidentRig
     private float _bridgeAge;
     public bool CompletionVisible=>_finishConsumption||_finishToolStroke||_completionRemaining>0||_placingCargo||_placementPending||_awaitingContact;
 
+    internal Vector3? PreparedHuntPoint(uint revision,long prey)
+        =>_observedAction==ActionKind.Hunt&&_observedRevision==revision&&_interactionTarget.Partner==prey
+            ?_toolSurface?.Point:null;
+
     internal bool ShowsCompletion(ActionKind action,uint revision)
         =>_observedRevision.HasValue&&(revision!=_observedRevision||action!=_observedAction
             ||_observedPhase!=ActionPhase.Done||CompletionVisible);
@@ -119,15 +123,15 @@ internal partial class ResidentRig
         bool sameExecution=!newRun&&_observedPhase==ActionPhase.Executing&&phase is ActionPhase.Executing or ActionPhase.Done;
         // The active hunt tracks a live animal. Its committed receipt keeps
         // the last position after that animal leaves the live render set.
-        bool changedPartner=(RequiresPartner(action)||action==ActionKind.Hunt&&phase==ActionPhase.Executing)
+        bool changedPartner=(RequiresPartner(action)||action==ActionKind.Hunt)
             &&target.Partner!=_interactionTarget.Partner;
         // A moving animal or person does not become a new target on a tile boundary.
-        bool trackingIdentity=target.Partner!=0&&(RequiresPartner(action)||action==ActionKind.Hunt);
+        bool trackingIdentity=action==ActionKind.Hunt?toolSurface.HasValue:target.Partner!=0&&RequiresPartner(action);
         bool changedTile=!trackingIdentity&&target.Tile.HasValue&&_interactionTarget.Tile.HasValue&&target.Tile!=_interactionTarget.Tile;
         bool changedPickup=target.Pickup!=_interactionTarget.Pickup;
         bool changedWorksite=target.Worksite.HasValue&&_interactionTarget.Worksite.HasValue
             &&target.Worksite!=_interactionTarget.Worksite;
-        bool changedSurface=_toolSurface is {} previousSurface&&toolSurface is {} nextSurface
+        bool changedSurface=!trackingIdentity&&_toolSurface is {} previousSurface&&toolSurface is {} nextSurface
             &&(previousSurface.Point.DistanceSquaredTo(nextSurface.Point)>.09f*.09f
                 ||previousSurface.Normal.Dot(nextSurface.Normal)<.80f);
         bool changedWorkContact=changedPartner||changedTile||changedWorksite||changedSurface;

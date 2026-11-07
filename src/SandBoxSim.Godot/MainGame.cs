@@ -770,7 +770,11 @@ public partial class MainGame : Control
                 worldView.ValidateWorldDimensions();
                 SetSpeed(ObservationSpeed);
                 if(focused=="--work-contact-only")worldView.ValidateWorldWorkContact();
-                else if(focused=="--strike-contact-only")worldView.ValidateWorldToolContact();
+                else if(focused=="--strike-contact-only")
+                {
+                    worldView.ValidateWorldToolContact();
+                    worldView.ValidateSceneSpear();
+                }
                 else if(focused=="--conversation-only")worldView.ValidateSceneConversation();
                 else if(focused=="--interaction-contact-only")
                 {

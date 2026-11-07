@@ -277,6 +277,8 @@
 
 #### 交互阶段与中断
 
+`spearTargeting=bounded-live-contact-v1` 让长矛用场景中对方的躯干和实际站位瞄准。相同目标在可及范围内移动时延续已经蓄好的动作，结算后才进入前刺。矛尖按当前瞄准点转向，并在伸出阶段检查接触。目标离开可及距离或被遮挡时取消前刺，前刺未接触时也会及时收势。狩猎结算会记录猎物槽位和代次，使已移出画面的猎物能保留对应的最后瞄准点。接触检查采用躯干表面近似点与场景障碍，模拟伤害和狩猎收益仍按各自的范围结算。[Witkin 和 Popović 的动作重定向研究](https://publications.ri.cmu.edu/motion-warping) · [Epic 的动态目标约束](https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/MotionWarpingComponent?application_version=5.6)
+
 拾取／采食和存放／分享／交易分别共用手部轨迹与混合量。进食和饮水也共用手部控制，但先把前一件道具放低再换取下一件。暂停冻结道具与手部，物资的状态区分托举和递出。
 
 研究中，抓握与操纵阶段需要分别观察，且物体交互牵涉手、身体姿态和接触关系；参考 [GRAB 全身抓握研究](https://arxiv.org/abs/2008.11200)及[抓握与操纵力研究](https://www.nature.com/articles/s41598-023-38870-8)。这里据此检查动作目标与控制权是否一致，没有导入受试者数据或声称已实现接触力学。

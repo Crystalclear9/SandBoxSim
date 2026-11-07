@@ -9,6 +9,7 @@ internal partial class ResidentRig
     internal float WorkCapacity=1;
     private float _workFatigue,_workHealth=1,_strokePhase;
     private bool _finishToolStroke,_toolImpactSeen,_rearmToolStroke,_awaitToolCommit;
+    private float _spearContactWait;
     internal int PresentedToolImpacts {get;private set;}
     internal float ToolStrokePhase=>_strokePhase;
     public void SetWorkCondition(float fatigue,float health)
@@ -34,7 +35,7 @@ internal partial class ResidentRig
     private string ToolStrokeHandling=>CurrentTool switch
     {
         ResidentTool.Hoe=>_strokePhase<.29f?"落锄":_strokePhase<.54f?"沿土面回拉":"抬刃 / 收势",
-        ResidentTool.Spear=>_awaitToolCommit&&_strokePhase>=.47f?"瞄准 / 等待时机":_strokePhase<.68f?"蓄力 / 前刺":"收矛 / 复位",
+        ResidentTool.Spear=>_awaitToolCommit&&_strokePhase>=.47f?"瞄准 / 等待时机":_strokePhase<=.68f?"蓄力 / 前刺":"收矛 / 复位",
         _=>_strokePhase<WorkPreparation?"抬起工具":_surfaceTouched?"触及表面 / 收势":
             _strokePhase<ToolImpactPhase(CurrentTool)?"向目标挥下":"卸力 / 收势"
     };
@@ -42,6 +43,7 @@ internal partial class ResidentRig
     private void ResetToolPhrase(bool retainPose,bool keepImpact=false)
     {
         _finishToolStroke=_awaitToolCommit=false;
+        _spearContactWait=0;
         if(!keepImpact)_toolImpactSeen=false;
         _rearmToolStroke=retainPose&&_workBlend>.025f;
         if(!_rearmToolStroke)_strokePhase=0;
@@ -53,10 +55,18 @@ internal partial class ResidentRig
         float next=before+delta/WorkPeriod;
         if(_awaitToolCommit&&CurrentTool==ResidentTool.Spear)next=MathF.Min(next,.48f);
         float impact=ToolImpactPhase(CurrentTool);
+        if(CurrentTool==ResidentTool.Spear&&_toolSurface.HasValue&&!_surfaceTouched&&next>=impact
+            &&before<=impact&&_spearContactWait<.18f)
+        {
+            // Let the displayed shaft reach its contact window before
+            // withdrawing. If it cannot reach, recover from the miss.
+            next=impact;
+            _spearContactWait+=delta;
+        }
         if(before<impact&&next>=impact)
         {
             _toolImpactSeen=true;
-            PresentedToolImpacts++;
+            if(CurrentTool!=ResidentTool.Spear||!_toolSurface.HasValue)PresentedToolImpacts++;
         }
         // A new receipt can arrive while the previous stroke is recovering.
         // Finish this receipt only after an impact in its own stroke.

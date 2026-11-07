@@ -46,6 +46,24 @@ public partial class WorldView3D
         _=>ResourceKind.None
     };
 
+    private bool TrySpearSurface(ResidentRig rig,Vector3 root,Vector3 point,out ResidentRig.ToolSurface surface)
+    {
+        surface=default;
+        var normal=Horizontal(root-point);
+        float reach=normal.Length()/rig.Scale.X;
+        if(reach is <.94f or >1.64f||(point.Y-root.Y)/rig.Scale.Y is <.48f or >1.36f
+            ||!ScenerySegmentClear(root,point))return false;
+        normal=normal.Normalized();
+        surface=new(point,new Vector3(normal.X,0,normal.Y));
+        return true;
+    }
+
+    private static Vector3 NearBodyPoint(Vector3 observer,Vector3 centre,float depth)
+    {
+        var radial=Horizontal(observer-centre).Normalized();
+        return centre+new Vector3(radial.X,0,radial.Y)*depth;
+    }
+
     private bool TryPlanToolSurface(ActionKind action,int x,int y,Vector3 stand,out ResidentRig.ToolSurface contact,out bool requiresSurface)
     {
         contact=default;

@@ -31,7 +31,12 @@ public sealed class ActionSystem
         System.Array.Empty<(AgentRef, PartnerCompletion)>();
     public enum ContactSurface : byte { GroundStock, NaturalResource, Storage, BuildingWork, Hunt }
     public readonly record struct ActionContact(Int2 Tile, ResourceKind Resource, ContactSurface Surface, float StockAmount = 0,
-        int BuildingGeneration = 0);
+        int BuildingGeneration = 0)
+    {
+        // A prey identity combines generation and slot. Zero is a valid
+        // identity for the first generation of slot zero.
+        public long TargetIdentity { get; init; }
+    }
     public readonly record struct ContactCompletion(ActionKind Action, uint Revision, long Tick, Int2 Origin, ActionContact? Site);
     private (AgentRef Actor, ContactCompletion Completion)[] _completedContacts =
         System.Array.Empty<(AgentRef, ContactCompletion)>();
@@ -432,6 +437,7 @@ public sealed class ActionSystem
         }
 
         Int2 preyTile = new(wildlife.XOf(prey), wildlife.YOf(prey));
+        long preyIdentity = ((long)wildlife.GenerationOf(prey) << 32) | (uint)prey;
         float food = _sim.WildlifeSystem.Hunt(x, y);
         if (food <= 0f)
         {
@@ -444,7 +450,7 @@ public sealed class ActionSystem
         TotalHuntedFood += food;
         int index = (int)ResourceKind.Food;
         HarvestedByKind[index] += food;
-        RecordContact(slot, new(preyTile, ResourceKind.Food, ContactSurface.Hunt));
+        RecordContact(slot, new(preyTile, ResourceKind.Food, ContactSurface.Hunt) { TargetIdentity = preyIdentity });
 
         _sim.Events.Record(tick, History.WorldEventType.AgentAte,
             _store.NameOrOverride(slot) + " 猎获一只动物（+" + food.ToString("0", System.Globalization.CultureInfo.InvariantCulture) + " 食物）",
