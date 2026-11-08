@@ -8,6 +8,7 @@ internal sealed partial class NatureModels
 {
     private sealed record ForearmFit(float[] X,float[] Z,float[] OffsetX,float[] OffsetZ,float[] Width,float[] Depth);
     private static readonly ForearmFit?[] ForearmFits=new ForearmFit?[2];
+    private const float ForearmSectionCentreZ=.010f;
     private static ForearmFit ForearmSupport(int frame)
     {
         frame=frame==1?1:0;
@@ -76,8 +77,26 @@ internal sealed partial class NatureModels
         float dx=x.Derivative*widthWeight+(x.Value-1)*dWidth,dz=z.Derivative*depthWeight+(z.Value-1)*dDepth;
         float tx=ox.Value*widthWeight,tz=oz.Value*depthWeight;
         float dtx=ox.Derivative*widthWeight+ox.Value*dWidth,dtz=oz.Derivative*depthWeight+oz.Value*dDepth;
-        return(new(point.X*sx+tx,point.Y,point.Z*sz+tz),
-            new Vector3(normal.X/sx,normal.Y-normal.X*(point.X*dx+dtx)/sx-normal.Z*(point.Z*dz+dtz)/sz,normal.Z/sz).Normalized());
+        float cross=0,dCross=0;
+        if(frame==1)
+        {
+            // The lower section turns toward the wrist while the proximal
+            // section follows the oblique forearm belly. The transverse
+            // shear keeps the section area and its centreline on the fit.
+            var lower=Ramp(.046f,.080f);var upper=Ramp(.094f,.152f);
+            var taper=Ramp(.173f,.241f);
+            float shear=.18f-.29f*upper.V;
+            float weight=lower.V*(1-taper.V);
+            float derivative=lower.D*(1-taper.V)-lower.V*taper.D;
+            cross=shear*weight*sz;
+            dCross=(-.29f*upper.D*weight+shear*derivative)*sz+shear*weight*dz;
+        }
+        float relativeDepth=point.Z-ForearmSectionCentreZ;
+        float fittedX=point.X*sx+tx+cross*relativeDepth;
+        float normalX=normal.X/sx;
+        float normalZ=(normal.Z-cross*normalX)/sz;
+        float normalY=normal.Y-normalX*(point.X*dx+dtx+dCross*relativeDepth)-normalZ*(point.Z*dz+dtz);
+        return(new(fittedX,point.Y,point.Z*sz+tz),new Vector3(normalX,normalY,normalZ).Normalized());
     }
     private static void ValidateForearmProfileContinuity()
     {

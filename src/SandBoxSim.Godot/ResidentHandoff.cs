@@ -16,8 +16,10 @@ internal sealed class ResidentHandoff
     private Stage _stage;
     private Basis _basis=Basis.Identity;
     private Vector3 _transferOffset,_transferVelocity,_previousReceiverPalm;
-    private Vector3 _returnStart;
+    private Vector3 _returnStartInActor;
+    private Vector3 _givingMeetingPalm;
     private float _time,_contact;
+    private float _receiverReach;
     private bool _receiverOwns;
     private bool _confirmed,_giverReserved=true,_receiverReserved=true;
 
@@ -50,7 +52,8 @@ internal sealed class ResidentHandoff
             var holder=_receiverOwns?_receiver:_giver;
             int hand=_receiverOwns?ReceivingHand:GivingHand;
             float weight=ResidentRig.ReachEase(_time/.46f);
-            holder.PlanHandoff(hand,_returnStart.Lerp(holder.HandoffWaist(hand),weight),.67f,
+            var start=holder.RigWorldSpace*_returnStartInActor;
+            holder.PlanHandoff(hand,start.Lerp(holder.HandoffWaist(hand),weight),.67f,
                 _receiverOwns?"接稳 / 收回":"收回食物",recovery:true);
             return;
         }
@@ -77,23 +80,32 @@ internal sealed class ResidentHandoff
         // Both right/left hands are on the same side of the line between
         // actors, on opposite faces of the actual parcel.
         midpoint+=_basis.Z*.09f;
-        var offer=_giver.HandoffWaist(GivingHand);
+        _givingMeetingPalm=midpoint+_basis*_givingSupport;
         Vector3? giverTarget=_stage switch
         {
-            Stage.Offer=>offer,
-            Stage.Meet=>midpoint+_basis*_givingSupport,
+            Stage.Offer=>_giver.HandoffWaist(GivingHand),
+            Stage.Meet=>_givingMeetingPalm,
             _=>null
         };
-        Vector3? receiverTarget=_stage switch
+        Vector3? receiverTarget=null;
+        if(_stage is Stage.Offer or Stage.Meet)
         {
-            Stage.Meet when _time>=.16f&&ParcelVisible=>ParcelPose*_receivingSupport,
-            _=>null
-        };
+            // Both people reach toward the shared location. Follow the actual
+            // parcel for the last few centimetres, once the giver is close.
+            var waitingPalm=midpoint+_basis*_receivingSupport;
+            var waist=_receiver.HandoffWaist(ReceivingHand);
+            var stagedPalm=waist.Lerp(waitingPalm,ResidentRig.ReachEase(_receiverReach));
+            float tracking=_stage==Stage.Meet
+                ?1-Mathf.SmoothStep(.045f,.16f,Palm(_giver,GivingHand).DistanceTo(_givingMeetingPalm))
+                :0;
+            receiverTarget=tracking>0?stagedPalm.Lerp(ParcelPose*_receivingSupport,tracking):stagedPalm;
+        }
         string approach=awaitingConfirmation?"已就位 / 等待确认":"走近交接";
         _giver.PlanHandoff(GivingHand,giverTarget,ParcelVisible?.67f:.10f,
             _stage==Stage.Approach?approach:_stage==Stage.Offer?"拿稳食物":"递出 / 等待接住");
-        _receiver.PlanHandoff(ReceivingHand,receiverTarget,.16f,
-            _stage==Stage.Approach?approach:_stage==Stage.Meet?"伸手接取":"等待递物");
+        float receiveCurl=Mathf.Lerp(.16f,.67f,ResidentRig.ReachEase(_stage==Stage.Meet?_contact/.10f:0));
+        _receiver.PlanHandoff(ReceivingHand,receiverTarget,receiveCurl,
+            _stage==Stage.Approach?approach:"伸手接取");
     }
 
     internal void Advance(float delta)
@@ -103,6 +115,8 @@ internal sealed class ResidentHandoff
         delta=MathF.Min(delta,1f/30);
         _time+=delta;
         if(_stage==Stage.Approach){if(_time>=3.5f)Cancel();return;}
+        if(_stage is Stage.Offer or Stage.Meet)
+            _receiverReach=Mathf.MoveToward(_receiverReach,_stage==Stage.Offer?.48f:1,delta/.55f);
         if(_stage==Stage.Offer)
         {
             bool ready=_giver.HandoffHandReady&&Palm(_giver,GivingHand).DistanceTo(_giver.HandoffWaist(GivingHand))<.032f;
@@ -125,7 +139,8 @@ internal sealed class ResidentHandoff
         {
             var receiverPalm=Palm(_receiver,ReceivingHand);
             var receiverSupport=ParcelPose*_receivingSupport;
-            bool bothReady=_giver.HandoffHandReady&&_receiver.HandoffHandReady&&receiverPalm.DistanceTo(receiverSupport)<.018f;
+            bool bothReady=_giver.HandoffHandReady&&_receiver.HandoffHandReady
+                &&currentPalm.DistanceTo(_givingMeetingPalm)<.065f&&receiverPalm.DistanceTo(receiverSupport)<.018f;
             _contact=bothReady?_contact+delta:0;
             if(_contact>=.10f)
             {
@@ -133,7 +148,7 @@ internal sealed class ResidentHandoff
                 // to the receiving palm before fading to its support point.
                 _transferOffset=receiverSupport-receiverPalm;
                 _transferVelocity=((ParcelPose.Origin-priorParcel-receiverPalm+_previousReceiverPalm)/delta).LimitLength(.30f);
-                _returnStart=receiverPalm;
+                _returnStartInActor=_receiver.RigWorldSpace.AffineInverse()*receiverPalm;
                 _parcel.Reparent(_receiver.Hands[ReceivingHand],false);
                 _parcel.Transform=_receiver.HandWorldPose(ReceivingHand).AffineInverse()*ParcelPose;
                 _receiverOwns=Transferred=true;
@@ -156,7 +171,9 @@ internal sealed class ResidentHandoff
         if(Finished||_stage==Stage.Recover)return;
         if(ParcelVisible)
         {
-            _returnStart=_receiverOwns?Palm(_receiver,ReceivingHand):Palm(_giver,GivingHand);
+            var holder=_receiverOwns?_receiver:_giver;
+            int hand=_receiverOwns?ReceivingHand:GivingHand;
+            _returnStartInActor=holder.RigWorldSpace.AffineInverse()*Palm(holder,hand);
             Next(Stage.Recover);
             if(_receiverOwns)Release(_giver,ref _giverReserved);
             else Release(_receiver,ref _receiverReserved);

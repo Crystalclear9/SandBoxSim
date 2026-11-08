@@ -482,6 +482,7 @@ internal sealed partial class NatureModels
         }
         GD.Print($"TOOL_PHRASE_PASS: five tool families at 60/24 Hz, single impact, natural completion, suppressed work, urgent cancellation, hunt wait and thrust, max wrist step {biggestInterruption:F3} m");
         ValidateContinuousWorkContact();
+        ValidateMissedWorkContact();
         ValidateToolSurfaceTracking();
     }
 
@@ -609,7 +610,8 @@ internal sealed partial class NatureModels
                     if(offset.Length()<nearest){nearest=offset.Length();closestOffset=offset;}
                     if(offset.Length()<.10f)deepest=MathF.Min(deepest,offset.Dot(contact.Normal));
                 }
-                if(nearest>.060f||rig.PresentedSurfaceContacts==0||deepest<-.075f||worstStep>.080f)
+                if(nearest>.060f||rig.PresentedSurfaceContacts==0||rig.PresentedToolImpacts!=rig.PresentedSurfaceContacts
+                    ||deepest<-.075f||worstStep>.080f)
                     throw new InvalidOperationException($"Work tool misses or clips its surface: {shape}/{identity}, point={contact.Point}, gap={nearest:F3} ({closestOffset}), penetration={deepest:F3}, contacts={rig.PresentedSurfaceContacts}, wrist={worstStep:F3}");
                 worstGap=MathF.Max(worstGap,nearest);
                 int hits=rig.PresentedSurfaceContacts;
@@ -620,6 +622,34 @@ internal sealed partial class NatureModels
             finally{rig.Free();}
         }
         GD.Print($"TOOL_SURFACE_PASS: two adult frames, real trunk/rock sections and post face, worst closest approach {worstGap:F3} m, max wrist step {worstStep:F3} m, vanished target stops work");
+    }
+
+    private void ValidateMissedWorkContact()
+    {
+        foreach(var (identity,delta) in new[]{(17,1f/60),(55,1f/24)})
+        foreach(var action in new[]{ActionKind.GatherWood,ActionKind.GatherStone,ActionKind.BuildHouse})
+        {
+            var rig=Resident(identity,false,JobType.None);
+            try
+            {
+                var surface=new ResidentRig.ToolSurface(new(0,.8f,-2),Vector3.Back);
+                rig.PresentAction(delta,ActionKind.None,ActionPhase.Idle,false,0,1);
+                int attempts=0;
+                float previous=0;
+                for(int frame=0;frame<6/delta;frame++)
+                {
+                    rig.PresentAction(delta,action,ActionPhase.Done,false,0,2,toolSurface:surface);
+                    float phase=rig.ToolStrokePhase;
+                    if(previous<.70f&&phase>=.70f)attempts++;
+                    previous=phase;
+                }
+                if(attempts!=1||rig.PresentedToolImpacts!=0||rig.PresentedSurfaceContacts!=0
+                    ||rig.CompletionVisible||rig.ToolStrokePhase!=1)
+                    throw new InvalidOperationException($"Unreachable strike does not recover cleanly: {action}/{identity}, attempts={attempts}, impacts={rig.PresentedToolImpacts}, phase={rig.ToolStrokePhase:F3}");
+            }
+            finally{rig.Free();}
+        }
+        GD.Print("MISSED_WORK_CONTACT_PASS: axe, pick and hammer at 60/24 Hz, one attempt per completion, no impact and no replay on a miss");
     }
     private void ValidateBareTransitions()
     {

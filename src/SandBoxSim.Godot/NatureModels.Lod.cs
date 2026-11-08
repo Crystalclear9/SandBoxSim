@@ -34,8 +34,9 @@ internal sealed partial class NatureModels
             {
                 int v=indices.Length>0?indices[i]:i;
                 var shade=colors.Length==points.Length?tint*colors[v]:tint;
-                tool.SetUV(new Vector2(cloth?1:0,cloth?shade.A:1));
-                if(cloth)shade.A=tint.A;
+                float neck=cloth&&colors.Length==points.Length?colors[v].R:1;
+                tool.SetUV(new Vector2(cloth?1+neck:0,cloth?shade.A:1));
+                if(cloth){shade.R=tint.R;shade.A=tint.A;}
                 tool.SetColor(shade);
                 tool.SetUV2(detail.Length==points.Length?detail[v]:new Vector2(-1,0));
                 tool.SetNormal(normals[v]);tool.AddVertex(points[v]);

@@ -10,6 +10,10 @@ public partial class WorldView3D
 {
     private readonly PoseSchedule _poseSchedule=new();
     private readonly Dictionary<long,ResourceKind> _caravanLoads=new();
+    private const float MaximumActorObservationStep=1f/24;
+    private static int ResidentPoseStride(float distanceSquared,bool paced,bool contactPose)
+        =>distanceSquared>45*45?8:distanceSquared>30*30?6:
+            distanceSquared>(paced||contactPose?18*18:12*12)?2:1;
 
     private void ObserveCaravanLoads()
     {
@@ -27,7 +31,7 @@ public partial class WorldView3D
     }
 
     private readonly record struct PoseCue(ActionKind Action,ActionPhase Phase,uint Revision,ResidentRig.InteractionTarget Target,bool Aligned,
-        ResidentRig.ToolSurface? Surface=null,bool ContactReady=true);
+        ResidentRig.ToolSurface? Surface=null,bool ContactReady=true,Vector3? PickupPoint=null);
     /// <summary>Accumulate time only while the observed action and its contacts are current.</summary>
     private sealed class PoseSchedule
     {
@@ -40,9 +44,12 @@ public partial class WorldView3D
         {
             // A moving body updates the aim continuously. Its identity and
             // eligibility still decide whether old presentation time applies.
-            if((current.Action is ActionKind.Attack or ActionKind.Hunt)&&previous.Surface.HasValue&&current.Surface.HasValue
-                &&previous.Target.Partner==current.Target.Partner)
+            if((current.Action is ActionKind.Attack or ActionKind.Hunt)&&previous.Surface is {} prior&&current.Surface is {} next
+                &&previous.Target.Partner==current.Target.Partner&&ResidentRig.ContinuesSpearAim(prior,next))
                 previous=previous with {Surface=current.Surface,Target=previous.Target with {Tile=current.Target.Tile}};
+            if(previous.PickupPoint is {} source&&current.PickupPoint is {} destination
+                &&source.DistanceSquaredTo(destination)<=ResidentRig.PickupReplanDistance*ResidentRig.PickupReplanDistance)
+                previous=previous with {PickupPoint=current.PickupPoint};
             return previous==current;
         }
 
@@ -68,6 +75,9 @@ public partial class WorldView3D
     }
     private static void ValidatePoseScheduling()
     {
+        if(ResidentPoseStride(15*15,false,false)!=2||ResidentPoseStride(15*15,false,true)!=1
+            ||ResidentPoseStride(19*19,false,true)!=2||ResidentPoseStride(46*46,true,true)!=8)
+            throw new InvalidOperationException("Contact cadence fails to update nearby supports or extends to distant residents");
         var schedule=new PoseSchedule();const long actor=(3L<<32)|7;
         var cue=new PoseCue(ActionKind.Take,ActionPhase.Executing,12,new(new Vector2I(2,3),0,null),true);
         float actual=0,consumed=0;
@@ -110,10 +120,21 @@ public partial class WorldView3D
             ||MathF.Abs(schedule.Consume(actor)-.051f)>.00001f)
             throw new InvalidOperationException("The same moving prey loses its facing latch or accumulated pose time");
         schedule.Observe(actor,moving,.032f,true);
+        var jumped=moving with {Surface=new(new(.7f,.8f,-.5f),Vector3.Back)};
+        if(schedule.RetainsFacing(actor,jumped)||!schedule.Observe(actor,jumped,.016f,true)
+            ||MathF.Abs(schedule.Consume(actor)-.016f)>.00001f)
+            throw new InvalidOperationException("A discontinuous aim inherits the old pose interval");
+        schedule.Observe(actor,moving,.032f,true);
         var replaced=moving with {Target=moving.Target with {Partner=1L<<32}};
         if(schedule.RetainsFacing(actor,replaced)||!schedule.Observe(actor,replaced,.016f,true)
             ||MathF.Abs(schedule.Consume(actor)-.016f)>.00001f)
             throw new InvalidOperationException("A different prey generation inherits the previous target's pose time");
+        var pickup=cue with {PickupPoint=new(.2f,.1f,-.46f)};
+        var shifted=pickup with {PickupPoint=new(.4f,.1f,-.46f)};
+        schedule.Observe(actor,pickup,.032f,true);
+        if(schedule.RetainsFacing(actor,shifted)||!schedule.Observe(actor,shifted,.016f,true)
+            ||MathF.Abs(schedule.Consume(actor)-.016f)>.00001f)
+            throw new InvalidOperationException("A shifted pickup inherits the old pose interval");
         schedule.Observe(actor,cue,.08f,true);schedule.Observe(actor,cue,.1f,false);
         if(schedule.Consume(actor)!=0)throw new InvalidOperationException("Paused or hidden resident retains pose catch-up debt");
         schedule.Observe(actor,cue,.04f,true);schedule.Forget(actor);

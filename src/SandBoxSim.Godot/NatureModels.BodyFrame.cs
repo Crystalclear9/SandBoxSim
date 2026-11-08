@@ -353,8 +353,8 @@ internal sealed partial class NatureModels
             if(bones.Length>0){arrays[(int)Mesh.ArrayType.Bones]=bones;arrays[(int)Mesh.ArrayType.Weights]=weights;}
             if(femaleHem!=null&&source.SurfaceGetMaterial(s)?.HasMeta("FittedBodice")==true)
             {
-                FoldFemaleNeckline(arrays,ref points,ref pattern);
-                arrays[(int)Mesh.ArrayType.Color]=FemaleHemFinishCoordinates(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),femaleHem);
+                var rim=FoldFemaleNeckline(arrays,ref points,ref pattern);
+                arrays[(int)Mesh.ArrayType.Color]=FemaleSewnFinishCoordinates(points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array(),femaleHem,rim);
             }
             // Pattern coordinates are a surface parameter, not a spatial Y
             // function. Rebuild the sewn panel normals from final triangles;
@@ -515,10 +515,15 @@ internal sealed partial class NatureModels
             var headTransform=female.Head.Transform;float movingClearance=float.PositiveInfinity;
             float rimClearance=float.PositiveInfinity;
             float coveredNeckEdge=float.PositiveInfinity;
+            float braidClearance=float.PositiveInfinity;
+            int braidProbes=0;
             int rimProbes=0;
+            var clothIndices=bodice[(int)Mesh.ArrayType.Index].AsInt32Array();
+            var braid=FemaleGatheredHair(false).SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
             var posedHead=new Vector3[headPoints.Length];
             var projected=new Vector3[headPoints.Length];
             var sourceHead=HumanData().Head.Points;
+            ValidateFemaleCervicalRelief(sourceHead);
             float innerFrontHeight=openingY-FemaleNeckFacingDepth;
             var neckPivot=new Vector3(0,ResidentRig.NeckPivotY*female.Head.Scale.Y,0);
             try
@@ -553,6 +558,15 @@ internal sealed partial class NatureModels
                         if(!float.IsFinite(skin))continue;
                         rimClearance=MathF.Min(rimClearance,radial.Length()-skin);rimProbes++;
                     }
+                    var braidPose=InTorso(female.Head,female.Torso);
+                    for(int i=0;i<braid.Length;i+=7)
+                    {
+                        if(braid[i].Y>=-.060f)continue;
+                        var point=braidPose*braid[i];
+                        float back=GarmentDepth(cloth,clothIndices,point.X,point.Y,true);
+                        if(!float.IsFinite(back))continue;
+                        braidClearance=MathF.Min(braidClearance,point.Z-back);braidProbes++;
+                    }
                 }
             }
             finally{female.Head.Transform=headTransform;}
@@ -561,6 +575,9 @@ internal sealed partial class NatureModels
             if(rimProbes<openingEdges.Count*8||rimClearance<.002f||!float.IsFinite(coveredNeckEdge)||coveredNeckEdge<.002f)
                 throw new InvalidOperationException($"Fitted facing intersects the turning neck or reveals its source edge: samples={rimProbes}, radial={rimClearance*1000:F2} mm, cover={coveredNeckEdge*1000:F2} mm");
             GD.Print($"COLLAR_CLEARANCE_PASS: {rimProbes} radial sections against actual neck skin, minimum={rimClearance*1000:F2} mm, source edge cover={coveredNeckEdge*1000:F2} mm");
+            if(braidProbes<12||braidClearance<.002f)
+                throw new InvalidOperationException($"Long braid enters the moving head's collar: samples={braidProbes}, gap={braidClearance*1000:F2} mm");
+            GD.Print($"FEMALE_BRAID_CLEARANCE_PASS: {braidProbes} actual hair/collar probes across nine head poses; minimum={braidClearance*1000:F2} mm");
             ValidateForearmSupport(male,0);ValidateForearmSupport(female,1);
             ValidateFemalePalmGeometry(male,female);
             foreach(var rig in new[]{male,female})
@@ -587,7 +604,7 @@ internal sealed partial class NatureModels
                 return y;
             }
             float hemRise=Hem(female.DetailedBodyMesh)-Hem(male.DetailedBodyMesh);
-            if(MathF.Abs(hemRise-.017f)>.003f||MathF.Abs(Hem(female.DetailedBodyMesh)-.842f)>.002f
+            if(MathF.Abs(hemRise-.034f)>.003f||MathF.Abs(Hem(female.DetailedBodyMesh)-.859f)>.002f
                 ||MathF.Abs(Hem(male.DetailedBodyMesh)-.825f)>.002f)
                 throw new InvalidOperationException("Tailored hem loses trouser coverage or retains the common long cut");
             GD.Print($"BODY_CUT_PASS: raised garment hem={hemRise:F4} m, preserved trouser overlap and separate lower-body geometry");
@@ -595,7 +612,7 @@ internal sealed partial class NatureModels
             {
                 var (left,right,front,back)=HemExtents(mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array());
                 float curve=MathF.Min(left,right)-MathF.Max(front,back);
-                if(!float.IsFinite(curve)||curve<.020f||curve>.036f||MathF.Abs(left-right)>.003f)
+                if(!float.IsFinite(curve)||curve<.030f||curve>.043f||MathF.Abs(left-right)>.003f)
                     throw new InvalidOperationException("Short female shirt loses its curved side hem or waistband coverage");
                 return curve;
             }
@@ -674,17 +691,33 @@ internal sealed partial class NatureModels
                     throw new InvalidOperationException("Muscle fit changes the grip or wrist attachment");
             }
             var rim=new System.Collections.Generic.List<Vector3>();
-            float hem=Hem(female.DetailedBodyMesh);
-            foreach(var point in female.DetailedBodyMesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array())
-                if(point.Y<=hem+.039f)rim.Add(point);
+            var shirt=female.DetailedBodyMesh.SurfaceGetArrays(0);
+            var shirtPoints=shirt[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            var edgeChart=shirt[(int)Mesh.ArrayType.Color].AsColorArray();
+            for(int i=0;i<shirtPoints.Length;i++)
+                if(edgeChart[i].A==0)rim.Add(shirtPoints[i]);
+            float waistTop=female.Trousers!.Mesh.GetAabb().End.Y;
+            if(rim.Count<SewnPanelColumns)
+                throw new InvalidOperationException("Missing the exterior rim of the short shirt");
+            float minimumOverlap=float.PositiveInfinity;
             foreach(var rig in new[]{male,female})
             foreach(var action in new[]{SandBoxSim.Core.Agents.ActionKind.Eat,SandBoxSim.Core.Agents.ActionKind.BuildHouse,SandBoxSim.Core.Agents.ActionKind.Take})
             for(int f=0;f<150;f++)
             {
                 rig.PoseAction(1f/60,action,SandBoxSim.Core.Agents.ActionPhase.Executing,false,0);
-                if(rig==female)foreach(var point in rim)
-                    if((rig.Torso.Transform*point.Lerp(rig.PelvicClothPose*point,ResidentRig.PelvicClothWeight(point.Y))).Y>.895f)
-                        throw new InvalidOperationException("Raised shirt hem exposes a gap above the trouser waist during an action");
+                if(rig==female)
+                {
+                    // The waistband is rigid in pelvis space. Measure the
+                    // actual hem there so hip pitch does not change coverage.
+                    var chestInPelvis=rig.LowerGarmentFrame.AffineInverse()*rig.Torso.Transform;
+                    foreach(var point in rim)
+                    {
+                        var posed=chestInPelvis*point.Lerp(rig.PelvicClothPose*point,ResidentRig.PelvicClothWeight(point.Y));
+                        minimumOverlap=MathF.Min(minimumOverlap,waistTop-posed.Y);
+                    }
+                    if(minimumOverlap<.025f)
+                        throw new InvalidOperationException($"Short shirt loses waist coverage during {action}: {minimumOverlap:F4} m");
+                }
                 for(int side=0;side<2;side++)
                 {
                     var elbow=InTorso(rig.Elbows[side],rig.Torso).Origin;
@@ -693,9 +726,9 @@ internal sealed partial class NatureModels
                         throw new InvalidOperationException("Adult frame detaches an animated arm segment");
                 }
             }
+            GD.Print($"BODY_CUT_POSE_PASS: actual short-shirt rim overlaps the trouser waist by at least {minimumOverlap*1000:F1} mm through eating, work and pickup");
         }
         finally{male.Free();female.Free();_faceVariant=previous;_facePoints=null;_faceIndices=null;}
-        GD.Print("BODY_CUT_POSE_PASS: raised hem retains trouser overlap through eating, work and pickup transitions");
         GD.Print("BODY_FRAMES_PASS: source chest/waist/hip presentation, separate near/far caches, bounded forearm fit/Jacobian, exact wrist and animated limb lengths");
         ValidateLumbarClothing();
         ValidateContinuousTrousers();

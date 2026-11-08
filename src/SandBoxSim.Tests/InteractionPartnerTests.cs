@@ -49,8 +49,11 @@ public sealed class InteractionPartnerTests
         int actor=slots[0],receiver=slots[1],bystander=slots[2];
         sim.Agents.SetPosition(actor,12,12);sim.Agents.SetPosition(receiver,13,12);sim.Agents.SetPosition(bystander,14,12);
         sim.Agents.SetHunger(receiver,.8f);sim.Agents.SetHunger(bystander,.3f);
+        sim.Agents.SetAction(receiver,ActionKind.None,ActionPhase.Idle);
+        uint receiverRevision=sim.Agents.ActionRevisionOf(receiver);
         sim.Agents.SetInventory(actor,ResourceKind.Food,config.Relationship.ShareFoodAmount);
         sim.Agents.SetAction(actor,ActionKind.ShareFood,ActionPhase.Executing);
+        uint firstRevision=sim.Agents.ActionRevisionOf(actor);
         sim.Actions.Tick(1);
         Assert.Equal(ActionPhase.Done,sim.Agents.PhaseOf(actor));
         Assert.Equal(0f,sim.Agents.InventoryOf(actor,ResourceKind.Food));
@@ -64,5 +67,20 @@ public sealed class InteractionPartnerTests
         sim.Agents.SetPosition(receiver,13,12);
         sim.Agents.SetAction(actor,ActionKind.ShareFood,ActionPhase.Done);
         Assert.False(sim.Actions.TryGetPresentationPartner(actor,out partner));
+
+        sim.Agents.SetInventory(actor,ResourceKind.Food,config.Relationship.ShareFoodAmount);
+        sim.Agents.SetAction(actor,ActionKind.ShareFood,ActionPhase.Executing);
+        sim.Actions.Tick(2);
+        Assert.True(sim.Actions.TryGetLatestPartnerCompletion(actor,out var latest));
+        Assert.Equal(bystander,latest.Partner.Slot);
+        Assert.True(sim.Actions.TryGetPartnerCompletion(actor,firstRevision,out var original));
+        Assert.Equal(receiver,original.Partner.Slot);
+        Assert.Equal(new Int2(12,12),original.Origin);
+        Assert.Equal(new Int2(13,12),original.PartnerTile);
+        Assert.Equal(receiverRevision,original.PartnerRevision);
+
+        sim.Actions.ClearAllMoveProgress();
+        Assert.False(sim.Actions.TryGetPartnerCompletion(actor,firstRevision,out _));
+        Assert.False(sim.Actions.TryGetLatestPartnerCompletion(actor,out _));
     }
 }

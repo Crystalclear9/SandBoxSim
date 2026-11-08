@@ -225,6 +225,23 @@ internal sealed partial class NatureModels
             if(MathF.Abs(point.Y-FemaleNecklineHeight(MathF.Atan2(point.Z,point.X)))>.0002f)
                 throw new InvalidOperationException("Sewn rim does not follow its continuous collar slope");
         }
+        // Tailor the anterior opening after fitting the shoulder height
+        // chart, so the throat ease cannot change its posterior support.
+        // Preserve the central height and draw a shallow curve across the
+        // anterior quarters before returning to the anchored shoulder.
+        for(int i=0;i<points.Length;i++)
+        {
+            var point=points[i];
+            if(pattern[i].X>=0||point.Z>=-.025f||point.Y<=1.234f)continue;
+            var radial=new Vector2(point.X,point.Z);
+            var ray=radial.Normalized();
+            float front=-ray.Y,angle=MathF.Atan2(ray.Y,ray.X);
+            float band=(1-TorsoRamp(.003f,.044f,MathF.Abs(point.Y-FemaleNecklineHeight(angle))))
+                *(1-TorsoRamp(.009f,.037f,MathF.Abs(radial.Length()-RadiusAt(angle))));
+            float share=band*TorsoRamp(.43f,.76f,front)*TorsoRamp(.025f,.041f,-point.Z);
+            float quarter=.031f*front*front*(1-front);
+            points[i]=point+new Vector3(ray.X*.0048f*front*front,quarter,ray.Y*.0048f*front*front)*share;
+        }
         for(int i=0;i<indices.Length;i+=3)
         {
             int a=indices[i],b=indices[i+1],c=indices[i+2];
@@ -276,7 +293,7 @@ internal sealed partial class NatureModels
         GD.Print($"CLAVICULAR_YOKE_PASS: cut={_garmentCut}, {count} actual upper-cloth vertices, height residual {Math.Sqrt(before/count)*1000:F2} → {Math.Sqrt(after/count)*1000:F2} mm, peak edit {maximum*1000:F2} mm, fixed opening");
     }
 
-    private static void FoldFemaleNeckline(Godot.Collections.Array arrays,ref Vector3[] points,ref Vector2[] pattern)
+    private static int[] FoldFemaleNeckline(Godot.Collections.Array arrays,ref Vector3[] points,ref Vector2[] pattern)
     {
         var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
         var edges=NeckOpeningEdges(points,indices);
@@ -297,8 +314,11 @@ internal sealed partial class NatureModels
             int a=rim[i],b=outerCount+i,c=b+rim.Count;
             var point=points[a];
             var inward=new Vector3(-point.X,0,-point.Z).Normalized();
-            points[b]=point+inward*.0022f+Vector3.Up*FemaleNeckRollRise;
-            points[c]=point+inward*.0038f-Vector3.Up*FemaleNeckFacingDepth;
+            // The facing turns immediately underneath the cloth. A wide
+            // horizontal ledge exaggerates the front opening.
+            float front=MathF.Max(0,inward.Z);
+            points[b]=point+inward*Mathf.Lerp(.0022f,.0017f,front*front)+Vector3.Up*FemaleNeckRollRise;
+            points[c]=point+inward*Mathf.Lerp(.0038f,.0026f,front*front)-Vector3.Up*FemaleNeckFacingDepth;
             pattern[b]=pattern[c]=pattern[a];
             // The turn moves with the neck opening, clear of the arm-driven
             // clavicle panel. Pin the outer seam and both layers together.
@@ -322,6 +342,7 @@ internal sealed partial class NatureModels
         arrays[(int)Mesh.ArrayType.Index]=sewn.ToArray();
         arrays[(int)Mesh.ArrayType.Bones]=bones;
         arrays[(int)Mesh.ArrayType.Weights]=weights;
+        return rim.ToArray();
     }
 
     private static void ValidateFoldedNeckline(ResidentRig male,ResidentRig female)

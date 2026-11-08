@@ -24,7 +24,7 @@ internal partial class ResidentRig : Node3D
     public readonly MeshInstance3D[] HandProxies=new MeshInstance3D[2],HandSkins=new MeshInstance3D[2];
     public readonly Mesh[] HandOpen=new Mesh[2],HandClosed=new Mesh[2];
     public MeshInstance3D HeadSkin=null!,HeadProxy=null!,BodySkin=null!,ShoulderBridge=null!;
-    internal MeshInstance3D? PlacketButtons;
+    internal MeshInstance3D? PlacketButtons,PackHarness;
     public Skeleton3D ShoulderSkeleton=null!;
     internal bool HasShoulderSupports;
     internal const int SleeveSpans=6;
@@ -157,7 +157,7 @@ internal partial class ResidentRig : Node3D
         // beyond .1 seconds. A long host stall still has a one-second budget.
         var family=FamilyOf(action);
         bool fineReach=HandoffReserved||_referencePlaying||_referenceWeight>0||_hasArmReturn||_reach>0||_releaseTime>0||ToolHeld&&(_draw<.99f||_returning)||!ToolHeld&&family==ActionFamily.Tool||_cargoBlend>0||_releasedCargo||_socialBlend>.001f||_restPose.X>.001f||UsesBareHands(family)||family is ActionFamily.Social or ActionFamily.Rest;
-        fineReach|=CurrentTool==ResidentTool.Spear&&_toolSurface.HasValue;
+        fineReach|=MeasuresWorkSurface;
         ConsumeLocomotionSamples();
         // Mouth approaches combine wrist orientation limits and a very short
         // target distance. Resolve those constraints at one shared cadence so
@@ -294,6 +294,7 @@ internal partial class ResidentRig : Node3D
         float bareParticipation=Smooth(_bareBlend)*(1-pickupWeight);
         float reachLean=-Math.Clamp(-_previousHands[1].Origin.Z-.12f,0,.26f)*.12f*bareParticipation;
         float reachTurn=Math.Clamp(_previousHands[1].Origin.X,-.22f,.22f)*.09f*bareParticipation;
+        float handoffReach=HandoffForwardReach(handsFree&&cargoReleased&&_bareBlend<.10f&&_socialBlend<.10f&&restWeight<.20f);
         var torsoAngles=Torso.Rotation;
         var walkingChest=WalkingChest(gaitPhase)*gaitWeight;
         var workingChest=workBlend>0?WorkingChest(_strokePhase,workBlend):Vector3.Zero;
@@ -309,7 +310,7 @@ internal partial class ResidentRig : Node3D
         var socialChest=SocialChest(socialPose)*socialWeight;
         var idleChest=new Vector3(.011f*breath,.013f*MathF.Sin(_phase*.31f+identityPhase+.8f),-1.25f*restSupport.X)*idleWeight;
         var travelShift=_travelWeightShift*(1-pickupWeight)*(1-restWeight);
-        var chestTarget=new Vector3(desiredLean+reachLean+sip.Y*.028f+_travelPitch*(1-pickupWeight)-surfaceBend,
+        var chestTarget=new Vector3(desiredLean+reachLean-handoffReach*.105f+sip.Y*.028f+_travelPitch*(1-pickupWeight)-surfaceBend,
             reachTurn+_gaitTurn*TurnChestShare*gaitWeight+.053f*gatherPose.Turn*pickupWeight,0);
         var turningChest=new Vector3(-.018f*MathF.Abs(pivotAmount),.085f*pivot.Chest*pivotAmount+.115f*arrival.Look,
             .065f*pivot.Roll*pivotAmount-.57f*arrival.Shift.X);
@@ -319,7 +320,9 @@ internal partial class ResidentRig : Node3D
         var lowerShift=stance+restSupport+gaitOffset+travelShift+pickupShift+arrival.Shift+(IsPivoting?PivotSupport():Vector3.Zero)
             +new Vector3(0,-.09f*restWeight-_floorDrop*groundPlacement,-.046f*groundPlacement);
         var translation=lowerShift+Vector3.Up*vertical;
-        var hip=new Vector3(0,HipHeight,0);Torso.Transform=new(torsoBasis,hip-torsoBasis*hip+translation);
+        var hip=new Vector3(0,HipHeight,0);
+        var torsoPose=new Transform3D(torsoBasis,hip-torsoBasis*hip+translation);
+        Torso.Transform=torsoPose;
         var pelvisBasis=new Basis(Quaternion.Identity.Slerp(GaitPelvisBasis.GetRotationQuaternion(),(1-pickupWeight)*(1-restWeight)));
         // Share the pickup flexion with the hips while the chest still leads
         // the reach. Use the captured bend so both frames release together.
@@ -332,7 +335,7 @@ internal partial class ResidentRig : Node3D
             :ReachPulse(Mathf.PosMod(_workTime/3.2f+expressionPhase*.1f,1));
         var headTarget=new Vector3(
             Mathf.Lerp(usingTool?-.045f-effort*.4f+(.105f*dig.Head+.12f)*workBlend*(cultivating?1:0):breath*.018f+socialPose.Head*.087f*socialWeight+sip.X*.19f,
-                .14f+.095f*gatherPose.Head,gatherPose.Bend*pickupWeight)+.18f*ConversationNod,
+                .14f+.095f*gatherPose.Head,gatherPose.Bend*pickupWeight)+.18f*ConversationNod-handoffReach*.16f,
             MathF.Sin(_phase*.32f+identityPhase)*.045f*(1-_activity)+Math.Clamp(_attentionYaw+.24f*pivot.Look*pivotAmount+.22f*arrival.Look,-.59f,.59f)+_gaitTurn*TurnHeadShare*gaitWeight-walkingChest.Y*.55f,
             -.36f*socialChest.Z-walkingChest.Z*.55f+restSupport.X*.6f*idleWeight);
         Head.Quaternion=DampRotation(Head.Quaternion,ref _headVelocity,Basis.FromEuler(headTarget).GetRotationQuaternion(),.075f,delta);
@@ -494,12 +497,18 @@ internal partial class ResidentRig : Node3D
         bool cargoArms=_cargoBlend>0&&!usingTool&&!ToolHeld&&_reach==0;
         SetCargoReach(delta);
         if(cargoArms)
+        {
+            // At the surface and on a stationary return, solve from the
+            // last displayed palms while the torso bends or straightens.
+            bool anchorPalms=PlacementPalmOnSurface||_placementReturn.HasValue&&InteractionSettled;
+            Transform3D? sceneChest=anchorPalms?RigWorldSpace*torsoPose:null;
             for(int i=0;i<2;i++)
             {
-                BlendBareHand(i,PalmMotion.Cargo,CargoSupportTarget(i),PlacementPalmBasis,_cargoBlend);
+                BlendBareHand(i,PalmMotion.Cargo,CargoSupportTarget(i),PlacementPalmBasis,_cargoBlend,sceneChest:sceneChest);
                 float curl=_releasedCargo?Mathf.Lerp(.75f,.10f,ReachEase(_releasedCargoTime/.13f)):.75f;
                 CurlHand(i,Mathf.Lerp(_handCurl[i],curl,Smooth(_cargoBlend)));
             }
+        }
         bool consuming=_bareBlend>0&&FamilyOf(_bareAction)==ActionFamily.Consume;
         var requestedUse=bareActive&&family==ActionFamily.Consume&&consuming&&(!_finishConsumption||!_observedMouthContact)
             ?action:ActionKind.None;
@@ -543,6 +552,7 @@ internal partial class ResidentRig : Node3D
         PosePickupRecovery(delta);
         FinishArmReturns();
         UpdateCarriedObject(delta,cargoWanted);
+        CompletePickupCarry();
         if(PickupCarryPending&&!CargoMesh.Visible)CurlHand(1,.72f);
         // Hand ownership can change in one step. Keep finger flexion
         // continuous across that boundary, while a held tool stays gripped.
@@ -559,6 +569,9 @@ internal partial class ResidentRig : Node3D
             var mesh=_handCurl[side]>.5f?HandClosed[side]:HandOpen[side];
             if(HandProxies[side].Mesh!=mesh)HandProxies[side].Mesh=mesh;
         }
+        _earlierChest=_displayedChest;
+        _displayedChest=RigWorldSpace*torsoPose;
+        _sceneChestSamples=Math.Min(2,_sceneChestSamples+1);
     }
     private static float AdvanceFingerCurl(float previous,float target,float delta)
         =>Mathf.MoveToward(previous,target,delta*(target>previous?10f:7.5f));
@@ -581,6 +594,14 @@ internal partial class ResidentRig : Node3D
         {
             PlacketButtons.Skin=BodySkin.Skin;
             PlacketButtons.Skeleton=BodySkin.Skeleton;
+        }
+        if(PackHarness!=null)
+        {
+            PackHarness.Skin=BodySkin.Skin;
+            PackHarness.Skeleton=BodySkin.Skeleton;
+            if(!detailed)
+                for(int i=0;i<SleevePoseCount;i++)
+                    if(_sleevePoseWeights[i]!=0)PackHarness.SetBlendShapeValue(i,0);
         }
         ShoulderSkeleton.ProcessMode=detailed?ProcessModeEnum.Inherit:ProcessModeEnum.Disabled;
         if(detailed)for(int side=0;side<2;side++)

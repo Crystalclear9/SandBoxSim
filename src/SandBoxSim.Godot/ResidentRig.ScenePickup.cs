@@ -1,4 +1,5 @@
 using Godot;
+using SandBoxSim.Core.Agents;
 using SandBoxSim.Core.Environment;
 
 namespace SandBoxSim.Client;
@@ -6,6 +7,7 @@ namespace SandBoxSim.Client;
 internal partial class ResidentRig
 {
     private const float ScenePickupDuration=2.25f;
+    internal const float PickupReplanDistance=.16f;
     private const float ScenePickupContactPose=.93f,ScenePickupContactBudget=.95f;
     private Vector3? _sceneContact;
     private float _scenePickupAge,_scenePickupContact,_scenePickupBend,_scenePickupDepth;
@@ -38,16 +40,32 @@ internal partial class ResidentRig
         _pickupSourceVisible=sourceVisible;
     }
 
-    private void ResetScenePickup(bool discard=false)
+    private ResourceKind PickupHandoffResource=>PickupCarryPending?_pickupCarryResource
+        :_scenePickupGrasped?_interactionTarget.Pickup?.Resource??ResourceKind.None:ResourceKind.None;
+
+    internal static bool AcceptsPickupCargo(ActionKind action)
+        =>action is ActionKind.None or ActionKind.Wander or ActionKind.Explore or ActionKind.Migrate
+            or ActionKind.Deposit or ActionKind.StoreInBuilding;
+
+    private void StartPickupCarry(ResourceKind resource)
     {
-        _pickupCarryResource=ResourceKind.None;
+        if(PickupCarryPending)return;
+        _pickupCarryResource=resource;
+        _pickupCarryAge=0;
+    }
+
+    private void ResetScenePickup(bool discard=false,ResourceKind carry=ResourceKind.None)
+    {
+        bool held=!discard&&!_recoveringPickup&&ScenePickupPieceVisible&&(_scenePickupGrasped||PickupCarryPending);
+        bool continuing=held&&carry!=ResourceKind.None&&carry==PickupHandoffResource;
+        if(continuing)StartPickupCarry(carry);
+        else _pickupCarryResource=ResourceKind.None;
         if(discard){_recoveringPickup=false;_plannedPickup=false;}
-        else if(!_recoveringPickup&&_scenePickupGrasped&&ScenePickupPieceVisible)
-            BeginPickupRecovery();
+        else if(held&&!continuing)BeginPickupRecovery();
         _scenePickupAge=_scenePickupContact=_scenePickupWait=0;
         _scenePickupGrasped=_scenePickupMissed=false;
         _heldPickupMesh=null;
-        if(!_recoveringPickup&&_pickupPiece!=null)_pickupPiece.Visible=false;
+        if(!_recoveringPickup&&!PickupCarryPending&&_pickupPiece!=null)_pickupPiece.Visible=false;
     }
 
     private void BeginPickupRecovery()
@@ -62,7 +80,9 @@ internal partial class ResidentRig
         if(PickupCarryPending)
         {
             _pickupCarryAge+=delta;
-            if(_pickupCarryAge<1.40f&&_hasCargo&&_cargoKind==_pickupCarryResource)return;
+            bool sameParcel=_cargoKind==_pickupCarryResource&&(_hasCargo
+                ||_placementPending&&_placementResource==_pickupCarryResource);
+            if(_pickupCarryAge<1.40f&&sameParcel)return;
             _pickupCarryResource=ResourceKind.None;
             BeginPickupRecovery();
         }
@@ -73,8 +93,7 @@ internal partial class ResidentRig
             {
                 // The same right hand carries the picked piece until the
                 // larger inventory parcel has actual support from both palms.
-                _pickupCarryResource=source.Resource;
-                _pickupCarryAge=0;
+                StartPickupCarry(source.Resource);
             }
             else BeginPickupRecovery();
         }
@@ -121,7 +140,7 @@ internal partial class ResidentRig
         var reachPoint=chest.AffineInverse()*lifted;
         float reach=ReachEase(_scenePickupAge/.58f)*(1-ReachEase((_scenePickupAge-1.81f)/.49f))*ReachEase(_bareBlend);
         var palm=Torso.Basis.Inverse()*new Basis(Vector3.Right,.55f*(1-lift));
-        BlendBareHand(1,PalmMotion.Pickup,reachPoint,palm,reach,eased:true);
+        BlendBareHand(1,PalmMotion.Pickup,reachPoint,palm,reach,eased:true,sceneChest:reaching?chest:null);
         if(!reaching||!_scenePickupConfirmed||_scenePickupGrasped||_scenePickupMissed||_scenePickupAge<.62f)return;
         bool touching=(HandWorldPose(1)*Grip!.Position).DistanceSquaredTo(site)<.055f*.055f;
         _scenePickupContact=touching?_scenePickupContact+delta:0;
@@ -156,14 +175,15 @@ internal partial class ResidentRig
         }
     }
 
+    private void CompletePickupCarry()
+    {
+        if(!PickupCarryPending||SupportedCargo!=_pickupCarryResource)return;
+        _pickupCarryResource=ResourceKind.None;
+        _pickupPiece!.Visible=false;
+    }
+
     private void PresentPickupPiece(bool pickup)
     {
-        if(PickupCarryPending&&SupportedCargo==_pickupCarryResource)
-        {
-            _pickupCarryResource=ResourceKind.None;
-            _pickupPiece!.Visible=false;
-            return;
-        }
         if(_recoveringPickup||PickupCarryPending)
         {
             _pickupPiece!.Transform=RigWorldSpace.AffineInverse()*(HandWorldPose(1)*_pickupPieceInHand);

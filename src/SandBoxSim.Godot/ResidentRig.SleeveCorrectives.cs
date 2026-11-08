@@ -56,7 +56,11 @@ internal partial class ResidentRig
         {
             int index=SleevePoseIndex(side,plane,height,roll);float weight=weights[plane*SleeveHeightCount*SleeveRollCount+height*SleeveRollCount+roll];
             if(force||MathF.Abs(weight-_sleevePoseWeights[index])>.00001f)
-            {BodySkin.SetBlendShapeValue(index,weight);_sleevePoseWeights[index]=weight;}
+            {
+                BodySkin.SetBlendShapeValue(index,weight);
+                PackHarness?.SetBlendShapeValue(index,weight);
+                _sleevePoseWeights[index]=weight;
+            }
         }
     }
 }

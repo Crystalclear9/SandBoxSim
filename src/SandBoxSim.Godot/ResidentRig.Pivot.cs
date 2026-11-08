@@ -9,6 +9,14 @@ internal partial class ResidentRig
     private float _pivotProgress,_pivotWeight,_pivotStartYaw,_pivotGoalYaw,_pivotDuration;
     private int _pivotLead;
     internal bool IsPivoting=>_pivotWeight>.001f;
+    internal bool PivotStepInFlight=>_pivotWeight==1&&_pivotProgress is >=.09f and <1;
+
+    internal float FinishPivotStep(float yaw,float delta)=>AdvancePivot(yaw,_pivotGoalYaw,delta);
+
+    internal void ReleaseFinishedPivot()
+    {
+        if(_pivotProgress>=1)CancelPivot();
+    }
 
     internal float AdvancePivot(float yaw,float target,float delta)
     {

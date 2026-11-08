@@ -26,10 +26,15 @@ public sealed class ActionSystem
 
     /// <summary>小数步进度（槽位 → 剩余步数）。用数组而不是字典，避免迭代顺序问题。</summary>
     private float[] _moveProgress = System.Array.Empty<float>();
-    public readonly record struct PartnerCompletion(ActionKind Action, uint Revision, long Tick, AgentRef Partner);
-    private (AgentRef Actor, PartnerCompletion Completion)[] _presentedPartners =
-        System.Array.Empty<(AgentRef, PartnerCompletion)>();
-    public enum ContactSurface : byte { GroundStock, NaturalResource, Storage, BuildingWork, Hunt }
+    public const uint MaxPresentationRevisionGap = 3;
+    public readonly record struct PartnerCompletion(ActionKind Action, uint Revision, long Tick, AgentRef Partner)
+    {
+        public Int2 Origin { get; init; }
+        public Int2 PartnerTile { get; init; }
+        public uint PartnerRevision { get; init; }
+    }
+    private readonly PresentationReceipts<PartnerCompletion> _presentedPartners = new();
+    public enum ContactSurface : byte { GroundStock, NaturalResource, Storage, BuildingWork, Hunt, Attack }
     public readonly record struct ActionContact(Int2 Tile, ResourceKind Resource, ContactSurface Surface, float StockAmount = 0,
         int BuildingGeneration = 0)
     {
@@ -38,8 +43,45 @@ public sealed class ActionSystem
         public long TargetIdentity { get; init; }
     }
     public readonly record struct ContactCompletion(ActionKind Action, uint Revision, long Tick, Int2 Origin, ActionContact? Site);
-    private (AgentRef Actor, ContactCompletion Completion)[] _completedContacts =
-        System.Array.Empty<(AgentRef, ContactCompletion)>();
+    private readonly PresentationReceipts<ContactCompletion> _completedContacts = new();
+
+    // An animation frame can straddle several decisions. Keep a receipt for
+    // each revision in the presentation window, even when a later one commits.
+    private sealed class PresentationReceipts<T> where T : struct
+    {
+        private const int Window = (int)MaxPresentationRevisionGap + 1;
+        private (AgentRef Actor, uint Revision, T Completion)?[] _entries =
+            System.Array.Empty<(AgentRef, uint, T)?>();
+        private byte[] _latest = System.Array.Empty<byte>();
+
+        internal void Resize(int capacity)
+        {
+            System.Array.Resize(ref _entries, capacity * Window);
+            System.Array.Resize(ref _latest, capacity);
+        }
+
+        internal void Clear() => System.Array.Clear(_entries);
+
+        private static int Offset(uint revision) => (int)(revision % Window);
+
+        internal void Record(AgentRef actor, uint revision, T completion)
+        {
+            int offset = Offset(revision);
+            _entries[actor.Slot * Window + offset] = (actor, revision, completion);
+            _latest[actor.Slot] = (byte)offset;
+        }
+
+        internal bool TryGet(AgentStore store, int slot, uint? revision, out T completion)
+        {
+            completion = default;
+            if ((uint)slot >= (uint)_latest.Length || !store.IsSlotAlive(slot)) return false;
+            int offset = revision is { } exact ? Offset(exact) : _latest[slot];
+            if (_entries[slot * Window + offset] is not { } entry || !store.IsValid(entry.Actor)
+                || revision.HasValue && entry.Revision != revision.Value) return false;
+            completion = entry.Completion;
+            return true;
+        }
+    }
 
     /// <summary>
     /// 读取某个个体的小数步进度（存档专用）。
@@ -65,8 +107,8 @@ public sealed class ActionSystem
     public void ClearAllMoveProgress()
     {
         for (int i = 0; i < _moveProgress.Length; i++) { _moveProgress[i] = 0f; }
-        System.Array.Clear(_presentedPartners);
-        System.Array.Clear(_completedContacts);
+        _presentedPartners.Clear();
+        _completedContacts.Clear();
     }
 
     /// <summary>本 tick 的移动次数与完成次数（性能与观测量）。</summary>
@@ -121,8 +163,8 @@ public sealed class ActionSystem
     {
         if (_moveProgress.Length >= capacity) { return; }
         System.Array.Resize(ref _moveProgress, capacity);
-        System.Array.Resize(ref _presentedPartners, capacity);
-        System.Array.Resize(ref _completedContacts, capacity);
+        _presentedPartners.Resize(capacity);
+        _completedContacts.Resize(capacity);
     }
 
     /// <summary>
@@ -915,7 +957,15 @@ public sealed class ActionSystem
     private void Complete(int slot, long tick, int partner = -1)
     {
         if (partner >= 0)
-            _presentedPartners[slot] = (_store.RefOf(slot), new(_store.ActionOf(slot), _store.ActionRevisionOf(slot), tick, _store.RefOf(partner)));
+        {
+            uint revision = _store.ActionRevisionOf(slot);
+            _presentedPartners.Record(_store.RefOf(slot), revision, new(_store.ActionOf(slot), revision, tick, _store.RefOf(partner))
+            {
+                Origin = new(_store.XOf(slot), _store.YOf(slot)),
+                PartnerTile = new(_store.XOf(partner), _store.YOf(partner)),
+                PartnerRevision = _store.ActionRevisionOf(partner)
+            });
+        }
         _store.SetPhase(slot, ActionPhase.Done);
         _store.SetState(slot, AgentState.Idle);
         _store.ClearTarget(slot);
@@ -982,8 +1032,11 @@ public sealed class ActionSystem
     // ---------------------------------------------------------------------
 
     private void RecordContact(int slot, ActionContact? contact)
-        => _completedContacts[slot] = (_store.RefOf(slot), new(_store.ActionOf(slot), _store.ActionRevisionOf(slot),
-            _sim.World.Tick, new(_store.XOf(slot), _store.YOf(slot)), contact));
+    {
+        uint revision = _store.ActionRevisionOf(slot);
+        _completedContacts.Record(_store.RefOf(slot), revision,
+            new(_store.ActionOf(slot), revision, _sim.World.Tick, new(_store.XOf(slot), _store.YOf(slot)), contact));
+    }
 
     private Int2 ActionTile(int slot)
         => _store.HasTarget(slot) ? _store.TargetOf(slot) : new(_store.XOf(slot), _store.YOf(slot));
@@ -1061,14 +1114,11 @@ public sealed class ActionSystem
 
     /// <summary>Last committed physical interaction. Presentation checks its age and revision. Not saved.</summary>
     public bool TryGetLatestContactCompletion(int slot, out ContactCompletion completion)
-    {
-        completion = default;
-        if ((uint)slot >= (uint)_completedContacts.Length || !_store.IsSlotAlive(slot)) return false;
-        var recorded = _completedContacts[slot];
-        if (!_store.IsValid(recorded.Actor)) return false;
-        completion = recorded.Completion;
-        return true;
-    }
+        => _completedContacts.TryGet(_store, slot, null, out completion);
+
+    /// <summary>Committed interaction for the exact revision being presented. Not saved.</summary>
+    public bool TryGetContactCompletion(int slot, uint revision, out ContactCompletion completion)
+        => _completedContacts.TryGet(_store, slot, revision, out completion);
 
     /// <summary>Read-only current candidate using the execution rules, not a remembered partner or reservation.</summary>
     public bool TryGetInteractionPartner(int slot, out int partner)
@@ -1105,13 +1155,18 @@ public sealed class ActionSystem
 
     /// <summary>Latest actual partner, retained across decisions for presentation. Callers check the revision and freshness.</summary>
     public bool TryGetLatestPartnerCompletion(int slot, out PartnerCompletion completion)
+        => TryGetPartnerReceipt(slot, null, out completion);
+
+    /// <summary>Actual partner of the exact revision being presented. Not saved.</summary>
+    public bool TryGetPartnerCompletion(int slot, uint revision, out PartnerCompletion completion)
+        => TryGetPartnerReceipt(slot, revision, out completion);
+
+    private bool TryGetPartnerReceipt(int slot, uint? revision, out PartnerCompletion completion)
     {
         completion = default;
-        if ((uint)slot >= (uint)_presentedPartners.Length || !_store.IsSlotAlive(slot)) return false;
-        var recorded = _presentedPartners[slot];
-        if (!_store.IsValid(recorded.Actor) || !_store.IsValid(recorded.Completion.Partner)
-            || recorded.Completion.Partner.Slot == slot) return false;
-        completion = recorded.Completion;
+        if (!_presentedPartners.TryGet(_store, slot, revision, out var recorded)
+            || !_store.IsValid(recorded.Partner) || recorded.Partner.Slot == slot) return false;
+        completion = recorded;
         return true;
     }
 
@@ -1236,6 +1291,8 @@ public sealed class ActionSystem
             victim,
             "伤害 " + damage.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture));
 
+        RecordContact(slot, new(new(_store.XOf(victim), _store.YOf(victim)), ResourceKind.None, ContactSurface.Attack)
+            { TargetIdentity = _sim.Society.Identity(victim) });
         Complete(slot, tick, victim);
     }
 

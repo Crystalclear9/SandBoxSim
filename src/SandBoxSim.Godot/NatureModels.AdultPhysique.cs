@@ -61,9 +61,8 @@ internal sealed partial class NatureModels
             float k=vent/(.80f-GarmentBottom);
             panel=ResidentRig.BodyY((ResidentRig.SourceBodyY(panel)-.80f*k)/(1-k));
         }
-        // Three actual clothing cuts, not a common thigh-length tunic for men
-        // and an identical cropped panel for every woman. The work shirt ends
-        // above the full thigh; the travelling coat retains a longer skirt.
+        // Fit the work shirt, short shirt and travelling coat to different
+        // lengths while keeping their upper panels on the same body.
         float finished=FinishedGarmentHem;
         // Carry hem shortening through the whole trunk. Combining a narrow
         // anatomical waist with a short 1.15 m height ramp over-compressed the
@@ -73,25 +72,30 @@ internal sealed partial class NatureModels
         {
             // Give each cut its own hem shape. Fade the change before it
             // reaches the natural waist and the mounted equipment.
-            float localRelease=1-TorsoRamp(finished,finished+.046f,result);
-            float offset=FemaleHemOffset(MathF.Sin(MathF.Atan2(point.Z,point.X)),localRelease);
-            result+=offset*(1-Mathf.SmoothStep(finished,finished+.085f,result));
+            float depth=MathF.Sin(MathF.Atan2(point.Z,point.X));
+            float span=_garmentCut==2?.185f:.115f;
+            result+=FemaleHemOffset(depth)*(1-TorsoRamp(finished,finished+span,result));
         }
         return result;
     }
-    private float FemaleHemOffset(float depth,float localRelease=1)
+    private float FemaleHemOffset(float depth)
     {
-        float depthSquared=depth*depth,side=1-depthSquared;
+        float front=MathF.Max(0,-depth),back=MathF.Max(0,depth);
+        float side=1-depth*depth;
+        float frontSquare=front*front;
+        // Keep the shirt's curve broad. The shorter field jacket has a
+        // narrow rise at the outseam, while the coat rises at the front.
         return _garmentCut switch
         {
-            0=>Mathf.Lerp(.005f*side,.008f*side*side,localRelease)-(depth<0?.004f:.006f)*depthSquared,
-            1=>side*(.013f*side+.008f*depthSquared*localRelease)-(depth<0?.018f:.017f)*depthSquared,
-            _=>Mathf.Lerp(.014f*side,.019f*side*side,localRelease)+(depth<0?.008f*depthSquared:-.033f*depthSquared*depthSquared)
+            0=>.016f*side-.009f*frontSquare-.021f*back*back,
+            1=>.023f*side-.014f*frontSquare-.016f*back*back
+                +.016f*(1-TorsoRamp(.025f,.31f,MathF.Abs(depth))),
+            _=>.017f*side+frontSquare*(.025f+.034f*frontSquare*front)-.031f*back*back*back*back
         };
     }
 
     private float FinishedGarmentHem=>_garmentCut==2?(BodyFrame==1?.78f:.745f)
-        :_garmentCut==1?(BodyFrame==1?.86f:.825f):(BodyFrame==1?.85f:.805f);
+        :_garmentCut==1?(BodyFrame==1?.875f:.825f):(BodyFrame==1?.85f:.805f);
 
     private float FinishedBeltHeight(float angle)=>TailoredPanelHeight(new Vector3(
         .10f*MathF.Cos(angle),ResidentRig.BodyY(.7615f+BeltRise),.10f*MathF.Sin(angle)));

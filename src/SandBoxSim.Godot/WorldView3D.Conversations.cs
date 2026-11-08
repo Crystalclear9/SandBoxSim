@@ -42,7 +42,7 @@ public partial class WorldView3D
             int first=unchecked((int)pair.Initiator),second=unchecked((int)pair.Recipient);
             if(!TrySceneResident(pair.Initiator,out var a)||!TrySceneResident(pair.Recipient,out var b)
                 ||!PairInitiatorAvailable(first,second,ActionKind.Socialize,pair.Revision)
-                ||agents.ActionRevisionOf(second)!=pair.RecipientRevision
+                ||!PairRecipientAvailable(agents,second,pair.RecipientRevision)
                 ||HandoffTile(first)!=pair.InitiatorTile||HandoffTile(second)!=pair.RecipientTile
                 ||!CanConverse(first,second,a)||!CanConverse(second,first,b)
                 ||a.Position.DistanceSquaredTo(camera)>19*19||b.Position.DistanceSquaredTo(camera)>19*19
@@ -56,23 +56,23 @@ public partial class WorldView3D
             var line=Horizontal(b.Position-a.Position);
             bool facing=line.LengthSquared()>=.60f*.60f&&a.InteractionSettled&&b.InteractionSettled
                 &&InteractionFacingAligned(a.Rotation.Y,line)&&InteractionFacingAligned(b.Rotation.Y,-line);
+            bool ready=facing&&HasPairReceipt(first,second,ActionKind.Socialize,pair.Revision);
             float step=Math.Clamp(delta,0,1f/30);
-            pair.Waiting=facing?0:pair.Waiting+step;
-            if(facing)pair.Time+=step;
+            pair.Waiting=ready?0:pair.Waiting+step;
+            if(ready)pair.Time+=step;
             if(pair.Time>=3.25f||pair.Waiting>=2.7f)_residentConversations.RemoveAt(i);
         }
         if(_residentConversations.Count>=4)return;
         foreach(var (id,node) in _people)
         {
             int slot=unchecked((int)id);
-            if(!agents.IsSlotAlive(slot)||sim.Society.Identity(slot)!=id||agents.ActionOf(slot)!=ActionKind.Socialize
-                ||agents.PhaseOf(slot) is not (ActionPhase.Executing or ActionPhase.Done))continue;
             var a=(ResidentRig)node;
-            if(!a.Visible||a.Position.DistanceSquaredTo(camera)>17*17||!sim.Actions.TryGetPresentationPartner(slot,out int other))continue;
+            if(!agents.IsSlotAlive(slot)||sim.Society.Identity(slot)!=id
+                ||!TryPairCandidate(slot,ActionKind.Socialize,a,camera,17*17,out var candidate))continue;
+            int other=candidate.Partner;
             long otherId=sim.Society.Identity(other);
-            uint revision=agents.ActionRevisionOf(slot);
+            uint revision=candidate.Revision;
             if(a.LastConversation==(revision,otherId)||FindConversation(id)!=null||FindConversation(otherId)!=null
-                ||agents.PhaseOf(slot)==ActionPhase.Done&&!HasPairReceipt(slot,other,ActionKind.Socialize,revision,fresh:true)
                 ||!TrySceneResident(otherId,out var b)||!CanConverse(slot,other,a)||!CanConverse(other,slot,b)
                 ||b.Position.DistanceSquaredTo(camera)>17*17||!ConversationPathClear(a.Position,b.Position))continue;
             Vector3? aStand=null,bStand=null;
@@ -82,9 +82,9 @@ public partial class WorldView3D
                 aStand=standA;bStand=standB;
             }
             a.LastConversation=(revision,otherId);
-            if(agents.ActionOf(other)==ActionKind.Socialize&&sim.Actions.TryGetPresentationPartner(other,out int reciprocal)&&reciprocal==slot)
-                b.LastConversation=(agents.ActionRevisionOf(other),id);
-            _residentConversations.Add(new(id,otherId,revision,agents.ActionRevisionOf(other),HandoffTile(slot),HandoffTile(other),aStand,bStand));
+            if(TryPairCandidate(other,ActionKind.Socialize,b,camera,17*17,out var reciprocal)&&reciprocal.Partner==slot)
+                b.LastConversation=(reciprocal.Revision,id);
+            _residentConversations.Add(new(id,otherId,revision,candidate.PartnerRevision,HandoffTile(slot),HandoffTile(other),aStand,bStand));
             if(_residentConversations.Count>=4)break;
         }
     }
@@ -111,7 +111,7 @@ public partial class WorldView3D
     {
         const float dt=1f/60;
         var sim=Game.Sim;var agents=sim.Agents;
-        var (aTile,bTile,_)=FindResidentMotionCorner();
+        var (aTile,bTile,otherTile)=FindResidentMotionCorner();
         if(sim.InterveneSpawnHumans(aTile.X,aTile.Y,1,1)!=1||sim.InterveneSpawnHumans(bTile.X,bTile.Y,1,1)!=1)
             throw new InvalidOperationException("Conversation fixture needs two residents");
         var slots=agents.AliveSlots().ToArray();
@@ -130,14 +130,27 @@ public partial class WorldView3D
         _target=(a.Position+b.Position)*.5f;_distance=8;_pitch=.62f;UpdateCamera();
         for(int frame=0;frame<12;frame++)AnimateActors(dt);
 
-        void Start()
+        void Confirm()
         {
-            agents.SetAction(first,ActionKind.Socialize,ActionPhase.Executing);
             sim.Actions.Tick(sim.Clock);
             if(!sim.Actions.TryGetPresentationPartner(first,out int recipient)||recipient!=second)
                 throw new InvalidOperationException("Socialize did not commit to the actual recipient");
         }
-        Start();
+        agents.SetAction(first,ActionKind.Socialize,ActionPhase.Executing);
+        string pending=sim.StateDigestString();
+        int readyFrames=0;
+        for(int frame=0;frame<150&&readyFrames<30;frame++)
+        {
+            AnimateActors(dt);
+            var line=Horizontal(b.Position-a.Position);
+            if(a.InteractionSettled&&b.InteractionSettled
+                &&InteractionFacingAligned(a.Rotation.Y,line)&&InteractionFacingAligned(b.Rotation.Y,-line))readyFrames++;
+            if(a.ConversationMouth>.02f||b.ConversationMouth>.02f)
+                throw new InvalidOperationException("Residents speak before the simulation confirms the conversation");
+        }
+        if(readyFrames<30||_residentConversations.Count!=1||pending!=sim.StateDigestString())
+            throw new InvalidOperationException("Unconfirmed residents cannot settle silently into a conversation");
+        Confirm();
         string digest=sim.StateDigestString();
         int speechA=0,speechB=0,gap=0;
         float nodA=0,nodB=0;
@@ -149,7 +162,11 @@ public partial class WorldView3D
             if(speaksA)speechA++;
             if(speaksA&&speechA==20)
             {
-                agents.SetAction(first,ActionKind.None,ActionPhase.Idle);
+                for(int decision=0;decision<3;decision++)
+                {
+                    agents.SetAction(first,ActionKind.None,ActionPhase.Idle);
+                    agents.SetAction(second,ActionKind.None,ActionPhase.Idle);
+                }
                 digest=sim.StateDigestString();
             }
             if(speaksB)speechB++;
@@ -164,7 +181,30 @@ public partial class WorldView3D
         }
         if(speechA<45||speechB<45||gap is <7 or >31||nodA<.55f||nodB<.55f||_residentConversations.Count!=0||digest!=sim.StateDigestString())
             throw new InvalidOperationException($"Conversation: speech={speechA}/{speechB}, gap={gap}, nod={nodA:F2}/{nodB:F2}, active={_residentConversations.Count}");
-        Start();
+        agents.SetAction(first,ActionKind.Socialize,ActionPhase.Executing);
+        agents.SetAction(second,ActionKind.Socialize,ActionPhase.Executing);
+        Confirm();
+        for(int decision=0;decision<2;decision++)
+        {
+            agents.SetAction(first,ActionKind.None,ActionPhase.Idle);
+            agents.SetAction(second,ActionKind.None,ActionPhase.Idle);
+        }
+        digest=sim.StateDigestString();
+        int starts=0;
+        bool replied=false,wasPaired=false;
+        for(int frame=0;frame<400;frame++)
+        {
+            AnimateActors(dt);
+            bool paired=_residentConversations.Count>0;
+            if(paired&&!wasPaired)starts++;
+            wasPaired=paired;
+            replied|=b.ConversationMouth>.18f;
+        }
+        if(starts!=1||!replied||wasPaired||sim.StateDigestString()!=digest)
+            throw new InvalidOperationException("Two reciprocal unobserved receipts fail to open exactly one conversation");
+
+        agents.SetAction(first,ActionKind.Socialize,ActionPhase.Executing);
+        Confirm();
         for(int frame=0;frame<90&&a.ConversationMouth<.18f;frame++)AnimateActors(dt);
         if(a.ConversationMouth<.18f)throw new InvalidOperationException("Second conversation never starts");
         agents.SetAction(second,ActionKind.Flee,ActionPhase.Moving);
@@ -172,6 +212,19 @@ public partial class WorldView3D
         for(int frame=0;frame<60;frame++)AnimateActors(dt);
         if(_residentConversations.Count!=0||a.ConversationMouth>.02f||b.ConversationMouth>.02f||sim.StateDigestString()!=digest)
             throw new InvalidOperationException("Interrupted conversation keeps talking or alters simulation");
-        GD.Print($"WORLD_CONVERSATION_PASS: {speechA}/{speechB} speech frames across idle successor, {gap} silent frames at handoff, both nod, flee cancels, read-only");
+        agents.SetAction(second,ActionKind.None,ActionPhase.Idle);
+        agents.SetAction(first,ActionKind.Socialize,ActionPhase.Executing);
+        Confirm();
+        agents.SetAction(first,ActionKind.None,ActionPhase.Idle);
+        agents.SetPosition(second,otherTile.X,otherTile.Y);
+        digest=sim.StateDigestString();
+        for(int frame=0;frame<110;frame++)
+        {
+            AnimateActors(dt);
+            if(_residentConversations.Count!=0)throw new InvalidOperationException("Conversation follows a recipient away from the committed site");
+        }
+        if(sim.StateDigestString()!=digest)throw new InvalidOperationException("Discarding an old conversation changed the simulation");
+        GD.Print("WORLD_CONVERSATION_CATCHUP_PASS: reciprocal receipts skipped entirely, one conversation and reply, moved recipient rejected, read-only");
+        GD.Print($"WORLD_CONVERSATION_PASS: waited silently for confirmation; {speechA}/{speechB} speech frames across three idle decisions for both residents, {gap} silent frames at handoff, both nod, flee cancels, read-only");
     }
 }

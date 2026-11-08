@@ -219,11 +219,10 @@ internal sealed partial class NatureModels
             var rim=points[hem[col]];
             var above=points[hem[col+SewnPanelColumns]];
             var radial=new Vector3(rim.X,0,rim.Z).Normalized();
-            // Turn the existing rings around a slightly rounded edge. Keep
-            // the two facing rings inside the actual exterior as it flares.
-            points[hem[col]]=rim+radial*.0012f;
-            points[hem[2*SewnPanelColumns+col]]=rim.Lerp(above,.085f)-radial*.0028f;
-            points[hem[3*SewnPanelColumns+col]]=rim.Lerp(above,.48f)-radial*.0039f;
+            // Turn the fabric inward without rolling the visible edge out.
+            // The facing follows the direction of the actual sewn panel.
+            points[hem[2*SewnPanelColumns+col]]=rim.Lerp(above,.10f)-radial*.0020f;
+            points[hem[3*SewnPanelColumns+col]]=rim.Lerp(above,.48f)-radial*.0032f;
         }
     }
 
@@ -250,7 +249,7 @@ internal sealed partial class NatureModels
     {
         radius=FemaleOuterLayer(radius,height,angle,front,out _)+FemaleLowerPanelEase(height,angle);
         // The cubic sampler reaches at most two rows beyond the fit window.
-        if(height<=.80f||height>=1.12f)return radius;
+        if(height<=.80f||height>=1.185f)return radius;
         var offsets=_femalePanelOffsets[_garmentCut]??=BuildFemalePanelOffsets(support);
         return radius+ClothEnvelopeSample(offsets,height,angle);
     }
@@ -258,6 +257,8 @@ internal sealed partial class NatureModels
     private float[] BuildFemalePanelOffsets(float[] support)
     {
         var original=new float[TrunkRows*TrunkColumns];
+        var tailored=new float[original.Length];
+        var crossWeight=new float[original.Length];
         var lower=new float[original.Length];
         var upper=new float[original.Length];
         for(int col=0;col<TrunkColumns;col++)
@@ -278,13 +279,24 @@ internal sealed partial class NatureModels
                     *(1-TorsoRamp(1.061f,1.110f,y));
                 float pin=TorsoRamp(.009f,.042f,MathF.Abs(y-belt));
                 float limit=.009f*span*pin*Mathf.Lerp(.32f,1,TorsoRamp(.18f,.78f,side));
-                float contact=MathF.Max(TrunkSample(support,y,angle)+.0025f,trousers-.0015f);
+                // Connect the breast and back panels through a shaped side
+                // panel. Free its middle below the armhole while leaving the
+                // front closure, spine and belt attached to their supports.
+                float flank=TorsoRamp(.86f,.98f,side)*(1-TorsoRamp(.02f,.18f,front))*TorsoRamp(1.029f,1.078f,y)
+                    *(1-TorsoRamp(1.137f,1.175f,y));
+                limit=MathF.Max(limit,.010f*flank);
+                crossWeight[i]=flank;
+                float contact=MathF.Max(TrunkSample(support,y,angle)+Mathf.Lerp(.0025f,.004f,flank),trousers-.0015f);
                 lower[i]=MathF.Max(radius-limit,MathF.Min(radius,contact));
                 upper[i]=radius+limit;
+                // Work shirt follows the ribs; the gatherer's bias cut has
+                // some side ease, and the coat retains room for a layer.
+                float ease=_garmentCut switch {0=>-.006f,1=>.0015f,_=>.005f};
+                tailored[i]=Math.Clamp(radius+flank*ease,lower[i],upper[i]);
             }
         }
-        var fitted=(float[])original.Clone();
-        const float bending=1200;
+        var fitted=(float[])tailored.Clone();
+        const float grain=1200,crossGrain=64;
         for(int pass=0;pass<96;pass++)for(int sweep=0;sweep<2;sweep++)
         for(int r=2;r<TrunkRows-2;r++)for(int col=0;col<TrunkColumns;col++)
         {
@@ -292,7 +304,13 @@ internal sealed partial class NatureModels
             if(lower[i]>=upper[i])continue;
             float near=fitted[i-TrunkColumns]+fitted[i+TrunkColumns];
             float far=fitted[i-2*TrunkColumns]+fitted[i+2*TrunkColumns];
-            fitted[i]=Math.Clamp((original[i]+bending*(4*near-far))/(1+6*bending),lower[i],upper[i]);
+            int rowStart=row*TrunkColumns;
+            float Across(int offset)=>fitted[rowStart+(col+offset+TrunkColumns)%TrunkColumns];
+            // Let the two directions share curvature on the finished panel,
+            // so a clean vertical section cannot leave a ridge along the ribs.
+            float across=4*(Across(-1)+Across(1))-Across(-2)-Across(2);
+            float cross=crossGrain*crossWeight[i];
+            fitted[i]=Math.Clamp((tailored[i]+grain*(4*near-far)+cross*across)/(1+6*(grain+cross)),lower[i],upper[i]);
         }
         for(int i=0;i<fitted.Length;i++)fitted[i]-=original[i];
         return fitted;
@@ -304,14 +322,16 @@ internal sealed partial class NatureModels
         float belt=FinishedBeltHeight(angle),hem=FinishedGarmentHem+FemaleHemOffset(depth);
         float t=Math.Clamp((belt-height)/(belt-hem),0,1);
         float release=TorsoRamp(.12f,.94f,t);
-        float outseam=side*side*side;
         float frontQuarter=TorsoRamp(.12f,.48f,-depth)*(1-TorsoRamp(.71f,.97f,-depth));
         float backQuarter=TorsoRamp(.16f,.56f,depth)*(1-TorsoRamp(.83f,1,depth));
+        // Let the outseam follow the hip support. Put the surplus fabric
+        // between the supported side and the centre instead of adding a
+        // uniform flare around the rim.
         float fall=_garmentCut switch
         {
-            0=>.0012f+.0015f*outseam+.0019f*frontQuarter+.0022f*backQuarter,
-            1=>.0014f+.0035f*outseam+.0008f*frontQuarter+.0045f*backQuarter,
-            _=>.0028f+.0033f*outseam+.0013f*frontQuarter+.0085f*backQuarter
+            0=>.0011f+.0024f*frontQuarter+.0032f*backQuarter,
+            1=>.0009f+.0045f*frontQuarter+.0040f*backQuarter,
+            _=>.0015f+.0025f*frontQuarter+.0075f*backQuarter
         };
         // Release the two folds from the back of the belt. Their crests
         // diverge toward the hip and fade before the turned lower edge.
@@ -320,18 +340,24 @@ internal sealed partial class NatureModels
         float shape=(side-separation)/(_garmentCut==2?.16f:.20f);
         float fold=(_garmentCut switch {0=>.0022f,1=>.0068f,_=>.015f})
             *MathF.Exp(-shape*shape)*rear*TorsoRamp(.24f,.68f,t)*(1-TorsoRamp(.86f,1.02f,t));
+        // Carry the shallow front fold out from the waist into the free
+        // quarter panel. Its ends fade before the belt and turned edge.
+        float front=MathF.Max(0,-depth);
+        float diagonal=(front-Mathf.Lerp(.76f,.47f,release))/.19f;
+        float frontFold=(_garmentCut switch {0=>.008f,1=>.011f,_=>.004f})*MathF.Exp(-diagonal*diagonal)
+            *TorsoRamp(.17f,.53f,t)*(1-TorsoRamp(.72f,.99f,t))*frontQuarter;
         // The trousers already carry the seat volume. Trim the added
         // cloth allowance there, blending it back into the lumbar span.
         float seat=rear*(1-TorsoRamp(.914f,.968f,height));
-        return (release*fall+fold)*(1-.40f*seat);
+        float rim=1-TorsoRamp(.74f,1,t);
+        return (release*fall*Mathf.Lerp(.52f,1,rim)+fold+frontFold)*(1-.40f*seat);
     }
 
-    private static Color[] FemaleHemFinishCoordinates(Vector3[] points,int[] triangles,int[] hem)
+    private static Color[] FemaleSewnFinishCoordinates(Vector3[] points,int[] triangles,int[] hem,int[] neck)
     {
         // Measure the sewn edge on the finished surface, including the
         // turned facing. A vertical distance made the line drift around a
         // curved hem or through a fitted lower panel.
-        const float finishWidth=.024f;
         var neighbours=new HashSet<int>[points.Length];
         for(int i=0;i<points.Length;i++)neighbours[i]=new();
         for(int i=0;i<triangles.Length;i+=3)for(int j=0;j<3;j++)
@@ -339,26 +365,34 @@ internal sealed partial class NatureModels
             int a=triangles[i+j],b=triangles[i+(j+1)%3];
             neighbours[a].Add(b);neighbours[b].Add(a);
         }
-        var distances=new float[points.Length];Array.Fill(distances,finishWidth);
-        var pending=new PriorityQueue<int,float>();
-        for(int col=0;col<SewnPanelColumns;col++)
+        float[] DistanceFrom(int[] rim,int count,float width)
         {
-            int rim=hem[col];
-            distances[rim]=0;pending.Enqueue(rim,0);
-        }
-        while(pending.TryDequeue(out int point,out float distance))
-        {
-            if(distance>distances[point])continue;
-            foreach(int next in neighbours[point])
+            var distances=new float[points.Length];Array.Fill(distances,width);
+            var pending=new PriorityQueue<int,float>();
+            for(int i=0;i<count;i++)
             {
-                float candidate=distance+points[point].DistanceTo(points[next]);
-                if(candidate>=distances[next])continue;
-                distances[next]=candidate;pending.Enqueue(next,candidate);
+                distances[rim[i]]=0;
+                pending.Enqueue(rim[i],0);
             }
+            while(pending.TryDequeue(out int point,out float distance))
+            {
+                if(distance>distances[point])continue;
+                foreach(int next in neighbours[point])
+                {
+                    float candidate=distance+points[point].DistanceTo(points[next]);
+                    if(candidate>=distances[next])continue;
+                    distances[next]=candidate;
+                    pending.Enqueue(next,candidate);
+                }
+            }
+            for(int i=0;i<distances.Length;i++)distances[i]/=width;
+            return distances;
         }
+        var hemDistance=DistanceFrom(hem,SewnPanelColumns,.024f);
+        var neckDistance=DistanceFrom(neck,neck.Length,.028f);
         var chart=new Color[points.Length];
         for(int i=0;i<points.Length;i++)
-            chart[i]=new(1,1,1,distances[i]/finishWidth);
+            chart[i]=new(neckDistance[i],1,1,hemDistance[i]);
         return chart;
     }
 

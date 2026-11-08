@@ -140,6 +140,28 @@ internal sealed partial class NatureModels
             if(maxPin<.015f||maxPin>.090f||settleFrames<20||settleFrames>34||maxStep>.055f||firstSettle>.012f)
                 throw new InvalidOperationException($"Contact and final step regression: pin={maxPin}, stop step={maxStep}, tail={firstSettle}, wait={settleFrames}");
             if(!rig.InteractionSettled)throw new InvalidOperationException("Final step never releases interaction");
+            for(int frame=0;frame<36;frame++)
+            {
+                rig.ObserveLocomotion(Vector3.Forward*(speed*delta),delta,0,false,.14f);
+                rig.PresentAction(delta,ActionKind.Wander,ActionPhase.Moving,false,0);
+            }
+            // The position can stop before the next simulated action allows
+            // a landing. Slow movement alone must not open the reach gate.
+            for(int frame=0;frame<60;frame++)
+            {
+                rig.ObserveLocomotion(Vector3.Zero,delta,0,false);
+                rig.PresentAction(delta,ActionKind.Wander,ActionPhase.Moving,false,0);
+            }
+            if(!rig.ReadyForTravelTurn||rig.InteractionSettled||rig.ArrivalStepInFlight)
+                throw new InvalidOperationException("A stopped root bypasses its not-yet-started landing");
+            for(int frame=0;frame<120;frame++)
+            {
+                rig.ObserveLocomotion(Vector3.Zero,delta,0,false);
+                rig.PresentAction(delta,ActionKind.Take,ActionPhase.Executing,false,0);
+                if(rig.ArrivalStepInFlight&&rig.GestureEngaged(ActionKind.Take))
+                    throw new InvalidOperationException("Take reaches while the last walking step is airborne");
+            }
+            if(!rig.GestureEngaged(ActionKind.Take))throw new InvalidOperationException("Landing does not hand off to the next reach");
         }
         finally{rig.Free();}
         var capture=ResidentGaitCapture.Shared;

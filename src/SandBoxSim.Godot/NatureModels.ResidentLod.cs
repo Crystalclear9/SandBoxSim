@@ -24,7 +24,7 @@ internal sealed partial class NatureModels
         }
         Append(HumanMesh("lod"),Vector3.Zero,new(.177f,.220f,.195f),skin,true);
         Append(FittedFigure?FemaleScalp(true):GroomedHair(20,12),new(0,.008f,0),new(.181f,.224f,.200f),hair);
-        if(FittedFigure)Append(FemaleGatheredHair(true),Vector3.Zero,Vector3.One,hair);
+        if(FittedFigure)Append(FemaleGatheredHair(true),Vector3.Zero,Vector3.One,GatheredHairDye(hair).ToHtml(false));
         surface.Index();mesh=surface.Commit();_meshes[key]=mesh;return mesh;
     }
 }

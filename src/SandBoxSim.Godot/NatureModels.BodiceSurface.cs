@@ -100,6 +100,7 @@ internal sealed partial class NatureModels
             _posedBodiceSamples+=count;_posedBodiceMaximum=MathF.Max(_posedBodiceMaximum,maximum);return;
         }
         FitFemaleFrontDrape(points,indices,pattern);
+        FitFemaleFrontYoke(points,indices,pattern);
         _bodiceSurfaces[_garmentCut]=new(rest,(int[])indices.Clone(),(Vector2[])pattern.Clone(),(Vector3[])points.Clone());
         GD.Print($"BODICE_SURFACE_FLOW: cut={_garmentCut}, vertices={count}, local quadratic residual={Math.Sqrt(before/count)*1000:F3}/{Math.Sqrt(after/count)*1000:F3} mm, maximum edit={maximum*1000:F3} mm; local backtracking, fixed neck/cuff/apex/waist; shared sleeve root");
     }
@@ -204,7 +205,46 @@ internal sealed partial class NatureModels
         };
     }
 
-    private static void FitFemaleRearDrape(Vector3[] points,int[] indices,Vector2[] pattern)
+    private static void FitFemaleFrontYoke(Vector3[] points,int[] indices,Vector2[] pattern)
+    {
+        // The upper chest curves up into the shoulder, so a front-only
+        // projection undersamples the top of the sewn panel. Fit it in
+        // a diagonal plane that faces both the front and upper cloth.
+        const float diagonal=.70710678f;
+        var rim=NeckOpeningEdges(points,indices);
+        // Shift the chart's origin so its front sheet has negative depth.
+        var chart=Array.ConvertAll(points,p=>new Vector3(p.X,(p.Y+p.Z)*diagonal,
+            .81f+(p.Z-p.Y)*diagonal));
+        var areas=new float[points.Length];
+        for(int t=0;t<indices.Length;t+=3)
+        {
+            int a=indices[t],b=indices[t+1],c=indices[t+2];
+            if((points[a].Z+points[b].Z+points[c].Z)/3>=-.016f)continue;
+            float area=(chart[b]-chart[a]).Cross(chart[c]-chart[a]).Z/6;
+            if(area<=0)continue;
+            areas[a]+=area;areas[b]+=area;areas[c]+=area;
+        }
+        var delta=new float[points.Length];
+        for(int i=0;i<points.Length;i++)
+        {
+            var p=points[i];
+            if(pattern[i].X>=0||p.Y<=1.195f||areas[i]<=0)continue;
+            float distance=float.PositiveInfinity;
+            foreach(var edge in rim)distance=MathF.Min(distance,p.DistanceTo(points[edge.From]));
+            float panel=TorsoRamp(.004f,.018f,distance)*(1-TorsoRamp(.065f,.095f,distance))
+                *TorsoRamp(1.195f,1.231f,p.Y)*TorsoRamp(.025f,.046f,-p.Z)
+                *(1-TorsoRamp(.104f,.136f,MathF.Abs(p.X)));
+            if(panel<=0||!TryBodicePatch(chart,areas,i,out float depth))continue;
+            delta[i]=Math.Clamp(depth-chart[i].Z,-.006f,.010f)*panel;
+        }
+        var fitted=(Vector3[])chart.Clone();
+        ApplyBodiceDepth(fitted,chart,indices,delta);
+        for(int i=0;i<points.Length;i++)
+            if(delta[i]!=0)
+                points[i]+=new Vector3(0,-diagonal,diagonal)*(fitted[i].Z-chart[i].Z);
+    }
+
+    private void FitFemaleRearDrape(Vector3[] points,int[] indices,Vector2[] pattern)
     {
         const int columns=25;
         const float spacing=.006f,halfWidth=.072f,probe=.006f;
@@ -247,6 +287,67 @@ internal sealed partial class NatureModels
             delta[i]=Math.Clamp(target-p.Z,-.010f,.003f)*band*side*TorsoRamp(.020f,.042f,p.Z);
         }
         ApplyBodiceDepth(points,(Vector3[])points.Clone(),indices,delta);
+        FitFemalePosteriorShoulder(points,indices,pattern);
+    }
+
+    private void FitFemalePosteriorShoulder(Vector3[] points,int[] indices,Vector2[] pattern)
+    {
+        // The rear panel turns sharply towards the sleeve. A rear-view
+        // depth fit crosses that wall; use a diagonal chart facing the join.
+        const float diagonal=.70710678f;
+        var cage=ShoulderSurface();
+        static Vector3 Project(Vector3 p,float side)=>new(
+            (p.X*side-p.Z)*diagonal,p.Y,-(p.X*side+p.Z)*diagonal);
+        var support=Array.ConvertAll(cage.Points,p=>Project(p,1));
+        var opening=NeckOpeningEdges(points,indices);
+        var pinned=new HashSet<int>(opening.ConvertAll(edge=>edge.From));
+        float maximum=0;double before=0,after=0;int samples=0;
+        foreach(float side in new[]{-1f,1f})
+        {
+            var chart=Array.ConvertAll(points,p=>Project(p,side));
+            var areas=new float[points.Length];
+            for(int t=0;t<indices.Length;t+=3)
+            {
+                int a=indices[t],b=indices[t+1],c=indices[t+2];
+                var centre=(points[a]+points[b]+points[c])/3;
+                if(centre.X*side<.015f||centre.Z<=.008f)continue;
+                // Only faces on this side of the cloth can support the fit.
+                float area=-side*(chart[b]-chart[a]).Cross(chart[c]-chart[a]).Z/6;
+                if(area<=0)continue;
+                areas[a]+=area;areas[b]+=area;areas[c]+=area;
+            }
+            var delta=new float[points.Length];
+            var target=new float[points.Length];
+            for(int i=0;i<points.Length;i++)
+            {
+                var p=points[i];
+                float lateral=p.X*side;
+                float panel=TorsoRamp(.033f,.059f,lateral)*(1-TorsoRamp(.103f,.151f,lateral))
+                    *TorsoRamp(1.157f,1.211f,p.Y)*(1-TorsoRamp(1.273f,1.294f,p.Y))
+                    *TorsoRamp(.015f,.040f,p.Z)*(1-TorsoRamp(.010f,.068f,pattern[i].X));
+                if(panel<=0||pinned.Contains(i)||!TryBodicePatch(chart,areas,i,out float depth))continue;
+                var q=chart[i];
+                float skin=GarmentDepth(support,cage.Triangles,q.X,q.Y,false);
+                float inset=MathF.Max(q.Z,skin-.0035f);
+                target[i]=MathF.Min(depth,inset);
+                delta[i]=Math.Clamp(target[i]-q.Z,-.006f,.015f)*panel;
+            }
+            var fitted=(Vector3[])chart.Clone();
+            ApplyBodiceDepth(fitted,chart,indices,delta);
+            for(int i=0;i<points.Length;i++)
+            {
+                if(delta[i]==0)continue;
+                float movement=fitted[i].Z-chart[i].Z;
+                points[i]-=new Vector3(side*diagonal,0,diagonal)*movement;
+                maximum=MathF.Max(maximum,MathF.Abs(movement));
+                before+=Math.Pow(target[i]-chart[i].Z,2);
+                after+=Math.Pow(target[i]-fitted[i].Z,2);
+                samples++;
+            }
+        }
+        if(samples<40||after>=before||maximum>.01501f)
+            throw new InvalidOperationException("Posterior shoulder fit loses its supported profile");
+        GD.Print($"FEMALE_POSTERIOR_SHOULDER_PASS: cut={_garmentCut}, {samples} sewn vertices, diagonal residual {Math.Sqrt(before/samples)*1000:F2} → {Math.Sqrt(after/samples)*1000:F2} mm, maximum edit={maximum*1000:F2} mm");
     }
 
     private static void ApplyBodiceDepth(Vector3[] points,Vector3[] rest,int[] indices,float[] delta)

@@ -31,10 +31,11 @@ internal partial class ResidentRig
     private ActionKind _observedAction;
     private ActionPhase _observedPhase;
     private uint? _observedRevision;
+    internal uint? ObservedActionRevision=>_observedRevision;
     private float _observedExecution,_completionRemaining,_completionAge;
     private bool _finishConsumption,_observedMouthContact;
     internal readonly record struct InteractionTarget(Vector2I? Tile,long Partner,ActionSystem.ActionContact? Pickup,
-        ActionSystem.ActionContact? Worksite=null,ActionSystem.ActionContact? Placement=null);
+        ActionSystem.ActionContact? Worksite=null,ActionSystem.ActionContact? Placement=null,Vector3? DrinkSource=null);
     private InteractionTarget _interactionTarget;
     private bool _observedContactReady;
     private float _retargetSettle,_contactWait;
@@ -42,10 +43,12 @@ internal partial class ResidentRig
     private uint? _bridgedRevision;
     private float _bridgeAge;
     public bool CompletionVisible=>_finishConsumption||_finishToolStroke||_completionRemaining>0||_placingCargo||_placementPending||_awaitingContact||PickupCarryPending;
+    internal bool ContactMotionInFlight=>CompletionVisible||HandoffReserved||ConsumptionOwnsHand||RecoveringPickup
+        ||ReleasedCargo||_conversation.HasValue||PivotStepInFlight||ArrivalStepInFlight||ReleasingSupport;
+    internal bool ContactPoseInFlight=>ContactMotionInFlight||SupportedCargo!=ResourceKind.None;
 
-    internal Vector3? PreparedHuntPoint(uint revision,long prey)
-        =>_observedAction==ActionKind.Hunt&&_observedRevision==revision&&_interactionTarget.Partner==prey
-            ?_toolSurface?.Point:null;
+    internal ToolSurface? PreparedSpearAim(ActionKind action,uint revision,long target)
+        =>_observedAction==action&&_observedRevision==revision&&_interactionTarget.Partner==target?_toolSurface:null;
 
     internal bool ShowsCompletion(ActionKind action,uint revision)
         =>_observedRevision.HasValue&&(revision!=_observedRevision||action!=_observedAction
@@ -59,9 +62,10 @@ internal partial class ResidentRig
         bool placement=IsPlacement(completion.Action);
         if(completion.Site is {} site)
         {
-            if(site.Surface==ActionSystem.ContactSurface.Hunt)
+            if(site.Surface is ActionSystem.ContactSurface.Hunt or ActionSystem.ContactSurface.Attack)
             {
-                if(!PreparedHuntPoint(completion.Revision,site.TargetIdentity).HasValue)return false;
+                if(!PreparedSpearAim(completion.Action,completion.Revision,site.TargetIdentity).HasValue
+                    ||site.Surface==ActionSystem.ContactSurface.Attack&&_strokePhase<.40f)return false;
             }
             else
             {
@@ -77,7 +81,7 @@ internal partial class ResidentRig
             {
                 ActionFamily.Pickup=>_observedContactReady&&_scenePickupAge>=.62f,
                 ActionFamily.Transfer=>placement&&SupportedCargo==completion.Site?.Resource,
-                ActionFamily.Consume=>_observedContactReady&&(_consumeStage==ConsumeStage.Use
+                ActionFamily.Consume=>_observedContactReady&&(_consumeStage is ConsumeStage.Use or ConsumeStage.BetweenSips
                     ||_consumeStage==ConsumeStage.Lift&&_consumeReach>.45f),
                 ActionFamily.Tool=>_observedContactReady&&GestureEngaged(completion.Action),
                 _=>false
@@ -105,6 +109,8 @@ internal partial class ResidentRig
         ReleasingSupport=false;
         _bridgedRevision=null;
         Array.Clear(_palmMotion);
+        Array.Clear(_scenePalmVelocity);
+        _sceneChestSamples=0;
         _observedAction=action;_observedPhase=phase;_observedRevision=revision;
         _observedExecution=_completionRemaining=0;
         _waitingForContact=false;
@@ -142,18 +148,23 @@ internal partial class ResidentRig
         bool changedPartner=(RequiresPartner(action)||action==ActionKind.Hunt)
             &&target.Partner!=_interactionTarget.Partner;
         // A moving animal or person does not become a new target on a tile boundary.
-        bool trackingIdentity=action==ActionKind.Hunt?toolSurface.HasValue:target.Partner!=0&&RequiresPartner(action);
+        bool spearAction=action is ActionKind.Hunt or ActionKind.Attack;
+        bool trackingIdentity=spearAction?toolSurface.HasValue:target.Partner!=0&&RequiresPartner(action);
         bool changedTile=!trackingIdentity&&target.Tile.HasValue&&_interactionTarget.Tile.HasValue&&target.Tile!=_interactionTarget.Tile;
         bool changedPickup=target.Pickup!=_interactionTarget.Pickup;
+        bool shiftedPickup=sameExecution&&phase==ActionPhase.Executing&&target.Pickup.HasValue&&_sceneContact is {} pickupBefore
+            &&sceneContact is {} pickupAfter&&pickupBefore.DistanceSquaredTo(pickupAfter)>PickupReplanDistance*PickupReplanDistance;
         bool changedWorksite=target.Worksite.HasValue&&_interactionTarget.Worksite.HasValue
             &&target.Worksite!=_interactionTarget.Worksite;
         bool changedSurface=!trackingIdentity&&_toolSurface is {} previousSurface&&toolSurface is {} nextSurface
             &&(previousSurface.Point.DistanceSquaredTo(nextSurface.Point)>.09f*.09f
                 ||previousSurface.Normal.Dot(nextSurface.Normal)<.80f);
-        bool changedWorkContact=changedPartner||changedTile||changedWorksite||changedSurface;
+        bool shiftedSpear=!newRun&&spearAction&&_toolSurface is {} previousAim&&toolSurface is {} nextAim
+            &&!ContinuesSpearAim(previousAim,nextAim);
+        bool changedWorkContact=changedPartner||changedTile||changedWorksite||changedSurface||shiftedSpear;
         bool replacedCommittedWork=!newRun&&phase==ActionPhase.Done&&_observedPhase==ActionPhase.Done&&_finishToolStroke
             &&changedWorkContact;
-        bool retargeted=replacedCommittedWork||sameExecution&&(changedWorkContact||changedPickup);
+        bool retargeted=replacedCommittedWork||sameExecution&&(changedWorkContact||changedPickup||shiftedPickup);
         var family=FamilyOf(action);
         bool continuesWork=newRun&&_observedRevision.HasValue&&revision.HasValue&&revision!=_observedRevision
             &&action==_observedAction&&family==ActionFamily.Tool&&CurrentTool!=ResidentTool.Spear
@@ -162,16 +173,19 @@ internal partial class ResidentRig
             &&SameWorkContact(target,toolSurface,sceneContact);
         contactReady&=!ObserveToolSurface(toolSurface,(newRun&&!continuesWork)||retargeted);
         contactReady&=!replacedCommittedWork;
-        completeToolStroke&=contactReady;
+        completeToolStroke&=contactReady&&!(phase==ActionPhase.Done&&shiftedSpear);
         bool lostToolContact=sameExecution&&phase==ActionPhase.Executing&&family==ActionFamily.Tool
             &&_observedContactReady&&!contactReady;
         // Keep the visible stroke and its contact marker, but give the
         // incoming revision its own impact. Recovery belongs to the old one.
         if(continuesWork)
-            _toolImpactSeen=false;
+        {
+            _toolStrikeAttempted=false;
+            _strikeWindowOpen=false;
+        }
         else if(newRun||retargeted||lostToolContact)
             ResetToolPhrase(retainPose:family==ActionFamily.Tool&&ToolFor(action)==ToolFor(_observedAction),
-                keepImpact:lostToolContact&&!retargeted);
+                keepAttempt:lostToolContact&&!retargeted);
         if(newRun)_retargetSettle=0;
         if(retargeted)
         {
@@ -196,8 +210,12 @@ internal partial class ResidentRig
         bool newlyDone=observedCompletion||pendingCompletion&&contactReady;
         var nextContact=phase==ActionPhase.Done&&!firstSnapshot||phase==ActionPhase.Executing&&target.Pickup.HasValue?sceneContact:null;
         if(family==ActionFamily.Pickup&&!contactReady)nextContact=null;
-        if(newRun||changedPickup||_sceneContact.HasValue!=nextContact.HasValue)
-            ResetScenePickup();
+        if(newRun||changedPickup||shiftedPickup||_sceneContact.HasValue!=nextContact.HasValue)
+        {
+            var carry=IsPlacement(action)&&newlyDone&&contactReady&&nextContact.HasValue?contactResource
+                :AcceptsPickupCargo(action)?inventoryCargo??ResourceKind.None:ResourceKind.None;
+            ResetScenePickup(carry:carry);
+        }
         else if(family==ActionFamily.Pickup&&!_scenePickupGrasped&&_sceneContact is {} prior&&nextContact is {} next
             &&prior.DistanceSquaredTo(next)>.022f*.022f)
             _scenePickupContact=0;
@@ -218,7 +236,7 @@ internal partial class ResidentRig
             _completionAge=0;
             // A confirmed action can finish its first stroke or the recovery
             // of an impact already shown. A spare wind-up must not hit again.
-            _finishToolStroke=!_toolImpactSeen||_strokePhase>=ToolImpactPhase(ToolFor(action))&&_strokePhase<1;
+            _finishToolStroke=!_toolStrikeAttempted||_strokePhase>=ToolImpactPhase(ToolFor(action))&&_strokePhase<1;
         }
         else if(newlyDone&&contactReady&&(!partnerAction||hasPartner)&&(UsesBareHands(family)||family==ActionFamily.Social&&!conversation.HasValue))
         {

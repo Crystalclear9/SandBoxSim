@@ -15,7 +15,7 @@ internal sealed partial class NatureModels
     private bool ChildHead=>_faceVariant>=8;
     private int HumanFamily=>FaceArchetype<2?0:FaceArchetype<5?1:2;
     private int BodyFrame=>!ChildHead&&HumanFamily==2?1:0;
-    private const float FemaleHeadSettle=.026f;
+    private const float FemaleHeadSettle=.0285f;
     // Area-weighted linear forehead samples of the pinned source atlases;
     // tools/measure_head_tones.py reproduces these exposure corrections.
     private float HumanSkinGain=>ChildHead?1:HumanFamily==1?1.299263f:HumanFamily==2?.918634f:1;
@@ -148,7 +148,7 @@ internal sealed partial class NatureModels
             y-=(.024f-FemaleHeadSettle)*Mathf.SmoothStep(.080f,.180f,-p.Y);
             // Carry the irregular lower source edge underneath the low
             // neckline. Limit the extension to the neck side of the jaw.
-            float root=TorsoRamp(.068f,.140f,-p.Y)*TorsoRamp(-.052f,-.029f,p.Z);
+            float root=TorsoRamp(.060f,.147f,-p.Y)*TorsoRamp(-.052f,-.029f,p.Z);
             y-=.017f*root;
         }
         if(ChildHead&&y<.010f)
@@ -185,20 +185,51 @@ internal sealed partial class NatureModels
             float malar=MathF.Exp(-MathF.Pow((MathF.Abs(p.X)-.048f)/.025f,2)-MathF.Pow((p.Y+.020f)/.028f,2));
             x*=1+front*(HumanFamily==2?-.020f*nasal+.008f*malar:.020f*nasal);
         }
-        if(!ChildHead&&HumanFamily==2)
+        var fitted=new Vector3(x,y,z);
+        return FittedFigure?fitted+FemaleCervicalRelief(p):fitted;
+    }
+
+    private static Vector3 FemaleCervicalRelief(Vector3 point)
+    {
+        float height=-point.Y,lateral=MathF.Abs(point.X),depth=point.Z;
+        // Organize a single skin surface around the submandibular plane,
+        // lateral neck and nape. Let all edits taper into the source join.
+        float join=1-TorsoRamp(.133f,.147f,height);
+        float neck=TorsoRamp(.087f,.100f,height)*join;
+        float underside=TorsoRamp(.089f,.100f,height)*(1-TorsoRamp(.111f,.128f,height))
+            *TorsoRamp(-.058f,-.041f,depth)*(1-TorsoRamp(-.035f,.022f,depth))
+            *(1-TorsoRamp(.018f,.041f,lateral));
+        float diagonal=Mathf.Lerp(.037f,.017f,TorsoRamp(.094f,.139f,height));
+        float path=(lateral-diagonal)/.014f;
+        float oblique=MathF.Exp(-path*path)*TorsoRamp(.006f,.020f,lateral)
+            *TorsoRamp(-.055f,-.034f,depth)*(1-TorsoRamp(-.014f,.033f,depth));
+        float nape=TorsoRamp(.013f,.050f,depth)*TorsoRamp(.095f,.111f,height)*join;
+        float baseNeck=TorsoRamp(.117f,.134f,height)*join*TorsoRamp(.014f,.036f,lateral)
+            *TorsoRamp(-.056f,-.029f,depth);
+        return new(MathF.Sign(point.X)*(.0020f*baseNeck+.0009f*neck*oblique),0,
+            -.0021f*underside-.00125f*neck*oblique-.0042f*nape);
+    }
+
+    private static void ValidateFemaleCervicalRelief(Vector3[] source)
+    {
+        int samples=0;
+        float nape=0,underJaw=0;
+        foreach(var point in source)
         {
-            // Widen the base a little where the neck meets the collar. An
-            // oblique, shallow relief follows the front-side neck plane into
-            // the base. Keep the jaw, throat midline and hidden root stable.
-            float baseNeck=TorsoRamp(.114f,.137f,-p.Y)*(1-TorsoRamp(.148f,.182f,-p.Y));
-            float neckSide=TorsoRamp(.016f,.033f,MathF.Abs(p.X))*TorsoRamp(-.064f,-.038f,p.Z);
-            x+=MathF.Sign(x)*.0017f*baseNeck*neckSide;
-            float diagonal=Mathf.Lerp(.037f,.019f,TorsoRamp(.095f,.153f,-p.Y));
-            float relief=MathF.Exp(-MathF.Pow((MathF.Abs(p.X)-diagonal)/.015f,2));
-            float frontSide=TorsoRamp(-.079f,-.050f,p.Z)*(1-TorsoRamp(-.011f,.026f,p.Z));
-            z-=.00115f*relief*frontSide*TorsoRamp(.103f,.127f,-p.Y)*(1-TorsoRamp(.139f,.174f,-p.Y));
+            var offset=FemaleCervicalRelief(point);
+            var mirrored=FemaleCervicalRelief(new(-point.X,point.Y,point.Z));
+            if(!offset.IsFinite()||offset.Length()>.005f||offset.Y!=0
+                ||!offset.IsEqualApprox(new Vector3(-mirrored.X,mirrored.Y,mirrored.Z))
+                ||(point.Y>=-.087f||point.Y<=-.147f||point.Z<=-.061f)&&offset!=Vector3.Zero)
+                throw new InvalidOperationException("Female neck relief moves the jaw or lower attachment, or exceeds its bounds");
+            if(offset==Vector3.Zero)continue;
+            if(point.Z>.030f)nape=MathF.Max(nape,-offset.Z);
+            if(point.Z<-.032f&&MathF.Abs(point.X)<.024f)underJaw=MathF.Max(underJaw,-offset.Z);
+            samples++;
         }
-        return new(x,y,z);
+        if(samples<100||nape<.0025f||underJaw<.0010f)
+            throw new InvalidOperationException($"Female neck relief misses its source surface: {samples}, {nape:F5}/{underJaw:F5} m");
+        GD.Print($"FEMALE_CERVICAL_RELIEF_PASS: {samples} source vertices, nape inset={nape*1000:F2} mm, under-jaw transition={underJaw*1000:F2} mm; fixed jaw and lower boundary");
     }
 
     private Vector3 HumanNormal(Vector3 p,Vector3 n)

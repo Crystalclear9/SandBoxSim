@@ -20,6 +20,7 @@ internal sealed partial class NatureModels
         var free=new float[points.Length];var adjacent=new HashSet<int>[points.Length];
         var posterior=FittedFigure?new float[points.Length]:Array.Empty<float>();
         var restNormals=FittedFigure?ClothSurfaceNormals(rest,triangles):Array.Empty<Vector3>();
+        var neck=FittedFigure?new HashSet<int>(NeckOpeningEdges(rest,triangles).ConvertAll(edge=>edge.From)):null;
         for(int i=0;i<points.Length;i++)adjacent[i]=new();
         for(int t=0;t<triangles.Length;t+=3)for(int k=0;k<3;k++)
         {int a=triangles[t+k],b=triangles[t+(k+1)%3];adjacent[a].Add(b);adjacent[b].Add(a);}
@@ -39,9 +40,18 @@ internal sealed partial class NatureModels
         for(int i=0;i<points.Length;i++)
         {
             float along=pattern[i].X;
-            free[i]=(along>=0?1-Mathf.SmoothStep(.13f,.21f,along):1-Mathf.SmoothStep(0,.045f,seamDistance[i]))
-                *Mathf.SmoothStep(.045f,.075f,MathF.Abs(points[i].X))
+            float width=MathF.Abs(rest[i].X);
+            float rearYoke=FittedFigure?TorsoRamp(.018f,.047f,rest[i].Z)
+                *TorsoRamp(1.162f,1.207f,rest[i].Y)*(1-TorsoRamp(1.273f,1.303f,rest[i].Y)):0;
+            float frontYoke=FittedFigure?TorsoRamp(.018f,.053f,-rest[i].Z)
+                *TorsoRamp(1.189f,1.222f,rest[i].Y)*(1-TorsoRamp(1.263f,1.289f,rest[i].Y)):0;
+            // The seam participates in the upper front and back panels. The
+            // wider falloff lets both join the sleeve without a rigid lip.
+            float span=.045f+.042f*rearYoke+.032f*frontYoke;
+            free[i]=(along>=0?1-Mathf.SmoothStep(.13f,.21f,along):1-Mathf.SmoothStep(0,span,seamDistance[i]))
+                *Mathf.SmoothStep(Mathf.Lerp(.045f,.035f,MathF.Max(rearYoke,frontYoke)),.075f,width)
                 *Mathf.SmoothStep(1.02f,1.08f,points[i].Y)*(1-Mathf.SmoothStep(1.29f,1.33f,points[i].Y));
+            if(neck?.Contains(i)==true)free[i]=0;
             if(free[i]<=0)continue;
             var p=new Vector3(MathF.Abs(points[i].X),points[i].Y,points[i].Z);
             float sign=points[i].X<0?-1:1;
@@ -187,6 +197,35 @@ internal sealed partial class NatureModels
             (current,next)=(next,current);
         }
         for(int i=0;i<posed.Length;i++)if(mobility[i]>0)posed[i]+=current[i]-motion[i];
+    }
+
+    private static float RaisedArmholeAllowance(Vector3 point,float along)
+    {
+        // The mobile cloth spans the seam on the lower armhole. Fading by
+        // both the sewn sleeve distance and body landmarks leaves the upper
+        // arm cap, cuff, and the deeper front/rear axillary folds supported.
+        float x=MathF.Abs(point.X);
+        float sleeve=1-TorsoRamp(.075f,.135f,along);
+        float underarm=TorsoRamp(.075f,.109f,x)*(1-TorsoRamp(.153f,.184f,x))
+            *TorsoRamp(1.084f,1.130f,point.Y)*(1-TorsoRamp(1.160f,1.208f,point.Y))
+            *(1-TorsoRamp(.041f,.080f,MathF.Abs(point.Z)));
+        float rearJoin=TorsoRamp(.012f,.038f,point.Z)*TorsoRamp(.068f,.101f,x)*(1-TorsoRamp(.145f,.182f,x))
+            *TorsoRamp(1.135f,1.173f,point.Y)*(1-TorsoRamp(1.235f,1.275f,point.Y));
+        return MathF.Max(underarm,rearJoin)*sleeve;
+    }
+
+    private static void FairRaisedFemaleArmhole(Vector3[] posed,int[] triangles,float[] allowance,float[] active,float elevation)
+    {
+        float raised=TorsoRamp(58,130,elevation);
+        if(raised<=0)return;
+        var freedom=new float[posed.Length];
+        for(int i=0;i<posed.Length;i++)
+            freedom[i]=raised*allowance[i]*TorsoRamp(.005f,.22f,active[i]);
+
+        // Work on the posed cloth shared by the side panel, seam and sleeve.
+        // Normal-only relaxation rounds the join without dragging vertices
+        // toward the opposite wall of the armpit or shortening the sleeve.
+        FairRestSurface(posed,triangles,freedom,.012f,roundRelief:true,passes:12);
     }
 
     private static (int Edges,int Sharp,float LongestInnerFold) ArmholeCreases(Vector3[] points,int[] triangles,Vector2[] pattern,Vector3[]? rest=null,int raisedSide=-1)

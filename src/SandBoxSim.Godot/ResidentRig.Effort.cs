@@ -8,8 +8,10 @@ internal partial class ResidentRig
     // Presentation coefficients, not measured strength or simulation skills.
     internal float WorkCapacity=1;
     private float _workFatigue,_workHealth=1,_strokePhase;
-    private bool _finishToolStroke,_toolImpactSeen,_rearmToolStroke,_awaitToolCommit;
-    private float _spearContactWait;
+    private bool _finishToolStroke,_toolStrikeAttempted,_rearmToolStroke,_awaitToolCommit;
+    private bool _strikeWindowOpen;
+    private float _toolContactWait;
+    private const float ToolContactWaitLimit=.18f;
     internal int PresentedToolImpacts {get;private set;}
     internal float ToolStrokePhase=>_strokePhase;
     public void SetWorkCondition(float fatigue,float health)
@@ -40,11 +42,12 @@ internal partial class ResidentRig
             _strokePhase<ToolImpactPhase(CurrentTool)?"向目标挥下":"卸力 / 收势"
     };
 
-    private void ResetToolPhrase(bool retainPose,bool keepImpact=false)
+    private void ResetToolPhrase(bool retainPose,bool keepAttempt=false)
     {
         _finishToolStroke=_awaitToolCommit=false;
-        _spearContactWait=0;
-        if(!keepImpact)_toolImpactSeen=false;
+        _strikeWindowOpen=false;
+        _toolContactWait=0;
+        if(!keepAttempt)_toolStrikeAttempted=false;
         _rearmToolStroke=retainPose&&_workBlend>.025f;
         if(!_rearmToolStroke)_strokePhase=0;
     }
@@ -55,27 +58,34 @@ internal partial class ResidentRig
         float next=before+delta/WorkPeriod;
         if(_awaitToolCommit&&CurrentTool==ResidentTool.Spear)next=MathF.Min(next,.48f);
         float impact=ToolImpactPhase(CurrentTool);
-        if(CurrentTool==ResidentTool.Spear&&_toolSurface.HasValue&&!_surfaceTouched&&next>=impact
-            &&before<=impact&&_spearContactWait<.18f)
-        {
-            // Let the displayed shaft reach its contact window before
-            // withdrawing. If it cannot reach, recover from the miss.
-            next=impact;
-            _spearContactWait+=delta;
-        }
         if(before<impact&&next>=impact)
         {
-            _toolImpactSeen=true;
-            if(CurrentTool!=ResidentTool.Spear||!_toolSurface.HasValue)PresentedToolImpacts++;
+            _toolStrikeAttempted=true;
+            _strikeWindowOpen=MeasuresWorkSurface;
+            if(!_strikeWindowOpen)PresentedToolImpacts++;
+        }
+        if(CurrentTool!=ResidentTool.Hoe&&_strikeWindowOpen&&!_surfaceTouched&&before<=impact&&next>=impact
+            &&_toolContactWait<ToolContactWaitLimit)
+        {
+            // Give the solved tool a short window to reach the surface.
+            // A miss withdraws normally and never creates an impact.
+            next=impact;
+            _toolContactWait+=delta;
         }
         // A new receipt can arrive while the previous stroke is recovering.
         // Finish this receipt only after an impact in its own stroke.
-        if(_finishToolStroke&&_toolImpactSeen&&next>=1)
+        if(next>=1)
         {
-            _strokePhase=1;
-            _finishToolStroke=false;
+            _strikeWindowOpen=false;
+            _toolContactWait=0;
+            if(_finishToolStroke&&_toolStrikeAttempted)
+            {
+                _strokePhase=1;
+                _finishToolStroke=false;
+                return;
+            }
         }
-        else _strokePhase=Mathf.PosMod(next,1);
+        _strokePhase=Mathf.PosMod(next,1);
     }
     internal float WorkLift(float phase)
     {

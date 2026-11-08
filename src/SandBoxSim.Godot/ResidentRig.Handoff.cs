@@ -25,13 +25,24 @@ internal partial class ResidentRig
         HandoffHandReady=false;
     }
 
+    private float HandoffForwardReach(bool ready)
+    {
+        if(!ready||!InteractionSettled||_handoffPalm is not {} palm)return 0;
+        var local=RigWorldSpace.AffineInverse()*palm;
+        return Mathf.SmoothStep(.24f,.49f,-local.Z);
+    }
+
     private void PoseHandoff(bool ready)
     {
         HandoffHandReady=ready&&(InteractionSettled||_handoffRecovery)&&_handoffHand>=0&&_handoffPalm.HasValue;
         if(!HandoffHandReady)return;
-        var local=(RigWorldSpace*Torso.Transform).AffineInverse()*_handoffPalm!.Value;
+        var chest=RigWorldSpace*Torso.Transform;
+        var local=chest.AffineInverse()*_handoffPalm!.Value;
         var target=local+CargoPalmBasis*(Grip!.Position-CargoPalmContact);
-        BlendBareHand(_handoffHand,PalmMotion.Handoff,target,CargoPalmBasis,1,eased:true);
+        // A shared contact stays in the scene. A parcel already taken follows
+        // its owner while the hand withdraws, even if the actor walks away.
+        Transform3D? contactFrame=_handoffRecovery&&!InteractionSettled?null:chest;
+        BlendBareHand(_handoffHand,PalmMotion.Handoff,target,CargoPalmBasis,1,eased:true,sceneChest:contactFrame);
         CurlHand(_handoffHand,_handoffCurl);
     }
 }

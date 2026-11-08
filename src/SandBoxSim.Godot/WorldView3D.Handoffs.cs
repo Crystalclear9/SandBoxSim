@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Godot;
 using SandBoxSim.Core.Agents;
+using SandBoxSim.Core.Systems;
 
 namespace SandBoxSim.Client;
 
@@ -31,13 +32,51 @@ public partial class WorldView3D
             &&agents.ActionOf(slot) is not (ActionKind.Flee or ActionKind.Attack or ActionKind.Hunt or ActionKind.Sleep);
     }
 
-    private bool HasPairReceipt(int slot,int partner,ActionKind action,uint revision,bool fresh=false)
+    private readonly record struct PairCandidate(int Partner,uint Revision,uint PartnerRevision,bool Confirmed);
+
+    private bool TryPairCandidate(int slot,ActionKind action,ResidentRig rig,Vector3 camera,float distanceSquared,
+        out PairCandidate candidate)
     {
-        var sim=Game.Sim;
-        if(!sim.Actions.TryGetLatestPartnerCompletion(slot,out var receipt)||receipt.Action!=action
-            ||receipt.Revision!=revision||receipt.Partner.Slot!=partner)return false;
-        long age=sim.Clock-receipt.Tick;
-        return !fresh||age>=0&&age<=sim.Config.Clock.MaxCatchUpTicksPerFrame;
+        candidate=default;
+        var sim=Game.Sim;var agents=sim.Agents;
+        var live=agents.ActionOf(slot);
+        var phase=agents.PhaseOf(slot);
+        uint revision=agents.ActionRevisionOf(slot);
+        bool executing=live==action&&phase==ActionPhase.Executing;
+        ActionSystem.PartnerCompletion receipt=default;
+        if(!executing)
+        {
+            if(live==action&&phase==ActionPhase.Done)
+            {
+                if(!sim.Actions.TryGetPartnerCompletion(slot,revision,out receipt))return false;
+            }
+            else if(live!=ActionKind.None||phase!=ActionPhase.Idle
+                ||!sim.Actions.TryGetLatestPartnerCompletion(slot,out receipt)||!IsQuietPairSuccessor(agents,slot,receipt.Revision))
+                return false;
+            long age=sim.Clock-receipt.Tick;
+            if(receipt.Action!=action||age<0||age>sim.Config.Clock.MaxCatchUpTicksPerFrame)return false;
+        }
+        if(!rig.Visible||rig.Position.DistanceSquaredTo(camera)>distanceSquared)return false;
+        if(executing)
+        {
+            if(!sim.Actions.TryGetInteractionPartner(slot,out int other))return false;
+            candidate=new(other,revision,agents.ActionRevisionOf(other),false);
+            return true;
+        }
+        int partner=receipt.Partner.Slot;
+        if(!PairSitesMatch(slot,receipt)||!PairRecipientAvailable(agents,partner,receipt.PartnerRevision))return false;
+        candidate=new(partner,receipt.Revision,receipt.PartnerRevision,true);
+        return true;
+    }
+
+    private bool PairSitesMatch(int slot,ActionSystem.PartnerCompletion receipt)
+        =>HandoffTile(slot)==new Vector2I(receipt.Origin.X,receipt.Origin.Y)
+            &&HandoffTile(receipt.Partner.Slot)==new Vector2I(receipt.PartnerTile.X,receipt.PartnerTile.Y);
+
+    private bool HasPairReceipt(int slot,int partner,ActionKind action,uint revision)
+    {
+        return Game.Sim.Actions.TryGetPartnerCompletion(slot,revision,out var receipt)&&receipt.Action==action
+            &&receipt.Partner.Slot==partner&&PairSitesMatch(slot,receipt);
     }
 
     private bool PairInitiatorAvailable(int slot,int partner,ActionKind action,uint revision)
@@ -45,12 +84,20 @@ public partial class WorldView3D
         var sim=Game.Sim;var agents=sim.Agents;
         uint live=agents.ActionRevisionOf(slot);
         if(live==revision&&agents.ActionOf(slot)==action)
-            return sim.Actions.TryGetPresentationPartner(slot,out int actual)&&actual==partner;
-        // An idle successor can leave a recently committed gesture visible.
-        // A new active decision or a different partner supersedes it.
-        return live==unchecked(revision+1)&&agents.ActionOf(slot)==ActionKind.None&&agents.PhaseOf(slot)==ActionPhase.Idle
-            &&HasPairReceipt(slot,partner,action,revision,fresh:true);
+            return agents.PhaseOf(slot)==ActionPhase.Executing
+                ?sim.Actions.TryGetInteractionPartner(slot,out int actual)&&actual==partner
+                :agents.PhaseOf(slot)==ActionPhase.Done&&HasPairReceipt(slot,partner,action,revision);
+        // An existing scene has its own playback timeout. Quiet decisions
+        // can follow a confirmed gesture without restarting that timeout.
+        return IsQuietPairSuccessor(agents,slot,revision)&&HasPairReceipt(slot,partner,action,revision);
     }
+
+    private static bool IsQuietPairSuccessor(AgentStore agents,int slot,uint revision)
+        =>unchecked(agents.ActionRevisionOf(slot)-revision) is >0 and <=ActionSystem.MaxPresentationRevisionGap
+            &&agents.ActionOf(slot)==ActionKind.None&&agents.PhaseOf(slot)==ActionPhase.Idle;
+
+    private static bool PairRecipientAvailable(AgentStore agents,int slot,uint revision)
+        =>agents.ActionRevisionOf(slot)==revision||IsQuietPairSuccessor(agents,slot,revision);
 
     private bool HandoffStands(ResidentRig giver,ResidentRig receiver,out Vector3 give,out Vector3 take)
     {
@@ -87,7 +134,7 @@ public partial class WorldView3D
             {
                 if(!TrySceneResident(pair.Receiver,out var receiver)||!receiver.Visible||receiver.Position.DistanceSquaredTo(camera)>22*22
                     ||!PairInitiatorAvailable(giverSlot,receiverSlot,ActionKind.ShareFood,pair.Revision)||!CanJoinHandoff(receiverSlot)
-                    ||agents.ActionRevisionOf(receiverSlot)!=pair.ReceiverRevision
+                    ||!PairRecipientAvailable(agents,receiverSlot,pair.ReceiverRevision)
                     ||HandoffTile(giverSlot)!=pair.GiverTile||HandoffTile(receiverSlot)!=pair.ReceiverTile
                     ||!ValidHandoffStand(owner.Position,pair.GiverStand)||!ValidHandoffStand(receiver.Position,pair.ReceiverStand)
                     ||!ScenerySegmentClear(pair.GiverStand,pair.ReceiverStand))
@@ -103,21 +150,19 @@ public partial class WorldView3D
             int slot=unchecked((int)identity);
             var giver=(ResidentRig)node;
             if(!agents.IsSlotAlive(slot)||sim.Society.Identity(slot)!=identity
-                ||agents.ActionOf(slot)!=ActionKind.ShareFood||agents.PhaseOf(slot) is not (ActionPhase.Executing or ActionPhase.Done))continue;
-            uint revision=agents.ActionRevisionOf(slot);
+                ||!TryPairCandidate(slot,ActionKind.ShareFood,giver,camera,18*18,out var candidate))continue;
             if(giver.HandoffReserved||giver.RecoveringPickup||giver.CompletionVisible||FindConversation(identity)!=null
-                ||giver.IsChild||!giver.Visible||giver.Position.DistanceSquaredTo(camera)>18*18
-                ||!sim.Actions.TryGetPresentationPartner(slot,out int other)||!CanJoinHandoff(other))continue;
+                ||giver.IsChild||!CanJoinHandoff(candidate.Partner))continue;
+            int other=candidate.Partner;
+            uint revision=candidate.Revision;
             long receiverId=sim.Society.Identity(other);
-            bool confirmed=agents.PhaseOf(slot)==ActionPhase.Done;
             if(giver.LastSharePresentation==(revision,receiverId)||FindConversation(receiverId)!=null
-                ||confirmed&&!HasPairReceipt(slot,other,ActionKind.ShareFood,revision,fresh:true)
                 ||!TrySceneResident(receiverId,out var receiver)||receiver.HandoffReserved||receiver.RecoveringPickup
                 ||receiver.CompletionVisible||receiver.IsChild||!receiver.Visible
                 ||receiver.Position.DistanceSquaredTo(camera)>18*18||!HandoffStands(giver,receiver,out var give,out var take))continue;
             giver.LastSharePresentation=(revision,receiverId);
-            _residentHandoffs.Add(new(identity,receiverId,revision,agents.ActionRevisionOf(other),HandoffTile(slot),HandoffTile(other),
-                give,take,new(giver,receiver,confirmed)));
+            _residentHandoffs.Add(new(identity,receiverId,revision,candidate.PartnerRevision,HandoffTile(slot),HandoffTile(other),
+                give,take,new(giver,receiver,candidate.Confirmed)));
             if(_residentHandoffs.Count>=4)break;
         }
     }

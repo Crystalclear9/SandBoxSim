@@ -89,7 +89,7 @@ internal sealed partial class NatureModels
                 var fitted=RefineForearmProfile(p,n,frame);
                 if(fitted.Point!=p||fitted.Normal!=n)throw new InvalidOperationException("Wrist fit changes fingers, grip or buried elbow");
             }
-            foreach(float y in new[]{lower,.005f,.035f,.245f,.275f,.290f})
+            foreach(float y in new[]{lower,.005f,.035f,.046f,.080f,.094f,.152f,.173f,.241f,.245f,.275f,.290f})
             {
                 const float e=.000001f;var p=new Vector3(.025f,y,.028f);
                 var a=RefineForearmProfile(p-Vector3.Up*e,Vector3.Back,frame);
@@ -116,5 +116,21 @@ internal sealed partial class NatureModels
             }
         }
         GD.Print($"WRIST_CONTOUR_PASS: {samples} two-frame source width/depth/centre samples, exact fingers/grip, continuous boundaries, positive Jacobian and analytic normals");
+
+        // Probe the same mapping that bakes the near and distant vertices.
+        // The distance between dorsal and palmar samples exposes the local
+        // section tilt independently of the source centreline offset.
+        float SectionSweep(float height,int frame)
+        {
+            var p=new Vector3(0,height,ForearmSectionCentreZ);
+            var dorsal=RefineForearmProfile(p+Vector3.Back*.024f,Vector3.Back,frame).Point;
+            var palmar=RefineForearmProfile(p-Vector3.Back*.024f,Vector3.Forward,frame).Point;
+            return dorsal.X-palmar.X;
+        }
+        float lowerSweep=SectionSweep(.086f,1),upperSweep=SectionSweep(.170f,1);
+        if(lowerSweep<.005f||upperSweep>-.003f||SectionSweep(.04f,1)!=0||
+            SectionSweep(.245f,1)!=0||SectionSweep(.086f,0)!=0||SectionSweep(.170f,0)!=0)
+            throw new InvalidOperationException($"Female forearm section loses its opposite turns or changes a fixed region: {lowerSweep}/{upperSweep}");
+        GD.Print($"FEMALE_FOREARM_SWEEP_PASS: opposite distal/proximal section shifts {lowerSweep*1000:F2}/{upperSweep*1000:F2} mm, fixed wrist and elbow sections");
     }
 }

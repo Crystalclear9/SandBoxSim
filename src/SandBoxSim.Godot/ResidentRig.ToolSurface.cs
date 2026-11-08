@@ -6,6 +6,8 @@ namespace SandBoxSim.Client;
 internal partial class ResidentRig
 {
     internal readonly record struct ToolSurface(Vector3 Point,Vector3 Normal);
+    internal static bool ContinuesSpearAim(ToolSurface previous,ToolSurface next)
+        =>previous.Point.DistanceSquaredTo(next.Point)<=.28f*.28f&&previous.Normal.Dot(next.Normal)>=.90f;
     // These centres lie on the exposed ends of the authored tool meshes.
     internal static Vector3 StrikingPoint(ResidentTool tool)=>tool switch
     {
@@ -18,6 +20,7 @@ internal partial class ResidentRig
 
     private ToolSurface? _toolSurface;
     private bool _hadToolSurface,_surfaceTouched;
+    private bool MeasuresWorkSurface=>_toolSurface.HasValue||CurrentTool==ResidentTool.Hoe&&_hasFurrowSurface;
     private float _surfacePhase,_workSurfaceBend;
     internal int PresentedSurfaceContacts {get;private set;}
     internal Vector3 WorldToolTip=>HandWorldPose(1)*Grip!.Transform*StrikingPoint(CurrentTool);
@@ -85,14 +88,21 @@ internal partial class ResidentRig
     {
         if(_strokePhase<_surfacePhase)_surfaceTouched=false;
         _surfacePhase=_strokePhase;
-        if(!working||_surfaceTouched||_toolSurface is not {} surface||_draw<.99f
-            ||CurrentTool==ResidentTool.Spear&&_awaitToolCommit
-            ||Mathf.Abs(_strokePhase-ToolImpactPhase(CurrentTool))>.105f)return;
-        var offset=WorldToolTip-surface.Point;
-        if(offset.LengthSquared()>.060f*.060f||offset.Dot(surface.Normal)<-.035f)return;
+        if(!working||!_strikeWindowOpen||_surfaceTouched||_draw<.99f)return;
+        if(CurrentTool==ResidentTool.Hoe)
+        {
+            if(_strokePhase>.54f||!HoeTouchesFurrow())return;
+        }
+        else
+        {
+            if(_toolSurface is not {} surface||CurrentTool==ResidentTool.Spear&&_awaitToolCommit
+                ||Mathf.Abs(_strokePhase-ToolImpactPhase(CurrentTool))>.105f)return;
+            var offset=WorldToolTip-surface.Point;
+            if(offset.LengthSquared()>.060f*.060f||offset.Dot(surface.Normal)<-.035f)return;
+        }
         _surfaceTouched=true;
         PresentedSurfaceContacts++;
-        if(CurrentTool==ResidentTool.Spear)PresentedToolImpacts++;
+        PresentedToolImpacts++;
     }
 
     private Vector3 GuideSpearTip(Vector3 grip,Basis filteredBasis)

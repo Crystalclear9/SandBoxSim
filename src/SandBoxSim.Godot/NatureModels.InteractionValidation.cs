@@ -15,7 +15,9 @@ internal sealed partial class NatureModels
         ValidateConsumptionInterrupts();
         ValidateContactBoundaries();
         ValidatePickupContactTiming();
+        ValidatePickupIntoPlacement();
         ValidateInterruptedPlacementAlignment();
+        ValidatePlacementReturn();
         ValidateUnavailableInteractionContacts();
         ValidateActionRetarget();
         ValidatePartnerLoss();
@@ -251,7 +253,7 @@ internal sealed partial class NatureModels
     {
         const float delta=1f/60;
         int lateContacts=0;
-        float maximumRecoveryStep=0;
+        float maximumRecoveryStep=0,maximumShiftStep=0;
         foreach(int identity in new[]{17,55})
         {
             var rig=Resident(identity,false,JobType.None);
@@ -307,11 +309,32 @@ internal sealed partial class NatureModels
                 }
                 if(rig.CompletionVisible||rig.RecoveringPickup)
                     throw new InvalidOperationException($"Unreachable pickup never leaves the contact wait: {identity}");
+
+                for(int frame=0;frame<120;frame++)
+                    rig.PresentAction(delta,ActionKind.Take,ActionPhase.Executing,false,0,5,sceneContact:actual,target:target);
+                if(!rig.GestureEngaged(ActionKind.Take))
+                    throw new InvalidOperationException("Shifted pickup fixture did not prepare its initial reach");
+                var shifted=actual+Vector3.Right*.19f;
+                var wrist=rig.HandWorldPose(1).Origin;
+                for(int frame=0;frame<6;frame++)
+                {
+                    rig.PresentAction(delta,ActionKind.Take,ActionPhase.Executing,false,0,5,sceneContact:shifted,target:target);
+                    var after=rig.HandWorldPose(1).Origin;
+                    float step=wrist.DistanceTo(after);
+                    maximumShiftStep=MathF.Max(maximumShiftStep,step);
+                    if(rig.GestureEngaged(ActionKind.Take)||rig.ScenePickupPieceVisible||step>.045f)
+                        throw new InvalidOperationException("A shifted pickup inherits the prepared reach or snaps the wrist");
+                    wrist=after;
+                }
+                for(int frame=0;frame<120;frame++)
+                    rig.PresentAction(delta,ActionKind.Take,ActionPhase.Executing,false,0,5,sceneContact:shifted,target:target);
+                if(!rig.GestureEngaged(ActionKind.Take)||rig.ScenePickupPieceVisible)
+                    throw new InvalidOperationException("A shifted pickup cannot prepare again without an early prop");
             }
             finally{rig.Free();}
         }
         if(maximumRecoveryStep>.06f)throw new InvalidOperationException($"Lost contact jolts a held object: {maximumRecoveryStep:F3} m");
-        GD.Print($"PICKUP_CONTACT_TIMING_PASS: {lateContacts} late grasps after the old contact window, invalidated contact enters recovery, unreachable targets expire, max recovery step={maximumRecoveryStep:F3} m");
+        GD.Print($"PICKUP_CONTACT_TIMING_PASS: {lateContacts} late grasps, new reach after source shift, maximum shift wrist step={maximumShiftStep:F3} m, invalid contact recovers, unreachable targets expire, maximum recovery step={maximumRecoveryStep:F3} m");
     }
 
     private void ValidateInterruptedPlacementAlignment()
@@ -356,6 +379,100 @@ internal sealed partial class NatureModels
         }
         if(releases!=2)throw new InvalidOperationException("A re-aligned placement never returns to its support");
         GD.Print("PLACEMENT_REALIGN_PASS: both adult rigs hold the parcel during alignment loss, replan from the displayed pose and release only at the original support");
+    }
+
+    private void ValidatePlacementReturn()
+    {
+        float maxStep=0;
+        int recovered=0;
+        foreach(int identity in new[]{17,55})
+        foreach(float delta in new[]{1f/60,1f/30})
+        foreach(bool timeout in new[]{false,true})
+        {
+            var rig=Resident(identity,false,JobType.None);
+            try
+            {
+                var point=new Vector3(0,0,-.54f);
+                float ground=0;
+                rig.CargoGroundHeight=(_,_)=>ground;
+                for(float elapsed=0;elapsed<2;elapsed+=delta)
+                    rig.PresentAction(delta,ActionKind.Deposit,ActionPhase.Executing,false,0,1,inventoryCargo:ResourceKind.Wood);
+                void Place()=>rig.PresentAction(delta,ActionKind.Deposit,ActionPhase.Done,false,0,1,
+                    sceneContact:point,contactResource:ResourceKind.Wood,inventoryCargo:ResourceKind.None);
+                for(float elapsed=0;elapsed<.91f;elapsed+=delta)Place();
+                if(!rig.PlacingCargo||rig.SupportedCargo!=ResourceKind.Wood)
+                    throw new InvalidOperationException($"Placement return fixture does not have a lowered parcel: {identity}/{delta}");
+                var start=rig.HandWorldPose(1)*rig.CargoMesh.Position;
+                var previous=start;
+                float held=0,rise=0;
+                bool stowed=false;
+                ground=-.32f;
+                for(float elapsed=0;elapsed<3.4f;elapsed+=delta)
+                {
+                    if(timeout)Place();
+                    else rig.PresentAction(delta,ActionKind.None,ActionPhase.Idle,false,0,2,inventoryCargo:ResourceKind.None);
+                    if(rig.ReleasedCargo)
+                        throw new InvalidOperationException("An aborted placement releases without a valid support");
+                    if(rig.PlacingCargo)
+                    {
+                        previous=rig.HandWorldPose(1)*rig.CargoMesh.Position;
+                        start=previous;
+                        continue;
+                    }
+                    if(rig.SupportedCargo==ResourceKind.None){stowed=true;continue;}
+                    if(stowed)throw new InvalidOperationException("An aborted placement replays its parcel after recovery");
+                    var current=rig.HandWorldPose(1)*rig.CargoMesh.Position;
+                    maxStep=MathF.Max(maxStep,current.DistanceTo(previous)/delta);
+                    rise=MathF.Max(rise,current.Y-start.Y);
+                    previous=current;
+                    held+=delta;
+                }
+                if(!stowed||held<.45f||rise<.22f)
+                    throw new InvalidOperationException($"Unreleased parcel does not rise before stowing: {identity}/{delta}/{timeout}, held={held:F3} s, rise={rise:F3} m");
+                recovered++;
+            }
+            finally{rig.Free();}
+        }
+        if(maxStep>1.9f)
+            throw new InvalidOperationException($"An aborted placement jerks while returning: peak {maxStep:F3} m/s");
+        GD.Print($"PLACEMENT_RETURN_PASS: {recovered} interrupted or unsupported placements at 30/60 Hz, peak {maxStep:F3} m/s, raised in both hands without false release or replay");
+    }
+
+    private void ValidatePickupIntoPlacement()
+    {
+        const float delta=1f/20;
+        var rig=Resident(17,false,JobType.None);
+        try
+        {
+            var pickup=new Vector3(.035f,.10f,-.46f);
+            var placement=new Vector3(0,0,-.54f);
+            var target=new ResidentRig.InteractionTarget(new(2,3),0,
+                new(new(2,3),ResourceKind.Stone,SandBoxSim.Core.Systems.ActionSystem.ContactSurface.GroundStock));
+            rig.CargoGroundHeight=(_,_)=>0;
+            rig.SetPickupPiece(GroundPickupPiece(ResourceKind.Stone,0),true);
+            rig.PresentAction(delta,ActionKind.None,ActionPhase.Idle,false,0,1);
+            for(int i=0;i<80&&!rig.ScenePickupGrasped;i++)
+                rig.PresentAction(delta,ActionKind.Take,ActionPhase.Done,false,0,2,
+                    sceneContact:pickup,target:target,inventoryCargo:ResourceKind.Stone);
+            if(!rig.ScenePickupGrasped||!rig.ScenePickupPieceVisible||rig.CargoMesh.Visible)
+                throw new InvalidOperationException("Rapid placement fixture did not start from a one-hand grasp");
+
+            bool supported=false,released=false;
+            for(int i=0;i<150;i++)
+            {
+                rig.PresentAction(delta,ActionKind.Deposit,ActionPhase.Done,false,0,3,
+                    sceneContact:placement,contactResource:ResourceKind.Stone,inventoryCargo:ResourceKind.None);
+                if(!supported&&rig.ScenePickupPieceVisible==rig.CargoMesh.Visible||rig.RecoveringPickup
+                    ||rig.ScenePickupPieceVisible&&rig.CargoMesh.Visible)
+                    throw new InvalidOperationException("Rapid placement loses, duplicates or pockets the object before dual-palm support");
+                supported|=rig.SupportedCargo==ResourceKind.Stone;
+                released|=rig.ReleasedCargo;
+            }
+            if(!supported||!released||rig.CompletionVisible||rig.CargoMesh.Visible)
+                throw new InvalidOperationException("The already grasped item does not reach its committed support");
+        }
+        finally{rig.Free();}
+        GD.Print("PICKUP_TO_PLACEMENT_PASS: 20 Hz pickup hands the same resource to both palms and its confirmed placement without pocketing");
     }
 
     private void ValidateActionRetarget()
@@ -403,6 +520,7 @@ internal sealed partial class NatureModels
                 {
                     var exchange=new ResidentHandoff(giver,receiver);
                     bool sawParcel=false,stopped=false;
+                    int preparationFrames=0;
                     bool compareTransferVelocity=false;
                     Vector3 previousVelocity=Vector3.Zero;
                     for(int frame=0;frame<390&&!exchange.Finished;frame++)
@@ -413,6 +531,7 @@ internal sealed partial class NatureModels
                         var previous=exchange.ParcelPose;
                         bool visible=exchange.ParcelVisible;
                         bool transferred=exchange.Transferred;
+                        if(!sawParcel&&receiver.HandoffHandReady)preparationFrames++;
                         exchange.Advance(1f/60);
                         if(!exchange.ParcelVisible)continue;
                         if(visible)
@@ -434,8 +553,8 @@ internal sealed partial class NatureModels
                             if(!exchange.ParcelVisible)throw new InvalidOperationException("Interrupted parcel vanishes before recovery");
                         }
                     }
-                    if(!sawParcel||!exchange.Finished||exchange.Transferred==interrupt||giver.HandoffReserved||receiver.HandoffReserved)
-                        throw new InvalidOperationException($"Two-person exchange does not resolve: reversed={reversed}, interrupted={interrupt}, parcel={sawParcel}, transferred={exchange.Transferred}");
+                    if(!sawParcel||preparationFrames<8||!exchange.Finished||exchange.Transferred==interrupt||giver.HandoffReserved||receiver.HandoffReserved)
+                        throw new InvalidOperationException($"Two-person exchange does not resolve: reversed={reversed}, interrupted={interrupt}, parcel={sawParcel}, preparation={preparationFrames}, transferred={exchange.Transferred}");
                 }
             }
             finally{giver.Free();receiver.Free();}
@@ -599,8 +718,11 @@ internal sealed partial class NatureModels
                 rig.PresentAction(step,ActionKind.Deposit,ActionPhase.Done,false,0,11);
                 if(!rig.PlacingCargo)throw new InvalidOperationException("Aligned arrival does not resume its deferred placement");
                 rig.PresentAction(step,ActionKind.Flee,ActionPhase.Moving,false,0,12);
-                if(rig.CompletionVisible||rig.CargoMesh.Visible)
-                    throw new InvalidOperationException("Flee leaves an uncommitted display parcel on the previous action");
+                if(rig.CompletionVisible||rig.PlacingCargo||rig.ReleasedCargo)
+                    throw new InvalidOperationException("Flee leaves the previous placement active");
+                for(int frame=0;frame<80;frame++)
+                    rig.PresentAction(step,ActionKind.Flee,ActionPhase.Moving,false,0,12);
+                if(rig.CargoMesh.Visible)throw new InvalidOperationException("Flee fails to stow the cancelled parcel");
 
                 for(int frame=0;frame<180&&!rig.Cup.Visible;frame++)
                     rig.PresentAction(step,ActionKind.Drink,ActionPhase.Executing,false,0,13);
@@ -732,8 +854,10 @@ internal sealed partial class NatureModels
                 rig.ShowCargo(false,resource);
                 rig.PresentAction(1f/60,action,ActionPhase.Done,false,0);
                 rig.PresentAction(1f/60,ActionKind.Flee,ActionPhase.Moving,false,0);
-                if(rig.PlacingCargo||rig.CargoMesh.Visible)
-                    throw new InvalidOperationException("Urgent movement retains a depleted parcel");
+                if(rig.PlacingCargo||rig.ReleasedCargo)
+                    throw new InvalidOperationException("Urgent movement leaves the old placement active");
+                for(int frame=0;frame<80;frame++)rig.PresentAction(1f/60,ActionKind.Flee,ActionPhase.Moving,false,0);
+                if(rig.CargoMesh.Visible)throw new InvalidOperationException("Urgent movement retains a depleted parcel after recovery");
             }
             finally{rig.Free();}
         }

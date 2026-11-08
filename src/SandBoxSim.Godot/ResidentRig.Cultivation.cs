@@ -9,15 +9,24 @@ internal partial class ResidentRig
     internal static readonly Vector3 HoeCuttingEdge=HoeBladeMount+new Basis(Vector3.Right,.25f)*new Vector3(0,.012f,.05f);
     internal const float FurrowStart=-.75f,FurrowEnd=-.47f;
     private float _furrowFarHeight,_furrowNearHeight;
+    private bool _hasFurrowSurface;
 
     internal void SetFurrowSurface(float farHeight,float nearHeight)
     {
         _furrowFarHeight=Math.Clamp(farHeight,-.15f,.17f);
         _furrowNearHeight=Math.Clamp(nearHeight,-.15f,.17f);
+        _hasFurrowSurface=true;
     }
 
     private float FurrowHeight(float depth)=>Mathf.Lerp(_furrowFarHeight,_furrowNearHeight,
         Math.Clamp((depth-FurrowStart)/(FurrowEnd-FurrowStart),0,1));
+
+    private bool HoeTouchesFurrow()
+    {
+        var edge=RigWorldSpace.AffineInverse()*(HandWorldPose(1)*Grip!.Transform*HoeCuttingEdge);
+        return edge.Z is >=FurrowStart-.08f and <=FurrowEnd+.08f
+            &&MathF.Abs(edge.Y-FurrowHeight(edge.Z))<.040f;
+    }
 
     private (Vector3, Basis) CultivationGrip(float phase)
     {

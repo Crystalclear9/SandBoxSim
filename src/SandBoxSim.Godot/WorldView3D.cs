@@ -455,28 +455,28 @@ public partial class WorldView3D : MapView
     }
     internal object RenderQualityState(object[]? galleries=null,object? portrait=null)
     {
-        var quality=new Dictionary<string,object> { ["worldPresentationEnabled"]=WorldPresentationEnabled,["residentTravel"]=ResidentTravel.Version,["residentContactApproach"]="supported-contact-v1",["pacedResidentTravel"]=Game.PacingResidents,["shadowMode"]=_sunlight.DirectionalShadowMode.ToString(),
+        var quality=new Dictionary<string,object> { ["worldPresentationEnabled"]=WorldPresentationEnabled,["residentTravel"]=ResidentTravel.Version,["residentContactApproach"]="supported-contact-v1",["residentInteractionClock"]="bounded-observation-v1",["pacedResidentTravel"]=Game.PacingResidents,["shadowMode"]=_sunlight.DirectionalShadowMode.ToString(),
             ["shadowDistance"]=_sunlight.DirectionalShadowMaxDistance,["shadowBias"]=_sunlight.ShadowBias,
             ["shadowNormalBias"]=_sunlight.ShadowNormalBias,["msaa"]=_viewport.Msaa3D.ToString(),
             ["landscapeSurface"]="wet-bank-mosaic-v7",["sceneryContact"]="solid-scenery-corridors-v3",["habitatDetail"]="responsive-understory-v12",["vegetationSurface"]="engine-faced-v2",
             ["residentActionHandoff"]="displayed-palm-v1",
             ["residentObjectContact"]="confirmed-support-v1",
-            ["femaleCoatCollar"]="sewn-facing-v1",
-            ["femaleFlankShape"]="continuous-flank-v1",
-            ["femaleRibDrape"]="coupled-bending-v1",
+            ["femaleCoatCollar"]="sewn-facing-v2",
+            ["femaleFlankShape"]="continuous-flank-v2",
+            ["femaleRibDrape"]="supported-front-yoke-v2",
             ["femaleLowerLeg"]="mid-calf-boot-v1",
             ["residentContactContinuity"]="bounded-confirmation-v1",
-            ["residentContactHandoff"]="bounded-revision-window-v1",
-            ["pickupCarryContinuity"]="palm-supported-transfer-v1",
+            ["residentContactHandoff"]="matching-receipt-window-v2",
+            ["pickupCarryContinuity"]="cross-action-palm-support-v2",
             ["caravanHandling"]="ledger-supported-cargo-v1",
-            ["residentConsumption"]="confirmed-mouth-contact-v1",
-            ["pairedInteractions"]="confirmed-participants-v1",
-            ["residentSupportRelease"]="planted-departure-v1",
-            ["spearTargeting"]="bounded-live-contact-v1",
-            ["workContactHandoff"]="shared-stroke-phase-v1",
+            ["residentConsumption"]="confirmed-shared-cup-v2",
+            ["pairedInteractions"]="confirmed-participants-v4",["residentPalmMotion"]="scene-frame-transport-v1",
+            ["residentSupportRelease"]="planted-departure-v3",
+            ["spearTargeting"]="tracked-committed-contact-v2",
+            ["workContactHandoff"]="measured-stroke-contact-v2",
             ["architecture"]="inset-joinery-v13",["garmentMaterial"]="quiet-linen-v19",["trouserSkin"]="guided-knee-v1",["upperArmFlex"]="stable-contour-v3",["shoulderSkin"]="reference-figure-v25",["shoulderMotion"]="source-clavicle-v11",["motionReference"]="cmu-143-30-v1",["shoulderSurface"]="authored-bind-surface-v3",["femaleShoulderLine"]="clavicular-crest-v2",["forearmSkin"]="continuous-elbow-v9",["sleeveFairing"]="rest-detail-v2",["workPose"]="raised-hammer-v1",["reachMotion"]="palm-trajectory-v2",["interface"]="resident-framing-memory-v28",["wildFlora"]="arched-bramble-v1",["fontProfile"]="noto-packaged-v1",["interfaceVisible"]=Game.InterfaceVisible,
-            ["animalPresentation"]="articulated-paws-v12",["animalLocomotion"]="ground-distance-v1",["residentSurface"]="linear-skin-v9",["workEffort"]="overlapping-weight-transfer-v7",["toolMotion"]="socket-relative-stow-v5",["bodySupport"]="planted-spatial-v3",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v2",["handlingMotion"]="supported-parcel-v19",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="paired-conversation-v11",["spearMotion"]="guarded-thrust-v1",["waterSurface"]="shore-activity-v7",["wristContour"]="continuous-source-v3",
-            ["hairline"]="framed-source-root-v2",["femaleGroom"]="scalp-guided-plait-v1",["garmentFit"]="continuous-drape-v40",["femaleFrontCut"]="supported-closure-v1",["femaleTrouserFit"]="supported-thigh-v1",["reedPanicle"]="connected-axis-v1",["bodyPresentation"]="continuous-drape-v29",["bodyFrame"]="reference-contour-physique-v31",["femaleBodyBuild"]="regional-builds-v2",["femaleRearShoulder"]="supported-meridians-v1",["femaleLowerPanel"]="grain-fitted-waist-v1",["neckContour"]="relaxed-neckline-v7",["faceContour"]="balanced-adult-v3",["forearmProfile"]="curvature-flow-v9",["residentLocomotion"]="captured-boot-rockers-v9",["gaitReference"]=ResidentGaitCapture.Version,["actionReference"]=ResidentActionCapture.Version,["armSwing"]="captured-spatial-swing-v8",["motionStyle"]="captured-standing-and-stride-v7",["limbCoordination"]="hinge-carry-v4" };
+            ["animalPresentation"]="articulated-paws-v12",["animalLocomotion"]="ground-distance-v1",["residentSurface"]="linear-skin-v9",["workEffort"]="overlapping-weight-transfer-v7",["toolMotion"]="socket-relative-stow-v5",["bodySupport"]="planted-spatial-v3",["facialTiming"]="rested-phrase-blink-v2",["handSurface"]="anatomical-regions-v2",["handlingMotion"]="supported-parcel-v19",["toolGeometry"]="forged-heads-v2",["cargoGeometry"]="bound-timber-v2",["equipmentAttachment"]="surface-holster-v2",["socialMotion"]="paired-conversation-v11",["spearMotion"]="guarded-thrust-v1",["waterSurface"]="shore-activity-v7",["wristContour"]="continuous-source-v3",["femaleForearmContour"]="opposed-sectional-sweep-v1",
+            ["hairline"]="framed-source-root-v2",["femaleGroom"]="scalp-joined-plait-v2",["garmentFit"]="continuous-drape-v43",["femaleFrontCut"]="supported-closure-v1",["femaleTrouserFit"]="sectional-panel-fit-v3",["reedPanicle"]="connected-axis-v1",["bodyPresentation"]="continuous-drape-v29",["bodyFrame"]="reference-contour-physique-v31",["femaleBodyBuild"]="regional-builds-v4",["femaleRearShoulder"]="scapular-drape-v2",["femaleLowerPanel"]="shaped-hem-v2",["neckContour"]="cervical-relief-v8",["faceContour"]="balanced-adult-v3",["forearmProfile"]="curvature-flow-v9",["residentLocomotion"]="captured-boot-rockers-v9",["gaitReference"]=ResidentGaitCapture.Version,["actionReference"]=ResidentActionCapture.Version,["armSwing"]="captured-spatial-swing-v8",["motionStyle"]="captured-standing-and-stride-v7",["limbCoordination"]="hinge-carry-v4" };
         quality["taskReference"]=ResidentActionCapture.TaskVersion;
         quality["toolContacts"]="furrow-edge-and-work-stance-v1";
         if(galleries is {Length:>0})quality["galleries"]=galleries;
@@ -820,9 +820,10 @@ public partial class WorldView3D : MapView
             long id = sim.Society.Identity(slot); live.Add(id);
             bool child = sim.Agents.LifeStageOf(slot) == LifeStage.Child; JobType job = sim.Agents.JobOf(slot);
             bool exists=_people.TryGetValue(id,out var old);
-            if(old is ResidentRig {Visible:true,SupportingCaravanCargo:true}&&_personModels[id]==(child,JobType.Trader)&&job!=JobType.Trader)
-                continue; // Let the loaded rig finish stowing before its outfit is replaced.
-            if (!exists||_personModels[id]!=(child,job))
+            var model=exists?_personModels[id]:default;
+            if(old is ResidentRig {Visible:true,ContactPoseInFlight:true}&&model.Child==child&&model.Job!=job)
+                continue; // Keep the current hands, props and support until their contact has finished.
+            if (!exists||model!=(child,job))
             {
                 var person=_models.Human(id,slot,child,job);_actors.AddChild(person);
                 person.CargoGroundHeight=_cargoGroundHeight??=GroundHeight;
@@ -863,6 +864,11 @@ public partial class WorldView3D : MapView
     }
     private void AnimateActors(float delta,float? observationTickFraction=null)
     {
+        if(!float.IsFinite(delta)||delta<=0)return;
+        // The simulation may catch up independently. A render hitch gives
+        // us one new scene sample, so the root, hands and shared props all
+        // get one bounded observation interval against that sample.
+        delta=MathF.Min(delta,MaximumActorObservationStep);
         using var profile=RenderProfile.Measure("AnimateActors");
         var sim = Game.Sim; _poseFrame++;BeginVegetationContacts(delta);BeginWaterContacts(delta);
         // Copy six planes once; enumerating the native array per resident multiplies interop calls.
@@ -899,7 +905,7 @@ public partial class WorldView3D : MapView
             {
                 action=completion.Action;phase=ActionPhase.Done;actionRevision=completion.Revision;
                 hasTarget=false;interest=completion.Origin;
-                if(completion.Site is {} committedSite)
+                if(completion.Site is {} committedSite&&committedSite.Surface!=ActionSystem.ContactSurface.Attack)
                 {
                     site=committedSite;sceneContact=bridgeContact;target=bridgeStand;
                     contactResource=site.Resource;interest=site.Tile;
@@ -934,7 +940,10 @@ public partial class WorldView3D : MapView
             if(!meeting&&talkStand.HasValue)target=talkStand.Value;
             // Even at accelerated simulation speeds, a nearby contact needs
             // a real departure and landing. Keep catch-up for distant travel.
-            bool localApproach=phase!=ActionPhase.Moving&&(meeting||talkStand.HasValue||sceneContact.HasValue||gathering)
+            bool urgentTravel=action is ActionKind.Flee or ActionKind.Attack or ActionKind.Hunt;
+            bool closeToCamera=cameraPosition.DistanceSquaredTo(current)<18*18;
+            bool localApproach=(phase==ActionPhase.Moving?node.Visible&&closeToCamera&&!urgentTravel
+                :meeting||talkStand.HasValue||sceneContact.HasValue||gathering)
                 &&Horizontal(target-current).LengthSquared()<2.35f*2.35f;
             bool usesMotor=paced||localApproach;
             Vector3 rendered=current;
@@ -943,13 +952,22 @@ public partial class WorldView3D : MapView
             float remaining=Horizontal(target-current).Length();
             float anticipatoryTurn=0;
             bool routeDeparture=paced&&phase==ActionPhase.Moving&&hasTarget&&interest!=new Int2(x,y);
-            bool releaseSupport=usesMotor&&node.Visible&&!bridged&&cameraPosition.DistanceSquaredTo(current)<18*18
-                &&(remaining>.055f||routeDeparture)&&action is not (ActionKind.Flee or ActionKind.Attack or ActionKind.Hunt)
+            bool routeRedirect=node.Travel.Redirecting&&phase==ActionPhase.Moving&&hasTarget;
+            bool protectFootfall=node.Visible&&closeToCamera&&!urgentTravel&&!routeRedirect;
+            bool finishPivot=protectFootfall&&node.PivotStepInFlight;
+            bool finishArrival=protectFootfall&&node.ArrivalStepInFlight&&(remaining>.07f||routeDeparture);
+            bool releaseSupport=usesMotor&&node.Visible&&!bridged&&closeToCamera
+                &&(remaining>.055f||routeDeparture)&&!urgentTravel&&!finishPivot&&!finishArrival
                 &&node.NeedsSupportRelease&&(node.ReleasingSupport||node.ReadyForTravelTurn);
             if(!paused)
             {
                 node.ReleasingSupport=releaseSupport;
-                if(usesMotor)
+                if(!finishPivot&&(remaining>.07f||routeDeparture))node.ReleaseFinishedPivot();
+                if(finishPivot||finishArrival)
+                {
+                    node.Travel.HoldForSupport(false);
+                }
+                else if(usesMotor)
                 {
                     Vector3 sample=default;
                     Vector2 routeHeading=default;
@@ -1036,6 +1054,11 @@ public partial class WorldView3D : MapView
             int partner=-1;
             bool hasPartner=action!=ActionKind.Socialize&&(phase==ActionPhase.Executing||finishing)
                 &&sim.Actions.TryGetPresentationPartner(slot,out partner);
+            if(bridged&&completion.Site is {Surface:ActionSystem.ContactSurface.Attack} hit)
+            {
+                partner=unchecked((int)hit.TargetIdentity);
+                hasPartner=true;
+            }
             long partnerIdentity=0;
             Vector3? spearPoint=null;
             if(hasPartner)
@@ -1043,10 +1066,7 @@ public partial class WorldView3D : MapView
                 partnerIdentity=sim.Society.Identity(partner);
                 interestPoint=_people.TryGetValue(partnerIdentity,out var other)?other.Position:PositionAt(sim.Agents.XOf(partner),sim.Agents.YOf(partner));hasInterest=true;
                 if(action==ActionKind.Attack&&other is ResidentRig victim&&victim.Visible)
-                {
-                    var centre=victim.RigWorldSpace*victim.Torso.Transform*new Vector3(0,1.09f,0);
-                    spearPoint=NearBodyPoint(rendered,centre,.13f*victim.Scale.X);
-                }
+                    spearPoint=ResidentAttackPoint(victim,rendered);
             }
             bool trackingPrey=action==ActionKind.Hunt&&phase==ActionPhase.Executing;
             int preySlot=-1;
@@ -1115,7 +1135,13 @@ public partial class WorldView3D : MapView
                 bool prepareFacing=usesMotor&&distanceSquared<18*18&&interacting&&aimsAtTarget&&remaining<.09f
                     &&hasInterest&&facing.LengthSquared()>.0225f;
                 node.PlanArrival(redirecting?rendered:target,redirecting?HeadingYaw(travelHeading):prepareFacing?HeadingYaw(facing):null);
-                if(releaseSupport)node.FadePivot(delta);
+                if(finishPivot)yaw=node.FinishPivotStep(yaw,delta);
+                else if(finishArrival)
+                {
+                    if(node.TryGetArrivalFacing(out float protectedYaw))yaw=protectedYaw;
+                    node.FadePivot(delta);
+                }
+                else if(releaseSupport)node.FadePivot(delta);
                 else if(redirecting)
                 {
                     float goal=HeadingYaw(travelHeading);
@@ -1161,23 +1187,24 @@ public partial class WorldView3D : MapView
                 node.Rotation=new(0,yaw,0);
             }
             // Keep position interpolation every frame; distant joint poses need fewer updates.
-            float fullRate=paced?18:12;
-            int stride=node.HandoffReserved||conversation!=null?1:distanceSquared>45*45?8:distanceSquared>30*30?6:distanceSquared>fullRate*fullRate?2:1;
+            bool contactPose=usesMotor||interacting||!settled||node.ContactPoseInFlight;
+            int stride=node.HandoffReserved||conversation!=null?1:ResidentPoseStride(distanceSquared,paced,contactPose);
             if(!paused)node.ObserveDeparture(usesMotor?node.Travel.Preparation:0);
             float lateralDistance=usesMotor?direction.X*MathF.Cos(yaw)-direction.Z*MathF.Sin(yaw):0;
-            node.ObserveLocomotion(direction,delta,headingError,paused,remaining,usesMotor?node.Scale.X:1,anticipatoryTurn,lateralDistance,redirecting);
+            node.ObserveLocomotion(direction,delta,headingError,paused,remaining,usesMotor?node.Scale.X:1,anticipatoryTurn,lateralDistance,redirecting||finishArrival);
             node.UpdateDistanceDetail(distanceSquared);
             var targetTile=!preyInRange&&(hasTarget||sceneContact.HasValue)?new Vector2I(interest.X,interest.Y):(Vector2I?)null;
             var interactionTarget=new ResidentRig.InteractionTarget(targetTile,partnerIdentity,
                 sceneContact.HasValue&&(action is ActionKind.Take or ActionKind.GatherFood)?site with {StockAmount=0}:null,
                 sceneContact.HasValue&&site.Surface==ActionSystem.ContactSurface.BuildingWork?site:null,
-                sceneContact.HasValue&&(action is ActionKind.Deposit or ActionKind.StoreInBuilding)?site:null);
+                sceneContact.HasValue&&(action is ActionKind.Deposit or ActionKind.StoreInBuilding)?site:null,
+                hasShore?interestPoint:null);
             bool reachable=spear||toolSurface is not {} bound||ReachableToolSurface(node,target,bound);
             bool contactReady=validStrike&&reachable&&(!requiresSurface||toolSurface.HasValue);
             bool consuming=action is ActionKind.Eat or ActionKind.Drink;
             bool consumptionConfirmed=consuming&&phase==ActionPhase.Done
-                &&sim.Actions.TryGetLatestContactCompletion(slot,out var receipt)&&receipt.Action==action
-                &&receipt.Revision==actionRevision&&receipt.Origin==new Int2(x,y);
+                &&sim.Actions.TryGetContactCompletion(slot,actionRevision,out var receipt)&&receipt.Action==action
+                &&receipt.Origin==new Int2(x,y);
             if(phase is ActionPhase.Executing or ActionPhase.Done)
             {
                 contactReady&=action switch
@@ -1195,9 +1222,10 @@ public partial class WorldView3D : MapView
                     _=>true
                 };
             }
-            var cue=new PoseCue(action,phase,actionRevision,interactionTarget,true,toolSurface,contactReady);
+            var cue=new PoseCue(action,phase,actionRevision,interactionTarget,true,toolSurface,contactReady,
+                phase==ActionPhase.Executing&&interactionTarget.Pickup.HasValue?sceneContact:null);
             var facingDirection=Horizontal(interestPoint-rendered);
-            bool aligned=!releaseSupport&&(!aimsAtTarget||!interacting||!hasInterest||InteractionFacingAligned(yaw,facingDirection,
+            bool aligned=!releaseSupport&&!finishPivot&&!finishArrival&&(!aimsAtTarget||!interacting||!hasInterest||InteractionFacingAligned(yaw,facingDirection,
                 _poseSchedule.RetainsFacing(pair.Key,cue)));
             cue=cue with {Aligned=aligned};
             bool changed=_poseSchedule.Observe(pair.Key,cue,delta,!paused);
@@ -1210,6 +1238,12 @@ public partial class WorldView3D : MapView
                 foreach(var resource in ResidentRig.CargoKinds)
                 {float amount=sim.Agents.InventoryOf(slot,resource);if(amount>cargoAmount){cargoAmount=amount;cargoKind=resource;}}
             }
+            // Finish any live contact, then use the existing stow path in
+            // an idle interval so personal inventory cannot hold the old
+            // outfit indefinitely. Suppress drawing it again until the swap.
+            if(action==ActionKind.None&&phase==ActionPhase.Idle&&!node.ContactMotionInFlight
+                &&_personModels[pair.Key].Job!=sim.Agents.JobOf(slot))
+                cargoKind=ResourceKind.None;
             var attention=redirecting?new Vector3(travelHeading.X,0,travelHeading.Y):hasInterest?interestPoint-rendered:Vector3.Zero;
             float anticipation=redirecting?1:node.Travel.Projecting
                 ?(action==ActionKind.Wander?0:1-Mathf.SmoothStep(.24f,.85f,remaining))

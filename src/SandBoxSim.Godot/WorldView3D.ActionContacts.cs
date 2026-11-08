@@ -8,20 +8,28 @@ namespace SandBoxSim.Client;
 
 public partial class WorldView3D
 {
-    private const uint MaxContactRevisionGap=3;
-
     private bool TryBridgeResidentContact(ResidentRig resident,int slot,ActionKind next,ActionPhase phase,uint revision,
         Int2 origin,Int2 interest,Vector3 logical,float distanceSquared,float delta,
         out ActionSystem.ContactCompletion completion,out Vector3 point,out Vector3 stand)
     {
         completion=default;point=stand=logical;
         var sim=Game.Sim;
-        if(!resident.Visible||distanceSquared>=18*18||phase==ActionPhase.Failed
+        if(delta<=0||!resident.Visible||distanceSquared>=18*18||phase==ActionPhase.Failed
             ||next is ActionKind.Flee or ActionKind.Attack or ActionKind.Hunt or ActionKind.ShareFood or ActionKind.Socialize
-            ||!sim.Actions.TryGetLatestContactCompletion(slot,out completion)||completion.Origin!=origin)
+            ||resident.ObservedActionRevision is not {} observed
+            ||!sim.Actions.TryGetContactCompletion(slot,observed,out completion)||completion.Origin!=origin)
             return false;
         uint revisionGap=unchecked(revision-completion.Revision);
-        if(revisionGap==0||revisionGap>MaxContactRevisionGap)
+        if(revisionGap==0||revisionGap>ActionSystem.MaxPresentationRevisionGap)
+            return false;
+        // Once the hand has actually closed on the object, let compatible
+        // successors take over the carry instead of finishing a pickup loop.
+        if(completion.Action is ActionKind.Take or ActionKind.GatherFood&&resident.ScenePickupGrasped
+            &&ResidentRig.AcceptsPickupCargo(next)&&completion.Site is {} picked
+            &&(sim.Agents.InventoryOf(slot,picked.Resource)>.01f
+                ||phase==ActionPhase.Done&&(next is ActionKind.Deposit or ActionKind.StoreInBuilding)
+                    &&sim.Actions.TryGetContactCompletion(slot,revision,out var placement)
+                    &&placement.Site?.Resource==picked.Resource))
             return false;
         // Consecutive work at the same site already shares a stroke in the rig.
         if(completion.Site is {} work&&next==completion.Action&&phase==ActionPhase.Executing
@@ -30,6 +38,11 @@ public partial class WorldView3D
         if(!resident.CanBridgeContact(completion,age>=0&&age<=sim.Config.Clock.MaxCatchUpTicksPerFrame))return false;
         if(completion.Site is {} site)
         {
+            if(site.Surface==ActionSystem.ContactSurface.Attack)
+                return !sim.Config.Rules.PeaceMode&&TrySceneResident(site.TargetIdentity,out var victim)&&victim.Visible
+                    &&resident.PreparedSpearAim(ActionKind.Attack,completion.Revision,site.TargetIdentity) is {} prior
+                    &&TrySpearSurface(resident,resident.Position,ResidentAttackPoint(victim,resident.Position),out var current)
+                    &&ResidentRig.ContinuesSpearAim(prior,current)&&resident.AdvanceContactBridge(completion,delta);
             if(!TryActionContact(resident,completion.Action,site,logical,out point,out stand)
                 ||site.Surface!=ActionSystem.ContactSurface.Hunt&&Horizontal(resident.Position-stand).LengthSquared()>.20f*.20f)
                 return false;
@@ -48,8 +61,11 @@ public partial class WorldView3D
     }
 
     private Vector3? RecallHuntPoint(ResidentRig resident,uint revision,ActionSystem.ActionContact site)
-        =>resident.PreparedHuntPoint(revision,site.TargetIdentity) is {} point
-            &&Horizontal(point-PositionAt(site.Tile.X,site.Tile.Y)).LengthSquared()<1.50f*1.50f?point:null;
+        =>resident.PreparedSpearAim(ActionKind.Hunt,revision,site.TargetIdentity) is {} aim
+            &&Horizontal(aim.Point-PositionAt(site.Tile.X,site.Tile.Y)).LengthSquared()<1.50f*1.50f?aim.Point:null;
+
+    private static Vector3 ResidentAttackPoint(ResidentRig victim,Vector3 observer)
+        =>NearBodyPoint(observer,victim.RigWorldSpace*victim.Torso.Transform*new Vector3(0,1.09f,0),.13f*victim.Scale.X);
 
     private static ResourceKind StrikeResource(ActionKind action)=>action switch
     {

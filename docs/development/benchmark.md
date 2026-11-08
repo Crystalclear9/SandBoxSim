@@ -136,11 +136,11 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 ## 当前渲染版本
 
-当前渲染元数据为 `animalPresentation=articulated-paws-v12`、`interface=resident-framing-memory-v28`、`architecture=inset-joinery-v13`、`garmentMaterial=quiet-linen-v19`、`landscapeSurface=wet-bank-mosaic-v7`、`habitatDetail=responsive-understory-v12`。另外记录 `residentSurface=linear-skin-v9`、`vegetationSurface=engine-faced-v2`、`wildFlora=arched-bramble-v1`、`waterSurface=shore-activity-v7`、`wristContour=continuous-source-v3`、`hairline=framed-source-root-v2`、`femaleGroom=scalp-guided-plait-v1`、`reedPanicle=connected-axis-v1` 和 `handSurface=anatomical-regions-v2`。人物肖像的 `renderQuality.portrait.studio=continuous-inspector-v9`，并记录实际 `thumbnail` 布尔值。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。衣装领口与肩袖、人物布光、动物足部、建筑门窗接合及连续观察控件已改变，需重采相同场景的视觉和耗时基线；不能把不同像素覆盖与布局造成的耗时变化算作代码优化收益。`renderQuality.fontProfile=noto-packaged-v1` 记录随包字库策略，字体变化需要新视觉与耗时基线。`renderQuality.interfaceVisible` 标识界面是否显示，公开评测场景默认显示；沉浸观察不会自动成为新的评测指令。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
+当前渲染元数据为 `animalPresentation=articulated-paws-v12`、`interface=resident-framing-memory-v28`、`architecture=inset-joinery-v13`、`garmentMaterial=quiet-linen-v19`、`landscapeSurface=wet-bank-mosaic-v7`、`habitatDetail=responsive-understory-v12`。另外记录 `residentSurface=linear-skin-v9`、`vegetationSurface=engine-faced-v2`、`wildFlora=arched-bramble-v1`、`waterSurface=shore-activity-v7`、`wristContour=continuous-source-v3`、`hairline=framed-source-root-v2`、`femaleGroom=scalp-joined-plait-v2`、`reedPanicle=connected-axis-v1` 和 `handSurface=anatomical-regions-v2`。人物肖像的 `renderQuality.portrait.studio=continuous-inspector-v9`，并记录实际 `thumbnail` 布尔值。世界方向光 `shadowBias=2.4`，阴影距离和法线偏移仍随相机距离变化，元数据记录实际值。衣装领口与肩袖、人物布光、动物足部、建筑门窗接合及连续观察控件已改变，需重采相同场景的视觉和耗时基线；不能把不同像素覆盖与布局造成的耗时变化算作代码优化收益。`renderQuality.fontProfile=noto-packaged-v1` 记录随包字库策略，字体变化需要新视觉与耗时基线。`renderQuality.interfaceVisible` 标识界面是否显示，公开评测场景默认显示；沉浸观察不会自动成为新的评测指令。正式动物与保留的程序校准动物检查分别运行。`animal-details` 的鹿狼眼部构图已改为更近的眼眶观察，旧图像与新构图应分别采样。
 
 `reachMotion=palm-trajectory-v2` 记录手掌轨迹过渡、朝向插值、错开的社交手势与循环进食表现。动作轨迹改变需要重采相同场景的视觉及耗时基线，不能与旧动作混作效率对照。
 
-`garmentFit=continuous-drape-v37`、`femaleTrouserFit=supported-thigh-v1` 记录女性裤装的髋腿轮廓与据此生成的屈髋、屈膝目标。比较 `female-builds` 时应重新采集同一分辨率的图像，该图册的视野已向下覆盖到膝部。`body-motion` 使用原相机复核静立、步行与拾取。
+`femaleTrouserFit=sectional-panel-fit-v3` 记录女性裤装的前裆、后髋至大腿曲面和屈髋斜褶。`FEMALE_TROUSER_FALL_PASS` 对照来源和成品的前片截面及交汇处高度。`FEMALE_TROUSER_REAR_PASS` 记录实际网格到后衣片目标曲线的拟合残差和最大位移。`female-builds` 覆盖肩部到膝部附近，`female-wardrobe` 可对照三款成衣下的后侧轮廓，`body-motion` 使用固定相机复核静立、步行与拾取。
 
 `bodyFrame=reference-contour-physique-v31`、`faceContour=balanced-adult-v3` 和 `forearmProfile=curvature-flow-v9` 记录完整来源躯干、头脸区域与小臂体积拟合。它们改变轮廓和模型构建成本，视觉及性能对照须使用同一版本、居民身份与近远景条件。
 
@@ -178,27 +178,31 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `residentContactApproach=supported-contact-v1` 标识加速下的近距离接近、结算前的搬运站位和工具朝向。`WORLD_ACCELERATED_APPROACH_PASS` 测量同一实际堆位的起步准备与峰值加速度，并检查站稳、转向和结算前的物品归属。`WORLD_STOCK_CONTACT_PASS` 同时核对仓库候选与结算后的站位，以及部分入库时的物资类型。
 
+`residentInteractionClock=bounded-observation-v1` 标识世界表现单帧的 1/24 秒上限和近景接触的逐帧更新。`WORLD_ACTOR_HITCH_PASS` 在世界行走中引入 600 毫秒长帧并核对根位置步长。`WORLD_CONTACT_CADENCE_PASS` 在真实地面堆位的结算时注入同样的长帧，验证换装跨过单手拾取、双手承载及后续放货时保留物件归属，结束后核对新衣装、原位置及模拟摘要。
+
+`residentPalmMotion=scene-frame-transport-v1` 标识拾取、递物和向场景表面放置时的掌面轨迹接续。`SCENE_PALM_CONTINUITY_PASS` 固定世界接触点，平移并转动实际角色根节点，分别记录两种成年体型左右手的第一帧偏移与回稳后的距离。
+
 `residentActionHandoff=displayed-palm-v1` 记录手部接续、库存变动后的包裹收回和双人递接的速度过渡。`OBSERVED_CARGO_STOW_PASS` 在两种成年体型的 30／60 Hz 轨迹中检查旧包裹的可见支撑与新包裹的上手顺序。`SHARED_PARCEL_PASS` 同时记录换手后一帧的物件速度变化。
 
 `residentObjectContact=confirmed-support-v1` 记录取物的等待接触、合指后固定物件，以及下放途中失准后的重新接近。`PICKUP_CONTACT_TIMING_PASS` 检查较晚到达的手掌能否握住目标、已握物件是否在接触失效后随手收回，以及不可达目标是否退出。`PLACEMENT_REALIGN_PASS` 和 `WORLD_PLACEMENT_REALIGN_PASS` 检查失准时的双手托举、实景换脚转身及重新到达原接收面。
 
 `residentContactContinuity=bounded-confirmation-v1` 记录场景在渲染帧错过 `Done` 时的近景接触收尾。`WORLD_CONTACT_BRIDGE_PASS` 在真实地图中让模拟完成取物、放货和进食，再于下一帧前指定后续动作。检查抓握、松手和嘴部接触各发生一次，逃跑或离开原格时取消尚未发生的接触，并核对表现前后的模拟摘要。
 
-`residentContactHandoff=bounded-revision-window-v1` 记录最新的已确认接触跨过短决策窗口的续播。测试让取物、放货、进食和狩猎跨过两至三次决策，验证只发生一次接触。超过窗口、逃跑或离开原格会取消旧动作。`WORLD_CONTACT_SITE_REPLACED_PASS` 验证仓库沿用原槽位后，真实库存可以接收货物，原仓库的动作无法在新建筑上续播。
+`residentContactHandoff=matching-receipt-window-v2` 记录按动作编号查找已确认接触的短时续播。`WORLD_CONTACT_BRIDGE_PASS` 让取物、放货和进食跨过两至三次决策，并在进食结算后、下一帧前再结算一次取物，检查只有已准备好的进食到达嘴边。超过窗口、逃跑或离开原格会取消旧动作。`WORLD_CONTACT_SITE_REPLACED_PASS` 检查仓库重用槽位后按建筑代次核对原接触。
 
-`residentConsumption=confirmed-mouth-contact-v1` 记录入口与模拟结算的同步。`WORLD_CONSUMPTION_COMMIT_PASS` 验证长时间准备、没有完成记录的 `Done`、逃跑时持杯收手、跳过 `Done` 的一次进食和一次饮水，以及入口后的咀嚼。场景播放期间核对模拟摘要。
+`residentConsumption=confirmed-shared-cup-v2` 记录入口与模拟结算的同步。`WORLD_CONSUMPTION_COMMIT_PASS` 验证长时间准备、没有完成记录的 `Done`、逃跑时持杯收手、跳过 `Done` 的一次进食和一次饮水，以及入口后的咀嚼。`WORLD_SHARED_CUP_PASS` 验证同一岸边连续两次饮水时持续握杯，并等各自结算才入口。场景播放期间核对模拟摘要。
 
-`pickupCarryContinuity=palm-supported-transfer-v1` 记录拾取与搬运之间的载物交接。`WORLD_PICKUP_CARRY_PASS` 在真实地面物资堆检查从抓握到同类载物托稳期间只有一个可见物件，测量拾取小件的逐帧位移并核对模拟摘要。`POSE_SCHEDULER_PASS` 验证同一猎物移动时保留动作时钟和朝向迟滞，目标代次变化后只计入新时间。
+`pickupCarryContinuity=cross-action-palm-support-v2` 记录拾取与搬运之间的载物交接。`WORLD_PICKUP_CARRY_PASS` 在真实地面物资堆让居民抓握后接到空闲及普通行走，检查从单手握持到双手托稳期间只有一个可见物件，测量逐帧位移并核对模拟摘要。`PICKUP_TO_PLACEMENT_PASS` 以 20 Hz 检查单手握住的同类物资能否接到已确认的放置。`POSE_SCHEDULER_PASS` 验证同一猎物移动时保留动作时钟和朝向迟滞，目标代次变化后只计入新时间。
 
 `caravanHandling=ledger-supported-cargo-v1` 记录商队货物与个人库存之间的动作衔接。`WORLD_CARAVAN_LOAD_PASS` 使用两个真实聚落和仓库成交，检查去程负重行走、休息时切换到同类个人载物、复程恢复商队货物、回程托运报酬和交易结束后的收手。检查同时核对收货、报酬和播放前后的模拟摘要。
 
-`residentSupportRelease=planted-departure-v1` 记录近景动作收势到迈步的衔接。`WORLD_SUPPORT_RELEASE_PASS` 在真实地图中以 60／24 Hz 切换休息或低位取物到移动，检查收势期间的根位移、朝向、脚部锚点的平移和开始迈步的时机。休息切到逃跑时可跳过等待。检查同时核对模拟摘要和未确认物件的可见性。
+`residentSupportRelease=planted-departure-v3` 记录近景动作收势到迈步的衔接。`WORLD_SUPPORT_RELEASE_PASS` 在观察和加速模式下检查收势期间的根位移、朝向、脚部锚点与首步时机。观察模式覆盖 60 Hz 的休息与 24 Hz 的低位取物。`WORLD_FOOTFALL_HANDOFF_PASS` 在两种速度下检查原地转身和到站最后一步尚未落脚时的普通移动切换，并检查紧急移动绕过等待。场景验证同时核对模拟摘要。
 
-`spearTargeting=bounded-live-contact-v1` 记录长矛对活动目标的可及范围、场景遮挡和结算约束。`WORLD_SPEAR_TARGET_PASS` 对比远处与受遮挡的攻击、同一对象移动后的瞄准、可接触的攻击和狩猎，以及同槽位更换猎物后的取消。通过实际显示的工具尖端记录接触，并核对每段播放前后的模拟摘要。
+`spearTargeting=tracked-committed-contact-v2` 记录长矛对活动目标的可及范围、场景遮挡和结算约束。`WORLD_SPEAR_TARGET_PASS` 检查小幅移动维持蓄力、突然移位重新准备时的腕部位移、远处和受遮挡的攻击、跨决策完成的攻击与狩猎，以及同槽位更换猎物后的取消。回归用实际显示的矛尖和模拟摘要核对接触。`PICKUP_CONTACT_TIMING_PASS` 还检查了取物准备中物件移位时的腕部连续性和再次伸手。
 
-`pairedInteractions=confirmed-participants-v1` 记录递物和交谈的参与者、准备与收尾规则。`WORLD_HANDOFF_PASS` 检查结算前走近、确认后出现食物、跳过 `Done` 的递接和换手后递出者退出。`WORLD_HANDOFF_RETARGET_PASS` 覆盖接收者忙碌及分享被替换时的回收。`WORLD_CONVERSATION_PASS` 检查空闲状态接续和逃跑中断。三项都核对表现前后的模拟摘要。
+`pairedInteractions=confirmed-participants-v4` 记录递物和交谈的参与者、结算位置及动作交接。`WORLD_HANDOFF_PASS`、`WORLD_HANDOFF_RETARGET_PASS` 与 `WORLD_CONVERSATION_PASS` 检查走近、等待确认、换手或接话及中断。`SHARED_PARCEL_PASS` 检查两种成人体型交换角色时的同步准备、实际支撑及中断后的收回。`WORLD_HANDOFF_CATCHUP_PASS` 与 `WORLD_CONVERSATION_CATCHUP_PASS` 跳过全部执行与完成帧，验证实际接收者、互相发起的交谈只开一轮，以及参与者移位后取消。`PLACEMENT_RETURN_PASS` 在 30 和 60 Hz 下验证主动中断和接触超时后的双手收回。场景检查核对表现前后的模拟摘要。
 
-`workContactHandoff=shared-stroke-phase-v1` 记录同一接触点的作业衔接和失效接触的取消。`CONTINUOUS_WORK_CONTACT_PASS` 在 60／24 Hz 下测试斧、镐、锤和锄的握持、站姿和挥击相位，以及替换地点、建筑代次或接触丢失后的处理。`WORLD_REPEAT_WORK_PASS` 使用模拟实际采集产生的两次结算，核对同一树干上的连续动作及表现层读取的状态摘要。
+`workContactHandoff=measured-stroke-contact-v2` 记录同地点衔接和实际击打。`CONTINUOUS_WORK_CONTACT_PASS` 在 60／24 Hz 下检查四类工具的连续挥击与目标替换。`MISSED_WORK_CONTACT_PASS` 在两种帧率下验证斧、镐和锤落空时只尝试一挥并完成收势。`TOOL_SURFACE_PASS` 与 `WORLD_COMMITTED_WORK_PASS` 对照实际刀刃、锤面或锄刃的接触计数。`WORLD_REPEAT_WORK_PASS` 使用模拟实际采集产生的两次结算，核对同一树干的动作衔接和模拟摘要。
 
 `WORLD_OUTSOLE_PASS` 在近景跟随距离测量同一条多格路线的起步加速度、承重中段每帧平面漂移、鞋底对地的最低间隙，以及摆动期离地高度。采样点来自成品鞋底轮廓，地形高度与世界角色共用。相邻帧须同处同一只脚的承重中段才计入漂移。
 
@@ -212,17 +216,17 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `bodyFrame=reference-contour-physique-v31` 标识胸廓、短上衣、实际骨盆／臀腿裤装及衣袖排除区的当前造型；`visual-body-frames` 的正／侧／背对照与 `visual-body-motion` 的动作对照使用实际居民网格。髋部截面取上衣及裤装的可见外包络，不能把衣摆宽度当作人体围度，也不是性别分类或 RSI 分数。
 
-`femaleBodyBuild=regional-builds-v2` 标识世界与居民详情使用的三种成年女性身形。`visual-female-builds` 以正交尺寸 0.87、目标 (0, 0.92, 0) 记录同一居民的正面与侧面。对照固定身高、衣装和姿态，核对胸廓宽深、腰髋几何与近远景一致性。
+`femaleBodyBuild=regional-builds-v4` 标识世界与居民详情使用的三种成年女性身形。`visual-female-builds` 以正交尺寸 0.87、目标 (0, 0.92, 0) 记录同一居民的正面与侧面。对照固定身高、衣装和姿态。`FEMALE_BUILDS_PASS` 分别读取上髋与外髋较宽处的截面，以及成衣的胸廓宽深。`FEMALE_HIP_BUILD_PASS` 另外测量成品裤装侧髋的升降、三角面方向及固定区。
 
-`femaleFlankShape=continuous-flank-v1` 标识共用的下腰、外髋与上腿形体及衣面。`FEMALE_FLANK_SUPPORT_PASS` 检查身体截面的位移、对称性、固定区及局部雅可比，`FEMALE_FLANK_TROUSER_PASS` 核对实际裤装的外髋截面和上腿过渡。服装动态对照使用 `visual-body-motion`，同时检查拾取、作业及步行中上衣与裤装的覆盖。
+`femaleFlankShape=continuous-flank-v2` 标识共用的下腰、外髋与上腿形体及衣面。`FEMALE_FLANK_SUPPORT_PASS` 检查身体截面的位移、对称性、固定区及局部雅可比，`FEMALE_FLANK_TROUSER_PASS` 核对实际裤装的外髋截面和上腿过渡。服装动态对照使用 `visual-body-motion`，同时检查拾取、作业及步行中上衣与裤装的覆盖。
 
-`femaleRibDrape=coupled-bending-v1` 标识女性前衣片的斜向约束和外侧松量。`FEMALE_RIB_DRAPE_PASS` 在每款成衣的实际前片读取 224 个双侧样本，用 5 毫米间隔测量纵向斜率随横向位置的变化。`CHEST_PANEL_PASS`、`CHEST_LATERAL_PASS` 和 `CHEST_VOLUME_PASS` 分别复核皮肤间隙、外侧宽度及纵向起伏。视觉对照使用 `visual-thorax-frames`。
+`femaleRibDrape=supported-front-yoke-v2` 和 `garmentFit=continuous-drape-v43` 标识女性胸廓支撑与领口到袖根的成衣曲面。`FEMALE_FRONT_YOKE_PASS` 在每款成衣的实际前片以 5 毫米间隔读取六条剖线，检查局部深度突变。`FEMALE_RIB_DRAPE_PASS` 检查斜侧肋缘，`CHEST_PANEL_PASS`、`CHEST_LATERAL_PASS` 和 `CHEST_VOLUME_PASS` 复核皮肤间隙、外侧宽度及纵向起伏。视觉对照使用 `visual-thorax-frames`。
 
 `femaleLowerLeg=mid-calf-boot-v1` 标识女性中筒靴、延长的裤管和小腿曲面。`FEMALE_MID_CALF_PASS` 读取实际成品截面，核对靴口高度、布料包覆及裤脚的胫骨权重。`FEMALE_BOOT_FIT_PASS` 与 `FEMALE_SHAFT_PASS` 分别校验鞋底接触和九种踝部方向下的接合。实机对照使用 `visual-body-frames` 和 `visual-body-motion`。
 
-`femaleShoulderLine=clavicular-crest-v2` 记录领口、锁骨到袖山的高度拟合。`CLAVICULAR_YOKE_PASS` 比较三款成衣的实际顶点到局部曲面的高度残差，并约束位移和领缘。`femaleCoatCollar=sewn-facing-v1` 记录随衣身蒙皮的外套低领翻边。`femaleLowerPanel=grain-fitted-waist-v1`、`garmentFit=continuous-drape-v40` 和 `femaleFrontCut=supported-closure-v1` 区分三款衣装的下肋松量、门襟与纽扣。`garmentMaterial=quiet-linen-v19` 记录纱纹和细节法线。视觉对照使用 `visual-female-shoulders`、`visual-female-wardrobe` 与 `visual-female-builds`。冷启动耗时比较须固定款式和身形缓存状态。
+`femaleShoulderLine=clavicular-crest-v2` 记录领口、锁骨到袖山的高度拟合。`CLAVICULAR_YOKE_PASS` 比较三款成衣的实际顶点到局部曲面的高度残差，并约束位移和领缘。`femaleCoatCollar=sewn-facing-v2` 记录随衣身蒙皮的领缘翻边和针脚。`NECK_FINISH_PASS` 检查成品领缘距离在近远景之间一致。`femaleLowerPanel=shaped-hem-v2` 记录按剪裁分配的腰下松量、下缘高度与翻边。`FEMALE_HEM_CUT_PASS` 比较实际前后、侧面下缘、侧缝局部抬高量及前摆弧度，`BODY_CUT_POSE_PASS` 记录吃饭、劳动和拾取时短衣与裤腰的重叠。`femaleFrontCut=supported-closure-v1` 标识门襟与纽扣，`garmentMaterial=quiet-linen-v19` 记录纱纹和细节法线。视觉对照使用 `visual-female-shoulders`、`visual-female-wardrobe` 与 `visual-female-builds`。冷启动耗时比较须固定款式和身形缓存状态。
 
-`femaleRearShoulder=supported-meridians-v1` 标识后领到肩胛的成衣剖面拟合及高举时的后片修形。`visual-female-shoulders` 以 0.52 米正交尺寸从背面及后侧记录 0°、90°、135° 三种姿态。`FEMALE_BACK_YOKE_PASS` 检查静止后衣片相对领缘的突出量。`FEMALE_OVERHEAD_YOKE_PASS` 在三款衣装上分别测量左右臂举至 135° 时，后肩区域中面夹角超过 55° 的内部边长占比。
+`femaleRearShoulder=scapular-drape-v2` 标识后领、肩胛外侧和袖根的成衣几何及对应抬臂修形。`visual-female-shoulders` 以 0.52 米正交尺寸从背面及后侧记录 0°、90°、135° 三种姿态。`FEMALE_BACK_YOKE_PASS` 检查中央后衣片相对领缘的突出量。`FEMALE_REAR_PROFILE_PASS` 读取三款成衣的实际三角面，比较肩胛外侧深度与相邻两点连线的偏差。`FEMALE_OVERHEAD_YOKE_PASS` 测量左右臂举至 135° 时，后肩区域中面夹角超过 55° 的内部边长占比。
 
 `armSwing=elliptic-countermotion-v4` 标识掌面朝内的空手基础姿态、肩肘相位、前臂轴向及独立阻尼目标。`visual-arm-swing` 使用实际网格和控制器，包含正侧面及掌腕近景；人物造型与模拟输入保持独立，图片不是医学步态、视觉真实感或 RSI 分数。
 
@@ -286,9 +290,11 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `wristContour=continuous-source-v3`、`forearmProfile=curvature-flow-v9` 与 `forearmSkin=continuous-elbow-v9` 分别标记连体腕臂曲面、来源中心线拟合与腕部渐进蒙皮。`visual-wrist-motion.json` 在冻结模拟、固定 60 Hz 下，从手背、掌侧和侧面观察屈伸、侧偏、前臂旋转和握拳。比较接缝光照时使用同一视角、同一光照及帧号。冷启动比较需固定近手网格缓存状态。
 
+`femaleForearmContour=opposed-sectional-sweep-v1` 标记女性前臂斜向截面拟合。使用 `visual-forearm-frames` 对照静立时的正侧面，使用 `visual-wrist-motion` 检查腕部转动时的过渡。`FEMALE_FOREARM_SWEEP_PASS` 记录两段截面沿横向的相对位移。
+
 `garmentFit=continuous-drape-v35`、`forearmProfile=curvature-flow-v9`、`faceContour=balanced-adult-v3`、`hairline=framed-source-root-v2` 与 `facialTiming=rested-phrase-blink-v2` 区分衣片拟合和姿态形态、女性前臂表面、成人脸部比例、额前发根和静止眼睑。视觉与效率比较须同时冻结这些标识、输入和源码。身体配方 `reference-contour-physique-v31` 的两种成人参考转移权重均为 1.0，五类身体支撑共享同一配方哈希。固定点、体积、截面与三角形检查用于几何回归。
 
-`renderQuality.femaleGroom=scalp-guided-plait-v1` 标识成年女性的编发、盘发和配套远景几何。评测头部肖像或世界人物时，固定居民身份和观察距离，再比较轮廓与渲染耗时。
+`renderQuality.femaleGroom=scalp-joined-plait-v2` 标识成年女性两款编发、低位盘发及配套远景几何。`FEMALE_GROOM_JOIN_PASS` 在每款发型的两个细节级别共测量 70 条发根射线，`FEMALE_BRAID_CLEARANCE_PASS` 检查长辫在转头和点头时与成衣的间距。`visual-female-shoulders` 的后视可观察短辫的发根。评测头部肖像或世界人物时，固定居民身份和观察距离，再比较轮廓与渲染耗时。
 
 `bodyPresentation=continuous-drape-v29` 标识成人女性前领、小腿及鞋部的运行时成品拟合。比较像素和网格构建成本时，须与 `bodyFrame=reference-contour-physique-v31`、`garmentFit=continuous-drape-v35` 及源码哈希一并冻结。
 
@@ -338,7 +344,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 自然腰线拟合使用相同来源支撑的局部截面，按三种衣装逆解并缓存腰带位置；衣料收褶、工具挂点及视觉输入随之变化。`NATURAL_WAIST_BELT_PASS` 检查成品腰带的中心和宽度，不是人体或效率评分；旧版固定腰带的回放不作为当前基线。
 
-`neckContour=relaxed-neckline-v7` 与 `garmentFit=continuous-drape-v33` 标识女性颈根、按角距圆顺的领缘、锁骨衣面和重新生成的肩袖形态。来源体型为 `reference-contour-physique-v31`。比较视觉输入与构建效率时须固定成衣标识、源码、动作、LOD 和机位。颈部间隙与颈根覆盖是几何回归条件。
+`neckContour=cervical-relief-v8` 标识成年女性下颌下方、颈侧与后颈的连续皮肤形体，以及与原有领口配合的头部挂点。近远景使用同一映射。比较视觉输入与构建效率时须固定成衣标识、源码、动作、LOD 和机位。`FEMALE_CERVICAL_RELIEF_PASS` 检查来源修形，九组头颈姿态分别测量颈部间隙与颈根覆盖。
 
 `trouserSkin=guided-knee-v1` 标识女性下装的臀腿轮廓、膝部支撑骨与配套姿态修形。源网格哈希仍对应 `reference-contour-physique-v31`。比较此版画面与耗时需要同时固定运行时蒙皮版本、近远景状态和动作。`handling-transitions` 左列镜头随实际骨盆高度收近，图像对照也须固定机位逻辑。
 

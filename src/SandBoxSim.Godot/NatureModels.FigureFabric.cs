@@ -16,32 +16,18 @@ float thread=1.0-smoothstep(.00055,.0012+aa,abs(metres-.0085));
 float stitches=mix(.68,.68+.32*cos(angle*96.0),1.0-smoothstep(.01,.04,fwidth(angle)));
 return 1.0-.13*facing-.05*fold_edge+.14*thread*stitches;
 }
-vec3 figure_colour(vec3 dye,vec2 chart,bool enabled,float torso_weight,int cut){
+vec3 figure_colour(vec3 dye,vec2 chart,bool enabled,float torso_weight,int cut,float neck_metric){
 if(!enabled)return dye;
 vec3 linen=mix(dye,vec3(.72,.69,.61),.12);
 
 float a=(-chart.x-2.0)*6.2831853;
-// A continuous fitted body with a shallow curved linen insert at the neck.
-// The old straight colour break across the upper chest read as a box edge.
-float top=1.284-.010*pow(max(0.0,-sin(a)),6.0)-.005*pow(max(0.0,sin(a)),4.0);
 float aa=max(fwidth(chart.y),.0005);
-float panel=1.0-smoothstep(top-aa,top+aa,chart.y);
 vec3 outer=mix(dye,vec3(.29,.35,.32),.06);
-float edge=1.0-smoothstep(.001,.002+aa,abs(chart.y-top));
 float princess=1.0-smoothstep(.003,.007+aa*2.0,abs(abs(cos(a))-(.58+(chart.y-1.0)*.40)));
-float stitches=princess*(1.0-smoothstep(top-.02,top,chart.y));
+float stitches=princess*smoothstep(.34,.78,neck_metric);
 stitches*=1.0-.85*smoothstep(1.04,1.09,chart.y)*(1.0-smoothstep(1.17,1.22,chart.y));
 outer*=1.0-stitches*.07;
-vec3 surface=mix(mix(linen,outer,panel),outer*1.03,edge*.12);
-// The coat's low collar is part of the sewn opening and follows its rest chart.
-if(cut==2){
-float front=max(0.0,-sin(a)),rear=max(0.0,sin(a));
-float rim=1.281-.0035*front*front+.009*rear*rear+.004*front-.005*cos(a)*cos(a)*(1.0-smoothstep(.10,.80,rear));
-float below=rim-chart.y;
-float facing=1.0-smoothstep(.008-aa,.013+aa,below);
-float folded_edge=1.0-smoothstep(.0006,.0014+aa,abs(below-.009));
-surface=mix(surface,outer*.74,facing*.72)+linen*.12*folded_edge;
-}
+vec3 surface=outer;
 // Placket lies on the skinned fabric chart, with a tapered stitched end.
 float end_height=cut==2?1.041:(cut==0?1.193:1.174);
 float lower_width=cut==2?.010:(cut==0?.0048:.006);
@@ -54,6 +40,18 @@ float band=(1.0-smoothstep(half_width-seam_aa,half_width+seam_aa,side))*length_m
 float stitch=(1.0-smoothstep(.0005,.0012+seam_aa,abs(side-half_width+.0018)))*length_mask;
 surface=mix(surface,outer*(cut==2?.82:.90),band*(cut==2?.72:.55));
 surface=mix(surface,linen*1.05,stitch*.28*(1.0-smoothstep(.001,.005,seam_aa)));
+// The edge distance is measured along the sewn mesh, including its return.
+// Both the facing and the line of stitches follow the animated opening.
+float neck=neck_metric*.028;
+float neck_aa=max(.0003,fwidth(neck));
+float facing_width=cut==2?.010:(cut==1?.007:.006);
+float facing=1.0-smoothstep(facing_width-neck_aa,facing_width+neck_aa,neck);
+float under_stitch=1.0-smoothstep(.00035,.0011+neck_aa,abs(neck-facing_width+.0014));
+float thread=1.0-smoothstep(.01,.05,fwidth(a));
+float dash=mix(.68,.68+.32*cos(a*115.0),thread);
+vec3 binding=cut==2?outer*.78:mix(outer*.93,linen,.42);
+surface=mix(surface,binding,facing);
+surface=mix(surface,linen*1.13,under_stitch*dash*.36*(1.0-smoothstep(.001,.006,neck_aa)));
 return mix(linen,surface,clamp(torso_weight,0.0,1.0));
 }
 ";
@@ -76,7 +74,7 @@ return mix(linen,surface,clamp(torso_weight,0.0,1.0));
 uniform int garment_cut=0;
 varying vec2 torso_chart;varying float torso_weight;
 void vertex(){torso_chart=vec2(-2.0-atan(VERTEX.z,VERTEX.x)/6.2831853,VERTEX.y);torso_weight=UV2.x < -1.1 ? 1.0 : 0.0;}
-void fragment(){ALBEDO=figure_colour(COLOR.rgb,torso_chart,UV.x>.5,torso_weight,garment_cut);
+void fragment(){ALBEDO=figure_colour(COLOR.rgb,torso_chart,UV.x>.5,torso_weight,garment_cut,UV.x-1.0);
 if(UV.x>.5)ALBEDO*=figure_hem_finish(UV.y,(-torso_chart.x-2.0)*6.2831853);
 ROUGHNESS=.9;SPECULAR=.16;}"};
         var material=new ShaderMaterial {Shader=_fittedDistantShader};

@@ -26,7 +26,9 @@ internal sealed partial class NatureModels
         if(build==FemaleBuild.Reference||!HasFemaleBuildOffset(point))return point;
         float x=MathF.Abs(point.X),y=point.Y,z=point.Z;
         float waist=TorsoRamp(.865f,.981f,y)*(1-TorsoRamp(1.013f,1.125f,y));
-        float hip=TorsoRamp(.62f,.765f,y)*(1-TorsoRamp(.845f,.957f,y));
+        // Vary the supporting upper and lower sections independently.
+        float upperHip=TorsoRamp(.758f,.843f,y)*(1-TorsoRamp(.879f,.961f,y));
+        float fullHip=TorsoRamp(.647f,.775f,y)*(1-TorsoRamp(.812f,.938f,y));
         float thigh=TorsoRamp(.57f,.666f,y)*(1-TorsoRamp(.715f,.80f,y));
         float back=TorsoRamp(-.024f,.060f,z);
         float ribs=TorsoRamp(1.013f,1.083f,y)*(1-TorsoRamp(1.125f,1.207f,y));
@@ -37,11 +39,18 @@ internal sealed partial class NatureModels
         // Vary the lower thorax in both planes. A straighter waist pairs
         // with broader, shallower ribs; rounded hips pair with a narrower
         // rib section and more depth toward the front. Fade below the yoke.
-        float breadth=build==FemaleBuild.StraighterWaist?.13f*waist-.032f*hip+.049f*ribs
-            :-.042f*waist+.077f*hip+.046f*thigh-.027f*ribs;
-        float depth=build==FemaleBuild.StraighterWaist?(.051f-.02f*back)*waist-.028f*back*hip-.048f*ribs*anterior
-            :-.035f*waist+(.035f+.057f*back)*hip+.023f*thigh+.046f*ribs*anterior;
-        return new(point.X*(1+breadth*influence),y,z*(1+depth*influence));
+        float breadth=build==FemaleBuild.StraighterWaist?.13f*waist+.034f*upperHip-.041f*fullHip+.049f*ribs
+            :-.033f*waist+.086f*fullHip+.042f*thigh-.027f*ribs;
+        float depth=build==FemaleBuild.StraighterWaist?(.051f-.02f*back)*waist-.028f*back*fullHip-.048f*ribs*anterior
+            :-.035f*waist+(.025f+.067f*back)*fullHip+.023f*thigh+.046f*ribs*anterior;
+        // Transport the side and rear contour together. A high hip can rise
+        // toward the iliac crest while a rounder hip falls toward the thigh.
+        // Fade across the front rise and back centre to keep the pelvis
+        // joined, and before the waist so belts retain their attachment.
+        float lateral=TorsoRamp(.059f,.127f,x)*(1-TorsoRamp(.154f,.229f,x))*(1-TorsoRamp(.055f,.106f,-z));
+        float roll=TorsoRamp(.674f,.775f,y)*(1-TorsoRamp(.825f,.933f,y));
+        float vertical=build==FemaleBuild.StraighterWaist?.012f:-.010f;
+        return new(point.X*(1+breadth*influence),y+vertical*lateral*roll*influence,z*(1+depth*influence));
     }
 
     private static (Vector3 Point,Vector3 Normal) FemaleBuildVertex(Vector3 point,Vector3 normal,FemaleBuild build,float influence)
@@ -109,7 +118,7 @@ internal sealed partial class NatureModels
             var originalArrays=source.SurfaceGetArrays(surface);
             var sleeve=useSleevePattern?originalArrays[(int)Mesh.ArrayType.TexUV2].AsVector2Array():null;
             var arrays=ShapeFemaleArrays(originalArrays,build,sleeve);
-            var poses=shapeCount==0?null:ShapeFemalePoses(source.SurfaceGetBlendShapeArrays(surface),originalArrays,arrays,build);
+            var poses=shapeCount==0?null:ShapeFemalePoses(source.SurfaceGetBlendShapeArrays(surface),originalArrays,arrays,build,sleeve);
             var lods=new Godot.Collections.Dictionary();
             for(int lod=0;lod<importer.GetSurfaceLodCount(surface);lod++)
                 lods[importer.GetSurfaceLodSize(surface,lod)]=importer.GetSurfaceLodIndices(surface,lod);
@@ -141,6 +150,8 @@ internal sealed partial class NatureModels
             float Hip(ResidentRig rig)=>ClothSectionWidth(rig.Trousers!.Mesh,.785f);
             float waistSpread=Waist(straight.DetailedBodyMesh)-Waist(rounded.DetailedBodyMesh);
             float hipSpread=Hip(rounded)-Hip(straight);
+            float upperHipSpread=ClothSectionWidth(rounded.Trousers!.Mesh,.855f)
+                -ClothSectionWidth(straight.Trousers!.Mesh,.855f);
             float RibWidth(Mesh mesh)=>ClothSectionWidth(mesh,1.105f);
             float RibDepth(Mesh mesh)
             {
@@ -154,8 +165,34 @@ internal sealed partial class NatureModels
             if(waistSpread<.025f||hipSpread<.025f
                 ||Hip(rounded)<=Hip(reference)||Waist(straight.DetailedBodyMesh)<=Waist(reference.DetailedBodyMesh))
                 throw new InvalidOperationException("Female builds lost their distinct waist and hip proportions");
+            if(!float.IsFinite(upperHipSpread)||hipSpread-upperHipSpread<.018f)
+                throw new InvalidOperationException($"Female build hip widths diverge uniformly: upper={upperHipSpread:F4}, lower={hipSpread:F4}");
             if(ribWidthSpread<.013f||!float.IsFinite(ribDepthSpread)||ribDepthSpread<.008f)
                 throw new InvalidOperationException($"Female builds lose the orthogonal rib proportions: width={ribWidthSpread:F4}, depth={ribDepthSpread:F4}");
+            var referenceArrays=reference.Trousers!.Mesh.SurfaceGetArrays(0);
+            var referenceTrousers=referenceArrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            var trouserIndices=referenceArrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+            var straightTrousers=straight.Trousers!.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            var roundedTrousers=rounded.Trousers!.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            float raised=0,lowered=0;
+            if(referenceTrousers.Length!=straightTrousers.Length||referenceTrousers.Length!=roundedTrousers.Length)
+                throw new InvalidOperationException("Female build changed trouser topology");
+            ValidateTrouserWinding(referenceTrousers,straightTrousers,trouserIndices);
+            ValidateTrouserWinding(referenceTrousers,roundedTrousers,trouserIndices);
+            for(int i=0;i<referenceTrousers.Length;i++)
+            {
+                var point=referenceTrousers[i];
+                if(point.Y>=.76f&&point.Y<=.83f&&MathF.Abs(point.X)>.11f)
+                {
+                    raised=MathF.Max(raised,straightTrousers[i].Y-point.Y);
+                    lowered=MathF.Max(lowered,point.Y-roundedTrousers[i].Y);
+                }
+                if((MathF.Abs(point.X)<=.059f||point.Y<=.674f||point.Y>=.933f)&&
+                    (straightTrousers[i].Y!=point.Y||roundedTrousers[i].Y!=point.Y))
+                    throw new InvalidOperationException("Female hip roll moves the waistband, rise or lower leg");
+            }
+            if(raised<.008f||lowered<.007f)
+                throw new InvalidOperationException($"Female build loses independent upper and lower hip contours: {raised:F4}/{lowered:F4} m");
             foreach(var rig in new[]{straight,rounded})
             {
                 if(rig.Scale!=reference.Scale||rig.Head.Position!=reference.Head.Position||rig.ShoulderRest(1)!=reference.ShoulderRest(1)
@@ -164,7 +201,7 @@ internal sealed partial class NatureModels
                     ||MathF.Sign(Waist(rig.DistantBodyMesh)-Waist(reference.DistantBodyMesh))
                         !=MathF.Sign(Waist(rig.DetailedBodyMesh)-Waist(reference.DetailedBodyMesh)))
                     throw new InvalidOperationException("Female build changed a bind or lost its silhouette during detail switching");
-                var rest=reference.Trousers.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                var rest=referenceTrousers;
                 var fitted=rig.Trousers.Mesh.SurfaceGetArrays(0)[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                 if(rest.Length!=fitted.Length)throw new InvalidOperationException("Female build changed trouser topology");
                 for(int i=0;i<rest.Length;i++)
@@ -195,7 +232,8 @@ internal sealed partial class NatureModels
                     throw new InvalidOperationException("Gameplay does not select and reuse the resident's stable build");
             }
             finally { world.Free(); }
-            GD.Print($"FEMALE_BUILDS_PASS: waist/hip spread={waistSpread*1000:F1}/{hipSpread*1000:F1} mm, rib width/depth spread={ribWidthSpread*1000:F1}/{ribDepthSpread*1000:F1} mm, minimum Jacobian={minimumJacobian:F3}; stable collar, cuff, belt and distant geometry");
+            GD.Print($"FEMALE_BUILDS_PASS: waist/upper hip/full hip spread={waistSpread*1000:F1}/{upperHipSpread*1000:F1}/{hipSpread*1000:F1} mm, rib width/depth spread={ribWidthSpread*1000:F1}/{ribDepthSpread*1000:F1} mm, minimum Jacobian={minimumJacobian:F3}; stable collar, cuff, belt and distant geometry");
+            GD.Print($"FEMALE_HIP_BUILD_PASS: actual trouser contour rises {raised*1000:F1} mm or drops {lowered*1000:F1} mm; fixed waistband and front rise");
         }
         finally { reference.Free();straight.Free();rounded.Free(); }
     }

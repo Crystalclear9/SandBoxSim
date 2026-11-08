@@ -24,6 +24,11 @@ internal sealed partial class NatureModels
                 if(FittedFigure)
                 {
                     backYoke=MathF.Max(backYoke,MeasureRearCollarProjection(p,ids));
+                    var (ridgeRms,ridgePeak)=MeasureRearShoulderRidges(p,ids);
+                    if(ridgeRms>.0015f||ridgePeak>.0040f)
+                        throw new InvalidOperationException($"Rear shoulder retains a transverse ridge: cut={_garmentCut}, RMS={ridgeRms:F5}, peak={ridgePeak:F5}");
+                    GD.Print($"FEMALE_REAR_PROFILE_PASS: cut={_garmentCut}, 112 exterior samples, RMS={ridgeRms*1000:F2} mm, peak={ridgePeak*1000:F2} mm");
+                    ValidateFemaleFrontYoke(p,ids);
                     lumbarSlope=MathF.Max(lumbarSlope,MeasureLumbarSlope(p,ids));
                     frontWaistReversal=MathF.Max(frontWaistReversal,MeasureFrontWaistReversal(p,ids));
                     foreach(float x in new[]{-.065f,-.050f,.050f,.065f})
@@ -247,15 +252,26 @@ internal sealed partial class NatureModels
         var (left,right,front,back)=HemExtents(points);
         float sideRise=MathF.Min(left,right)-MathF.Max(front,back);
         float rearDrop=front-back;
+        float sideEdge=float.PositiveInfinity,frontQuarter=float.PositiveInfinity;
+        foreach(var p in points)
+        {
+            float radius=new Vector2(p.X,p.Z).Length();
+            if(radius<.05f)continue;
+            float depth=p.Z/radius;
+            if(MathF.Abs(depth)<.055f)sideEdge=MathF.Min(sideEdge,p.Y);
+            if(depth is >-.77f and <-.64f)frontQuarter=MathF.Min(frontQuarter,p.Y);
+        }
+        float sideRelief=sideEdge-MathF.Min(left,right);
+        float frontSweep=front-frontQuarter;
         bool correct=_garmentCut switch
         {
-            0=>sideRise>=.004f&&sideRise<=.014f&&MathF.Abs(rearDrop)<.005f,
-            1=>sideRise>=.020f&&sideRise<=.036f,
-            _=>rearDrop>=.033f&&rearDrop<=.047f
+            0=>sideRise>=.018f&&sideRise<=.029f&&rearDrop>=.009f&&rearDrop<=.016f,
+            1=>sideRise>=.031f&&sideRise<=.047f&&sideRelief>=.010f&&sideRelief<=.022f,
+            _=>rearDrop>=.070f&&rearDrop<=.096f&&frontSweep>=.025f&&frontSweep<=.045f
         };
         if(!correct||MathF.Abs(left-right)>.003f)
-            throw new InvalidOperationException($"Female cut {_garmentCut} loses its authored hem profile: side={sideRise}, rear={rearDrop}");
-        GD.Print($"FEMALE_HEM_CUT_PASS: cut={_garmentCut}, actual side rise={sideRise*1000:F1} mm, rear drop={rearDrop*1000:F1} mm");
+            throw new InvalidOperationException($"Female cut {_garmentCut} loses its authored hem profile: side={sideRise}, rear={rearDrop}, side relief={sideRelief}, front sweep={frontSweep}");
+        GD.Print($"FEMALE_HEM_CUT_PASS: cut={_garmentCut}, actual side rise={sideRise*1000:F1} mm, rear drop={rearDrop*1000:F1} mm, side relief={sideRelief*1000:F1} mm, front sweep={frontSweep*1000:F1} mm");
     }
 
     private static void ValidateFemaleHemFinish(Mesh near,Mesh far)
@@ -285,6 +301,23 @@ internal sealed partial class NatureModels
         if(edge<SewnPanelColumns||shared<distances.Count)
             throw new InvalidOperationException($"Hem finish does not cover the sewn edge: {edge} edge vertices, {shared}/{distances.Count} shared positions");
         GD.Print($"FEMALE_HEM_FINISH_PASS: {edge} exact rim anchors and {shared} matching distant surface-distance coordinates");
+
+        distances.Clear();
+        edge=0;shared=0;
+        for(int i=0;i<points.Length;i++)if(colours[i].R<.999f)
+        {
+            distances[points[i]]=colours[i].R;
+            if(colours[i].R==0)edge++;
+        }
+        for(int i=0;i<farPoints.Length;i++)if(chart[i].X>.5f&&chart[i].X<1.999f)
+        {
+            if(!distances.TryGetValue(farPoints[i],out float metric)||MathF.Abs(metric-(chart[i].X-1))>.005f)
+                throw new InvalidOperationException("Distant collar finish drifts from the sewn neckline");
+            shared++;
+        }
+        if(edge!=NeckOpeningSegments||distances.Count<=3*edge||shared<distances.Count)
+            throw new InvalidOperationException($"Neckline finish loses its rim or lining: {edge} anchors, {shared}/{distances.Count} shared positions");
+        GD.Print($"NECK_FINISH_PASS: {edge} sewn rim anchors and {shared} matching distant collar coordinates");
     }
 
     private static (float Left,float Right,float Front,float Back) HemExtents(Vector3[] points)
@@ -317,6 +350,50 @@ internal sealed partial class NatureModels
             lowest=MathF.Min(lowest,Mathf.Lerp(a.Y,b.Y,(x-a.X)/(b.X-a.X)));
         }
         return lowest;
+    }
+
+    private void ValidateFemaleFrontYoke(Vector3[] points,int[] indices)
+    {
+        const float step=.005f;
+        float peak=0;
+        foreach(float x in new[]{-.060f,-.045f,-.030f,.030f,.045f,.060f})
+        {
+            float previous=GarmentDepth(points,indices,x,1.210f,false);
+            float current=GarmentDepth(points,indices,x,1.215f,false);
+            for(int row=0;row<12;row++)
+            {
+                float next=GarmentDepth(points,indices,x,1.220f+row*step,false);
+                float bend=MathF.Abs(previous-2*current+next);
+                if(!float.IsFinite(bend))throw new InvalidOperationException("Female front yoke loses a fitted meridian");
+                peak=MathF.Max(peak,bend);
+                previous=current;current=next;
+            }
+        }
+        if(peak>.0045f)
+            throw new InvalidOperationException($"Female front yoke retains an abrupt turn: cut={_garmentCut}, peak={peak*1000:F2} mm");
+        GD.Print($"FEMALE_FRONT_YOKE_PASS: cut={_garmentCut}, 72 exterior samples, maximum depth second difference={peak*1000:F2} mm");
+    }
+
+    private static (float Rms,float Peak) MeasureRearShoulderRidges(Vector3[] points,int[] indices)
+    {
+        const float step=.005f;
+        float squared=0,peak=0;
+        int count=0;
+        foreach(float side in new[]{-1f,1f})
+        for(int row=0;row<8;row++)
+        for(int column=0;column<7;column++)
+        {
+            float x=side*(.060f+column*step),y=1.225f+row*step;
+            // A broad sloped shoulder can still have a narrow raised edge.
+            // Measure departures from the chord of its adjacent samples.
+            float centre=GarmentDepth(points,indices,x,y,true);
+            float left=GarmentDepth(points,indices,x-step,y,true);
+            float right=GarmentDepth(points,indices,x+step,y,true);
+            float ridge=centre-(left+right)*.5f;
+            if(!float.IsFinite(ridge))throw new InvalidOperationException("Rear shoulder loses its exterior profile");
+            squared+=ridge*ridge;peak=MathF.Max(peak,ridge);count++;
+        }
+        return (MathF.Sqrt(squared/count),peak);
     }
 
     private static float MeasureRearCollarProjection(Vector3[] points,int[] indices)

@@ -12,6 +12,9 @@ internal partial class ResidentRig
     private readonly PalmMotion[] _palmMotion=new PalmMotion[2],_previousPalmMotion=new PalmMotion[2];
     private readonly Transform3D[] _previousHands=new Transform3D[2];
     private readonly Transform3D[] _earlierHands=new Transform3D[2];
+    private Transform3D _displayedChest=Transform3D.Identity,_earlierChest=Transform3D.Identity;
+    private int _sceneChestSamples;
+    private readonly bool[] _scenePalmVelocity=new bool[2];
     private readonly Vector3[] _previousElbows=new Vector3[2];
     private float _poseStep,_previousPoseStep;
     private readonly float[] _elbowSwivelVelocity=new float[2];
@@ -22,22 +25,39 @@ internal partial class ResidentRig
     private readonly Vector3[] _bareVelocity=new Vector3[2],_bareAngularVelocity=new Vector3[2];
     private Vector3 PalmOffset(int side)=>side==1?Grip!.Position:new(0,-.035f,-.0286f);
 
-    private void BlendBareHand(int side,PalmMotion motion,Vector3 target,Basis desired,float blend=-1,Vector3? preferredElbow=null,bool eased=false)
+    private void BlendBareHand(int side,PalmMotion motion,Vector3 target,Basis desired,float blend=-1,Vector3? preferredElbow=null,
+        bool eased=false,Transform3D? sceneChest=null)
     {
         float weight=eased?blend:ReachEase(blend<0?_bareBlend:blend);
         var rest=Arms[side].Transform*Elbows[side].Transform*Hands[side].Transform;
         var offset=PalmOffset(side);
         var previous=_previousHands[side];
-        if(_palmMotion[side]!=motion&&_previousPalmMotion[side]!=motion)
+        var origin=previous*offset;
+        bool hasFrame=sceneChest.HasValue&&_sceneChestSamples>0&&_previousPoseStep>0;
+        var toChest=hasFrame?sceneChest!.Value.AffineInverse():Transform3D.Identity;
+        var transport=hasFrame?toChest*_displayedChest:Transform3D.Identity;
+        // A scene reach starts from the last displayed palm, expressed in
+        // today's chest frame. Large root resyncs deliberately start fresh.
+        bool scene=hasFrame&&CanTransportPalm(transport);
+        if(scene)origin=transport*origin;
+        bool changedController=_palmMotion[side]!=motion&&_previousPalmMotion[side]!=motion;
+        if(changedController||_scenePalmVelocity[side]!=scene)
         {
             // Carry the last displayed palm tangent across a controller change.
             // A stored servo velocity can belong to an older task or a target
             // that the wrist limits did not actually let the hand reach.
-            var earlier=_earlierHands[side];
+            var earlier=_earlierHands[side]*offset;
+            if(scene)
+            {
+                var priorTransport=toChest*_earlierChest;
+                earlier=_sceneChestSamples==2&&CanTransportPalm(priorTransport)?priorTransport*earlier:origin;
+            }
             _bareVelocity[side]=_previousPoseStep>0
-                ?((previous*offset-earlier*offset)/_previousPoseStep).LimitLength(.9f):Vector3.Zero;
-            _bareAngularVelocity[side]=RotationVelocity(earlier.Basis,previous.Basis,_previousPoseStep).LimitLength(6);
+                ?((origin-earlier)/_previousPoseStep).LimitLength(.9f):Vector3.Zero;
+            _bareAngularVelocity[side]=RotationVelocity(_earlierHands[side].Basis,previous.Basis,_previousPoseStep).LimitLength(6);
         }
+        else if(scene)_bareVelocity[side]=transport.Basis*_bareVelocity[side];
+        _scenePalmVelocity[side]=scene;
         _palmMotion[side]=motion;
         // Plan the palm path before solving the joints. Interpolating three
         // independent joint rotations makes the hand swing around the target.
@@ -46,7 +66,7 @@ internal partial class ResidentRig
         orientation=DampRotation(priorRotation,ref _bareAngularVelocity[side],orientation,GestureRotationTime,_poseStep);
         float angle=2*MathF.Acos(Math.Clamp(MathF.Abs(priorRotation.Dot(orientation)),0,1));
         if(angle>6*_poseStep&&angle>0)orientation=priorRotation.Slerp(orientation,6*_poseStep/angle);
-        var goal=(rest*offset).Lerp(target,weight);var origin=previous*offset;
+        var goal=(rest*offset).Lerp(target,weight);
         var palm=origin;
         DampMotion(ref palm,ref _bareVelocity[side],goal,ReachFollowTime,_poseStep);
         // A smooth speed knee preserves the incoming tangent instead of
@@ -63,6 +83,8 @@ internal partial class ResidentRig
         }
         SolveBareHand(side,palm,new Basis(orientation),preferredElbow);
     }
+    private static bool CanTransportPalm(Transform3D delta)
+        =>delta.Origin.LengthSquared()<.18f*.18f&&delta.Basis.Z.Dot(Vector3.Back)>.75f;
     private readonly Vector3[,] _returnAngularVelocity=new Vector3[2,3];
     private readonly Vector3[] _returnShoulderVelocity=new Vector3[2];
     private static Vector3 RotationVelocity(Basis previous,Basis current,float dt)

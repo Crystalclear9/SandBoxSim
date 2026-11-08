@@ -30,7 +30,7 @@
 
 女性三款上衣沿实际缝合开口按固定角距取样，圆顺前领斜侧的半径突变。后领沿弧线降低，侧领到肩部的布面沿较宽的范围逐渐落下。前领定型后，再用面积加权的局部二次曲面收顺锁骨下方的窄折，固定领缘和袖口。最终网格用于生成肩袖姿态修形与远景衣面。颈根皮肤增加少量侧面体积和斜向起伏，并沿用来源颈根的衣内覆盖。`COLLAR_CLEARANCE_PASS` 将成品内缘逐点与九种转头及俯仰姿态下的颈部截面比较。后领测量从实际领缘向下取样。[锁骨肌肉附着的三维研究](https://pubmed.ncbi.nlm.nih.gov/36864447/) · [Blender Studio 衣装形体](https://studio.blender.org/training/realistic-human-research/clothing-shapes/)
 
-女性上衣在高举姿态下沿相连的布面邻域收顺袖内侧压褶，并限制肋侧衣片被带向外侧的余量。袖内侧修形以已拟合的上臂为基准，保留袖口，向臂轴方向的附加收缩上限为 2 毫米。修正烘入现有肩袖姿态，正常游玩继续混合这些姿态。抬臂图册直接指定肩肘角度，便于独立观察衣面变形。游戏里则从原始手腕目标随当前肩位重新求解，保持骨段长度和握持目标。`ARM_STUDY_ALIGNMENT_PASS` 检查定姿角度及高举时袖内侧的长翻折边，作业与抓握另外使用实际动作测试。
+女性上衣在高举姿态下沿相连的布面邻域收顺袖内侧压褶，并限制肋侧衣片被带向外侧的余量。袖内侧先以已拟合的上臂为支撑，向臂轴方向的附加收缩限于 2 毫米。随后按版型距离让下袖窿、袖根和后侧衣片在接缝两侧共同释放余量。最后一层只沿成衣法线修整，位移上限 12 毫米，向领口、肩顶和袖口衰减。修形烘入肩袖姿态，游戏内随抬臂渐变。抬臂图册直接指定肩肘角度。游戏里则从原始手腕目标随当前肩位重新求解，保持骨段长度和握持目标。`ARM_STUDY_ALIGNMENT_PASS` 检查定姿角度及高举时袖内侧的长翻折边，作业与抓握另外使用实际动作测试。[抬臂所需的袖窿松量](https://www.jstage.jst.go.jp/article/fiber/64/9/64_9_236/_article/-char/en) · [腋下插片与动作方向实验](https://doi.org/10.5805/SFTI.2019.21.4.468)
 
 ## 徒手动作与工具
 
@@ -94,7 +94,7 @@
 
 `NatureModels.Hairline.cs` 从原始发型物理拓扑提取帽体根闭环，按来源族缓存到根边的米制距离与沿边弧长。约 1.5 毫米根带形成确定性短发束切边，内部使用源 Alpha。成人女性按连通片分离旧马尾，保留贴合头皮的主体和较短发片。合并网格保留头发的第二 UV 度量。
 
-成年女性三种头部外观分别采用两种长度和走向的编发以及低位盘发。发束的起点从已拟合后头皮的三角面取样，三股发束围绕同一条曲线交叠并向发梢收细。近远景共用头皮和发束曲线，分别采样，避免缩放视角时换成不同的发型。发束随头部骨架运动。`FEMALE_GROOM_PASS` 检查三种外观的网格缓存、拓扑预算和近远景边界。参考 [Blender 的发束聚拢说明](https://docs.blender.org/manual/en/dev/modeling/geometry_nodes/hair/guides/clump_hair_curves.html)和 [Epic 的 MetaHuman 导线与编发工作流](https://dev.epicgames.com/documentation/metahuman/metahuman-groom-workspaces)。
+成年女性三种头部外观分别采用两种长度和走向的编发以及低位盘发。发根的聚拢曲面取样自发帽和下方头皮，并在三股发束散开前与它们接合。沿弧长等距采样导线，各发束的截面顺着自身方向转动。编发使用交错的上下穿插，发绳处收紧，辫尾沿后颈方向下落。近远景共用发型导线和染色，分别采样网格。发束随头部挂点运动。`FEMALE_GROOM_JOIN_PASS` 检查发根覆盖，`FEMALE_BRAID_CLEARANCE_PASS` 在九种转头和点头组合下检查长辫与衣领的间距。 [Pixar 的编发导线与交叉研究](https://graphics.pixar.com/library/Cornrows/paper.pdf) · [Disney 的头皮发束聚拢流程](https://media.disneyanimation.com/uploads/production/publication_asset/121/asset/hairPipeline.pdf)
 
 八种稳定身份包含成人与儿童两组比例缓存，儿童面中部缩短、面颊略宽，使用无胡茬皮肤图。源闭眼形变通过第二 UV 驱动原眼睑，网格合并保留并换算位移。每个居民持有独立眨眼和说话材质参数，几何缓存仍可共享；说话固定脸部连接边界和 UV 缝，仅轻微移动唇部内部。眼球始终保持原体积。虹膜、瞳孔与角膜几何围绕来源眼心一起作约 3° 的细微转动，不再只平移纹理；每个居民独立更新，暂停时眼位保持不变。
 
@@ -158,11 +158,11 @@
 
 女性设计沿用自然匀称、曲线柔和的方向。胸前采用更宽的纵向重分配，来源前向塑形为宽缓的上胸与胸下接续；腰侧适度放松，后腰与后侧骨盆分别建立连续弧线，上腿外侧接入骨盆。关节辅助点固定，统一米制映射的总位移仍限于 18 毫米；来源测试在 1,620 个三维位置检查双侧对称、正向变形及原有 Jacobian 范围，不通过放宽上限获得通过。这里的比例和系数是角色美术选择，不是女性身体或吸引力的统一标准。
 
-`femaleShoulderLine=clavicular-crest-v2` 将女性成衣领口两侧各收低最多 5 毫米。锁骨到袖山的衣片以实际缝制三角面的水平投影为支撑，拟合局部曲面高度，保留领缘与袖口的接合和较宽的肩部曲率。拟合后再生成蒙皮与抬臂修形。`femaleCoatCollar=sewn-facing-v1` 将商人外套的低领翻边织线落在共用的衣面坐标上，随衣身一起变形。`garmentMaterial=quiet-linen-v19` 使用约毫米尺度的纱纹与低对比扫描纹理。[肩部骨性标志](https://anatomy4sculptors.com/blog/shoulder-bony-landmarks/) · [Blender 写实基模与放松绑定姿态](https://studio.blender.org/training/realistic-human-research/use-of-base-meshes/) · [伦敦博物馆的工作罩衫](https://www.londonmuseum.org.uk/collections/v/object-716265/smock/)
+`femaleShoulderLine=clavicular-crest-v2` 从领缘经锁骨到袖山拟合成衣的曲面高度，使用实际缝制三角面的水平投影作支撑。拟合后再生成蒙皮与抬臂修形。`femaleCoatCollar=sewn-facing-v2` 从三款上衣的实际领缘沿网格测量包边和针脚位置。商人外套的贴边较宽，工作衫和采集短衣采用窄边。`garmentMaterial=quiet-linen-v19` 使用约毫米尺度的纱纹与低对比扫描纹理。[成衣贴边工艺](https://pubs.nmsu.edu/_c/C233/index.html) · [亚麻包边女式工作夹克藏品](https://emuseum.colonialwilliamsburg.org/objects/7862/jacket)
 
-`femaleLowerPanel=grain-fitted-waist-v1` 在同一件成衣上拟合下胸廓、侧腰和侧髋。每款首次建模时沿竖向布纹减小局部曲率，靠近腰带和下摆翻边时逐渐收紧位移范围。人体支撑与裤装的实际外包络限制内收。带下布量按各款剪裁从腰部释放，商人外套保留背面两道浅褶。缓存曲面用于成衣和腰带拟合，动作时由现有蒙皮和姿态修形驱动。[Disney 角色衣装的结构与垂坠](https://media.disneyanimation.com/technology/publications/2021/wrapped-clothing-on-disneys-raya-and-the-last-dragon.pdf)
+成年女性的下肋、侧腰和侧髋由同一件成衣连续包覆。衣片沿经向拟合，下肋外侧同时约束横向曲率。腰带、内折下缘及袖窿附近逐渐固定，胸前开合和背中线沿各自的成衣轮廓。工作衫较贴肋，采集短衣给侧肋留少量余量，商人外套有更宽缓的叠穿空间并保留背面两道浅褶。成品曲面在网格缓存阶段生成，动作由蒙皮和姿态修形驱动。[服装松量与接触区的三维扫描](https://proc.3dbody.tech/papers/2013/13323_50psikuta.pdf) · [考虑布纹方向的服装计算制版](https://arxiv.org/abs/2202.10272)
 
-女性工装与短上衣的前后下摆分别以最多 18／12 毫米圆顺，短上衣下摆最低处为 0.842 米；腰带按来源自然腰线拟合，袖口沿用原有挂点。女性裤装采用低饱和灰橄榄色 `#656356`，配合来源骨盆和腿部截面显示体积；男性裤装保持原染色。
+女性工作衫的后下缘比前片略低。采集短衣的最低处约为 0.859 米，侧髋开口高于前后中央。商人外套提高前缘，后片向下延伸。短衣的动作测试在骨盆局部坐标中比较实际下缘和裤腰，弯腰时也保留覆盖。
 
 ### 女性衣装的前片与开合
 
@@ -172,9 +172,9 @@
 
 ### 女性居民的个人身形
 
-`femaleBodyBuild=regional-builds-v2` 为成年女性居民提供三种穿衣身形。均衡轮廓使用基础版。较直腰线配合较宽、较浅的下胸廓和略收的髋部。圆润髋线增加外髋、后髋和上腿的体积，配合相对收束的腰线和较窄、较深的下胸廓。形体差异从腰部连续过渡，并在肩领下方退出。成品截面分别检查横向宽度和前后深度，腰带、背带与衣面随各身形重新贴合。[女性躯干三维扫描研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC13392141/) · [Cornell 腰髋曲线研究](https://bodyscan.human.cornell.edu/currentPrint.html)
+`femaleBodyBuild=regional-builds-v4` 为成年女性居民提供三种穿衣身形。均衡轮廓使用基础版。较直腰线配合较宽、较浅的下胸廓，侧髋与后髋的转折向上接近髂嵴。圆润髋线的转折则向下接入大腿上段，配合相对收束的腰线和较窄、较深的下胸廓。侧髋的纵向位移分别以 12 毫米上移、10 毫米下移为上限，并向腰部、前裆及下腿逐渐归零。测试从成品裤装读取位置和截面，并比较上衣的胸廓宽深。腰带、背带与衣面随各身形重新贴合。[躯干三维形态研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC8912174/) · [腰髋与大腿分区扫描](https://proc.3dbody.tech/papers/2019/19254griffin.pdf)
 
-`femaleFlankShape=continuous-flank-v1` 在三种身形共用的底模上重塑侧腰、髋外侧和大腿上段。下腰侧略填平，外髋上缘柔和地接入大腿，前后斜侧的体积同时向侧面收顺。身体截面和裤装使用同一形体场，随后用改好的裤面计算上衣下摆松量及屈髋修形。形体场保留中央腹背、裆线和靴口的支撑。设计参考髂嵴、大转子及髋外侧与大腿连续过渡的形态。[骨盆表面标志](https://anatomy4sculptors.com/blog/butt-bones-and-body-proportions/) · [髋与大腿表面结构研究](https://pubmed.ncbi.nlm.nih.gov/37220258/) · [站坐姿下的裤装与人体扫描研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC8464815/)
+`femaleFlankShape=continuous-flank-v2` 在三种身形共用的底模上重塑侧腰、髋外侧和大腿上段。上髋外缘沿侧腰收顺，后髋上段的体积向下方斜侧过渡，接近臀腿交界时仍保留圆弧。身体截面和裤装使用同一形体场，随后用改好的裤面计算上衣下摆松量及屈髋修形。形体场保留中央腹背、裆线和靴口的支撑。设计参考髂嵴、大转子及髋外侧与大腿连续过渡的形态。[骨盆表面标志](https://anatomy4sculptors.com/blog/butt-bones-and-body-proportions/) · [站坐姿下的裤装与人体扫描研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC8464815/)
 
 世界模型和居民详情使用同一个稳定居民 ID 选择身形，换职业时沿用同一身形并重新贴合对应衣装。区域形变同时应用到上衣、裤装、腰带、工具挂点和各自的姿态修形。背包与腰包按成衣表面定位。袖口、头肩骨架与膝下区域保留原有坐标，空手下垂间隙按实际裤装计算。变形网格按身形与衣装缓存，动作使用原有蒙皮流程。
 
@@ -188,7 +188,7 @@
 
 三款女性衣装的后片从肩胛外缘沿袖窿过渡到上臂。拟合时同时比较衣片的朝向、沿袖片的位置及其与身体支撑的距离，让后肩保留应有的活动余量。成品后片、袖根和抬臂形态使用同一个局部圆顺范围，领缘与远端袖口保留原位。近景法线从最终网格计算。
 
-`garmentFit=continuous-drape-v39` 的 `femaleRearShoulder=supported-meridians-v1` 从实际成衣量取 25 条后片剖线，用后领下缘和肩胛附近的切线拟合纵向过渡。向内位移最多 10 毫米，向外最多 3 毫米，修改集中在中央上背，到后领和袖根前逐渐退出。局部回退保持面朝向。成品网格上的后领相对突出量上限为 8 毫米，核对三款衣装和三条中央后片剖线。
+`femaleRearShoulder=scapular-drape-v2` 在中央上背使用 25 条成衣剖线，沿后领和肩胛附近的切线拟合纵向过渡。肩胛外侧的衣片将袖根校正逐渐分散到更宽的后肩区域，保留缝合领口。斜向曲面拟合处理肩胛转向袖根的位置，以实际三角面的投影面积控制邻域拟合，参考肩部网格限制内收，并对可能翻面的三角形回退。静止曲面用于近远景和抬臂修形。 [真实与虚拟服装的袖窿对照实验](https://kjhe.or.kr/_PR/view/?aidx=9264&bidx=696) · [多平面抬臂中的肩带运动测量](https://pmc.ncbi.nlm.nih.gov/articles/PMC2657311/)
 
 后领至肩胛的蒙皮权重按衣片网格的邻接边平滑过渡。短边两端的权重变化受到更强约束，领缘、袖根接缝和腰部保留各自的固定权重。抬臂修形从更新后的成衣网格生成，手臂越过肩高时，后片沿邻接点分散位移。成品修形及其法线在构建网格时缓存。抬臂设计参考实测肩胛上旋和后倾，以及按姿态塑造衣装的方法。 [抬臂时的锁骨和肩胛实测](https://pmc.ncbi.nlm.nih.gov/articles/PMC2657311/) · [Blender Studio 衣装姿态塑形](https://studio.blender.org/training/realistic-human-research/clothing-shapes/)
 
@@ -225,15 +225,15 @@
 
 女性折领按体型与款式分别缓存。前领开口向颈部收拢，两侧略放宽，后领放低，锁骨到肩头的鞍形过渡同时用于静止支撑面和抬臂修正。衣摆与裤腰之间使用平滑的外层包络，取裤腰顶部附近的有效截面向上渐隐，降低两层支撑交接处的硬折。[Blender Studio 衣装姿态设计](https://studio.blender.org/training/realistic-human-research/clothing-shapes/) · [TailorNet 的形体与服装版型研究](https://openaccess.thecvf.com/content_CVPR_2020/html/Patel_TailorNet_Predicting_Clothing_in_3D_as_a_Function_of_Human_CVPR_2020_paper.html)
 
-女性三款成衣的下摆使用成品外层截面拟合。拟合时剔除内侧翻边三角面，沿最低实测外层截面的切向补足采样边界。翻边的两圈顶点随后从外层下缘和上一排重新定位，分别向内收 2.8 与 3.9 毫米。近景网格重算法线，远景从同一静止衣面生成。裤装与下摆的重叠在拾取、工作和步行姿态下通过蒙皮后的表面检查。
+女性三款成衣的下摆使用成品外层截面拟合。拟合时剔除内侧翻边三角面，沿最低实测外层截面的切向补足采样边界。翻边的两圈顶点从外层下缘和上一排重新定位，分别向内收 2.0 与 3.2 毫米。近景网格重算法线，远景从同一静止衣面生成。裤装与下摆的重叠在拾取、工作和步行姿态下通过蒙皮后的表面检查。
 
-三款女性成衣各自使用下摆高度曲线。工作衫收顺侧边，下缘接近平直。采集短衣在抬高的侧髋留出活动余量，前后保留弧线。商人外套的后片更长，腰带以下的两道褶逐渐分开，在翻边前回收。形体先沿布料纵向跨过短距离的截面起伏，再叠加各剪裁的松量，并依据实际裤装包络限制内收。三款染色分别偏亚麻褐、灰绿和暖赭。 [工作短衣藏品](https://emuseum.colonialwilliamsburg.org/objects/7862/jacket) · [后片褶裥藏品](https://emuseum.colonialwilliamsburg.org/objects/503/jacket) · [服装分区松量研究](https://theses.lib.polyu.edu.hk/handle/200/2765)
+三款女性成衣各自使用下摆高度曲线。工作衫采用宽弧摆，弧线向后略放长。采集短衣的侧缝处局部抬高，向前后衣片平滑落下。商人长外衣抬起正前方的下缘，从前侧衣片过渡到长后摆。前片的浅斜褶从腰带下方向侧髋散开，后片的褶在翻边前回收。衣片依据实际裤装包络限制内收，折边和针脚重新沿成品下缘定位。三款染色分别偏亚麻褐、灰绿和暖赭。 [工作短衣藏品](https://emuseum.colonialwilliamsburg.org/objects/7862/jacket) · [收腰短外衣藏品](https://www.metmuseum.org/art/collection/search/81534) · [服装分区松量研究](https://theses.lib.polyu.edu.hk/handle/200/2765)
 
 下摆的外缘、内折和针脚共用成品网格上的沿面距离。材质从实际缝边定位针脚，近景和远景都使用相同的布面坐标。
 
-采集者与猎人的背包贴合实际后衣片，双肩带沿衣面穿过肩部，并绕回背包的上下挂点。商人的薄皮袋用两条翻折挂袢固定在左后腰。`FEMALE_CARRY_GEAR_PASS` 检查背带挂点和蒙皮，以及走路、拾取、交易、交谈和进食时手臂中线相对皮袋包围盒的净空。 [皮袋与皮质挂点藏品](https://postalmuseum.si.edu/object/npm_2004.2004.17)
+采集者与猎人的背包贴合后衣片。双肩带的两条边分别定位在成品躯干三角面上，从肩顶沿胸侧回到背包挂点。近景沿所贴三角面插值骨骼权重与肩袖修形，远景随简化衣身使用静止形状。商人的薄皮袋用两条翻折挂袢固定在左后腰。`POSED_PACK_HARNESS_PASS` 检查左右抬臂时肩顶背带内缘与衣片的接触，以及远近景绑定切换。`FEMALE_CARRY_GEAR_PASS` 另检查四个背包挂点、腰包挂袢与手臂净空。[Blender Studio 姿态修形](https://studio.blender.org/tools/addons/pose_shape_keys) · [皮袋与皮质挂点藏品](https://postalmuseum.si.edu/object/npm_2004.2004.17)
 
-女性裤装沿高度每隔 10 毫米读取实际截面。大腿外侧、内缝、膝前和膝后各自分配衣量，前裆到内缝的转折下放最多 8 毫米，靴内的裤脚与髋关节支撑继续使用对应的成品网格。裤缝以到截面中线的有符号距离定位，内外缝跟随实际腿型，针脚细节随距离平滑过渡。静止造型与弯身、行走使用同一网格，髋、膝各自响应姿态。`FEMALE_TROUSER_DRAPE_PASS` 检查成品膝前与膝侧余量、大腿横向余量、前裆曲面和固定裤脚。[女裤三维合体研究](https://journals.sagepub.com/doi/10.1177/0887302X07309479) · [站姿与坐姿下身截面研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC8464815/)
+女性裤装沿高度每隔 10 毫米读取实际截面。大腿外侧、内缝、膝前和膝后各自分配衣量。前裆保留布量，两条裤腿交汇处的短弧略微抬起。后衣片分别读取左右两条裤腿的实测深度和切向，用一条更长的纵向曲线衔接后髋和大腿上段。修形在外髋、内缝和后髋上缘前逐渐归零。三种身形从同一新衣片生成，各自保留髋部形态。暖灰麻布的侧缝从截面定位，前片搭接与压线读取静止网格的横向坐标，针脚随视距平滑过渡。弯身、行走使用从新网格生成的屈髋及屈膝修形。`FEMALE_TROUSER_REAR_PASS` 检查后衣片残差和位移上限，`FEMALE_TROUSER_DRAPE_PASS` 检查膝前与膝侧余量、大腿横向余量、前裆曲面和固定裤脚。 [女裤三维合体研究](https://journals.sagepub.com/doi/10.1177/0887302X07309479) · [站姿与坐姿下身截面研究](https://www.mdpi.com/1996-1944/14/18/5124) · [伦敦博物馆的亚麻工作裤](https://www.londonmuseum.org.uk/collections/v/object-83032/breeches/)
 
 女性后领与上背之间采用局部深度修形。肩袖拟合完成后，后片超出目标弧面的部分逐渐向内收，修形在领口和袖窿前退出。几何法线从成品网格重建，近远景使用相同的静止轮廓。后育克的弧形针脚由衣面的静止坐标驱动，随肩背弯曲。三款衣装的实际成品在背中线及左右 25 毫米的截面上检查后领下方的外突量。造型参考肩颈与肩胛之间的宽缓连接，以及服装在肩部活动时的拉伸与压缩。[肩颈表面结构](https://elsevier-elibrary.com/contents/fullcontent/58090/epubcontent_v2/OEBPS/B9780443069529000126A.htm) · [Blender Studio 衣装形体](https://studio.blender.org/training/realistic-human-research/clothing-shapes/)
 
@@ -245,11 +245,11 @@
 
 ### 头颈与身份差异
 
-`neckContour=relaxed-neckline-v5` 区分女性成人的头部挂点、颈部压缩与衣领共同拟合。头部挂点为来源坐标 1.374 米，经整体比例映射后约 1.424 米；面部主体不作纵向缩放。源颈根使用平滑过渡与节点下移量配对，头部静止挂点、表情部件和动态姿态继续共用当前节点。男性和儿童沿用各自比例。
+`neckContour=cervical-relief-v8` 对成年女性的下颌下方、前侧颈面和后颈使用一张连续皮肤网格。下颌下方逐步转入前颈，颈侧的浅弧从耳后方向朝颈根内侧收束，后颈中段略向内收。头部挂点较前版下移 2.5 毫米，皮肤下缘在来源坐标中平滑补偿节点位移。近景和远景共用同一个形体映射，由其雅可比更新法线。[颈部体表解剖](https://anatomie.lf2.cuni.cz/sites/anatomie/files/page/files/2020/head_neck_musculoskeletal_system.pdf) · [Blender Studio 颈部造型](https://studio.blender.org/training/realistic-human-research/neck-shapes/)
 
 [实际女性人物观察窗](../images/resident-female-inspector.png)与[肩颈近景](../images/resident-female-neck.png)来自当前世界中的成年居民，通过公开场景 [visual-female-portrait](../../benchmarks/scenarios/visual-female-portrait.json) 复现；选择走名录的同一入口，展示其实际身份与衣装。
 
-`CERVICAL_PRESENTATION_PASS` 测量实际网格的下颌／前领间距、颈根覆盖与头肩挂点关系；`CERVICAL_MOTION_PASS` 在九组轻微点头／转头姿态下检查下颌高于前领平面的余量。这是有限姿态的造型与连接检查，不是完整衣料碰撞验证或吸引力评分。头部来源的 Jacobian、肢长、肩袖和工具接触检查继续独立执行。结构参考 [Proko 颈部形体](https://www.proko.com/course-lesson/how-to-draw-neck-muscles-form/)与 [Blender Studio 角色造型](https://studio.blender.org/training/realistic-human-research/design-sculpting/)，用于先校正头颈肩的大比例，再处理局部细节。
+`FEMALE_CERVICAL_RELIEF_PASS` 检查来源顶点的颈侧位移、对称性、下颌与颈部下缘的固定范围。`CERVICAL_PRESENTATION_PASS` 测量成品下颌与前领的间距和头肩挂点关系。`CERVICAL_MOTION_PASS` 与 `COLLAR_CLEARANCE_PASS` 在九组点头和转头姿态中测量下颌余量、领口与皮肤间隙及接缝覆盖。
 
 成年身高变化采用整体等比缩放，头脸保留原有局部比例及小幅头宽、头高身份差异。成年来源形体之上，男性外观保留较宽的下颌、较明显的眉弓、鼻梁与颏部，女性外观保留较轻的眉弓、较饱满的眼下颊部与更垂直的前额。下颌横向局部系数分别为 +4.5%／−2.5%，颈部局部系数为 +6.5%／−3%；女性下脸段最多上移 1.5 毫米，颈部接缝保持原高度。鼻翼区域分别作最多 +2%／−2% 的局部宽度修饰，女性颊侧另有最多 0.8% 的柔和体积变化；眼球不作放大。眉弓、颏部、颊部和额头使用毫米尺度的连续场叠加，区别于整张脸统一放大或收窄。眉毛分别采用较平、较轻弧度的贴面路径。皮肤、眼口、发片和挂点共用 `HumanPoint`，法线使用同一映射的逆转置；自检在八种成人来源表面采样局部雅可比，拒绝翻折及过度拉伸。儿童不套用这些成人局部变化。
 
@@ -277,15 +277,17 @@
 
 #### 交互阶段与中断
 
-`residentContactHandoff=bounded-revision-window-v1` 在近景延续已经准备且刚结算的最后一个接触。当前动作编号最多领先三个决策，首次续播还需满足结算时效。续播前重新校验站位、可及表面以及取放物资的身份。仓库重建后即使沿用原格和槽位，也以建筑代次区分。猎物已离开场景时只使用同一猎物最后的可及瞄准点。逃跑、战斗和双人交互优先接管，超出窗口的旧动作直接退出。 [运动片段的相位与接触约束](https://pages.cs.wisc.edu/~kovar/regCurves.pdf)
+`residentContactHandoff=matching-receipt-window-v2` 按近景角色正在表演的动作编号读取结算。每个居民为物理接触和配对各保留四个编号槽位。两帧之间先完成进食、再完成取物时，已抬起的食物仍可到嘴边一次。当前动作最多领先三个决策，首次续播还需满足结算时效。续播重新校验站位、可及表面与物资身份。仓库重建后以建筑代次区分。猎物离开场景时使用同一猎物最后的可及瞄准点。逃跑、战斗和双人交互优先接管。记录随模拟恢复而清空，按居民代次校验。 [局部动作相位与多点接触](https://www.research.ed.ac.uk/en/publications/local-motion-phases-for-learning-multi-contact-character-movement/) · [人物与物件接触研究](https://www.cs.mcgill.ca/~kry/pubs/ics/ics-preprint.pdf)
 
-`residentConsumption=confirmed-mouth-contact-v1` 把进食和饮水拆成抓握、抬起准备、入口和收手。在胸前等待同一动作编号和同一格子的完成记录。饮水同时验证模拟允许的四向临水格及其可站立的实际岸线。入口后可以在下一动作接管手部时继续完成咀嚼。画面用一次接触表现一次已完成的动作，模拟仍按自己的步数扣除库存和恢复需求。 [饮水动作分段与实际接触测量](https://pmc.ncbi.nlm.nih.gov/articles/PMC1562432/)
+`residentConsumption=confirmed-shared-cup-v2` 把进食和饮水拆成抓握、抬起准备、入口和收手。饮水同时验证模拟允许的四向临水格及其可站立的实际岸线。连续两次饮水位于同一岸边接触点时，上一口已完成、杯子尚未开始松手的居民可以在两口之间继续握杯。杯子先降到胸前，下一次入口仍要等新动作编号的结算。换水源或打断尚未完成的饮水会先收杯。入口后可以在下一动作接管手部时继续咀嚼。[饮水动作分段与实际接触测量](https://pmc.ncbi.nlm.nih.gov/articles/PMC1562432/)
 
 `caravanHandling=ledger-supported-cargo-v1` 根据商队账目显示去程货物和回程报酬。报酬随队启运后才显示，商人休息时仍按个人库存选择道具。旧载物先收至腰前并释放双手，新载物等双掌托稳后才出现。职业服装在商队载物收完后再切换。搬运动作使用双手托举和负重步态，包裹代表物资类别。 [双手负重对胸廓和骨盆协同的影响](https://pubmed.ncbi.nlm.nih.gov/32932627/)
 
-`pickupCarryContinuity=palm-supported-transfer-v1` 把拾取抬手与双手搬运接起来。拾取的小件在右手里随掌面移动，左手与右手建立对同类载物的支撑后，才在同一帧切换显示为库存载物。没有同类载物、动作被打断或双手未能及时托稳时，右手保留小件并完成收手。 [场景交互中的持物接触点](https://www.ipab.inf.ed.ac.uk/cgvu/nsm.pdf)
+`pickupCarryContinuity=cross-action-palm-support-v2` 把拾取抬手与双手搬运接起来。普通行走、空闲或同类物资放置接管时，已经握住的小件仍随右手移动，直到双掌托稳同类载物才切换显示。双手接力的等待从第一次交接开始计时，后续空闲和普通移动决策沿用这个时限。换成需要空手的动作、缺少匹配物资或双手未能及时托稳时，右手保留小件并完成收手。[连续取放中的动作规划](https://pubmed.ncbi.nlm.nih.gov/20457862/) · [动作混合中的接触约束](https://research.cs.wisc.edu/graphics/Gallery/kovar.vol/RegistrationCurves/)
 
-`spearTargeting=bounded-live-contact-v1` 让长矛用场景中对方的躯干和实际站位瞄准。相同目标在可及范围内移动时延续已经蓄好的动作，结算后才进入前刺。矛尖按当前瞄准点转向，并在伸出阶段检查接触。目标离开可及距离或被遮挡时取消前刺，前刺未接触时也会及时收势。狩猎结算会记录猎物槽位和代次，使已移出画面的猎物能保留对应的最后瞄准点。接触检查采用躯干表面近似点与场景障碍，模拟伤害和狩猎收益仍按各自的范围结算。[Witkin 和 Popović 的动作重定向研究](https://publications.ri.cmu.edu/motion-warping) · [Epic 的动态目标约束](https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/MotionWarpingComponent?application_version=5.6)
+`spearTargeting=tracked-committed-contact-v2` 用对方实际站位和躯干近似表面瞄准。同一目标的瞄准点小幅移动时延续蓄力。相邻观测间瞄准点偏移超过 28 厘米或接触方向明显变化时，角色从当前姿态收势并重新瞄准。前刺仍由结算确认。已蓄力的近景攻击可以跨过短决策窗口完成一次接触，要求实际受击者仍是同一代次、可见、可及且矛路畅通。狩猎可使用同一猎物消失前最后的可及瞄准点。画面接触检查与模拟伤害和狩猎收益分别结算。[Witkin 和 Popović 的动作重定向研究](https://publications.ri.cmu.edu/motion-warping)
+
+取物准备中，已绑定物资的接触点若在相邻观测间移动超过 16 厘米，清除旧接触等待并从当前手臂姿态重新伸手。小幅移动继续跟随。已经握住的物件随手保留，并沿原有托举或回收动作离开。调度器按相同规则处理大幅取物与瞄准变化，只把新观测的时间交给新目标。[真人伸手时的目标位移修正](https://link.springer.com/article/10.1007/s00221-011-2843-4)
 
 长矛瞄准点每帧更新，动作调度按目标身份保留尚未消费的动画时间与朝向阈值。同一目标经过格线时仍沿用当前动作。更换目标、接触失效或进入新阶段时，以新状态重新计时。
 
@@ -321,9 +323,15 @@
 
 `residentContactApproach=supported-contact-v1` 让近距离的物资交互、作业和双人会合在加速模式下共用步行控制。重心先转移，再迈步接近目标。剩余距离进入刹停区间时减速，最后两次落脚可以带入一部分目标转角。砍伐、采矿与施工面向工具实际接触的树干、岩面或木桩位置。距离过大时按世界原有的远距离同步规则追上逻辑位置。[Sumo Digital 的落脚预判与地面适配](https://www.unrealengine.com/tech-blog/sumo-digital-shares-how-it-created-spyder-s-sophisticated-animation-systems) · [足点保持研究](https://pages.cs.wisc.edu/~kovar/footskateCleanup.pdf)
 
-`residentSupportRelease=planted-departure-v1` 适用于观察速度下的近景移动，以及加速时仍由步态驱动的近景交互走位。居民从休息、低位取放、作业支撑或举杯姿势起步时，先在原地收势，保留朝向。重心回到可迈步的范围后进入原有的起步换重与步态，余下的上身动作可以在第一步里收完。逃跑、攻击和追猎优先响应。 [起身与起步的重叠时序](https://www.sciencedirect.com/science/article/abs/pii/0966636295010483) · [起步前的支撑脚与重心调整](https://pmc.ncbi.nlm.nih.gov/articles/PMC5015477/)
+世界表现对单次场景观测最多推进 1/24 秒。长帧后，根位置、近景关节和物件交接只根据本次场景状态推进，模拟时钟按其独立规则运行。18 米内正在接近、接触、交接或落脚的可见居民逐帧更新，远处仍按距离降频。暂停期间不领取新的接触续播记录。可见居民更换职业时，衣装会等到当前落脚、递物或手中物件的可见收尾结束再替换。如果空闲时仍抱着个人物资，角色先把手中物件收回，再沿用原位置、朝向和行走状态换装。 [Ubisoft 动作过渡与足点约束](https://www.ubisoft.com/en-us/studio/laforge/news/6xXL85Q3bF2vEj76xmnmIu/introducing-learned-motion-matching)
 
-近景分享先按当前候选接收者走近并朝向对方。双方落脚且模拟确认同一个接收者后，交出方才托起物品。接收者掌面持续到达支撑点时，同一个物件保留运动轨迹并转到接收者手上。换手或中断后，只有持物方继续收手。接收者暂时忙碌时，仍处于短时有效期内的分享可以等对方空闲再开始。站位、目标和双方的动作编号参与校验。递物与交谈都可在紧接的空闲状态中完成已确认的表现，新的主动行为或离开原格会接管。库存和关系按模拟步结算。[双人握力与松手实验](https://pubmed.ncbi.nlm.nih.gov/33361768/) · [配对动作时序与接触约束研究](https://research.cs.wisc.edu/graphics/Gallery/kovar.vol/RegistrationCurves/)
+`residentSupportRelease=planted-departure-v3` 让近景居民从休息、低位取放、作业支撑或举杯姿势起步前先收回重心。加速时，镜头 18 米内、到目标不足 2.35 米的普通移动也使用步行控制。普通决策若在原地转身或到站的最后一步悬空时改目标，先完成已开始的落脚，随后由新目标接管平移和换重。伸手、挥工具和会合等最后一步站稳才进入接触。逃跑、攻击和追猎优先响应。[动画足底约束研究](https://pages.cs.wisc.edu/~kovar/footskateCleanup.pdf) · [步行中对落脚点变化的反应实验](https://physoc.onlinelibrary.wiley.com/doi/10.1113/JP278986)
+
+`pairedInteractions=confirmed-participants-v4` 在近景使用实际参与者、结算格和双方动作编号。一次递物或交谈完全发生在两帧之间时，仍可用新鲜结算记录开场，条件是双方仍在原格且后续变化仅限短窗口内的空闲决策。两人互相发起的同一轮交谈共用一个场景。递物双方落脚、相互朝向且确认接收者后，给物者托起物品，接收者同时向交接点准备。双方随手的前伸幅度轻微前倾并低头朝向交接点。给物者靠近后，接收掌面逐渐转为跟随物件的实际支撑点；双方连续保持接触时，接收手渐进合拢，再转移物件。收手路径从换手时的掌面位置起步，接手者开始移动时，物件随接手者一起收回。交谈在落脚和对视之后才开口，听者接话。移动离开、主动行为和遮挡仍会阻止或中断旧场景。库存和关系按模拟步结算。[双人递物中伸手速度与握力配合](https://pmc.ncbi.nlm.nih.gov/articles/PMC6267677/) · [双人递物的运动与握力实验](https://pubmed.ncbi.nlm.nih.gov/38139540/) · [双人递物的视线跟踪研究](https://pubmed.ncbi.nlm.nih.gov/40039023/) · [交谈接话时序研究](https://www.mpi.nl/publications/item66202/universals-and-cultural-variation-turn-taking-conversation)
+
+地面或仓库放置中断、超时且物件仍被双手托住时，收回从实际显示的物件姿态开始。两个掌面沿同一个刚体路径收至腰侧，腰侧根据当前库存衔接继续搬运或收纳。成功放置则由实际支撑接触触发松手。
+
+拾取、递物和放置物件的最后接触阶段，手掌的上一帧位置与速度先从上一帧胸部坐标转到当前胸部坐标，再求解肩、肘和腕。弯腰、转向与小幅移步时，手可以继续接近同一个世界接触点。放置前的下放和转身仍保持双手共同托住物件。大幅位置校正和离开视野会舍弃旧的场景轨迹历史。`SCENE_PALM_CONTINUITY_PASS` 测量角色移位后的实际掌面偏移和重新贴合距离。 [接触动画研究](https://la.disneyresearch.com/publication/contact-rich-character-animation/) · [动作惯性过渡](https://gdcvault.com/play/1025165/Inertialization)
 
 | 环节 | 当前条件与行为 |
 |---|---|
@@ -349,7 +357,7 @@
 
 砍伐和采矿在树干、岩石的渲染网格上按击打高度缓存截面，从站位方向选取可见的第一处表面。建造使用木桩正面。斧刃、镐尖和锤面的接触点与各自工具模型共用局部坐标，接近挥击末段时调整手部轨迹，低处目标会带动身体屈膝。表面变动后重新对准，超出可及范围或失去表面时，角色会收势。接触提示依据逆运动学求解后的工具端点距离和入面深度。[运动轨迹约束研究](https://homes.cs.washington.edu/~zoran/warpage/warpage.pdf) · [场景接触与角色逆运动学研究](https://stevetonneau.fr/files/publications/cg/C_G_tonneau.pdf)
 
-`workContactHandoff=shared-stroke-phase-v1` 让同一位置上的连续砍伐、采矿、敲击与耕种接续已有挥击相位。下一次作业抵达时，居民须站稳、面向目标并保持原工具握持。地面位置、接触点和朝向要吻合，建筑作业还要核对建筑代次。当前挥击的收势继续完成，下一次结算只认它自己的击打。接触消失会中止旧蓄力，目标恢复后重新准备。已确认但尚未落下的挥击遇到目标替换时取消。长矛继续通过活体对象和结算控制瞄准与刺击。[动作时序与接触约束的配准研究](https://graphics.cs.wisc.edu/Papers/2003/KG03/)
+`workContactHandoff=measured-stroke-contact-v2` 让连续砍伐、采矿、敲击与耕种在同一地点接续已有挥击相位。下一次作业需要相同的工具、接触点和朝向，建筑作业还要核对建筑代次。斧刃、镐尖和锤面进入落点附近时，允许逆运动学在最多约 0.18 秒的窗口内完成贴合。碰不到表面时继续收势，已结算动作只尝试一次。锄刃在拉土阶段沿采样土面检测接触并继续拉动。切换动作编号后，上一挥的收势可以保留，击打窗口由新一挥重新开启。目标消失或更换后取消旧挥击。长矛仍须先确认目标和结算。[真人锤击运动实验](https://pmc.ncbi.nlm.nih.gov/articles/PMC5447007/) · [连续与离散动作之间的切换研究](https://pubmed.ncbi.nlm.nih.gov/23888139/)
 
 设计参考[单手与双手抓取实验](https://pubmed.ncbi.nlm.nih.gov/9224856/)中运输与手形的协调、[联合搬举实验](https://www.nature.com/articles/s41598-019-48758-1)对伸手、接触、抓握和抬起阶段的区分，以及[行走搬运实验](https://pubmed.ncbi.nlm.nih.gov/12632239/)中的负荷与步态协调。工程上参考 [Godot 动画状态过渡](https://docs.godotengine.org/en/stable/tutorials/animation/animation_tree.html)的条件、同步与退出语义；当前仍使用程序姿态控制器，没有改成 AnimationTree 或导入实验动作数据。
 
@@ -933,7 +941,7 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 
 女性成人的衣装采用浅色内衫与低饱和绿灰外衣分片，胸前边缘以宽缓弧线连接侧片，纵向分片和细边线使用缝片静止坐标，随原有蒙皮共同运动。近景与远景共用 `figure_colour` 分片规则；远景在保留原始染色顶点颜色的同时记录衣片标记，避免距离切换丢失层次。男性与儿童保持原有材质路径。它是贴体衣料上的材质分片，没有新增独立悬浮外壳。布面仍使用已有授权亚麻贴图，女性衣装降低了纤维法线和肩袖缝线的对比。
 
-女性两款短上衣的下摆顺骨盆形成宽弧。相对基础下缘，侧缝抬高 13 毫米，前后中央分别降低 18、17 毫米，并在腰带下方渐隐。基础下缘分别位于 0.85、0.86 米。旅行长衣使用原开衩版型。来源包络在新成衣高度取样，近远景检查比较实际成品的弧度，并在动作中检查下摆对裤腰的覆盖。角色来源体型仍为 `reference-contour-physique-v31`。
+工作衫和采集短衣的基础下缘分别位于 0.850、0.875 米。工作衫保留略长的后片，短衣侧边抬高并与前后圆弧相接。旅行外套的前后落差较大。来源包络在最终成衣高度取样，近远景检查比较实际成品的弧度，并在动作中检查下摆对裤腰的覆盖。角色来源体型为 `reference-contour-physique-v31`。
 
 衣装设计参考 [FIT 的 1350–1399 服装资料](https://fashionhistory.fitnyc.edu/1350-1399/)与 [Blender Studio 身体及衣装流程](https://studio.blender.org/training/stylized-character-workflow/chapter/5d384eb4a5b8f5c2c32c8505/)，用于当前沙盒角色的原创组合，不作为特定年代服饰的复原。
 
@@ -947,7 +955,7 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 
 `CHEST_PANEL_PASS` 测量最终女性衣装在九个胸高、十五个横向位置的实际三角面；中线凹陷按同高度的身体皮肤截面约束，最多为来源凹陷加 1.5 毫米且总量不超过 5 毫米；成衣不得侵入来源皮肤超过 1 毫米采样容差，近远景前面偏差不得超过 1 毫米。检查衣料连续性与距离转换，不把形体参数解释为医学标准或审美分数。肩袖动画、固定支持、衣料体积、腰带接触与来源胸廓投影检查继续独立运行。
 
-`femaleRibDrape=coupled-bending-v1` 将胸外侧的身体支撑沿肋缘斜向分布，在胸骨、外侧连接及肩领前淡出。三款上衣在同一前衣片的实际截面上拟合布量，同时约束纵向、横向与混合弯曲。衣片靠近侧胸时逐渐收紧可用的前向布量，身体截面约束向内的位移。这样可以顺着肋缘收掉突兀的斜侧凸折，并保留胸部起伏。拟合在建立网格缓存时完成。[胸壁前表面研究](https://pubmed.ncbi.nlm.nih.gov/17589265/) · [Pixar 的布料垂坠方法](https://graphics.pixar.com/library/BlendedUVs/paper.pdf)
+`femaleRibDrape=supported-front-yoke-v2` 分别拟合上胸斜面、胸廓峰值及外侧肋缘。三款上衣以身体截面约束前衣片的内侧，以局部布量约束侧胸向前的凸出。领口到袖根的上衣片在斜向平面拟合，将局部尖折分散到较宽的曲面。领缘作为固定边界，新的成衣静止曲面用于近远景和姿态修形。 [三维躯干测量](https://pmc.ncbi.nlm.nih.gov/articles/PMC13392141/) · [人体形状、服装版型与姿态分开建模的研究](https://openaccess.thecvf.com/content_CVPR_2020/html/Patel_TailorNet_Predicting_Clothing_in_3D_as_a_Function_of_Human_CVPR_2020_paper.html)
 
 前胸设计将胸廓与局部体积共同观察，参考 [RBSM 研究对胸部与周围胸廓耦合的说明](https://rbsm.re-mic.de/explicit/)、[Blender Studio 衣装形变流程](https://studio.blender.org/training/realistic-human-research/clothing-shapes/)与 [MakeHuman 的身体／衣装辅助网格适配说明](https://www.makehumancommunity.org/assets/creatingassets/maketarget/targetsv2.html)。研究资料用于形态与流程参考；项目运行素材仍使用已有 CC0 来源，没有引入 RBSM 数据或权重。
 
@@ -957,7 +965,7 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 
 `SOFT_SHOULDER_PASS` 检查该场的左右对称、最大位移、固定边界和三轴雅可比，肩袖的 A 姿势／中性绑定、实际抬臂及布面边长检查继续独立运行。当前肩线属于角色美术设计参数，不是女性身体的统一标准。形态规划参考 [Anatomy For Sculptors 的肩部骨性标志](https://anatomy4sculptors.com/blog/shoulder-bony-landmarks/)与 [Blender Studio 的颈部及衣装形变流程](https://studio.blender.org/training/realistic-human-research/clothing-shapes/)，以锁骨、肩峰和肩胛支撑组织轮廓及动作。
 
-成人女性三款上衣使用随款式拟合的浅圆领。领口直接从成衣的 64 条开口边向内翻折，增加两圈相连的边，最内一圈下折 5.5 毫米。开口原边与两圈折边都固定到躯干，抬臂修形在这里退出。门襟和细线由近远景共用的静止衣面坐标绘制，三颗实体纽扣从最终前片三角面取样定位。包边与门襟按实际衣片构造处理。参考 [Blender Studio 服装形体](https://studio.blender.org/training/realistic-human-research/clothing-shapes/)及 [ETH Zürich GarmentCodeData](https://igl.ethz.ch/projects/GarmentCodeData/)。
+成人女性三款上衣的领缘从锁骨两侧向中前部圆顺过渡，并在喉部留出转头余量。领口直接从成衣的 64 条开口边向内翻折。两圈折边相连，内层向下收进 4.5 毫米。开口原边与两圈折边共用躯干蒙皮。近远景使用同一表面距离绘制领缘包边和缝线，门襟的实体纽扣从最终前片三角面取样定位。[成衣贴边工艺](https://pubs.nmsu.edu/_c/C233/index.html)
 
 `NECK_COVERAGE_PASS` 使用实际头部网格和完整节点变换，领口先从源坐标经过 `BodyPoint` 比例转换、再经 `FramePoint` 成衣拟合，核对中部颈部皮肤下缘在成品领口之下至少保留 1 毫米覆盖；避免降低衣领后暴露来源颈部的开放边界。衣料拟合的雅可比、领缘连接、实际抬臂及近远景检查同时保留。轮廓组织参考 [Blender Studio 整体比例与形体设计流程](https://studio.blender.org/training/realistic-human-research/design-sculpting/)，当前参数属于角色设计选择。
 
@@ -989,7 +997,7 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 
 前胸支撑以下，腹部、侧腰和后腰共用一个连续形变场。前腹在高度 0.89–0.96 米接入、1.025–1.10 米退出，回收系数由下段 4.5 毫米渐变至自然腰线附近的 1.5 毫米。侧腰每侧放松系数为 5 毫米，在 0.875–0.965 米接入、1.032–1.115 米退出。后腰支撑在 0.915–0.984 米接入、1.011–1.133 米退出，峰值系数为 12 毫米。组合位移限于 13 毫米，局部体积比保持在 0.85–1.50。修形后的完整截面重新求径向支撑，衣身、腰带和挂点使用同一映射，骨盆关节、肩部和肢体长度固定。
 
-女性圆领在原有低领基础上按短衣、工作款和长外衣分别进一步下收。头颈使用原来的骨长和连接位置。`FOLDED_NECKLINE_PASS` 检查开口只保留一圈边界以及内外折边的蒙皮一致性，`FITTED_PLACKET_PASS` 检查纽扣嵌入实际衣面；下颌余量仍通过九组实际颈根转动验证。
+女性圆领按短衣、工作款和长外衣分别调整开口弧度。`FOLDED_NECKLINE_PASS` 检查开口边界和内外折边的蒙皮一致性。`NECK_FINISH_PASS` 检查近远景领缘距离一致，`FITTED_PLACKET_PASS` 检查纽扣嵌入实际衣面。下颌余量及颈部接缝覆盖使用九组实际颈根转动验证。
 
 `continuous-drape-v31` 将女性衣装的浅色插片移至较高的弧形领根：中前边界约 1.274 米、后侧约 1.279 米。绿灰衣身连续跨过上胸至腰腹，替代胸前平直的横向色块；边界描线强度减弱，外衣染色采用较柔和的灰绿混合。近远景共用同一静止衣片函数，仍保留袖片、门襟与缝线。女性衣料纵向弯曲权重为 100，减少对胸腹转折的过度填充，同时保留原有皮肤间隙、来源松量上限和固定支持约束。
 
@@ -1021,15 +1029,17 @@ $blender = '.tools/blender-4.5.14/editor/blender-4.5.14-windows-x64/blender.exe'
 
 `forearmProfile=curvature-flow-v9` 将局部前臂表面圆顺扩展到男女两套体型，分别以体型／来源网格为缓存键；男性位移上限 0.65 毫米、女性 0.8 毫米，腕口、手掌、手指、握柄及隐藏肘口保留各自约束。体型截面拟合延续到 0.275 米隐藏肘口，在 0.275–0.290 米的网格外区域退出；原来在 0.245–0.275 米退回通用雕刻尺寸的做法会重新放大近肘肌腹。前臂静态图册重置肘腕参考后刷新皮肤，避免展示已脱离原关节姿态的旧补偿。
 
+成年女性前臂沿长轴调整横截面的斜向轮廓。近腕和靠肘的两段截面向不同方向倾斜，中间用连续曲线连接。截面变换保留拟合面积和中心，向腕口及隐藏肘口逐渐归零。近景连体皮肤与远景代理共用这段形体，近景屈肘和旋腕修形从新网格生成，法线使用几何变换的逆转置。`FEMALE_FOREARM_SWEEP_PASS` 检查两段形体的方向和固定端，腕口连续性与实际截面另外测试。 [前臂三维扫描与截面研究](https://pubmed.ncbi.nlm.nih.gov/33937344/)
+
 成人女性的宽度拟合从绑定坐标 −14 毫米的掌根开始，经 49 毫米的五次过渡接入前臂来源截面。掌侧深度保留独立的来源拟合，手指、甲面、拇指关节及握柄坐标固定。`wristContour=continuous-source-v3` 在近景连体网格的 26–109 毫米段重拟合径向轮廓，跨过掌侧与前臂侧两道来源接环。位移限于 0.85 毫米，并核对三角面朝向。法线在成品表面按 27 个轴向截面与 64 个环向采样求得，向两侧接回原皮肤法线。曲面和法线随网格缓存，蒙皮时沿用原腕部支撑。`FEMALE_WRIST_TAPER_PASS` 逐段核对两手的成品宽度和相邻截面差。[前臂截面与姿态扫描研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC8079810/) · [Blender Studio 关节姿态修形](https://studio.blender.org/blog/rig-with-shape-keys-like-never-before/)
 
 女性手掌在腕部与指根之间使用局部曲面修形。小指侧逐渐收窄，掌背靠腕的隆起平缓接入腕口。拇指根、掌心深侧的握持面、指端和甲面保留原有形体。近景蒙皮和远景手掌使用同一曲面，并在统一的手坐标下生成左右镜像。`FEMALE_PALM_PASS` 在实际近远景网格上测掌根截面，并检查指端和甲面。幅度按当前居民的手型选定。[女性手型三维扫描研究](https://www.nature.com/articles/s41598-026-43547-z) · [数字化手与前臂解剖研究](https://pmc.ncbi.nlm.nih.gov/articles/PMC6183001/)
 
 `bodyPresentation=continuous-drape-v29` 还包含男性肩袖最多 3 毫米的双向表面圆顺，以及女性腰胯到上腿最多 2 毫米的有界圆顺；后者在高度 0.58–0.64 米接入、0.80–0.87 米退出，横向 70–110 毫米之外逐步生效，保留腰口、裤裆和靴口。原有女性肩袖拟合保持独立，法线从实际成品网格更新，来源资产和许可不变。
 
-女性裤装以 `femaleTrouserFit=supported-thigh-v1` 标识。先圆顺裆缝两侧，再分别塑形前裆、上腿前片和臀下后片。前裆在中线附近增加落量，前片收顺大腿上缘的凸折，后片把臀下余量分散到大腿上段。外侧在骨盆最宽处下方逐渐收进，裤腰、内腿下段和靴口保留接合位置。修形作用于现有网格，重算局部法线并从同一静止网格生成两侧屈髋和屈膝目标。三种女性身形分别映射静止网格和姿态目标。[Blender Studio 写实角色雕塑](https://studio.blender.org/training/realistic-human-research/design-sculpting/) · [体形与姿态变形分离研究](https://graphics.stanford.edu/courses/cs468-05-fall/Papers/p408-anguelov.pdf) · [站姿与坐姿下的骨盆与皮肤表面扫描](https://pmc.ncbi.nlm.nih.gov/articles/PMC8464815/)
+女性裤装以 `femaleTrouserFit=front-panel-fall-v2` 标识。前片将前裆与上腿放在同一个局部曲面上拟合。三角面的正面投影面积决定对拟合的贡献，转向内缝的面所占权重较低。布量沿前片延伸到大腿中段，在接近膝部时收回。前裆到内缝的交汇处单独调整高度，保留两条裤腿之间的开口。屈髋时，前片的斜褶和压褶沿更宽的区域展开。三种女性身形分别映射静止网格和姿态目标。 [步行、上台阶和坐姿的下身扫描](https://kjournal.co.kr/_common/do.php?a=full&aidx=19566&b=12&bidx=1544) · [站姿与坐姿下的骨盆与皮肤表面扫描](https://pmc.ncbi.nlm.nih.gov/articles/PMC8464815/)
 
-`FEMALE_TROUSER_DRAPE_PASS` 测量成品前裆落量、上腿的宽度和前后余量，并检查靴口。`FEMALE_HIP_TRANSITION_PASS` 对照 0.69 米与 0.78 米两处成品截面的半宽。步行、作业和拾取检查沿用实际蒙皮矩阵核对裤腰、靴口、布面拉伸及左右独立屈髋。
+`FEMALE_TROUSER_DRAPE_PASS` 测量成品前裆落量、上腿的宽度和前后余量。`FEMALE_TROUSER_FALL_PASS` 检查大腿中段的前片余量和两腿交汇处的高度。`FEMALE_HIP_TRANSITION_PASS` 对照 0.69 米与 0.78 米两处成品截面的半宽。步行、作业和拾取检查用实际蒙皮矩阵核对裤腰、靴口、布面拉伸及左右独立屈髋。
 
 前屈时，左右裤片分别按大腿相对骨盆的实际角度混合预烘焙形状。前片由内向外斜落的浅褶旁有一道回收，后侧圆弧支撑延伸至外侧，减轻弯曲时臀腿连接处的折瘪。两侧共享一张连续五骨网格，中线、裤腰和靴口保留原绑定。`FEMALE_HIP_FOLD_PASS` 检查前片褶峰和回收的相反深度，`FEMALE_HIP_FLEX_PASS` 检查两条腿独立驱动、形变范围、静止边界和暂停状态。走路、施工和拾取的网格拉伸检查包含混合后的实际顶点。[Blender Studio 衣装姿态塑形](https://studio.blender.org/training/realistic-human-research/clothing-shapes/)
 

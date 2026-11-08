@@ -34,13 +34,13 @@
 
 | 内容 | 采样入口 | 配图 |
 |---|---|---|
-| 成人体型与女性衣身 | `visual-body-frames`、`visual-thorax-frames` 第 90 帧。全身图对照腰背、骨盆和上腿。女性近景从正面、三刻面与侧面对照胸廓、斜侧肋缘与腰线的过渡 | [全身三视图](resident-body-frames.png) · [女性衣身近景](resident-thorax-detail.png) |
+| 成人体型与女性衣身 | `visual-body-frames` 和 `visual-thorax-frames`。全身图对照腰背、骨盆和上腿。女性近景从正面、三刻面与侧面对照胸廓、斜侧肋缘与腰线的过渡 | [全身三视图](resident-body-frames.png) · [女性衣身近景](resident-thorax-detail.png) |
 | 女性个人身形 | `visual-female-builds` 第 90 帧。同一居民、同一身高和衣装的三种胸腰髋轮廓。正面与侧面采用同一正交尺度，画面覆盖肩部至膝部附近 | [女性身形对照](resident-female-builds.png) |
 | 女性肩背与袖根 | `visual-female-shoulders` 第 90 帧。自然垂臂、抬臂 90° 和 135° 对照领口到肩峰的轮廓与肩胛到袖根的衣面 | [女性肩背近景](resident-female-shoulders.png) |
-| 成人头脸 | `visual-faces`、`visual-face-frames` 第 90 帧 | [三种头脸](resident-face-detail.png) · [成人外观对照](resident-face-frames.png) |
-| 三种职业衣装 | `visual-wardrobe`、`visual-female-wardrobe` 第 90 帧。女性图册展示领口与袖山、低领外套的翻边，以及三个款式的门襟、腰下垂坠和下摆 | [男性成衣](wardrobe-detail.png) · [女性成衣](resident-female-wardrobe.png) |
-| 手部、前臂和腕部 | `visual-hands`、`visual-forearm-frames` 第 90 帧，`visual-wrist-motion` 第 150 帧。前臂和腕部图从手背、掌侧与侧面对照女性近腕的曲面和光照过渡 | [握持](resident-hand-detail.png) · [前臂三视图](resident-forearm-frames.png) · [手掌与腕部近景](resident-wrist-motion.png) |
-| 静立、步行与拾取 | `visual-body-motion` 第 90 帧，展示静立与屈膝时的裤管轮廓、裤脚和靴口接合，以及弯身时胸廓与骨盆的配合 | [全身姿势](resident-body-motion.png) |
+| 成人头脸与颈部 | `visual-faces` 和 `visual-face-frames` 的正面、侧面与三刻面，观察下颌下方、后颈和衣领的接合 | [三种头脸](resident-face-detail.png) · [成人外观对照](resident-face-frames.png) |
+| 三种职业衣装 | `visual-wardrobe`、`visual-female-wardrobe` 第 90 帧。女性图册从前后两侧对照工作衫的宽弧摆、采集短衣的侧摆和长外衣的前缘与后摆 | [男性成衣](wardrobe-detail.png) · [女性成衣](resident-female-wardrobe.png) |
+| 手部、前臂和腕部 | `visual-hands`、`visual-forearm-frames` 第 90 帧，`visual-wrist-motion` 第 150 帧。三视图对照两种成年角色的近肘体积、前臂斜向轮廓与腕口，腕部图展示旋转中的曲面接续 | [握持](resident-hand-detail.png) · [前臂三视图](resident-forearm-frames.png) · [手掌与腕部近景](resident-wrist-motion.png) |
+| 静立、步行与拾取 | `visual-body-motion` 第 90 帧。观察静立与屈膝时的裤管轮廓、裤脚和靴口接合，以及弯身时胸廓与骨盆的配合 | [全身姿势](resident-body-motion.png) |
 | 同速步行、搬运和持锤 | `visual-locomotion` 第 180 帧 | [步态对照](resident-style-walk.png) |
 | 交谈、递交与进食 | `visual-social` 第 150 帧 | [生活动作](resident-social.png) |
 | 同工具与不同疲劳状态 | `visual-work-effort` 第 180 帧 | [作业姿态](resident-work-effort.png) |
@@ -49,7 +49,7 @@
 | 空闲伸展、摆臂与屈肘 | `visual-captured-stretch` 第 110 帧，`visual-arm-swing` 第 150 帧，`visual-upper-arm-flex`、`visual-elbow-joint` 第 270 帧 | [伸展](resident-captured-stretch.png) · [摆臂](resident-arm-swing.png) · [上臂](resident-upper-arm-flex.png) · [肘部](resident-elbow-joint.png) |
 | 服装配件、职业动作和左右手 | 客户端预览 `--panel=equipment`、`--panel=actions`、`--panel=forearms`、`--panel=handedness` | [配件](resident-equipment.png) · [职业动作](resident-garment-actions.png) · [前臂](resident-forearm-detail.png) · [左右手](resident-handedness.png) |
 
-图册的公开评测使用零模拟人口和零模拟步进，角色由图册构建。动作画面仍按固定 60 Hz 更新。腕部与关节图用于观察局部变形，世界人物的动作和状态可在人口运行场景或正常游戏中查看。
+图册的公开评测冻结世界模拟，展示角色由图册独立构建。动作画面仍按固定 60 Hz 更新。腕部与关节图用于观察局部变形，世界人物的动作和状态可在人口运行场景或正常游戏中查看。
 
 ## 动作短片
 

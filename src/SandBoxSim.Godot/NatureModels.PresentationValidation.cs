@@ -313,7 +313,43 @@ internal sealed partial class NatureModels
         if(drinkTilt<.12f)throw new InvalidOperationException("Drinking loses the captured head tilt");
         GD.Print($"REACH_TRAJECTORY_PASS: eat/drink/social, 60/120 Hz, maximum per-frame hand/elbow step {maxHandStep:F4}/{maxElbowStep:F4} m, {contactSamples} visible rim/bite proximity samples; drinking head tilt={drinkTilt:F3} rad");
         ValidateCapturedPickup();
+        ValidateScenePalmContinuity();
     }
+
+    private void ValidateScenePalmContinuity()
+    {
+        const float dt=1f/60;
+        float largestFirstStep=0,largestRecoveredGap=0;
+        foreach(int identity in new[]{17,55})
+        for(int side=0;side<2;side++)
+        {
+            var rig=Resident(identity,false,JobType.None);
+            try
+            {
+                var target=rig.HandoffWaist(side);
+                rig.PlanHandoff(side,target,.65f,"fixed scene contact");
+                for(int i=0;i<150;i++)rig.PoseAction(dt,ActionKind.None,ActionPhase.Idle,false,0);
+                Vector3 Palm()=>rig.HandWorldPose(side)*ResidentRig.CargoPalmContact;
+                var before=Palm();
+                if(!rig.HandoffHandReady||before.DistanceTo(target)>.022f)
+                    throw new InvalidOperationException($"Fixed contact never reaches its support: {identity}/{side}");
+                rig.Position+=new Vector3(.065f,0,.018f);
+                rig.Rotation+=new Vector3(0,.10f,0);
+                var inherited=Palm().DistanceTo(before);
+                rig.PoseAction(dt,ActionKind.None,ActionPhase.Idle,false,0);
+                float firstStep=Palm().DistanceTo(before);
+                for(int i=0;i<50;i++)rig.PoseAction(dt,ActionKind.None,ActionPhase.Idle,false,0);
+                float recovered=Palm().DistanceTo(target);
+                if(inherited<.032f||firstStep>.024f||firstStep>=inherited*.70f||recovered>.022f)
+                    throw new InvalidOperationException($"A fixed scene palm inherits the moving torso: {identity}/{side}, inherited={inherited:F4}, first={firstStep:F4}, recovered={recovered:F4}");
+                largestFirstStep=MathF.Max(largestFirstStep,firstStep);
+                largestRecoveredGap=MathF.Max(largestRecoveredGap,recovered);
+            }
+            finally{rig.Free();}
+        }
+        GD.Print($"SCENE_PALM_CONTINUITY_PASS: both hands on two adult frames, maximum first step={largestFirstStep*1000:F1} mm, recovered contact gap={largestRecoveredGap*1000:F1} mm");
+    }
+
     private void ValidateCapturedPickup()
     {
         float maxSoleDrift=0,minHipTravel=float.PositiveInfinity,minSupportHand=float.PositiveInfinity;

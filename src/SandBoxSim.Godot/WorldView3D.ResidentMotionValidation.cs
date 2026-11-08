@@ -85,7 +85,8 @@ public partial class WorldView3D
             throw new InvalidOperationException("Returning merchant changes outfit before recovering its parcel");
         Play(120);SyncEntities();
         if(_people[caravan.Merchant]==rig||sim.Civilizations.Relation(1,2).Trades!=1
-            ||sim.Storage.AmountOf(buyer,ResourceKind.Food)<=0||sim.Storage.AmountOf(seller,ResourceKind.Wood)<=0)
+            ||sim.Storage.AmountOf(buyer,ResourceKind.Food)<=0||sim.Storage.AmountOf(seller,ResourceKind.Wood)<=0
+            ||agents.InventoryOf(slot,ResourceKind.Food)!=1)
             throw new InvalidOperationException("The completed caravan remains visible or lost its actual delivery");
         GD.Print("WORLD_CARAVAN_LOAD_PASS: dispatched food on actual walk, same-kind personal load during break, reserved cargo restored, paid wood on return, stow before outfit, read-only");
     }
@@ -114,18 +115,22 @@ public partial class WorldView3D
 
         float peak=0,nearestCorner=float.PositiveInfinity,stepLift=0,plantDrift=0,landingTurn=0,landingTransfer=0;
         int pivotFrames=0,preparationFrames=0;
-        float departureTransfer=0,departureRootDrift=0,departureFootDrift=0;
+        float departureTransfer=0,departureRootDrift=0,departureFootDrift=0,hitchRootStep=-1;
         bool retained=false,settledAtGoal=false;
         var previousFeet=new[]{rig.Feet[0].GlobalPosition,rig.Feet[1].GlobalPosition};
         void MoveFor(int frames)
         {
             string before=sim.StateDigestString();
+            float priorStep=0;
             for(int frame=0;frame<frames;frame++)
             {
                 var previous=rig.Position;
                 float previousYaw=rig.Rotation.Y;
-                AnimateActors(delta);
-                peak=MathF.Max(peak,Horizontal(rig.Position-previous).Length()/delta);
+                bool hitch=hitchRootStep<0&&priorStep>.012f;
+                AnimateActors(hitch?.60f:delta);
+                priorStep=Horizontal(rig.Position-previous).Length();
+                if(hitch)hitchRootStep=priorStep;
+                peak=MathF.Max(peak,priorStep/(hitch?MaximumActorObservationStep:delta));
                 nearestCorner=MathF.Min(nearestCorner,Horizontal(rig.Position-corner).Length());
                 retained|=rig.Travel.Queued;
                 if(!ScenerySegmentClear(previous,rig.Position))throw new InvalidOperationException("Resident crosses a scenery solid");
@@ -173,6 +178,9 @@ public partial class WorldView3D
         GD.Print($"ARRIVAL_TURN_PASS: {Mathf.RadToDeg(landingTurn):F1} degrees and {landingTransfer:F3} m lateral weight transfer during the two landing steps before any additional pivot and pickup");
         if(preparationFrames<6||departureTransfer<.015f||departureRootDrift>.001f||departureFootDrift>.010f)
             throw new InvalidOperationException($"Resident first step: frames={preparationFrames}, pelvis={departureTransfer}, root drift={departureRootDrift}, foot drift={departureFootDrift}");
+        if(hitchRootStep<=.001f||hitchRootStep>ResidentRig.MaximumGaitSpeed*MaximumActorObservationStep+.001f)
+            throw new InvalidOperationException($"A single stalled frame replays resident travel: root step={hitchRootStep:F4} m");
+        GD.Print($"WORLD_ACTOR_HITCH_PASS: a 600 ms render hitch moves the travelling root {hitchRootStep:F3} m on supported terrain, read-only");
         GD.Print($"RESIDENT_DEPARTURE_PASS: preparation={preparationFrames} frames, lateral pelvis transfer={departureTransfer:F3} m, root/feet drift={departureRootDrift:F4}/{departureFootDrift:F4} m before the first step");
         ValidateResidentStations(tiles.Goal,tiles.Corner,delta);
         ValidateProjectedResidentMotion(delta);
@@ -182,6 +190,7 @@ public partial class WorldView3D
         ValidateWorldToolContact(tiles.Goal,delta);
         ValidateCommittedCultivation(tiles.Goal,delta);
         ValidateSupportRelease(rig,slot,tiles.Start,tiles.Corner);
+        ValidateFootfallPreemption(rig,slot,tiles.Start,tiles.Corner,delta);
         ValidateSceneSpear();
     }
 
@@ -266,14 +275,27 @@ public partial class WorldView3D
         Play(1);
         if(!rig.GestureEngaged(ActionKind.Attack)||rig.ToolStrokePhase<.479f)
             throw new InvalidOperationException("The same moving resident resets an already loaded guard");
+        victim.Position=standing+Vector3.Back*.43f;
+        if(!TrySpearSurface(rig,rig.Position,ResidentAttackPoint(victim,rig.Position),out _))
+            throw new InvalidOperationException("Discontinuous aim fixture needs a reachable second position");
+        var wrist=rig.HandWorldPose(1).Origin;
+        Play(1);
+        float guardShiftStep=wrist.DistanceTo(rig.HandWorldPose(1).Origin);
+        if(rig.GestureEngaged(ActionKind.Attack)||guardShiftStep>.055f)
+            throw new InvalidOperationException("A displaced opponent inherits the loaded guard or snaps the wrist");
         victim.Position=standing;
+        Play(150);
+        if(!rig.GestureEngaged(ActionKind.Attack)||MathF.Abs(rig.ToolStrokePhase-.48f)>.001f)
+            throw new InvalidOperationException("Guard never reacquires the same reachable opponent");
         var middle=Horizontal((rig.Position+victim.Position)*.5f);
         var key=new Vector2I((int)MathF.Round(middle.X*.5f),(int)MathF.Round(middle.Y*.5f));
         bool hadSolid=_scenerySolids.TryGetValue(key,out var prior);
         try
         {
             _scenerySolids[key]=(middle,.10f);
-            sim.Actions.Tick(sim.Clock);Play(100);
+            sim.Actions.Tick(sim.Clock);
+            agents.SetAction(hunter,ActionKind.None,ActionPhase.Idle);
+            Play(100);
             if(rig.PresentedToolImpacts!=0)throw new InvalidOperationException("The confirmed thrust crosses an obstruction");
         }
         finally
@@ -282,9 +304,14 @@ public partial class WorldView3D
             else _scenerySolids.Remove(key);
         }
         Guard(ActionKind.Attack);
+        uint attackRevision=agents.ActionRevisionOf(hunter);
         sim.Actions.Tick(sim.Clock);
-        float attackGap=Play(115,()=>NearBodyPoint(rig.Position,
-            victim.RigWorldSpace*victim.Torso.Transform*new Vector3(0,1.09f,0),.13f*victim.Scale.X));
+        if(!sim.Actions.TryGetContactCompletion(hunter,attackRevision,out var attack)
+            ||attack.Site?.TargetIdentity!=sim.Society.Identity(opponent))
+            throw new InvalidOperationException("Attack receipt did not preserve its actual opponent");
+        agents.SetAction(hunter,ActionKind.None,ActionPhase.Idle);
+        agents.SetAction(hunter,ActionKind.None,ActionPhase.Idle);
+        float attackGap=Play(115,()=>ResidentAttackPoint(victim,rig.Position));
         if(rig.PresentedToolImpacts!=1||rig.PresentedSurfaceContacts!=1)
             throw new InvalidOperationException($"A reachable attack missed its rendered body point: strikes={rig.PresentedToolImpacts}, contacts={rig.PresentedSurfaceContacts}, nearest={attackGap:F3} m");
 
@@ -309,7 +336,7 @@ public partial class WorldView3D
         if(rig.PresentedToolImpacts!=1)
             throw new InvalidOperationException("A replaced prey inherited the prior animal's guarded contact");
         int committed=SpawnPrey();SyncEntities();Station(rig,2);Guard(ActionKind.Hunt);
-        var huntPoint=rig.PreparedHuntPoint(agents.ActionRevisionOf(hunter),PreyIdentity(committed))
+        var huntPoint=rig.PreparedSpearAim(ActionKind.Hunt,agents.ActionRevisionOf(hunter),PreyIdentity(committed))?.Point
             ??throw new InvalidOperationException("Hunt fixture has no live aim point");
         CommitHunt(committed);
         agents.SetAction(hunter,ActionKind.Wander,ActionPhase.Moving);
@@ -317,7 +344,7 @@ public partial class WorldView3D
         float huntGap=Play(115,()=>huntPoint);
         if(rig.PresentedToolImpacts!=2||rig.PresentedSurfaceContacts!=2)
             throw new InvalidOperationException($"The committed hunt loses the last actual aim: strikes={rig.PresentedToolImpacts}, contacts={rig.PresentedSurfaceContacts}, nearest={huntGap:F3} m");
-        GD.Print($"WORLD_SPEAR_TARGET_PASS: distant and occluded strikes suppressed; one contact on the resident ({attackGap:F3} m), one on the confirmed prey across skipped decisions ({huntGap:F3} m), replaced prey rejected, read-only");
+        GD.Print($"WORLD_SPEAR_TARGET_PASS: small movement keeps guard, abrupt displacement rearms with wrist step={guardShiftStep:F3} m, distant and occluded strikes suppressed; one contact on the resident ({attackGap:F3} m) and one on the prey ({huntGap:F3} m) across skipped decisions, replaced prey rejected, read-only");
     }
 
     private void ValidateSupportRelease(ResidentRig rig,int slot,Vector2I start,Vector2I destination)
@@ -327,9 +354,11 @@ public partial class WorldView3D
         var goal=PositionAt(destination.X,destination.Y);
         _target=origin;_distance=8;UpdateCamera();
         sim.GroundStocks.Deposit(start.X,start.Y,ResourceKind.Stone,2,sim.Config.GroundStocks);
-        foreach(var (outgoing,incoming,rate) in new[]{
+        var departures=Game.PacingResidents?new[]{
             (ActionKind.Sleep,ActionKind.Wander,60),(ActionKind.Take,ActionKind.Wander,24),
-            (ActionKind.Sleep,ActionKind.Flee,60)})
+            (ActionKind.Sleep,ActionKind.Flee,60)}
+            :new[]{(ActionKind.Sleep,ActionKind.Wander,60),(ActionKind.Sleep,ActionKind.Flee,60)};
+        foreach(var (outgoing,incoming,rate) in departures)
         {
             float dt=1f/rate;
             agents.SetPosition(slot,start.X,start.Y);
@@ -375,8 +404,88 @@ public partial class WorldView3D
             if(started<0||(incoming==ActionKind.Wander?(held<3||started>rate):(held!=0||started>rate/3))
                 ||footDrift>.025f||rig.ScenePickupPieceVisible||sim.StateDigestString()!=digest)
                 throw new InvalidOperationException($"Departure {outgoing} to {incoming}: held={held}, first step={started}, foot drift={footDrift:F3} m at {rate} Hz");
-            GD.Print($"WORLD_SUPPORT_RELEASE_PASS: {outgoing} to {incoming} at {rate} Hz, {held} planted release frames, {footDrift:F3} m sole drift, departure on frame {started}, read-only");
+            GD.Print($"WORLD_SUPPORT_RELEASE_PASS: {outgoing} to {incoming} at {rate} Hz, paced={Game.PacingResidents}, {held} planted release frames, {footDrift:F3} m sole drift, departure on frame {started}, read-only");
         }
+    }
+
+    private void ValidateFootfallPreemption(ResidentRig rig,int slot,Vector2I start,Vector2I destination,float delta)
+    {
+        var sim=Game.Sim;var agents=sim.Agents;
+        var origin=PositionAt(start.X,start.Y);
+        var goal=PositionAt(destination.X,destination.Y);
+        var forward=Horizontal(goal-origin);
+        _target=(origin+goal)*.5f;_distance=8;UpdateCamera();
+        void Reset()
+        {
+            agents.SetPosition(slot,start.X,start.Y);
+            agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
+            agents.ClearTarget(slot);
+            rig.Position=origin;rig.Rotation=new(0,HeadingYaw(forward),0);
+            rig.Travel=default;rig.CancelPivot();
+            for(int frame=0;frame<100;frame++)AnimateActors(delta);
+        }
+
+        void PrepareTurn()
+        {
+            Reset();
+            agents.SetAction(slot,ActionKind.Take,ActionPhase.Executing);
+            agents.SetTarget(slot,start.X,start.Y);
+            if(!sim.Actions.TryGetPickupCandidate(slot,out var source)
+                ||!TryActionContact(rig,ActionKind.Take,source,origin,out var point,out var stand))
+                throw new InvalidOperationException("Interrupted turn needs a reachable pickup");
+            rig.Position=stand;rig.Travel=default;
+            rig.Rotation=new(0,HeadingYaw(Horizontal(stand-point)),0);
+            for(int frame=0;frame<170&&!rig.PivotStepInFlight;frame++)AnimateActors(delta);
+            if(!rig.PivotStepInFlight)throw new InvalidOperationException("Interrupted turn needs a step in the air");
+            for(int frame=0;frame<5;frame++)AnimateActors(delta);
+        }
+
+        void MoveTo(Vector2I tile,ActionKind action)
+        {
+            agents.SetAction(slot,action,ActionPhase.Moving);
+            agents.SetPosition(slot,tile.X,tile.Y);
+            agents.ClearTarget(slot);
+        }
+
+        (int Hold,float Drift) CheckDeparture(bool pivot)
+        {
+            string digest=sim.StateDigestString();
+            var initial=rig.Position;
+            int hold=0;
+            float drift=0;
+            bool started=false;
+            for(int frame=0;frame<145;frame++)
+            {
+                bool airborne=pivot?rig.PivotStepInFlight:rig.ArrivalStepInFlight;
+                AnimateActors(delta);
+                float displacement=Horizontal(rig.Position-initial).Length();
+                if(airborne)
+                {
+                    hold++;
+                    drift=MathF.Max(drift,displacement);
+                }
+                if(displacement>.025f){started=true;break;}
+            }
+            if(hold<4||drift>.002f||!started||sim.StateDigestString()!=digest)
+                throw new InvalidOperationException($"Departure before footfall: pivot={pivot}, held={hold}, drift={drift:F4} m, started={started}");
+            return (hold,drift);
+        }
+
+        PrepareTurn();
+        MoveTo(destination,ActionKind.Wander);
+        var turn=CheckDeparture(pivot:true);
+        PrepareTurn();
+        MoveTo(destination,ActionKind.Flee);
+        AnimateActors(delta);
+        if(rig.PivotStepInFlight)throw new InvalidOperationException("Emergency travel waits for the previous pivot");
+
+        Reset();
+        agents.SetPosition(slot,destination.X,destination.Y);
+        for(int frame=0;frame<260&&!rig.ArrivalStepInFlight;frame++)AnimateActors(delta);
+        if(!rig.ArrivalStepInFlight)throw new InvalidOperationException("Interrupted arrival needs a final landing step");
+        MoveTo(start,ActionKind.Wander);
+        var arrival=CheckDeparture(pivot:false);
+        GD.Print($"WORLD_FOOTFALL_HANDOFF_PASS: pivot/arrival hold {turn.Hold}/{arrival.Hold} frames, root drift {turn.Drift:F4}/{arrival.Drift:F4} m, emergency bypass, read-only");
     }
 
     internal void ValidateWorldToolContact()=>ValidateWorldToolContact(FindResidentMotionCorner().Goal,1f/60);
@@ -386,7 +495,7 @@ public partial class WorldView3D
         if(Game.PacingResidents)throw new InvalidOperationException("Accelerated contact fixture requires a non-paced world");
         const float delta=1f/60;
         var sim=Game.Sim;var agents=sim.Agents;
-        var tile=FindResidentMotionCorner().Start;
+        var (tile,neighbor,_)=FindResidentMotionCorner();
         var logical=PositionAt(tile.X,tile.Y);
         if(sim.InterveneSpawnHumans(tile.X,tile.Y,1,1)!=1)throw new InvalidOperationException("Could not spawn contact fixture");
         int slot=agents.AliveSlots().Last();
@@ -466,6 +575,8 @@ public partial class WorldView3D
             ||!InteractionFacingAligned(rig.Rotation.Y,Horizontal(drop-rig.Position))||sim.StateDigestString()!=digest)
             throw new InvalidOperationException($"Accelerated deposit approach: preparation={preparing}, acceleration={peakAcceleration:F2}, stance={rig.Position.DistanceTo(dropStand):F3}");
         GD.Print($"WORLD_ACCELERATED_APPROACH_PASS: {preparing} stationary preparation frames, peak acceleration={peakAcceleration:F2} m/s², settled and facing the pile with no premature release");
+        ValidateSupportRelease(rig,slot,tile,neighbor);
+        ValidateFootfallPreemption(rig,slot,tile,neighbor,delta);
     }
 
     private void ValidateWorldToolContact(Vector2I origin,float delta)
@@ -514,7 +625,7 @@ public partial class WorldView3D
                 if(rig.ToolHeld)closest=MathF.Min(closest,rig.WorldToolTip.DistanceTo(strike.Point));
             }
             int contacts=rig.PresentedSurfaceContacts;
-            if(contacts==0||closest>.060f||sim.StateDigestString()!=committed)
+            if(contacts==0||contacts!=rig.PresentedToolImpacts||closest>.060f||sim.StateDigestString()!=committed)
                 throw new InvalidOperationException($"World axe does not touch the transformed tree: gap={closest:F3} m, contacts={contacts}, stand={rig.Position.DistanceTo(stand):F3}");
 
             int impacts=rig.PresentedToolImpacts;
@@ -600,7 +711,7 @@ public partial class WorldView3D
             if(agents.PhaseOf(slot)!=ActionPhase.Done||agents.HasTarget(slot))
                 throw new InvalidOperationException("Farm visit did not finish through the simulation");
         }
-        int initial=rig.PresentedToolImpacts;
+        int initial=rig.PresentedToolImpacts,initialContacts=rig.PresentedSurfaceContacts;
         agents.SetAction(slot,ActionKind.Farm,ActionPhase.Executing);
         agents.SetTarget(slot,tile.X,tile.Y);
         if(!sim.Actions.TryGetCultivationCandidate(slot,out var plan)||plan.BuildingGeneration!=sim.Buildings.GenerationOf(farm))
@@ -631,7 +742,8 @@ public partial class WorldView3D
             }
             if(gap<.040f)soilContact++;
         }
-        if(rig.PresentedToolImpacts!=initial+1||soilContact<5||rig.CompletionVisible||sim.StateDigestString()!=committed)
+        if(rig.PresentedToolImpacts!=initial+1||rig.PresentedSurfaceContacts!=initialContacts+1
+            ||soilContact<5||rig.CompletionVisible||sim.StateDigestString()!=committed)
             throw new InvalidOperationException($"Committed farm misses its soil stroke: impacts={rig.PresentedToolImpacts-initial}, contact frames={soilContact}, closest={closest:F3} m ({closestPose})");
 
         sim.Buildings.AddLabor(farm,sim.Config.Buildings.FarmLaborPerDayCap);
@@ -688,13 +800,16 @@ public partial class WorldView3D
             throw new InvalidOperationException("Take lost its actual resource and stock position on completion");
         string committed=sim.StateDigestString();
         float nearest=float.PositiveInfinity;
-        bool grasped=false,carrying=false;
+        bool grasped=false,carrying=false,departedPickup=false;
         int supportedLiftFrames=0,confirmationFrames=-1;
         float pickupStep=0;
         Vector3? previousPiece=null;
+        var jobBefore=agents.JobOf(slot);
+        var changedJob=jobBefore==JobType.Gatherer?JobType.Builder:JobType.Gatherer;
+        long identity=sim.Society.Identity(slot);
         for(int i=0;i<430;i++)
         {
-            AnimateActors(delta);
+            AnimateActors(i==0?.60f:delta);
             float distance=(rig.HandWorldPose(1)*rig.Grip!.Position).DistanceTo(pickup);
             nearest=Math.Min(nearest,distance);
             if(rig.ScenePickupGrasped&&!grasped&&(!rig.InteractionSettled||distance>.067f))
@@ -710,16 +825,35 @@ public partial class WorldView3D
                     supportedLiftFrames++;
                     if(previousPiece is {} previous)pickupStep=MathF.Max(pickupStep,piece.Origin.DistanceTo(previous));
                     previousPiece=piece.Origin;
+                    if(supportedLiftFrames==9)
+                    {
+                        agents.SetJob(slot,changedJob);
+                        SyncEntities();
+                        if(_people[identity]!=rig||rig.ScenePickupPiecePose!=piece)
+                            throw new InvalidOperationException("An outfit change removes a supported pickup");
+                    }
+                    if(supportedLiftFrames is 9 or 13)
+                    {
+                        agents.SetAction(slot,departedPickup?ActionKind.Wander:ActionKind.None,
+                            departedPickup?ActionPhase.Moving:ActionPhase.Idle);
+                        departedPickup=true;
+                        committed=sim.StateDigestString();
+                    }
                 }
                 else if(rig.SupportedCargo!=ResourceKind.Stone)
                     throw new InvalidOperationException("Pickup to carry switches to a different resource");
+                if(departedPickup&&rig.RecoveringPickup)
+                    throw new InvalidOperationException("A compatible successor pockets the already grasped piece");
             }
             if(rig.CargoMesh.Visible&&!grasped)throw new InvalidOperationException("New cargo appeared before the pickup hand reached the stock");
             carrying|=rig.CargoMesh.Visible;
         }
-        if(!grasped||!carrying||supportedLiftFrames<12||pickupStep>.075f||confirmationFrames>22||sim.StateDigestString()!=committed)
+        if(!grasped||!carrying||!departedPickup||supportedLiftFrames<12||pickupStep>.075f||confirmationFrames>22||sim.StateDigestString()!=committed)
             throw new InvalidOperationException($"World pickup failed: contact={nearest:F3} m, lift={supportedLiftFrames} frames, carrying={carrying}, stance={rig.Position.DistanceTo(stand):F3} m");
-        GD.Print($"WORLD_PICKUP_CARRY_PASS: {supportedLiftFrames} continuously held pickup frames, {pickupStep:F3} m maximum piece step, no blank or duplicate frame at two-hand support, read-only");
+        SyncEntities();
+        if(_people[identity]!=rig||rig.SupportedCargo!=ResourceKind.Stone)
+            throw new InvalidOperationException("An outfit change discards a parcel after the two-hand handoff");
+        GD.Print($"WORLD_PICKUP_CARRY_PASS: {supportedLiftFrames} continuously held pickup frames across a successor, {pickupStep:F3} m maximum piece step, no pocket recovery, blank or duplicate frame at two-hand support, read-only");
 
         agents.SetAction(slot,ActionKind.Deposit,ActionPhase.Executing);
         if(sim.Actions.TryGetCompletedContact(slot,out _))throw new InvalidOperationException("New action inherits an old stock site");
@@ -731,7 +865,7 @@ public partial class WorldView3D
         committed=sim.StateDigestString();
         float release=float.PositiveInfinity;
         int placementFrames=0,visiblePlacementFrames=0;
-        bool changedFacing=false;
+        bool changedFacing=false,protectedDrop=false;
         int realignmentFrames=0;
         float closestPlacement=float.PositiveInfinity;
         for(int i=0;i<360;i++)
@@ -760,12 +894,33 @@ public partial class WorldView3D
                 }
             }
             if(!rig.ReleasedCargo)continue;
+            if(!protectedDrop)
+            {
+                SyncEntities();
+                if(_people[identity]!=rig)throw new InvalidOperationException("An outfit change erases the released parcel before it settles");
+                protectedDrop=true;
+            }
             var parcel=(rig.HandWorldPose(1)*rig.CargoMesh.Transform).Origin;
             release=Math.Min(release,Horizontal(parcel-drop).Length());
         }
-        if(release>.067f||realignmentFrames<10||sim.StateDigestString()!=committed)
+        if(release>.067f||realignmentFrames<10||!protectedDrop||sim.StateDigestString()!=committed)
             throw new InvalidOperationException($"World deposit released {release:F3} m away: placement {visiblePlacementFrames}/{placementFrames} frames, closest={closestPlacement:F3} m, stance={rig.Position.DistanceTo(dropStand):F3} m");
         GD.Print($"WORLD_PLACEMENT_REALIGN_PASS: holds the stone through {realignmentFrames} planted turn frames, resumes to within {release:F3} m of its deposit point");
+
+        agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
+        for(int frame=0;frame<180&&rig.ContactPoseInFlight;frame++)AnimateActors(delta);
+        var finalRoot=rig.Transform;
+        var beforeOutfit=sim.StateDigestString();
+        SyncEntities();
+        if(_people[identity]==rig||_people[identity].Transform!=finalRoot||_personModels[identity].Job!=changedJob
+            ||sim.StateDigestString()!=beforeOutfit)
+            throw new InvalidOperationException("A completed contact never releases the deferred outfit or changes the simulation");
+        GD.Print("WORLD_CONTACT_CADENCE_PASS: a 600 ms render hitch at confirmation; pickup and carry survive an outfit change until release, read-only");
+        // The warehouse scenario below tests an ordinary inventory change,
+        // after the preceding outfit change has fully resolved.
+        agents.SetJob(slot,jobBefore);
+        SyncEntities();
+        rig=(ResidentRig)_people[identity];
 
         var warehouse=Enumerable.Range(0,sim.World.Width*sim.World.Height)
             .Select(index=>new Vector2I(index%sim.World.Width,index/sim.World.Width))
@@ -1006,6 +1161,9 @@ public partial class WorldView3D
             string digest=sim.StateDigestString();
             int grasps=0;bool grasped=false;
             bool interrupted=urgent||moved||skipped==3;
+            if(!interrupted&&TryBridgeResidentContact(rig,slot,ActionKind.Wander,ActionPhase.Moving,agents.ActionRevisionOf(slot),
+                new(tile.X,tile.Y),agents.TargetOf(slot),logical,0,0,out _,out _,out _))
+                throw new InvalidOperationException("A paused observation claims an unshown pickup");
             for(int i=0;i<160;i++)
             {
                 AnimateActors(delta);
@@ -1057,22 +1215,29 @@ public partial class WorldView3D
         }
         if(!rig.ConsumptionPrepared||!rig.Bite.Visible||sim.StateDigestString()!=beforeMeal)
             throw new InvalidOperationException($"The unconfirmed meal cannot wait with the food in hand: {gap:F3} m, {rig.Handling}");
+        uint mealRevision=agents.ActionRevisionOf(slot);
+        sim.Actions.Tick(sim.Clock);
+        sim.GroundStocks.Deposit(tile.X,tile.Y,ResourceKind.Stone,1,sim.Config.GroundStocks);
+        agents.SetAction(slot,ActionKind.Take,ActionPhase.Executing);
+        agents.SetTarget(slot,tile.X,tile.Y);
         sim.Actions.Tick(sim.Clock);
         agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
         agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
-        agents.SetAction(slot,ActionKind.None,ActionPhase.Idle);
-        if(!sim.Actions.TryGetLatestContactCompletion(slot,out var meal)||meal.Action!=ActionKind.Eat||meal.Site.HasValue)
-            throw new InvalidOperationException("The completed meal did not retain its own contact");
+        if(!sim.Actions.TryGetLatestContactCompletion(slot,out var latest)||latest.Action!=ActionKind.Take
+            ||!sim.Actions.TryGetContactCompletion(slot,mealRevision,out var meal)||meal.Action!=ActionKind.Eat||meal.Site.HasValue)
+            throw new InvalidOperationException("The committed meal must remain accessible after a newer pickup commits");
         string afterMeal=sim.StateDigestString();
         float chew=0;
         for(int i=0;i<150;i++)
         {
             AnimateActors(delta);
             if(rig.ConsumeContacts>previousContacts)chew=MathF.Max(chew,rig.ConversationMouth);
+            if(rig.ScenePickupPieceVisible||rig.ScenePickupGrasped)
+                throw new InvalidOperationException("The unobserved newer pickup cannot play in place of the prepared meal");
         }
         if(rig.ConsumeContacts!=previousContacts+1||chew<.055f||rig.Bite.Visible||sim.StateDigestString()!=afterMeal)
             throw new InvalidOperationException($"Skipped meal did not reach the mouth once and recover: contacts={rig.ConsumeContacts-previousContacts}, {rig.Handling}");
-        GD.Print("WORLD_CONTACT_BRIDGE_PASS: prepared pickup, deposit and meal survive two or three decisions once; flight, tile changes and older decisions cancel, read-only");
+        GD.Print("WORLD_CONTACT_BRIDGE_PASS: prepared pickup, deposit and meal survive two or three decisions once; newer unobserved pickup does not replace the meal; flight, tile changes and older decisions cancel, read-only");
         ValidateConfirmedDrink(rig,slot,delta);
     }
 
@@ -1117,6 +1282,34 @@ public partial class WorldView3D
             if(rig.ConsumeContacts!=contacts+(confirmed?1:0)||rig.Cup.Visible||sim.StateDigestString()!=digest)
                 throw new InvalidOperationException($"Drink confirmation or interruption failed: {rig.ConsumeContacts-contacts}, {rig.Handling}");
         }
+        void RequestDrink()
+        {
+            agents.SetNeed(slot,NeedIndex.Thirst,.20f);
+            agents.SetAction(slot,ActionKind.Drink,ActionPhase.Executing);
+        }
+        int startContacts=rig.ConsumeContacts;
+        RequestDrink();
+        for(int i=0;i<180&&!rig.ConsumptionPrepared;i++)AnimateActors(delta);
+        sim.Actions.Tick(sim.Clock);
+        for(int i=0;i<120&&rig.ConsumeContacts==startContacts;i++)AnimateActors(delta);
+        if(rig.ConsumeContacts!=startContacts+1||!rig.Cup.Visible)
+            throw new InvalidOperationException("The first of two drinks did not leave a held cup");
+        RequestDrink();
+        string between=sim.StateDigestString();
+        for(int i=0;i<95;i++)
+        {
+            AnimateActors(delta);
+            if(!rig.Cup.Visible||rig.ConsumeContacts!=startContacts+1)
+                throw new InvalidOperationException("A same-shore successor releases its cup or sips before confirmation");
+        }
+        if(!rig.ConsumptionPrepared||sim.StateDigestString()!=between)
+            throw new InvalidOperationException("A retained cup does not settle at chest height while awaiting the next confirmation");
+        sim.Actions.Tick(sim.Clock);
+        string secondSip=sim.StateDigestString();
+        for(int i=0;i<190;i++)AnimateActors(delta);
+        if(rig.ConsumeContacts!=startContacts+2||rig.Cup.Visible||sim.StateDigestString()!=secondSip)
+            throw new InvalidOperationException("The second confirmed drink must sip once and return the cup");
+        GD.Print("WORLD_SHARED_CUP_PASS: same shore, cup stays in hand over two independently confirmed sips, no early mouth contact, read-only");
         GD.Print("WORLD_CONSUMPTION_COMMIT_PASS: no unconfirmed contact, no cup from an empty receipt, interrupted cup returns, confirmed meal and drink each contact once across skipped Done, chewing survives the decision change, read-only");
     }
 
@@ -1183,17 +1376,22 @@ public partial class WorldView3D
             throw new InvalidOperationException($"Uncommitted handoff fails to approach and face the actual partner: {approach:F3} m, faced={faced}");
         uint revision=agents.ActionRevisionOf(giverSlot);
         sim.Actions.Tick(sim.Clock);
-        agents.SetAction(giverSlot,ActionKind.None,ActionPhase.Idle);
+        for(int decision=0;decision<3;decision++)
+        {
+            agents.SetAction(giverSlot,ActionKind.None,ActionPhase.Idle);
+            agents.SetAction(receiverSlot,ActionKind.None,ActionPhase.Idle);
+        }
         if(sim.Actions.TryGetPresentationPartner(giverSlot,out _)||!HasPairReceipt(giverSlot,receiverSlot,ActionKind.ShareFood,revision))
             throw new InvalidOperationException("World fixture does not have a committed food exchange across the skipped phase");
         string committed=sim.StateDigestString();
-        int parcelFrames=0;
+        int parcelFrames=0,offeringFrames=0;
         for(int i=0;i<490;i++)
         {
             AnimateActors(delta);
             if(motion?.ParcelVisible==true)
             {
                 parcelFrames++;
+                if(!motion.Transferred)offeringFrames++;
                 if(!motion.Transferred&&(!giver.InteractionSettled||!receiver.InteractionSettled))
                     throw new InvalidOperationException("Parcel appears before both world residents settle");
                 if(motion.Transferred&&(giver.HandoffReserved||motion.UsesMeeting||!receiver.HandoffReserved))
@@ -1201,9 +1399,10 @@ public partial class WorldView3D
             }
         }
         if(motion==null||!motion.Transferred||!motion.Finished||approach<.20f||parcelFrames<18
+            ||offeringFrames>40||parcelFrames-offeringFrames>50
             ||_residentHandoffs.Count!=0||sim.StateDigestString()!=committed)
-            throw new InvalidOperationException($"World handoff misses approach, transfer or one-shot cleanup: distance={approach}, frames={parcelFrames}, transferred={motion?.Transferred}");
-        GD.Print($"WORLD_HANDOFF_PASS: prepared adjacent-tile recipient, {approach:F3} m visual approach, {parcelFrames} supported frames, skipped Done, independent giver release and read-only playback");
+            throw new InvalidOperationException($"World handoff misses approach, timely transfer or one-shot cleanup: distance={approach}, frames={parcelFrames}, offer={offeringFrames}, transferred={motion?.Transferred}");
+        GD.Print($"WORLD_HANDOFF_PASS: prepared adjacent-tile recipient, {approach:F3} m visual approach, {parcelFrames} supported frames ({offeringFrames} before transfer), skipped Done, independent giver release and read-only playback");
 
         agents.SetInventory(giverSlot,ResourceKind.Food,sim.Config.Relationship.ShareFoodAmount);
         agents.SetHunger(receiverSlot,.92f);
@@ -1231,6 +1430,30 @@ public partial class WorldView3D
         if(outgoing.Transferred||!outgoing.Finished||_residentHandoffs.Count!=0||sim.StateDigestString()!=committed)
             throw new InvalidOperationException("Superseded handoff reaches the old recipient or leaves a parcel");
         GD.Print("WORLD_HANDOFF_RETARGET_PASS: occupied receiver can join after becoming free, superseded share releases that receiver and recovers its parcel");
+
+        agents.SetInventory(giverSlot,ResourceKind.Food,sim.Config.Relationship.ShareFoodAmount);
+        agents.SetHunger(receiverSlot,.92f);
+        agents.SetAction(giverSlot,ActionKind.ShareFood,ActionPhase.Executing);
+        sim.Actions.Tick(sim.Clock);
+        for(int decision=0;decision<2;decision++)
+        {
+            agents.SetAction(giverSlot,ActionKind.None,ActionPhase.Idle);
+            agents.SetAction(receiverSlot,ActionKind.None,ActionPhase.Idle);
+        }
+        committed=sim.StateDigestString();
+        ResidentHandoff? resumed=null;
+        for(int i=0;i<490;i++)
+        {
+            AnimateActors(delta);
+            if(_residentHandoffs.Count==0)continue;
+            var active=_residentHandoffs[0];
+            if(active.Receiver!=receiverId||resumed!=null&&resumed!=active.Motion)
+                throw new InvalidOperationException("Unobserved share uses another recipient or replays");
+            resumed=active.Motion;
+        }
+        if(resumed==null||!resumed.Transferred||!resumed.Finished||_residentHandoffs.Count!=0||sim.StateDigestString()!=committed)
+            throw new InvalidOperationException("Unobserved share never completes its committed handoff");
+        GD.Print("WORLD_HANDOFF_CATCHUP_PASS: no rendered executing or done frame, one handover to the committed recipient, read-only");
     }
 
     private void ValidateProjectedResidentMotion(float delta)

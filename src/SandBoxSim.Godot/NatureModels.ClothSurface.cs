@@ -41,7 +41,7 @@ float thread=dot(cx*w.x+cy*w.y+cz*w.z,vec3(.2126,.7152,.0722));
 // same colour space as texture sampling, retaining its photographed weave.
 float thread_contrast=fitted_bodice?.46:(tailored_trousers?1.0:2.0);
 float textile=clamp(1.0+(thread-.3962)*thread_contrast/.3962,fitted_bodice?.88:.65,fitted_bodice?1.10:1.25);
-ALBEDO=figure_colour(dye.rgb,UV,fitted_bodice,torso_weight,garment_cut)*.68*(textile+yarn*.018+twill*.008+slub+dye_variation);
+ALBEDO=figure_colour(dye.rgb,UV,fitted_bodice,torso_weight,garment_cut,COLOR.r)*.68*(textile+yarn*.018+twill*.008+slub+dye_variation);
 if(fitted_bodice)ALBEDO*=figure_hem_finish(COLOR.a,(-UV.x-2.0)*6.2831853);
 // On the actual sewn sleeve UV2 stores rest-space metric distances. These
 // subdued stitch lines follow skinning, rather than floating above the cloth.
@@ -81,6 +81,15 @@ ALBEDO*=1.0-line*stitch*.16*fade;
 if(tailored_trousers){
     float welt=1.0-smoothstep(.00045,.0012+aa,abs(seam_distance-.0032));
     ALBEDO*=1.0-welt*stitch*.085*fade;
+    // The sewn front lap follows the source's planar x chart (U=3*x+.5).
+    // Keep the small raised edge and its stitches in the front cloth only.
+    float rise_x=(UV.x-.5)/3.0-.016*smoothstep(.746,.801,UV2.y);
+    float rise_aa=max(fwidth(rise_x),.0001);
+    float rise_mask=smoothstep(.744,.768,UV2.y)*smoothstep(.025,.055,-UV2.x)
+        *(1.0-smoothstep(.0018,.006,rise_aa));
+    float crease=1.0-smoothstep(.0008,.0018+rise_aa,abs(rise_x));
+    float topstitch=1.0-smoothstep(.00055,.0013+rise_aa,abs(rise_x-.0038));
+    ALBEDO*=1.0+rise_mask*(topstitch*stitch*.16-crease*.12);
 }
 }
 vec3 grain=vec3(0,(nx.g*2.0-1.0)*side.x,nx.r*2.0-1.0)*w.x+vec3(ny.r*2.0-1.0,0,ny.g*2.0-1.0)*w.y+vec3(nz.r*2.0-1.0,(nz.g*2.0-1.0)*-side.z,0)*w.z;

@@ -6,13 +6,16 @@ namespace SandBoxSim.Client;
 
 internal partial class ResidentRig
 {
-    private enum ConsumeStage { Free, Reach, Lift, Use, Return }
+    private enum ConsumeStage { Free, Reach, Lift, Use, Return, BetweenSips }
 
     private ConsumeStage _consumeStage;
     private ActionKind _consumeAction;
     private uint? _consumeRevision;
+    private Vector3? _cupSource;
+    private bool _sipCompleted;
     private float _consumeReach,_consumeTime,_consumeContactTime,_consumeReturnStart;
     private const float PreparedLiftTime=.34f;
+    private const float BetweenSipsTime=.34f;
     private bool _awaitConsumptionCommit;
     private float _chewRemaining;
     private int _consumeContacts;
@@ -28,6 +31,7 @@ internal partial class ResidentRig
             =>_consumeAction==ActionKind.Drink?"持杯待饮":"持食待用",
         ConsumeStage.Lift=>_consumeAction==ActionKind.Drink?"举杯":"送到嘴边",
         ConsumeStage.Use=>_consumeAction==ActionKind.Drink?(_consumeContactTime>0?"饮水":"对准杯沿"):"进食",
+        ConsumeStage.BetweenSips=>"持杯 / 调整呼吸",
         _=>_consumeAction==ActionKind.Drink?"放低杯子 / 收手":"收手"
     };
     internal int ConsumeContacts=>_consumeContacts;
@@ -59,7 +63,21 @@ internal partial class ResidentRig
         {
             if(request==ActionKind.None)return;
             _consumeStage=ConsumeStage.Reach;_consumeAction=request;_consumeRevision=revision;
+            _cupSource=_interactionTarget.DrinkSource;
+            _sipCompleted=false;
             _consumeTime=_consumeContactTime=0;
+        }
+        // A completed sip can leave the same cup in the hand. The next
+        // revision gets a separate lowered hold and its own contact check.
+        if(request==ActionKind.Drink&&_consumeAction==request&&revision.HasValue&&revision!=_consumeRevision
+            &&_consumeStage==ConsumeStage.Return&&_sipCompleted&&_consumeContactTime==0&&Cup.Visible
+            &&_cupSource.HasValue&&_cupSource==_interactionTarget.DrinkSource)
+        {
+            _consumeStage=ConsumeStage.BetweenSips;
+            _consumeRevision=revision;
+            _consumeReturnStart=_consumeReach;
+            _consumeTime=0;
+            _sipCompleted=false;
         }
         if((request!=_consumeAction||revision!=_consumeRevision)&&_consumeStage!=ConsumeStage.Return)
         {
@@ -78,6 +96,7 @@ internal partial class ResidentRig
             ConsumeStage.Lift=>ReachEase(_consumeTime/.66f),
             ConsumeStage.Use=>1,
             ConsumeStage.Return=>_consumeReturnStart*(1-ReachEase(_consumeTime/.62f)),
+            ConsumeStage.BetweenSips=>Mathf.Lerp(_consumeReturnStart,ReachEase(PreparedLiftTime/.66f),ReachEase(_consumeTime/BetweenSipsTime)),
             _=>0
         };
         var pocket=ConsumePocket;
@@ -115,6 +134,11 @@ internal partial class ResidentRig
         {
             CurlHand(1,closed);
             float gap=(hand*propContact).DistanceTo(contact);
+            if(_consumeStage==ConsumeStage.BetweenSips&&_consumeTime>=BetweenSipsTime)
+            {
+                _consumeStage=ConsumeStage.Lift;
+                _consumeTime=PreparedLiftTime;
+            }
             if(_consumeStage==ConsumeStage.Lift&&_consumeReach>=.999f)
             {
                 _consumeStage=ConsumeStage.Use;
@@ -126,6 +150,7 @@ internal partial class ResidentRig
                 if(_consumeContactTime>=(drink?.20f:.09f))
                 {
                     _consumeContacts++;
+                    _sipCompleted=drink;
                     if(!drink){Bite.Visible=false;_chewRemaining=.62f;}
                     ReturnConsumption();
                 }

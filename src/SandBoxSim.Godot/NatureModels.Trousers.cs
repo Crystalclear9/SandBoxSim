@@ -64,18 +64,8 @@ internal sealed partial class NatureModels
             }
             ValidateTrouserWinding(rest,points,ids);
             TransportFairingNormals(rest,points,normals,ids,freedom);
-            rest=(Vector3[])points.Clone();
-            for(int i=0;i<points.Length;i++)
-            {
-                var point=rest[i];
-                float x=MathF.Abs(point.X);
-                freedom[i]=TorsoRamp(.642f,.697f,point.Y)*(1-TorsoRamp(.748f,.795f,point.Y))
-                    *TorsoRamp(.014f,.040f,x)*(1-TorsoRamp(.105f,.145f,x))*TorsoRamp(.041f,.067f,-point.Z);
-            }
-            // Fair the joins between the shaped front rise and thigh panels
-            // as one surface, before baking the pose-dependent cloth folds.
-            FairRestSurface(points,ids,freedom,.006f,roundRelief:true);
-            TransportFairingNormals(rest,points,normals,ids,freedom);
+            FitFemaleTrouserFront(points,normals,ids);
+            FitFemaleTrouserRear(points,normals,ids);
             FitFemaleTrouserShins(points,normals,coords,ids,b,w);
         }
         var arrays=new Godot.Collections.Array();arrays.Resize((int)Mesh.ArrayType.Max);
@@ -93,7 +83,7 @@ internal sealed partial class NatureModels
         }
         arrays[(int)Mesh.ArrayType.Vertex]=points;arrays[(int)Mesh.ArrayType.Normal]=normals;arrays[(int)Mesh.ArrayType.TexUV]=coords;arrays[(int)Mesh.ArrayType.TexUV2]=seam;
         arrays[(int)Mesh.ArrayType.Index]=ids;
-        var material=(ShaderMaterial)Fabric(BodyFrame==1?"#656356":"#645e53");
+        var material=(ShaderMaterial)Fabric(BodyFrame==1?"#736e5e":"#645e53");
         material.SetShaderParameter("trouser_details",true);
         material.SetShaderParameter("tailored_trousers",BodyFrame==1);
         var mesh=new ArrayMesh {BlendShapeMode=Mesh.BlendShapeMode.Normalized};
@@ -169,11 +159,13 @@ internal sealed partial class NatureModels
             var direction=((new Vector2(x,point.Z)-section.Centre)/section.Radius).Normalized();
             float knee=TorsoRamp(.438f,.487f,height)*(1-TorsoRamp(.510f,.577f,height));
             float thigh=TorsoRamp(.548f,.620f,height)*(1-TorsoRamp(.677f,.747f,height));
+            float fall=TorsoRamp(.494f,.555f,height)*(1-TorsoRamp(.584f,.655f,height));
             // Leave room for the knee in front and the upper thigh toward
-            // the outseam. The inseam and sides of the knee carry less ease.
-            float outer=.0030f+.0045f*thigh-.0015f*knee;
+            // the outseam. Continue the front panel down the thigh before
+            // bringing it back in towards the knee.
+            float outer=.0030f+.0045f*thigh+.0030f*fall-.0015f*knee;
             float inner=.0005f+.0012f*thigh;
-            float front=.0035f+.0040f*knee+.0060f*thigh;
+            float front=.0035f+.0040f*knee+.0060f*thigh+.0075f*fall;
             float back=.0030f+.0045f*thigh;
             float width=Mathf.Lerp(inner,outer,TorsoRamp(-.45f,.55f,direction.X));
             float depth=Mathf.Lerp(front,back,TorsoRamp(-.45f,.55f,direction.Y));
@@ -182,6 +174,119 @@ internal sealed partial class NatureModels
         }
         ValidateTrouserWinding(rest,points,ids);
         TransportFairingNormals(rest,points,normals,ids,freedom);
+    }
+
+    private static void FitFemaleTrouserFront(Vector3[] points,Vector3[] normals,int[] indices)
+    {
+        var rest=(Vector3[])points.Clone();
+        var area=new float[points.Length];
+        for(int i=0;i<indices.Length;i+=3)
+        {
+            int a=indices[i],b=indices[i+1],c=indices[i+2];
+            // Project the front faces into the pattern plane. Steep turns
+            // into the inseam carry little weight in the front panel.
+            float weight=(rest[b]-rest[a]).Cross(rest[c]-rest[a]).Z/6;
+            if(weight<=0)continue;
+            area[a]+=weight;area[b]+=weight;area[c]+=weight;
+        }
+        var freedom=new float[points.Length];
+        var delta=new float[points.Length];
+        var goal=new float[points.Length];
+        for(int i=0;i<points.Length;i++)
+        {
+            var p=rest[i];float x=MathF.Abs(p.X);
+            // Retain the centre rise, leg separation and outseam. The fitted
+            // strip spans the front rise and the first broad thigh section.
+            float panel=TorsoRamp(.619f,.682f,p.Y)*(1-TorsoRamp(.753f,.816f,p.Y))
+                *TorsoRamp(.012f,.037f,x)*(1-TorsoRamp(.105f,.146f,x))
+                *TorsoRamp(.032f,.062f,-p.Z);
+            if(panel<=0||area[i]<=0||!TryBodicePatch(rest,area,i,out float depth))continue;
+            freedom[i]=panel;
+            goal[i]=depth;
+            // Release the hollow beside the rise more than we take in the
+            // thigh. A woven panel needs reserve when the hip folds.
+            delta[i]=Math.Clamp(depth-p.Z,-.011f,.005f)*panel;
+        }
+        ApplyBodiceDepth(points,rest,indices,delta);
+        double before=0,after=0;int count=0;
+        for(int i=0;i<points.Length;i++)
+        {
+            if(delta[i]==0)continue;
+            before+=Math.Pow(goal[i]-rest[i].Z,2);
+            after+=Math.Pow(goal[i]-points[i].Z,2);
+            count++;
+        }
+        if(count<40||after>=before)
+            throw new InvalidOperationException("Female trouser front loses its supported panel fit");
+        TransportFairingNormals(rest,points,normals,indices,freedom);
+        GD.Print($"FEMALE_TROUSER_FRONT_PASS: {count} sewn vertices, front-panel residual {Math.Sqrt(before/count)*1000:F2} → {Math.Sqrt(after/count)*1000:F2} mm");
+    }
+
+    private static void FitFemaleTrouserRear(Vector3[] points,Vector3[] normals,int[] indices)
+    {
+        const float low=.652f,high=.814f,probe=.012f;
+        const float first=.043f,spacing=.007f;
+        const int columns=15;
+        var rest=(Vector3[])points.Clone();
+        var delta=new float[points.Length];
+        var freedom=new float[points.Length];
+        var residual=new float[points.Length];
+        var profile=new Vector4[2,columns];
+        for(int side=0;side<2;side++)for(int col=0;col<columns;col++)
+        {
+            float x=(side==0?-1:1)*(first+col*spacing);
+            float Depth(float height)=>GarmentDepth(rest,indices,x,height,true);
+            float bottom=Depth(low),top=Depth(high);
+            float start=(Depth(low+probe)-Depth(low-probe))*(high-low)/(2*probe);
+            float end=(Depth(high+probe)-Depth(high-probe))*(high-low)/(2*probe);
+            profile[side,col]=new(bottom,top,start,end);
+        }
+
+        // Continue the rear cloth along the thigh instead of tracing the
+        // short turn below the seat. Keep the inner seam and outer hip fixed.
+        float Curve(Vector4 section,float t)
+        {
+            float square=t*t,cube=square*t;
+            return (2*cube-3*square+1)*section.X+(-2*cube+3*square)*section.Y
+                +(cube-2*square+t)*section.Z+(cube-square)*section.W;
+        }
+        double before=0,after=0;
+        int count=0;
+        for(int i=0;i<rest.Length;i++)
+        {
+            var p=rest[i];float x=MathF.Abs(p.X);
+            float panel=TorsoRamp(.697f,.752f,p.Y)*(1-TorsoRamp(.784f,high,p.Y))
+                *TorsoRamp(first,.066f,x)*(1-TorsoRamp(.113f,first+(columns-1)*spacing,x))
+                *TorsoRamp(.041f,.069f,p.Z);
+            if(panel<=0)continue;
+            int side=p.X<0?0:1;
+            float column=(x-first)/spacing;
+            int c=Math.Min((int)column,columns-2);
+            float t=(p.Y-low)/(high-low);
+            float target=Mathf.Lerp(Curve(profile[side,c],t),Curve(profile[side,c+1],t),column-c);
+            if(!float.IsFinite(target))continue;
+            float difference=target-p.Z;
+            residual[i]=difference;
+            delta[i]=Math.Clamp(difference,-.010f,.004f)*panel;
+            freedom[i]=panel;
+            before+=difference*difference*panel;
+            count++;
+        }
+        ApplyBodiceDepth(points,rest,indices,delta);
+        float maximum=0;
+        for(int i=0;i<rest.Length;i++)
+        {
+            float edit=points[i].Z-rest[i].Z;
+            if(edit<-.01001f||edit>.00401f||(delta[i]==0&&points[i]!=rest[i]))
+                throw new InvalidOperationException("Rear trouser fit moves a fixed seam or exceeds its ease");
+            if(delta[i]==0)continue;
+            after+=Math.Pow(residual[i]-edit,2)*freedom[i];
+            maximum=MathF.Max(maximum,MathF.Abs(edit));
+        }
+        if(count<40||maximum<.003f||after>.49*before)
+            throw new InvalidOperationException($"Female trouser rear loses its supported drape: {count} vertices, maximum={maximum:F4} m");
+        TransportFairingNormals(rest,points,normals,indices,freedom);
+        GD.Print($"FEMALE_TROUSER_REAR_PASS: {count} sewn vertices, rear contour residual {Math.Sqrt(before/count)*1000:F2} → {Math.Sqrt(after/count)*1000:F2} mm, maximum depth edit={maximum*1000:F2} mm");
     }
 
     private static void ValidateTrouserWinding(Vector3[] rest,Vector3[] points,int[] ids)
@@ -242,11 +347,15 @@ internal sealed partial class NatureModels
         float rise=riseHeight*(1-TorsoRamp(.016f,.063f,x))*TorsoRamp(.007f,.062f,-p.Z);
         float frontTurn=TorsoRamp(.691f,.714f,p.Y)*(1-TorsoRamp(.733f,.775f,p.Y))
             *TorsoRamp(.036f,.062f,x)*(1-TorsoRamp(.112f,.148f,x))*TorsoRamp(.045f,.075f,-p.Z);
+        // Lift the short bridge into the front rise over the depth of the
+        // inner-leg join. Keep the separate lower inner legs on their binds.
+        float fork=TorsoRamp(.664f,.706f,p.Y)*(1-TorsoRamp(.725f,.774f,p.Y))
+            *(1-TorsoRamp(.014f,.057f,x))*TorsoRamp(-.069f,-.036f,p.Z)*(1-TorsoRamp(.020f,.053f,p.Z));
         // Support the rear cloth just under the seat, spreading the
         // transition over the back of the thigh.
         float rearEase=TorsoRamp(.600f,.656f,p.Y)*(1-TorsoRamp(.696f,.759f,p.Y))
             *TorsoRamp(.038f,.077f,x)*(1-TorsoRamp(.125f,.167f,x))*TorsoRamp(.025f,.067f,p.Z);
-        return p+new Vector3(0,-.009f*rise,.006f*rearEase-.009f*rise+.008f*frontTurn);
+        return p+new Vector3(0,.008f*fork-.009f*rise,.006f*rearEase-.009f*rise+.008f*frontTurn);
     }
 
     private static Vector3 FitFemaleTrouserWaist(Vector3 p,float[] support)
@@ -389,8 +498,8 @@ internal sealed partial class NatureModels
         float x=MathF.Abs(p.X);
         float along=TorsoRamp(.049f,.148f,x);
         float centre=Mathf.Lerp(.761f,.712f,along);
-        float offset=(p.Y-centre)/Mathf.Lerp(.019f,.023f,along);
-        float tuck=(offset+.91f)/.77f;
+        float offset=(p.Y-centre)/Mathf.Lerp(.024f,.030f,along);
+        float tuck=(offset+.96f)/.82f;
         float coverage=front*TorsoRamp(.045f,.077f,x)*(1-TorsoRamp(.123f,.168f,x));
         return coverage*(.0036f*MathF.Exp(-tuck*tuck)-.0058f*MathF.Exp(-offset*offset));
     }
@@ -560,19 +669,25 @@ internal sealed partial class NatureModels
         float kneeFrontEase=bareKnee.Min.Y-clothedKnee.Min.Y;
         float thighWidthEase=2*(SampleTrouserSection(fittedSections,.65f).Radius.X-SampleTrouserSection(sourceSections,.65f).Radius.X);
         float thighFrontEase=SampleTrouserSection(sourceSections,.65f).Min.Y-SampleTrouserSection(fittedSections,.65f).Min.Y;
+        float midThighEase=SampleTrouserSection(sourceSections,.57f).Min.Y-SampleTrouserSection(fittedSections,.57f).Min.Y;
         float rearEase=GarmentDepth(points,indices,.098f,.66f,true)-GarmentDepth(original,originalIndices,.098f,.66f,true);
-        float rise=0;
+        float rise=0,forkLift=0;
         for(int i=0;i<original.Length;i++)
         {
             var p=original[i];
             if(MathF.Abs(p.X)<.025f&&p.Y>.720f&&p.Y<.755f&&p.Z<-.04f)
                 rise=MathF.Max(rise,p.Y-points[i].Y);
+            if(MathF.Abs(p.X)<.012f&&p.Y>.704f&&p.Y<.725f&&p.Z>-.033f&&p.Z<.020f)
+                forkLift=MathF.Max(forkLift,points[i].Y-p.Y);
         }
         if(kneeWidthEase<.001f||kneeWidthEase>.004f||kneeFrontEase<.006f||kneeFrontEase>.009f
             ||thighWidthEase<.007f||thighWidthEase>.013f||thighFrontEase<.007f||thighFrontEase>.012f
             ||!float.IsFinite(rearEase)||rearEase<.008f||rearEase>.017f||rise<.008f||rise>.011f)
             throw new InvalidOperationException($"Female trouser ease loses its local fit: knee={kneeWidthEase:F4}/{kneeFrontEase:F4}, thigh={thighWidthEase:F4}/{thighFrontEase:F4}/{rearEase:F4}, rise={rise:F4}");
         GD.Print($"FEMALE_TROUSER_DRAPE_PASS: knee width/front ease={kneeWidthEase*1000:F2}/{kneeFrontEase*1000:F2} mm, thigh width/front/rear ease={thighWidthEase*1000:F2}/{thighFrontEase*1000:F2}/{rearEase*1000:F2} mm, rise release={rise*1000:F2} mm; fixed cuffs");
+        if(midThighEase<.011f||midThighEase>.019f||forkLift<.006f||forkLift>.009f)
+            throw new InvalidOperationException($"Female trouser panel loses its new drape: mid-thigh ease={midThighEase:F4}, bridge lift={forkLift:F4}");
+        GD.Print($"FEMALE_TROUSER_FALL_PASS: actual mid-thigh front ease={midThighEase*1000:F2} mm, inner bridge lift={forkLift*1000:F2} mm");
         float taper=SampleTrouserSection(fittedSections,.78f).Max.X-SampleTrouserSection(fittedSections,.69f).Max.X;
         if(taper<.004f||taper>.009f)
             throw new InvalidOperationException($"Female upper thigh loses its taper below the pelvis: {taper*1000:F2} mm per side");

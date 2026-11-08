@@ -6,6 +6,8 @@ namespace SandBoxSim.Client;
 
 internal sealed partial class NatureModels
 {
+    private readonly Dictionary<int,(Vector3[] Crown,int[] CrownIndices,Vector3[] Head,int[] HeadIndices)> _gatheringSupports=new();
+
     private Mesh FemaleScalp(bool distant)
     {
         string key="female-scalp:"+_faceVariant+":"+distant;
@@ -46,16 +48,32 @@ internal sealed partial class NatureModels
         return point;
     }
 
-    private float FemaleGatheringDepth()
+    private float FemaleGatheringDepth(float x=0,float y=.040f)
     {
-        var crown=FemaleScalp(true).SurfaceGetArrays(0);
-        var p=crown[(int)Mesh.ArrayType.Vertex].AsVector3Array();
-        var ids=crown[(int)Mesh.ArrayType.Index].AsInt32Array();
-        float depth=GarmentDepth(p,ids,0,(.040f-.008f)/.224f,true)*.200f;
-        if(!float.IsFinite(depth)||depth<.07f||depth>.13f)
-            throw new InvalidOperationException("Female gathering root misses the fitted rear scalp");
+        if(!_gatheringSupports.TryGetValue(_faceVariant,out var support))
+        {
+            static (Vector3[] Points,int[] Indices) InHeadSpace(Mesh mesh,Vector3 scale,Vector3 offset)
+            {
+                var arrays=mesh.SurfaceGetArrays(0);
+                var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+                for(int i=0;i<points.Length;i++)points[i]=points[i]*scale+offset;
+                return (points,arrays[(int)Mesh.ArrayType.Index].AsInt32Array());
+            }
+            var crown=InHeadSpace(FemaleScalp(true),new(.181f,.224f,.200f),new(0,.008f,0));
+            var head=InHeadSpace(HumanMesh("head"),new(.177f,.220f,.195f),Vector3.Zero);
+            _gatheringSupports[_faceVariant]=support=(crown.Points,crown.Indices,head.Points,head.Indices);
+        }
+        float crownDepth=GarmentDepth(support.Crown,support.CrownIndices,x,y,true);
+        float skinDepth=GarmentDepth(support.Head,support.HeadIndices,x,y,true);
+        // The original cap is open where its rear hair cards were gathered.
+        // Use the underlying scalp there to keep the new root against the head.
+        float depth=MathF.Max(crownDepth,skinDepth+.002f);
+        if(!float.IsFinite(depth)||depth<.065f||depth>.145f)
+            throw new InvalidOperationException($"Female gathering misses the rear scalp at {x:F3}/{y:F3}: crown={crownDepth:F4}, skin={skinDepth:F4}");
         return depth;
     }
+
+    private static Color GatheredHairDye(string tint)=>new Color(tint).Darkened(.12f);
 
     private Material GatheredHairMaterial(string tint)
     {
@@ -63,8 +81,8 @@ internal sealed partial class NatureModels
         if(_residentMaterials.TryGetValue(key,out var cached))return cached;
         return _residentMaterials[key]=new StandardMaterial3D
         {
-            AlbedoColor=new Color(tint).Darkened(.10f),VertexColorUseAsAlbedo=true,
-            Roughness=.74f,MetallicSpecular=.17f
+            AlbedoColor=GatheredHairDye(tint),VertexColorUseAsAlbedo=true,
+            Roughness=.79f,MetallicSpecular=.15f
         };
     }
 
@@ -77,59 +95,74 @@ internal sealed partial class NatureModels
         float scalp=FemaleGatheringDepth();
         Vector3 At(float x,float y,float depth)=>new(x,y,scalp+depth);
         var guide=knot
-            ?new[]{At(0,.040f,-.012f),At(-.015f,.034f,.007f),At(-.026f,.016f,.017f),
-                At(-.019f,-.010f,.024f),At(.008f,-.017f,.024f),At(.024f,-.001f,.017f),
-                At(.018f,.020f,.013f),At(-.003f,.020f,.009f),At(-.005f,.005f,.004f)}
-            :new[]{At(0,.040f,-.012f),At(side*.003f,.025f,.016f),At(side*.009f,-.014f,.021f),
-                At(side*.017f,-.058f,.017f),At(side*.021f,FaceArchetype==5?-.114f:-.135f,.015f)};
-        Vector3 Axis(float t)
+            ?new[]{At(0,.040f,-.012f),At(-.015f,.029f,.012f),At(-.024f,.008f,.020f),
+                At(-.012f,-.013f,.026f),At(.012f,-.014f,.026f),At(.024f,.003f,.024f),
+                At(.015f,.018f,.021f),At(-.004f,.019f,.019f),At(-.009f,.005f,.011f)}
+            :new[]{At(0,.040f,-.012f),At(side*.004f,.029f,.016f),At(side*.010f,-.007f,.018f),
+                At(side*.018f,-.057f,.006f),At(side*.025f,FaceArchetype==5?-.114f:-.135f,-.009f)};
+        // Equal-length intervals keep the plait pitch and taper independent
+        // of the placement of the hand-authored curve control points.
+        using var path=new Curve3D {BakeInterval=.0015f};
+        for(int i=0;i<guide.Length;i++)
         {
-            float position=Math.Clamp(t,0,1)*(guide.Length-1);
-            int i=Math.Min((int)position,guide.Length-2);
-            return guide[i].CubicInterpolate(guide[i+1],guide[Math.Max(0,i-1)],guide[Math.Min(guide.Length-1,i+2)],position-i);
+            var handle=(guide[Math.Min(i+1,guide.Length-1)]-guide[Math.Max(i-1,0)])/6;
+            path.AddPoint(guide[i],-handle,handle);
         }
+        float length=path.GetBakedLength();
+        Vector3 Axis(float t)=>path.SampleBaked(Math.Clamp(t,0,1)*length,true);
         (Vector3 Right,Vector3 Depth) Frame(float t)
         {
-            var tangent=(Axis(t+.001f)-Axis(t-.001f)).Normalized();
-            var right=Vector3.Back.Cross(tangent).Normalized();
+            var tangent=(Axis(t+.003f)-Axis(t-.003f)).Normalized();
+            if(knot)
+            {
+                var depth=(Vector3.Back-tangent*tangent.Z).Normalized();
+                return(depth.Cross(tangent),depth);
+            }
+            var right=(Vector3.Right-tangent*tangent.X).Normalized();
             return(right,tangent.Cross(right));
         }
         (float Orbit,float Radius) Width(float t)
         {
-            float gathered=Mathf.SmoothStep(0,.14f,t);
-            float taper=1-Mathf.SmoothStep(knot?.64f:.62f,1,t);
-            float fullness=Mathf.Lerp(.88f,1,gathered);
-            return((knot?.0064f:.0081f)*fullness*Mathf.Lerp(.08f,1,taper),
-                (knot?.0068f:.0080f)*fullness*Mathf.Lerp(.08f,1,taper));
+            float gathered=Mathf.SmoothStep(.05f,.23f,t);
+            float taper=1-Mathf.SmoothStep(knot?.75f:.65f,1,t);
+            float fullness=Mathf.Lerp(.74f,1,gathered);
+            float tied=knot?0:Mathf.SmoothStep(.793f,.827f,t)*(1-Mathf.SmoothStep(.853f,.907f,t));
+            return((knot?.0055f:.0076f)*gathered*Mathf.Lerp(.08f,1,taper)*(1-.70f*tied),
+                (knot?.0080f:.0090f)*fullness*Mathf.Lerp(.08f,1,taper)*(1-.14f*tied));
         }
         const int locks=3;
-        int rows=distant?24:54,columns=distant?6:10;
+        int rows=distant?24:52,columns=distant?6:10;
         using var surface=new SurfaceTool();
         surface.Begin(Mesh.PrimitiveType.Triangles);
         surface.SetSmoothGroup(0);
+        float Station(float row)=>Mathf.Lerp(.075f,1,row/rows);
         for(int strand=0;strand<locks;strand++)
         {
-            // A third of a turn separates the strands. Flatten the crossing
-            // in depth to read as a plait across the back rather than a cable.
+            // Use alternating over/under crossings in the back-facing
+            // profile, with a compact twist for the coiled style.
             Vector3 Strand(float t)
             {
                 var (right,depth)=Frame(t);
-                float phase=Mathf.Tau*((knot?3.3f:3.7f)*t+strand/(float)locks);
+                float phase=Mathf.Tau*((knot?2.8f:3.5f)*t+strand/(float)locks);
                 float orbit=Width(t).Orbit;
-                return Axis(t)+right*(orbit*MathF.Sin(phase))+depth*(orbit*.71f*MathF.Cos(phase));
+                float crossing=knot?MathF.Cos(phase):.55f*MathF.Sin(phase*2)+.45f*MathF.Cos(phase);
+                return Axis(t)+right*(orbit*MathF.Sin(phase))+depth*(orbit*.73f*crossing);
             }
             Vector3 Point(int row,int column)
             {
-                float t=row/(float)rows;
-                var (right,depth)=Frame(t);
+                float t=Station(row);
+                var (axisRight,_)=Frame(t);
+                var tangent=(Strand(MathF.Min(t+.003f,1))-Strand(MathF.Max(t-.003f,0))).Normalized();
+                var right=(axisRight-tangent*axisRight.Dot(tangent)).Normalized();
+                var depth=tangent.Cross(right);
                 float angle=(column%columns)*Mathf.Tau/columns;
                 float radius=Width(t).Radius*(1+.038f*MathF.Cos(angle*5+t*3+strand));
-                return Strand(t)+(right*MathF.Cos(angle)+depth*MathF.Sin(angle))*radius;
+                return Strand(t)+(right*MathF.Cos(angle)+depth*(MathF.Sin(angle)*(knot?.78f:.84f)))*radius;
             }
             for(int row=0;row<rows;row++)
             {
-                float t=(row+.5f)/rows;
-                float dye=.81f+strand*.015f+.018f*MathF.Cos(t*19+strand);
+                float t=Station(row+.5f);
+                float dye=.71f+strand*.033f+.022f*MathF.Cos(t*13+strand);
                 surface.SetColor(new Color(dye,dye*.975f,dye*.94f));
                 for(int col=0;col<columns;col++)
                 {
@@ -141,12 +174,45 @@ internal sealed partial class NatureModels
             }
             foreach(int row in new[]{0,rows})
             {
-                var centre=Strand(row/(float)rows);
-                var outside=(row==0?Axis(0)-Axis(.01f):Axis(1)-Axis(.99f)).Normalized();
+                float t=Station(row);
+                var centre=Strand(t);
+                var outside=(row==0?Axis(t)-Axis(t+.01f):Axis(t)-Axis(t-.01f)).Normalized();
                 for(int col=0;col<columns;col++)
                     EquipmentTriangle(surface,centre,Point(row,col),Point(row,col+1),outside);
             }
         }
+        // Start the gathering on measured crown triangles around the
+        // original opening. Bury its wide ring in the scalp, then sweep
+        // the hair into the guide before the three locks spread apart.
+        const int rootRows=5;
+        const float join=.21f;
+        var root=new Vector3[columns];
+        for(int col=0;col<columns;col++)
+        {
+            float angle=col*Mathf.Tau/columns;
+            float x=.021f*MathF.Cos(angle),rise=MathF.Sin(angle);
+            float y=.043f+rise*(rise>0?.024f:.018f);
+            root[col]=new(x,y,FemaleGatheringDepth(x,y)-.0025f);
+        }
+        Vector3 Gather(int row,int col)
+        {
+            int column=col%columns;
+            float t=row/(float)rootRows,angle=column*Mathf.Tau/columns;
+            var end=Axis(join)+new Vector3(.007f*MathF.Cos(angle),.006f*MathF.Sin(angle),0);
+            var shoulder=Vector3.Back*(.012f*MathF.Sin(t*Mathf.Pi));
+            return root[column].Lerp(end,t)+shoulder;
+        }
+        for(int row=0;row<rootRows;row++)for(int col=0;col<columns;col++)
+        {
+            float shade=.60f+.10f*Mathf.SmoothStep(0,rootRows,row)+.037f*MathF.Cos((col+.5f)*Mathf.Tau/columns*4);
+            surface.SetColor(new Color(shade,shade*.973f,shade*.94f));
+            var a=Gather(row,col);var b=Gather(row+1,col);var c=Gather(row,col+1);var d=Gather(row+1,col+1);
+            var outward=new Vector3((a+b+c+d).X*.25f,(a+b+c+d).Y*.25f-.040f,.014f);
+            EquipmentTriangle(surface,a,b,c,outward);
+            EquipmentTriangle(surface,c,b,d,outward);
+        }
+        for(int col=0;col<columns;col++)
+            EquipmentTriangle(surface,Axis(join),Gather(rootRows,col),Gather(rootRows,col+1),Vector3.Back);
         if(!knot)
         {
             // A short, rounded fibre tie closes the braid before its tips.
@@ -155,7 +221,9 @@ internal sealed partial class NatureModels
                 float t=.827f+row*.013f,a=(col%columns)*Mathf.Tau/columns;
                 var (right,depth)=Frame(t);
                 var (orbit,radius)=Width(t);
-                return Axis(t)+(right*MathF.Cos(a)+depth*MathF.Sin(a))*(orbit+radius+(row==1?.0009f:.0003f));
+                float edge=row==1?.0009f:.0003f;
+                return Axis(t)+right*(MathF.Cos(a)*(orbit+radius+edge))
+                    +depth*(MathF.Sin(a)*(.68f*orbit+.84f*radius+edge));
             }
             surface.SetColor(new Color(.78f,.65f,.48f));
             for(int row=0;row<2;row++)for(int col=0;col<columns;col++)
@@ -184,8 +252,27 @@ internal sealed partial class NatureModels
         if(nearBounds.Position.Z>=rootDepth-.005f||nearBounds.End.Z<rootDepth+.012f)
             throw new InvalidOperationException("Gathered hair fails to overlap the rear scalp");
         bool knot=FaceArchetype==6;
-        if(knot?nearBounds.Size.Y>.085f:nearBounds.Size.Y<.135f)
+        if(knot?nearBounds.Position.Y<-.030f:nearBounds.Size.Y<.135f)
             throw new InvalidOperationException("Female style loses its compact knot or hanging braid silhouette");
+        float minimumRootCover=float.PositiveInfinity;
+        foreach(var mesh in new[]{near,far})
+        {
+            var arrays=mesh.SurfaceGetArrays(0);
+            var vertices=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+            var normals=arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
+            for(int i=0;i<vertices.Length;i++)
+                if(!vertices[i].IsFinite()||!normals[i].IsFinite()||normals[i].LengthSquared()<.8f)
+                    throw new InvalidOperationException("Female gathered hair contains a collapsed bundle surface");
+            for(int row=-2;row<=4;row++)for(int col=-2;col<=2;col++)
+            {
+                float x=col*.004f,y=.040f+row*.004f;
+                float cover=GarmentDepth(vertices,indices,x,y,true)-FemaleGatheringDepth(x,y);
+                if(!float.IsFinite(cover)||cover<.0015f)
+                    throw new InvalidOperationException($"Gathered hair exposes its scalp join: archetype={FaceArchetype}, x={x:F3}, y={y:F3}, cover={cover:F4}");
+                minimumRootCover=MathF.Min(minimumRootCover,cover);
+            }
+        }
         var scalp=FemaleScalp(false);
         var crown=FemaleScalp(true);
         if(Triangles(crown)<600||Triangles(crown)>=Triangles(scalp)||Triangles(scalp)>=Triangles(HumanMesh("hair")))
@@ -196,5 +283,6 @@ internal sealed partial class NatureModels
             if(!point.IsFinite()||!merged.Contains(point))
                 throw new InvalidOperationException("The actual distant resident drops its gathered hairstyle");
         GD.Print($"FEMALE_GROOM_PASS: archetype={FaceArchetype}, scalp={Triangles(scalp)}/{Triangles(crown)}, gather={Triangles(near)}/{Triangles(far)} triangles; shared scalp, root and actual distance mesh");
+        GD.Print($"FEMALE_GROOM_JOIN_PASS: archetype={FaceArchetype}, 70 actual scalp rays, minimum overlapping hair depth={minimumRootCover*1000:F2} mm");
     }
 }

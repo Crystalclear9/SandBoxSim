@@ -96,6 +96,7 @@ internal sealed partial class NatureModels
         var detailBindings=new SleeveDetail[2];
         for(int side=0;side<2;side++)detailBindings[side]=BindSleeveDetail(source,ids,patches,activation[side]);
         var innerSleeve=new float[source.Length];
+        var armholeAllowance=FittedFigure?new float[source.Length]:Array.Empty<float>();
         if(FittedFigure)
             for(int i=0;i<source.Length;i++)
             {
@@ -105,6 +106,7 @@ internal sealed partial class NatureModels
                 innerSleeve[i]=TorsoRamp(.015f,.060f,along)*(1-TorsoRamp(.115f,.165f,along))
                     *(1-TorsoRamp(.127f,.166f,MathF.Abs(source[i].X)))
                     *(1-TorsoRamp(1.16f,1.23f,source[i].Y));
+                armholeAllowance[i]=RaisedArmholeAllowance(source[i],along);
             }
         var inverseBlends=new Transform3D[source.Length];
         var result=new Godot.Collections.Array<Godot.Collections.Array>();
@@ -185,6 +187,7 @@ internal sealed partial class NatureModels
                 float yokeTurn=overhead*(1-TorsoRamp(95,130,elevation));
                 FairRearShoulderPanel(target,ids,uv,source,active,yokeTurn);
                 BlendOverheadYokeMotion(target,source,uv,adjacent,active,elevation);
+                FairRaisedFemaleArmhole(target,ids,armholeAllowance,active,elevation);
                 for(int i=0;i<source.Length;i++)points[i]=inverseBlends[i]*target[i];
             }
             for(int i=0;i<source.Length;i++)if(anatomy.Active[i]>.5f)
