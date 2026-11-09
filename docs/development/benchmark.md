@@ -182,6 +182,8 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `residentPalmMotion=scene-frame-transport-v1` 标识拾取、递物和向场景表面放置时的掌面轨迹接续。`SCENE_PALM_CONTINUITY_PASS` 固定世界接触点，平移并转动实际角色根节点，分别记录两种成年体型左右手的第一帧偏移与回稳后的距离。
 
+`CONTACT_ATTENTION_PASS` 在两种成年体型和 24／60 Hz 下检查视线从低处物资切到交谈对象，再回到空闲。`WORLD_CONTACT_LOOK_PASS` 在真实物资堆上检查低头和手到达目标的先后顺序。
+
 `residentActionHandoff=displayed-palm-v1` 记录手部接续、库存变动后的包裹收回和双人递接的速度过渡。`OBSERVED_CARGO_STOW_PASS` 在两种成年体型的 30／60 Hz 轨迹中检查旧包裹的可见支撑与新包裹的上手顺序。`SHARED_PARCEL_PASS` 同时记录换手后一帧的物件速度变化。
 
 `residentObjectContact=confirmed-support-v1` 记录取物的等待接触、合指后固定物件，以及下放途中失准后的重新接近。`PICKUP_CONTACT_TIMING_PASS` 检查较晚到达的手掌能否握住目标、已握物件是否在接触失效后随手收回，以及不可达目标是否退出。`PLACEMENT_REALIGN_PASS` 和 `WORLD_PLACEMENT_REALIGN_PASS` 检查失准时的双手托举、实景换脚转身及重新到达原接收面。

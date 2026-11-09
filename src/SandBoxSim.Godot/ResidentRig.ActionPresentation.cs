@@ -45,7 +45,8 @@ internal partial class ResidentRig
     public bool CompletionVisible=>_finishConsumption||_finishToolStroke||_completionRemaining>0||_placingCargo||_placementPending||_awaitingContact||PickupCarryPending;
     internal bool ContactMotionInFlight=>CompletionVisible||HandoffReserved||ConsumptionOwnsHand||RecoveringPickup
         ||ReleasedCargo||_conversation.HasValue||PivotStepInFlight||ArrivalStepInFlight||ReleasingSupport;
-    internal bool ContactPoseInFlight=>ContactMotionInFlight||SupportedCargo!=ResourceKind.None;
+    internal bool ContactPoseInFlight=>ContactMotionInFlight||SupportedCargo!=ResourceKind.None||_placementReturn.HasValue;
+    internal bool RecoveringUpperBody=>_hasArmReturn||_releaseTime>0||ToolHeld&&_returning;
 
     internal ToolSurface? PreparedSpearAim(ActionKind action,uint revision,long target)
         =>_observedAction==action&&_observedRevision==revision&&_interactionTarget.Partner==target?_toolSurface:null;
@@ -114,6 +115,8 @@ internal partial class ResidentRig
         _observedAction=action;_observedPhase=phase;_observedRevision=revision;
         _observedExecution=_completionRemaining=0;
         _waitingForContact=false;
+        Attend(Vector3.Zero);
+        _attentionYaw=0;
         _observedContactReady=false;
         _awaitingContact=false;
         _conversation=null;

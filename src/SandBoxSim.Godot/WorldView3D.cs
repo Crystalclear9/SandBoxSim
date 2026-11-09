@@ -1187,7 +1187,7 @@ public partial class WorldView3D : MapView
                 node.Rotation=new(0,yaw,0);
             }
             // Keep position interpolation every frame; distant joint poses need fewer updates.
-            bool contactPose=usesMotor||interacting||!settled||node.ContactPoseInFlight;
+            bool contactPose=usesMotor||interacting||!settled||node.ContactPoseInFlight||node.RecoveringUpperBody;
             int stride=node.HandoffReserved||conversation!=null?1:ResidentPoseStride(distanceSquared,paced,contactPose);
             if(!paused)node.ObserveDeparture(usesMotor?node.Travel.Preparation:0);
             float lateralDistance=usesMotor?direction.X*MathF.Cos(yaw)-direction.Z*MathF.Sin(yaw):0;
@@ -1249,6 +1249,14 @@ public partial class WorldView3D : MapView
                 ?(action==ActionKind.Wander?0:1-Mathf.SmoothStep(.24f,.85f,remaining))
                 :1;
             node.Attend(node.Basis.Inverse()*attention,anticipation);
+            if(!redirecting&&interacting)
+            {
+                Vector3? lookPoint=sceneContact;
+                if(toolSurface is {} contact&&reachable)lookPoint=contact.Point;
+                else if(hasShore)lookPoint=interestPoint;
+                else if(conversation!=null&&_people[partnerIdentity] is ResidentRig speaker)lookPoint=speaker.EyePoint;
+                if(lookPoint is {} aimPoint)node.AttendContact(aimPoint,anticipation);
+            }
             if(!paused&&action==ActionKind.Farm)
             {
                 var far=node.Transform*new Vector3(-.045f,0,ResidentRig.FurrowStart);

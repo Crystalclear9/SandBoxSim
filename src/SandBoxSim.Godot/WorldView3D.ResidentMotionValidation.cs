@@ -784,15 +784,22 @@ public partial class WorldView3D
             ||!TryActionContact(rig,ActionKind.Take,planned,logical,out var plannedPoint,out _))
             throw new InvalidOperationException("World pickup cannot prepare at the actual stock");
         float preparedGap=float.PositiveInfinity;
+        int firstGlance=-1,firstReach=-1;
         for(int i=0;i<240;i++)
         {
             AnimateActors(delta);
             if(rig.ScenePickupGrasped||rig.ScenePickupPieceVisible||rig.CargoMesh.Visible)
                 throw new InvalidOperationException("Pending pickup shows an accepted object before simulation confirmation");
-            preparedGap=Math.Min(preparedGap,(rig.HandWorldPose(1)*rig.Grip!.Position).DistanceTo(plannedPoint));
+            float gap=(rig.HandWorldPose(1)*rig.Grip!.Position).DistanceTo(plannedPoint);
+            preparedGap=Math.Min(preparedGap,gap);
+            if(firstGlance<0&&(rig.Torso.Basis*rig.Head.Basis*Vector3.Forward).Normalized().Y<-.20f)firstGlance=i;
+            if(firstReach<0&&gap<.12f)firstReach=i;
         }
         if(preparedGap>.085f||sim.StateDigestString()!=pending)
             throw new InvalidOperationException($"World pickup preparation misses its candidate: {preparedGap:F3} m");
+        if(firstGlance<0||firstReach-firstGlance<6)
+            throw new InvalidOperationException($"World pickup does not look ahead of the hand: glance={firstGlance}, reach={firstReach}");
+        GD.Print($"WORLD_CONTACT_LOOK_PASS: eyes and head anticipate a real stock target by {firstReach-firstGlance} frames at 60 Hz, before grasping");
         sim.Actions.Tick(sim.Clock);
         if(agents.HasTarget(slot)||!sim.Actions.TryGetCompletedContact(slot,out var taken)
             ||taken.Surface!=ActionSystem.ContactSurface.GroundStock||taken.Resource!=ResourceKind.Stone||taken.StockAmount!=amount

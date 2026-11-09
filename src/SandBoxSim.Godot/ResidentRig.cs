@@ -50,7 +50,25 @@ internal partial class ResidentRig : Node3D
     private Vector2 _gaze;
     private float _socialBlend,_socialTime,_attentionYaw;
     private float _wantedAttention;
-    public void Attend(Vector3 localDirection,float weight=1) => _wantedAttention=localDirection.X*localDirection.X+localDirection.Z*localDirection.Z>.001f?Math.Clamp(MathF.Atan2(-localDirection.X,-localDirection.Z),-.40f,.40f)*weight:0;
+    private Vector3? _contactLookPoint;
+    private float _contactLookWeight;
+    public void Attend(Vector3 localDirection,float weight=1)
+    {
+        _contactLookPoint=null;
+        _wantedAttention=localDirection.X*localDirection.X+localDirection.Z*localDirection.Z>.001f
+            ?Math.Clamp(MathF.Atan2(-localDirection.X,-localDirection.Z),-.40f,.40f)*weight:0;
+    }
+    internal void AttendContact(Vector3 point,float weight)
+    {
+        _contactLookPoint=point;
+        _contactLookWeight=weight;
+    }
+    private Vector3 EyeCentre=>(Eyes[0].Position+Eyes[1].Position)*.5f;
+    internal Vector3 EyePoint=>RigWorldSpace*Torso.Transform*Head.Transform*EyeCentre;
+
+    private static Vector2 LookAngles(Vector3 direction)
+        =>new(MathF.Atan2(-direction.X,-direction.Z),
+            MathF.Atan2(direction.Y,MathF.Sqrt(direction.X*direction.X+direction.Z*direction.Z)));
     private Vector3 _returnPosition,_heldPosition;
     private Basis _returnBasis,_heldBasis;
     public void SetHeadDetail(bool detailed)
@@ -335,9 +353,28 @@ internal partial class ResidentRig : Node3D
             :ReachPulse(Mathf.PosMod(_workTime/3.2f+expressionPhase*.1f,1));
         var headTarget=new Vector3(
             Mathf.Lerp(usingTool?-.045f-effort*.4f+(.105f*dig.Head+.12f)*workBlend*(cultivating?1:0):breath*.018f+socialPose.Head*.087f*socialWeight+sip.X*.19f,
-                .14f+.095f*gatherPose.Head,gatherPose.Bend*pickupWeight)+.18f*ConversationNod-handoffReach*.16f,
+                .14f+.095f*gatherPose.Head,gatherPose.Bend*pickupWeight)+.18f*ConversationNod,
             MathF.Sin(_phase*.32f+identityPhase)*.045f*(1-_activity)+Math.Clamp(_attentionYaw+.24f*pivot.Look*pivotAmount+.22f*arrival.Look,-.59f,.59f)+_gaitTurn*TurnHeadShare*gaitWeight-walkingChest.Y*.55f,
             -.36f*socialChest.Z-walkingChest.Z*.55f+restSupport.X*.6f*idleWeight);
+        Vector3 contactInChest=Vector3.Zero;
+        float lookWeight=0;
+        if((_handoffPalm??_contactLookPoint) is {} point)
+        {
+            contactInChest=(RigWorldSpace*torsoPose).AffineInverse()*point;
+            var sight=contactInChest-HeadRest-EyeCentre*Head.Scale;
+            float horizontal=MathF.Sqrt(sight.X*sight.X+sight.Z*sight.Z);
+            // Let the feet and torso turn towards a target outside the
+            // forward field. Avoid twisting the neck after a sudden redirect.
+            if(horizontal>.07f)
+            {
+                lookWeight=(_handoffPalm.HasValue?.82f:_contactLookWeight)*Mathf.SmoothStep(.10f,.72f,-sight.Z/horizontal);
+                // Once a cup is raised, the drinking pose leads the head.
+                lookWeight*=1-Mathf.SmoothStep(.15f,.55f,_consumeReach);
+                var aim=LookAngles(sight);
+                headTarget.X=Mathf.Lerp(headTarget.X,Math.Clamp(aim.Y,-.49f,.24f),lookWeight*.78f);
+                headTarget.Y=Mathf.Lerp(headTarget.Y,Math.Clamp(aim.X,-.46f,.46f),lookWeight*.83f);
+            }
+        }
         Head.Quaternion=DampRotation(Head.Quaternion,ref _headVelocity,Basis.FromEuler(headTarget).GetRotationQuaternion(),.075f,delta);
         var neckPivot=new Vector3(0,NeckPivotY*Head.Scale.Y,0);
         Head.Position=HeadRest+neckPivot-Basis.FromEuler(Head.Rotation)*neckPivot;
@@ -370,6 +407,12 @@ internal partial class ResidentRig : Node3D
             float attention=MathF.Floor(_faceTime*.55f+expressionPhase*.37f);
             var targetGaze=new Vector2(MathF.Sin(attention*12.989f+expressionPhase)*.052f,MathF.Sin(attention*7.137f+expressionPhase*.71f)*.010f);
             if(executing)targetGaze*=.35f;
+            if(lookWeight>0&&HasAnatomicalEyes)
+            {
+                var aim=LookAngles(Head.Transform.AffineInverse()*contactInChest-EyeCentre);
+                var eyeAim=new Vector2(Math.Clamp(aim.X,-.23f,.23f),Math.Clamp(aim.Y,-.19f,.19f));
+                targetGaze=targetGaze.Lerp(eyeAim,lookWeight);
+            }
             _gaze=_gaze.Lerp(targetGaze,1-MathF.Exp(-delta*18));
             // Iris pigment and the corneal dome move as one eye around its
             // authored centre. Sliding only the UV leaves a stationary lens.

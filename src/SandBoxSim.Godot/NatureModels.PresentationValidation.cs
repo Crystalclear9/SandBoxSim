@@ -314,6 +314,53 @@ internal sealed partial class NatureModels
         GD.Print($"REACH_TRAJECTORY_PASS: eat/drink/social, 60/120 Hz, maximum per-frame hand/elbow step {maxHandStep:F4}/{maxElbowStep:F4} m, {contactSamples} visible rim/bite proximity samples; drinking head tilt={drinkTilt:F3} rad");
         ValidateCapturedPickup();
         ValidateScenePalmContinuity();
+        ValidateContactAttention();
+    }
+
+    private void ValidateContactAttention()
+    {
+        float maximumTurn=0;
+        int resolved=0;
+        foreach(int identity in new[]{17,55})
+        foreach(float delta in new[]{1f/24,1f/60})
+        {
+            var rig=Resident(identity,false,JobType.None);
+            try
+            {
+                var ground=rig.EyePoint+new Vector3(.27f,-.85f,-.65f);
+                var partner=rig.EyePoint+new Vector3(-.29f,.03f,-.78f);
+                void Track(Vector3? point)
+                {
+                    rig.Attend(Vector3.Zero);
+                    if(point.HasValue)rig.AttendContact(point.Value,1);
+                    for(int frame=0;frame<1.1f/delta;frame++)
+                    {
+                        var previous=rig.Head.Quaternion;
+                        rig.PoseAction(delta,ActionKind.None,ActionPhase.Idle,false,0);
+                        maximumTurn=MathF.Max(maximumTurn,previous.AngleTo(rig.Head.Quaternion)/delta);
+                    }
+                }
+                Track(ground);
+                var down=rig.Head.Rotation;
+                var eyes=rig.Eyes[0].Rotation;
+                if(down.X>-.25f||down.Y>-.16f||rig.HasAnatomicalEyes&&eyes.X>-.06f)
+                    throw new InvalidOperationException($"Resident misses the low right contact: {identity}, {down}, {eyes}");
+                rig.AttendContact(partner,1);
+                rig.PoseAction(.8f,ActionKind.None,ActionPhase.Idle,true,0);
+                if(rig.Head.Rotation!=down||rig.Eyes[0].Rotation!=eyes)
+                    throw new InvalidOperationException("Paused contact attention changes the head or eyes");
+                Track(partner);
+                if(rig.Head.Rotation.Y<.19f||MathF.Abs(rig.Head.Rotation.X)>.11f)
+                    throw new InvalidOperationException($"Resident keeps looking down after a new partner: {identity}, {rig.Head.Rotation}");
+                Track(null);
+                if(MathF.Abs(rig.Head.Rotation.Y)>.08f||MathF.Abs(rig.Head.Rotation.X)>.08f)
+                    throw new InvalidOperationException("Stale contact keeps the resident looking away during idle");
+                resolved++;
+            }
+            finally{rig.Free();}
+        }
+        if(maximumTurn>5f)throw new InvalidOperationException($"Contact attention snaps during retarget: {maximumTurn:F2} rad/s");
+        GD.Print($"CONTACT_ATTENTION_PASS: {resolved} combinations at 24/60 Hz, floor to partner to idle, max turn {maximumTurn:F2} rad/s, eyes follow head, pause unchanged");
     }
 
     private void ValidateScenePalmContinuity()
