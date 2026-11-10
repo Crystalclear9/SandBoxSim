@@ -39,7 +39,9 @@ internal partial class ResidentRig
         // A scene reach starts from the last displayed palm, expressed in
         // today's chest frame. Large root resyncs deliberately start fresh.
         bool scene=hasFrame&&CanTransportPalm(transport);
+        var frameRotation=scene?transport.Basis.Orthonormalized():Basis.Identity;
         if(scene)origin=transport*origin;
+        var previousBasis=scene?frameRotation*previous.Basis:previous.Basis;
         bool changedController=_palmMotion[side]!=motion&&_previousPalmMotion[side]!=motion;
         if(changedController||_scenePalmVelocity[side]!=scene)
         {
@@ -47,22 +49,32 @@ internal partial class ResidentRig
             // A stored servo velocity can belong to an older task or a target
             // that the wrist limits did not actually let the hand reach.
             var earlier=_earlierHands[side]*offset;
+            var earlierBasis=_earlierHands[side].Basis;
             if(scene)
             {
                 var priorTransport=toChest*_earlierChest;
-                earlier=_sceneChestSamples==2&&CanTransportPalm(priorTransport)?priorTransport*earlier:origin;
+                if(_sceneChestSamples==2&&CanTransportPalm(priorTransport))
+                {
+                    earlier=priorTransport*earlier;
+                    earlierBasis=priorTransport.Basis.Orthonormalized()*earlierBasis;
+                }
+                else {earlier=origin;earlierBasis=previousBasis;}
             }
             _bareVelocity[side]=_previousPoseStep>0
                 ?((origin-earlier)/_previousPoseStep).LimitLength(.9f):Vector3.Zero;
-            _bareAngularVelocity[side]=RotationVelocity(_earlierHands[side].Basis,previous.Basis,_previousPoseStep).LimitLength(6);
+            _bareAngularVelocity[side]=RotationVelocity(earlierBasis,previousBasis,_previousPoseStep).LimitLength(6);
         }
-        else if(scene)_bareVelocity[side]=transport.Basis*_bareVelocity[side];
+        else if(scene)
+        {
+            _bareVelocity[side]=transport.Basis*_bareVelocity[side];
+            _bareAngularVelocity[side]=frameRotation*_bareAngularVelocity[side];
+        }
         _scenePalmVelocity[side]=scene;
         _palmMotion[side]=motion;
         // Plan the palm path before solving the joints. Interpolating three
         // independent joint rotations makes the hand swing around the target.
         var orientation=rest.Basis.GetRotationQuaternion().Slerp(desired.GetRotationQuaternion(),weight);
-        var priorRotation=previous.Basis.GetRotationQuaternion();
+        var priorRotation=previousBasis.GetRotationQuaternion();
         orientation=DampRotation(priorRotation,ref _bareAngularVelocity[side],orientation,GestureRotationTime,_poseStep);
         float angle=2*MathF.Acos(Math.Clamp(MathF.Abs(priorRotation.Dot(orientation)),0,1));
         if(angle>6*_poseStep&&angle>0)orientation=priorRotation.Slerp(orientation,6*_poseStep/angle);
@@ -81,7 +93,7 @@ internal partial class ResidentRig
                 float scale=limited/speed;palm=origin+step*scale;_bareVelocity[side]*=scale;
             }
         }
-        SolveBareHand(side,palm,new Basis(orientation),preferredElbow);
+        SolveBareHand(side,palm,new Basis(orientation),preferredElbow,scene?frameRotation:null);
     }
     private static bool CanTransportPalm(Transform3D delta)
         =>delta.Origin.LengthSquared()<.18f*.18f&&delta.Basis.Z.Dot(Vector3.Back)>.75f;
@@ -245,13 +257,13 @@ internal partial class ResidentRig
         }
         UpdateForearmSkin(side);
     }
-    private void SolveBareHand(int side,Vector3 target,Basis desired,Vector3? preferredElbow=null)
+    private void SolveBareHand(int side,Vector3 target,Basis desired,Vector3? preferredElbow=null,Basis? sceneRotation=null)
     {
         // Solve the reach once. Feeding a clamped wrist back into the palm
         // offset moves the target and can select another elbow plane mid-frame.
         // Forearm roll is resolved by the limb frame; only the residual wrist
         // rotation is limited here, without moving the shoulder or elbow again.
-        SolveHand(side,target,desired,true,0,preferredElbow);
+        SolveHand(side,target,desired,true,0,preferredElbow,sceneRotation);
         var relative=Hands[side].Basis.GetRotationQuaternion();
         if(relative.W<0)relative=-relative;
         float angle=relative.GetAngle();
@@ -260,7 +272,7 @@ internal partial class ResidentRig
             Hands[side].Basis=new Basis(Quaternion.Identity.Slerp(relative,.55f/angle));
         }
     }
-    private void SolveHand(int side,Vector3 gripTarget,Basis handBasis,bool bare=false,float carry=0,Vector3? elbowHint=null)
+    private void SolveHand(int side,Vector3 gripTarget,Basis handBasis,bool bare=false,float carry=0,Vector3? elbowHint=null,Basis? sceneRotation=null)
     {
         _armSolvedThisStep[side]=true;_armReturning[side]=true;
         Vector3 gripOffset=PalmOffset(side);
@@ -378,6 +390,7 @@ internal partial class ResidentRig
             // Transport the displayed frame instead; constrain pronation,
             // while the wrist still reaches the exact requested hand frame.
             var prior=_priorArms[side].Basis*_priorForearms[side].Basis;
+            if(sceneRotation is {} rotation)prior=rotation*prior;
             var lowerDirection=(wrist-elbow).Normalized();
             var transported=new Basis(new Quaternion(prior*Hands[side].Position.Normalized(),lowerDirection))*prior;
             float turn=transported.X.SignedAngleTo(lowerBasis.X,lowerDirection);

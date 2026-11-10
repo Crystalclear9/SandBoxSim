@@ -60,6 +60,7 @@ internal partial class ResidentRig
         if(_observedRevision!=completion.Revision||_observedAction!=completion.Action||HandoffReserved
             ||_bridgedRevision!=completion.Revision&&!recent)return false;
         var family=FamilyOf(completion.Action);
+        if(family==ActionFamily.Tool&&!ToolNeedsContactBridge)return false;
         bool placement=IsPlacement(completion.Action);
         if(completion.Site is {} site)
         {

@@ -180,7 +180,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `residentInteractionClock=bounded-observation-v1` 标识世界表现单帧的 1/24 秒上限和近景接触的逐帧更新。`WORLD_ACTOR_HITCH_PASS` 在世界行走中引入 600 毫秒长帧并核对根位置步长。`WORLD_CONTACT_CADENCE_PASS` 在真实地面堆位的结算时注入同样的长帧，验证换装跨过单手拾取、双手承载及后续放货时保留物件归属，结束后核对新衣装、原位置及模拟摘要。
 
-`residentPalmMotion=scene-frame-transport-v1` 标识拾取、递物和向场景表面放置时的掌面轨迹接续。`SCENE_PALM_CONTINUITY_PASS` 固定世界接触点，平移并转动实际角色根节点，分别记录两种成年体型左右手的第一帧偏移与回稳后的距离。
+`residentPalmMotion=scene-frame-transport-v1` 标识拾取、递物和向场景表面放置时的掌面轨迹接续。`SCENE_PALM_CONTINUITY_PASS` 固定世界接触点，平移并转动实际角色根节点，分别记录两种成年体型左右手的第一帧偏移、手腕转角与回稳距离。`WORLD_WORK_DEPARTURE_PASS` 跳过真实伐木的完成帧，检查斧刃接触只出现一次，普通行走在命中后的下一帧接管。
 
 `CONTACT_ATTENTION_PASS` 在两种成年体型和 24／60 Hz 下检查视线从低处物资切到交谈对象，再回到空闲。`WORLD_CONTACT_LOOK_PASS` 在真实物资堆上检查低头和手到达目标的先后顺序。
 

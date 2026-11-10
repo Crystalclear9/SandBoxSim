@@ -366,7 +366,7 @@ internal sealed partial class NatureModels
     private void ValidateScenePalmContinuity()
     {
         const float dt=1f/60;
-        float largestFirstStep=0,largestRecoveredGap=0;
+        float largestFirstStep=0,largestRecoveredGap=0,largestTurn=0;
         foreach(int identity in new[]{17,55})
         for(int side=0;side<2;side++)
         {
@@ -377,6 +377,7 @@ internal sealed partial class NatureModels
                 rig.PlanHandoff(side,target,.65f,"fixed scene contact");
                 for(int i=0;i<150;i++)rig.PoseAction(dt,ActionKind.None,ActionPhase.Idle,false,0);
                 Vector3 Palm()=>rig.HandWorldPose(side)*ResidentRig.CargoPalmContact;
+                Quaternion Wrist()=>rig.HandWorldPose(side).Basis.Orthonormalized().GetRotationQuaternion();
                 var before=Palm();
                 if(!rig.HandoffHandReady||before.DistanceTo(target)>.022f)
                     throw new InvalidOperationException($"Fixed contact never reaches its support: {identity}/{side}");
@@ -389,12 +390,24 @@ internal sealed partial class NatureModels
                 float recovered=Palm().DistanceTo(target);
                 if(inherited<.032f||firstStep>.024f||firstStep>=inherited*.70f||recovered>.022f)
                     throw new InvalidOperationException($"A fixed scene palm inherits the moving torso: {identity}/{side}, inherited={inherited:F4}, first={firstStep:F4}, recovered={recovered:F4}");
+                // Isolate rotation without also asking a wrist already at its
+                // limit to compensate for a change in reach length.
+                var wristBefore=Wrist();
+                const float pivot=.10f;
+                rig.Position=target+(rig.Position-target).Rotated(Vector3.Up,pivot);
+                rig.Rotation+=new Vector3(0,pivot,0);
+                float inheritedTurn=wristBefore.AngleTo(Wrist());
+                rig.PoseAction(dt,ActionKind.None,ActionPhase.Idle,false,0);
+                float firstTurn=wristBefore.AngleTo(Wrist());
+                if(inheritedTurn<.09f||firstTurn>=inheritedTurn*.70f)
+                    throw new InvalidOperationException($"A fixed scene wrist inherits the torso turn: {identity}/{side}, inherited={inheritedTurn:F4}, first={firstTurn:F4}");
                 largestFirstStep=MathF.Max(largestFirstStep,firstStep);
                 largestRecoveredGap=MathF.Max(largestRecoveredGap,recovered);
+                largestTurn=MathF.Max(largestTurn,firstTurn);
             }
             finally{rig.Free();}
         }
-        GD.Print($"SCENE_PALM_CONTINUITY_PASS: both hands on two adult frames, maximum first step={largestFirstStep*1000:F1} mm, recovered contact gap={largestRecoveredGap*1000:F1} mm");
+        GD.Print($"SCENE_PALM_CONTINUITY_PASS: both hands on two adult frames, maximum first step={largestFirstStep*1000:F1} mm, wrist turn on pivot={Mathf.RadToDeg(largestTurn):F2} degrees, recovered contact gap={largestRecoveredGap*1000:F1} mm");
     }
 
     private void ValidateCapturedPickup()

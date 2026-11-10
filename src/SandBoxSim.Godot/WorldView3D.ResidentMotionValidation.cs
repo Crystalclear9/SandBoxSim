@@ -653,6 +653,36 @@ public partial class WorldView3D
             for(int frame=0;frame<210;frame++)AnimateActors(delta);
             if(rig.PresentedToolImpacts!=impacts+2||rig.CompletionVisible||sim.StateDigestString()!=committed)
                 throw new InvalidOperationException("Consecutive world harvests do not produce exactly one new visible strike");
+            agents.SetAction(slot,ActionKind.GatherWood,ActionPhase.Executing);
+            agents.SetTarget(slot,tile.X,tile.Y);
+            int beforeDeparture=rig.PresentedToolImpacts;
+            int preparation=0;
+            for(;preparation<260;preparation++)
+            {
+                AnimateActors(delta);
+                if(rig.GestureEngaged(ActionKind.GatherWood)&&rig.ToolStrokePhase is >=.72f and <.82f)break;
+            }
+            if(preparation==260||rig.PresentedToolImpacts!=beforeDeparture)
+                throw new InvalidOperationException("Tool departure fixture did not prepare a fresh swing");
+            uint striking=agents.ActionRevisionOf(slot);
+            sim.Actions.Tick(sim.Clock);
+            agents.SetAction(slot,ActionKind.Wander,ActionPhase.Moving);
+            agents.SetTarget(slot,tile.X+1,tile.Y);
+            uint walking=agents.ActionRevisionOf(slot);
+            committed=sim.StateDigestString();
+            int contactFrame=-1,departureFrame=-1;
+            for(int frame=0;frame<90;frame++)
+            {
+                AnimateActors(delta);
+                if(frame==0&&rig.ObservedActionRevision!=striking)
+                    throw new InvalidOperationException("Ordinary departure discards a prepared committed strike");
+                if(contactFrame<0&&rig.PresentedToolImpacts>beforeDeparture)contactFrame=frame;
+                if(departureFrame<0&&rig.ObservedActionRevision==walking)departureFrame=frame;
+            }
+            if(contactFrame<0||departureFrame!=contactFrame+1||rig.PresentedToolImpacts!=beforeDeparture+1
+                ||sim.StateDigestString()!=committed)
+                throw new InvalidOperationException($"A committed strike does not release the next action on contact: impact={contactFrame}, departure={departureFrame}, strikes={rig.PresentedToolImpacts-beforeDeparture}");
+            GD.Print($"WORLD_WORK_DEPARTURE_PASS: one committed axe hit in {contactFrame+1} frames; walking takes over on the next frame while the tool returns, read-only");
             contacts=rig.PresentedSurfaceContacts;
             sim.World.ClearResource(tile.X,tile.Y);
             agents.SetAction(slot,ActionKind.GatherWood,ActionPhase.Executing);

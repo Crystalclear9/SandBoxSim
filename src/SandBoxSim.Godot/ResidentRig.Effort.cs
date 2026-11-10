@@ -34,6 +34,12 @@ internal partial class ResidentRig
         _=>.85f
     };
 
+    // A hoe has a sustained pull along the soil. A single strike can hand
+    // control back once it hits or its physical contact window expires.
+    private bool ToolNeedsContactBridge=>!_toolStrikeAttempted||_strikeWindowOpen&&(CurrentTool==ResidentTool.Hoe
+        ?_strokePhase<.54f
+        :!_surfaceTouched&&_strokePhase<=ToolImpactPhase(CurrentTool)+.105f);
+
     private string ToolStrokeHandling=>CurrentTool switch
     {
         ResidentTool.Hoe=>_strokePhase<.29f?"落锄":_strokePhase<.54f?"沿土面回拉":"抬刃 / 收势",
