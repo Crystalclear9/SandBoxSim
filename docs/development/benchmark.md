@@ -226,7 +226,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `femaleLowerLeg=mid-calf-boot-v1` 标识女性中筒靴、延长的裤管和小腿曲面。`FEMALE_MID_CALF_PASS` 读取实际成品截面，核对靴口高度、布料包覆及裤脚的胫骨权重。`FEMALE_BOOT_FIT_PASS` 与 `FEMALE_SHAFT_PASS` 分别校验鞋底接触和九种踝部方向下的接合。实机对照使用 `visual-body-frames` 和 `visual-body-motion`。
 
-`femaleShoulderLine=clavicular-crest-v2` 记录领口、锁骨到袖山的高度拟合。`CLAVICULAR_YOKE_PASS` 比较三款成衣的实际顶点到局部曲面的高度残差，并约束位移和领缘。`femaleCoatCollar=sewn-facing-v2` 记录随衣身蒙皮的领缘翻边和针脚。`NECK_FINISH_PASS` 检查成品领缘距离在近远景之间一致。`femaleLowerPanel=shaped-hem-v2` 记录按剪裁分配的腰下松量、下缘高度与翻边。`FEMALE_HEM_CUT_PASS` 比较实际前后、侧面下缘、侧缝局部抬高量及前摆弧度，`BODY_CUT_POSE_PASS` 记录吃饭、劳动和拾取时短衣与裤腰的重叠。`femaleFrontCut=supported-closure-v1` 标识门襟与纽扣，`garmentMaterial=quiet-linen-v19` 记录纱纹和细节法线。视觉对照使用 `visual-female-shoulders`、`visual-female-wardrobe` 与 `visual-female-builds`。冷启动耗时比较须固定款式和身形缓存状态。
+`femaleShoulderLine=clavicular-crest-v2` 记录领口、锁骨到袖山的高度拟合。`CLAVICULAR_YOKE_PASS` 比较三款成衣的实际顶点到局部曲面的高度残差，并约束位移和领缘。`femaleCoatCollar=sewn-facing-v2` 记录随衣身蒙皮的领缘翻边和针脚。`NECK_FINISH_PASS` 检查成品领缘距离在近远景之间一致。`femaleLowerPanel=belt-suspended-v3` 记录按剪裁分配的腰下松量、下缘高度与翻边。`FEMALE_HEM_CUT_PASS` 比较实际前后、侧面下缘、侧缝局部抬高量及前摆弧度，`BODY_CUT_POSE_PASS` 记录吃饭、劳动和拾取时短衣与裤腰的重叠。`femaleFrontCut=supported-closure-v1` 标识门襟与纽扣，`garmentMaterial=quiet-linen-v19` 记录纱纹和细节法线。视觉对照使用 `visual-female-shoulders`、`visual-female-wardrobe` 与 `visual-female-builds`。冷启动耗时比较须固定款式和身形缓存状态。
 
 `femaleRearShoulder=scapular-drape-v2` 标识后领、肩胛外侧和袖根的成衣几何及对应抬臂修形。`visual-female-shoulders` 以 0.52 米正交尺寸从背面及后侧记录 0°、90°、135° 三种姿态。`FEMALE_BACK_YOKE_PASS` 检查中央后衣片相对领缘的突出量。`FEMALE_REAR_PROFILE_PASS` 读取三款成衣的实际三角面，比较肩胛外侧深度与相邻两点连线的偏差。`FEMALE_OVERHEAD_YOKE_PASS` 测量左右臂举至 135° 时，后肩区域中面夹角超过 55° 的内部边长占比。
 
@@ -340,7 +340,7 @@ Godot 自检包含协议拒绝测试、模型/握持几何和 UI 状态；Python
 
 `reference-contour-physique-v31` 重建十份共同来源支撑，`continuous-drape-v29`／`continuous-drape-v31`／`reference-figure-v25` 标识新的成品形体与衣料跨度、染色和肩袖缓存。肩、手、骨架和 HTTP 协议保持各自合同；视觉输入、冷启动构建及缓存会改变，效率对照必须重新冻结源码、资产、动作、人数、LOD 与采样条件。体型宽深、衣料接续和来源 Jacobian 的回归结果只用于确认输入有效，不作为 RSI 或吸引力评分。
 
-`femaleLowerPanel=supported-fall-v1` 标识三款女性衣装的腰下曲面、后褶和沿布面测得的下摆翻边距离。`visual-female-wardrobe` 以 0.66 米正交尺度从前侧和后侧观察同一居民的三套成衣。图册收起手持工具，以便比较衣片轮廓。镜头、衣料曲面和缝线参数会改变像素及构建成本，跨版本对照需使用相同的标识与参数。
+`femaleLowerPanel=belt-suspended-v3` 标识三款女性衣装从腰带垂向自由下缘的前片、浅褶和沿布面测得的翻边距离。`FEMALE_FRONT_FALL_PASS` 从近远景成品三角面读取下缘上方的前侧剖线，检查向内收束的斜率与局部转折。`visual-female-wardrobe` 以 0.66 米正交尺度从前侧和后侧观察同一居民的三套成衣。图册收起手持工具，以便比较衣片轮廓。镜头、衣料曲面和缝线参数会改变像素及构建成本，跨版本对照需使用相同的标识与参数。
 
 `reference-contour-physique-v31`／`continuous-drape-v29`／`continuous-drape-v31`／`reference-figure-v25` 同时区分腰侧、小腹、后腰／臀腿轮廓、较低的前胸重分配和女性衣摆／裤装染色。来源 Jacobian 与位移预算不变；原生身材、上肢和微动作测试仍分别执行。这些是视觉输入身份及几何约束，不是 RSI 或审美评分；性能实验需要重新冻结当前完整输入。
 

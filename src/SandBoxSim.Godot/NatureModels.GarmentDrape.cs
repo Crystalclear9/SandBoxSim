@@ -245,9 +245,28 @@ internal sealed partial class NatureModels
 
     private readonly float[][] _femalePanelOffsets=new float[3][];
 
+    private float FemaleLowerPanelRadius(float[] support,float radius,float height,float angle,float front,out float trousers)
+    {
+        radius=FemaleOuterLayer(radius,height,angle,front,out trousers);
+        float belt=FinishedBeltHeight(angle),hem=FinishedGarmentHem+FemaleHemOffset(MathF.Sin(angle));
+        if(height>hem-.04f&&height<belt&&front>.20f)
+        {
+            float t=Math.Clamp((belt-height)/(belt-hem),0,1);
+            float waist=GarmentPanelRadius(support,belt,angle,front);
+            // A free front hem hangs from the belt instead of tracing the
+            // abdomen back inward towards the legs. Limit the cloth's taper
+            // along the grain, preserving the supports and outer clearance.
+            float taper=_garmentCut switch {0=>.08f,1=>.11f,_=>.16f};
+            float hanging=waist-taper*(belt-height);
+            float release=TorsoRamp(0,.38f,t)*TorsoRamp(.20f,.78f,front)*TorsoRamp(hem-.04f,hem-.01f,height);
+            radius+=MathF.Min(.016f,MathF.Max(0,hanging-radius))*release;
+        }
+        return radius+FemaleLowerPanelEase(height,angle);
+    }
+
     private float FemaleTailoredPanel(float[] support,float radius,float height,float angle,float front)
     {
-        radius=FemaleOuterLayer(radius,height,angle,front,out _)+FemaleLowerPanelEase(height,angle);
+        radius=FemaleLowerPanelRadius(support,radius,height,angle,front,out _);
         // The cubic sampler reaches at most two rows beyond the fit window.
         if(height<=.80f||height>=1.185f)return radius;
         var offsets=_femalePanelOffsets[_garmentCut]??=BuildFemalePanelOffsets(support);
@@ -271,7 +290,7 @@ internal sealed partial class NatureModels
                 int i=row*TrunkColumns+col;
                 float y=TrunkLow+row*.005f;
                 float baseRadius=GarmentPanelRadius(support,y,angle,front);
-                float radius=FemaleOuterLayer(baseRadius,y,angle,front,out float trousers)+FemaleLowerPanelEase(y,angle);
+                float radius=FemaleLowerPanelRadius(support,baseRadius,y,angle,front,out float trousers);
                 original[i]=radius;
                 // Free the flank along the grain, hold the belt and facing,
                 // and fade the fit before it reaches the chest and armhole.
@@ -344,7 +363,8 @@ internal sealed partial class NatureModels
         // quarter panel. Its ends fade before the belt and turned edge.
         float front=MathF.Max(0,-depth);
         float diagonal=(front-Mathf.Lerp(.76f,.47f,release))/.19f;
-        float frontFold=(_garmentCut switch {0=>.008f,1=>.011f,_=>.004f})*MathF.Exp(-diagonal*diagonal)
+        float frontFold=(_garmentCut switch {0=>.005f,1=>.007f,_=>.004f})
+            *(MathF.Exp(-diagonal*diagonal)-.34f*MathF.Exp(-MathF.Pow((diagonal-.92f)/.85f,2)))
             *TorsoRamp(.17f,.53f,t)*(1-TorsoRamp(.72f,.99f,t))*frontQuarter;
         // The trousers already carry the seat volume. Trim the added
         // cloth allowance there, blending it back into the lumbar span.

@@ -38,6 +38,8 @@ internal sealed partial class NatureModels
                     ValidateRibDrape(p,ids);
                     ValidateFemaleHemCut(p);
                     ValidateFemaleHemFinish(rig.DetailedBodyMesh,rig.DistantBodyMesh);
+                    ValidateFemaleFrontFall(rig.DetailedBodyMesh,"near");
+                    ValidateFemaleFrontFall(rig.DistantBodyMesh,"far");
                 }
                 var pants=rig.Trousers!.Mesh.SurfaceGetArrays(0);var pp=pants[(int)Mesh.ArrayType.Vertex].AsVector3Array();
                 float hem=float.PositiveInfinity;foreach(var point in p)hem=MathF.Min(hem,point.Y);
@@ -350,6 +352,34 @@ internal sealed partial class NatureModels
             lowest=MathF.Min(lowest,Mathf.Lerp(a.Y,b.Y,(x-a.X)/(b.X-a.X)));
         }
         return lowest;
+    }
+
+    private void ValidateFemaleFrontFall(Mesh mesh,string detail)
+    {
+        var arrays=mesh.SurfaceGetArrays(0);
+        var points=arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var indices=arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+        float low=FinishedGarmentHem+FemaleHemOffset(-1)+.016f;
+        float steepest=0,turn=0;
+        foreach(float x in new[]{-.030f,0,.030f})
+        {
+            float previous=GarmentDepth(points,indices,x,low,false);
+            float current=GarmentDepth(points,indices,x,low+.010f,false);
+            for(int step=2;step<=4;step++)
+            {
+                float next=GarmentDepth(points,indices,x,low+step*.010f,false);
+                if(!float.IsFinite(previous)||!float.IsFinite(current)||!float.IsFinite(next))
+                    throw new InvalidOperationException("Female front fall loses its exterior panel");
+                steepest=MathF.Max(steepest,(current-next)/.010f);
+                turn=MathF.Max(turn,MathF.Abs(previous-2*current+next));
+                previous=current;current=next;
+            }
+        }
+        // Observe the actual triangles above the open edge, including the
+        // short coat front. The hem must not curl back sharply into the legs.
+        if(steepest>.35f||turn>.003f)
+            throw new InvalidOperationException($"Female front hem turns inward: cut={_garmentCut}, {detail}, taper={steepest:F3}, turn={turn:F5}");
+        GD.Print($"FEMALE_FRONT_FALL_PASS: cut={_garmentCut}, {detail}, 15 exterior samples; maximum inward taper={steepest:F3} m/m, turn={turn*1000:F2} mm");
     }
 
     private void ValidateFemaleFrontYoke(Vector3[] points,int[] indices)
